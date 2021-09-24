@@ -186,6 +186,10 @@ class SearchPageRequestFailed extends EngineEvent {
 
 Event created when we want to restore a previous search state. The enging will respond with `Query` and all related `Documents` fetched and reranked on the previous app "run".
 
+> The `queryId` needs to remain "stable" from the app point of view. When restoring previous search the engine should give back same `Query` (with the same `queryId`) as requested by the app, and all the documents should be contain that `queryId`.
+>
+> When asking for a next page of results for that "old" `Query`, but during a "new" session, the engine needs to send back documents that are related to the same "old" `queryId`.
+
 ```dart
 class SearchRestoreRequested extends AppEvent {
   final UniqueId queryId;
