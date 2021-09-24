@@ -3,7 +3,7 @@
 Below are listed functionalities available on each screen.
 
 ### Onboarding
-- finish onboarding -> DiscoveryScreen
+- finish onboarding -> `DiscoveryScreen`
 
 ### MainScreen (DiscoveryScreen|SearchScreen|Webview)
 - type into search input
@@ -19,7 +19,6 @@ Below are listed functionalities available on each screen.
 
 ### DiscoveryScreen
 - fetch news items
-- change news market
 - toggle personalisation
 - news document
   - like / dislike / mark neutral
@@ -44,8 +43,9 @@ Below are listed functionalities available on each screen.
 - scroll result list
 - fetch next page
 - trigger deep search
-- trigger "new" search by changing search type
-- open news document (by tapping on a news document) -> `Webview`
+- trigger "new" search by changi
+- trigger search from autosuggestions / prev queries
+- open result document (by tapping) -> `Webview`
 - navigate home -> `DiscoveryScreen`
 
 ### SearchHistory
@@ -70,7 +70,7 @@ Below are listed functionalities available on each screen.
 
 ### Tabs
 - select current tab
-- create new tab
+- create new tab -> `DiscoveryScreen`
 - remove tab
 - remove all tabs
 - close `TabsScreen` -> `MainScreen`

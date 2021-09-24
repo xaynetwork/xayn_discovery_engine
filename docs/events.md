@@ -1,20 +1,37 @@
 # Events
 
-As we are already sending events on mobile between the UI thread and the isolate, and because we plan to move the discovery engine to a web worker, we are thinking about introducing event-driven approach for communicating across these boundries.
+As we are already sending events on mobile between the UI thread and the isolate, and because we plan to move the discovery engine to a web worker, we are thinking about introducing event-driven approach for communicating across these boundaries.
 
 Below is a list of proposed events needed by our system.
 
 Some rules for events:
- - every event needs to be serializable, so that we can send it through any boundry (isolate, web worker, network, etc.).
- - every event that needs a response will contain also auto-generated `ID` which the response event would use to match with the request.
+ - every event needs to be serializable, so that we can send it through any boundary (isolate, web worker, network, etc.).
+ - every event that needs a response will contain also auto-generated `ID` which the response event would contain to match with the request.
 
-### SessionStarted
-
-tbd.
+## Event base classes
+`Event` base class should be different for events sent from the app and events sent from the discovery engine.
 
 ```dart
-class SessionStarted extends Event {
-  const SessionStarted();
+/// Base for all event classes
+abstract class Event {}
+
+/// For events sent from the app to the engine
+abstract class AppEvent extends Event {}
+
+/// For events sent from the engine to the app
+abstract class EngineEvent extends Event {}
+```
+
+
+### Init
+
+Event created upon every app startup, with some data needed for the engine to work.
+
+```dart
+class Init extends AppEvent {
+  final bool isPersonalisationOn;
+
+  const Init(this.isPersonalisationOn);
 }
 ```
 
@@ -22,16 +39,28 @@ class SessionStarted extends Event {
 
 Event created when the user toggles the AI on/off.
 
-tbd.
+When the personalisation is OFF:
+- we are still reranking all the incoming results, but we are sorting them with original rank from Bing
+- we are preventing storing queries and documents in the history, and sending/processing document-related events (likes, dislikes, opened, closed)
+
+Every document gets a rank from the reranker only once. When we toggle we switch between the API rank and Engine rank.
 
 ```dart
-class PersonalisationToggled extends Event {
+class PersonalisationToggled extends AppEvent {
   const PersonalisationToggled();
+}
+
+// alternatively
+class PersonalisationTurnedOn extends AppEvent {
+  const PersonalisationTurnedOn();
+}
+class PersonalisationTurnedOff extends AppEvent {
+  const PersonalisationTurnedOff();
 }
 ```
 
 
-### NewsFeedRequested
+### FeedRequested
 
 Event created when the app requests contetn for the discovery feed:
  - upon initial start of the app
@@ -39,19 +68,54 @@ Event created when the app requests contetn for the discovery feed:
  - when changing the news market
 
 ```dart
-class NewsFeedRequested extends Event {
+class FeedRequested extends AppEvent {
   final String market;
 }
 
-class NewsFeedRequestSucceded extends Event {
+class FeedRequestSucceded extends EngineEvent {
   final List<Document> items;
 }
 
-class NewsFeedRequestFailed extends Event {
+class FeedRequestFailed extends EngineEvent {
   /// Error code that frontend can use to display user friendly messages.
   /// It could also be of type `String`, `enum`, etc.
   final int reason;
 }
+```
+
+### NewFeedAvailable
+
+Event created by the engine, possibly after doing some background queries to let the app know that there is new content available for the discovery feed. In response to that event the app may decide to show an indicator for the user that new content is ready or it might send `FeedRequested` event to ask for new documents.
+
+```dart
+class NewFeedAvailable extends EngineEvent {}
+```
+
+### FeedRestoreRequested
+
+Event created when we are returning to previously displayed discovery feed.
+> Q: What is the user expectation? Maybe we should load new feed every session instead of what was shown before?
+
+```dart
+class FeedRestoreRequested extends AppEvent {
+  // do we need to send prev `documentIds`?
+  final List<UniqueId> documentIds;
+
+  const FeedRestoreRequested(this.documentIds);
+}
+
+class FeedRestoreSucceded extends EngineEvent {
+  final List<Document> items;
+
+  const FeedRestoreSucceded(this.documentIds);
+}
+
+class FeedRestoreFailed extends EngineEvent {
+  final int reason;
+
+  const FeedRestoreFailed(this.reason);
+}
+
 ```
 
 ### SearchRequested
@@ -65,7 +129,7 @@ Event created when the user triggers a search query:
  - by changing the type of search
 
 ```dart
-class SearchRequested extends Event {
+class SearchRequested extends AppEvent {
   final String term;
   /// Search types => web, image, video, news, etc.
   /// We could think about making this a List<SearchType>
@@ -73,17 +137,23 @@ class SearchRequested extends Event {
   final String market;
 }
 
-class SearchRequestSucceded extends Event {
+class SearchRequestSucceded extends EngineEvent {
   final List<Document> items;
   final bool hasNextPage;
-
-  /// Query object created by the engine for UI to be able to restore state
-  /// and load next pages using `ID` of the Query
-  /// Maybe a `queryId` could be enough.
-  final Query query;
+  // Might be full Query if the UI needs it
+  final UniqueId queryId;
 }
 
-class SearchRequestFailed extends Event {
+// alternatively we might think about sending different structure
+class SearchRequestSucceded extends EngineEvent {
+  final Map<UniqueId, Document> itemsById;
+  final List<UniqueId> idsOrderedByApi;
+  final List<UniqueId> idsOrderedByEngine;
+  final bool hasNextPage;
+  final UniqueId queryId;
+}
+
+class SearchRequestFailed extends EngineEvent {
   /// Error code that frontend can use to display user friendly messages.
   /// It could also be of type `String`, `enum`, etc.
   final int reason;
@@ -95,20 +165,36 @@ class SearchRequestFailed extends Event {
 Event created when the user triggers a request for next page of the current search, usually by scrolling to the end of the list of results.
 
 ```dart
-class SearchPageRequested extends Event {
+class SearchPageRequested extends AppEvent {
   final UniqueId queryId;
   final int page;
 }
 
-class SearchPageRequestSucceded extends Event {
+class SearchPageRequestSucceded extends EngineEvent {
   final List<Document> items;
   final bool hasNextPage;
 }
 
-class SearchPageRequestFailed extends Event {
+class SearchPageRequestFailed extends EngineEvent {
   /// Error code that frontend can use to display user friendly messages.
   /// It could also be of type `String`, `enum`, etc.
   final int reason;
+}
+```
+
+### SearchRestoreRequested
+
+Event created when we want to restore a previous search state. The enging will respond with `Query` and all related `Documents` fetched and reranked on the previous app "run".
+
+```dart
+class SearchRestoreRequested extends AppEvent {
+  final UniqueId queryId;
+}
+
+class SearchRestoreRequestSucceded extends EngineEvent {
+  final Query query;
+  final List<Document> results;
+  final bool hasNextPage;
 }
 ```
 
@@ -117,7 +203,7 @@ class SearchPageRequestFailed extends Event {
 Event created when the document was presented to the user. It can only change the `DocumentStatus` from `missed` to `presented`.
 
 ```dart
-class DocumentPresented extends Event {
+class DocumentPresented extends AppEvent {
   final UniqueId documentId;
 
   const DocumentPresented(this.documentId);
@@ -129,7 +215,7 @@ class DocumentPresented extends Event {
 Event created when the document was presented but was scrolled out of the screen. It can only change the `DocumentStatus` from `presented` to `skipped`. It means the user saw the document, but it wasn't relevant.
 
 ```dart
-class DocumentSkipped extends Event {
+class DocumentSkipped extends AppEvent {
   final UniqueId documentId;
 
   const DocumentSkipped(this.documentId);
@@ -141,19 +227,49 @@ class DocumentSkipped extends Event {
 Event created when the document was opened. It can only change the `DocumentStatus` from `presented` or `skipped` to `opened`. It means the user was interested enough in the document to open it.
 
 ```dart
-class DocumentOpened extends Event {
+class DocumentOpened extends AppEvent {
   final UniqueId documentId;
 
   const DocumentOpened(this.documentId);
 }
 ```
 
+### UrlOpened
+
+Same as `DocumentOpened` but for pages in the webview that didn't originate from a list of documents:
+- opened an external url, from a different app
+- opened as a direct url, by typing it in the search field
+- navigated to inside of the webview, after clicking on a link
+
+The engine responds to that event with `DocumentFromUrlCreated` which contains `documentId` to be used with other "document" events, like `DocumentClosed`, `DocumentLiked`, etc.
+
+```dart
+// the app sends this event after accessing at least title,
+// would be good if snippet was there too
+// alternatively we could call it `DocumentFromUrlRequested`
+// but it's a more generic name, and it doesn't contain
+// the information that document was also "opened"
+class UrlOpened extends AppEvent {
+  final String url;
+  final String title;
+  final String? snippet;
+
+  const UrlOpened(this.url, this.title, this.snippet);
+}
+
+class DocumentFromUrlCreated extends EngineEvent {
+  final Document document;
+}
+```
+
 ### DocumentClosed
 
 Event created when the document was closed, either by going back to documents list or by navigating further to a link contained by the document. It helps to calculate how much time user spent reviewing the document.
+ 
+For cases when the user will open and close the same document multiple times (for the same search), the engine should store and use only the maximum time spent by the user on a document.
 
 ```dart
-class DocumentClosed extends Event {
+class DocumentClosed extends AppEvent {
   final UniqueId documentId;
 
   const DocumentClosed(this.documentId);
@@ -165,7 +281,7 @@ class DocumentClosed extends Event {
 Event created when the user swipes the document card or clicks a button to indicate that the document is relevant. It should visualy highlight the document in the list.
 
 ```dart
-class DocumentLiked extends Event {
+class DocumentLiked extends AppEvent {
   final UniqueId documentId;
 
   const DocumentLiked(this.documentId);
@@ -177,7 +293,7 @@ class DocumentLiked extends Event {
 Event created when the user swipes the document card or clicks a button to indicate that the document is NOT relevant. It should visualy remove the document from the list.
 
 ```dart
-class DocumentDisliked extends Event {
+class DocumentDisliked extends AppEvent {
   final UniqueId documentId;
 
   const DocumentDisliked(this.documentId);
@@ -189,103 +305,66 @@ class DocumentDisliked extends Event {
 Event created when `liked` status was reverted OR there was an "undo" action after a `disliked` status change.
 
 ```dart
-class DocumentNeutral extends Event {
+class DocumentNeutral extends AppEvent {
   final UniqueId documentId;
 
   const DocumentNeutral(this.documentId);
 }
 ```
 
-## Potential events
+### DocumentBookmarked
 
-If we decide to have sentiment for every website loaded in the webview, we need to handle cases when the user:
-- opens an external url, from a different app
-- opens a url directly, by typing it in the search field
-- navigates inside the webview to a different webpage, by clicking on a link
-
-### UrlOpened
-
-Same as `DocumentOpened` but for pages in the webview that didn't originate from a list of documents.
+Event created when the user bookmarks a document. Engine internally could treat it as `like`.
 
 ```dart
-class UrlOpened extends Event {
-  final String url;
+class DocumentBookmarked extends AppEvent {
+  final UniqueId documentId;
 
-  const UrlOpened(this.url);
-}
-```
-### UrlClosed
-
-Same as `DocumentClosed` but for pages in the webview that didn't originate from a list of documents.
-
-```dart
-class UrlClosed extends Event {
-  final String url;
-
-  const UrlClosed(this.url);
-}
-```
-### UrlLiked
-
-Same as `DocumentLiked` but for pages in the webview that didn't originate from a list of documents.
-
-```dart
-class UrlLiked extends Event {
-  final String url;
-
-  const UrlLiked(this.url);
-}
-```
-### UrlDisliked
-
-Same as `DocumentDisliked` but for pages in the webview that didn't originate from a list of documents.
-
-```dart
-class UrlDisliked extends Event {
-  final String url;
-
-  const UrlDisliked(this.url);
-}
-```
-### UrlNeutral
-
-Same as `DocumentNeutral` but for pages in the webview that didn't originate from a list of documents.
-
-```dart
-class UrlNeutral extends Event {
-  final String url;
-
-  const UrlNeutral(this.url);
+  const DocumentBookmarked(this.documentId);
 }
 ```
 
+### DocumentUnbookmarked
 
-### Open Questions
+Event created when the user removed a bookmark from the document. Engine internally could treat it as `neutral`.
 
-1. What is a session?
-    - when we are restoring previous tab, do we come back to previous session?
-    - can search & documents belong to many sessions?
+```dart
+class DocumentUnbookmarked extends AppEvent {
+  final UniqueId documentId;
 
-1. Should a `Document` in discovery feed be related to a `Query`?
+  const DocumentUnbookmarked(this.documentId);
+}
+```
 
-1. Should the app be able to create `Document` instances or should this be responsibility of the discovery engine?
+### QueriesClosed
 
-1. What should happen when toggling personalisation?
-  
-    The current behaviour is a combination of: 
-    - disabling reranking, and
-    - incognito mode which prevents storing the history (app history & AI history)
+Event created when a search (Query + related Documents) can't be accessed again by the user from the UI. Usualy it happens when the users closes a tab/tabs, so all searches within these tabs are also closed.
 
-1. Where should we manage and persist personalisation state?
+```dart
+class QueriesClosed extends AppEvent {
+  final List<UniqueId> queryIds;
 
-    Based on the personalisation state some events should be disregarded from processing. For example a `DocumentLiked` shouldn't be allowed. The UI will probably never send this event when personalisation is off. But as we shoudn't trust any frontend, the engine should know what is the current state of that flag.
+  const QueriesClosed(this.queryIds);
+}
+```
 
-1. How to track sentiment for urls in Webview?
+### FeedCategoriesDismissed
 
-    Do we create documents internaly for all the url related events (`UrlOpened`, `UrlLiked`, etc.). Or do we let the app to create a document and reuse document related events, like `DocumentLiked`, `DocumentOpened`, etc. 
-    
-    We could also send `UrlOpened` event from the app, for which discovery engine could respond with `DocumentCreatedFromUrl` event, and then switch to "document related events".
+Event created when the user dismisses categories/topics when doing a "negative" swipe on news item in the feed.
 
-1. Do we want to track if a document/url gets bookmarked?
+```dart
+class FeedCategoriesDismissed extends AppEvent {
+  final UniqueId documentId;
+  final Set<String> categories;
+}
+```
 
-    From AI point of view it could be relevant to know if user finds something worth bookmarking.
+### FeedCategoriesReallowed
+
+Event created when the user removes "ban" from previously dismisses feed categories/topics.
+
+```dart
+class FeedCategoriesReallowed extends AppEvent {
+  final Set<String> categories;
+}
+```
