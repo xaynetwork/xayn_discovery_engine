@@ -35,6 +35,16 @@ class Init extends AppEvent {
 }
 ```
 
+### ResetEngine
+
+Event created when the app decides to reset the AI (start fresh).
+
+```dart
+class ResetEngine extends AppEvent {
+  const ResetEngine();
+}
+```
+
 ### PersonalisationToggled
 
 Event created when the user toggles the AI on/off.
