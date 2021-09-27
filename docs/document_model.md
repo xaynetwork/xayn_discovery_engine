@@ -28,17 +28,19 @@ class Document {
 
   // These 2 fields below will be used to sort documents
   // based on current personalisation state
-  final int _apiRank;
-  final int _engineRank;
+  final int apiRank;
+  final int engineRank;
 
   int get rank(bool isPersonalisationOn) => isPersonalisationOn
     ? _engineRank 
     : _apiRank;
 
   Document._({
-    required this.id,
+    required this.documentId,
     required this.queryId,
     required this.webResource,
+    required this.apiRank,
+    required this.engineRank,
     DocumentSentiment sentiment = DocumentSentiment.neutral,
     DocumentStatus status = DocumentStatus.missed,
   }) : _sentiment = sentiment,
