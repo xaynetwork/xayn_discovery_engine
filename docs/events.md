@@ -336,6 +336,12 @@ class DocumentBookmarked extends AppEvent {
 
   const DocumentBookmarked(this.documentId);
 }
+// alternatively
+class BookmarkCreated extends AppEvent {
+  final UniqueId documentId;
+
+  const BookmarkCreated(this.documentId);
+}
 ```
 
 ### DocumentUnbookmarked
@@ -347,6 +353,12 @@ class DocumentUnbookmarked extends AppEvent {
   final UniqueId documentId;
 
   const DocumentUnbookmarked(this.documentId);
+}
+// alternatively (cause we might remove multiple bookmarks at once)
+class BookmarksRemoved extends AppEvent {
+  final Set<UniqueId> documentIds;
+  
+  const BookmarksRemoved(this.documentIds);
 }
 ```
 
