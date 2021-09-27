@@ -43,7 +43,7 @@ Below are listed functionalities available on each screen.
 - scroll result list
 - fetch next page
 - trigger deep search
-- trigger "new" search by changi
+- trigger "new" search by changing search type
 - trigger search from autosuggestions / prev queries
 - open result document (by tapping) -> `Webview`
 - navigate home -> `DiscoveryScreen`
