@@ -4,20 +4,45 @@
 
 ```dart
 class Document {
-  final UniqueId id;
+  /// Unique identifier of a document
+  final UniqueId documentId;
 
   /// TODO: Do we need to have a relation to the Query?
   /// What about a Document in discovery feed?
   final UniqueId queryId;
-  final WebResource webResource;
-  final DocumentSentiment sentiment;
 
-  Document({
+  /// Contains all data from search API that are needed for the UI.
+  /// It's a base class for web, news, video, image resources.
+  final WebResource webResource;
+
+  // These 2 fields can be private cause the UI 
+  // only needs to know derived state:
+  //  - if document is relevant or irrelevant
+  //  - if document was opened
+  final DocumentSentiment _sentiment;
+  final DocumentStatus _status;
+
+  bool get isRelevant => _sentiment => DocumentSentiment.liked;
+  bool get isNotRelevant => _sentiment == DocumentSentiment.disliked;
+  bool get wasOpened => _status == DocumentStatus.opened;
+
+  // These 2 fields below will be used to sort documents
+  // based on current personalisation state
+  final int _apiRank;
+  final int _engineRank;
+
+  int get rank(bool isPersonalisationOn) => isPersonalisationOn
+    ? _engineRank 
+    : _apiRank;
+
+  Document._({
     required this.id,
     required this.queryId,
     required this.webResource,
     DocumentSentiment sentiment = DocumentSentiment.neutral,
-  }) : sentiment = sentiment;
+    DocumentStatus status = DocumentStatus.missed,
+  }) : _sentiment = sentiment,
+       _status = status;
 }
 ```
 
