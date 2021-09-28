@@ -16,7 +16,7 @@ Some rules for events:
 abstract class Event {}
 
 /// For events sent from the app to the engine
-abstract class AppEvent extends Event {}
+abstract class ClientEvent extends Event {}
 
 /// For events sent from the engine to the app
 abstract class EngineEvent extends Event {}
@@ -25,13 +25,14 @@ abstract class EngineEvent extends Event {}
 
 ### Init
 
-Event created upon every app startup, with some data needed for the engine to work.
+Event created upon every app startup, with some data needed for the engine to work, like personalisation and feed market (for performing background queries).
 
 ```dart
-class Init extends AppEvent {
+class Init extends ClientEvent {
   final bool isPersonalisationOn;
+  final String market;
 
-  const Init(this.isPersonalisationOn);
+  const Init(this.isPersonalisationOn, this.market);
 }
 ```
 
@@ -40,49 +41,51 @@ class Init extends AppEvent {
 Event created when the app decides to reset the AI (start fresh).
 
 ```dart
-class ResetEngine extends AppEvent {
+class ResetEngine extends ClientEvent {
   const ResetEngine();
 }
 ```
 
-### PersonalisationToggled
+### PersonalizationChanged
 
-Event created when the user toggles the AI on/off.
+Events created when the user toggles the AI on/off.
 
 When the personalisation is OFF:
-- we are still reranking all the incoming results, but we are sorting them with original rank from Bing
+- we are still reranking all the incoming results, but we don't use personal data to do it
 - we are preventing storing queries and documents in the history, and sending/processing document-related events (likes, dislikes, opened, closed)
 
 Every document gets a rank from the reranker only once. When we toggle we switch between the API rank and Engine rank.
 
 ```dart
-class PersonalisationToggled extends AppEvent {
-  const PersonalisationToggled();
-}
+class PersonalizationChanged extends ClientEvent {
+  final bool isOn;
 
-// alternatively
-class PersonalisationTurnedOn extends AppEvent {
-  const PersonalisationTurnedOn();
-}
-class PersonalisationTurnedOff extends AppEvent {
-  const PersonalisationTurnedOff();
+  const PersonalizationChanged(this.isOn);
 }
 ```
 
+### FeedMarketChanged
+
+Event created when the user changes market for the feed, ie. in global settings.
+
+```dart
+class FeedMarketChanged extends ClientEvent {
+  final String market;
+}
+```
 
 ### FeedRequested
 
-Event created when the app requests contetn for the discovery feed:
+Event created when the app requests content for the discovery feed:
  - upon initial start of the app
  - on certain predefined triggers like time-interval, entering `DiscoveryScreen`, etc.
- - when changing the news market
+ - as a follow up when changing the news market
 
 ```dart
-class FeedRequested extends AppEvent {
-  final String market;
+class FeedRequested extends ClientEvent {
 }
 
-class FeedRequestSucceded extends EngineEvent {
+class FeedRequestSucceeded extends EngineEvent {
   final List<Document> items;
 }
 
@@ -107,17 +110,17 @@ Event created when we are returning to previously displayed discovery feed.
 > Q: What is the user expectation? Maybe we should load new feed every session instead of what was shown before?
 
 ```dart
-class FeedRestoreRequested extends AppEvent {
+class FeedRestoreRequested extends ClientEvent {
   // do we need to send prev `documentIds`?
   final List<UniqueId> documentIds;
 
   const FeedRestoreRequested(this.documentIds);
 }
 
-class FeedRestoreSucceded extends EngineEvent {
+class FeedRestoreSucceeded extends EngineEvent {
   final List<Document> items;
 
-  const FeedRestoreSucceded(this.documentIds);
+  const FeedRestoreSucceeded(this.documentIds);
 }
 
 class FeedRestoreFailed extends EngineEvent {
@@ -139,28 +142,16 @@ Event created when the user triggers a search query:
  - by changing the type of search
 
 ```dart
-class SearchRequested extends AppEvent {
+class SearchRequested extends ClientEvent {
   final String term;
   /// Search types => web, image, video, news, etc.
-  /// We could think about making this a List<SearchType>
-  final SearchType type;
+  final List<SearchType> type;
   final String market;
 }
 
-class SearchRequestSucceded extends EngineEvent {
+class SearchRequestSucceeded extends EngineEvent {
   final List<Document> items;
-  final bool hasNextPage;
-  // Might be full Query if the UI needs it
-  final UniqueId queryId;
-}
-
-// alternatively we might think about sending different structure
-class SearchRequestSucceded extends EngineEvent {
-  final Map<UniqueId, Document> itemsById;
-  final List<UniqueId> idsOrderedByApi;
-  final List<UniqueId> idsOrderedByEngine;
-  final bool hasNextPage;
-  final UniqueId queryId;
+  final SearchId searchId;
 }
 
 class SearchRequestFailed extends EngineEvent {
@@ -170,22 +161,20 @@ class SearchRequestFailed extends EngineEvent {
 }
 ```
 
-### SearchPageRequested
+### NextSearchBatchRequested
 
-Event created when the user triggers a request for next page of the current search, usually by scrolling to the end of the list of results.
+Event created when the user triggers a request for next batch of the current search, usually by scrolling to the end of the list of results.
 
 ```dart
-class SearchPageRequested extends AppEvent {
-  final UniqueId queryId;
-  final int page;
+class NextSearchBatchRequested extends ClientEvent {
+  final SearchId searchId;
 }
 
-class SearchPageRequestSucceded extends EngineEvent {
+class NextSearchBatchRequestSucceeded extends EngineEvent {
   final List<Document> items;
-  final bool hasNextPage;
 }
 
-class SearchPageRequestFailed extends EngineEvent {
+class NextSearchBatchRequestFailed extends EngineEvent {
   /// Error code that frontend can use to display user friendly messages.
   /// It could also be of type `String`, `enum`, etc.
   final int reason;
@@ -194,68 +183,46 @@ class SearchPageRequestFailed extends EngineEvent {
 
 ### SearchRestoreRequested
 
-Event created when we want to restore a previous search state. The enging will respond with `Query` and all related `Documents` fetched and reranked on the previous app "run".
+Event created when we want to restore a previous search state. The engine will respond with all related `Documents` fetched and reranked on the previous app "run".
 
-> The `queryId` needs to remain "stable" from the app point of view. When restoring previous search the engine should give back same `Query` (with the same `queryId`) as requested by the app, and all the documents should be contain that `queryId`.
+> The `searchId` needs to remain "stable" from the app point of view. When restoring previous search the engine should give back all the documents that are related to that `searchId`.
 >
-> When asking for a next page of results for that "old" `Query`, but during a "new" session, the engine needs to send back documents that are related to the same "old" `queryId`.
+> When asking for a next page of results for that "old" query, but during a "new" session, the engine needs to send back documents that are related to the same "old" `searchId`.
 
 ```dart
-class SearchRestoreRequested extends AppEvent {
-  final UniqueId queryId;
+class SearchRestoreRequested extends ClientEvent {
+  final SearchId searchId;
 }
 
-class SearchRestoreRequestSucceded extends EngineEvent {
-  final Query query;
-  final List<Document> results;
-  final bool hasNextPage;
+class SearchRestoreRequestSucceeded extends EngineEvent {
+  final List<Document> items;
 }
 ```
 
-### DocumentPresented
+### DocumentStatusChanged
 
-Event created when the document was presented to the user. It can only change the `DocumentStatus` from `missed` to `presented`.
-
-```dart
-class DocumentPresented extends AppEvent {
-  final UniqueId documentId;
-
-  const DocumentPresented(this.documentId);
-}
-```
-
-### DocumentSkipped
-
-Event created when the document was presented but was scrolled out of the screen. It can only change the `DocumentStatus` from `presented` to `skipped`. It means the user saw the document, but it wasn't relevant.
+Event created when the `DocumentStatus` changed:
+ - when the document was presented to the user the status changes from `missed` to `presented`.
+ - when the document was presented but then was scrolled out of the screen the status changes from `presented` to `skipped`. It means the user saw the document, but it wasn't relevant.
+ - when the document was opened the status changes from `presented` or `skipped` to `opened`. It means the user was interested enough in the document to open it.
 
 ```dart
-class DocumentSkipped extends AppEvent {
-  final UniqueId documentId;
+class DocumentStatusChanged extends ClientEvent {
+  final DocumentId documentId;
+  final DocumentStatus status;
 
-  const DocumentSkipped(this.documentId);
-}
-```
-
-### DocumentOpened
-
-Event created when the document was opened. It can only change the `DocumentStatus` from `presented` or `skipped` to `opened`. It means the user was interested enough in the document to open it.
-
-```dart
-class DocumentOpened extends AppEvent {
-  final UniqueId documentId;
-
-  const DocumentOpened(this.documentId);
+  const DocumentStatusChanged(this.documentId, this.status);
 }
 ```
 
 ### UrlOpened
 
-Same as `DocumentOpened` but for pages in the webview that didn't originate from a list of documents:
+Same as `DocumentStatusChanged` with `DocumentStatus.opened` but for pages in the webview that didn't originate from a list of documents:
 - opened an external url, from a different app
 - opened as a direct url, by typing it in the search field
 - navigated to inside of the webview, after clicking on a link
 
-The engine responds to that event with `DocumentFromUrlCreated` which contains `documentId` to be used with other "document" events, like `DocumentClosed`, `DocumentLiked`, etc.
+The engine responds to that event with `DocumentFromUrlCreated` which contains `documentId` to be used with other "document" events, like `DocumentClosed`, `DocumentFeedbackChanged`, etc.
 
 ```dart
 // the app sends this event after accessing at least title,
@@ -263,16 +230,16 @@ The engine responds to that event with `DocumentFromUrlCreated` which contains `
 // alternatively we could call it `DocumentFromUrlRequested`
 // but it's a more generic name, and it doesn't contain
 // the information that document was also "opened"
-class UrlOpened extends AppEvent {
+class UrlOpened extends ClientEvent {
   final String url;
   final String title;
-  final String? snippet;
+  final String snippet;
 
   const UrlOpened(this.url, this.title, this.snippet);
 }
 
 class DocumentFromUrlCreated extends EngineEvent {
-  final Document document;
+  final DocumentId documentId;
 }
 ```
 
@@ -283,114 +250,80 @@ Event created when the document was closed, either by going back to documents li
 For cases when the user will open and close the same document multiple times (for the same search), the engine should store and use only the maximum time spent by the user on a document.
 
 ```dart
-class DocumentClosed extends AppEvent {
-  final UniqueId documentId;
+class DocumentClosed extends ClientEvent {
+  final DocumentId documentId;
 
   const DocumentClosed(this.documentId);
 }
 ```
 
-### DocumentLiked
 
-Event created when the user swipes the document card or clicks a button to indicate that the document is relevant. It should visualy highlight the document in the list.
+### DocumentFeedbackChanged
+
+Event created when the user swipes the document card or clicks a button to indicate that the document is `relevant`, `irrelevant` or `neutral`.
 
 ```dart
-class DocumentLiked extends AppEvent {
-  final UniqueId documentId;
+class DocumentFeedbackChanged extends ClientEvent {
+  final DocumentId documentId;
+  final DocumentFeedback feedback;
 
-  const DocumentLiked(this.documentId);
+  const DocumentFeedbackChanged(this.documentId, this.feedback);
 }
 ```
 
-### DocumentDisliked
-
-Event created when the user swipes the document card or clicks a button to indicate that the document is NOT relevant. It should visualy remove the document from the list.
-
-```dart
-class DocumentDisliked extends AppEvent {
-  final UniqueId documentId;
-
-  const DocumentDisliked(this.documentId);
-}
-```
-
-### DocumentNeutral
-
-Event created when `liked` status was reverted OR there was an "undo" action after a `disliked` status change.
-
-```dart
-class DocumentNeutral extends AppEvent {
-  final UniqueId documentId;
-
-  const DocumentNeutral(this.documentId);
-}
-```
-
-### DocumentBookmarked
+### BookmarkCreated
 
 Event created when the user bookmarks a document. Engine internally could treat it as `like`.
 
 ```dart
-class DocumentBookmarked extends AppEvent {
-  final UniqueId documentId;
-
-  const DocumentBookmarked(this.documentId);
-}
-// alternatively
-class BookmarkCreated extends AppEvent {
-  final UniqueId documentId;
+class BookmarkCreated extends ClientEvent {
+  final DocumentId documentId;
 
   const BookmarkCreated(this.documentId);
 }
 ```
 
-### DocumentUnbookmarked
+### BookmarksRemoved
 
-Event created when the user removed a bookmark from the document. Engine internally could treat it as `neutral`.
+Event created when the user removed single or multiple bookmarks. Engine internally could treat it as `neutral`.
 
 ```dart
-class DocumentUnbookmarked extends AppEvent {
-  final UniqueId documentId;
-
-  const DocumentUnbookmarked(this.documentId);
-}
-// alternatively (cause we might remove multiple bookmarks at once)
-class BookmarksRemoved extends AppEvent {
-  final Set<UniqueId> documentIds;
+class BookmarksRemoved extends ClientEvent {
+  final Set<DocumentId> documentIds;
   
   const BookmarksRemoved(this.documentIds);
 }
 ```
 
-### QueriesClosed
+### SearchesClosed
 
-Event created when a search (Query + related Documents) can't be accessed again by the user from the UI. Usualy it happens when the users closes a tab/tabs, so all searches within these tabs are also closed.
+Event created when a search and related Documents can't be accessed again by the user from the UI. Usualy it happens when the users closes a tab/tabs, so all searches within these tabs are also closed.
 
 ```dart
-class QueriesClosed extends AppEvent {
-  final List<UniqueId> queryIds;
+class SearchesClosed extends ClientEvent {
+  final Set<DocumentId> searchIds;
 
-  const QueriesClosed(this.queryIds);
+  const SearchesClosed(this.searchIds);
 }
 ```
 
-### FeedCategoriesDismissed
+### ContentCategoriesDismissed
 
-Event created when the user dismisses categories/topics when doing a "negative" swipe on news item in the feed.
+Event created when the user dismisses categories/topics when doing a "negative" swipe, ie. on item in the news feed.
 
 ```dart
-class FeedCategoriesDismissed extends AppEvent {
-  final UniqueId documentId;
+class ContentCategoriesDismissed extends ClientEvent {
+  final DocumentId documentId;
   final Set<String> categories;
 }
 ```
 
-### FeedCategoriesReallowed
+### ContentCategoriesReallowed
 
 Event created when the user removes "ban" from previously dismisses feed categories/topics.
 
 ```dart
-class FeedCategoriesReallowed extends AppEvent {
+class ContentCategoriesReallowed extends ClientEvent {
   final Set<String> categories;
 }
 ```

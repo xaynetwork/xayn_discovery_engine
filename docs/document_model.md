@@ -1,3 +1,18 @@
+# Identifiers
+
+```dart
+abstract class UniqueId {
+  /// this could be also `int` or other type, but needs to be serializable
+  final String value;
+}
+
+/// Identifier for searches
+class SearchId extends UniqueId {}
+
+/// Identifier for documents
+class DocumentId extends UniqueId {}
+```
+
 # Document model
 
 `Document` is the model exposed to the Xayn app for representing items in the discovery feed or in the search result list.
@@ -5,11 +20,7 @@
 ```dart
 class Document {
   /// Unique identifier of a document
-  final UniqueId documentId;
-
-  /// TODO: Do we need to have a relation to the Query?
-  /// What about a Document in discovery feed?
-  final UniqueId queryId;
+  final DocumentId documentId;
 
   /// Contains all data from search API that are needed for the UI.
   /// It's a base class for web, news, video, image resources.
@@ -19,11 +30,11 @@ class Document {
   // only needs to know derived state:
   //  - if document is relevant or irrelevant
   //  - if document was opened
-  final DocumentSentiment _sentiment;
+  final DocumentFeedback _feedback;
   final DocumentStatus _status;
 
-  bool get isRelevant => _sentiment => DocumentSentiment.liked;
-  bool get isNotRelevant => _sentiment == DocumentSentiment.disliked;
+  bool get isRelevant => _feedback => DocumentFeedback.liked;
+  bool get isNotRelevant => _feedback == DocumentFeedback.disliked;
   bool get wasOpened => _status == DocumentStatus.opened;
 
   // These 2 fields below will be used to sort documents
@@ -41,21 +52,21 @@ class Document {
     required this.webResource,
     required this.apiRank,
     required this.engineRank,
-    DocumentSentiment sentiment = DocumentSentiment.neutral,
+    DocumentFeedback feedback = DocumentFeedback.neutral,
     DocumentStatus status = DocumentStatus.missed,
-  }) : _sentiment = sentiment,
+  }) : _feedback = feedback,
        _status = status;
 }
 ```
 
 ## Attributes of a Document
 
-### Document sentiment
+### Document feedback
 
 Indicates if the user `liked` or `disliked` the document.
 
 ```dart
-enum DocumentSentiment {
+enum DocumentFeedback {
   neutral,
   liked,
   disliked,
@@ -88,4 +99,50 @@ enum DocumentStatus {
   opened,
   missed,
 }
+```
+
+## WebResource
+
+Class used to represent different kind of resources like web, image, video, news, etc. 
+
+```dart
+class WebResource {
+  final String title;
+  final String snippet;
+  final String url;
+  final String displayUrl;
+}
+
+class ImageResource extends WebResource {
+  // additionally adds
+  final String imageUrl;
+  final int imageWidth;
+  final int imageHeight;
+  final String thumbnailUrl;
+  final int thumbnailWidth;
+  final int thumbnailHeight;
+}
+
+class NewsResource extends WebResource {
+  // additionally adds
+  final String thumbnailUrl;
+  final int thumbnailWidth;
+  final int thumbnailHeight;
+  final String provider;
+  final Set<String> topics;
+  final DateTime datePublished;
+}
+
+class VideoResource extends WebResource {
+  // additionally adds
+  final String thumbnailUrl;
+  final int thumbnailWidth;
+  final int thumbnailHeight;
+  final DateTime datePublished;
+  final String publisher;
+  final String videoUrl;
+  final String motionThumbnailUrl;
+  final int duration;
+}
+
 ```
