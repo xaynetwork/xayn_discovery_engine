@@ -337,12 +337,12 @@ class ContentCategoriesDismissed extends ClientEvent {
 }
 ```
 
-### ContentCategoriesReallowed
+### ContentCategoriesAccepted
 
 Event created when the user removes "ban" from previously dismisses feed categories/topics.
 
 ```dart
-class ContentCategoriesReallowed extends ClientEvent {
+class ContentCategoriesAccepted extends ClientEvent {
   final Set<String> categories;
 }
 ```

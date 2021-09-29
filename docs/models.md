@@ -35,8 +35,8 @@ class Document {
   final DocumentFeedback _feedback;
   final DocumentStatus _status;
 
-  bool get isRelevant => _feedback => DocumentFeedback.liked;
-  bool get isNotRelevant => _feedback == DocumentFeedback.disliked;
+  bool get isRelevant => _feedback => DocumentFeedback.positive;
+  bool get isNotRelevant => _feedback == DocumentFeedback.negative;
   bool get wasOpened => _status == DocumentStatus.opened;
 
   // These 2 fields below will be used to sort documents
