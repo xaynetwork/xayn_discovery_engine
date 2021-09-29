@@ -1,4 +1,6 @@
-# Identifiers
+# UniqueId and other identifiers
+
+`UniqueId` represent base for unique identifiers for other models like "search" or `Document`.
 
 ```dart
 abstract class UniqueId {
@@ -39,19 +41,19 @@ class Document {
 
   // These 2 fields below will be used to sort documents
   // based on current personalisation state
-  final int apiRank;
-  final int engineRank;
+  final int nonPersonalizedRank;
+  final int personalizedRank;
 
-  int get rank(bool isPersonalisationOn) => isPersonalisationOn
-    ? _engineRank 
-    : _apiRank;
+  int get currentRank(bool isPersonalisationOn) => isPersonalisationOn
+    ? personalizedRank 
+    : nonPersonalizedRank;
 
   Document._({
     required this.documentId,
     required this.queryId,
     required this.webResource,
-    required this.apiRank,
-    required this.engineRank,
+    required this.nonPersonalizedRank,
+    required this.personalizedRank,
     DocumentFeedback feedback = DocumentFeedback.neutral,
     DocumentStatus status = DocumentStatus.missed,
   }) : _feedback = feedback,
@@ -63,13 +65,13 @@ class Document {
 
 ### Document feedback
 
-Indicates if the user `liked` or `disliked` the document.
+Indicates if the user "liked" or "disliked" the document.
 
 ```dart
 enum DocumentFeedback {
+  positive,
   neutral,
-  liked,
-  disliked,
+  negative,
 }
 
 ```
