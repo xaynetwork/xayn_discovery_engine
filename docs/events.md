@@ -324,6 +324,27 @@ class ContentCategoriesReallowed extends ClientEvent {
 }
 ```
 
+### ActiveSearches
+
+Event created when the client wants to know which searches the engine can restore.
+
+```dart
+class ActiveSearchesRequested extends ClientEvent {}
+
+class ActiveSearchesRequestSucceeded extends EngineEvent {
+  final Set<SearchId> searchIds;
+
+  const ActiveSearchesRequestSucceeded(this.searchIds);
+}
+
+class ActiveSearchesRequestFailed extends EngineEvent {
+  // an enum in the real implementation
+  final int reason;
+
+  const ActiveSearchesRequestFailed(this.reason);
+}
+```
+
 ### EngineExceptionRaised
 
 Event created by the engine for multitude of generic reasons.
