@@ -197,6 +197,39 @@ class SearchRestoreRequestSucceeded extends EngineEvent {
 }
 ```
 
+### ActiveSearchesRequested
+
+Event created when the client wants to know which searches the engine can restore.
+
+```dart
+class ActiveSearchesRequested extends ClientEvent {}
+
+class ActiveSearchesRequestSucceeded extends EngineEvent {
+  final Set<SearchId> searchIds;
+
+  const ActiveSearchesRequestSucceeded(this.searchIds);
+}
+
+class ActiveSearchesRequestFailed extends EngineEvent {
+  // an enum in the real implementation
+  final int reason;
+
+  const ActiveSearchesRequestFailed(this.reason);
+}
+```
+
+### SearchesClosed
+
+Event created when a search and related Documents can't be accessed again by the user from the UI. Usualy it happens when the users closes a tab/tabs, so all searches within these tabs are also closed.
+
+```dart
+class SearchesClosed extends ClientEvent {
+  final Set<DocumentId> searchIds;
+
+  const SearchesClosed(this.searchIds);
+}
+```
+
 ### DocumentStatusChanged
 
 Event created when the `DocumentStatus` changed:
@@ -293,18 +326,6 @@ class BookmarksRemoved extends ClientEvent {
 }
 ```
 
-### SearchesClosed
-
-Event created when a search and related Documents can't be accessed again by the user from the UI. Usualy it happens when the users closes a tab/tabs, so all searches within these tabs are also closed.
-
-```dart
-class SearchesClosed extends ClientEvent {
-  final Set<DocumentId> searchIds;
-
-  const SearchesClosed(this.searchIds);
-}
-```
-
 ### ContentCategoriesDismissed
 
 Event created when the user dismisses categories/topics when doing a "negative" swipe, ie. on item in the news feed.
@@ -323,27 +344,6 @@ Event created when the user removes "ban" from previously dismisses feed categor
 ```dart
 class ContentCategoriesReallowed extends ClientEvent {
   final Set<String> categories;
-}
-```
-
-### ActiveSearches
-
-Event created when the client wants to know which searches the engine can restore.
-
-```dart
-class ActiveSearchesRequested extends ClientEvent {}
-
-class ActiveSearchesRequestSucceeded extends EngineEvent {
-  final Set<SearchId> searchIds;
-
-  const ActiveSearchesRequestSucceeded(this.searchIds);
-}
-
-class ActiveSearchesRequestFailed extends EngineEvent {
-  // an enum in the real implementation
-  final int reason;
-
-  const ActiveSearchesRequestFailed(this.reason);
 }
 ```
 
