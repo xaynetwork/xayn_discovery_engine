@@ -86,6 +86,8 @@ class FeedRequested extends ClientEvent {}
 
 class FeedRequestSucceeded extends EngineEvent {
   final List<Document> items;
+
+  const FeedRequestSucceeded(this.items);
 }
 
 class FeedRequestFailed extends EngineEvent {
