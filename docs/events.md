@@ -82,8 +82,7 @@ Event created when the app requests content for the discovery feed:
  - as a follow up when changing the news market
 
 ```dart
-class FeedRequested extends ClientEvent {
-}
+class FeedRequested extends ClientEvent {}
 
 class FeedRequestSucceeded extends EngineEvent {
   final List<Document> items;
@@ -111,16 +110,13 @@ Event created when we are returning to previously displayed discovery feed.
 
 ```dart
 class FeedRestoreRequested extends ClientEvent {
-  // do we need to send prev `documentIds`?
-  final List<UniqueId> documentIds;
-
-  const FeedRestoreRequested(this.documentIds);
+  const FeedRestoreRequested();
 }
 
 class FeedRestoreSucceeded extends EngineEvent {
   final List<Document> items;
 
-  const FeedRestoreSucceeded(this.documentIds);
+  const FeedRestoreSucceeded(this.items);
 }
 
 class FeedRestoreFailed extends EngineEvent {
@@ -325,5 +321,20 @@ Event created when the user removes "ban" from previously dismisses feed categor
 ```dart
 class ContentCategoriesReallowed extends ClientEvent {
   final Set<String> categories;
+}
+```
+
+### EngineExceptionRaised
+
+Event created by the engine for multitude of generic reasons.
+
+```dart
+enum EngineExceptionReason {
+  noInitReceived,
+  // other possible errors will be added below
+}
+
+class EngineExceptionRaised extends EngineEvent {
+  final EngineExceptionReason reason;
 }
 ```
