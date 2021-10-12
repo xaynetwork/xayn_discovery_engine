@@ -28,11 +28,19 @@ abstract class EngineEvent extends Event {}
 Event created upon every app startup, with some data needed for the engine to work, like personalisation and feed market (for performing background queries).
 
 ```dart
+class Configuration {
+  final String apiKey;
+  final String apiBaseUrl;
+  final String discoveryMarket;
+  final String searchMarket;
+  final int searchCount;
+}
+
 class Init extends ClientEvent {
   final bool isPersonalisationOn;
-  final String market;
+  final Configuration config;
 
-  const Init(this.isPersonalisationOn, this.market);
+  const Init(this.isPersonalisationOn, this.config);
 }
 ```
 
@@ -64,25 +72,39 @@ class PersonalizationChanged extends ClientEvent {
 }
 ```
 
-### FeedMarketChanged
+### ConfigurationChanged
 
-Event created when the user changes market for the feed, ie. in global settings.
+Event created when the user changes market for the feed ie. in global settings or changes some parameters for search, like market or count (nb of items per page).
 
 ```dart
-class FeedMarketChanged extends ClientEvent {
-  final String market;
+class ConfigurationChanged extends ClientEvent {
+  final Configuration config;
+
+  const ConfigurationChanged(this.config);
+}
+
+// alternatively
+class ConfigurationChanged extends ClientEvent {
+  final String discoveryMarket;
+  final String searchMarket;
+  final int searchCount;
+
+  const ConfigurationChanged({
+    this.discoveryMarket,
+    this.searchMarket,
+    this.searchCount,
+  });
 }
 ```
 
 ### FeedRequested
 
-Event created when the app requests content for the discovery feed:
- - upon initial start of the app
- - on certain predefined triggers like time-interval, entering `DiscoveryScreen`, etc.
- - as a follow up when changing the news market
+Event created when opening up discovery screen (upon initial start of the app or when we are returning to previously displayed discovery feed).
 
 ```dart
-class FeedRequested extends ClientEvent {}
+class FeedRequested extends ClientEvent {
+  const FeedRequested();
+}
 
 class FeedRequestSucceeded extends EngineEvent {
   final List<Document> items;
@@ -90,10 +112,46 @@ class FeedRequestSucceeded extends EngineEvent {
   const FeedRequestSucceeded(this.items);
 }
 
+enum FeedFailureReason {
+  notAuthorised,
+  noNewsForMarket,
+  // etc.
+}
+
 class FeedRequestFailed extends EngineEvent {
-  /// Error code that frontend can use to display user friendly messages.
-  /// It could also be of type `String`, `enum`, etc.
-  final int reason;
+  /// Error code that frontend can use to determine how to react,
+  /// ie. display user friendly messages, repeat request, etc.
+  /// It could also be dedicated classes/exceptions etc.
+  final FeedFailureReason reason;
+
+  const FeedRequestFailed(this.reason);
+}
+```
+
+### NewFeedRequested
+
+Event created when the app wants to requests new content for the discovery feed:
+ - when reaching the end of the current list of items
+ - in response to `NewFeedAvailable` event, or after deliberate user action like pressing the button to fetch new items
+ - time trigger
+ - as a follow up when changing the news market
+
+```dart
+class NewFeedRequested extends ClientEvent {
+  const NewFeedRequested();
+}
+
+class NewFeedRequestSucceeded extends EngineEvent {
+  final List<Document> items;
+
+  const NewFeedRequestSucceeded(this.items);
+}
+
+class NewFeedRequestFailed extends EngineEvent {
+  /// combined enum for `NewRequestFailed` and `NewFeedRequestFailed`
+  final FeedFailureReason reason;
+  
+  const NewFeedRequestFailed(this.reason);
 }
 ```
 
@@ -102,31 +160,9 @@ class FeedRequestFailed extends EngineEvent {
 Event created by the engine, possibly after doing some background queries to let the app know that there is new content available for the discovery feed. In response to that event the app may decide to show an indicator for the user that new content is ready or it might send `FeedRequested` event to ask for new documents.
 
 ```dart
-class NewFeedAvailable extends EngineEvent {}
-```
-
-### FeedRestoreRequested
-
-Event created when we are returning to previously displayed discovery feed.
-> Q: What is the user expectation? Maybe we should load new feed every session instead of what was shown before?
-
-```dart
-class FeedRestoreRequested extends ClientEvent {
-  const FeedRestoreRequested();
+class NewFeedAvailable extends EngineEvent {
+  const NewFeedAvailable();
 }
-
-class FeedRestoreSucceeded extends EngineEvent {
-  final List<Document> items;
-
-  const FeedRestoreSucceeded(this.items);
-}
-
-class FeedRestoreFailed extends EngineEvent {
-  final int reason;
-
-  const FeedRestoreFailed(this.reason);
-}
-
 ```
 
 ### SearchRequested
@@ -140,22 +176,38 @@ Event created when the user triggers a search query:
  - by changing the type of search
 
 ```dart
+enum SearchType {
+  web,
+  image,
+  video,
+  news,
+}
+
 class SearchRequested extends ClientEvent {
   final String term;
   /// Search types => web, image, video, news, etc.
-  final List<SearchType> type;
-  final String market;
+  final List<SearchType> types;
+
+  const SearchRequested(this.term, this.types);
 }
 
 class SearchRequestSucceeded extends EngineEvent {
-  final List<Document> items;
   final SearchId searchId;
+  final List<Document> items;
+
+  const SearchRequestSucceeded(this.searchId, this.items);
+}
+
+enum SearchFailureReason {
+  notAuthorised,
+  notFound,
+  /// others
 }
 
 class SearchRequestFailed extends EngineEvent {
-  /// Error code that frontend can use to display user friendly messages.
-  /// It could also be of type `String`, `enum`, etc.
-  final int reason;
+  final SearchFailureReason reason;
+
+  const SearchRequestFailed(this.reason);
 }
 ```
 
@@ -166,16 +218,21 @@ Event created when the user triggers a request for next batch of the current sea
 ```dart
 class NextSearchBatchRequested extends ClientEvent {
   final SearchId searchId;
+
+  const NextSearchBatchRequested(this.searchId);
 }
 
 class NextSearchBatchRequestSucceeded extends EngineEvent {
   final List<Document> items;
+
+  const NextSearchBatchRequestSucceeded(this.items);
 }
 
 class NextSearchBatchRequestFailed extends EngineEvent {
-  /// Error code that frontend can use to display user friendly messages.
-  /// It could also be of type `String`, `enum`, etc.
-  final int reason;
+  /// combined enum for `SearchRequestFailed` and `NextSearchBatchRequestFailed`
+  final SearchFailureReason reason;
+
+  const NextSearchBatchRequestFailed(this.reason);
 }
 ```
 
@@ -190,10 +247,27 @@ Event created when we want to restore a previous search state. The engine will r
 ```dart
 class SearchRestoreRequested extends ClientEvent {
   final SearchId searchId;
+
+  const SearchRestoreRequested(this.searchId);
 }
 
 class SearchRestoreRequestSucceeded extends EngineEvent {
   final List<Document> items;
+
+  const SearchRestoreRequestSucceeded(this.items);
+}
+
+
+enum SearchRestoreFailureReason {
+  notFound,
+  searchClosed,
+  /// TODO: add other reasons
+}
+
+class SearchRestoreRequestFailed extends EngineEvent {
+  final SearchRestoreFailureReason reason;
+
+  const SearchRestoreRequestFailed(this.reason);
 }
 ```
 
@@ -202,7 +276,9 @@ class SearchRestoreRequestSucceeded extends EngineEvent {
 Event created when the client wants to know which searches the engine can restore.
 
 ```dart
-class ActiveSearchesRequested extends ClientEvent {}
+class ActiveSearchesRequested extends ClientEvent {
+  const ActiveSearchesRequested();
+}
 
 class ActiveSearchesRequestSucceeded extends EngineEvent {
   final Set<SearchId> searchIds;
@@ -210,9 +286,13 @@ class ActiveSearchesRequestSucceeded extends EngineEvent {
   const ActiveSearchesRequestSucceeded(this.searchIds);
 }
 
+enum ActiveSearchesFailure {
+  notFound,
+  // etc.
+}
+
 class ActiveSearchesRequestFailed extends EngineEvent {
-  // an enum in the real implementation
-  final int reason;
+  final ActiveSearchesFailure reason;
 
   const ActiveSearchesRequestFailed(this.reason);
 }
@@ -271,6 +351,8 @@ class UrlOpened extends ClientEvent {
 
 class DocumentFromUrlCreated extends EngineEvent {
   final DocumentId documentId;
+
+  const DocumentFromUrlCreated(this.documentId);
 }
 ```
 
@@ -291,7 +373,7 @@ class DocumentClosed extends ClientEvent {
 
 ### DocumentFeedbackChanged
 
-Event created when the user swipes the document card or clicks a button to indicate that the document is `relevant`, `irrelevant` or `neutral`.
+Event created when the user swipes the document card or clicks a button to indicate that the document is `positive`, `negative` or `neutral`.
 
 ```dart
 class DocumentFeedbackChanged extends ClientEvent {
@@ -334,6 +416,8 @@ Event created when the user dismisses categories/topics when doing a "negative" 
 class ContentCategoriesDismissed extends ClientEvent {
   final DocumentId documentId;
   final Set<String> categories;
+
+  const ContentCategoriesDismissed(this.documentId, this.categories);
 }
 ```
 
@@ -344,6 +428,8 @@ Event created when the user removes "ban" from previously dismisses feed categor
 ```dart
 class ContentCategoriesAccepted extends ClientEvent {
   final Set<String> categories;
+
+  const ContentCategoriesAccepted(this.categories);
 }
 ```
 
@@ -359,5 +445,7 @@ enum EngineExceptionReason {
 
 class EngineExceptionRaised extends EngineEvent {
   final EngineExceptionReason reason;
+
+  const EngineExceptionRaised(this.reason);
 }
 ```

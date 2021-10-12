@@ -4,8 +4,7 @@
 
 ```dart
 abstract class UniqueId {
-  /// this could be also `int` or other type, but needs to be serializable
-  final String value;
+  final Uint8List value;
 }
 
 /// Identifier for searches
@@ -111,23 +110,23 @@ Class used to represent different kind of resources like web, image, video, news
 class WebResource {
   final String title;
   final String snippet;
-  final String url;
-  final String displayUrl;
+  final Uri url;
+  final Uri displayUrl;
 }
 
 class ImageResource extends WebResource {
   // additionally adds
-  final String imageUrl;
+  final Uri imageUrl;
   final int imageWidth;
   final int imageHeight;
-  final String thumbnailUrl;
+  final Uri thumbnailUrl;
   final int thumbnailWidth;
   final int thumbnailHeight;
 }
 
 class NewsResource extends WebResource {
   // additionally adds
-  final String thumbnailUrl;
+  final Uri thumbnailUrl;
   final int thumbnailWidth;
   final int thumbnailHeight;
   final String provider;
@@ -137,13 +136,13 @@ class NewsResource extends WebResource {
 
 class VideoResource extends WebResource {
   // additionally adds
-  final String thumbnailUrl;
+  final Uri thumbnailUrl;
   final int thumbnailWidth;
   final int thumbnailHeight;
   final DateTime datePublished;
   final String publisher;
-  final String videoUrl;
-  final String motionThumbnailUrl;
+  final Uri videoUrl;
+  final Uri motionThumbnailUrl;
   final int duration;
 }
 
