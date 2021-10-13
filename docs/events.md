@@ -31,9 +31,11 @@ Event created upon every app startup, with some data needed for the engine to wo
 class Configuration {
   final String apiKey;
   final String apiBaseUrl;
-  final String discoveryMarket;
+  final String feedMarket;
   final String searchMarket;
-  final int searchCount;
+  final int maxItemsPerSearchPage;
+  final int maxItemsPerFeedPage;
+  final String applicationDirectoryPath;
 }
 
 class Init extends ClientEvent {
@@ -78,28 +80,23 @@ Event created when the user changes market for the feed ie. in global settings o
 
 ```dart
 class ConfigurationChanged extends ClientEvent {
-  final Configuration config;
-
-  const ConfigurationChanged(this.config);
-}
-
-// alternatively
-class ConfigurationChanged extends ClientEvent {
-  final String discoveryMarket;
-  final String searchMarket;
-  final int searchCount;
+  final String? feedMarket;
+  final String? searchMarket;
+  final int? maxItemsPerSearchPage;
+  final int? maxItemsPerFeedPage;
 
   const ConfigurationChanged({
-    this.discoveryMarket,
+    this.feedMarket,
     this.searchMarket,
-    this.searchCount,
+    this.maxItemsPerSearchPage,
+    this.maxItemsPerFeedPage,
   });
 }
 ```
 
 ### FeedRequested
 
-Event created when opening up discovery screen (upon initial start of the app or when we are returning to previously displayed discovery feed).
+Event created when opening up discovery screen (upon initial start of the app or when we are returning to previously displayed discovery feed). When restoring previous feed it returns all the documents, that were still accessible to the user, so they weren't closed by the `FeedDocumentsClosed` event.
 
 ```dart
 class FeedRequested extends ClientEvent {
@@ -133,7 +130,7 @@ class FeedRequestFailed extends EngineEvent {
 Event created when the app wants to requests new content for the discovery feed:
  - when reaching the end of the current list of items
  - in response to `NewFeedAvailable` event, or after deliberate user action like pressing the button to fetch new items
- - time trigger
+ - on some time trigger
  - as a follow up when changing the news market
 
 ```dart
@@ -304,9 +301,21 @@ Event created when a search and related Documents can't be accessed again by the
 
 ```dart
 class SearchesClosed extends ClientEvent {
-  final Set<DocumentId> searchIds;
+  final Set<SearchId> searchIds;
 
   const SearchesClosed(this.searchIds);
+}
+```
+
+### FeedDocumentsClosed
+
+Event created when the client makes Documents in the feed not accessible to the user anymore. The engine registers those documents as immutable, so they can't be changed anymore by the client.
+
+```dart
+class FeedDocumentsClosed extends ClientEvent {
+  final Set<DocumentId> documentIds;
+
+  const FeedDocumentsClosed(this.documentIds);
 }
 ```
 
@@ -433,9 +442,21 @@ class ContentCategoriesAccepted extends ClientEvent {
 }
 ```
 
+### ClientEventSucceeded
+
+Event created to inform the client that a particular "fire and forget" event, like ie. `DocumentFeedbackChanged`, was successfuly processed by the engine.
+
+```dart
+class ClientEventSucceeded extends EngineEvent {
+  final EventId eventId;
+
+  const ClientEventSucceeded(this.eventId);
+}
+```
+
 ### EngineExceptionRaised
 
-Event created by the engine for multitude of generic reasons.
+Event created by the engine for multitude of generic reasons, also as a "failure" event in response to "fire and forget" events, like ie. `DocumentFeedbackChanged`.
 
 ```dart
 enum EngineExceptionReason {
