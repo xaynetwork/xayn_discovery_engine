@@ -1,4 +1,4 @@
-name: discovery_engine
+name: xayn_discovery_engine
 description: Xayn Discovery Engine package for Dart VM and web.
 version: 0.1.0
 homepage: https://github.com/xaynetwork/xayn_discovery_engine/
