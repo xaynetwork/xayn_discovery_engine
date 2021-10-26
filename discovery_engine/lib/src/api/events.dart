@@ -1,5 +1,6 @@
 import 'models/configuration.dart';
 import 'models/document.dart';
+import 'models/search_type.dart';
 import 'models/unique_id.dart';
 
 /// Base for all event classes
@@ -74,6 +75,8 @@ class FeedRequested extends ClientEvent {
   const FeedRequested();
 }
 
+/// Event created as a successful response to [FeedRequested] event.
+/// Passes back a list of [Document] entities back to the client.
 class FeedRequestSucceeded extends EngineEvent {
   final List<Document> items;
 
@@ -86,10 +89,11 @@ enum FeedFailureReason {
   // etc.
 }
 
+/// Event created as a failure response to [FeedRequested] event.
+///
+/// Passes back a failure reason, that the client can use to determine
+/// how to react, ie. display user friendly messages, repeat request, etc.
 class FeedRequestFailed extends EngineEvent {
-  /// Error code that frontend can use to determine how to react,
-  /// ie. display user friendly messages, repeat request, etc.
-  /// It could also be dedicated classes/exceptions etc.
   final FeedFailureReason reason;
 
   const FeedRequestFailed(this.reason);
@@ -106,14 +110,19 @@ class NewFeedRequested extends ClientEvent {
   const NewFeedRequested();
 }
 
+/// Event created as a successful response to [NewFeedRequested] event.
+/// Passes back a list of [Document] objects back to the client.
 class NewFeedRequestSucceeded extends EngineEvent {
   final List<Document> items;
 
   const NewFeedRequestSucceeded(this.items);
 }
 
+/// Event created as a failure response to [NewFeedRequested] event.
+///
+/// Passes back a failure reason, that the client can use to determine
+/// how to react, ie. display user friendly messages, repeat request, etc.
 class NewFeedRequestFailed extends EngineEvent {
-  /// combined enum for `NewRequestFailed` and `NewFeedRequestFailed`
   final FeedFailureReason reason;
 
   const NewFeedRequestFailed(this.reason);
@@ -126,13 +135,6 @@ class NewFeedRequestFailed extends EngineEvent {
 /// event to ask for new documents.
 class NewFeedAvailable extends EngineEvent {
   const NewFeedAvailable();
-}
-
-enum SearchType {
-  web,
-  image,
-  video,
-  news,
 }
 
 /// Event created when the user triggers a search query:
@@ -151,6 +153,10 @@ class SearchRequested extends ClientEvent {
   const SearchRequested(this.term, this.types);
 }
 
+/// Event created as a successful response to [SearchRequested] event.
+///
+/// Passes back list of [Document] objects together with [SearchId] to indicate
+/// which "search" these objects belong to.
 class SearchRequestSucceeded extends EngineEvent {
   final SearchId searchId;
   final List<Document> items;
@@ -165,6 +171,10 @@ enum SearchFailureReason {
   /// others
 }
 
+/// Event created as a failure response to [SearchRequested] event.
+///
+/// Passes back a failure reason, that the client can use to determine
+/// how to react, ie. display user friendly messages, repeat request, etc.
 class SearchRequestFailed extends EngineEvent {
   final SearchFailureReason reason;
 
@@ -179,12 +189,19 @@ class NextSearchBatchRequested extends ClientEvent {
   const NextSearchBatchRequested(this.searchId);
 }
 
+/// Event created as a successful response to [NextSearchBatchRequested] event.
+///
+/// Passes back list of [Document] objects for the next page/batch.
 class NextSearchBatchRequestSucceeded extends EngineEvent {
   final List<Document> items;
 
   const NextSearchBatchRequestSucceeded(this.items);
 }
 
+/// Event created as a failure response to [NextSearchBatchRequest] event.
+///
+/// Passes back a failure reason, that the client can use to determine
+/// how to react, ie. display user friendly messages, repeat request, etc.
 class NextSearchBatchRequestFailed extends EngineEvent {
   /// combined enum for `SearchRequestFailed` and `NextSearchBatchRequestFailed`
   final SearchFailureReason reason;
@@ -209,6 +226,10 @@ class SearchRestoreRequested extends ClientEvent {
   const SearchRestoreRequested(this.searchId);
 }
 
+/// Event created as a successful response to [SearchRestoreRequested] event.
+///
+/// Passes back list of all [Document] objects related to previously performed
+/// search that the client requested to restore.
 class SearchRestoreRequestSucceeded extends EngineEvent {
   final List<Document> items;
 
@@ -222,6 +243,10 @@ enum SearchRestoreFailureReason {
   /// TODO: add other reasons
 }
 
+/// Event created as a failure response to [SearchRestoreRequested] event.
+///
+/// Passes back a failure reason, that the client can use to determine
+/// how to react, ie. display user friendly messages, repeat request, etc.
 class SearchRestoreRequestFailed extends EngineEvent {
   final SearchRestoreFailureReason reason;
 
@@ -229,11 +254,15 @@ class SearchRestoreRequestFailed extends EngineEvent {
 }
 
 /// Event created when the client wants to know which searches
-/// the engine can restore.
+/// the discovery engine can restore.
 class ActiveSearchesRequested extends ClientEvent {
   const ActiveSearchesRequested();
 }
 
+/// Event created as a successful response to [ActiveSearchesRequested] event.
+///
+/// Passes back list of all [SearchId] objects that the client can then request
+/// to restore.
 class ActiveSearchesRequestSucceeded extends EngineEvent {
   final Set<SearchId> searchIds;
 
@@ -245,6 +274,10 @@ enum ActiveSearchesFailure {
   // etc.
 }
 
+/// Event created as a failure response to [ActiveSearchesRequested] event.
+///
+/// Passes back a failure reason, that the client can use to determine
+/// how to react, ie. display user friendly messages, repeat request, etc.
 class ActiveSearchesRequestFailed extends EngineEvent {
   final ActiveSearchesFailure reason;
 
@@ -260,7 +293,7 @@ class SearchesClosed extends ClientEvent {
   const SearchesClosed(this.searchIds);
 }
 
-/// Event created when the client makes Documents in the feed not accessible
+/// Event created when the client makes `Documents` in the feed not accessible
 /// to the user anymore. The engine registers those documents as immutable,
 /// so they can't be changed anymore by the client.
 class FeedDocumentsClosed extends ClientEvent {
@@ -290,10 +323,6 @@ class DocumentStatusChanged extends ClientEvent {
 /// - opened an external url, from a different app
 /// - opened as a direct url, by typing it in the search field
 /// - navigated to inside of the webview, after clicking on a link
-///
-/// The engine responds to that event with [DocumentFromUrlCreated] which
-/// contains `documentId` to be used with other "document" events,
-/// like [DocumentClosed], `DocumentFeedbackChanged`, etc.
 class UrlOpened extends ClientEvent {
   final String url;
   final String title;
@@ -302,6 +331,9 @@ class UrlOpened extends ClientEvent {
   const UrlOpened(this.url, this.title, this.snippet);
 }
 
+/// Event created as a response to [UrlOpened] event which
+/// contains [DocumentId] to be used with other "document" events,
+/// like [DocumentClosed], [DocumentFeedbackChanged], etc.
 class DocumentFromUrlCreated extends EngineEvent {
   final DocumentId documentId;
 
@@ -321,6 +353,8 @@ class DocumentClosed extends ClientEvent {
   const DocumentClosed(this.documentId);
 }
 
+/// Event created when the user swipes the [Document] card or clicks a button
+/// to indicate that the document is `positive`, `negative` or `neutral`.
 class DocumentFeedbackChanged extends ClientEvent {
   final DocumentId documentId;
   final DocumentFeedback feedback;

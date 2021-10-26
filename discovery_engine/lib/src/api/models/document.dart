@@ -1,5 +1,5 @@
-import 'web_resource.dart';
 import 'unique_id.dart';
+import 'web_resource.dart';
 
 /// [Document] is representing items in the discovery feed
 /// or in the search result list.
@@ -43,22 +43,6 @@ enum DocumentStatus {
   missed,
 }
 
-extension _IntToDocumentStatusExt on int {
-  DocumentStatus toDocumentStatus() {
-    switch (this) {
-      case 0:
-        return DocumentStatus.skipped;
-      case 1:
-        return DocumentStatus.presented;
-      case 2:
-        return DocumentStatus.opened;
-      case 3:
-      default:
-        return DocumentStatus.missed;
-    }
-  }
-}
-
 /// [DocumentFeedback] indicates user's "sentiment" towards the document.
 ///
 /// if the user "liked" or "disliked" the document.
@@ -66,18 +50,4 @@ enum DocumentFeedback {
   neutral,
   positive,
   negative,
-}
-
-extension _IntToDocumentFeedbackExt on int {
-  DocumentFeedback toDocumentFeedback() {
-    switch (this) {
-      case 1:
-        return DocumentFeedback.positive;
-      case 2:
-        return DocumentFeedback.negative;
-      case 0:
-      default:
-        return DocumentFeedback.neutral;
-    }
-  }
 }
