@@ -1,25 +1,43 @@
 import 'dart:typed_data';
 
+import 'package:equatable/equatable.dart';
+import 'package:uuid/uuid.dart';
+
 /// [UniqueId] represents base for unique identifiers for other models like
 /// [SearchId] or [DocumentId].
-abstract class _UniqueId {
+abstract class _UniqueId with EquatableMixin {
   final UnmodifiableUint8ListView value;
 
-  _UniqueId(this.value);
+  _UniqueId() : value = _generateId();
+
+  _UniqueId.fromBytes(Uint8List bytes) : value = _validateId(bytes);
+
+  static UnmodifiableUint8ListView _generateId() {
+    final id = Uuid().v4();
+    final bytes = Uuid.parseAsByteList(id);
+    return UnmodifiableUint8ListView(bytes);
+  }
+
+  static UnmodifiableUint8ListView _validateId(Uint8List bytes) {
+    Uuid.isValidOrThrow(fromByteList: bytes);
+    return UnmodifiableUint8ListView(bytes);
+  }
+
+  @override
+  List<Object?> get props => [value];
+
+  @override
+  bool? get stringify => true;
 }
 
 /// Unique identifier of a [Document].
 class DocumentId extends _UniqueId {
-  DocumentId._(UnmodifiableUint8ListView value) : super(value);
-
-  factory DocumentId() {
-    // TODO: this is just temporary, it requires a real implementation
-    final id = UnmodifiableUint8ListView(Uint8List(0));
-    return DocumentId._(id);
-  }
+  DocumentId() : super();
+  DocumentId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
 }
 
 /// Unique identifier of a search.
 class SearchId extends _UniqueId {
-  SearchId._(UnmodifiableUint8ListView value) : super(value);
+  SearchId() : super();
+  SearchId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
 }
