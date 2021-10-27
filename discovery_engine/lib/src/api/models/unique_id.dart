@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-/// [UniqueId] represent base for unique identifier for other models like
-/// "search" or [Document].
+/// [UniqueId] represents base for unique identifiers for other models like
+/// [SearchId] or [DocumentId].
 abstract class _UniqueId {
   final UnmodifiableUint8ListView value;
 
