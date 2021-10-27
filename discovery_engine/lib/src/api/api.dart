@@ -1,10 +1,5 @@
 export 'package:xayn_discovery_engine/src/api/events/document_events.dart'
-    show
-        DocumentStatusChanged,
-        UrlOpened,
-        DocumentFromUrlCreated,
-        DocumentClosed,
-        DocumentFeedbackChanged;
+    show DocumentStatusChanged, DocumentClosed, DocumentFeedbackChanged;
 export 'package:xayn_discovery_engine/src/api/events/feed_events.dart'
     show
         FeedRequested,
