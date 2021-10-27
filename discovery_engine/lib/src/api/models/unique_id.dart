@@ -27,7 +27,7 @@ abstract class _UniqueId with EquatableMixin {
   List<Object?> get props => [value];
 
   @override
-  bool? get stringify => true;
+  String toString() => Uuid.unparse(value);
 }
 
 /// Unique identifier of a [Document].
