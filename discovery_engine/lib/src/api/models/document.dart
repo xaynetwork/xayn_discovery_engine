@@ -1,5 +1,7 @@
-import 'unique_id.dart';
-import 'web_resource.dart';
+import 'package:xayn_discovery_engine/src/api/models/unique_id.dart'
+    show DocumentId;
+import 'package:xayn_discovery_engine/src/api/models/web_resource.dart'
+    show WebResource;
 
 /// [Document] is representing items in the discovery feed
 /// or in the search result list.
@@ -28,14 +30,17 @@ class Document {
         _status = DocumentStatus.missed;
 }
 
-/// The status of the document is not exposed to the Xayn app, because it has no usage in the UI (apart from `opened` status which could be used to indicate that the document was "visited", which is visually represented by decreased opacity of the document list item).
-///
-/// It indicates what is the document status in context of other documents.
-///   - Every document starts with `missed`, which means the user didn't have the chance to see it.
-///   - When a document is displayed to the user its status is updated to `presented`.
+/// [DocumentStatus] indicates what is the document status in context of other
+/// documents.
+///   - Every document starts with `missed`, which means the user didn't have
+/// the chance to see it.
+///   - When a document is displayed to the user its status is updated to
+/// `presented`.
 ///   - When the user decides to read it, the status is updated to `opened`.
-///   - When the user decides that the document is not relevant, and scrolls further, the status is updated to `skipped`.
-///   - Sometimes if user changes the decision a `skipped` document can become `opened`.
+///   - When the user decides that the document is not relevant, and scrolls
+/// further, the status is updated to `skipped`.
+///   - Sometimes if user changes the decision a `skipped` document can become
+/// `opened`.
 enum DocumentStatus {
   skipped,
   presented,
@@ -43,9 +48,8 @@ enum DocumentStatus {
   missed,
 }
 
-/// [DocumentFeedback] indicates user's "sentiment" towards the document.
-///
-/// if the user "liked" or "disliked" the document.
+/// [DocumentFeedback] indicates user's "sentiment" towards the document,
+/// essentially if the user "liked" or "disliked" the document.
 enum DocumentFeedback {
   neutral,
   positive,

@@ -2,24 +2,24 @@ import 'dart:typed_data';
 
 /// [UniqueId] represent base for unique identifier for other models like
 /// "search" or [Document].
-abstract class UniqueId {
-  final Uint8List value;
+abstract class _UniqueId {
+  final UnmodifiableUint8ListView value;
 
-  UniqueId(this.value);
+  _UniqueId(this.value);
 }
 
 /// Unique identifier of a [Document].
-class DocumentId extends UniqueId {
-  DocumentId._(Uint8List value) : super(value);
+class DocumentId extends _UniqueId {
+  DocumentId._(UnmodifiableUint8ListView value) : super(value);
 
   factory DocumentId() {
     // TODO: this is just temporary, it requires a real implementation
-    final id = Uint8List(0);
+    final id = UnmodifiableUint8ListView(Uint8List(0));
     return DocumentId._(id);
   }
 }
 
 /// Unique identifier of a search.
-class SearchId extends UniqueId {
-  SearchId._(Uint8List value) : super(value);
+class SearchId extends _UniqueId {
+  SearchId._(UnmodifiableUint8ListView value) : super(value);
 }
