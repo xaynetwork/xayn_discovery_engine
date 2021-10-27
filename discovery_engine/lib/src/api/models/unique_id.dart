@@ -1,7 +1,7 @@
-import 'dart:typed_data';
+import 'dart:typed_data' show UnmodifiableUint8ListView, Uint8List;
 
-import 'package:equatable/equatable.dart';
-import 'package:uuid/uuid.dart';
+import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:uuid/uuid.dart' show Uuid;
 
 /// [UniqueId] represents base for unique identifiers for other models like
 /// [SearchId] or [DocumentId].
