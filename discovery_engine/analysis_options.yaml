@@ -10,6 +10,7 @@ analyzer:
 linter:
   rules:
     - always_declare_return_types
+    - always_use_package_imports
     - camel_case_types
     - camel_case_extensions
     - constant_identifier_names
