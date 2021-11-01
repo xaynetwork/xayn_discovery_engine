@@ -1,11 +1,11 @@
 import 'package:xayn_discovery_engine/src/api/events/base_events.dart'
     show ClientEvent, EngineEvent;
-import 'package:xayn_discovery_engine/src/api/models/document.dart'
-    show Document;
 import 'package:xayn_discovery_engine/src/api/models/search_type.dart'
     show SearchType;
 import 'package:xayn_discovery_engine/src/api/models/unique_id.dart'
     show SearchId;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 
 /// Event created when the user triggers a search query:
 ///  - by typing the search term aka. "real-time search"

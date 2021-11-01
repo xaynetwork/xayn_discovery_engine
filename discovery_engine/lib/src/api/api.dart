@@ -20,9 +20,9 @@ export 'package:xayn_discovery_engine/src/api/events/system_events.dart'
         EngineExceptionRaised;
 export 'package:xayn_discovery_engine/src/api/models/configuration.dart'
     show Configuration;
-export 'package:xayn_discovery_engine/src/api/models/document.dart'
-    show Document, DocumentFeedback, DocumentStatus;
 export 'package:xayn_discovery_engine/src/api/models/unique_id.dart'
     show DocumentId, SearchId;
 export 'package:xayn_discovery_engine/src/api/models/web_resource.dart'
     show WebResource;
+export 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document, DocumentFeedback, DocumentStatus;
