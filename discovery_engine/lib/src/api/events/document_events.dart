@@ -1,9 +1,9 @@
 import 'package:xayn_discovery_engine/src/api/events/base_events.dart'
     show ClientEvent, EngineEvent;
+import 'package:xayn_discovery_engine/src/api/models/document.dart'
+    show Document, DocumentStatus, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/api/models/unique_id.dart'
     show DocumentId;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentStatus, DocumentFeedback;
 
 /// Event created when the `DocumentStatus` changed:
 /// - when the document was presented to the user the status changes
