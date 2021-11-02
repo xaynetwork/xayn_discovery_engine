@@ -18,11 +18,13 @@ export 'package:xayn_discovery_engine/src/api/events/system_events.dart'
         ClientEventSucceeded,
         EngineExceptionReason,
         EngineExceptionRaised;
-export 'package:xayn_discovery_engine/src/api/models/configuration.dart'
-    show Configuration;
 export 'package:xayn_discovery_engine/src/api/models/document.dart'
-    show Document, DocumentFeedback, DocumentStatus;
-export 'package:xayn_discovery_engine/src/api/models/unique_id.dart'
+    show Document;
+export 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
+    show Configuration;
+export 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show DocumentFeedback, DocumentStatus;
+export 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, SearchId;
-export 'package:xayn_discovery_engine/src/api/models/web_resource.dart'
+export 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;

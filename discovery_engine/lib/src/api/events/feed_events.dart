@@ -2,7 +2,7 @@ import 'package:xayn_discovery_engine/src/api/events/base_events.dart'
     show ClientEvent, EngineEvent;
 import 'package:xayn_discovery_engine/src/api/models/document.dart'
     show Document;
-import 'package:xayn_discovery_engine/src/api/models/unique_id.dart'
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 
 /// Event created when opening up discovery screen (upon initial start

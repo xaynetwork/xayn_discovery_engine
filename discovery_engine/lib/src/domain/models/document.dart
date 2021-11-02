@@ -1,6 +1,6 @@
-import 'package:xayn_discovery_engine/src/api/models/unique_id.dart'
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
-import 'package:xayn_discovery_engine/src/api/models/web_resource.dart'
+import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 
 /// [Document] is representing items in the discovery feed
