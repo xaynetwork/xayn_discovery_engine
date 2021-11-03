@@ -1,8 +1,8 @@
 import 'package:xayn_discovery_engine/src/api/events/base_events.dart'
     show ClientEvent, EngineEvent;
-import 'package:xayn_discovery_engine/src/api/models/configuration.dart'
+import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
-import 'package:xayn_discovery_engine/src/api/models/unique_id.dart'
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 
 /// Event created upon every app startup, with some data needed
