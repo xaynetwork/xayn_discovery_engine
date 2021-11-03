@@ -6,9 +6,13 @@ import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
 
 part 'document.g.dart';
 
+const documentTypeId = 0;
+const documentStatusTypeId = 1;
+const documentFeedbackTypeId = 2;
+
 /// [Document] is representing items in the discovery feed
 /// or in the search result list.
-@HiveType(typeId: 0)
+@HiveType(typeId: documentTypeId)
 class Document {
   @HiveField(0)
   final DocumentId documentId;
@@ -40,8 +44,8 @@ class Document {
         _status = DocumentStatus.missed;
 }
 
-/// [DocumentStatus] indicates what is the document status in context of other
-/// documents.
+/// [DocumentStatus] indicates what the document status is in the context of
+/// other documents.
 ///   - Every document starts with `missed`, which means the user didn't have
 /// the chance to see it.
 ///   - When a document is displayed to the user its status is updated to
@@ -49,9 +53,9 @@ class Document {
 ///   - When the user decides to read it, the status is updated to `opened`.
 ///   - When the user decides that the document is not relevant, and scrolls
 /// further, the status is updated to `skipped`.
-///   - Sometimes if user changes the decision a `skipped` document can become
-/// `opened`.
-@HiveType(typeId: 1)
+///   - Sometimes if the user changes the decision a `skipped` document can
+/// become `opened`.
+@HiveType(typeId: documentStatusTypeId)
 enum DocumentStatus {
   @HiveField(0)
   skipped,
@@ -65,7 +69,7 @@ enum DocumentStatus {
 
 /// [DocumentFeedback] indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
-@HiveType(typeId: 2)
+@HiveType(typeId: documentFeedbackTypeId)
 enum DocumentFeedback {
   @HiveField(0)
   neutral,
