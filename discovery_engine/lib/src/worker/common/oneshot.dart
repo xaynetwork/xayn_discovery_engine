@@ -40,6 +40,8 @@ class Sender<T extends SendingPort> {
   T? _port;
   Sender(this._port);
 
+  T? get port => _port;
+
   void send(Object? message, [List<Object>? transfer]) {
     if (_port == null) {
       throw StateError('Sender send method was already called');
@@ -49,12 +51,6 @@ class Sender<T extends SendingPort> {
     _port!.close();
     _port = null;
   }
-
-  Sender.fromJson(Map<dynamic, dynamic> json) : _port = json['port'] as T;
-
-  Map<String, T> toJson() => {
-        'port': _port!,
-      };
 }
 
 class Receiver<T extends ReceivingPort> {
