@@ -9,7 +9,8 @@ class IsolatedSendingPort extends SendingPort {
 
   @override
   void close() {
-    // do nothing
+    // [SendPort] can't close itself, it is closed by the controlling
+    // [ReceivePort], so this method should do nothing
   }
 
   @override
