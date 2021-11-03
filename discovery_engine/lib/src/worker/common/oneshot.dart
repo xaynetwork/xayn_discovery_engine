@@ -89,15 +89,9 @@ class OneshotChannel {
   OneshotChannel(this.sendingPort, this.receivingPort);
 }
 
-class Request<T> {
+class OneshotRequest<T> {
   final Sender sender;
   final T payload;
 
-  Request(this.sender, this.payload);
-
-  Map<String, Object> toJson() => {
-        'sender': sender.toJson(),
-        // FIXME: add event serialisation
-        'payload': payload.toString(),
-      };
+  OneshotRequest(this.sender, this.payload);
 }
