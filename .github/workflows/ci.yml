@@ -29,7 +29,7 @@ jobs:
 
       - name: Check formatting
         working-directory: discovery_engine
-        run: dart format --output=none --set-exit-if-changed . 
+        run: dart format --output=none --set-exit-if-changed .
 
   dart-analyze:
     name: dart-analyze
@@ -91,11 +91,11 @@ jobs:
 
       - name: Install dartdoc
         working-directory: discovery_engine
-        run: flutter pub global activate dartdoc
+        run: dart pub global activate dartdoc
 
       - name: Check documentation
         working-directory: discovery_engine
-        run: dart flutter pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
+        run: dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
 
   # this is an helper that needs all the real leafs of the workflow.
   # It makes easier notify_main_failure because we only need to check
