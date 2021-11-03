@@ -16,21 +16,21 @@ class Oneshot {
   }
 
   Sender get sender {
-    if (_sender == null) {
+    final sender = _sender;
+    if (sender == null) {
       throw StateError('Sender was already used');
     }
 
-    final sender = _sender!;
     _sender = null;
     return sender;
   }
 
   Receiver get receiver {
-    if (_receiver == null) {
+    final receiver = _receiver;
+    if (receiver == null) {
       throw StateError('Receiver was already used');
     }
 
-    final receiver = _receiver!;
     _receiver = null;
     return receiver;
   }
@@ -47,6 +47,7 @@ class Sender<T extends SendingPort> {
       throw StateError('Sender send method was already called');
     }
 
+    // TODO: check if we need the transfer in the sender
     _port!.send(message, transfer);
     _port!.close();
     _port = null;
@@ -75,6 +76,7 @@ abstract class ClosingPort {
 }
 
 abstract class SendingPort extends ClosingPort {
+  // TODO: check if we need the transfer in the sender
   void send(Object? message, [List<Object>? transfer]);
 }
 
