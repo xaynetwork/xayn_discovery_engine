@@ -1,5 +1,7 @@
 import 'package:xayn_discovery_engine/src/api/events/base_events.dart'
     show ClientEvent, EngineEvent;
+import 'package:xayn_discovery_engine/src/api/events/document_events.dart'
+    show DocumentFeedbackChanged;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'

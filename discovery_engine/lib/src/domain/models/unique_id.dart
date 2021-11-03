@@ -3,7 +3,10 @@ import 'dart:typed_data' show UnmodifiableUint8ListView, Uint8List;
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:uuid/uuid.dart' show Uuid;
 
-/// [UniqueId] represents base for unique identifiers for other models like
+import 'package:xayn_discovery_engine/src/api/models/document.dart'
+    show Document;
+
+/// [_UniqueId] represents base for unique identifiers for other models like
 /// [SearchId] or [DocumentId].
 abstract class _UniqueId with EquatableMixin {
   final UnmodifiableUint8ListView value;

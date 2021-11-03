@@ -68,7 +68,7 @@ class NextSearchBatchRequestSucceeded extends EngineEvent {
   const NextSearchBatchRequestSucceeded(this.items);
 }
 
-/// Event created as a failure response to [NextSearchBatchRequest] event.
+/// Event created as a failure response to [NextSearchBatchRequested] event.
 ///
 /// Passes back a failure reason, that the client can use to determine
 /// how to react, ie. display user friendly messages, repeat request, etc.

@@ -75,6 +75,28 @@ jobs:
         working-directory: discovery_engine
         run: dart test
 
+  dart-doc:
+    name: dart-doc
+    needs: dart-test
+    runs-on: ubuntu-20.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@1e204e9a9253d643386038d443f96446fa156a97 # v2.3.5
+
+      - name: Install dart
+        uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
+        with:
+          sdk: ${{ env.DART_VERSION }}
+
+      - name: Install dartdoc
+        working-directory: discovery_engine
+        run: flutter pub global activate dartdoc
+
+      - name: Check documentation
+        working-directory: discovery_engine
+        run: dart flutter pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
+
   # this is an helper that needs all the real leafs of the workflow.
   # It makes easier notify_main_failure because we only need to check
   # for this job
