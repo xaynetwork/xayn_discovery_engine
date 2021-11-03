@@ -14,7 +14,7 @@ class IsolatedSendingPort extends SendingPort {
   }
 
   @override
-  void send(Object? message, [List<Object>? transfer]) => _port.send(message);
+  void send(dynamic message, [List<Object>? transfer]) => _port.send(message);
 }
 
 class IsolatedReceivingPort extends ReceivingPort {

@@ -42,7 +42,7 @@ class Sender<T extends SendingPort> {
 
   T? get port => _port;
 
-  void send(Object? message, [List<Object>? transfer]) {
+  void send(dynamic message, [List<Object>? transfer]) {
     if (_port == null) {
       throw StateError('Sender send method was already called');
     }
@@ -77,7 +77,7 @@ abstract class ClosingPort {
 
 abstract class SendingPort extends ClosingPort {
   // TODO: check if we need the transfer in the sender
-  void send(Object? message, [List<Object>? transfer]);
+  void send(dynamic message, [List<Object>? transfer]);
 }
 
 abstract class ReceivingPort extends ClosingPort {

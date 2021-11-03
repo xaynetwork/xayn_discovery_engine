@@ -11,7 +11,7 @@ class WebSendingPort extends SendingPort {
   void close() => _port.close();
 
   @override
-  void send(Object? message, [List<Object>? transfer]) =>
+  void send(dynamic message, [List<Object>? transfer]) =>
       _port.postMessage(message, transfer);
 }
 
