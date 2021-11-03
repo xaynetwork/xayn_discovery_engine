@@ -19,4 +19,4 @@ class _WebWorker extends PlatformWorker {
   void dispose() => _context.close();
 }
 
-PlatformWorker createPlatformWorker(dynamic message) => _WebWorker();
+PlatformWorker createPlatformWorker(dynamic initialMessage) => _WebWorker();

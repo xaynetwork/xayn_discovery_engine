@@ -28,5 +28,5 @@ class _IsolatedWorker extends PlatformWorker {
   }
 }
 
-PlatformWorker createPlatformWorker(dynamic message) =>
-    _IsolatedWorker(message as SendPort);
+PlatformWorker createPlatformWorker(dynamic initialMessage) =>
+    _IsolatedWorker(initialMessage as SendPort);

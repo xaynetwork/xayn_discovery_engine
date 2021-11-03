@@ -33,7 +33,7 @@ typedef EventHandler<Request, Response> = Future<void> Function(
 ///   Converter<Response, dynamic> get responseConverter =>
 ///     _responseCodec.encoder;
 ///
-///   ExampleWorker(dynamic message) : super(message) {
+///   ExampleWorker(dynamic initialMessage) : super(initialMessage) {
 ///     on<SomeRequest>(_onSomeRequest);
 ///   }
 ///
@@ -42,7 +42,7 @@ typedef EventHandler<Request, Response> = Future<void> Function(
 ///   }
 /// }
 ///
-/// void main(dynamic message) => ExampleWorker(message);
+/// void main(dynamic initialMessage) => ExampleWorker(initialMessage);
 /// ```
 abstract class Worker<Request, Response> {
   /// Underlying [PlatformWorker] used for communication with a [Manager].
@@ -59,7 +59,8 @@ abstract class Worker<Request, Response> {
   /// Converter for outgoing messages.
   Converter<Response, dynamic> get responseConverter;
 
-  Worker(dynamic message) : _worker = createPlatformWorker(message) {
+  Worker(dynamic initialMessage)
+      : _worker = createPlatformWorker(initialMessage) {
     _bindPlatformWorker();
   }
 
