@@ -1,4 +1,4 @@
-import 'dart:async' show StreamController, StreamSubscription;
+import 'dart:async' show StreamSubscription;
 import 'dart:convert' show Converter;
 
 import 'package:meta/meta.dart' show mustCallSuper;
@@ -10,11 +10,7 @@ import 'package:xayn_discovery_engine/src/worker/native/platform_worker_io.dart'
     if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_worker_web.dart'
     show createPlatformWorker;
 
-typedef Emmiter<Response> = void Function(Response event, [Sender? sender]);
-typedef EventHandler<Request, Response> = Future<void> Function(
-  Request event,
-  Emmiter<Response> emit,
-);
+typedef Emitter<Response> = void Function(Response response);
 
 /// TODO: documentation needed
 ///
@@ -33,25 +29,28 @@ typedef EventHandler<Request, Response> = Future<void> Function(
 ///   Converter<Response, dynamic> get responseConverter =>
 ///     _responseCodec.encoder;
 ///
-///   ExampleWorker(dynamic initialMessage) : super(initialMessage) {
-///     on<SomeRequest>(_onSomeRequest);
+///   ExampleWorker(dynamic initialMessage) : super(initialMessage);
+///
+///   @override
+///   void onMessage(Request request, Emitter<Response> emit) {
+///     emit(SomeResponse());
 ///   }
 ///
-///   void _onSomeRequest(SomeRequest event, Emmiter<Response> emit) {
-///     emit(SomeResponse());
+///   @override
+///   void onError(Object error, Emitter<Response> emit) {
+///     emit(WorkerError(error));
 ///   }
 /// }
 ///
 /// void main(dynamic initialMessage) => ExampleWorker(initialMessage);
 /// ```
+
+// TODO: maybe rename this to InMsg, OutMsg
 abstract class Worker<Request, Response> {
   /// Underlying [PlatformWorker] used for communication with a [Manager].
   final PlatformWorker _worker;
 
-  final _requestController =
-      StreamController<OneshotRequest<Request>>.broadcast();
-  final _subscriptions = <StreamSubscription<dynamic>>[];
-  final _handlerTypes = <Type>[];
+  late final StreamSubscription<dynamic> _subscription;
 
   /// Converter for incoming messages.
   Converter<dynamic, OneshotRequest<Request>> get requestConverter;
@@ -68,47 +67,40 @@ abstract class Worker<Request, Response> {
   /// them to a [OneshotRequest] containing appropriate [Request] and adds
   /// them to a request stream.
   void _bindPlatformWorker() {
-    final subscription = _worker.messages
+    _subscription = _worker.messages
+        // let's convert incoming messages to a `OneshotRequest<Request>`
         .map(requestConverter.convert)
-        .listen(_requestController.add);
-    _subscriptions.add(subscription);
-  }
-
-  /// TODO: documentation needed
-  void on<E extends Request>(
-    EventHandler<E, Response> handler, {
-    // EventTransformer<E>? transformer,
-    dynamic transformer,
-  }) {
-    assert(() {
-      final handlerExists = _handlerTypes.any((type) => type == E);
-      if (handlerExists) {
-        throw StateError(
-          'on<$E> was called multiple times. '
-          'There should only be a single event handler per event type.',
+        .listen(
+          (oneshotReq) => onMessage(
+            oneshotReq.payload,
+            _emitBuilder(oneshotReq.sender),
+          ),
+          onError: (Object error) => onError(
+            error,
+            _emitBuilder(),
+          ),
         );
-      }
-      _handlerTypes.add(E);
-      return true;
-    }());
-
-    // TODO: wrap in a transformer and apply the handler
-    final subscription = _requestController.stream
-        .where((event) => event.payload is E)
-        .cast<E>()
-        .listen(null);
-    _subscriptions.add(subscription);
   }
 
-  /// Serializes the [Response] to a proper message format and sends it via
-  /// the attached [Sender] if available, and also through the [PlatformWorker].
-  void _emitResponse(Response event, [Sender? sender]) {
-    final dynamic message = responseConverter.convert(event);
+  /// Handles events from [PlatformWorker] messages stream.
+  void onMessage(Request request, Emitter<Response> emit);
 
-    // We send the reponse message to the sender that came with request
-    sender?.send(message);
-    // We send the reponse message through the main platform channel
-    _worker.send(message);
+  /// Called with the error object upon any errors from [PlatformWorker]
+  /// messages stream.
+  void onError(Object error, Emitter<Response> emit);
+
+  /// Creates an `emit` function which serializes the [Response] to a proper
+  /// message format and sends it via the attached [Sender] if available,
+  /// and also through the [PlatformWorker].
+  Emitter<Response> _emitBuilder([Sender? sender]) {
+    return (Response event) {
+      final dynamic message = responseConverter.convert(event);
+
+      // We send the reponse message to the sender that came with request
+      sender?.send(message);
+      // We send the reponse message through the main platform channel
+      _worker.send(message);
+    };
   }
 
   /// Performs a cleanup that includes closing requests StreamController,
@@ -116,8 +108,7 @@ abstract class Worker<Request, Response> {
   /// [PlatformWorker].
   @mustCallSuper
   Future<void> dispose() async {
-    await _requestController.close();
-    await Future.wait<void>(_subscriptions.map((s) => s.cancel()));
+    await _subscription.cancel();
     _worker.dispose();
   }
 }
