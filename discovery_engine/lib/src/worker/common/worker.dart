@@ -22,7 +22,7 @@ typedef Emitter<Response> = void Function(Response response);
 ///   final _responseCodec = ResponseCodec();
 ///
 ///   @override
-///   Converter<dynamic, Request> get requestConverter =>
+///   Converter<dynamic, OneshotRequest<Request>> get requestConverter =>
 ///     _requestCodec.decoder;
 ///
 ///   @override
@@ -32,13 +32,13 @@ typedef Emitter<Response> = void Function(Response response);
 ///   ExampleWorker(dynamic initialMessage) : super(initialMessage);
 ///
 ///   @override
-///   void onMessage(Request request, Emitter<Response> emit) {
-///     emit(SomeResponse());
+///   void onMessage(OneshotRequest<Request> request, Emitter<Response> send) {
+///     send(SomeResponse(), request.sender);
 ///   }
 ///
 ///   @override
-///   void onError(Object error, Emitter<Response> emit) {
-///     emit(WorkerError(error));
+///   void onError(Object error, Emitter<Response> send) {
+///     send(WorkerError(error));
 ///   }
 /// }
 ///
@@ -72,35 +72,34 @@ abstract class Worker<Request, Response> {
         .map(requestConverter.convert)
         .listen(
           (oneshotReq) => onMessage(
-            oneshotReq.payload,
-            _emitBuilder(oneshotReq.sender),
+            oneshotReq,
+            send,
           ),
+          // TODO: should we also handle the `StackTrace`?
           onError: (Object error) => onError(
             error,
-            _emitBuilder(),
+            send,
           ),
         );
   }
 
   /// Handles events from [PlatformWorker] messages stream.
-  void onMessage(Request request, Emitter<Response> emit);
+  void onMessage(OneshotRequest<Request> request, Emitter<Response> send);
 
   /// Called with the error object upon any errors from [PlatformWorker]
   /// messages stream.
-  void onError(Object error, Emitter<Response> emit);
+  void onError(Object error, Emitter<Response> send);
 
-  /// Creates an `emit` function which serializes the [Response] to a proper
-  /// message format and sends it via the attached [Sender] if available,
-  /// and also through the [PlatformWorker].
-  Emitter<Response> _emitBuilder([Sender? sender]) {
-    return (Response event) {
-      final dynamic message = responseConverter.convert(event);
+  /// Serializes the [Response] to a proper message format and sends it via
+  /// the [Sender] attached to the [Request] if available or directly through
+  /// the [PlatformWorker] channel.
+  void send(Response event, [Sender? sender]) {
+    // TODO: should we throw from the codec, or catch exceptions inside and return a proper ErrorEvent?
+    final dynamic message = responseConverter.convert(event);
 
-      // We send the reponse message to the sender that came with request
-      sender?.send(message);
-      // We send the reponse message through the main platform channel
-      _worker.send(message);
-    };
+    // If [Sender] is available send the reponse message using it, otherwise
+    // use the main platform channel
+    (sender?.send ?? _worker.send).call(message);
   }
 
   /// Performs a cleanup that includes closing requests StreamController,
