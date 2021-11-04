@@ -72,8 +72,13 @@ abstract class Manager<Request, Response> {
   /// them to an appropriate [Response]s and adds them to a responses stream.
   void _bindPlatformManager() {
     final subscription = _manager.messages
+        // convert messages to a proper [Response]
         .map(responseConverter.convert)
-        .listen(_responseController.add);
+        .listen(
+          _responseController.add,
+          // TODO: maybe error handling needed ??
+          onError: (Object error) {},
+        );
     _subscriptions.add(subscription);
   }
 
@@ -103,9 +108,12 @@ abstract class Manager<Request, Response> {
     // to be able to use it
     _manager.send(requestMessage, [sender.port!]);
 
-    // Prepare response message and return it
     final responseMessage = await channel.receiver.receive();
+    // TODO: should we throw from the codec, or catch exceptions inside and return a proper ErrorEvent?
     final response = responseConverter.convert(responseMessage);
+
+    // Add a response to the stream
+    _responseController.add(response);
 
     return response;
   }
