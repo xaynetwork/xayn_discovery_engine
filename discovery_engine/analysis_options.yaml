@@ -13,6 +13,7 @@ linter:
     - always_use_package_imports
     - camel_case_types
     - camel_case_extensions
+    - comment_references
     - constant_identifier_names
     - curly_braces_in_flow_control_structures
     - directives_ordering
