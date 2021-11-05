@@ -51,7 +51,7 @@ jobs:
 
       - name: Analyze code
         working-directory: discovery_engine
-        run: dart analyze
+        run: dart analyze --fatal-infos
 
   dart-test:
     name: dart-test
