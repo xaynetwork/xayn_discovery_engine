@@ -1,14 +1,13 @@
-import 'package:hive/hive.dart';
+import 'package:hive/hive.dart'
+    show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
+import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
+    show documentTypeId, documentFeedbackTypeId, documentStatusTypeId;
 
 part 'document.g.dart';
-
-const documentTypeId = 0;
-const documentStatusTypeId = 1;
-const documentFeedbackTypeId = 2;
 
 /// [Document] is representing items in the discovery feed
 /// or in the search result list.
