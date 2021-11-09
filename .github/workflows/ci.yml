@@ -12,6 +12,7 @@ permissions:
 
 env:
   DART_VERSION: '2.14.4'
+  DART_WORKSPACE: ${{ github.workspace }}/discovery_engine
 
 jobs:
   dart-format:
