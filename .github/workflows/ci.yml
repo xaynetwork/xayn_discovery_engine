@@ -49,6 +49,10 @@ jobs:
         working-directory: discovery_engine
         run: dart pub get
 
+      - name: Other Dart code generation
+        working-directory: ${{ env.DART_WORKSPACE }}
+        run: flutter packages pub run build_runner build
+
       - name: Analyze code
         working-directory: discovery_engine
         run: dart analyze --fatal-infos
@@ -70,6 +74,10 @@ jobs:
       - name: Install dependencies
         working-directory: discovery_engine
         run: dart pub get
+ 
+      - name: Other Dart code generation
+        working-directory: ${{ env.DART_WORKSPACE }}
+        run: flutter packages pub run build_runner build
 
       - name: Run tests
         working-directory: discovery_engine
@@ -92,6 +100,10 @@ jobs:
       - name: Install dartdoc
         working-directory: discovery_engine
         run: dart pub global activate dartdoc
+
+      - name: Other Dart code generation
+        working-directory: ${{ env.DART_WORKSPACE }}
+        run: flutter packages pub run build_runner build
 
       - name: Check documentation
         working-directory: discovery_engine
