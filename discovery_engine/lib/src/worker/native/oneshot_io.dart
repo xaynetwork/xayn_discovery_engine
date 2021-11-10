@@ -8,13 +8,16 @@ class IsolatedSendingPort extends SendingPort {
   IsolatedSendingPort(this._port);
 
   @override
+  SendPort get port => _port;
+
+  @override
   void close() {
     // [SendPort] can't close itself, it is closed by the controlling
     // [ReceivePort], so this method should do nothing
   }
 
   @override
-  void send(dynamic message, [List<Object>? transfer]) => _port.send(message);
+  void send(dynamic message) => _port.send(message);
 }
 
 class IsolatedReceivingPort extends ReceivingPort {
@@ -34,3 +37,6 @@ OneshotChannel createChannel() {
   final receivingPort = IsolatedReceivingPort(channel);
   return OneshotChannel(sendingPort, receivingPort);
 }
+
+SendingPort createPlatformSendingPort(Object port) =>
+    IsolatedSendingPort(port as SendPort);

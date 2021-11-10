@@ -8,11 +8,13 @@ class WebSendingPort extends SendingPort {
   WebSendingPort(this._port);
 
   @override
+  MessagePort get port => _port;
+
+  @override
   void close() => _port.close();
 
   @override
-  void send(dynamic message, [List<Object>? transfer]) =>
-      _port.postMessage(message, transfer);
+  void send(dynamic message) => _port.postMessage(message);
 }
 
 class WebReceivingPort extends ReceivingPort {
@@ -23,7 +25,7 @@ class WebReceivingPort extends ReceivingPort {
   void close() => _port.close();
 
   @override
-  Future<Object?> receive() => _port.onMessage.first;
+  Future<Object?> receive() async => (await _port.onMessage.first).data;
 }
 
 OneshotChannel createChannel() {
@@ -32,3 +34,6 @@ OneshotChannel createChannel() {
   final receivingPort = WebReceivingPort(channel.port2);
   return OneshotChannel(sendingPort, receivingPort);
 }
+
+SendingPort createPlatformSendingPort(Object port) =>
+    WebSendingPort(port as MessagePort);

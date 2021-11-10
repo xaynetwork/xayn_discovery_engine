@@ -1,6 +1,6 @@
 import 'package:xayn_discovery_engine/src/worker/native/oneshot_io.dart'
     if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/oneshot_web.dart'
-    show createChannel;
+    show createChannel, createPlatformSendingPort;
 
 class Oneshot {
   Sender? _sender;
@@ -40,16 +40,22 @@ class Sender<T extends SendingPort> {
   T? _port;
   Sender(this._port);
 
-  T? get port => _port;
+  /// Creates a Sender from `port` passed with the message. Ment to be used
+  /// during message deserialization process.
+  Sender.fromPlatformPort(Object port)
+      : _port = createPlatformSendingPort(port) as T?;
 
-  void send(dynamic message, [List<Object>? transfer]) {
-    if (_port == null) {
+  Object get platformPort => _port?.port as Object;
+
+  void send(dynamic message) {
+    final port = _port;
+
+    if (port == null) {
       throw StateError('Sender send method was already called');
     }
 
-    // TODO: check if we need the transfer in the sender
-    _port!.send(message, transfer);
-    _port!.close();
+    port.send(message);
+    port.close();
     _port = null;
   }
 }
@@ -59,12 +65,14 @@ class Receiver<T extends ReceivingPort> {
   Receiver(this._port);
 
   Future<Object?> receive() async {
-    if (_port == null) {
+    final port = _port;
+
+    if (port == null) {
       throw StateError('Receiver receive method was already called');
     }
 
-    final result = await _port!.receive();
-    _port!.close();
+    final result = await port.receive();
+    port.close();
     _port = null;
 
     return result;
@@ -76,8 +84,9 @@ abstract class ClosingPort {
 }
 
 abstract class SendingPort extends ClosingPort {
-  // TODO: check if we need the transfer in the sender
-  void send(dynamic message, [List<Object>? transfer]);
+  Object get port;
+
+  void send(dynamic message);
 }
 
 abstract class ReceivingPort extends ClosingPort {
