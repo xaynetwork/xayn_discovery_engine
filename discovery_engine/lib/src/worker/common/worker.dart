@@ -10,7 +10,7 @@ import 'package:xayn_discovery_engine/src/worker/native/platform_worker_io.dart'
     if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_worker_web.dart'
     show createPlatformWorker;
 
-typedef Emitter<Response> = void Function(Response response);
+typedef Emitter<Response> = void Function(Response response, [Sender? sender]);
 
 /// TODO: documentation needed
 ///
@@ -44,8 +44,6 @@ typedef Emitter<Response> = void Function(Response response);
 ///
 /// void main(dynamic initialMessage) => ExampleWorker(initialMessage);
 /// ```
-
-// TODO: maybe rename this to InMsg, OutMsg
 abstract class Worker<Request, Response> {
   /// Underlying [PlatformWorker] used for communication with a [Manager].
   final PlatformWorker _worker;
@@ -67,20 +65,10 @@ abstract class Worker<Request, Response> {
   /// them to a [OneshotRequest] containing appropriate [Request] and adds
   /// them to a request stream.
   void _bindPlatformWorker() {
-    _subscription = _worker.messages
-        // let's convert incoming messages to a `OneshotRequest<Request>`
-        .map(requestConverter.convert)
-        .listen(
-          (oneshotReq) => onMessage(
-            oneshotReq,
-            send,
-          ),
-          // TODO: should we also handle the `StackTrace`?
-          onError: (Object error) => onError(
-            error,
-            send,
-          ),
-        );
+    _subscription = _worker.messages.listen(
+      _onMessage,
+      cancelOnError: false,
+    );
   }
 
   /// Handles events from [PlatformWorker] messages stream.
@@ -90,11 +78,20 @@ abstract class Worker<Request, Response> {
   /// messages stream.
   void onError(Object error, Emitter<Response> send);
 
+  void _onMessage(dynamic message) {
+    try {
+      // let's convert incoming messages to a `OneshotRequest<Request>`
+      final OneshotRequest<Request> request = requestConverter.convert(message);
+      onMessage(request, send);
+    } catch (e) {
+      onError(e, send);
+    }
+  }
+
   /// Serializes the [Response] to a proper message format and sends it via
   /// the [Sender] attached to the [Request] if available or directly through
   /// the [PlatformWorker] channel.
   void send(Response event, [Sender? sender]) {
-    // TODO: should we throw from the codec, or catch exceptions inside and return a proper ErrorEvent?
     final dynamic message = responseConverter.convert(event);
 
     // If [Sender] is available send the reponse message using it, otherwise

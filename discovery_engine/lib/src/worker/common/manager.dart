@@ -2,6 +2,8 @@ import 'dart:async' show Completer, StreamController, StreamSubscription;
 import 'dart:convert' show Converter;
 
 import 'package:meta/meta.dart' show mustCallSuper;
+import 'package:xayn_discovery_engine/src/worker/common/exceptions.dart'
+    show ResponseTimeoutException, WorkerSpawnException;
 import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart'
     show Oneshot, OneshotRequest;
 import 'package:xayn_discovery_engine/src/worker/common/platform_actors.dart'
@@ -10,6 +12,8 @@ import 'package:xayn_discovery_engine/src/worker/common/platform_actors.dart'
 import 'package:xayn_discovery_engine/src/worker/native/platform_manager_io.dart'
     if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_manager_web.dart'
     show createPlatformManager;
+
+const kDefaultRequestTimeout = Duration(seconds: 10);
 
 /// TODO: documentation needed
 ///
@@ -46,7 +50,7 @@ abstract class Manager<Request, Response> {
   /// and communication with a [Worker].
   late final PlatformManager _manager;
 
-  final _managerCompleter = Completer<PlatformManager>();
+  final _isWorkerReady = Completer<bool>();
   final _responseController = StreamController<Response>.broadcast();
   final _subscriptions = <StreamSubscription<dynamic>>[];
 
@@ -59,27 +63,44 @@ abstract class Manager<Request, Response> {
   /// Stream of [Response] returned from the [Worker].
   Stream<Response> get responses => _responseController.stream;
 
+  /// Returns a status of [Worker] initialization. Can be used to wait before
+  /// sending a [Request];
+  Future<bool> get isWorkerReady => _isWorkerReady.future;
+
   Manager(dynamic entryPoint) {
-    createPlatformManager(entryPoint)
-        .then((value) => _manager = value)
-        .then(_managerCompleter.complete)
-        .then((_) => _bindPlatformManager())
-        // TODO: proper error handling needed here
-        .catchError(_managerCompleter.completeError);
+    _initManager(entryPoint);
+  }
+
+  void _initManager(dynamic entryPoint) async {
+    try {
+      _manager = await createPlatformManager(entryPoint);
+      _bindPlatformManager();
+      _isWorkerReady.complete(true);
+    } catch (e) {
+      _isWorkerReady.complete(false);
+      // TODO: add an error to the main responses stream
+      // OR add it to a dedicated errors stream
+      _responseController.addError(WorkerSpawnException('$e'));
+    }
   }
 
   /// Subscribes to messages of the underlying [PlatformManager], deserializes
   /// them to an appropriate [Response]s and adds them to a responses stream.
   void _bindPlatformManager() {
-    final subscription = _manager.messages
-        // convert messages to a proper [Response]
-        .map(responseConverter.convert)
-        .listen(
-          _responseController.add,
-          // TODO: maybe error handling needed ??
-          onError: (Object error) {},
-        );
-    _subscriptions.add(subscription);
+    final messageSubscription =
+        _manager.messages.map(responseConverter.convert).listen(
+              _responseController.add,
+              onError: _responseController.addError,
+            );
+    final errorsSubscription = _manager.errors.listen(
+      (dynamic error) => _responseController.addError(error as Object),
+      onError: _responseController.addError,
+    );
+
+    _subscriptions.addAll([
+      messageSubscription,
+      errorsSubscription,
+    ]);
   }
 
   /// Sends a [Request] through [PlatformManager] to a spawned [Worker]
@@ -94,25 +115,32 @@ abstract class Manager<Request, Response> {
   /// [Request] and retured to the caller.
   Future<Response> send(Request event) async {
     // wait for the worker to be spawned
-    if (!_managerCompleter.isCompleted) {
-      await _managerCompleter.future;
+    if (!(await isWorkerReady)) {
+      throw WorkerSpawnException(
+          'There was an issue with Worker initialization.');
     }
 
     final channel = Oneshot();
     final sender = channel.sender;
     final request = OneshotRequest(sender, event);
 
-    // Prepare request message and send it
+    // Prepare request message and send it via PlatformManager
     final dynamic requestMessage = requestConverter.convert(request);
-    // TODO: check if on the web we actually need to send the port via transfer
-    // to be able to use it
-    _manager.send(requestMessage, [sender.port!]);
+    _manager.send(requestMessage, [sender.platformPort]);
 
-    final responseMessage = await channel.receiver.receive();
-    // TODO: should we throw from the codec, or catch exceptions inside and return a proper ErrorEvent?
+    // Wait for a message and convert it to proper [Response] object
+    final responseMessage = await channel.receiver
+        .receive()
+        // Wait for [Response] message ony for a specified
+        // [Duration], otherwise throw a timeout exception
+        .timeout(
+          kDefaultRequestTimeout,
+          onTimeout: () => throw ResponseTimeoutException(
+              'Worker couldn\'t respond in time to $event'),
+        );
     final response = responseConverter.convert(responseMessage);
 
-    // Add a response to the stream
+    // Add a [Response] to the main stream
     _responseController.add(response);
 
     return response;
