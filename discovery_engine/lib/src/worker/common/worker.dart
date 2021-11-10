@@ -45,7 +45,7 @@ typedef Emitter<Response> = void Function(Response response, [Sender? sender]);
 /// void main(dynamic initialMessage) => ExampleWorker(initialMessage);
 /// ```
 abstract class Worker<Request, Response> {
-  /// Underlying [PlatformWorker] used for communication with a [Manager].
+  /// Underlying [PlatformWorker] used for communication with a Manager.
   final PlatformWorker _worker;
 
   late final StreamSubscription<dynamic> _subscription;

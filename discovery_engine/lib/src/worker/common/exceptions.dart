@@ -1,4 +1,4 @@
-/// Thrown when a [Worker] cannot be created.
+/// Thrown when a Worker cannot be created.
 class WorkerSpawnException implements Exception {
   /// Message (or string representation of the exception).
   final String message;
@@ -13,7 +13,7 @@ class WorkerSpawnException implements Exception {
   String toString() => 'WorkerSpawnException: $message\n$stackTrace';
 }
 
-/// Thrown when a [Converter] cannot convert a message.
+/// Thrown when a Converter cannot convert a message.
 class ConverterException implements Exception {
   /// Message (or string representation of the exception).
   final String message;
@@ -24,7 +24,7 @@ class ConverterException implements Exception {
   String toString() => 'ConverterException: $message';
 }
 
-/// Thrown when the [Response] takes too long to finish.
+/// Thrown when the Response takes too long to finish.
 class ResponseTimeoutException implements Exception {
   /// Message (or string representation of the exception).
   final String message;

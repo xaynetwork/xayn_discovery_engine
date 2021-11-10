@@ -19,12 +19,12 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 ///
 /// **Important!**
 ///
-/// Please pass a proper "entry point" for the respective [PlatformWorker]
+/// Please pass a proper "entry point" for the respective PlatformWorker
 /// to the `super` constructor.
 ///
-/// For web version please provide relative path to the [Worker] js file,
+/// For web version please provide relative path to the Worker js file,
 /// for the native version it should be the static entry point method used
-/// to spawn an [Isolate].
+/// to spawn an Isolate.
 ///
 /// Example:
 /// ```
@@ -47,7 +47,7 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 /// ```
 abstract class Manager<Request, Response> {
   /// Underlying platform manager used for spawning
-  /// and communication with a [Worker].
+  /// and communication with a Worker.
   late final PlatformManager _manager;
 
   final _isWorkerReady = Completer<bool>();
@@ -60,10 +60,10 @@ abstract class Manager<Request, Response> {
   /// Converter for incoming messages.
   Converter<dynamic, Response> get responseConverter;
 
-  /// Stream of [Response] returned from the [Worker].
+  /// Stream of [Response] returned from the Worker.
   Stream<Response> get responses => _responseController.stream;
 
-  /// Returns a status of [Worker] initialization. Can be used to wait before
+  /// Returns a status of Worker initialization. Can be used to wait before
   /// sending a [Request];
   Future<bool> get isWorkerReady => _isWorkerReady.future;
 
@@ -103,15 +103,15 @@ abstract class Manager<Request, Response> {
     ]);
   }
 
-  /// Sends a [Request] through [PlatformManager] to a spawned [Worker]
+  /// Sends a [Request] through [PlatformManager] to a spawned Worker
   /// and returns a Future with a [Response].
   ///
   /// [Request] is serialized via provided [Converter] to a format suitable
-  /// for transfering across the boundry between [Manager] and [Worker].
+  /// for transfering across the boundry between [Manager] and Worker.
   /// To keep track of sent [Request] a [Oneshot] channel is created
-  /// and the request is wrapped together with [Sender]s port in a [OneshotRequest].
+  /// and the request is wrapped together with Sender's port in a [OneshotRequest].
   ///
-  /// The response message from the [Worker] is deserialized to an appropriate
+  /// The response message from the Worker is deserialized to an appropriate
   /// [Request] and retured to the caller.
   Future<Response> send(Request event) async {
     // wait for the worker to be spawned
