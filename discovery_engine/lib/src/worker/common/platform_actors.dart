@@ -1,5 +1,3 @@
-import 'dart:async' show Stream;
-
 abstract class PlatformActor {
   /// Stream of incoming messages
   Stream get messages;
@@ -13,7 +11,10 @@ abstract class PlatformActor {
 }
 
 /// Base class for PlatformManager actor
-abstract class PlatformManager extends PlatformActor {}
+abstract class PlatformManager extends PlatformActor {
+  /// Stream of error messages from a [PlatformWorker]
+  Stream get errors;
+}
 
 /// Base class for PlatformWorker actor
 abstract class PlatformWorker extends PlatformActor {}

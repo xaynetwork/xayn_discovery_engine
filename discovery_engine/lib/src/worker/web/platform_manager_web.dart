@@ -1,5 +1,7 @@
-import 'dart:html' show Worker;
+import 'dart:html' show Worker, ErrorEvent;
 
+import 'package:xayn_discovery_engine/src/worker/common/exceptions.dart'
+    show WorkerSpawnException;
 import 'package:xayn_discovery_engine/src/worker/common/platform_actors.dart'
     show PlatformManager;
 
@@ -12,8 +14,8 @@ class WebWorkerManager extends PlatformManager {
 
   static Future<PlatformManager> spawn(String scriptUrl) async {
     if (Worker.supported == false) {
-      // TODO: maybe spawn a "SameThreadWorker" in such case
-      throw UnsupportedError('Web workers are not supported');
+      throw WorkerSpawnException(
+          'WebWorkers are not supported in this browser');
     }
 
     final worker = Worker(scriptUrl);
@@ -21,20 +23,21 @@ class WebWorkerManager extends PlatformManager {
   }
 
   @override
-  Stream get messages => _worker.onMessage
-      // TODO: do we need to clean-up stream subscriptions?
-      .map<dynamic>((event) => event.data);
+  Stream get errors => _worker.onError.map<dynamic>((event) {
+        final e = event as ErrorEvent;
+        // TODO: check what would be the best format
+        return [e.error, e.message ?? ''];
+      });
 
   @override
-  void send(dynamic message, [List<Object>? transfer]) {
-    _worker.postMessage(message, transfer);
-  }
+  Stream get messages => _worker.onMessage.map<dynamic>((event) => event.data);
 
   @override
-  void dispose() {
-    _worker.terminate();
-    // TODO: is any other clean-up needed?
-  }
+  void send(dynamic message, [List<Object>? transfer]) =>
+      _worker.postMessage(message, transfer);
+
+  @override
+  void dispose() => _worker.terminate();
 }
 
 Future<PlatformManager> createPlatformManager(dynamic scriptUrl) =>
