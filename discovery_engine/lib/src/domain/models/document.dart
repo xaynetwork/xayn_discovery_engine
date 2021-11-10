@@ -25,11 +25,14 @@ class Document {
   final int nonPersonalizedRank;
   @HiveField(5)
   final int personalizedRank;
+  @HiveField(6)
+  final bool _isActive;
 
   bool get isRelevant => _feedback == DocumentFeedback.positive;
   bool get isNotRelevant => _feedback == DocumentFeedback.negative;
   bool get isNeutral => _feedback == DocumentFeedback.neutral;
   bool get wasOpened => _status == DocumentStatus.opened;
+  bool get isActive => _isActive;
 
   int currentRank(bool isPersonalisationOn) =>
       isPersonalisationOn ? personalizedRank : nonPersonalizedRank;
@@ -40,7 +43,8 @@ class Document {
     required this.personalizedRank,
   })  : documentId = DocumentId(),
         _feedback = DocumentFeedback.neutral,
-        _status = DocumentStatus.missed;
+        _status = DocumentStatus.missed,
+        _isActive = true;
 }
 
 /// [DocumentStatus] indicates what the document status is in the context of
