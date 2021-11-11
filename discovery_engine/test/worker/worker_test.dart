@@ -9,13 +9,7 @@ void main() {
     late Manager manager;
 
     setUp(() async {
-      manager = MockManager(MockWorker.entryPoint);
-    });
-
-    test(
-        'when spawning Worker successfully `manager.isWorkerReady` '
-        'resolves to `true`', () {
-      expect(manager.isWorkerReady, completion(isTrue));
+      manager = await MockManager.create(MockWorker.entryPoint);
     });
 
     test(
@@ -40,14 +34,14 @@ void main() {
     test(
         'when sending a request that the manager can NOT convert'
         'it should throw a `ConverterException`', () async {
-      manager = ThrowsOnRequestManager(MockWorker.entryPoint);
+      manager = await ThrowsOnRequestManager.create(MockWorker.entryPoint);
       expect(manager.send('ping'), throwsA(isA<ConverterException>()));
     });
 
     test(
         'when receiving a response that the manager can NOT convert'
         'it should throw a `ConverterException`', () async {
-      manager = ThrowsOnResponseManager(MockWorker.entryPoint);
+      manager = await ThrowsOnResponseManager.create(MockWorker.entryPoint);
       expect(manager.send('ping'), throwsA(isA<ConverterException>()));
     });
   });
@@ -58,15 +52,17 @@ void main() {
     test(
         'when receiving a request that the worker can NOT convert'
         'it should throw a `ResponseTimeoutException`', () async {
-      manager = MockManager(ThrowsOnRequestWorker.entryPoint);
-      expect(manager.send('ping'), throwsA(isA<ResponseTimeoutException>()));
+      manager = await MockManager.create(ThrowsOnRequestWorker.entryPoint);
+      expect(manager.send('ping', timeout: Duration.zero),
+          throwsA(isA<ResponseTimeoutException>()));
     });
 
     test(
         'when sending a response that the Manager can NOT convert'
         'it should throw a `ResponseTimeoutException`', () async {
-      manager = MockManager(ThrowsOnResponseWorker.entryPoint);
-      expect(manager.send('ping'), throwsA(isA<ResponseTimeoutException>()));
+      manager = await MockManager.create(ThrowsOnResponseWorker.entryPoint);
+      expect(manager.send('ping', timeout: Duration.zero),
+          throwsA(isA<ResponseTimeoutException>()));
     });
   });
 }

@@ -1,4 +1,4 @@
-import 'dart:async' show Completer, StreamController, StreamSubscription;
+import 'dart:async' show StreamController, StreamSubscription;
 import 'dart:convert' show Converter;
 
 import 'package:meta/meta.dart' show mustCallSuper;
@@ -38,7 +38,7 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 ///   final _requestCodec = RequestToJsonCodec();
 ///   final _responseCodec = JsonToResponseCodec();
 ///
-///   ExampleManager() : super(kIsWeb ? 'worker.dart.js' : main);
+///   ExampleManager._(PlatformManager manager) : super(manager);
 ///
 ///   @override
 ///   Converter<OneshotRequest<Request>, Map> get requestConverter =>
@@ -47,6 +47,11 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 ///   @override
 ///   Converter<Map, Response> get responseConverter =>
 ///     _responseCodec.decoder;
+///
+///   static Future<MockManager> create(dynamic entryPoint) async {
+///     final platformManager = await Manager.spawnWorker(entryPoint);
+///     return ExampleManager._(platformManager);
+///   }
 ///
 ///   Future<ExampleResponse> ping() {
 ///     try {
@@ -58,8 +63,9 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 ///   }
 /// }
 ///
-/// void main() {
-///   final manager = ExampleManager(ExampleWorker.entryPoint);
+/// void main() async {
+///   final manager = await ExampleManager.create(
+///       kIsWeb ? 'worker.dart.js' : ExampleWorker.entryPoint);
 ///
 ///   // let's send a ping request
 ///   final response = await manager.ping();
@@ -74,9 +80,8 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 abstract class Manager<Request, Response> {
   /// Underlying platform manager used for spawning
   /// and communication with a Worker.
-  late final PlatformManager _manager;
+  final PlatformManager _manager;
 
-  final _isWorkerReady = Completer<bool>();
   final _responseController = StreamController<Response>.broadcast();
   final _subscriptions = <StreamSubscription<dynamic>>[];
 
@@ -89,36 +94,17 @@ abstract class Manager<Request, Response> {
   /// Stream of [Response] returned from the Worker.
   Stream<Response> get responses => _responseController.stream;
 
-  /// Returns a status of Worker initialization. Can be used to wait before
-  /// sending a [Request];
-  Future<bool> get isWorkerReady => _isWorkerReady.future;
-
-  Manager(dynamic entryPoint) {
-    _initManager(entryPoint);
+  Manager(this._manager) {
+    _bindPlatformManager();
   }
 
-  // Manager(this._manager) {
-  //   _bindPlatformManager();
-  // }
-
-  static Future<PlatformManager> spawn(dynamic entryPoint) async {
+  /// Returns a new instance of [PlatformManager] which spawns a Worker upon
+  /// its creation. If this process fails it will throw a [WorkerSpawnException].
+  static Future<PlatformManager> spawnWorker(dynamic entryPoint) async {
     try {
       return await createPlatformManager(entryPoint);
     } catch (e) {
       throw WorkerSpawnException('$e');
-    }
-  }
-
-  void _initManager(dynamic entryPoint) async {
-    try {
-      _manager = await createPlatformManager(entryPoint);
-      _bindPlatformManager();
-      _isWorkerReady.complete(true);
-    } catch (e) {
-      _isWorkerReady.complete(false);
-      // TODO: add an error to the main responses stream
-      // OR add it to a dedicated errors stream
-      _responseController.addError(WorkerSpawnException('$e'));
     }
   }
 
@@ -151,13 +137,7 @@ abstract class Manager<Request, Response> {
   ///
   /// The response message from the Worker is deserialized to an appropriate
   /// [Request] and retured to the caller.
-  Future<Response> send(Request event) async {
-    // wait for the worker to be spawned
-    if (!(await isWorkerReady)) {
-      throw WorkerSpawnException(
-          'There was an issue with Worker initialization.');
-    }
-
+  Future<Response> send(Request event, {Duration? timeout}) async {
     final channel = Oneshot();
     final request = OneshotRequest(channel.sender, event);
 
@@ -170,7 +150,7 @@ abstract class Manager<Request, Response> {
         // Wait for [Response] message only for a specified
         // [Duration], otherwise throw a timeout exception
         .timeout(
-      kDefaultRequestTimeout,
+      timeout ?? kDefaultRequestTimeout,
       onTimeout: () {
         // close the port of the Receiver
         channel.receiver.dispose();
