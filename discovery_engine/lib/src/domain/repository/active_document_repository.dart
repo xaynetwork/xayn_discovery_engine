@@ -1,5 +1,9 @@
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
+import 'dart:typed_data' show Uint8List;
 
-abstract class ActiveDocumentRepository {
-  Future<int?> smbertEmbeddingById(DocumentId id); // FIXME
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
+
+/// Repository interface for data relating to active documents.
+abstract class ActiveDocumentRelatedDataRepository {
+  Future<Uint8List?> smbertEmbeddingById(DocumentId id);
 }
