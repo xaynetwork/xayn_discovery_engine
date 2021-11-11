@@ -12,12 +12,12 @@ class MockWorker extends Worker<dynamic, dynamic> {
   MockWorker(dynamic initialMessage) : super(initialMessage);
 
   @override
-  void onError(Object error, Emitter send) {
+  void onError(Object error) {
     send('$error');
   }
 
   @override
-  void onMessage(OneshotRequest request, Emitter send) {
+  void onMessage(OneshotRequest request) {
     if (request.payload == 'ping') {
       send('pong', request.sender);
     } else if (request.payload is Map && request.payload['message'] != null) {

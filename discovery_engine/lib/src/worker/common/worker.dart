@@ -72,19 +72,19 @@ abstract class Worker<Request, Response> {
   }
 
   /// Handles events from [PlatformWorker] messages stream.
-  void onMessage(OneshotRequest<Request> request, Emitter<Response> send);
+  void onMessage(OneshotRequest<Request> request);
 
   /// Called with the error object upon any errors from [PlatformWorker]
   /// messages stream.
-  void onError(Object error, Emitter<Response> send);
+  void onError(Object error);
 
   void _onMessage(dynamic message) {
     try {
       // let's convert incoming messages to a `OneshotRequest<Request>`
       final OneshotRequest<Request> request = requestConverter.convert(message);
-      onMessage(request, send);
+      onMessage(request);
     } catch (e) {
-      onError(e, send);
+      onError(e);
     }
   }
 
