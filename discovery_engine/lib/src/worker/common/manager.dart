@@ -156,15 +156,19 @@ abstract class Manager<Request, Response> {
     _manager.send(requestMessage, [sender.platformPort]);
 
     // Wait for a message and convert it to proper [Response] object
-    final responseMessage = await channel.receiver
-        .receive()
-        // Wait for [Response] message ony for a specified
+    final responseMessage = await channel.receiver.receive()
+        // Wait for [Response] message only for a specified
         // [Duration], otherwise throw a timeout exception
         .timeout(
-          kDefaultRequestTimeout,
-          onTimeout: () => throw ResponseTimeoutException(
-              'Worker couldn\'t respond in time to $event'),
-        );
+      kDefaultRequestTimeout,
+      onTimeout: () {
+        // close the port of the Receiver
+        channel.receiver.dispose();
+
+        throw ResponseTimeoutException(
+            'Worker couldn\'t respond in time to $event');
+      },
+    );
     final response = responseConverter.convert(responseMessage);
 
     // Add a [Response] to the main stream

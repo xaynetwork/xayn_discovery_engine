@@ -77,6 +77,11 @@ class Receiver<T extends ReceivingPort> {
 
     return result;
   }
+
+  void dispose() {
+    _port?.close();
+    _port = null;
+  }
 }
 
 abstract class ClosingPort {
