@@ -7,4 +7,4 @@ export 'package:xayn_discovery_engine/src/worker/common/oneshot.dart'
 export 'package:xayn_discovery_engine/src/worker/common/platform_actors.dart'
     show PlatformManager;
 export 'package:xayn_discovery_engine/src/worker/common/worker.dart'
-    show Worker, Emitter;
+    show Worker;
