@@ -29,9 +29,8 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 /// Please pass a proper "entry point" for the respective PlatformWorker
 /// to the `super` constructor.
 ///
-/// For web version please provide relative path to the Worker js file,
-/// for the native version it should be the static entry point method used
-/// to spawn an Isolate.
+/// For web version please provide a path to the Worker js file, for the native
+/// version it should be the static entry point method used to spawn an Isolate.
 ///
 /// Example:
 /// ```
@@ -96,6 +95,18 @@ abstract class Manager<Request, Response> {
 
   Manager(dynamic entryPoint) {
     _initManager(entryPoint);
+  }
+
+  // Manager(this._manager) {
+  //   _bindPlatformManager();
+  // }
+
+  static Future<PlatformManager> spawn(dynamic entryPoint) async {
+    try {
+      return await createPlatformManager(entryPoint);
+    } catch (e) {
+      throw WorkerSpawnException('$e');
+    }
   }
 
   void _initManager(dynamic entryPoint) async {
