@@ -10,16 +10,21 @@ import 'package:xayn_discovery_engine/src/worker/native/platform_worker_io.dart'
     if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_worker_web.dart'
     show createPlatformWorker;
 
-typedef Emitter<Response> = void Function(Response response, [Sender? sender]);
-
-/// TODO: documentation needed
+/// [Worker] is providing a platform agnostic way of communication
+/// with a Manager that spawned it.
+///
+/// To implement a [Worker] please specify [Request] and [Response] types
+/// that might be send and received and provide [Converter]s for (de)serializing
+/// those types into a message format capable of going through the
+/// manager/worker boundry. Usually this could be either json or something
+/// more optimised, like a list of bytes.
 ///
 /// Example:
 ///
 /// ```
 /// class ExampleWorker extends Worker<Request, Response> {
-///   final _requestCodec = RequestCodec();
-///   final _responseCodec = ResponseCodec();
+///   final _requestCodec = JsonToRequestCodec();
+///   final _responseCodec = ResponseToJsonCodec();
 ///
 ///   @override
 ///   Converter<dynamic, OneshotRequest<Request>> get requestConverter =>
@@ -32,16 +37,18 @@ typedef Emitter<Response> = void Function(Response response, [Sender? sender]);
 ///   ExampleWorker(dynamic initialMessage) : super(initialMessage);
 ///
 ///   @override
-///   void onMessage(OneshotRequest<Request> request, Emitter<Response> send) {
+///   void onMessage(OneshotRequest<Request> request) {
 ///     send(SomeResponse(), request.sender);
 ///   }
 ///
 ///   @override
-///   void onError(Object error, Emitter<Response> send) {
+///   void onError(Object error) {
 ///     send(WorkerError(error));
 ///   }
 /// }
 ///
+/// // The main function can serve as an entry point for the `Isolate.spawn`
+/// // but also for the WebWorker when the file is compiled to JavaScript
 /// void main(dynamic initialMessage) => ExampleWorker(initialMessage);
 /// ```
 abstract class Worker<Request, Response> {

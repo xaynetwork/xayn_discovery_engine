@@ -15,7 +15,14 @@ import 'package:xayn_discovery_engine/src/worker/native/platform_manager_io.dart
 
 const kDefaultRequestTimeout = Duration(seconds: 10);
 
-/// TODO: documentation needed
+/// [Manager] is providing a platform agnostic way of spawning a Worker and
+/// establishing a communication with it.
+///
+/// To implement a [Manager] please specify [Request] and [Response] types
+/// that might be send and received and provide [Converter]s for (de)serializing
+/// those types into a message format capable of going through the
+/// manager/worker boundry. Usually this could be either json or something
+/// more optimised, like a list of bytes.
 ///
 /// **Important!**
 ///
@@ -29,20 +36,40 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 /// Example:
 /// ```
 /// class ExampleManager extends Manager<Request, Response> {
-///   final _requestCodec = RequestCodec();
-///   final _responseCodec = ResponseCodec();
+///   final _requestCodec = RequestToJsonCodec();
+///   final _responseCodec = JsonToResponseCodec();
 ///
 ///   ExampleManager() : super(kIsWeb ? 'worker.dart.js' : main);
 ///
 ///   @override
-///   Converter<Request, dynamic> get requestConverter =>
+///   Converter<OneshotRequest<Request>, Map> get requestConverter =>
 ///     _requestCodec.encoder;
 ///
 ///   @override
-///   Converter<dynamic, Response> get responseConverter =>
+///   Converter<Map, Response> get responseConverter =>
 ///     _responseCodec.decoder;
 ///
-///   Future<Response> makeRequest(Request req) => send(req);
+///   Future<ExampleResponse> ping() {
+///     try {
+///       return await send(PingRequest());
+///     } catch (error) {
+///       // something went wrong
+///       return PingFailed('$error');
+///     }
+///   }
+/// }
+///
+/// void main() {
+///   final manager = ExampleManager(ExampleWorker.entryPoint);
+///
+///   // let's send a ping request
+///   final response = await manager.ping();
+///
+///   if (response is PongResponse) {
+///     // success, everything went well
+///   } else {
+///     // we got a different response, probably an exception event
+///   }
 /// }
 /// ```
 abstract class Manager<Request, Response> {
