@@ -3,8 +3,8 @@ import 'package:xayn_discovery_engine/src/worker/native/oneshot_io.dart'
     show createChannel, createPlatformSendingPort;
 
 class Oneshot {
-  Sender? _sender;
-  Receiver? _receiver;
+  final Sender _sender;
+  final Receiver _receiver;
 
   Oneshot._(this._sender, this._receiver);
 
@@ -15,25 +15,9 @@ class Oneshot {
     return Oneshot._(sender, receiver);
   }
 
-  Sender get sender {
-    final sender = _sender;
-    if (sender == null) {
-      throw StateError('Sender was already used');
-    }
+  Sender get sender => _sender;
 
-    _sender = null;
-    return sender;
-  }
-
-  Receiver get receiver {
-    final receiver = _receiver;
-    if (receiver == null) {
-      throw StateError('Receiver was already used');
-    }
-
-    _receiver = null;
-    return receiver;
-  }
+  Receiver get receiver => _receiver;
 }
 
 class Sender<T extends SendingPort> {

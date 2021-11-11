@@ -159,12 +159,11 @@ abstract class Manager<Request, Response> {
     }
 
     final channel = Oneshot();
-    final sender = channel.sender;
-    final request = OneshotRequest(sender, event);
+    final request = OneshotRequest(channel.sender, event);
 
     // Prepare request message and send it via PlatformManager
     final dynamic requestMessage = requestConverter.convert(request);
-    _manager.send(requestMessage, [sender.platformPort]);
+    _manager.send(requestMessage, [channel.sender.platformPort]);
 
     // Wait for a message and convert it to proper [Response] object
     final responseMessage = await channel.receiver.receive()
