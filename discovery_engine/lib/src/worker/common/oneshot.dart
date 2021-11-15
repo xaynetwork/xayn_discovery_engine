@@ -29,7 +29,15 @@ class Sender<T extends SendingPort> {
   Sender.fromPlatformPort(Object port)
       : _port = createPlatformSendingPort(port) as T?;
 
-  Object get platformPort => _port?.port as Object;
+  Object get platformPort {
+    final port = _port;
+
+    if (port == null) {
+      throw StateError('Sender port in no longer accessible');
+    }
+
+    return port.port;
+  }
 
   void send(Object message) {
     final port = _port;
