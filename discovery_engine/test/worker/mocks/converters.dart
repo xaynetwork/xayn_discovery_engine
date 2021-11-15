@@ -1,5 +1,6 @@
 import 'dart:convert' show Converter;
 
+import 'package:test/expect.dart';
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show OneshotRequest, Sender, ConverterException;
 
@@ -15,6 +16,9 @@ class MessageToOneshotConverter
     extends Converter<List<Object>, OneshotRequest<Object>> {
   @override
   OneshotRequest<Object> convert(List<Object> input) {
+    if (input.length != 2) {
+      throw ArgumentError('Message to convert should be a list of 2 elements');
+    }
     final sender = Sender.fromPlatformPort(input.first);
     return OneshotRequest<Object>(sender, input.last);
   }
