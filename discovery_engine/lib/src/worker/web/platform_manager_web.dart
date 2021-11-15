@@ -26,6 +26,7 @@ class WebWorkerManager extends PlatformManager {
   Stream get errors => _worker.onError.map<dynamic>((event) {
         final e = event as ErrorEvent;
         // TODO: check what would be the best format
+        // => https://xainag.atlassian.net/browse/TY-2219
         return [e.error, e.message ?? ''];
       });
 
