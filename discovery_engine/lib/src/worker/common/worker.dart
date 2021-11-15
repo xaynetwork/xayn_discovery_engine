@@ -6,8 +6,8 @@ import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart'
     show OneshotRequest, Sender;
 import 'package:xayn_discovery_engine/src/worker/common/platform_actors.dart'
     show PlatformWorker;
-import 'package:xayn_discovery_engine/src/worker/native/platform_worker_io.dart'
-    if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_worker_web.dart'
+import 'package:xayn_discovery_engine/src/worker/native/platform_worker.dart'
+    if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_worker.dart'
     show createPlatformWorker;
 
 /// [Worker] is providing a platform agnostic way of communication

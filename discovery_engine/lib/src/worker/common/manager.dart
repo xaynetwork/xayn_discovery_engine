@@ -9,8 +9,8 @@ import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart'
 import 'package:xayn_discovery_engine/src/worker/common/platform_actors.dart'
     show PlatformManager;
 
-import 'package:xayn_discovery_engine/src/worker/native/platform_manager_io.dart'
-    if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_manager_web.dart'
+import 'package:xayn_discovery_engine/src/worker/native/platform_manager.dart'
+    if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_manager.dart'
     show createPlatformManager;
 
 const kDefaultRequestTimeout = Duration(seconds: 10);

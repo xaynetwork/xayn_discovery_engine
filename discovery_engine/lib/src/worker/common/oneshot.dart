@@ -1,5 +1,5 @@
-import 'package:xayn_discovery_engine/src/worker/native/oneshot_io.dart'
-    if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/oneshot_web.dart'
+import 'package:xayn_discovery_engine/src/worker/native/oneshot.dart'
+    if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/oneshot.dart'
     show createChannel, createPlatformSendingPort;
 
 class Oneshot {
