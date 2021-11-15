@@ -41,6 +41,7 @@ class Sender<T extends SendingPort> {
 
   void send(Object message) {
     final port = _port;
+    _port = null;
 
     if (port == null) {
       throw StateError('Sender send method was already called');
@@ -48,7 +49,6 @@ class Sender<T extends SendingPort> {
 
     port.send(message);
     port.close();
-    _port = null;
   }
 }
 
@@ -58,6 +58,7 @@ class Receiver<T extends ReceivingPort> {
 
   Future<Object?> receive() async {
     final port = _port;
+    _port = null;
 
     if (port == null) {
       throw StateError('Receiver receive method was already called');
@@ -65,7 +66,6 @@ class Receiver<T extends ReceivingPort> {
 
     final result = await port.receive();
     port.close();
-    _port = null;
 
     return result;
   }
