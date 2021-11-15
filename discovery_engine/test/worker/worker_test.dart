@@ -12,6 +12,10 @@ void main() {
       manager = await MockManager.create(MockWorker.entryPoint);
     });
 
+    tearDown(() async {
+      await manager.dispose();
+    });
+
     test(
         'when sending a message that the Worker can handle'
         'expect a corresponding response', () {
@@ -31,6 +35,10 @@ void main() {
   group('Manager\'s converter throws on message convertion:', () {
     late Manager manager;
 
+    tearDown(() async {
+      await manager.dispose();
+    });
+
     test(
         'when sending a request that the manager can NOT convert'
         'it should throw a `ConverterException`', () async {
@@ -48,6 +56,10 @@ void main() {
 
   group('Worker\'s converter throws on message convertion:', () {
     late Manager manager;
+
+    tearDown(() async {
+      await manager.dispose();
+    });
 
     test(
         'when receiving a request that the worker can NOT convert'
