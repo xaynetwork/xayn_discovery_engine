@@ -1,6 +1,5 @@
 import 'dart:convert' show Converter;
 
-import 'package:test/expect.dart';
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show OneshotRequest, Sender, ConverterException;
 
