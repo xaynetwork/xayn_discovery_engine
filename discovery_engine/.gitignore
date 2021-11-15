@@ -11,3 +11,6 @@ pubspec.lock
 
 # Omit generated files
 *.g.dart
+
+# OS generated files
+.DS_Store
