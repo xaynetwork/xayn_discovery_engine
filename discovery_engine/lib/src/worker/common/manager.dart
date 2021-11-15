@@ -21,7 +21,7 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 /// To implement a [Manager] please specify [Request] and [Response] types
 /// that might be send and received and provide [Converter]s for (de)serializing
 /// those types into a message format capable of going through the
-/// manager/worker boundry. Usually this could be either json or something
+/// manager/worker boundary. Usually this could be either json or something
 /// more optimised, like a list of bytes.
 ///
 /// **Important!**
@@ -131,7 +131,7 @@ abstract class Manager<Request, Response> {
   /// and returns a Future with a [Response].
   ///
   /// [Request] is serialized via provided [Converter] to a format suitable
-  /// for transfering across the boundry between [Manager] and Worker.
+  /// for transfering across the boundary between [Manager] and Worker.
   /// To keep track of sent [Request] a [Oneshot] channel is created
   /// and the request is wrapped together with Sender's port in a [OneshotRequest].
   ///

@@ -16,7 +16,7 @@ import 'package:xayn_discovery_engine/src/worker/native/platform_worker_io.dart'
 /// To implement a [Worker] please specify [Request] and [Response] types
 /// that might be send and received and provide [Converter]s for (de)serializing
 /// those types into a message format capable of going through the
-/// manager/worker boundry. Usually this could be either json or something
+/// manager/worker boundary. Usually this could be either json or something
 /// more optimised, like a list of bytes.
 ///
 /// Example:
