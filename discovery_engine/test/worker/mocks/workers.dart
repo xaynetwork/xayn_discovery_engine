@@ -16,8 +16,8 @@ final defaultConverter = DoesNothingConverter();
 final osToException = OneshotToExceptionConverter();
 final msgToException = MessageToExceptionConverter();
 
-class MockWorker extends Worker<dynamic, dynamic> {
-  MockWorker(dynamic initialMessage) : super(initialMessage);
+class MockWorker extends Worker<Object, Object> {
+  MockWorker(Object initialMessage) : super(initialMessage);
 
   @override
   void onError(Object error) {
@@ -25,41 +25,43 @@ class MockWorker extends Worker<dynamic, dynamic> {
   }
 
   @override
-  void onMessage(OneshotRequest request) {
+  void onMessage(request) {
     if (request.payload == 'ping') {
       send('pong', request.sender);
-    } else if (request.payload is Map && request.payload['message'] != null) {
-      send(request.payload['message'], request.sender);
+    } else if (request.payload is Map &&
+        (request.payload as Map)['message'] != null) {
+      send((request.payload as Map)['message'] as String, request.sender);
     } else {
       send('error', request.sender);
     }
   }
 
   @override
-  Converter<dynamic, OneshotRequest> get requestConverter => msgToOs;
+  Converter<Object, OneshotRequest<Object>> get requestConverter => msgToOs;
 
   @override
-  Converter get responseConverter => defaultConverter;
+  Converter<Object, Object> get responseConverter => defaultConverter;
 
-  static void entryPoint(dynamic initialMessage) => MockWorker(initialMessage);
+  static void entryPoint(Object initialMessage) => MockWorker(initialMessage);
 }
 
 class ThrowsOnRequestWorker extends MockWorker {
-  ThrowsOnRequestWorker(dynamic initialMessage) : super(initialMessage);
+  ThrowsOnRequestWorker(Object initialMessage) : super(initialMessage);
 
   @override
-  Converter<dynamic, OneshotRequest> get requestConverter => msgToException;
+  Converter<Object, OneshotRequest<Object>> get requestConverter =>
+      msgToException;
 
-  static void entryPoint(dynamic initialMessage) =>
+  static void entryPoint(Object initialMessage) =>
       ThrowsOnRequestWorker(initialMessage);
 }
 
 class ThrowsOnResponseWorker extends MockWorker {
-  ThrowsOnResponseWorker(dynamic initialMessage) : super(initialMessage);
+  ThrowsOnResponseWorker(Object initialMessage) : super(initialMessage);
 
   @override
-  Converter get responseConverter => osToException;
+  Converter<Object, Object> get responseConverter => osToException;
 
-  static void entryPoint(dynamic initialMessage) =>
+  static void entryPoint(Object initialMessage) =>
       ThrowsOnResponseWorker(initialMessage);
 }

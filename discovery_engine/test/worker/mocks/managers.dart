@@ -17,46 +17,47 @@ final defaultConverter = DoesNothingConverter();
 final osToException = OneshotToExceptionConverter();
 final msgToException = MessageToExceptionConverter();
 
-class MockManager extends Manager<dynamic, dynamic> {
+class MockManager extends Manager<Object, Object> {
   MockManager._(PlatformManager manager) : super(manager);
 
   @override
-  Converter<OneshotRequest, dynamic> get requestConverter => osToMsg;
+  Converter<OneshotRequest<Object>, Object> get requestConverter => osToMsg;
 
   @override
-  Converter get responseConverter => defaultConverter;
+  Converter<Object, Object> get responseConverter => defaultConverter;
 
-  static Future<MockManager> create(dynamic entryPoint) async {
+  static Future<MockManager> create(Object entryPoint) async {
     final platformManager = await Manager.spawnWorker(entryPoint);
     return MockManager._(platformManager);
   }
 }
 
-class ThrowsOnRequestManager extends Manager<dynamic, dynamic> {
+class ThrowsOnRequestManager extends Manager<Object, Object> {
   ThrowsOnRequestManager._(PlatformManager manager) : super(manager);
 
   @override
-  Converter<OneshotRequest, dynamic> get requestConverter => osToException;
+  Converter<OneshotRequest<Object>, Object> get requestConverter =>
+      osToException;
 
   @override
-  Converter get responseConverter => defaultConverter;
+  Converter<Object, Object> get responseConverter => defaultConverter;
 
-  static Future<ThrowsOnRequestManager> create(dynamic entryPoint) async {
+  static Future<ThrowsOnRequestManager> create(Object entryPoint) async {
     final platformManager = await Manager.spawnWorker(entryPoint);
     return ThrowsOnRequestManager._(platformManager);
   }
 }
 
-class ThrowsOnResponseManager extends Manager<dynamic, dynamic> {
+class ThrowsOnResponseManager extends Manager<Object, Object> {
   ThrowsOnResponseManager._(PlatformManager manager) : super(manager);
 
   @override
-  Converter<OneshotRequest, dynamic> get requestConverter => osToMsg;
+  Converter<OneshotRequest<Object>, Object> get requestConverter => osToMsg;
 
   @override
-  Converter get responseConverter => msgToException;
+  Converter<Object, Object> get responseConverter => msgToException;
 
-  static Future<ThrowsOnResponseManager> create(dynamic entryPoint) async {
+  static Future<ThrowsOnResponseManager> create(Object entryPoint) async {
     final platformManager = await Manager.spawnWorker(entryPoint);
     return ThrowsOnResponseManager._(platformManager);
   }

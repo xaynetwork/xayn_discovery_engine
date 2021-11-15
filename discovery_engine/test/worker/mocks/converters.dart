@@ -3,35 +3,38 @@ import 'dart:convert' show Converter;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show OneshotRequest, Sender, ConverterException;
 
-class OneshotToMessageConverter extends Converter<OneshotRequest, dynamic> {
+class OneshotToMessageConverter
+    extends Converter<OneshotRequest<Object>, List<Object>> {
   @override
-  dynamic convert(OneshotRequest input) {
-    return <dynamic>[input.sender.platformPort, input.payload];
+  List<Object> convert(OneshotRequest<Object> input) {
+    return <Object>[input.sender.platformPort, input.payload];
   }
 }
 
-class MessageToOneshotConverter extends Converter<dynamic, OneshotRequest> {
+class MessageToOneshotConverter
+    extends Converter<List<Object>, OneshotRequest<Object>> {
   @override
-  OneshotRequest convert(dynamic input) {
-    final list = input as List;
-    final sender = Sender.fromPlatformPort(list.first as Object);
-    return OneshotRequest<dynamic>(sender, list.last);
+  OneshotRequest<Object> convert(List<Object> input) {
+    final sender = Sender.fromPlatformPort(input.first);
+    return OneshotRequest<Object>(sender, input.last);
   }
 }
 
-class DoesNothingConverter extends Converter<dynamic, dynamic> {
+class DoesNothingConverter extends Converter<Object, Object> {
   @override
-  dynamic convert(dynamic input) => input;
+  Object convert(Object input) => input;
 }
 
-class OneshotToExceptionConverter extends Converter<OneshotRequest, dynamic> {
+class OneshotToExceptionConverter
+    extends Converter<OneshotRequest<Object>, Object> {
   @override
-  dynamic convert(OneshotRequest input) =>
+  Object convert(OneshotRequest<Object> input) =>
       throw ConverterException('OneshotToExceptionConverter');
 }
 
-class MessageToExceptionConverter extends Converter<dynamic, OneshotRequest> {
+class MessageToExceptionConverter
+    extends Converter<Object, OneshotRequest<Object>> {
   @override
-  OneshotRequest convert(dynamic input) =>
+  OneshotRequest<Object> convert(Object input) =>
       throw ConverterException('MessageToExceptionConverter');
 }
