@@ -1,8 +1,15 @@
-import 'dart:convert';
+import 'dart:convert' show Converter;
 
-import 'package:xayn_discovery_engine/src/worker/worker.dart';
+import 'package:xayn_discovery_engine/src/worker/worker.dart'
+    show Manager, PlatformManager, OneshotRequest;
 
-import 'converters.dart';
+import 'converters.dart'
+    show
+        OneshotToMessageConverter,
+        MessageToExceptionConverter,
+        MessageToOneshotConverter,
+        DoesNothingConverter,
+        OneshotToExceptionConverter;
 
 final osToMsg = OneshotToMessageConverter();
 final msgToOs = MessageToOneshotConverter();

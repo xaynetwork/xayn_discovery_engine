@@ -1,8 +1,11 @@
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/worker/worker.dart';
+import 'package:xayn_discovery_engine/src/worker/worker.dart'
+    show Manager, ConverterException, ResponseTimeoutException;
 
-import 'mocks/managers.dart';
-import 'mocks/workers.dart';
+import 'mocks/managers.dart'
+    show MockManager, ThrowsOnRequestManager, ThrowsOnResponseManager;
+import 'mocks/workers.dart'
+    show MockWorker, ThrowsOnRequestWorker, ThrowsOnResponseWorker;
 
 void main() {
   group('Worker abstraction:', () {

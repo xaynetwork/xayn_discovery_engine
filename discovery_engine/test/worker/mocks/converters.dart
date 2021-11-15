@@ -1,6 +1,7 @@
-import 'dart:convert';
+import 'dart:convert' show Converter;
 
-import 'package:xayn_discovery_engine/src/worker/worker.dart';
+import 'package:xayn_discovery_engine/src/worker/worker.dart'
+    show OneshotRequest, Sender, ConverterException;
 
 class OneshotToMessageConverter extends Converter<OneshotRequest, dynamic> {
   @override
