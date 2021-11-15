@@ -37,18 +37,18 @@ class _IsolatedPlatformManager extends PlatformManager {
   }
 
   @override
-  Stream get errors => _errorChannel;
+  Stream<Object> get errors => _errorChannel.cast<Object>();
 
   @override
-  Stream get messages => _managerChannel;
+  Stream<Object> get messages => _managerChannel.cast<Object>();
 
   @override
-  void send(dynamic message, [List<Object>? transfer]) =>
+  void send(Object message, [List<Object>? transfer]) =>
       _workerChannel.send(message);
 
   @override
   void dispose() => _worker.kill();
 }
 
-Future<PlatformManager> createPlatformManager(dynamic entryPoint) =>
+Future<PlatformManager> createPlatformManager(Object entryPoint) =>
     _IsolatedPlatformManager.spawn(entryPoint as _EntryPoint);

@@ -3,7 +3,7 @@ import 'dart:convert' show Converter;
 
 import 'package:meta/meta.dart' show mustCallSuper;
 import 'package:xayn_discovery_engine/src/worker/common/exceptions.dart'
-    show ResponseTimeoutException, WorkerSpawnException;
+    show ResponseEmptyException, ResponseTimeoutException, WorkerSpawnException;
 import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart'
     show Oneshot, OneshotRequest;
 import 'package:xayn_discovery_engine/src/worker/common/platform_actors.dart'
@@ -48,7 +48,7 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 ///   Converter<Map, Response> get responseConverter =>
 ///     _responseCodec.decoder;
 ///
-///   static Future<MockManager> create(dynamic entryPoint) async {
+///   static Future<MockManager> create(Object entryPoint) async {
 ///     final platformManager = await Manager.spawnWorker(entryPoint);
 ///     return ExampleManager._(platformManager);
 ///   }
@@ -77,19 +77,19 @@ const kDefaultRequestTimeout = Duration(seconds: 10);
 ///   }
 /// }
 /// ```
-abstract class Manager<Request, Response> {
+abstract class Manager<Request extends Object, Response extends Object> {
   /// Underlying platform manager used for spawning
   /// and communication with a Worker.
   final PlatformManager _manager;
 
   final _responseController = StreamController<Response>.broadcast();
-  final _subscriptions = <StreamSubscription<dynamic>>[];
+  final _subscriptions = <StreamSubscription<Object>>[];
 
   /// Converter for outgoing messages.
-  Converter<OneshotRequest<Request>, dynamic> get requestConverter;
+  Converter<OneshotRequest<Request>, Object> get requestConverter;
 
   /// Converter for incoming messages.
-  Converter<dynamic, Response> get responseConverter;
+  Converter<Object, Response> get responseConverter;
 
   /// Stream of [Response] returned from the Worker.
   Stream<Response> get responses => _responseController.stream;
@@ -100,7 +100,7 @@ abstract class Manager<Request, Response> {
 
   /// Returns a new instance of [PlatformManager] which spawns a Worker upon
   /// its creation. If this process fails it will throw a [WorkerSpawnException].
-  static Future<PlatformManager> spawnWorker(dynamic entryPoint) async {
+  static Future<PlatformManager> spawnWorker(Object entryPoint) async {
     try {
       return await createPlatformManager(entryPoint);
     } catch (e) {
@@ -117,7 +117,7 @@ abstract class Manager<Request, Response> {
               onError: _responseController.addError,
             );
     final errorsSubscription = _manager.errors.listen(
-      (dynamic error) => _responseController.addError(error as Object),
+      _responseController.addError,
       onError: _responseController.addError,
     );
 
@@ -142,7 +142,7 @@ abstract class Manager<Request, Response> {
     final request = OneshotRequest(channel.sender, event);
 
     // Prepare request message and send it via PlatformManager
-    final dynamic requestMessage = requestConverter.convert(request);
+    final requestMessage = requestConverter.convert(request);
     _manager.send(requestMessage, [channel.sender.platformPort]);
 
     // Wait for a message and convert it to proper [Response] object
@@ -156,9 +156,15 @@ abstract class Manager<Request, Response> {
         channel.receiver.dispose();
 
         throw ResponseTimeoutException(
-            'Worker couldn\'t respond in time to $event');
+            'Worker couldn\'t respond in time to requested event: $event');
       },
     );
+
+    if (responseMessage == null) {
+      throw ResponseEmptyException(
+          'Worker responded with an empty message to requested event: $event');
+    }
+
     final response = responseConverter.convert(responseMessage);
 
     // Add a [Response] to the main stream

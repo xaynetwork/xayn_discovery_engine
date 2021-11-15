@@ -9,14 +9,15 @@ class _WebWorker extends PlatformWorker {
       DedicatedWorkerGlobalScope.instance;
 
   @override
-  Stream get messages => _context.onMessage.map<dynamic>((event) => event.data);
+  Stream<Object> get messages =>
+      _context.onMessage.map((event) => event.data as Object);
 
   @override
-  void send(dynamic message, [List<Object>? transfer]) =>
+  void send(Object message, [List<Object>? transfer]) =>
       _context.postMessage(message, transfer);
 
   @override
   void dispose() => _context.close();
 }
 
-PlatformWorker createPlatformWorker(dynamic initialMessage) => _WebWorker();
+PlatformWorker createPlatformWorker(Object initialMessage) => _WebWorker();

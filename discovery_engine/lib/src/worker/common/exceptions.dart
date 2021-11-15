@@ -4,10 +4,10 @@ class WorkerSpawnException implements Exception {
   final String message;
 
   /// String representation of the stack trace associated to the original exception.
-  final String? stackTrace;
+  final StackTrace? stackTrace;
 
-  WorkerSpawnException(this.message, {String? stackTrace})
-      : stackTrace = stackTrace ?? StackTrace.current.toString();
+  WorkerSpawnException(this.message, {StackTrace? stackTrace})
+      : stackTrace = stackTrace ?? StackTrace.current;
 
   @override
   String toString() => 'WorkerSpawnException: $message\n$stackTrace';
@@ -22,6 +22,17 @@ class ConverterException implements Exception {
 
   @override
   String toString() => 'ConverterException: $message';
+}
+
+/// Thrown when the Response is empty (resolved to `null`).
+class ResponseEmptyException implements Exception {
+  /// Message (or string representation of the exception).
+  final String message;
+
+  ResponseEmptyException(this.message);
+
+  @override
+  String toString() => 'ResponseEmptyException: $message';
 }
 
 /// Thrown when the Response takes too long to finish.

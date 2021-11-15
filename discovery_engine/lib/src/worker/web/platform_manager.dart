@@ -23,7 +23,7 @@ class WebWorkerManager extends PlatformManager {
   }
 
   @override
-  Stream get errors => _worker.onError.map<dynamic>((event) {
+  Stream<Object> get errors => _worker.onError.map<Object>((event) {
         final e = event as ErrorEvent;
         // TODO: check what would be the best format
         // => https://xainag.atlassian.net/browse/TY-2219
@@ -31,15 +31,16 @@ class WebWorkerManager extends PlatformManager {
       });
 
   @override
-  Stream get messages => _worker.onMessage.map<dynamic>((event) => event.data);
+  Stream<Object> get messages =>
+      _worker.onMessage.map((event) => event.data as Object);
 
   @override
-  void send(dynamic message, [List<Object>? transfer]) =>
+  void send(Object message, [List<Object>? transfer]) =>
       _worker.postMessage(message, transfer);
 
   @override
   void dispose() => _worker.terminate();
 }
 
-Future<PlatformManager> createPlatformManager(dynamic scriptUrl) =>
+Future<PlatformManager> createPlatformManager(Object scriptUrl) =>
     WebWorkerManager.spawn(scriptUrl as String? ?? kScriptUrl);

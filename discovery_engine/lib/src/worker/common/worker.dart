@@ -27,14 +27,14 @@ import 'package:xayn_discovery_engine/src/worker/native/platform_worker.dart'
 ///   final _responseCodec = ResponseToJsonCodec();
 ///
 ///   @override
-///   Converter<dynamic, OneshotRequest<Request>> get requestConverter =>
+///   Converter<Object, OneshotRequest<Request>> get requestConverter =>
 ///     _requestCodec.decoder;
 ///
 ///   @override
-///   Converter<Response, dynamic> get responseConverter =>
+///   Converter<Response, Object> get responseConverter =>
 ///     _responseCodec.encoder;
 ///
-///   ExampleWorker(dynamic initialMessage) : super(initialMessage);
+///   ExampleWorker(Object initialMessage) : super(initialMessage);
 ///
 ///   @override
 ///   void onMessage(OneshotRequest<Request> request) {
@@ -49,21 +49,21 @@ import 'package:xayn_discovery_engine/src/worker/native/platform_worker.dart'
 ///
 /// // The main function can serve as an entry point for the `Isolate.spawn`
 /// // but also for the WebWorker when the file is compiled to JavaScript
-/// void main(dynamic initialMessage) => ExampleWorker(initialMessage);
+/// void main(Object initialMessage) => ExampleWorker(initialMessage);
 /// ```
-abstract class Worker<Request, Response> {
+abstract class Worker<Request extends Object, Response extends Object> {
   /// Underlying [PlatformWorker] used for communication with a Manager.
   final PlatformWorker _worker;
 
-  late final StreamSubscription<dynamic> _subscription;
+  late final StreamSubscription<Object> _subscription;
 
   /// Converter for incoming messages.
-  Converter<dynamic, OneshotRequest<Request>> get requestConverter;
+  Converter<Object, OneshotRequest<Request>> get requestConverter;
 
   /// Converter for outgoing messages.
-  Converter<Response, dynamic> get responseConverter;
+  Converter<Response, Object> get responseConverter;
 
-  Worker(dynamic initialMessage)
+  Worker(Object initialMessage)
       : _worker = createPlatformWorker(initialMessage) {
     _bindPlatformWorker();
   }
@@ -85,7 +85,7 @@ abstract class Worker<Request, Response> {
   /// messages stream.
   void onError(Object error);
 
-  void _onMessage(dynamic message) {
+  void _onMessage(Object message) {
     try {
       // let's convert incoming messages to a `OneshotRequest<Request>`
       final OneshotRequest<Request> request = requestConverter.convert(message);
@@ -99,7 +99,7 @@ abstract class Worker<Request, Response> {
   /// the [Sender] attached to the [Request] if available or directly through
   /// the [PlatformWorker] channel.
   void send(Response event, [Sender? sender]) {
-    final dynamic message = responseConverter.convert(event);
+    final message = responseConverter.convert(event);
 
     // If [Sender] is available send the reponse message using it, otherwise
     // use the main platform channel

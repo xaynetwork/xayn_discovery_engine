@@ -16,10 +16,11 @@ class _IsolatedWorker extends PlatformWorker {
   }
 
   @override
-  Stream get messages => _workerChannel.asBroadcastStream();
+  Stream<Object> get messages =>
+      _workerChannel.cast<Object>().asBroadcastStream();
 
   @override
-  void send(dynamic message, [List<Object>? transfer]) =>
+  void send(Object message, [List<Object>? transfer]) =>
       _managerChannel.send(message);
 
   @override
@@ -28,5 +29,5 @@ class _IsolatedWorker extends PlatformWorker {
   }
 }
 
-PlatformWorker createPlatformWorker(dynamic initialMessage) =>
+PlatformWorker createPlatformWorker(Object initialMessage) =>
     _IsolatedWorker(initialMessage as SendPort);

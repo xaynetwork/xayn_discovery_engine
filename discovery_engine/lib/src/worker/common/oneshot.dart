@@ -31,7 +31,7 @@ class Sender<T extends SendingPort> {
 
   Object get platformPort => _port?.port as Object;
 
-  void send(dynamic message) {
+  void send(Object message) {
     final port = _port;
 
     if (port == null) {
@@ -75,7 +75,7 @@ abstract class ClosingPort {
 abstract class SendingPort extends ClosingPort {
   Object get port;
 
-  void send(dynamic message);
+  void send(Object message);
 }
 
 abstract class ReceivingPort extends ClosingPort {
