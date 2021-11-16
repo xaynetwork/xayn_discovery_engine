@@ -1,3 +1,5 @@
+export 'package:xayn_discovery_engine/src/api/events/base_events.dart'
+    show ClientEvent, EngineEvent;
 export 'package:xayn_discovery_engine/src/api/events/document_events.dart'
     show DocumentStatusChanged, DocumentClosed, DocumentFeedbackChanged;
 export 'package:xayn_discovery_engine/src/api/events/feed_events.dart'
