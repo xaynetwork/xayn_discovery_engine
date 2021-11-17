@@ -37,10 +37,24 @@ abstract class _UniqueId with EquatableMixin {
 class DocumentId extends _UniqueId {
   DocumentId() : super();
   DocumentId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
+
+  factory DocumentId.fromJson(Map<String, dynamic> json) =>
+      DocumentId.fromBytes(json['value'] as Uint8List);
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'value': value.buffer.asUint8List(),
+      };
 }
 
 /// Unique identifier of a search.
 class SearchId extends _UniqueId {
   SearchId() : super();
   SearchId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
+
+  factory SearchId.fromJson(Map<String, dynamic> json) =>
+      SearchId.fromBytes(json['value'] as Uint8List);
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'value': value.buffer.asUint8List(),
+      };
 }

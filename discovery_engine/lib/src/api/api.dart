@@ -1,25 +1,26 @@
-export 'package:xayn_discovery_engine/src/api/events/base_events.dart'
-    show ClientEvent, EngineEvent;
-export 'package:xayn_discovery_engine/src/api/events/document_events.dart'
-    show DocumentStatusChanged, DocumentClosed, DocumentFeedbackChanged;
-export 'package:xayn_discovery_engine/src/api/events/feed_events.dart'
+export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show
+        ClientEvent,
+        Init,
+        ResetEngine,
         FeedRequested,
+        NewFeedRequested,
+        FeedDocumentsClosed,
+        DocumentStatusChanged,
+        DocumentClosed,
+        DocumentFeedbackChanged;
+export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
+    show
+        EngineEvent,
+        ClientEventSucceeded,
+        EngineExceptionReason,
+        EngineExceptionRaised,
         FeedRequestSucceeded,
         FeedRequestFailed,
-        NewFeedRequested,
         NewFeedRequestSucceeded,
         NewFeedRequestFailed,
         FeedFailureReason,
-        NewFeedAvailable,
-        FeedDocumentsClosed;
-export 'package:xayn_discovery_engine/src/api/events/system_events.dart'
-    show
-        Init,
-        ResetEngine,
-        ClientEventSucceeded,
-        EngineExceptionReason,
-        EngineExceptionRaised;
+        NewFeedAvailable;
 export 'package:xayn_discovery_engine/src/api/models/document.dart'
     show Document;
 export 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
