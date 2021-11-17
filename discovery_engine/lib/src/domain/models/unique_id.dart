@@ -19,7 +19,7 @@ abstract class _UniqueId with EquatableMixin {
       : value = _validateId(_bytesFromJson(json));
 
   static UnmodifiableUint8ListView _generateId() {
-    final id = Uuid().v4();
+    final id = const Uuid().v4();
     final bytes = Uuid.parseAsByteList(id);
     return UnmodifiableUint8ListView(bytes);
   }
