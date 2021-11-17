@@ -11,3 +11,4 @@ pubspec.lock
 
 # Omit generated files
 *.g.dart
+*.freezed.dart
