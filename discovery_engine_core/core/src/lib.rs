@@ -10,11 +10,3 @@
 )]
 #![deny(clippy::pedantic)]
 #![deny(clippy::future_not_send)]
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
