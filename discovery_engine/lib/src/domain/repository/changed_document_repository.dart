@@ -5,6 +5,6 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 /// previous call of the feedback loop.
 abstract class ChangedDocumentRepository {
   Future<List<DocumentId>> fetchAllIds();
-  Future<void> add(DocumentId doc);
+  Future<void> add(DocumentId id);
   Future<void> removeAll();
 }
