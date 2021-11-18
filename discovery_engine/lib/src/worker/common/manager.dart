@@ -156,13 +156,15 @@ abstract class Manager<Request extends Object, Response extends Object> {
         channel.receiver.dispose();
 
         throw ResponseTimeoutException(
-            'Worker couldn\'t respond in time to requested event: $event');
+          'Worker couldn\'t respond in time to requested event: $event',
+        );
       },
     );
 
     if (responseMessage == null) {
       throw ResponseEmptyException(
-          'Worker responded with an empty message to requested event: $event');
+        'Worker responded with an empty message to requested event: $event',
+      );
     }
 
     final response = responseConverter.convert(responseMessage);

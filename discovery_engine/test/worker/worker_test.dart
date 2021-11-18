@@ -31,7 +31,9 @@ void main() {
         'expect a corresponding response', () {
       expect(manager.send('unexpected message'), completion(equals('error')));
       expect(
-          manager.send({1: 'unexpected message'}), completion(equals('error')));
+        manager.send({1: 'unexpected message'}),
+        completion(equals('error')),
+      );
     });
   });
 
@@ -68,16 +70,20 @@ void main() {
         'when receiving a request that the worker can NOT convert'
         'it should throw a `ResponseTimeoutException`', () async {
       manager = await MockManager.create(ThrowsOnRequestWorker.entryPoint);
-      expect(manager.send('ping', timeout: Duration.zero),
-          throwsA(isA<ResponseTimeoutException>()));
+      expect(
+        manager.send('ping', timeout: Duration.zero),
+        throwsA(isA<ResponseTimeoutException>()),
+      );
     });
 
     test(
         'when sending a response that the Manager can NOT convert'
         'it should throw a `ResponseTimeoutException`', () async {
       manager = await MockManager.create(ThrowsOnResponseWorker.entryPoint);
-      expect(manager.send('ping', timeout: Duration.zero),
-          throwsA(isA<ResponseTimeoutException>()));
+      expect(
+        manager.send('ping', timeout: Duration.zero),
+        throwsA(isA<ResponseTimeoutException>()),
+      );
     });
   });
 }
