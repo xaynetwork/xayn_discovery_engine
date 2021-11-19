@@ -16,15 +16,14 @@ permissions:
 env:
   RUST_STABLE: 1.55
   RUST_WORKSPACE: ${{ github.workspace }}/discovery_engine_core
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   cargo-format:
-    name: cargo-format
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Install ${{ env.RUST_STABLE }} toolchain
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
@@ -41,15 +40,12 @@ jobs:
         run: cargo fmt --all -- --check
 
   cargo-clippy:
-    name: cargo-clippy
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Install ${{ env.RUST_STABLE }} toolchain
-        id: rust-toolchain
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
           profile: minimal
@@ -64,15 +60,12 @@ jobs:
         run: cargo clippy --all-targets -- --deny warnings
 
   cargo-test:
-    name: cargo-test
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Install ${{ env.RUST_STABLE }} toolchain
-        id: rust-toolchain
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
           profile: minimal
@@ -82,8 +75,6 @@ jobs:
       - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
 
       - name: Run tests
-        env:
-          RUSTFLAGS: "-D warnings"
         working-directory: ${{ env.RUST_WORKSPACE }}
         run: |
           cargo test --all-targets --quiet
