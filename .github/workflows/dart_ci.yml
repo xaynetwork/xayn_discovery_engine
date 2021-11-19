@@ -1,10 +1,13 @@
-name: Dev CI
+name: Dart CI
 
 on:
   push:
+    paths:
+      - '.github/workflows/dart_ci.yml'
+      - 'discovery_engine/**'
 
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -21,7 +24,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@1e204e9a9253d643386038d443f96446fa156a97 # v2.3.5
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Install dart
         uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
@@ -39,7 +42,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@1e204e9a9253d643386038d443f96446fa156a97 # v2.3.5
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Install dart
         uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
@@ -65,7 +68,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@1e204e9a9253d643386038d443f96446fa156a97 # v2.3.5
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Install dart
         uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
@@ -75,7 +78,7 @@ jobs:
       - name: Install dependencies
         working-directory: discovery_engine
         run: dart pub get
- 
+
       - name: Other Dart code generation
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart run build_runner build
@@ -91,7 +94,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@1e204e9a9253d643386038d443f96446fa156a97 # v2.3.5
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Install dart
         uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
@@ -132,7 +135,7 @@ jobs:
     steps:
       - name: Notify failure
         if: needs.ci-ok.result != 'success'
-        uses: 8398a7/action-slack@c84a35cfa82a01f3733a3cbf5d5260123e55c2f9 # v3.9.2
+        uses: 8398a7/action-slack@b17d9de8e9ed64b041e4fac845d6fdb2be6b9b04 # v3.11.0
         with:
           status: custom
           fields: workflow, repo
