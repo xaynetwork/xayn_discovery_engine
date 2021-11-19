@@ -1,46 +1,58 @@
 use crate::document::Document;
+use displaydoc::Display;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+#[derive(Error, Debug, Display)]
+pub enum DiscoveryEngineError {
+    /// failed to serialize internal state of the engine
+    Serialization(bincode::Error),
+    /// failed to deserialze internal state to create the engine
+    Deserialization(bincode::Error),
+}
 
 /// DiscoveryEngine
 pub struct DiscoveryEngine {
     /// Internal state of the Discovery Engine
-    pub state: InternalState,
+    state: InternalState,
 }
 
 impl DiscoveryEngine {
     /// TODO: add documentation
-    pub fn new(state: InternalState) -> Self {
-        Self { state }
+    pub fn new(state: &[u8]) -> Result<Self, DiscoveryEngineError> {
+        let state = bincode::deserialize(state).map_err(DiscoveryEngineError::Deserialization)?;
+        Ok(DiscoveryEngine { state })
     }
 
     /// TODO: add documentation
-    pub fn serialize(&self) -> InternalState {
-        self.state.clone()
+    pub fn serialize(&self) -> Result<Vec<u8>, DiscoveryEngineError> {
+        Ok(bincode::serialize(&self.state).map_err(DiscoveryEngineError::Serialization)?)
     }
 }
 
 /// Internal state of Discovery Engine
-#[derive(Clone)]
-pub struct InternalState {
+#[derive(Deserialize, Serialize)]
+pub(crate) struct InternalState {
     /// Stack of news in a news feed
-    pub news_feed: Stack,
+    pub(crate) news_feed: Stack,
     /// Stack of personalized news
-    pub personalized_news: Stack,
+    pub(crate) personalized_news: Stack,
 }
 
 /// TODO: add documentation
-#[derive(Clone)]
-pub struct Stack {
+#[derive(Deserialize, Serialize)]
+pub(crate) struct Stack {
     /// TODO: add documentation
-    pub alpha: f32,
+    pub(crate) alpha: f32,
     /// TODO: add documentation
-    pub beta: f32,
+    pub(crate) beta: f32,
     /// TODO: add documentation
-    pub document: Vec<Document>,
+    pub(crate) document: Vec<Document>,
 }
 
 impl Stack {
     /// TODO: add documentation
-    pub fn new(alpha: f32, beta: f32, document: Vec<Document>) -> Self {
+    pub(crate) fn new(alpha: f32, beta: f32, document: Vec<Document>) -> Self {
         Self {
             alpha,
             beta,

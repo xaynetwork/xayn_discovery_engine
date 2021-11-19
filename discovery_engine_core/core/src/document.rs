@@ -1,11 +1,22 @@
-use crate::error::Error;
-use derive_more::Deref;
-use ndarray::{Array, Dimension, Ix1};
 use std::convert::TryFrom;
+
+use derive_more::Deref;
+use displaydoc::Display;
+use ndarray::{Array, Dimension, Ix1};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use uuid::Uuid;
 
+#[derive(Error, Debug, Display)]
+pub enum DocumentError {
+    /// failed to parse Uuid
+    Parse(#[from] uuid::Error),
+    /// whatever
+    DeafultError,
+}
+
 /// Unique identifier of the document
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct DocumentId(pub Uuid);
 
 impl DocumentId {
@@ -15,16 +26,16 @@ impl DocumentId {
     }
 }
 
-impl TryFrom<&str> for DocumentId {
-    type Error = Error;
+impl TryFrom<&[u8]> for DocumentId {
+    type Error = DocumentError;
 
-    fn try_from(id: &str) -> Result<Self, Self::Error> {
-        Ok(DocumentId(Uuid::parse_str(id)?))
+    fn try_from(id: &[u8]) -> Result<Self, Self::Error> {
+        Ok(DocumentId(Uuid::from_slice(id)?))
     }
 }
 
 /// Represents a result from a query.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     /// Unique identifier of the document
     pub id: DocumentId,
@@ -43,7 +54,7 @@ pub struct Document {
 }
 
 /// A d-dimensional sequence embedding.
-#[derive(Clone, Debug, Deref)]
+#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
 pub struct Embedding<D>(Array<f32, D>)
 where
     D: Dimension;
