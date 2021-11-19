@@ -11,8 +11,6 @@ use uuid::Uuid;
 pub enum DocumentError {
     /// failed to parse Uuid
     Parse(#[from] uuid::Error),
-    /// whatever
-    DeafultError,
 }
 
 /// Unique identifier of the document

@@ -1,7 +1,8 @@
-use crate::document::Document;
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use crate::document::Document;
 
 #[derive(Error, Debug, Display)]
 pub enum DiscoveryEngineError {
