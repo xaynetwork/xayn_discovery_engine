@@ -18,11 +18,12 @@ class FeedClientEvent with _$FeedClientEvent implements ClientEvent {
   /// Event created when the app wants to requests new content
   /// for the discovery feed:
   ///  - when reaching the end of the current list of items
-  ///  - in response to `NewFeedAvailable` event, or after deliberate user action
+  ///  - in response to `NextFeedBatchAvailable` event, or after deliberate user action
   /// like pressing the button to fetch new items
   ///  - on some time trigger
   ///  - as a follow up when changing the news market
-  const factory FeedClientEvent.newFeedRequested() = NewFeedRequested;
+  const factory FeedClientEvent.nextFeedBatchRequested() =
+      NextFeedBatchRequested;
 
   /// Event created when the client makes `Documents` in the feed not accessible
   /// to the user anymore. The engine registers those documents as immutable,
