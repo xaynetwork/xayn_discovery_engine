@@ -5,8 +5,7 @@
     rust_2018_idioms,
     rust_2021_compatibility,
     unsafe_code,
-    unsafe_op_in_unsafe_fn,
-    // unused_qualifications
+    unsafe_op_in_unsafe_fn
 )]
 #![deny(unused_qualifications)]
 #![deny(clippy::pedantic)]
@@ -16,6 +15,6 @@ mod document;
 mod engine;
 
 pub use crate::{
-    document::{Document, DocumentId, Embedding, Embedding1},
-    engine::{DiscoveryEngine, InternalState, Stack},
+    document::{Document, DocumentId, Embedding1},
+    engine::DiscoveryEngine,
 };
