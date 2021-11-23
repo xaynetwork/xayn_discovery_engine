@@ -19,15 +19,15 @@ pub struct DiscoveryEngine {
 }
 
 impl DiscoveryEngine {
-    /// TODO: add documentation
+    /// Creates a new [`DiscoveryEngine`] from serialized state.
     pub fn new(state: &[u8]) -> Result<Self, DiscoveryEngineError> {
         let state = bincode::deserialize(state).map_err(DiscoveryEngineError::Deserialization)?;
         Ok(DiscoveryEngine { state })
     }
 
-    /// TODO: add documentation
+    /// Serializes [`InternalState`] of the engine.
     pub fn serialize(&self) -> Result<Vec<u8>, DiscoveryEngineError> {
-        Ok(bincode::serialize(&self.state).map_err(DiscoveryEngineError::Serialization)?)
+        bincode::serialize(&self.state).map_err(DiscoveryEngineError::Serialization)
     }
 }
 
@@ -52,7 +52,7 @@ pub(crate) struct Stack {
 }
 
 impl Stack {
-    /// TODO: add documentation
+    /// Creates a new Stack.
     pub(crate) fn new(alpha: f32, beta: f32, document: Vec<Document>) -> Self {
         Self {
             alpha,
