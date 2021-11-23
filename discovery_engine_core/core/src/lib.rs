@@ -8,6 +8,7 @@
     unsafe_op_in_unsafe_fn,
     // unused_qualifications
 )]
+#![deny(unused_qualifications)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::future_not_send)]
 

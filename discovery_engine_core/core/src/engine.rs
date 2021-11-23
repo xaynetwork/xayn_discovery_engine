@@ -7,9 +7,9 @@ use crate::document::Document;
 #[derive(Error, Debug, Display)]
 pub enum DiscoveryEngineError {
     /// failed to serialize internal state of the engine
-    Serialization(bincode::Error),
+    Serialization(#[source] bincode::Error),
     /// failed to deserialze internal state to create the engine
-    Deserialization(bincode::Error),
+    Deserialization(#[source] bincode::Error),
 }
 
 /// DiscoveryEngine
