@@ -3,9 +3,6 @@ import 'dart:typed_data' show UnmodifiableUint8ListView, Uint8List;
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:uuid/uuid.dart' show Uuid;
 
-import 'package:xayn_discovery_engine/src/api/models/document.dart'
-    show Document;
-
 /// [_UniqueId] represents base for unique identifiers for other models like
 /// [SearchId] or [DocumentId].
 abstract class _UniqueId with EquatableMixin {
@@ -31,19 +28,22 @@ abstract class _UniqueId with EquatableMixin {
 
   @override
   String toString() => Uuid.unparse(value);
+
+  static Uint8List bytesFromJson(Map<String, dynamic> json) =>
+      Uint8List.fromList((json['value'] as List).cast<int>());
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'value': value.buffer.asUint8List(),
+      };
 }
 
-/// Unique identifier of a [Document].
+/// Unique identifier of a Document.
 class DocumentId extends _UniqueId {
   DocumentId() : super();
   DocumentId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
 
   factory DocumentId.fromJson(Map<String, dynamic> json) =>
-      DocumentId.fromBytes(json['value'] as Uint8List);
-
-  Map<String, dynamic> toJson() => <String, dynamic>{
-        'value': value.buffer.asUint8List(),
-      };
+      DocumentId.fromBytes(_UniqueId.bytesFromJson(json));
 }
 
 /// Unique identifier of a search.
@@ -52,9 +52,5 @@ class SearchId extends _UniqueId {
   SearchId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
 
   factory SearchId.fromJson(Map<String, dynamic> json) =>
-      SearchId.fromBytes(json['value'] as Uint8List);
-
-  Map<String, dynamic> toJson() => <String, dynamic>{
-        'value': value.buffer.asUint8List(),
-      };
+      SearchId.fromBytes(_UniqueId.bytesFromJson(json));
 }
