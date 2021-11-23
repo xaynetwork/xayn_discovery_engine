@@ -48,16 +48,16 @@ pub(crate) struct Stack {
     /// TODO: add documentation
     pub(crate) beta: f32,
     /// TODO: add documentation
-    pub(crate) document: Vec<Document>,
+    pub(crate) documents: Vec<Document>,
 }
 
 impl Stack {
     /// Creates a new Stack.
-    pub(crate) fn new(alpha: f32, beta: f32, document: Vec<Document>) -> Self {
+    pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Self {
         Self {
             alpha,
             beta,
-            document,
+            documents,
         }
     }
 }
