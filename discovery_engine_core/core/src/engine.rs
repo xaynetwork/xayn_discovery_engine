@@ -10,6 +10,8 @@ pub enum Error {
     Serialization(#[source] bincode::Error),
     /// failed to deserialze internal state to create the engine: {0}
     Deserialization(#[source] bincode::Error),
+    /// failed to rerank documents when updating the stack: {0}
+    Reranking(String),
 }
 
 /// Discovery Engine
@@ -60,4 +62,29 @@ impl Stack {
             documents,
         }
     }
+
+    /// Reranks the array of [`Document`] items and returns a new [`Stack`]
+    pub(crate) fn _update<R: Reranker>(
+        self,
+        new_feed_items: &[Document],
+        reranker: &R,
+    ) -> Result<Self, Error> {
+        let docs_to_rerank = [&self.documents, new_feed_items].concat();
+        let documents = reranker
+            .rerank(&docs_to_rerank)
+            // TODO: maybe there is a better solution for error conversion
+            .map_err(|e| Error::Reranking(e.to_string()))?
+            .into();
+
+        Ok(Self { documents, ..self })
+    }
+}
+
+/// Provides a method for reranking array of [`Document`] items
+pub(crate) trait Reranker {
+    /// The type returned in the event of a reranking error.
+    type Error: std::error::Error;
+
+    /// Performs the reranking of [`Document`] items
+    fn rerank(&self, items: &[Document]) -> Result<&[Document], Self::Error>;
 }
