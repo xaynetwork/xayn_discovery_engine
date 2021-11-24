@@ -53,7 +53,7 @@ pub struct Document {
 
 /// A d-dimensional sequence embedding.
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
-pub struct Embedding<D>(Array<f32, D>)
+pub struct Embedding<D>(pub Array<f32, D>)
 where
     D: Dimension;
 

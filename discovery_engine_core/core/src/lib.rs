@@ -13,6 +13,8 @@
 
 mod document;
 mod engine;
+mod mab;
+mod utils;
 
 pub use crate::{
     document::{Document, Embedding1, Id},
