@@ -8,27 +8,27 @@ use thiserror::Error;
 use uuid::Uuid;
 
 #[derive(Error, Debug, Display)]
-pub enum DocumentError {
-    /// failed to parse Uuid
+pub enum Error {
+    /// failed to parse Uuid: {0}
     Parse(#[from] uuid::Error),
 }
 
 /// Unique identifier of the document
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize)]
-pub struct DocumentId(pub Uuid);
+pub struct Id(pub Uuid);
 
-impl DocumentId {
-    /// Creates a DocumentId from a 128bit value in big-endian order.
+impl Id {
+    /// Creates a [`Id`] from a 128bit value in big-endian order.
     pub fn from_u128(id: u128) -> Self {
-        DocumentId(Uuid::from_u128(id))
+        Id(Uuid::from_u128(id))
     }
 }
 
-impl TryFrom<&[u8]> for DocumentId {
-    type Error = DocumentError;
+impl TryFrom<&[u8]> for Id {
+    type Error = Error;
 
     fn try_from(id: &[u8]) -> Result<Self, Self::Error> {
-        Ok(DocumentId(Uuid::from_slice(id)?))
+        Ok(Id(Uuid::from_slice(id)?))
     }
 }
 
@@ -36,7 +36,7 @@ impl TryFrom<&[u8]> for DocumentId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     /// Unique identifier of the document
-    pub id: DocumentId,
+    pub id: Id,
     /// Position of the document from the source
     pub rank: usize,
     /// Text title of the document

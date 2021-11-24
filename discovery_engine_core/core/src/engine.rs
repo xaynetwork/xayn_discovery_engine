@@ -5,33 +5,33 @@ use thiserror::Error;
 use crate::document::Document;
 
 #[derive(Error, Debug, Display)]
-pub enum DiscoveryEngineError {
+pub enum Error {
     /// failed to serialize internal state of the engine
     Serialization(#[source] bincode::Error),
     /// failed to deserialze internal state to create the engine
     Deserialization(#[source] bincode::Error),
 }
 
-/// DiscoveryEngine
-pub struct DiscoveryEngine {
-    /// Internal state of the Discovery Engine
+/// Discovery Engine
+pub struct Engine {
+    /// Internal state of the Engine Engine
     state: InternalState,
 }
 
-impl DiscoveryEngine {
-    /// Creates a new [`DiscoveryEngine`] from serialized state.
-    pub fn new(state: &[u8]) -> Result<Self, DiscoveryEngineError> {
-        let state = bincode::deserialize(state).map_err(DiscoveryEngineError::Deserialization)?;
-        Ok(DiscoveryEngine { state })
+impl Engine {
+    /// Creates a new [`Engine`] from serialized state.
+    pub fn new(state: &[u8]) -> Result<Self, Error> {
+        let state = bincode::deserialize(state).map_err(Error::Deserialization)?;
+        Ok(Engine { state })
     }
 
     /// Serializes [`InternalState`] of the engine.
-    pub fn serialize(&self) -> Result<Vec<u8>, DiscoveryEngineError> {
-        bincode::serialize(&self.state).map_err(DiscoveryEngineError::Serialization)
+    pub fn serialize(&self) -> Result<Vec<u8>, Error> {
+        bincode::serialize(&self.state).map_err(Error::Serialization)
     }
 }
 
-/// Internal state of Discovery Engine
+/// Internal state of [`Engine`]
 #[derive(Deserialize, Serialize)]
 pub(crate) struct InternalState {
     /// Stack of news in a news feed
@@ -40,20 +40,20 @@ pub(crate) struct InternalState {
     pub(crate) personalized_news: Stack,
 }
 
-/// TODO: add documentation
+/// Stack of feed items
 #[derive(Deserialize, Serialize)]
 pub(crate) struct Stack {
     /// TODO: add documentation
     pub(crate) alpha: f32,
     /// TODO: add documentation
     pub(crate) beta: f32,
-    /// TODO: add documentation
+    /// Documents in the [`Stack`]
     pub(crate) documents: Vec<Document>,
 }
 
 impl Stack {
     /// Creates a new Stack.
-    pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Self {
+    pub(crate) fn _new(alpha: f32, beta: f32, documents: Vec<Document>) -> Self {
         Self {
             alpha,
             beta,
