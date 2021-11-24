@@ -4,7 +4,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource;
+    show WebResource, $WebResourceCopyWith;
 
 part 'document.freezed.dart';
 part 'document.g.dart';

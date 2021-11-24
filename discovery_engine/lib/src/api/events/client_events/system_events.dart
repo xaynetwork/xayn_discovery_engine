@@ -12,25 +12,11 @@ class SystemClientEvent with _$SystemClientEvent implements ClientEvent {
   /// for the engine to work, like personalisation and feed market
   /// (for performing background queries).
   const factory SystemClientEvent.init(
-    Configuration configuration, {
-    @Default(true) bool isPersonalisationOn,
-  }) = Init;
+    Configuration configuration,
+  ) = Init;
 
   /// Event created when the app decides to reset the AI (start fresh).
   const factory SystemClientEvent.resetEngine() = ResetEngine;
-
-  /// Event created when the user toggles the AI on/off.
-  ///
-  /// When the personalisation is OFF:
-  ///  - we are still reranking all the incoming results, but we don't use
-  /// personal data to do it
-  ///  - we are preventing storing queries and documents in the history,
-  /// and sending/processing document-related events (likes, dislikes, etc.)
-  ///
-  /// Every document gets a rank from the reranker only once. When we toggle
-  /// we switch between the API rank and Engine rank.
-  const factory SystemClientEvent.personalizationChanged(bool isOn) =
-      PersonalizationChanged;
 
   /// Event created when the user changes market for the feed ie.
   /// in global settings or changes some parameters for search,

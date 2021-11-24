@@ -21,7 +21,7 @@ class FeedClientEvent with _$FeedClientEvent implements ClientEvent {
   ///  - in response to `NextFeedBatchAvailable` event, or after deliberate user action
   /// like pressing the button to fetch new items
   ///  - on some time trigger
-  ///  - as a follow up when changing the news market
+  ///  - as a follow up when changing the configuration
   const factory FeedClientEvent.nextFeedBatchRequested() =
       NextFeedBatchRequested;
 
@@ -31,19 +31,6 @@ class FeedClientEvent with _$FeedClientEvent implements ClientEvent {
   const factory FeedClientEvent.feedDocumentsClosed(
     Set<DocumentId> documentIds,
   ) = FeedDocumentsClosed;
-
-  /// Event created when the user dismisses categories/topics when doing
-  /// a "negative" swipe, ie. on item in the news feed.
-  const factory FeedClientEvent.contentCategoriesDismissed(
-    DocumentId documentId,
-    Set<String> categories,
-  ) = ContentCategoriesDismissed;
-
-  /// Event created when the user removes "ban" from previously dismisses feed
-  /// categories/topics.
-  const factory FeedClientEvent.contentCategoriesAccepted(
-    Set<String> categories,
-  ) = ContentCategoriesAccepted;
 
   /// Converts json Map to [FeedClientEvent].
   factory FeedClientEvent.fromJson(Map<String, dynamic> json) =>

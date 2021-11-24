@@ -1,7 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/api/events/client_events/document_events.dart';
 import 'package:xayn_discovery_engine/src/api/events/client_events/feed_events.dart';
-import 'package:xayn_discovery_engine/src/api/events/client_events/search_events.dart';
 import 'package:xayn_discovery_engine/src/api/events/client_events/system_events.dart';
 
 part 'client_groups.freezed.dart';
@@ -18,10 +17,6 @@ class ClientEventGroups with _$ClientEventGroups {
   const factory ClientEventGroups.feed({
     required FeedClientEvent event,
   }) = FeedClientGroup;
-
-  const factory ClientEventGroups.search({
-    required SearchClientEvent event,
-  }) = SearchClientGroup;
 
   const factory ClientEventGroups.system({
     required SystemClientEvent event,

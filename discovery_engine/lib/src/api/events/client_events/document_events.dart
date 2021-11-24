@@ -23,17 +23,6 @@ class DocumentClientEvent with _$DocumentClientEvent implements ClientEvent {
     DocumentStatus status,
   ) = DocumentStatusChanged;
 
-  /// Same as [DocumentStatusChanged] with `DocumentStatus.opened` but for pages
-  /// in the webview that didn't originate from a list of documents:
-  /// - opened an external url, from a different app
-  /// - opened as a direct url, by typing it in the search field
-  /// - navigated to inside of the webview, after clicking on a link
-  const factory DocumentClientEvent.urlOpened({
-    required String url,
-    required String title,
-    required String snippet,
-  }) = UrlOpened;
-
   /// Event created when the document was closed, either by going back to
   /// documents list or by navigating further to a link contained by the document.
   /// It helps to calculate how much time user spent reviewing the document.
@@ -50,17 +39,6 @@ class DocumentClientEvent with _$DocumentClientEvent implements ClientEvent {
     DocumentId documentId,
     DocumentFeedback feedback,
   ) = DocumentFeedbackChanged;
-
-  /// Event created when the user bookmarks a document. Engine internally could
-  /// treat it as `like`.
-  const factory DocumentClientEvent.bookmarkCreated(DocumentId documentId) =
-      BookmarkCreated;
-
-  /// Event created when the user removed single or multiple bookmarks. Engine
-  /// internally could treat it as `neutral`.
-  const factory DocumentClientEvent.bookmarksRemoved(
-    Set<DocumentId> documentIds,
-  ) = BookmarksRemoved;
 
   /// Converts json Map to [DocumentClientEvent].
   factory DocumentClientEvent.fromJson(Map<String, dynamic> json) =>
