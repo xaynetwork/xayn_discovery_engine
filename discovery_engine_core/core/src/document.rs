@@ -13,7 +13,7 @@ pub enum Error {
     Parse(#[from] uuid::Error),
 }
 
-/// Unique identifier of the document
+/// Unique identifier of the [`Document`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct Id(pub Uuid);
 

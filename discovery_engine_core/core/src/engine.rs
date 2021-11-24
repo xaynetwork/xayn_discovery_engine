@@ -14,7 +14,7 @@ pub enum Error {
 
 /// Discovery Engine
 pub struct Engine {
-    /// Internal state of the Engine Engine
+    /// Internal state of the engine
     state: InternalState,
 }
 
