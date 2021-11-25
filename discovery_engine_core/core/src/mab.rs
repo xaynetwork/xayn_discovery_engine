@@ -29,7 +29,10 @@ impl BetaSample for BetaSampler {
     }
 }
 
-fn pull_arms(beta_sampler: &impl BetaSample, stacks: &mut [Stack]) -> Result<Document, MabError> {
+fn pull_arms(
+    beta_sampler: &impl BetaSample,
+    stacks: &mut [&mut Stack],
+) -> Result<Document, MabError> {
     let sample_from_stack = |stack: &Stack| beta_sampler.sample(stack.alpha, stack.beta);
 
     let mut stacks = stacks.iter_mut();
@@ -54,6 +57,43 @@ fn pull_arms(beta_sampler: &impl BetaSample, stacks: &mut [Stack]) -> Result<Doc
     stack.documents.pop().ok_or(MabError::EmptyStack)
 }
 
+struct MabSelectionIter<'bs, 'stack, BS> {
+    beta_sampler: &'bs BS,
+    stacks: Vec<&'stack mut Stack>,
+}
+
+impl<'bs, 'stack, BS> MabSelectionIter<'bs, 'stack, BS> {
+    fn new(beta_sampler: &'bs BS, stacks: Vec<&'stack mut Stack>) -> Self {
+        Self {
+            beta_sampler,
+            stacks,
+        }
+    }
+}
+
+impl<'bs, 'stack, BS> Iterator for MabSelectionIter<'bs, 'stack, BS>
+where
+    BS: BetaSample,
+{
+    type Item = Result<Document, MabError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut stack = vec![];
+        std::mem::swap(&mut self.stacks, &mut stack);
+
+        self.stacks = stack
+            .into_iter()
+            .filter(|stack| !stack.documents.is_empty())
+            .collect::<Vec<&mut Stack>>();
+
+        if !self.stacks.is_empty() {
+            Some(pull_arms(self.beta_sampler, &mut self.stacks))
+        } else {
+            None
+        }
+    }
+}
+
 pub(crate) struct MabSelection<BS> {
     beta_sampler: BS,
 }
@@ -68,10 +108,13 @@ impl<BS> MabSelection<BS>
 where
     BS: BetaSample,
 {
-    pub(crate) fn select(&self, stacks: &mut [Stack], n: u32) -> Result<Vec<Document>, MabError> {
-        (0..n)
-            .map(|_| pull_arms(&self.beta_sampler, stacks))
-            .collect()
+    pub(crate) fn select(
+        &self,
+        stacks: Vec<&mut Stack>,
+        n: u32,
+    ) -> Result<Vec<Document>, MabError> {
+        let iter = MabSelectionIter::new(&self.beta_sampler, stacks);
+        iter.take(n as usize).collect()
     }
 }
 
@@ -97,24 +140,22 @@ mod tests {
 
     #[test]
     fn test_select() {
-        let stack_1 = Stack::new(
-            1.0,
-            100.0,
-            vec![create_doc(0), create_doc(1), create_doc(2)],
-        );
-        let stack_2 = Stack::new(20.0, 5.0, vec![create_doc(3), create_doc(4), create_doc(5)]);
-        let stack_3 = Stack::new(
+        let mut stack_1 = Stack::new(1.0, 100.0, vec![create_doc(0)]);
+        let mut stack_2 = Stack::new(20.0, 5.0, vec![create_doc(3), create_doc(4), create_doc(5)]);
+        let mut stack_3 = Stack::new(
             1.0,
             1000.0,
             vec![create_doc(6), create_doc(7), create_doc(8)],
         );
 
-        let mut stacks = vec![stack_1, stack_2, stack_3];
+        let stacks = vec![&mut stack_1, &mut stack_2, &mut stack_3];
         let mab = MabSelection::new(BetaSampler);
 
-        let mut docs = mab.select(&mut stacks, 3).unwrap();
-        assert_eq!(docs.pop().unwrap().id, Id::from_u128(3));
-        assert_eq!(docs.pop().unwrap().id, Id::from_u128(4));
-        assert_eq!(docs.pop().unwrap().id, Id::from_u128(5));
+        let docs = mab.select(stacks, 10).unwrap();
+        println!("{:#?}", docs);
+        assert_eq!(docs[0].id, Id::from_u128(5));
+        assert_eq!(docs[1].id, Id::from_u128(4));
+        assert_eq!(docs[2].id, Id::from_u128(3));
+        assert_eq!(docs[3].id, Id::from_u128(0));
     }
 }
