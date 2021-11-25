@@ -67,7 +67,7 @@ impl Stack {
         }
     }
 
-    /// Ranks the slice of [`Document`] items and returns a new [`Stack`]
+    /// Ranks the slice of [`Document`] items and returns an updated [`Stack`]
     pub(crate) fn _update<R: Ranker>(
         mut self,
         new_feed_items: &[Document],
