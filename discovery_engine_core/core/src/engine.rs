@@ -63,21 +63,21 @@ impl Stack {
         }
     }
 
-    /// Reranks the slice of [`Document`] items and returns a new [`Stack`]
-    pub(crate) fn _update<R: Reranker>(
-        self,
+    /// Ranks the slice of [`Document`] items and returns a new [`Stack`]
+    pub(crate) fn _update<R: Ranker>(
+        mut self,
         new_feed_items: &[Document],
-        reranker: &R,
+        ranker: &R,
     ) -> Result<Self, Error> {
-        let docs_to_rerank = [&self.documents, new_feed_items].concat();
-        let documents = reranker.rerank(&docs_to_rerank).map_err(Error::Reranking)?;
+        self.documents.extend_from_slice(new_feed_items);
+        ranker.rank(&mut self.documents).map_err(Error::Reranking)?;
 
-        Ok(Self { documents, ..self })
+        Ok(self)
     }
 }
 
-/// Provides a method for reranking slice of [`Document`] items
-pub(crate) trait Reranker {
-    /// Performs the reranking of [`Document`] items
-    fn rerank(&self, items: &[Document]) -> Result<Vec<Document>, anyhow::Error>;
+/// Provides a method for ranking slice of [`Document`] items
+pub(crate) trait Ranker {
+    /// Performs the ranking of [`Document`] items
+    fn rank(&self, items: &mut [Document]) -> Result<(), anyhow::Error>;
 }
