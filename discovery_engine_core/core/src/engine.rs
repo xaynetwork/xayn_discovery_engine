@@ -4,12 +4,18 @@ use thiserror::Error;
 
 use crate::document::Document;
 
+/// A a wrapper around a dynamic error type, similar to `anyhow::Error`,
+/// but without the need to declare `anyhow` as a dependency
+type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
+
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// failed to serialize internal state of the engine: {0}
     Serialization(#[source] bincode::Error),
     /// failed to deserialze internal state to create the engine: {0}
     Deserialization(#[source] bincode::Error),
+    /// failed to rank documents when updating the stack: {0}
+    Ranking(#[source] GenericError),
 }
 
 /// Discovery Engine
@@ -60,4 +66,22 @@ impl Stack {
             documents,
         }
     }
+
+    /// Ranks the slice of [`Document`] items and returns an updated [`Stack`]
+    pub(crate) fn _update<R: Ranker>(
+        mut self,
+        new_feed_items: &[Document],
+        ranker: &R,
+    ) -> Result<Self, Error> {
+        self.documents.extend_from_slice(new_feed_items);
+        ranker.rank(&mut self.documents).map_err(Error::Ranking)?;
+
+        Ok(self)
+    }
+}
+
+/// Provides a method for ranking slice of [`Document`] items
+pub(crate) trait Ranker {
+    /// Performs the ranking of [`Document`] items
+    fn rank(&self, items: &mut [Document]) -> Result<(), GenericError>;
 }
