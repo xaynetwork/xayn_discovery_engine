@@ -7,7 +7,7 @@ use thiserror::Error;
 use crate::{engine::Stack, utils::nan_safe_f32_cmp, Document};
 
 #[derive(Error, Debug, Display)]
-pub(crate) enum MabError {
+pub(crate) enum Error {
     /// Error while sampling
     Sampling(#[from] BetaError),
     /// No documents left in a stack
@@ -17,33 +17,30 @@ pub(crate) enum MabError {
 }
 
 pub(crate) trait BetaSample {
-    fn sample(&self, alpha: f32, beta: f32) -> Result<f32, MabError>;
+    fn sample(&self, alpha: f32, beta: f32) -> Result<f32, Error>;
 }
 
 /// Sample a value from a beta distribution
 pub(crate) struct BetaSampler;
 
 impl BetaSample for BetaSampler {
-    fn sample(&self, alpha: f32, beta: f32) -> Result<f32, MabError> {
+    fn sample(&self, alpha: f32, beta: f32) -> Result<f32, Error> {
         Ok(Beta::new(alpha, beta)?.sample(&mut rand::thread_rng()))
     }
 }
 
-fn pull_arms(
-    beta_sampler: &impl BetaSample,
-    stacks: &mut [&mut Stack],
-) -> Result<Document, MabError> {
+fn pull_arms(beta_sampler: &impl BetaSample, stacks: &mut [&mut Stack]) -> Result<Document, Error> {
     let sample_from_stack = |stack: &Stack| beta_sampler.sample(stack.alpha, stack.beta);
 
     let mut stacks = stacks.iter_mut();
 
-    let first_stack = stacks.next().ok_or(MabError::NoStacksToPull)?;
+    let first_stack = stacks.next().ok_or(Error::NoStacksToPull)?;
     let first_sample = sample_from_stack(&first_stack)?;
 
     let stack = stacks
         .try_fold(
             (first_sample, first_stack),
-            |max, stack| -> Result<_, MabError> {
+            |max, stack| -> Result<_, Error> {
                 let sample = sample_from_stack(stack)?;
                 if let Ordering::Greater = nan_safe_f32_cmp(&sample, &max.0) {
                     Ok((sample, stack))
@@ -54,15 +51,15 @@ fn pull_arms(
         )?
         .1;
 
-    stack.documents.pop().ok_or(MabError::EmptyStack)
+    stack.documents.pop().ok_or(Error::EmptyStack)
 }
 
-struct MabSelectionIter<'bs, 'stack, BS> {
+struct SelectionIter<'bs, 'stack, BS> {
     beta_sampler: &'bs BS,
     stacks: Vec<&'stack mut Stack>,
 }
 
-impl<'bs, 'stack, BS> MabSelectionIter<'bs, 'stack, BS> {
+impl<'bs, 'stack, BS> SelectionIter<'bs, 'stack, BS> {
     fn new(beta_sampler: &'bs BS, stacks: Vec<&'stack mut Stack>) -> Self {
         Self {
             beta_sampler,
@@ -71,11 +68,11 @@ impl<'bs, 'stack, BS> MabSelectionIter<'bs, 'stack, BS> {
     }
 }
 
-impl<'bs, 'stack, BS> Iterator for MabSelectionIter<'bs, 'stack, BS>
+impl<'bs, 'stack, BS> Iterator for SelectionIter<'bs, 'stack, BS>
 where
     BS: BetaSample,
 {
-    type Item = Result<Document, MabError>;
+    type Item = Result<Document, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut stack = vec![];
@@ -94,26 +91,22 @@ where
     }
 }
 
-pub(crate) struct MabSelection<BS> {
+pub(crate) struct Selection<BS> {
     beta_sampler: BS,
 }
 
-impl<BS> MabSelection<BS> {
+impl<BS> Selection<BS> {
     pub(crate) fn new(beta_sampler: BS) -> Self {
         Self { beta_sampler }
     }
 }
 
-impl<BS> MabSelection<BS>
+impl<BS> Selection<BS>
 where
     BS: BetaSample,
 {
-    pub(crate) fn select(
-        &self,
-        stacks: Vec<&mut Stack>,
-        n: u32,
-    ) -> Result<Vec<Document>, MabError> {
-        let iter = MabSelectionIter::new(&self.beta_sampler, stacks);
+    pub(crate) fn select(&self, stacks: Vec<&mut Stack>, n: u32) -> Result<Vec<Document>, Error> {
+        let iter = SelectionIter::new(&self.beta_sampler, stacks);
         iter.take(n as usize).collect()
     }
 }
@@ -149,7 +142,7 @@ mod tests {
         );
 
         let stacks = vec![&mut stack_1, &mut stack_2, &mut stack_3];
-        let mab = MabSelection::new(BetaSampler);
+        let mab = Selection::new(BetaSampler);
 
         let docs = mab.select(stacks, 10).unwrap();
         println!("{:#?}", docs);
