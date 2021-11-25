@@ -35,7 +35,7 @@ fn pull_arms(beta_sampler: &impl BetaSample, stacks: &mut [&mut Stack]) -> Resul
     let mut stacks = stacks.iter_mut();
 
     let first_stack = stacks.next().ok_or(Error::NoStacksToPull)?;
-    let first_sample = sample_from_stack(&first_stack)?;
+    let first_sample = sample_from_stack(first_stack)?;
 
     let stack = stacks
         .try_fold(
@@ -83,10 +83,10 @@ where
             .filter(|stack| !stack.documents.is_empty())
             .collect::<Vec<&mut Stack>>();
 
-        if !self.stacks.is_empty() {
-            Some(pull_arms(self.beta_sampler, &mut self.stacks))
-        } else {
+        if self.stacks.is_empty() {
             None
+        } else {
+            Some(pull_arms(self.beta_sampler, &mut self.stacks))
         }
     }
 }
@@ -145,7 +145,6 @@ mod tests {
         let mab = Selection::new(BetaSampler);
 
         let docs = mab.select(stacks, 10).unwrap();
-        println!("{:#?}", docs);
         assert_eq!(docs[0].id, Id::from_u128(5));
         assert_eq!(docs[1].id, Id::from_u128(4));
         assert_eq!(docs[2].id, Id::from_u128(3));
