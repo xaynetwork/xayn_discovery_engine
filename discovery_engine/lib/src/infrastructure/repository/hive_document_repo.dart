@@ -8,7 +8,7 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repository.
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox;
 
-/// Hive repository for accessing documents.
+/// Hive repository implementation of [DocumentRepository].
 class HiveDocumentRepository implements DocumentRepository {
   Box<Document> get box => Hive.box<Document>(documentBox);
 
@@ -22,7 +22,7 @@ class HiveDocumentRepository implements DocumentRepository {
 
   @override
   Future<void> update(Document doc) async {
-    var key = doc.documentId.toString();
+    final key = doc.documentId.toString();
     await box.put(key, doc);
   }
 }

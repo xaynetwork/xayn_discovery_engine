@@ -6,18 +6,23 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repository.dart'
-    show ActiveDocumentRelatedDataRepository;
+    show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show activeDocumentDataBox;
 
-class HiveActiveDocumentRelatedDataRepository
-    implements ActiveDocumentRelatedDataRepository {
+/// Hive repository implementation of [ActiveDocumentDataRepository].
+class HiveActiveDocumentDataRepository implements ActiveDocumentDataRepository {
   Box<ActiveDocumentData> get box =>
       Hive.box<ActiveDocumentData>(activeDocumentDataBox);
 
   @override
   Future<Uint8List?> smbertEmbeddingById(DocumentId id) async {
-    var activeDoc = box.get(id.toString());
+    final activeDoc = box.get(id.toString());
     return activeDoc?.smbertEmbedding;
+  }
+
+  @override
+  Future<void> update(DocumentId id, ActiveDocumentData data) async {
+    await box.put(id.toString(), data);
   }
 }
