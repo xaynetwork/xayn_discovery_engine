@@ -14,8 +14,8 @@ pub enum Error {
     Serialization(#[source] bincode::Error),
     /// failed to deserialze internal state to create the engine: {0}
     Deserialization(#[source] bincode::Error),
-    /// failed to rerank documents when updating the stack: {0}
-    Reranking(#[source] GenericError),
+    /// failed to rank documents when updating the stack: {0}
+    Ranking(#[source] GenericError),
 }
 
 /// Discovery Engine
@@ -74,7 +74,7 @@ impl Stack {
         ranker: &R,
     ) -> Result<Self, Error> {
         self.documents.extend_from_slice(new_feed_items);
-        ranker.rank(&mut self.documents).map_err(Error::Reranking)?;
+        ranker.rank(&mut self.documents).map_err(Error::Ranking)?;
 
         Ok(self)
     }
