@@ -1,16 +1,20 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'web_resource.freezed.dart';
+part 'web_resource.g.dart';
+
 /// [WebResource] class is used to represent different kinds of resources
 /// like web, image, video, news, etc. that are delivered by an external
 /// content API, which might serve search results, news, or other types.
-class WebResource {
-  final String title;
-  final String snippet;
-  final Uri url;
-  final Uri displayUrl;
+@freezed
+class WebResource with _$WebResource {
+  const factory WebResource({
+    required String title,
+    required String snippet,
+    required Uri url,
+    required Uri displayUrl,
+  }) = _WebResource;
 
-  const WebResource._({
-    required this.title,
-    required this.snippet,
-    required this.url,
-    required this.displayUrl,
-  });
+  factory WebResource.fromJson(Map<String, dynamic> json) =>
+      _$WebResourceFromJson(json);
 }

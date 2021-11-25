@@ -6,6 +6,9 @@ analyzer:
     implicit-dynamic: false
   errors:
     missing_enum_constant_in_switch: error
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
 
 linter:
   rules:

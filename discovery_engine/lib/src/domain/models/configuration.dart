@@ -1,20 +1,21 @@
-/// Class that holds data needed for the initialisation of the discovery engine.
-class Configuration {
-  final String apiKey;
-  final String apiBaseUrl;
-  final String feedMarket;
-  final String searchMarket;
-  final int maxItemsPerSearchBatch;
-  final int maxItemsPerFeedBatch;
-  final String applicationDirectoryPath;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const Configuration._({
-    required this.apiKey,
-    required this.apiBaseUrl,
-    required this.feedMarket,
-    required this.searchMarket,
-    required this.maxItemsPerSearchBatch,
-    required this.maxItemsPerFeedBatch,
-    required this.applicationDirectoryPath,
-  });
+part 'configuration.freezed.dart';
+part 'configuration.g.dart';
+
+/// Class that holds data needed for the initialisation of the discovery engine.
+@freezed
+class Configuration with _$Configuration {
+  const factory Configuration({
+    required String apiKey,
+    required String apiBaseUrl,
+    required String feedMarket,
+    required String searchMarket,
+    required int maxItemsPerSearchBatch,
+    required int maxItemsPerFeedBatch,
+    required String applicationDirectoryPath,
+  }) = _Configuration;
+
+  factory Configuration.fromJson(Map<String, dynamic> json) =>
+      _$ConfigurationFromJson(json);
 }

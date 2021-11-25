@@ -1,33 +1,31 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show DocumentFeedback, DocumentStatus;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource;
+    show WebResource, $WebResourceCopyWith;
+
+part 'document.freezed.dart';
+part 'document.g.dart';
 
 /// [Document] is representing items in the discovery feed
 /// or in the search result list.
-class Document {
-  final DocumentId documentId;
-  final WebResource webResource;
-  final DocumentFeedback _feedback;
-  final DocumentStatus _status;
-  final int nonPersonalizedRank;
-  final int personalizedRank;
+@freezed
+class Document with _$Document {
+  const Document._();
 
-  bool get isRelevant => _feedback == DocumentFeedback.positive;
-  bool get isNotRelevant => _feedback == DocumentFeedback.negative;
-  bool get isNeutral => _feedback == DocumentFeedback.neutral;
-  bool get wasOpened => _status == DocumentStatus.opened;
+  const factory Document({
+    required DocumentId documentId,
+    required WebResource webResource,
+    required DocumentFeedback feedback,
+    required DocumentStatus status,
+    required int nonPersonalizedRank,
+    required int personalizedRank,
+    required bool isActive,
+  }) = _Document;
 
-  int currentRank(bool isPersonalisationOn) =>
-      isPersonalisationOn ? personalizedRank : nonPersonalizedRank;
-
-  Document._({
-    required this.webResource,
-    required this.nonPersonalizedRank,
-    required this.personalizedRank,
-  })  : documentId = DocumentId(),
-        _feedback = DocumentFeedback.neutral,
-        _status = DocumentStatus.missed;
+  /// Converts json Map to [Document].
+  factory Document.fromJson(Map<String, dynamic> json) =>
+      _$DocumentFromJson(json);
 }

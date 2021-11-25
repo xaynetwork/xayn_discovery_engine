@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
+import 'package:json_annotation/json_annotation.dart' show JsonValue;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
@@ -60,12 +61,16 @@ class Document {
 /// become `opened`.
 @HiveType(typeId: documentStatusTypeId)
 enum DocumentStatus {
+  @JsonValue(0)
   @HiveField(0)
   skipped,
+  @JsonValue(1)
   @HiveField(1)
   presented,
+  @JsonValue(2)
   @HiveField(2)
   opened,
+  @JsonValue(3)
   @HiveField(3)
   missed,
 }
@@ -74,10 +79,13 @@ enum DocumentStatus {
 /// essentially if the user "liked" or "disliked" the document.
 @HiveType(typeId: documentFeedbackTypeId)
 enum DocumentFeedback {
+  @JsonValue(0)
   @HiveField(0)
   neutral,
+  @JsonValue(1)
   @HiveField(1)
   positive,
+  @JsonValue(2)
   @HiveField(2)
   negative,
 }
