@@ -63,7 +63,7 @@ impl Stack {
         }
     }
 
-    /// Reranks the array of [`Document`] items and returns a new [`Stack`]
+    /// Reranks the slice of [`Document`] items and returns a new [`Stack`]
     pub(crate) fn _update<R: Reranker>(
         self,
         new_feed_items: &[Document],
@@ -73,18 +73,17 @@ impl Stack {
         let documents = reranker
             .rerank(&docs_to_rerank)
             // TODO: maybe there is a better solution for error conversion
-            .map_err(|e| Error::Reranking(e.to_string()))?
-            .into();
+            .map_err(|e| Error::Reranking(e.to_string()))?;
 
         Ok(Self { documents, ..self })
     }
 }
 
-/// Provides a method for reranking array of [`Document`] items
+/// Provides a method for reranking slice of [`Document`] items
 pub(crate) trait Reranker {
     /// The type returned in the event of a reranking error.
     type Error: std::error::Error;
 
     /// Performs the reranking of [`Document`] items
-    fn rerank(&self, items: &[Document]) -> Result<&[Document], Self::Error>;
+    fn rerank(&self, items: &[Document]) -> Result<Vec<Document>, Self::Error>;
 }
