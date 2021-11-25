@@ -79,13 +79,13 @@ where
 mod tests {
     use ndarray::{array, Ix1};
 
-    use crate::{document::Embedding, DocumentId};
+    use crate::{document::Embedding, Id};
 
     use super::*;
 
     fn create_doc(id: u128) -> Document {
         Document {
-            id: DocumentId::from_u128(id),
+            id: Id::from_u128(id),
             rank: 0,
             title: "title".into(),
             snippet: "snippet".into(),
@@ -113,8 +113,8 @@ mod tests {
         let mab = MabSelection::new(BetaSampler);
 
         let mut docs = mab.select(&mut stacks, 3).unwrap();
-        assert_eq!(docs.pop().unwrap().id, DocumentId::from_u128(3));
-        assert_eq!(docs.pop().unwrap().id, DocumentId::from_u128(4));
-        assert_eq!(docs.pop().unwrap().id, DocumentId::from_u128(5));
+        assert_eq!(docs.pop().unwrap().id, Id::from_u128(3));
+        assert_eq!(docs.pop().unwrap().id, Id::from_u128(4));
+        assert_eq!(docs.pop().unwrap().id, Id::from_u128(5));
     }
 }

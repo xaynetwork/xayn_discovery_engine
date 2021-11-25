@@ -59,7 +59,7 @@ pub(crate) struct Stack {
 
 impl Stack {
     /// Creates a new Stack.
-    pub(crate) fn _new(alpha: f32, beta: f32, documents: Vec<Document>) -> Self {
+    pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Self {
         Self {
             alpha,
             beta,
