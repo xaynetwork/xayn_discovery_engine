@@ -4,6 +4,9 @@ use thiserror::Error;
 
 use crate::document::Document;
 
+/// Generic error
+type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
+
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// failed to serialize internal state of the engine: {0}
@@ -11,7 +14,7 @@ pub enum Error {
     /// failed to deserialze internal state to create the engine: {0}
     Deserialization(#[source] bincode::Error),
     /// failed to rerank documents when updating the stack: {0}
-    Reranking(#[source] anyhow::Error),
+    Reranking(#[source] GenericError),
 }
 
 /// Discovery Engine
@@ -79,5 +82,5 @@ impl Stack {
 /// Provides a method for ranking slice of [`Document`] items
 pub(crate) trait Ranker {
     /// Performs the ranking of [`Document`] items
-    fn rank(&self, items: &mut [Document]) -> Result<(), anyhow::Error>;
+    fn rank(&self, items: &mut [Document]) -> Result<(), GenericError>;
 }
