@@ -4,7 +4,8 @@ use thiserror::Error;
 
 use crate::document::Document;
 
-/// Generic error
+/// A a wrapper around a dynamic error type, similar to `anyhow::Error`,
+/// but without the need to declare `anyhow` as a dependency
 type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
 #[derive(Error, Debug, Display)]
