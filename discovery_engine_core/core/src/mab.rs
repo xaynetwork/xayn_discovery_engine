@@ -30,9 +30,9 @@ impl BetaSample for BetaSampler {
 }
 
 pub(crate) trait Bucket<T> {
-    /// The alpha parameter of the beta distribution.
+    /// Returns the alpha parameter of the beta distribution.
     fn alpha(&self) -> f32;
-    /// The beta parameter of the beta distribution.
+    /// Returns the beta parameter of the beta distribution.
     fn beta(&self) -> f32;
     /// Returns `true` if the bucket contains no elements.
     fn is_empty(&self) -> bool;
