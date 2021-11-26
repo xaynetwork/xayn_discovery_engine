@@ -1,19 +1,19 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, marker::PhantomData};
 
 use displaydoc::Display;
 use rand_distr::{Beta, BetaError, Distribution};
 use thiserror::Error;
 
-use crate::{stack::Stack, utils::nan_safe_f32_cmp, Document};
+use crate::utils::nan_safe_f32_cmp;
 
 #[derive(Error, Debug, Display)]
 pub(crate) enum Error {
     /// Error while sampling
     Sampling(#[from] BetaError),
-    /// No documents left in a stack
-    EmptyStack,
-    /// No stacks to pull from
-    NoStacksToPull,
+    /// No items left in a [`Bucket`]
+    EmptyBucket,
+    /// No [`Bucket`] to pull from
+    NoBucketsToPull,
 }
 
 pub(crate) trait BetaSample {
@@ -29,21 +29,35 @@ impl BetaSample for BetaSampler {
     }
 }
 
-fn pull_arms(beta_sampler: &impl BetaSample, stacks: &mut [&mut Stack]) -> Result<Document, Error> {
-    let sample_from_stack = |stack: &Stack| beta_sampler.sample(stack.alpha, stack.beta);
+pub(crate) trait Bucket<T> {
+    /// The alpha parameter of the beta distribution.
+    fn alpha(&self) -> f32;
+    /// The beta parameter of the beta distribution.
+    fn beta(&self) -> f32;
+    /// Returns `true` if the bucket contains no elements.
+    fn is_empty(&self) -> bool;
+    /// Removes the last element from a bucket and returns it, or `None` if it is empty.
+    fn pop(&mut self) -> Option<T>;
+}
 
-    let mut stacks = stacks.iter_mut();
+fn pull_arms<B, T>(beta_sampler: &impl BetaSample, buckets: &mut [&mut B]) -> Result<T, Error>
+where
+    B: Bucket<T>,
+{
+    let sample_from_bucket = |bucket: &B| beta_sampler.sample(bucket.alpha(), bucket.beta());
 
-    let first_stack = stacks.next().ok_or(Error::NoStacksToPull)?;
-    let first_sample = sample_from_stack(first_stack)?;
+    let mut buckets = buckets.iter_mut();
 
-    let stack = stacks
+    let first_bucket = buckets.next().ok_or(Error::NoBucketsToPull)?;
+    let first_sample = sample_from_bucket(first_bucket)?;
+
+    let bucket = buckets
         .try_fold(
-            (first_sample, first_stack),
-            |max, stack| -> Result<_, Error> {
-                let sample = sample_from_stack(stack)?;
+            (first_sample, first_bucket),
+            |max, bucket| -> Result<_, Error> {
+                let sample = sample_from_bucket(bucket)?;
                 if let Ordering::Greater = nan_safe_f32_cmp(&sample, &max.0) {
-                    Ok((sample, stack))
+                    Ok((sample, bucket))
                 } else {
                     Ok(max)
                 }
@@ -51,42 +65,51 @@ fn pull_arms(beta_sampler: &impl BetaSample, stacks: &mut [&mut Stack]) -> Resul
         )?
         .1;
 
-    stack.documents.pop().ok_or(Error::EmptyStack)
+    bucket.pop().ok_or(Error::EmptyBucket)
 }
 
-struct SelectionIter<'bs, 'stack, BS> {
+struct SelectionIter<'bs, 'b, BS, B, T>
+where
+    B: Bucket<T>,
+{
     beta_sampler: &'bs BS,
-    stacks: Vec<&'stack mut Stack>,
+    buckets: Vec<&'b mut B>,
+    bucket_type: PhantomData<T>,
 }
 
-impl<'bs, 'stack, BS> SelectionIter<'bs, 'stack, BS> {
-    fn new(beta_sampler: &'bs BS, stacks: Vec<&'stack mut Stack>) -> Self {
+impl<'bs, 'b, BS, B, T> SelectionIter<'bs, 'b, BS, B, T>
+where
+    B: Bucket<T>,
+{
+    fn new(beta_sampler: &'bs BS, buckets: Vec<&'b mut B>) -> Self {
         Self {
             beta_sampler,
-            stacks,
+            buckets,
+            bucket_type: PhantomData,
         }
     }
 }
 
-impl<'bs, 'stack, BS> Iterator for SelectionIter<'bs, 'stack, BS>
+impl<'bs, 'b, BS, B, T> Iterator for SelectionIter<'bs, 'b, BS, B, T>
 where
     BS: BetaSample,
+    B: Bucket<T>,
 {
-    type Item = Result<Document, Error>;
+    type Item = Result<T, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut stack = vec![];
-        std::mem::swap(&mut self.stacks, &mut stack);
+        let mut buckets = vec![];
+        std::mem::swap(&mut self.buckets, &mut buckets);
 
-        self.stacks = stack
+        self.buckets = buckets
             .into_iter()
-            .filter(|stack| !stack.documents.is_empty())
-            .collect::<Vec<&mut Stack>>();
+            .filter(|bucket| !bucket.is_empty())
+            .collect::<Vec<&mut B>>();
 
-        if self.stacks.is_empty() {
+        if self.buckets.is_empty() {
             None
         } else {
-            Some(pull_arms(self.beta_sampler, &mut self.stacks))
+            Some(pull_arms(self.beta_sampler, &mut self.buckets))
         }
     }
 }
@@ -105,55 +128,71 @@ impl<BS> Selection<BS>
 where
     BS: BetaSample,
 {
-    pub(crate) fn select(&self, stacks: Vec<&mut Stack>, n: u32) -> Result<Vec<Document>, Error> {
-        let selection = SelectionIter::new(&self.beta_sampler, stacks);
+    pub(crate) fn select<B, T>(&self, buckets: Vec<&mut B>, n: u32) -> Result<Vec<T>, Error>
+    where
+        B: Bucket<T>,
+    {
+        let selection = SelectionIter::new(&self.beta_sampler, buckets);
         selection.take(n as usize).collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{array, Ix1};
-
-    use crate::{document::Embedding, Id};
-
     use super::*;
 
-    fn create_doc(id: u128) -> Document {
-        Document {
-            id: Id::from_u128(id),
-            rank: 0,
-            title: "title".into(),
-            snippet: "snippet".into(),
-            url: "url".into(),
-            domain: "domain".into(),
-            smbert_embedding: Embedding::<Ix1>(array![]),
+    struct Stack {
+        alpha: f32,
+        beta: f32,
+        docs: Vec<u32>,
+    }
+
+    impl Bucket<u32> for Stack {
+        fn alpha(&self) -> f32 {
+            self.alpha
+        }
+
+        fn beta(&self) -> f32 {
+            self.beta
+        }
+
+        fn is_empty(&self) -> bool {
+            self.docs.is_empty()
+        }
+
+        fn pop(&mut self) -> Option<u32> {
+            self.docs.pop()
         }
     }
 
     #[test]
-    fn test_select() {
-        let mut stack_1 = Stack::new(0.01, 1.0, vec![create_doc(0)]).unwrap();
-        let mut stack_2 = Stack::new(
-            1.0,
-            0.001,
-            vec![create_doc(3), create_doc(4), create_doc(5)],
-        )
-        .unwrap();
-        let mut stack_3 = Stack::new(
-            0.001,
-            1.0,
-            vec![create_doc(6), create_doc(7), create_doc(8)],
-        )
-        .unwrap();
+    fn test_selection() {
+        let mut stack_1 = Stack {
+            alpha: 0.01,
+            beta: 1.0,
+            docs: vec![0],
+        };
+        let mut stack_2 = Stack {
+            alpha: 1.0,
+            beta: 0.001,
+            docs: vec![1, 2, 3],
+        };
+        let mut stack_3 = Stack {
+            alpha: 0.001,
+            beta: 1.0,
+            docs: vec![4, 5, 6],
+        };
 
         let stacks = vec![&mut stack_1, &mut stack_2, &mut stack_3];
         let mab = Selection::new(BetaSampler);
 
         let docs = mab.select(stacks, 10).unwrap();
-        assert_eq!(docs[0].id, Id::from_u128(5));
-        assert_eq!(docs[1].id, Id::from_u128(4));
-        assert_eq!(docs[2].id, Id::from_u128(3));
-        assert_eq!(docs[3].id, Id::from_u128(0));
+        assert_eq!(docs[0], 3);
+        assert_eq!(docs[1], 2);
+        assert_eq!(docs[2], 1);
+        assert_eq!(docs[3], 0);
+        assert_eq!(docs[4], 6);
+        assert_eq!(docs[5], 5);
+        assert_eq!(docs[6], 4);
     }
 }

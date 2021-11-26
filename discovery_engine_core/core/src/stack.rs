@@ -5,6 +5,7 @@ use thiserror::Error;
 use crate::{
     document::Document,
     engine::{GenericError, Ranker},
+    mab::Bucket,
 };
 
 #[derive(Error, Debug, Display)]
@@ -55,5 +56,23 @@ impl Stack {
         ranker.rank(&mut self.documents).map_err(Error::Ranking)?;
 
         Ok(self)
+    }
+}
+
+impl Bucket<Document> for Stack {
+    fn alpha(&self) -> f32 {
+        self.alpha
+    }
+
+    fn beta(&self) -> f32 {
+        self.beta
+    }
+
+    fn is_empty(&self) -> bool {
+        self.documents.is_empty()
+    }
+
+    fn pop(&mut self) -> Option<Document> {
+        self.documents.pop()
     }
 }
