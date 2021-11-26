@@ -106,8 +106,8 @@ where
     BS: BetaSample,
 {
     pub(crate) fn select(&self, stacks: Vec<&mut Stack>, n: u32) -> Result<Vec<Document>, Error> {
-        let iter = SelectionIter::new(&self.beta_sampler, stacks);
-        iter.take(n as usize).collect()
+        let selection = SelectionIter::new(&self.beta_sampler, stacks);
+        selection.take(n as usize).collect()
     }
 }
 
