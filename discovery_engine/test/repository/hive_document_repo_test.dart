@@ -18,7 +18,7 @@ void main() async {
 
   group('DocumentRepository', () {
     final empty = WebResource.fromJson(<String, String>{
-      'name': 'Example',
+      'title': 'Example',
       'displayUrl': 'domain.com',
       'snippet': 'snippet',
       'url': 'http://domain.com'
