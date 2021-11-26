@@ -4,7 +4,7 @@ use displaydoc::Display;
 use rand_distr::{Beta, BetaError, Distribution};
 use thiserror::Error;
 
-use crate::{engine::Stack, utils::nan_safe_f32_cmp, Document};
+use crate::{stack::Stack, utils::nan_safe_f32_cmp, Document};
 
 #[derive(Error, Debug, Display)]
 pub(crate) enum Error {
@@ -133,13 +133,19 @@ mod tests {
 
     #[test]
     fn test_select() {
-        let mut stack_1 = Stack::new(1.0, 100.0, vec![create_doc(0)]);
-        let mut stack_2 = Stack::new(20.0, 5.0, vec![create_doc(3), create_doc(4), create_doc(5)]);
-        let mut stack_3 = Stack::new(
+        let mut stack_1 = Stack::new(0.01, 1.0, vec![create_doc(0)]).unwrap();
+        let mut stack_2 = Stack::new(
             1.0,
-            1000.0,
+            0.001,
+            vec![create_doc(3), create_doc(4), create_doc(5)],
+        )
+        .unwrap();
+        let mut stack_3 = Stack::new(
+            0.001,
+            1.0,
             vec![create_doc(6), create_doc(7), create_doc(8)],
-        );
+        )
+        .unwrap();
 
         let stacks = vec![&mut stack_1, &mut stack_2, &mut stack_3];
         let mab = Selection::new(BetaSampler);

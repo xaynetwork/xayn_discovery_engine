@@ -14,6 +14,7 @@
 mod document;
 mod engine;
 mod mab;
+mod stack;
 mod utils;
 
 pub use crate::{

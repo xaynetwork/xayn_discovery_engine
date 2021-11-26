@@ -2,20 +2,14 @@ use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::document::Document;
-
-/// A a wrapper around a dynamic error type, similar to `anyhow::Error`,
-/// but without the need to declare `anyhow` as a dependency
-type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
+use crate::{document::Document, stack::Stack};
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// failed to serialize internal state of the engine: {0}
     Serialization(#[source] bincode::Error),
-    /// failed to deserialze internal state to create the engine: {0}
+    /// failed to deserialize internal state to create the engine: {0}
     Deserialization(#[source] bincode::Error),
-    /// failed to rank documents when updating the stack: {0}
-    Ranking(#[source] GenericError),
 }
 
 /// Discovery Engine
@@ -46,39 +40,9 @@ pub(crate) struct InternalState {
     pub(crate) personalized_news: Stack,
 }
 
-/// Stack of feed items
-#[derive(Deserialize, Serialize)]
-pub(crate) struct Stack {
-    /// TODO: add documentation
-    pub(crate) alpha: f32,
-    /// TODO: add documentation
-    pub(crate) beta: f32,
-    /// Documents in the [`Stack`]
-    pub(crate) documents: Vec<Document>,
-}
-
-impl Stack {
-    /// Creates a new Stack.
-    pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Self {
-        Self {
-            alpha,
-            beta,
-            documents,
-        }
-    }
-
-    /// Ranks the slice of [`Document`] items and returns an updated [`Stack`]
-    pub(crate) fn _update<R: Ranker>(
-        mut self,
-        new_feed_items: &[Document],
-        ranker: &R,
-    ) -> Result<Self, Error> {
-        self.documents.extend_from_slice(new_feed_items);
-        ranker.rank(&mut self.documents).map_err(Error::Ranking)?;
-
-        Ok(self)
-    }
-}
+/// A a wrapper around a dynamic error type, similar to `anyhow::Error`,
+/// but without the need to declare `anyhow` as a dependency
+pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
 /// Provides a method for ranking slice of [`Document`] items
 pub(crate) trait Ranker {
