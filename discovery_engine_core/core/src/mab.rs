@@ -167,6 +167,11 @@ mod tests {
 
     #[test]
     fn test_selection() {
+        let mut stack_0 = Stack {
+            alpha: 0.01,
+            beta: 1.0,
+            docs: vec![],
+        };
         let mut stack_1 = Stack {
             alpha: 0.01,
             beta: 1.0,
@@ -183,7 +188,7 @@ mod tests {
             docs: vec![4, 5, 6],
         };
 
-        let stacks = vec![&mut stack_1, &mut stack_2, &mut stack_3];
+        let stacks = vec![&mut stack_0, &mut stack_1, &mut stack_2, &mut stack_3];
         let mab = Selection::new(BetaSampler);
 
         let docs = mab.select(stacks, 10).unwrap();
