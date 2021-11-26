@@ -18,7 +18,7 @@ class HiveChangedDocumentRepository implements ChangedDocumentRepository {
 
   @override
   Future<void> add(DocumentId id) async {
-    await box.add(id.value);
+    await box.put(id.toString(), id.value);
   }
 
   @override
