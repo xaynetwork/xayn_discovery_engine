@@ -3,13 +3,13 @@ export 'package:xayn_discovery_engine/src/api/events/client_events/document_even
 export 'package:xayn_discovery_engine/src/api/events/client_events/feed_events.dart'
     show FeedClientEvent;
 export 'package:xayn_discovery_engine/src/api/events/client_events/system_events.dart'
-    show SystemClientEvent;
+    show SystemClientEvent, Init;
 export 'package:xayn_discovery_engine/src/api/events/client_groups.dart'
     show ClientEvent, ClientEventGroups;
 export 'package:xayn_discovery_engine/src/api/events/engine_events/feed_events.dart'
     show FeedEngineEvent;
 export 'package:xayn_discovery_engine/src/api/events/engine_events/system_events.dart'
-    show SystemEngineEvent;
+    show SystemEngineEvent, ClientEventSucceeded;
 export 'package:xayn_discovery_engine/src/api/events/engine_groups.dart'
     show EngineEvent, EngineEventGroups;
 export 'package:xayn_discovery_engine/src/api/models/document.dart'
