@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[derive(Error, Debug, Display)]
+#[allow(dead_code)]
 pub(crate) enum Error {
     /// invalid value for alpha: {0}
     InvalidAlpha(f32),
@@ -30,6 +31,7 @@ pub(crate) struct Stack {
 }
 
 impl Stack {
+    #[allow(dead_code)]
     /// Creates a new Stack.
     pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
         if alpha <= 0.0 || alpha > 1.0 {
@@ -47,7 +49,8 @@ impl Stack {
     }
 
     /// Ranks the slice of [`Document`] items and returns an updated [`Stack`]
-    pub(crate) fn _update<R: Ranker>(
+    #[allow(dead_code)]
+    pub(crate) fn update<R: Ranker>(
         mut self,
         new_feed_items: &[Document],
         ranker: &R,
