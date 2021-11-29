@@ -23,10 +23,8 @@ class Document {
   @HiveField(3)
   final DocumentStatus _status;
   @HiveField(4)
-  final int nonPersonalizedRank;
-  @HiveField(5)
   final int personalizedRank;
-  @HiveField(6)
+  @HiveField(5)
   final bool isActive;
 
   bool get isRelevant => _feedback == DocumentFeedback.positive;
@@ -34,39 +32,32 @@ class Document {
   bool get isNeutral => _feedback == DocumentFeedback.neutral;
   bool get wasOpened => _status == DocumentStatus.opened;
 
-  int currentRank(bool isPersonalisationOn) =>
-      isPersonalisationOn ? personalizedRank : nonPersonalizedRank;
-
   Document({
     required this.webResource,
-    required this.nonPersonalizedRank,
     required this.personalizedRank,
     this.isActive = true,
   })  : documentId = DocumentId(),
         _feedback = DocumentFeedback.neutral,
         _status = DocumentStatus.missed;
 
-  Document.withId({
+  Document._withId({
     required this.documentId,
     required this.webResource,
-    required this.nonPersonalizedRank,
     required this.personalizedRank,
     this.isActive = true,
   })  : _feedback = DocumentFeedback.neutral,
         _status = DocumentStatus.missed;
 
-  Document setActive() => Document.withId(
+  Document setActive() => Document._withId(
         documentId: documentId,
         webResource: webResource,
-        nonPersonalizedRank: nonPersonalizedRank,
         personalizedRank: personalizedRank,
         isActive: true,
       );
 
-  Document setInactive() => Document.withId(
+  Document setInactive() => Document._withId(
         documentId: documentId,
         webResource: webResource,
-        nonPersonalizedRank: nonPersonalizedRank,
         personalizedRank: personalizedRank,
         isActive: false,
       );

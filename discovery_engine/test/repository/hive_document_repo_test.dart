@@ -1,6 +1,6 @@
 import 'dart:typed_data' show Uint8List;
 
-import 'package:hive/hive.dart';
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter;
@@ -24,21 +24,19 @@ void main() async {
       'url': 'http://domain.com'
     });
     final doc1 = Document(
-      nonPersonalizedRank: 0,
       personalizedRank: 0,
       webResource: empty,
     );
     final doc2 = Document(
-      nonPersonalizedRank: 1,
       personalizedRank: 1,
       webResource: empty,
     );
 
-    group('empty box', () {
-      tearDown(() async {
-        await box.clear();
-      });
+    tearDown(() async {
+      await box.clear();
+    });
 
+    group('empty box', () {
       test('add new', () async {
         expect(box, isEmpty);
         await repo.update(doc1);
@@ -58,10 +56,6 @@ void main() async {
     group('nonempty box', () {
       setUp(() async {
         await repo.update(doc1);
-      });
-
-      tearDown(() async {
-        await box.clear();
       });
 
       test('update existing', () async {

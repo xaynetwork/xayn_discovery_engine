@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Hive, Box;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'

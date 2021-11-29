@@ -1,8 +1,9 @@
 import 'dart:typed_data' show Uint8List;
 
-import 'package:hive/hive.dart';
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show changedDocumentIdBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
@@ -17,15 +18,11 @@ void main() async {
     final id1 = DocumentId();
     final id2 = DocumentId();
 
-    test('distinct ids', () {
-      expect(id1, isNot(id2));
+    tearDown(() async {
+      await box.clear();
     });
 
     group('empty box', () {
-      tearDown(() async {
-        await box.clear();
-      });
-
       test('add new', () async {
         expect(box, isEmpty);
         await repo.add(id1);
@@ -45,10 +42,6 @@ void main() async {
     group('nonempty box', () {
       setUp(() async {
         await repo.add(id1);
-      });
-
-      tearDown(() async {
-        await box.clear();
       });
 
       test('fetch all from one', () async {
