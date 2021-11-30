@@ -82,6 +82,7 @@ impl Bucket<Document> for Stack {
 #[cfg(test)]
 mod tests {
     use crate::{document::Embedding, Id};
+    use approx::assert_ulps_eq;
     use ndarray::arr1;
     use std::ops::Not;
 
@@ -110,8 +111,8 @@ mod tests {
     fn test_stack_bucket_impl() {
         let mut stack_0 = Stack::new(0.01, 0.99, vec![]).unwrap();
 
-        assert!(stack_0.alpha() <= 0.01);
-        assert!(stack_0.beta() <= 0.99);
+        assert_ulps_eq!(stack_0.alpha(), 0.01);
+        assert_ulps_eq!(stack_0.beta(), 0.99);
         assert!(stack_0.is_empty());
         assert!(stack_0.pop().is_none());
 
