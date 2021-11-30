@@ -11,22 +11,22 @@ use crate::{
 #[derive(Error, Debug, Display)]
 #[allow(dead_code)]
 pub(crate) enum Error {
-    /// invalid value for alpha: {0}
+    /// Invalid value for alpha: {0}.
     InvalidAlpha(f32),
-    /// invalid value for beta: {0}
+    /// Invalid value for beta: {0}.
     InvalidBeta(f32),
-    /// failed to rank documents when updating the stack: {0}
+    /// Failed to rank documents when updating the stack: {0}.
     Ranking(#[source] GenericError),
 }
 
 /// Stack of feed items
 #[derive(Deserialize, Serialize)]
 pub(crate) struct Stack {
-    /// The alpha parameter of the beta distribution
-    pub(crate) alpha: f32,
-    /// The beta parameter of the beta distribution
-    pub(crate) beta: f32,
-    /// Documents in the [`Stack`]
+    /// The alpha parameter of the beta distribution.
+    alpha: f32,
+    /// The beta parameter of the beta distribution.
+    beta: f32,
+    /// Documents in the [`Stack`].
     pub(crate) documents: Vec<Document>,
 }
 
@@ -48,7 +48,7 @@ impl Stack {
         })
     }
 
-    /// Ranks the slice of [`Document`] items and returns an updated [`Stack`]
+    /// Ranks the slice of [`Document`] items and returns an updated [`Stack`].
     #[allow(dead_code)]
     pub(crate) fn update<R: Ranker>(
         mut self,

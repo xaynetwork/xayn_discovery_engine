@@ -8,11 +8,11 @@ use crate::utils::nan_safe_f32_cmp;
 
 #[derive(Error, Debug, Display)]
 pub(crate) enum Error {
-    /// Error while sampling
+    /// Error while sampling.
     Sampling(#[from] BetaError),
-    /// No items left in a [`Bucket`]
+    /// No items left in a [`Bucket`].
     EmptyBucket,
-    /// No [`Bucket`] to pull from
+    /// No [`Bucket`] to pull from.
     NoBucketsToPull,
 }
 
@@ -20,7 +20,7 @@ pub(crate) trait BetaSample {
     fn sample(&self, alpha: f32, beta: f32) -> Result<f32, Error>;
 }
 
-/// Sample a value from a beta distribution
+/// Sample a value from a beta distribution.
 pub(crate) struct BetaSampler;
 
 impl BetaSample for BetaSampler {
@@ -36,7 +36,7 @@ pub(crate) trait Bucket<T> {
     fn beta(&self) -> f32;
     /// Returns `true` if the bucket contains no elements.
     fn is_empty(&self) -> bool;
-    /// Removes the last element from a bucket and returns it, or `None` if it is empty.
+    /// Removes the next best element from this bucket and returns it, or `None` if it is empty.
     fn pop(&mut self) -> Option<T>;
 }
 
