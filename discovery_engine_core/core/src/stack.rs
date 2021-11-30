@@ -84,7 +84,6 @@ mod tests {
     use crate::{document::Embedding, Id};
     use approx::assert_ulps_eq;
     use ndarray::arr1;
-    use std::ops::Not;
 
     use super::*;
 
@@ -127,7 +126,7 @@ mod tests {
         };
         let mut stack_1 = Stack::new(0.01, 0.99, vec![doc_1]).unwrap();
 
-        assert!(stack_1.is_empty().not());
+        assert!(!stack_1.is_empty());
         assert!(stack_1.pop().is_some());
         assert!(stack_1.is_empty());
     }
