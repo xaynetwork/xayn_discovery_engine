@@ -11,9 +11,9 @@ use crate::{
 #[derive(Error, Debug, Display)]
 #[allow(dead_code)]
 pub(crate) enum Error {
-    /// Invalid value for alpha: {0}.
+    /// Invalid value for alpha: {0}. It must be in range [0, 1].
     InvalidAlpha(f32),
-    /// Invalid value for beta: {0}.
+    /// Invalid value for beta: {0}. It must be in range [0, 1].
     InvalidBeta(f32),
     /// Failed to rank documents when updating the stack: {0}.
     Ranking(#[source] GenericError),
@@ -77,5 +77,30 @@ impl Bucket<Document> for Stack {
 
     fn pop(&mut self) -> Option<Document> {
         self.documents.pop()
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_selection() {
+        let mut stack_0 = Stack {
+            alpha: 0.01,
+            beta: 1.0,
+            documents: vec![],
+        };
+
+        let _stacks = vec![&mut stack_0];
+        // let mab = Selection::new(BetaSampler);
+
+        // let docs = mab.select(stacks, 10).unwrap();
+        // assert_eq!(docs[0], 3);
+        // assert_eq!(docs[1], 2);
+        // assert_eq!(docs[2], 1);
+        // assert_eq!(docs[3], 0);
+        // assert_eq!(docs[4], 6);
+        // assert_eq!(docs[5], 5);
+        // assert_eq!(docs[6], 4);
     }
 }
