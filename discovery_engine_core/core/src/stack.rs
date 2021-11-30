@@ -91,14 +91,14 @@ mod tests {
         let stack_3 = Stack::new(0.5, 0.0, vec![]);
         let stack_4 = Stack::new(0.5, 1.01, vec![]);
 
-        assert_eq!(stack_0.is_ok(), true);
-        assert_eq!(stack_1.is_err(), true);
+        assert!(stack_0.is_ok());
+        assert!(stack_1.is_err());
         assert!(matches!(stack_1.err().unwrap(), Error::InvalidAlpha(_)));
-        assert_eq!(stack_2.is_err(), true);
+        assert!(stack_2.is_err());
         assert!(matches!(stack_2.err().unwrap(), Error::InvalidAlpha(_)));
-        assert_eq!(stack_3.is_err(), true);
+        assert!(stack_3.is_err());
         assert!(matches!(stack_3.err().unwrap(), Error::InvalidBeta(_)));
-        assert_eq!(stack_4.is_err(), true);
+        assert!(stack_4.is_err());
         assert!(matches!(stack_4.err().unwrap(), Error::InvalidBeta(_)));
     }
 }
