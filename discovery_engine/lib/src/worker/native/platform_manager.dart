@@ -33,7 +33,11 @@ class _IsolatedPlatformManager extends PlatformManager {
     final workerChannel = await managerChannel.first as SendPort;
 
     return _IsolatedPlatformManager._(
-        managerChannel, worker, workerChannel, errorChannel);
+      managerChannel,
+      worker,
+      workerChannel,
+      errorChannel,
+    );
   }
 
   @override

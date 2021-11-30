@@ -12,20 +12,51 @@ analyzer:
 
 linter:
   rules:
+    - avoid_annotating_with_dynamic
+    - avoid_double_and_int_checks
+    - avoid_dynamic_calls
+    - avoid_js_rounded_ints
+    - avoid_returning_null_for_future
+    - avoid_slow_async_io
+    - avoid_type_to_string
+    - avoid_void_async
     - always_declare_return_types
+    - always_put_required_named_parameters_first
     - always_use_package_imports
     - camel_case_types
     - camel_case_extensions
     - comment_references
     - constant_identifier_names
     - curly_braces_in_flow_control_structures
+    - deprecated_consistency
+    - depend_on_referenced_packages
     - directives_ordering
     - file_names
     - library_names
     - library_prefixes
+    - library_private_types_in_public_api
+    - no_runtimeType_toString
+    - noop_primitive_operations
     - non_constant_identifier_names
+    - only_throw_errors
+    - package_api_docs
+    - prefer_const_constructors
+    - prefer_const_constructors_in_immutables
+    - prefer_const_declarations
+    - prefer_const_literals_to_create_immutables
+    - prefer_final_in_for_each
+    - prefer_final_locals
+    - prefer_interpolation_to_compose_strings
+    - prefer_mixin
     - prefer_single_quotes
+    - require_trailing_commas
     - sort_child_properties_last
+    - test_types_in_equals
     - unawaited_futures
+    - unnecessary_await_in_return
+    - unnecessary_null_aware_assignments
+    - unnecessary_statements
     - unsafe_html
+    - use_if_null_to_convert_nulls_to_bools
+    - use_string_buffers
     - void_checks

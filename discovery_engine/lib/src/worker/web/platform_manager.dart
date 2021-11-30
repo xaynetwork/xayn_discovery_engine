@@ -15,7 +15,8 @@ class WebWorkerManager extends PlatformManager {
   static Future<PlatformManager> spawn(String scriptUrl) async {
     if (Worker.supported == false) {
       throw WorkerSpawnException(
-          'WebWorkers are not supported in this browser');
+        'WebWorkers are not supported in this browser',
+      );
     }
 
     final worker = Worker(scriptUrl);

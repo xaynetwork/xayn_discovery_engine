@@ -11,7 +11,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 
-void main() async {
+Future<void> main() async {
   Hive.registerAdapter(DocumentAdapter());
   final box = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
   final repo = HiveDocumentRepository();
