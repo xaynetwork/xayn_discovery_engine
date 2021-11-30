@@ -81,6 +81,10 @@ impl Bucket<Document> for Stack {
 }
 #[cfg(test)]
 mod tests {
+    use crate::{document::Embedding, Id};
+    use ndarray::arr1;
+    use std::ops::Not;
+
     use super::*;
 
     #[test]
@@ -100,5 +104,30 @@ mod tests {
         assert!(matches!(stack_3.err().unwrap(), Error::InvalidBeta(_)));
         assert!(stack_4.is_err());
         assert!(matches!(stack_4.err().unwrap(), Error::InvalidBeta(_)));
+    }
+
+    #[test]
+    fn test_stack_bucket_impl() {
+        let mut stack_0 = Stack::new(0.01, 0.99, vec![]).unwrap();
+
+        assert!(stack_0.alpha() <= 0.01);
+        assert!(stack_0.beta() <= 0.99);
+        assert!(stack_0.is_empty());
+        assert!(stack_0.pop().is_none());
+
+        let doc_1 = Document {
+            id: Id::from_u128(u128::MIN),
+            rank: usize::default(),
+            title: "".to_string(),
+            snippet: "".to_string(),
+            url: "".to_string(),
+            domain: "".to_string(),
+            smbert_embedding: Embedding(arr1(&[1., 2., 3.])),
+        };
+        let mut stack_1 = Stack::new(0.01, 0.99, vec![doc_1]).unwrap();
+
+        assert!(stack_1.is_empty().not());
+        assert!(stack_1.pop().is_some());
+        assert!(stack_1.is_empty());
     }
 }
