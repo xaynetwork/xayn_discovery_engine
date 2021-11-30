@@ -118,10 +118,10 @@ mod tests {
         let doc_1 = Document {
             id: Id::from_u128(u128::MIN),
             rank: usize::default(),
-            title: "".to_string(),
-            snippet: "".to_string(),
-            url: "".to_string(),
-            domain: "".to_string(),
+            title: String::default(),
+            snippet: String::default(),
+            url: String::default(),
+            domain: String::default(),
             smbert_embedding: Embedding(arr1(&[1., 2., 3.])),
         };
         let mut stack_1 = Stack::new(0.01, 0.99, vec![doc_1]).unwrap();
