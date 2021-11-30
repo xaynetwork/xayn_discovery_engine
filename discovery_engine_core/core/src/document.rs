@@ -9,11 +9,11 @@ use uuid::Uuid;
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
-    /// failed to parse Uuid: {0}
+    /// Failed to parse Uuid: {0}.
     Parse(#[from] uuid::Error),
 }
 
-/// Unique identifier of the [`Document`]
+/// Unique identifier of the [`Document`].
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct Id(pub Uuid);
 
@@ -35,25 +35,25 @@ impl TryFrom<&[u8]> for Id {
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
-    /// Unique identifier of the document
+    /// Unique identifier of the document.
     pub id: Id,
-    /// Position of the document from the source
+    /// Position of the document from the source.
     pub rank: usize,
-    /// Text title of the document
+    /// Text title of the document.
     pub title: String,
-    /// Text snippet of the document
+    /// Text snippet of the document.
     pub snippet: String,
-    /// URL of the document
+    /// URL of the document.
     pub url: String,
-    /// Domain of the document
+    /// Domain of the document.
     pub domain: String,
-    /// Embedding from smbert
+    /// Embedding from smbert.
     pub smbert_embedding: Embedding1,
 }
 
 /// A d-dimensional sequence embedding.
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
-pub struct Embedding<D>(Array<f32, D>)
+pub struct Embedding<D>(pub Array<f32, D>)
 where
     D: Dimension;
 
