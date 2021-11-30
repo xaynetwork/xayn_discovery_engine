@@ -49,7 +49,6 @@ linter:
     - prefer_interpolation_to_compose_strings
     - prefer_mixin
     - prefer_single_quotes
-      # - public_member_api_docs
     - require_trailing_commas
     - sort_child_properties_last
     - test_types_in_equals
