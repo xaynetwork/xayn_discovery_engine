@@ -84,23 +84,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_selection() {
-        let mut stack_0 = Stack {
-            alpha: 0.01,
-            beta: 1.0,
-            documents: vec![],
-        };
+    fn test_stack_initialisation() {
+        let stack_0 = Stack::new(0.01, 1.0, vec![]);
+        let stack_1 = Stack::new(0.0, 0.5, vec![]);
+        let stack_2 = Stack::new(1.01, 0.5, vec![]);
+        let stack_3 = Stack::new(0.5, 0.0, vec![]);
+        let stack_4 = Stack::new(0.5, 1.01, vec![]);
 
-        let _stacks = vec![&mut stack_0];
-        // let mab = Selection::new(BetaSampler);
-
-        // let docs = mab.select(stacks, 10).unwrap();
-        // assert_eq!(docs[0], 3);
-        // assert_eq!(docs[1], 2);
-        // assert_eq!(docs[2], 1);
-        // assert_eq!(docs[3], 0);
-        // assert_eq!(docs[4], 6);
-        // assert_eq!(docs[5], 5);
-        // assert_eq!(docs[6], 4);
+        assert_eq!(stack_0.is_ok(), true);
+        assert_eq!(stack_1.is_err(), true);
+        assert!(matches!(stack_1.err().unwrap(), Error::InvalidAlpha(_)));
+        assert_eq!(stack_2.is_err(), true);
+        assert!(matches!(stack_2.err().unwrap(), Error::InvalidAlpha(_)));
+        assert_eq!(stack_3.is_err(), true);
+        assert!(matches!(stack_3.err().unwrap(), Error::InvalidBeta(_)));
+        assert_eq!(stack_4.is_err(), true);
+        assert!(matches!(stack_4.err().unwrap(), Error::InvalidBeta(_)));
     }
 }
