@@ -11,10 +11,12 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 
-void main() async {
+Future<void> main() async {
   Hive.registerAdapter(ActiveDocumentDataAdapter());
-  final box = await Hive.openBox<ActiveDocumentData>(activeDocumentDataBox,
-      bytes: Uint8List(0));
+  final box = await Hive.openBox<ActiveDocumentData>(
+    activeDocumentDataBox,
+    bytes: Uint8List(0),
+  );
   final repo = HiveActiveDocumentDataRepository();
 
   group('ActiveDocumentDataRepository', () {
