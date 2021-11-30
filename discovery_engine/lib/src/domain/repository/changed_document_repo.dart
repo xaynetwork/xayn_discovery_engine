@@ -4,7 +4,12 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 /// Repository interface for ids of documents whose status has changed since the
 /// previous call of the feedback loop.
 abstract class ChangedDocumentRepository {
-  Future<List<DocumentId>> fetchAllIds();
-  Future<void> add(DocumentId doc);
+  /// Fetch ids of all changed documents.
+  Future<List<DocumentId>> fetchAll();
+
+  /// Add the id of a changed document.
+  Future<void> add(DocumentId id);
+
+  /// Clear the repository.
   Future<void> removeAll();
 }
