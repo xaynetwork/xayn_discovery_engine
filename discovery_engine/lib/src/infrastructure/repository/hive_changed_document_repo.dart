@@ -3,7 +3,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart' show Hive, Box;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
-import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repository.dart'
+import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
     show ChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show changedDocumentIdBox;

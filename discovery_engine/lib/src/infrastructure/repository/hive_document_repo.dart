@@ -3,7 +3,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
-import 'package:xayn_discovery_engine/src/domain/repository/document_repository.dart'
+import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox;

@@ -5,7 +5,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
-import 'package:xayn_discovery_engine/src/domain/repository/active_document_repository.dart'
+import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show activeDocumentDataBox;
