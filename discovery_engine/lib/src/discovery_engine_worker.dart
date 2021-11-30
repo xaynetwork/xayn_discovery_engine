@@ -1,9 +1,10 @@
 import 'dart:convert' show Converter;
 
 import 'package:xayn_discovery_engine/src/api/api.dart'
-    show ClientEventGroups, EngineEventGroups;
+    show ClientEventGroups, ClientEventSucceeded, EngineEventGroups;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
     show JsonToOneshotRequestConverter, EngineEventGroupsToJsonConverter;
+import 'package:xayn_discovery_engine/src/api/events/engine_events/system_events.dart';
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show Worker, OneshotRequest;
 
@@ -29,7 +30,31 @@ class DiscoveryEngineWorker
 
   @override
   void onMessage(request) {
-    //
+    final response = request.payload.maybeWhen(
+      system: (event) {
+        event.maybeWhen(
+          init: (configuration) {
+            return EngineEventGroups.system(event: ClientEventSucceeded());
+          },
+          orElse: () {
+            return EngineEventGroups.system(
+              event: EngineExceptionRaised(
+                EngineExceptionReason.noInitReceived,
+              ),
+            );
+          },
+        );
+      },
+      orElse: () {
+        return EngineEventGroups.system(
+          event: EngineExceptionRaised(
+            EngineExceptionReason.noInitReceived,
+          ),
+        );
+      },
+    );
+
+    send(response!, request.sender);
   }
 }
 
