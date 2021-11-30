@@ -20,8 +20,10 @@ class JsonToOneshotRequestConverter
     extends Converter<Map<String, dynamic>, OneshotRequest<ClientEventGroups>> {
   @override
   OneshotRequest<ClientEventGroups> convert(Map<String, dynamic> input) {
-    final sender = Sender.fromPlatformPort(input['sender'] as Object);
-    final payload = ClientEventGroups.fromJson(input);
+    final jsonSender = input['sender'] as Object;
+    final jsonPayload = (input['payload'] as Map).cast<String, dynamic>();
+    final sender = Sender.fromPlatformPort(jsonSender);
+    final payload = ClientEventGroups.fromJson(jsonPayload);
 
     return OneshotRequest(sender, payload);
   }
