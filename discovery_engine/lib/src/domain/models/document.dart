@@ -19,7 +19,7 @@ class Document {
   @HiveField(1)
   final WebResource webResource;
   @HiveField(2)
-  final DocumentFeedback _feedback;
+  final DocumentFeedback feedback;
   @HiveField(3)
   final DocumentStatus _status;
   @HiveField(4)
@@ -27,31 +27,32 @@ class Document {
   @HiveField(5)
   final bool isActive;
 
-  bool get isRelevant => _feedback == DocumentFeedback.positive;
-  bool get isNotRelevant => _feedback == DocumentFeedback.negative;
-  bool get isNeutral => _feedback == DocumentFeedback.neutral;
+  bool get isRelevant => feedback == DocumentFeedback.positive;
+  bool get isNotRelevant => feedback == DocumentFeedback.negative;
+  bool get isNeutral => feedback == DocumentFeedback.neutral;
   bool get wasOpened => _status == DocumentStatus.opened;
 
   Document({
     required this.webResource,
     required this.personalizedRank,
+    this.feedback = DocumentFeedback.neutral,
     this.isActive = true,
   })  : documentId = DocumentId(),
-        _feedback = DocumentFeedback.neutral,
         _status = DocumentStatus.missed;
 
   Document._withId({
     required this.documentId,
     required this.webResource,
     required this.personalizedRank,
+    this.feedback = DocumentFeedback.neutral,
     this.isActive = true,
-  })  : _feedback = DocumentFeedback.neutral,
-        _status = DocumentStatus.missed;
+  }) : _status = DocumentStatus.missed;
 
   Document setActive() => Document._withId(
         documentId: documentId,
         webResource: webResource,
         personalizedRank: personalizedRank,
+        feedback: feedback,
         isActive: true,
       );
 
@@ -59,7 +60,16 @@ class Document {
         documentId: documentId,
         webResource: webResource,
         personalizedRank: personalizedRank,
+        feedback: feedback,
         isActive: false,
+      );
+
+  Document setFeedback(DocumentFeedback newFeedback) => Document._withId(
+        documentId: documentId,
+        webResource: webResource,
+        personalizedRank: personalizedRank,
+        feedback: newFeedback,
+        isActive: isActive,
       );
 }
 
