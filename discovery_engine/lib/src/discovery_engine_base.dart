@@ -47,8 +47,9 @@ class DiscoveryEngine {
       final initEvent = ClientEvent.init(configuration);
       final response = await manager.send(initEvent);
 
+      // TODO: provide proper error handling during initialization
       if (response is! ClientEventSucceeded) {
-        // throw DiscoveryEngineInitException();
+        throw DiscoveryEngineInitException('Initialisation failed');
       }
 
       return DiscoveryEngine._(manager);
@@ -288,7 +289,7 @@ class DiscoveryEngine {
       return await fn();
     } catch (e) {
       // TODO: introduce mapping of possible exceptions
-      // into `EngineExceptionRaised` event with a specific reason
+      // into [EngineExceptionRaised] event with a specific reason
       return const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
       );
@@ -296,6 +297,7 @@ class DiscoveryEngine {
   }
 }
 
+// NOTE: this is temporary and it will change
 class DiscoveryEngineInitException implements Exception {
   final String message;
 

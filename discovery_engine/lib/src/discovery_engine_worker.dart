@@ -23,7 +23,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
 
   @override
   void onError(Object error) {
-    // send('$error');
+    // TODO: handle errors
   }
 
   @override
