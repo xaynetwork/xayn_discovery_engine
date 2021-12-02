@@ -17,6 +17,28 @@ class DiscoveryEngine {
   /// Stream of [EngineEvent] coming back from a discovery engine worker.
   Stream<EngineEvent> get engineEvents => _manager.responses;
 
+  /// Initializes the [DiscoveryEngine].
+  ///
+  /// It can throw [DiscoveryEngineInitException].
+  ///
+  /// **EXAMPLE**:
+  ///
+  /// ```
+  /// try {
+  ///   const config = Configuration(
+  ///     apiKey: '**********',
+  ///     apiBaseUrl: 'https://xaynapi.xayn.dev',
+  ///     feedMarket: 'de-DE',
+  ///     maxItemsPerFeedBatch: 50,
+  ///     applicationDirectoryPath: './',
+  ///   );
+  ///
+  ///   // Initialize the engine
+  ///   final engine = await DiscoveryEngine.init(configuration: config);
+  /// } catch (e) {
+  ///   // handle exception
+  /// }
+  /// ```
   static Future<DiscoveryEngine> init({
     required Configuration configuration,
   }) async {
@@ -26,21 +48,30 @@ class DiscoveryEngine {
       final response = await manager.send(initEvent);
 
       if (response is! ClientEventSucceeded) {
-        throw StateError('something went very wrong');
+        // throw DiscoveryEngineInitException();
       }
 
       return DiscoveryEngine._(manager);
     } catch (e) {
       //
-      throw StateError('something went very wrong');
+      throw DiscoveryEngineInitException('something went very wrong');
     }
   }
 
   /// Resets the AI (start fresh).
   Future<EngineEvent> resetEngine() {
-    return _trySend(() {
+    return _trySend(() async {
       const event = ClientEvent.resetEngine();
-      return _manager.send(event);
+      final response = await _manager.send(event);
+
+      return response.maybeMap(
+        clientEventSucceeded: (event) => event,
+        engineExceptionRaised: (event) => event,
+        // in case of a wrong event in response create an EngineExceptionRaised
+        orElse: () => const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventInResponse,
+        ),
+      );
     });
   }
 
@@ -54,7 +85,16 @@ class DiscoveryEngine {
         feedMarket: feedMarket,
         maxItemsPerFeedBatch: maxItemsPerFeedBatch,
       );
-      return _manager.send(event);
+      final response = await _manager.send(event);
+
+      return response.maybeMap(
+        clientEventSucceeded: (event) => event,
+        engineExceptionRaised: (event) => event,
+        // in case of a wrong event in response create an EngineExceptionRaised
+        orElse: () => const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventInResponse,
+        ),
+      );
     });
   }
 
@@ -62,7 +102,17 @@ class DiscoveryEngine {
   Future<EngineEvent> requestFeed() {
     return _trySend(() async {
       const event = ClientEvent.feedRequested();
-      return _manager.send(event);
+      final response = await _manager.send(event);
+
+      return response.maybeMap(
+        feedRequestSucceeded: (event) => event,
+        feedRequestFailed: (event) => event,
+        engineExceptionRaised: (event) => event,
+        // in case of a wrong event in response create an EngineExceptionRaised
+        orElse: () => const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventInResponse,
+        ),
+      );
     });
   }
 
@@ -70,7 +120,17 @@ class DiscoveryEngine {
   Future<EngineEvent> requestNextFeedBatch() {
     return _trySend(() async {
       const event = ClientEvent.nextFeedBatchRequested();
-      return _manager.send(event);
+      final response = await _manager.send(event);
+
+      return response.maybeMap(
+        nextFeedBatchRequestSucceeded: (event) => event,
+        nextFeedBatchRequestFailed: (event) => event,
+        engineExceptionRaised: (event) => event,
+        // in case of a wrong event in response create an EngineExceptionRaised
+        orElse: () => const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventInResponse,
+        ),
+      );
     });
   }
 
@@ -82,7 +142,16 @@ class DiscoveryEngine {
   Future<EngineEvent> closeFeedDocuments(Set<DocumentId> documentIds) {
     return _trySend(() async {
       final event = ClientEvent.feedDocumentsClosed(documentIds);
-      return _manager.send(event);
+      final response = await _manager.send(event);
+
+      return response.maybeMap(
+        clientEventSucceeded: (event) => event,
+        engineExceptionRaised: (event) => event,
+        // in case of a wrong event in response create an EngineExceptionRaised
+        orElse: () => const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventInResponse,
+        ),
+      );
     });
   }
 
@@ -106,7 +175,16 @@ class DiscoveryEngine {
   }) {
     return _trySend(() async {
       final event = ClientEvent.documentStatusChanged(documentId, status);
-      return _manager.send(event);
+      final response = await _manager.send(event);
+
+      return response.maybeMap(
+        clientEventSucceeded: (event) => event,
+        engineExceptionRaised: (event) => event,
+        // in case of a wrong event in response create an EngineExceptionRaised
+        orElse: () => const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventInResponse,
+        ),
+      );
     });
   }
 
@@ -122,7 +200,16 @@ class DiscoveryEngine {
   }) {
     return _trySend(() async {
       final event = ClientEvent.documentFeedbackChanged(documentId, feedback);
-      return _manager.send(event);
+      final response = await _manager.send(event);
+
+      return response.maybeMap(
+        clientEventSucceeded: (event) => event,
+        engineExceptionRaised: (event) => event,
+        // in case of a wrong event in response create an EngineExceptionRaised
+        orElse: () => const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventInResponse,
+        ),
+      );
     });
   }
 
@@ -133,7 +220,16 @@ class DiscoveryEngine {
   Future<EngineEvent> closeDocument(DocumentId documentId) {
     return _trySend(() async {
       final event = ClientEvent.documentClosed(documentId);
-      return _manager.send(event);
+      final response = await _manager.send(event);
+
+      return response.maybeMap(
+        clientEventSucceeded: (event) => event,
+        engineExceptionRaised: (event) => event,
+        // in case of a wrong event in response create an EngineExceptionRaised
+        orElse: () => const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventInResponse,
+        ),
+      );
     });
   }
 
@@ -148,5 +244,16 @@ class DiscoveryEngine {
         EngineExceptionReason.genericError,
       );
     }
+  }
+}
+
+class DiscoveryEngineInitException implements Exception {
+  final String message;
+
+  DiscoveryEngineInitException(this.message);
+
+  @override
+  String toString() {
+    return 'DiscoveryEngineInitException{ $message }';
   }
 }

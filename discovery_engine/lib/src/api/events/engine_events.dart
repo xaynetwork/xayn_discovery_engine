@@ -20,6 +20,8 @@ enum EngineExceptionReason {
   genericError,
   @JsonValue(1)
   noInitReceived,
+  @JsonValue(1)
+  wrongEventInResponse,
   // other possible errors will be added below
 }
 
