@@ -5,13 +5,16 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show OneshotRequest, Sender;
 
+const kSenderKey = 'sender';
+const kPayloadKey = 'payload';
+
 class OneshotRequestToJsonConverter
     extends Converter<OneshotRequest<ClientEvent>, Map<String, dynamic>> {
   @override
   Map<String, dynamic> convert(OneshotRequest<ClientEvent> input) {
     return <String, dynamic>{
-      'sender': input.sender.platformPort,
-      'payload': input.payload.toJson(),
+      kSenderKey: input.sender.platformPort,
+      kPayloadKey: input.payload.toJson(),
     };
   }
 }
@@ -20,11 +23,10 @@ class JsonToOneshotRequestConverter
     extends Converter<Map<String, dynamic>, OneshotRequest<ClientEvent>> {
   @override
   OneshotRequest<ClientEvent> convert(Map<String, dynamic> input) {
-    final jsonSender = input['sender'] as Object;
-    final jsonPayload = (input['payload'] as Map).cast<String, dynamic>();
+    final jsonSender = input[kSenderKey] as Object;
+    final jsonPayload = (input[kPayloadKey] as Map).cast<String, dynamic>();
     final sender = Sender.fromPlatformPort(jsonSender);
     final payload = ClientEvent.fromJson(jsonPayload);
-
     return OneshotRequest(sender, payload);
   }
 }
