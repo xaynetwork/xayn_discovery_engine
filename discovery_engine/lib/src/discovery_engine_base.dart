@@ -66,7 +66,7 @@ class DiscoveryEngine {
     });
   }
 
-  ///
+  /// Requests next batch of news feed [Document]s.
   Future<EngineEvent> requestNextFeedBatch() {
     return _trySend(() async {
       final event = ClientEvent.nextFeedBatchRequested();
