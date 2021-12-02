@@ -1,24 +1,22 @@
 import 'dart:convert' show Converter;
-
 import 'package:xayn_discovery_engine/src/api/api.dart'
-    show ClientEventGroups, ClientEventSucceeded, EngineEventGroups;
+    show ClientEvent, EngineEvent;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
-    show JsonToOneshotRequestConverter, EngineEventGroupsToJsonConverter;
-import 'package:xayn_discovery_engine/src/api/events/engine_events/system_events.dart';
+    show JsonToOneshotRequestConverter, EngineEventToJsonConverter;
+import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show Worker, OneshotRequest;
 
-class DiscoveryEngineWorker
-    extends Worker<ClientEventGroups, EngineEventGroups> {
+class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   final _requestConverter = JsonToOneshotRequestConverter();
-  final _responseConverter = EngineEventGroupsToJsonConverter();
+  final _responseConverter = EngineEventToJsonConverter();
 
   @override
-  Converter<Map<String, dynamic>, OneshotRequest<ClientEventGroups>>
+  Converter<Map<String, dynamic>, OneshotRequest<ClientEvent>>
       get requestConverter => _requestConverter;
 
   @override
-  Converter<EngineEventGroups, Map<String, dynamic>> get responseConverter =>
+  Converter<EngineEvent, Map<String, dynamic>> get responseConverter =>
       _responseConverter;
 
   DiscoveryEngineWorker(Object message) : super(message);
@@ -31,30 +29,12 @@ class DiscoveryEngineWorker
   @override
   void onMessage(request) {
     final response = request.payload.maybeWhen(
-      system: (event) {
-        event.maybeWhen(
-          init: (configuration) {
-            return EngineEventGroups.system(event: ClientEventSucceeded());
-          },
-          orElse: () {
-            return EngineEventGroups.system(
-              event: EngineExceptionRaised(
-                EngineExceptionReason.noInitReceived,
-              ),
-            );
-          },
-        );
-      },
-      orElse: () {
-        return EngineEventGroups.system(
-          event: EngineExceptionRaised(
-            EngineExceptionReason.noInitReceived,
-          ),
-        );
-      },
+      init: (configuration) => EngineEvent.clientEventSucceeded(),
+      orElse: () =>
+          EngineEvent.engineExceptionRaised(EngineExceptionReason.genericError),
     );
 
-    send(response!, request.sender);
+    send(response, request.sender);
   }
 }
 
