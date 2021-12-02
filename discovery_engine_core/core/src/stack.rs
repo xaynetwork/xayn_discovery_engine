@@ -11,9 +11,9 @@ use crate::{
 #[derive(Error, Debug, Display)]
 #[allow(dead_code)]
 pub(crate) enum Error {
-    /// Invalid value for alpha: {0}. It must be in range [0, 1].
+    /// Invalid value for alpha: {0}. It must be greater then 0.
     InvalidAlpha(f32),
-    /// Invalid value for beta: {0}. It must be in range [0, 1].
+    /// Invalid value for beta: {0}. It must be greater then 0.
     InvalidBeta(f32),
     /// Failed to rank documents when updating the stack: {0}.
     Ranking(#[source] GenericError),
@@ -34,10 +34,10 @@ impl Stack {
     #[allow(dead_code)]
     /// Creates a new Stack.
     pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
-        if alpha <= 0.0 || alpha > 1.0 {
+        if alpha <= 0.0 {
             return Err(Error::InvalidAlpha(alpha));
         }
-        if beta <= 0.0 || beta > 1.0 {
+        if beta <= 0.0 {
             return Err(Error::InvalidBeta(beta));
         }
 
@@ -88,19 +88,19 @@ mod tests {
 
     #[test]
     fn test_stack_initialisation() {
-        let stack_0 = Stack::new(0.01, 1.0, vec![]);
+        let stack_0 = Stack::new(0.0 + f32::EPSILON, 0.0 + f32::EPSILON, vec![]);
         let stack_1 = Stack::new(0.0, 0.5, vec![]);
-        let stack_2 = Stack::new(1.01, 0.5, vec![]);
-        let stack_3 = Stack::new(0.5, 0.0, vec![]);
-        let stack_4 = Stack::new(0.5, 1.01, vec![]);
+        let stack_2 = Stack::new(0.5, 0.0, vec![]);
+        let stack_3 = Stack::new(-0.0, 1.0, vec![]);
+        let stack_4 = Stack::new(1.0, -0.0, vec![]);
 
         assert!(stack_0.is_ok());
         assert!(stack_1.is_err());
         assert!(matches!(stack_1.err().unwrap(), Error::InvalidAlpha(_)));
         assert!(stack_2.is_err());
-        assert!(matches!(stack_2.err().unwrap(), Error::InvalidAlpha(_)));
+        assert!(matches!(stack_2.err().unwrap(), Error::InvalidBeta(_)));
         assert!(stack_3.is_err());
-        assert!(matches!(stack_3.err().unwrap(), Error::InvalidBeta(_)));
+        assert!(matches!(stack_3.err().unwrap(), Error::InvalidAlpha(_)));
         assert!(stack_4.is_err());
         assert!(matches!(stack_4.err().unwrap(), Error::InvalidBeta(_)));
     }
