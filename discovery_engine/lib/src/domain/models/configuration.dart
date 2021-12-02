@@ -10,8 +10,6 @@ class Configuration with _$Configuration {
     required String apiKey,
     required String apiBaseUrl,
     required String feedMarket,
-    required String searchMarket,
-    required int maxItemsPerSearchBatch,
     required int maxItemsPerFeedBatch,
     required String applicationDirectoryPath,
   }) = _Configuration;
