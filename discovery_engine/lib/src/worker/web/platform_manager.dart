@@ -42,5 +42,5 @@ class WebWorkerManager extends PlatformManager {
   void dispose() => _worker.terminate();
 }
 
-Future<PlatformManager> createPlatformManager(dynamic scriptUrl) =>
+Future<PlatformManager> createPlatformManager(Object? scriptUrl) =>
     WebWorkerManager.spawn(scriptUrl as String? ?? kScriptUrl);

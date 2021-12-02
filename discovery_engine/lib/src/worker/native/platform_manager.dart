@@ -54,5 +54,5 @@ class _IsolatedPlatformManager extends PlatformManager {
   void dispose() => _worker.kill();
 }
 
-Future<PlatformManager> createPlatformManager(dynamic entryPoint) =>
+Future<PlatformManager> createPlatformManager(Object? entryPoint) =>
     _IsolatedPlatformManager.spawn(entryPoint as _EntryPoint);

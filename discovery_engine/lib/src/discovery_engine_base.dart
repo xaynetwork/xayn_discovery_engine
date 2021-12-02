@@ -39,7 +39,7 @@ class DiscoveryEngine {
   /// Resets the AI (start fresh).
   Future<EngineEvent> resetEngine() {
     return _trySend(() {
-      final event = ClientEvent.resetEngine();
+      const event = ClientEvent.resetEngine();
       return _manager.send(event);
     });
   }
@@ -61,7 +61,7 @@ class DiscoveryEngine {
   /// Requests initial news feed.
   Future<EngineEvent> requestFeed() {
     return _trySend(() async {
-      final event = ClientEvent.feedRequested();
+      const event = ClientEvent.feedRequested();
       return _manager.send(event);
     });
   }
@@ -69,7 +69,7 @@ class DiscoveryEngine {
   /// Requests next batch of news feed [Document]s.
   Future<EngineEvent> requestNextFeedBatch() {
     return _trySend(() async {
-      final event = ClientEvent.nextFeedBatchRequested();
+      const event = ClientEvent.nextFeedBatchRequested();
       return _manager.send(event);
     });
   }
@@ -144,7 +144,9 @@ class DiscoveryEngine {
     } catch (e) {
       // TODO: introduce mapping of possible exceptions
       // into `EngineExceptionRaised` event with a specific reason
-      return EngineExceptionRaised(EngineExceptionReason.genericError);
+      return const EngineEvent.engineExceptionRaised(
+        EngineExceptionReason.genericError,
+      );
     }
   }
 }

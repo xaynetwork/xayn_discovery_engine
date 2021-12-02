@@ -28,10 +28,12 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
 
   @override
   void onMessage(request) {
+    // TODO: it should be replaced by a message handler
     final response = request.payload.maybeWhen(
-      init: (configuration) => EngineEvent.clientEventSucceeded(),
-      orElse: () =>
-          EngineEvent.engineExceptionRaised(EngineExceptionReason.genericError),
+      init: (configuration) => const EngineEvent.clientEventSucceeded(),
+      orElse: () => const EngineEvent.engineExceptionRaised(
+        EngineExceptionReason.genericError,
+      ),
     );
 
     send(response, request.sender);
