@@ -58,7 +58,12 @@ class DiscoveryEngine {
     }
   }
 
-  /// Resets the AI (start fresh).
+  /// Resets the AI (fresh start).
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
   Future<EngineEvent> resetEngine() {
     return _trySend(() async {
       const event = ClientEvent.resetEngine();
@@ -75,7 +80,12 @@ class DiscoveryEngine {
     });
   }
 
-  /// Changes configuration for the news feed
+  /// Changes configuration for the news feed.
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
   Future<EngineEvent> changeConfiguration({
     String? feedMarket,
     int? maxItemsPerFeedBatch,
@@ -98,7 +108,15 @@ class DiscoveryEngine {
     });
   }
 
-  /// Requests initial news feed.
+  /// Requests initial news feed. It should be used as initial request
+  /// in the current session.
+  ///
+  /// In response it can return:
+  /// - [FeedRequestSucceeded] for successful response, containing a list of
+  /// [Document] items
+  /// - [FeedRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
   Future<EngineEvent> requestFeed() {
     return _trySend(() async {
       const event = ClientEvent.feedRequested();
@@ -117,6 +135,17 @@ class DiscoveryEngine {
   }
 
   /// Requests next batch of news feed [Document]s.
+  ///
+  /// Usualy used when reaching the end of the current list of items, in
+  /// response to [NextFeedBatchAvailable] event, or after some user action.
+  ///
+  /// In response it can return:
+  /// - [NextFeedBatchRequestSucceeded] for successful response, containing
+  /// a list of [Document] items
+  /// - [NextFeedBatchRequestFailed] for failed response, with a reason for
+  /// failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
   Future<EngineEvent> requestNextFeedBatch() {
     return _trySend(() async {
       const event = ClientEvent.nextFeedBatchRequested();
@@ -136,9 +165,14 @@ class DiscoveryEngine {
 
   /// Closes the [Document]s with specified [DocumentId]s for further modification.
   ///
-  /// **IMPORTANT!**
+  /// **IMPORTANT!:**
+  /// Use when the [Document]s are no longer available to the user and the user
+  /// **can NOT interact** with them.
   ///
-  /// Use when the [Document]s are no longer available to the user.
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
   Future<EngineEvent> closeFeedDocuments(Set<DocumentId> documentIds) {
     return _trySend(() async {
       final event = ClientEvent.feedDocumentsClosed(documentIds);
@@ -169,6 +203,11 @@ class DiscoveryEngine {
   /// [DocumentStatus.presented] or [DocumentStatus.skipped] to
   /// [DocumentStatus.opened]. It means the user was interested enough in
   /// the [Document] to open it.
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
   Future<EngineEvent> changeDocumentStatus({
     required DocumentId documentId,
     required DocumentStatus status,
@@ -190,10 +229,15 @@ class DiscoveryEngine {
 
   /// Changes the feedback of a [Document].
   ///
-  /// Please use:
-  /// - [DocumentFeedback.positive] to indicate that the [Document] was **liked**
-  /// - [DocumentFeedback.negative] to indicate that the [Document] was **diliked**
+  /// [DocumentFeedback] variants are defined as:
+  /// - [DocumentFeedback.positive] indicates that the [Document] was **liked**
+  /// - [DocumentFeedback.negative] indicates that the [Document] was **diliked**
   /// - [DocumentFeedback.neutral] as a default **neutral** state of the [Document].
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
   Future<EngineEvent> changeDocumentFeedback({
     required DocumentId documentId,
     required DocumentFeedback feedback,
@@ -215,8 +259,13 @@ class DiscoveryEngine {
 
   /// Registers that the user stopped reading a [Document].
   ///
-  /// Should be used when the user stops reading a [Document], either by going
+  /// Should be used when the user "closed" the [Document], either by going
   /// back to documents list or by navigating further to another [Document].
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
   Future<EngineEvent> closeDocument(DocumentId documentId) {
     return _trySend(() async {
       final event = ClientEvent.documentClosed(documentId);
