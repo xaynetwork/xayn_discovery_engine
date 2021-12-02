@@ -25,4 +25,9 @@ class HiveActiveDocumentDataRepository implements ActiveDocumentDataRepository {
   Future<void> update(DocumentId id, ActiveDocumentData data) async {
     await box.put(id.toString(), data);
   }
+
+  @override
+  Future<void> removeByIds(Iterable<DocumentId> ids) async {
+    await box.deleteAll(ids);
+  }
 }

@@ -12,4 +12,7 @@ abstract class ActiveDocumentDataRepository {
 
   /// Update data associated with the given active document.
   Future<void> update(DocumentId id, ActiveDocumentData data);
+
+  /// Remove data associated with the given active documents.
+  Future<void> removeByIds(Iterable<DocumentId> ids);
 }
