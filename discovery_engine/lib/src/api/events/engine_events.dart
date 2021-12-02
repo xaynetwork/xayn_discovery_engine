@@ -4,8 +4,17 @@ import 'package:xayn_discovery_engine/src/api/models/document.dart';
 part 'engine_events.freezed.dart';
 part 'engine_events.g.dart';
 
+/// Abstract class implemented by events like [FeedRequestSucceeded],
+/// [FeedRequestFailed], [NextFeedBatchRequestSucceeded],
+/// [NextFeedBatchRequestFailed] or [NextFeedBatchAvailable].
+///
+/// Used to group discovery feed related events.
 abstract class FeedEngineEvent {}
 
+/// Abstract class implemented by events like [ClientEventSucceeded] or
+/// [EngineExceptionRaised].
+///
+/// Used to group generic system events.
 abstract class SystemEngineEvent {}
 
 enum FeedFailureReason {
@@ -20,7 +29,7 @@ enum EngineExceptionReason {
   genericError,
   @JsonValue(1)
   noInitReceived,
-  @JsonValue(1)
+  @JsonValue(2)
   wrongEventInResponse,
   // other possible errors will be added below
 }
@@ -35,8 +44,8 @@ class EngineEvent with _$EngineEvent {
 
   /// Event created as a failure response to FeedRequested event.
   ///
-  /// Passes back a failure reason, that the client can use to determine
-  /// how to react, ie. display user friendly messages, repeat request, etc.
+  /// Passes back a failure reason that the client can use to determine
+  /// how to react, e.g. display user friendly messages, repeat request, etc.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.feedRequestFailed(FeedFailureReason reason) =
       FeedRequestFailed;
@@ -50,30 +59,30 @@ class EngineEvent with _$EngineEvent {
 
   /// Event created as a failure response to NextFeedBatchRequested event.
   ///
-  /// Passes back a failure reason, that the client can use to determine
-  /// how to react, ie. display user friendly messages, repeat request, etc.
+  /// Passes back a failure reason that the client can use to determine
+  /// how to react, e.g. display user friendly messages, repeat request, etc.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchRequestFailed(
     FeedFailureReason reason,
   ) = NextFeedBatchRequestFailed;
 
-  /// Event created by the engine, possibly after doing some background queries
+  /// Event created by the engine possibly after doing some background queries,
   /// to let the app know that there is new content available for the discovery
   /// feed. In response to that event the app may decide to show an indicator
-  /// for the user that new content is ready or it might send FeedRequested
+  /// for the user that new content is ready or it might send a FeedRequested
   /// event to ask for new documents.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchAvailable() = NextFeedBatchAvailable;
 
   /// Event created to inform the client that a particular "fire and forget"
-  /// event, like ie. DocumentFeedbackChanged, was successfuly processed
+  /// event, like DocumentFeedbackChanged, was successfuly processed
   /// by the engine.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.clientEventSucceeded() = ClientEventSucceeded;
 
-  /// Event created by the engine for multitude of generic reasons, also
+  /// Event created by the engine for a multitude of generic reasons, also
   /// as a "failure" event in response to "fire and forget" events, like
-  /// ie. DocumentFeedbackChanged.
+  /// DocumentFeedbackChanged.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.engineExceptionRaised(
     EngineExceptionReason reason,

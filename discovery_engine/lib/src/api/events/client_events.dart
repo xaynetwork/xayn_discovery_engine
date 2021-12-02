@@ -1,15 +1,29 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
-import 'package:xayn_discovery_engine/src/domain/models/document.dart';
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document, DocumentStatus, DocumentFeedback;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 
 part 'client_events.freezed.dart';
 part 'client_events.g.dart';
 
+/// Abstract class implemented by events like [DocumentStatusChanged],
+/// [DocumentFeedbackChanged] or [DocumentClosed].
+///
+/// Used to group events related to [Document] changes.
 abstract class DocumentClientEvent {}
 
+/// Abstract class implemented by events like [FeedRequested],
+/// [NextFeedBatchRequested] or [FeedDocumentsClosed].
+///
+/// Used to group discovery feed related events.
 abstract class FeedClientEvent {}
 
+/// Abstract class implemented by events like [Init], [ResetEngine] or
+/// [ConfigurationChanged].
+///
+/// Used to group generic system events.
 abstract class SystemClientEvent {}
 
 @freezed
@@ -35,14 +49,14 @@ class ClientEvent with _$ClientEvent {
   }) = ConfigurationChanged;
 
   /// Event created when opening up discovery screen (upon initial start
-  /// of the app or when we are returning to previously displayed
-  /// discovery feed). When restoring previous feed it returns all the documents,
-  /// that were still accessible to the user, so they weren't closed by
+  /// of the app or when we are returning to the previously displayed
+  /// discovery feed). When restoring the previous feed it returns all the documents
+  /// that were still accessible to the user, namely those that weren't closed in
   /// the [FeedDocumentsClosed] event.
   @Implements<FeedClientEvent>()
   const factory ClientEvent.feedRequested() = FeedRequested;
 
-  /// Event created when the app wants to requests new content
+  /// Event created when the app wants to request new content
   /// for the discovery feed:
   ///  - when reaching the end of the current list of items
   ///  - in response to `NextFeedBatchAvailable` event, or after deliberate user action
@@ -52,7 +66,7 @@ class ClientEvent with _$ClientEvent {
   @Implements<FeedClientEvent>()
   const factory ClientEvent.nextFeedBatchRequested() = NextFeedBatchRequested;
 
-  /// Event created when the client makes `Documents` in the feed not accessible
+  /// Event created when the client makes [Document]s in the feed not accessible
   /// to the user anymore. The engine registers those documents as immutable,
   /// so they can't be changed anymore by the client.
   @Implements<FeedClientEvent>()
