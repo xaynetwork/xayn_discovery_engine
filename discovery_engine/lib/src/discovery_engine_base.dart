@@ -1,12 +1,22 @@
 import 'package:xayn_discovery_engine/src/api/api.dart'
-    show ClientEvent, EngineEvent;
-import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
+    show
+        ClientEvent,
+        ClientEventSucceeded,
+        EngineEvent,
+        EngineExceptionReason,
+        FeedRequestSucceeded,
+        FeedRequestFailed,
+        NextFeedBatchAvailable,
+        NextFeedBatchRequestSucceeded,
+        NextFeedBatchRequestFailed;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart';
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document, DocumentStatus, DocumentFeedback;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 
 /// This class exposes Xayn Discovery Engine API to the clients.
 class DiscoveryEngine {
@@ -27,7 +37,7 @@ class DiscoveryEngine {
   /// try {
   ///   const config = Configuration(
   ///     apiKey: '**********',
-  ///     apiBaseUrl: 'https://xaynapi.xayn.dev',
+  ///     apiBaseUrl: 'https://example-api.dev',
   ///     feedMarket: 'de-DE',
   ///     maxItemsPerFeedBatch: 50,
   ///     applicationDirectoryPath: './',
@@ -40,6 +50,7 @@ class DiscoveryEngine {
   /// }
   /// ```
   static Future<DiscoveryEngine> init({
+    // TODO: validation of parameters?
     required Configuration configuration,
   }) async {
     try {
@@ -54,7 +65,7 @@ class DiscoveryEngine {
 
       return DiscoveryEngine._(manager);
     } catch (e) {
-      //
+      // TODO: provide proper error handling
       throw DiscoveryEngineInitException('something went very wrong');
     }
   }
@@ -92,6 +103,7 @@ class DiscoveryEngine {
     int? maxItemsPerFeedBatch,
   }) async {
     return _trySend(() async {
+      // TODO: validation of parameters?
       final event = ClientEvent.configurationChanged(
         feedMarket: feedMarket,
         maxItemsPerFeedBatch: maxItemsPerFeedBatch,
