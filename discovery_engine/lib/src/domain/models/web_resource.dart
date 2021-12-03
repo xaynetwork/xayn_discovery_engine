@@ -15,6 +15,6 @@ class WebResource with _$WebResource {
     required Uri displayUrl,
   }) = _WebResource;
 
-  factory WebResource.fromJson(Map<String, dynamic> json) =>
+  factory WebResource.fromJson(Map<String, Object?> json) =>
       _$WebResourceFromJson(json);
 }

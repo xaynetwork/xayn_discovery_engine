@@ -26,10 +26,10 @@ class DiscoveryEngineManager extends Manager<ClientEvent, EngineEvent> {
   }
 
   @override
-  Converter<OneshotRequest<ClientEvent>, Map<String, dynamic>>
+  Converter<OneshotRequest<ClientEvent>, Map<String, Object>>
       get requestConverter => _requestConverter;
 
   @override
-  Converter<Map<String, dynamic>, EngineEvent> get responseConverter =>
+  Converter<Map<String, Object>, EngineEvent> get responseConverter =>
       _responseConverter;
 }

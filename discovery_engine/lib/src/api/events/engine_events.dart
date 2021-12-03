@@ -89,6 +89,6 @@ class EngineEvent with _$EngineEvent {
   ) = EngineExceptionRaised;
 
   /// Converts json Map to [EngineEvent].
-  factory EngineEvent.fromJson(Map<String, dynamic> json) =>
+  factory EngineEvent.fromJson(Map<String, Object?> json) =>
       _$EngineEventFromJson(json);
 }

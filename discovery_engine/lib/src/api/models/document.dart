@@ -26,6 +26,6 @@ class Document with _$Document {
   }) = _Document;
 
   /// Converts json Map to [Document].
-  factory Document.fromJson(Map<String, dynamic> json) =>
+  factory Document.fromJson(Map<String, Object?> json) =>
       _$DocumentFromJson(json);
 }

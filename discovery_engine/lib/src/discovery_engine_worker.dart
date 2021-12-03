@@ -12,11 +12,11 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   final _responseConverter = EngineEventToJsonConverter();
 
   @override
-  Converter<Map<String, dynamic>, OneshotRequest<ClientEvent>>
+  Converter<Map<String, Object>, OneshotRequest<ClientEvent>>
       get requestConverter => _requestConverter;
 
   @override
-  Converter<EngineEvent, Map<String, dynamic>> get responseConverter =>
+  Converter<EngineEvent, Map<String, Object>> get responseConverter =>
       _responseConverter;
 
   DiscoveryEngineWorker(Object message) : super(message);
