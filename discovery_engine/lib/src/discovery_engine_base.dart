@@ -270,31 +270,6 @@ class DiscoveryEngine {
     });
   }
 
-  /// Registers that the user stopped reading a [Document].
-  ///
-  /// Should be used when the user "closed" the [Document], either by going
-  /// back to documents list or by navigating further to another [Document].
-  ///
-  /// In response it can return:
-  /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
-  /// for such failure.
-  Future<EngineEvent> closeDocument(DocumentId documentId) {
-    return _trySend(() async {
-      final event = ClientEvent.documentClosed(documentId);
-      final response = await _manager.send(event);
-
-      return response.maybeMap(
-        clientEventSucceeded: (event) => event,
-        engineExceptionRaised: (event) => event,
-        // in case of a wrong event in response create an EngineExceptionRaised
-        orElse: () => const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventInResponse,
-        ),
-      );
-    });
-  }
-
   Future<EngineEvent> _trySend(Future<EngineEvent> Function() fn) async {
     try {
       // we need to await the result otherwise catch won't work

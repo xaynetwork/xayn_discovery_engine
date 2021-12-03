@@ -27,13 +27,54 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   }
 
   @override
-  void onMessage(request) {
-    // TODO: it should be replaced by a message handler
-    final response = request.payload.maybeWhen(
-      init: (configuration) => const EngineEvent.clientEventSucceeded(),
-      orElse: () => const EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.genericError,
-      ),
+  Future<void> onMessage(request) async {
+    final clientEvent = request.payload;
+    // This is just initial handler to respond with some events
+    //
+    // TODO: replace with proper handler
+    // Events are grouped
+    // if (clientEvent is SystemClientEvent) {
+    //   // pass the event to dedicated manager
+    // } else if (clientEvent is FeedClientEvent) {
+    //   // pass the event to DocumentManager
+    // } else if (clientEvent is DocumentClientEvent) {
+    //   // pass the event to DocumentManager
+    // } else {
+    //   // handle wrong event type???
+    // }
+    final response = await clientEvent.maybeWhen(
+      init: (configuration) async {
+        return const EngineEvent.clientEventSucceeded();
+      },
+      resetEngine: () async {
+        return const EngineEvent.clientEventSucceeded();
+      },
+      configurationChanged: (feedMarket, maxItemsPerFeedBatch) async {
+        return const EngineEvent.clientEventSucceeded();
+      },
+      feedRequested: () async {
+        return const EngineEvent.feedRequestSucceeded([]);
+      },
+      nextFeedBatchRequested: () async {
+        return const EngineEvent.nextFeedBatchRequestSucceeded([]);
+      },
+      feedDocumentsClosed: (documentIds) async {
+        return const EngineEvent.clientEventSucceeded();
+      },
+      documentFeedbackChanged: (documentId, feedback) async {
+        return const EngineEvent.clientEventSucceeded();
+      },
+      documentStatusChanged: (documentId, status) async {
+        return const EngineEvent.clientEventSucceeded();
+      },
+      documentClosed: (documentId) async {
+        return const EngineEvent.clientEventSucceeded();
+      },
+      orElse: () async {
+        return const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventRequested,
+        );
+      },
     );
 
     send(response, request.sender);

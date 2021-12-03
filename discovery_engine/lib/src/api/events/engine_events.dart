@@ -30,6 +30,8 @@ enum EngineExceptionReason {
   @JsonValue(1)
   noInitReceived,
   @JsonValue(2)
+  wrongEventRequested,
+  @JsonValue(3)
   wrongEventInResponse,
   // other possible errors will be added below
 }
