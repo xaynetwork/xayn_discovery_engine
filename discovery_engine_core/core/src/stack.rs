@@ -13,7 +13,7 @@ use crate::{
 pub(crate) enum Error {
     /// Invalid value for alpha: {0}. It must be greater than 0.
     InvalidAlpha(f32),
-    /// Invalid value for beta: {0}. It must be greater then 0.
+    /// Invalid value for beta: {0}. It must be greater than 0.
     InvalidBeta(f32),
     /// Failed to rank documents when updating the stack: {0}.
     Ranking(#[source] GenericError),
