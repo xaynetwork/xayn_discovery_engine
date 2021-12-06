@@ -11,7 +11,7 @@ use crate::{
 #[derive(Error, Debug, Display)]
 #[allow(dead_code)]
 pub(crate) enum Error {
-    /// Invalid value for alpha: {0}. It must be greater then 0.
+    /// Invalid value for alpha: {0}. It must be greater than 0.
     InvalidAlpha(f32),
     /// Invalid value for beta: {0}. It must be greater then 0.
     InvalidBeta(f32),
