@@ -1,3 +1,18 @@
+/// Thrown when a Manager failed to initialize.
+class EngineInitException implements Exception {
+  /// Message (or string representation of the exception).
+  final String message;
+
+  /// Original exception that was the cause
+  final Object exception;
+
+  EngineInitException(this.message, this.exception);
+
+  @override
+  String toString() =>
+      'EngineInitException: message: $message; exception: $exception';
+}
+
 /// Thrown when a Worker cannot be created.
 class WorkerSpawnException implements Exception {
   /// Message (or string representation of the exception).
@@ -18,10 +33,19 @@ class ConverterException implements Exception {
   /// Message (or string representation of the exception).
   final String message;
 
-  ConverterException(this.message);
+  // The original payload that caused conversion failure
+  final Object? payload;
+
+  // The original exception thrown during failed conversion
+  final Object? source;
+
+  ConverterException(this.message, {this.payload, this.source});
 
   @override
-  String toString() => 'ConverterException: $message';
+  String toString() => '''ConverterException: $message;
+    Payload: ${payload ?? 'none'};
+    Source: ${source ?? 'none'}
+    ''';
 }
 
 /// Thrown when the Response is empty (resolved to `null`).

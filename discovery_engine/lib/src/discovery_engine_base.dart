@@ -4,11 +4,11 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ClientEventSucceeded,
         EngineEvent,
         EngineExceptionReason,
-        FeedRequestSucceeded,
         FeedRequestFailed,
+        FeedRequestSucceeded,
         NextFeedBatchAvailable,
-        NextFeedBatchRequestSucceeded,
-        NextFeedBatchRequestFailed;
+        NextFeedBatchRequestFailed,
+        NextFeedBatchRequestSucceeded;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
@@ -17,6 +17,12 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentStatus, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
+import 'package:xayn_discovery_engine/src/worker/worker.dart'
+    show
+        EngineInitException,
+        ResponseEmptyException,
+        ResponseTimeoutException,
+        ConverterException;
 
 /// This class exposes Xayn Discovery Engine API to the clients.
 class DiscoveryEngine {
@@ -29,7 +35,7 @@ class DiscoveryEngine {
 
   /// Initializes the [DiscoveryEngine].
   ///
-  /// It can throw [DiscoveryEngineInitException].
+  /// It can throw [EngineInitException].
   ///
   /// **EXAMPLE**:
   ///
@@ -50,7 +56,6 @@ class DiscoveryEngine {
   /// }
   /// ```
   static Future<DiscoveryEngine> init({
-    // TODO: validation of parameters?
     required Configuration configuration,
   }) async {
     try {
@@ -58,15 +63,22 @@ class DiscoveryEngine {
       final initEvent = ClientEvent.init(configuration);
       final response = await manager.send(initEvent);
 
-      // TODO: provide proper error handling during initialization
       if (response is! ClientEventSucceeded) {
-        throw DiscoveryEngineInitException('Initialisation failed');
+        await manager.dispose();
+        throw EngineInitException(
+          'Something went wrong when sending over the configuration',
+          response,
+        );
       }
 
       return DiscoveryEngine._(manager);
-    } catch (e) {
-      // TODO: provide proper error handling
-      throw DiscoveryEngineInitException('something went very wrong');
+    } catch (error) {
+      if (error is EngineInitException) rethrow;
+      // throw for the client to catch
+      throw EngineInitException(
+        'Something went wrong during Discovery Engine initialization',
+        error,
+      );
     }
   }
 
@@ -81,13 +93,9 @@ class DiscoveryEngine {
       const event = ClientEvent.resetEngine();
       final response = await _manager.send(event);
 
-      return response.maybeMap(
-        clientEventSucceeded: (event) => event,
-        engineExceptionRaised: (event) => event,
-        // in case of a wrong event in response create an EngineExceptionRaised
-        orElse: () => const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventInResponse,
-        ),
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
       );
     });
   }
@@ -103,20 +111,15 @@ class DiscoveryEngine {
     int? maxItemsPerFeedBatch,
   }) async {
     return _trySend(() async {
-      // TODO: validation of parameters?
       final event = ClientEvent.configurationChanged(
         feedMarket: feedMarket,
         maxItemsPerFeedBatch: maxItemsPerFeedBatch,
       );
       final response = await _manager.send(event);
 
-      return response.maybeMap(
-        clientEventSucceeded: (event) => event,
-        engineExceptionRaised: (event) => event,
-        // in case of a wrong event in response create an EngineExceptionRaised
-        orElse: () => const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventInResponse,
-        ),
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
       );
     });
   }
@@ -130,19 +133,15 @@ class DiscoveryEngine {
   /// - [FeedRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestFeed() {
+  Future<EngineEvent> requestFeed() async {
     return _trySend(() async {
       const event = ClientEvent.feedRequested();
       final response = await _manager.send(event);
 
-      return response.maybeMap(
-        feedRequestSucceeded: (event) => event,
-        feedRequestFailed: (event) => event,
-        engineExceptionRaised: (event) => event,
-        // in case of a wrong event in response create an EngineExceptionRaised
-        orElse: () => const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventInResponse,
-        ),
+      return response.mapEvent(
+        feedRequestSucceeded: true,
+        feedRequestFailed: true,
+        engineExceptionRaised: true,
       );
     });
   }
@@ -164,14 +163,10 @@ class DiscoveryEngine {
       const event = ClientEvent.nextFeedBatchRequested();
       final response = await _manager.send(event);
 
-      return response.maybeMap(
-        nextFeedBatchRequestSucceeded: (event) => event,
-        nextFeedBatchRequestFailed: (event) => event,
-        engineExceptionRaised: (event) => event,
-        // in case of a wrong event in response create an EngineExceptionRaised
-        orElse: () => const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventInResponse,
-        ),
+      return response.mapEvent(
+        nextFeedBatchRequestSucceeded: true,
+        nextFeedBatchRequestFailed: true,
+        engineExceptionRaised: true,
       );
     });
   }
@@ -191,13 +186,9 @@ class DiscoveryEngine {
       final event = ClientEvent.feedDocumentsClosed(documentIds);
       final response = await _manager.send(event);
 
-      return response.maybeMap(
-        clientEventSucceeded: (event) => event,
-        engineExceptionRaised: (event) => event,
-        // in case of a wrong event in response create an EngineExceptionRaised
-        orElse: () => const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventInResponse,
-        ),
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
       );
     });
   }
@@ -229,13 +220,9 @@ class DiscoveryEngine {
       final event = ClientEvent.documentStatusChanged(documentId, status);
       final response = await _manager.send(event);
 
-      return response.maybeMap(
-        clientEventSucceeded: (event) => event,
-        engineExceptionRaised: (event) => event,
-        // in case of a wrong event in response create an EngineExceptionRaised
-        orElse: () => const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventInResponse,
-        ),
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
       );
     });
   }
@@ -259,13 +246,9 @@ class DiscoveryEngine {
       final event = ClientEvent.documentFeedbackChanged(documentId, feedback);
       final response = await _manager.send(event);
 
-      return response.maybeMap(
-        clientEventSucceeded: (event) => event,
-        engineExceptionRaised: (event) => event,
-        // in case of a wrong event in response create an EngineExceptionRaised
-        orElse: () => const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventInResponse,
-        ),
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
       );
     });
   }
@@ -275,23 +258,56 @@ class DiscoveryEngine {
       // we need to await the result otherwise catch won't work
       return await fn();
     } catch (e) {
-      // TODO: introduce mapping of possible exceptions
+      // TODO: add proper logging
+      print(e);
+      var reason = EngineExceptionReason.genericError;
+
+      if (e is ConverterException) {
+        reason = EngineExceptionReason.converterException;
+      } else if (e is ResponseEmptyException) {
+        reason = EngineExceptionReason.emptyResponse;
+      } else if (e is ResponseTimeoutException) {
+        reason = EngineExceptionReason.responseTimeout;
+      }
+
       // into [EngineExceptionRaised] event with a specific reason
-      return const EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.genericError,
-      );
+      return EngineEvent.engineExceptionRaised(reason);
     }
   }
 }
 
-// NOTE: this is temporary and it will change
-class DiscoveryEngineInitException implements Exception {
-  final String message;
+extension _MapEvent on EngineEvent {
+  EngineEvent mapEvent({
+    bool? feedRequestSucceeded,
+    bool? feedRequestFailed,
+    bool? nextFeedBatchRequestSucceeded,
+    bool? nextFeedBatchRequestFailed,
+    bool? nextFeedBatchAvailable,
+    bool? clientEventSucceeded,
+    bool? engineExceptionRaised,
+  }) =>
+      map(
+        feedRequestSucceeded: _maybePassThrough(feedRequestSucceeded),
+        feedRequestFailed: _maybePassThrough(feedRequestFailed),
+        nextFeedBatchRequestSucceeded:
+            _maybePassThrough(nextFeedBatchRequestSucceeded),
+        nextFeedBatchRequestFailed:
+            _maybePassThrough(nextFeedBatchRequestFailed),
+        nextFeedBatchAvailable: _maybePassThrough(nextFeedBatchAvailable),
+        clientEventSucceeded: _maybePassThrough(clientEventSucceeded),
+        engineExceptionRaised: _maybePassThrough(engineExceptionRaised),
+      );
 
-  DiscoveryEngineInitException(this.message);
-
-  @override
-  String toString() {
-    return 'DiscoveryEngineInitException{ $message }';
+  EngineEvent Function(EngineEvent) _maybePassThrough(bool? condition) {
+    return condition ?? false ? _passThrough : _orElse;
   }
+
+  // just pass through the original event
+  EngineEvent _passThrough(EngineEvent event) => event;
+
+  // in case of a wrong event in response create an EngineExceptionRaised
+  EngineEvent _orElse(EngineEvent _event) =>
+      const EngineEvent.engineExceptionRaised(
+        EngineExceptionReason.wrongEventInResponse,
+      );
 }

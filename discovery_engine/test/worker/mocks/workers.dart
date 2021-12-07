@@ -20,7 +20,7 @@ class MockWorker extends Worker<Object, Object> {
   MockWorker(Object initialMessage) : super(initialMessage);
 
   @override
-  void onError(Object error) {
+  void onError(Object error, {Object? incomingMessage}) {
     send('$error');
   }
 

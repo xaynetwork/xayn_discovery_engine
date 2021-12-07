@@ -83,7 +83,10 @@ abstract class Worker<Request extends Object, Response extends Object> {
 
   /// Called with the error object upon any errors from [PlatformWorker]
   /// messages stream.
-  void onError(Object error);
+  void onError(
+    Object error, {
+    Object? incomingMessage,
+  });
 
   void _onMessage(Object message) {
     try {
@@ -91,7 +94,7 @@ abstract class Worker<Request extends Object, Response extends Object> {
       final OneshotRequest<Request> request = requestConverter.convert(message);
       onMessage(request);
     } catch (e) {
-      onError(e);
+      onError(e, incomingMessage: message);
     }
   }
 

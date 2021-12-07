@@ -1,11 +1,10 @@
 import 'dart:convert' show Converter;
 import 'package:xayn_discovery_engine/src/api/api.dart'
-    show ClientEvent, EngineEvent;
+    show ClientEvent, EngineEvent, EngineExceptionReason;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
     show JsonToOneshotRequestConverter, EngineEventToJsonConverter;
-import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
-    show Worker, OneshotRequest;
+    show ConverterException, OneshotRequest, Sender, Worker;
 
 class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   final _requestConverter = JsonToOneshotRequestConverter();
@@ -21,9 +20,32 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
 
   DiscoveryEngineWorker(Object message) : super(message);
 
+  Sender? _getSenderFromMessageOrNull(Object? incomingMessage) {
+    if (incomingMessage == null) return null;
+
+    try {
+      // the conversion could fail because of a bad event so we still
+      // might be able to extract only the sender from the message
+      return _requestConverter
+          .getSenderFromJson(incomingMessage as Map<String, Object>);
+    } catch (e) {
+      return null;
+    }
+  }
+
   @override
-  void onError(Object error) {
-    // TODO: handle errors
+  void onError(Object error, {Object? incomingMessage}) {
+    var reason = EngineExceptionReason.genericError;
+
+    if (error is ConverterException) {
+      reason = EngineExceptionReason.converterException;
+    }
+    // Add other types here
+
+    final errorEvent = EngineEvent.engineExceptionRaised(reason);
+    final sender = _getSenderFromMessageOrNull(incomingMessage);
+    // send an error event using main channel or Sender if available
+    send(errorEvent, sender);
   }
 
   @override
@@ -32,7 +54,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
     // This is just initial handler to respond with some events
     //
     // TODO: replace with proper handler
-    // Events are grouped
+    // Events can be grouped by type
     // if (clientEvent is SystemClientEvent) {
     //   // pass the event to dedicated manager
     // } else if (clientEvent is FeedClientEvent) {
@@ -42,7 +64,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
     // } else {
     //   // handle wrong event type???
     // }
-    final response = await clientEvent.maybeWhen(
+    final response = await clientEvent.when(
       init: (configuration) async {
         return const EngineEvent.clientEventSucceeded();
       },
@@ -69,11 +91,6 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
       },
       documentClosed: (documentId) async {
         return const EngineEvent.clientEventSucceeded();
-      },
-      orElse: () async {
-        return const EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.wrongEventRequested,
-        );
       },
     );
 

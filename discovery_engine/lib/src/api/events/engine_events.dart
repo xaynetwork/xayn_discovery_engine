@@ -33,6 +33,12 @@ enum EngineExceptionReason {
   wrongEventRequested,
   @JsonValue(3)
   wrongEventInResponse,
+  @JsonValue(4)
+  converterException,
+  @JsonValue(5)
+  emptyResponse,
+  @JsonValue(6)
+  responseTimeout,
   // other possible errors will be added below
 }
 
