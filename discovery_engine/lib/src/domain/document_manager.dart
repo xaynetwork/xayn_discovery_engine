@@ -1,7 +1,5 @@
-import 'package:xayn_discovery_engine/src/api/events/client_events/document_events.dart'
-    show DocumentClientEvent;
-import 'package:xayn_discovery_engine/src/api/events/client_events/feed_events.dart'
-    show FeedClientEvent;
+import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
+    show ClientEvent;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -20,16 +18,18 @@ class DocumentManager {
 
   DocumentManager(this._documentRepo, this._activeRepo, this._changedRepo);
 
-  void handleDocumentEvent(DocumentClientEvent evt) {
-    evt.when(
-      documentStatusChanged: (id, status) => print('baz'),
-      documentClosed: (id) => print('bar'),
-      documentFeedbackChanged: (id, feedback) =>
-          updateDocumentFeedback(id, feedback),
+  /// Handle the given client event.
+  ///
+  /// Throws if the event does not have a handler implemented.
+  void handleClientEvent(ClientEvent evt) {
+    evt.maybeWhen(
+      documentFeedbackChanged: (id, fdbk) => updateDocumentFeedback(id, fdbk),
+      feedDocumentsClosed: (ids) => deactivateDocuments(ids),
+      orElse: throw UnimplementedError('handler not implemented for $evt'),
     );
   }
 
-  /// Update the feedback for the given document.
+  /// Update feedback for the given document.
   ///
   /// Has no effect if `id` does not identify an active document.
   Future<void> updateDocumentFeedback(
@@ -41,14 +41,6 @@ class DocumentManager {
       final updatedDoc = doc.setFeedback(feedback);
       await _documentRepo.update(updatedDoc);
     }
-  }
-
-  void handleFeedEvent(FeedClientEvent evt) {
-    evt.when(
-      feedDocumentsClosed: (ids) => deactivateDocuments(ids),
-      nextFeedBatchRequested: () => print('bar'),
-      feedRequested: () => print('baz'),
-    );
   }
 
   /// Deactivate the given documents.
