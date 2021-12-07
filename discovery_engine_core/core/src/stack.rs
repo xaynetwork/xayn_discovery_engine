@@ -90,40 +90,48 @@ mod tests {
 
     #[test]
     fn test_stack_initialisation() {
-        let stack_0 = Stack::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
-        let stack_1 = Stack::new(0.0, 0.5, vec![]);
-        let stack_2 = Stack::new(0.5, 0.0, vec![]);
-        let stack_3 = Stack::new(-0.0, 1.0, vec![]);
-        let stack_4 = Stack::new(1.0, -0.0, vec![]);
-        let stack_5 = Stack::new(-1.0, 1.0, vec![]);
-        let stack_6 = Stack::new(1.0, -1.0, vec![]);
+        let stack = Stack::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
+        assert_ok!(stack);
 
-        assert_ok!(stack_0);
-        assert_err!(&stack_1);
-        assert_matches!(stack_1.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
-        assert_err!(&stack_2);
-        assert_matches!(stack_2.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
-        assert_err!(&stack_3);
-        assert_matches!(stack_3.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
-        assert_err!(&stack_4);
-        assert_matches!(stack_4.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
-        assert_err!(&stack_5);
-        assert_matches!(stack_5.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
-        assert_err!(&stack_6);
-        assert_matches!(stack_6.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
+        let stack = Stack::new(0.0, 0.5, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
+
+        let stack = Stack::new(0.5, 0.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
+
+        let stack = Stack::new(-0.0, 1.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
+
+        let stack = Stack::new(1.0, -0.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
+
+        let stack = Stack::new(-1.0, 1.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
+
+        let stack = Stack::new(1.0, -1.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
     }
 
     #[test]
     #[allow(clippy::float_cmp)]
-    fn test_stack_bucket_impl() {
-        let mut stack_0 = Stack::new(0.01, 0.99, vec![]).unwrap();
+    fn test_stack_bucket_pop_empty() {
+        let mut stack = Stack::new(0.01, 0.99, vec![]).unwrap();
 
-        assert_eq!(stack_0.alpha(), 0.01);
-        assert_eq!(stack_0.beta(), 0.99);
-        assert!(stack_0.is_empty());
-        assert_none!(stack_0.pop());
+        assert_eq!(stack.alpha(), 0.01);
+        assert_eq!(stack.beta(), 0.99);
+        assert!(stack.is_empty());
+        assert_none!(stack.pop());
+    }
 
-        let doc_1 = Document {
+    #[test]
+    fn test_stack_bucket_pop() {
+        let doc = Document {
             id: Id::from_u128(u128::MIN),
             rank: usize::default(),
             title: String::default(),
@@ -132,10 +140,10 @@ mod tests {
             domain: String::default(),
             smbert_embedding: Embedding(arr1(&[1., 2., 3.])),
         };
-        let mut stack_1 = Stack::new(0.01, 0.99, vec![doc_1]).unwrap();
+        let mut stack = Stack::new(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
 
-        assert!(!stack_1.is_empty());
-        assert_some!(stack_1.pop());
-        assert!(stack_1.is_empty());
+        assert_some!(stack.pop());
+        assert_some!(stack.pop());
+        assert_none!(stack.pop());
     }
 }
