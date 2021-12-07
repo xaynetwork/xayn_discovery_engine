@@ -20,7 +20,7 @@ pub(crate) enum Error {
 }
 
 /// Stack of feed items
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub(crate) struct Stack {
     /// The alpha parameter of the beta distribution.
     alpha: f32,
@@ -81,28 +81,36 @@ impl Bucket<Document> for Stack {
 }
 #[cfg(test)]
 mod tests {
-    use crate::{document::Embedding, Id};
+    use claim::{assert_err, assert_matches, assert_none, assert_ok, assert_some};
     use ndarray::arr1;
+
+    use crate::{document::Embedding, Id};
 
     use super::*;
 
     #[test]
     fn test_stack_initialisation() {
-        let stack_0 = Stack::new(0.0 + f32::EPSILON, 0.0 + f32::EPSILON, vec![]);
+        let stack_0 = Stack::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
         let stack_1 = Stack::new(0.0, 0.5, vec![]);
         let stack_2 = Stack::new(0.5, 0.0, vec![]);
         let stack_3 = Stack::new(-0.0, 1.0, vec![]);
         let stack_4 = Stack::new(1.0, -0.0, vec![]);
+        let stack_5 = Stack::new(-1.0, 1.0, vec![]);
+        let stack_6 = Stack::new(1.0, -1.0, vec![]);
 
-        assert!(stack_0.is_ok());
-        assert!(stack_1.is_err());
-        assert!(matches!(stack_1.err().unwrap(), Error::InvalidAlpha(_)));
-        assert!(stack_2.is_err());
-        assert!(matches!(stack_2.err().unwrap(), Error::InvalidBeta(_)));
-        assert!(stack_3.is_err());
-        assert!(matches!(stack_3.err().unwrap(), Error::InvalidAlpha(_)));
-        assert!(stack_4.is_err());
-        assert!(matches!(stack_4.err().unwrap(), Error::InvalidBeta(_)));
+        assert_ok!(stack_0);
+        assert_err!(&stack_1);
+        assert_matches!(stack_1.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
+        assert_err!(&stack_2);
+        assert_matches!(stack_2.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
+        assert_err!(&stack_3);
+        assert_matches!(stack_3.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
+        assert_err!(&stack_4);
+        assert_matches!(stack_4.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
+        assert_err!(&stack_5);
+        assert_matches!(stack_5.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
+        assert_err!(&stack_6);
+        assert_matches!(stack_6.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
     }
 
     #[test]
@@ -113,7 +121,7 @@ mod tests {
         assert_eq!(stack_0.alpha(), 0.01);
         assert_eq!(stack_0.beta(), 0.99);
         assert!(stack_0.is_empty());
-        assert!(stack_0.pop().is_none());
+        assert_none!(stack_0.pop());
 
         let doc_1 = Document {
             id: Id::from_u128(u128::MIN),
@@ -127,7 +135,7 @@ mod tests {
         let mut stack_1 = Stack::new(0.01, 0.99, vec![doc_1]).unwrap();
 
         assert!(!stack_1.is_empty());
-        assert!(stack_1.pop().is_some());
+        assert_some!(stack_1.pop());
         assert!(stack_1.is_empty());
     }
 }
