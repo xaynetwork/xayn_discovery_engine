@@ -89,6 +89,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn test_stack_initialisation() {
         let stack = Stack::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
         assert_ok!(stack);
