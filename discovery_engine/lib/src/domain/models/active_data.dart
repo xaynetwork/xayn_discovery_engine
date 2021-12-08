@@ -1,7 +1,7 @@
 import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart';
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show activeDocumentDataTypeId;
