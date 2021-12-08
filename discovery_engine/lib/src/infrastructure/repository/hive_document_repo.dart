@@ -18,11 +18,26 @@ class HiveDocumentRepository implements DocumentRepository {
   }
 
   @override
+  Future<List<Document>> fetchByIds(Set<DocumentId> ids) async {
+    return <Document>[
+      for (final doc in ids.map((id) => box.get(id.toString())))
+        if (doc != null) doc
+    ];
+  }
+
+  @override
   Future<List<Document>> fetchAll() async => box.values.toList();
 
   @override
   Future<void> update(Document doc) async {
     final key = doc.documentId.toString();
     await box.put(key, doc);
+  }
+
+  @override
+  Future<void> updateMany(Iterable<Document> docs) async {
+    await box.putAll(<String, Document>{
+      for (final doc in docs) doc.documentId.toString(): doc
+    });
   }
 }

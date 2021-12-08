@@ -8,6 +8,8 @@ abstract class ChangedDocumentRepository {
   Future<List<DocumentId>> fetchAll();
 
   /// Add the id of a changed document.
+  ///
+  /// This has no effect if [id] has already been added.
   Future<void> add(DocumentId id);
 
   /// Clear the repository.

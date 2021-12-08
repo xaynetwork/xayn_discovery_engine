@@ -13,7 +13,9 @@ abstract class ActiveDocumentDataRepository {
   /// Fetch the SMBert embedding associated with the given document.
   Future<Uint8List?> smbertEmbeddingById(DocumentId id);
 
-  /// Update data associated with the given active document.
+  /// Update data associated with the given document.
+  ///
+  /// [id] is assumed to identify an active document.
   Future<void> update(DocumentId id, ActiveDocumentData data);
 
   /// Remove data associated with the given active documents.
