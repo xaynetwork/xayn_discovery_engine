@@ -24,7 +24,6 @@ class ActiveDocumentData {
   }
 
   /// Get the time spent in the given view mode.
-  Duration getViewTime(DocumentViewMode mode) {
-    return viewTime[mode] ?? Duration.zero;
-  }
+  Duration getViewTime(DocumentViewMode mode) =>
+      viewTime[mode] ?? Duration.zero;
 }

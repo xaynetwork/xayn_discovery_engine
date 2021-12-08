@@ -13,17 +13,13 @@ class HiveDocumentRepository implements DocumentRepository {
   Box<Document> get box => Hive.box<Document>(documentBox);
 
   @override
-  Future<Document?> fetchById(DocumentId id) async {
-    return box.get(id.toString());
-  }
+  Future<Document?> fetchById(DocumentId id) async => box.get(id.toString());
 
   @override
-  Future<List<Document>> fetchByIds(Set<DocumentId> ids) async {
-    return <Document>[
-      for (final doc in ids.map((id) => box.get(id.toString())))
-        if (doc != null) doc
-    ];
-  }
+  Future<List<Document>> fetchByIds(Set<DocumentId> ids) async => <Document>[
+        for (final doc in ids.map((id) => box.get(id.toString())))
+          if (doc != null) doc
+      ];
 
   @override
   Future<List<Document>> fetchAll() async => box.values.toList();

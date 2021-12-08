@@ -16,15 +16,12 @@ class HiveActiveDocumentDataRepository implements ActiveDocumentDataRepository {
       Hive.box<ActiveDocumentData>(activeDocumentDataBox);
 
   @override
-  Future<ActiveDocumentData?> fetchById(DocumentId id) async {
-    return box.get(id.toString());
-  }
+  Future<ActiveDocumentData?> fetchById(DocumentId id) async =>
+      box.get(id.toString());
 
   @override
-  Future<Uint8List?> smbertEmbeddingById(DocumentId id) async {
-    final activeDoc = box.get(id.toString());
-    return activeDoc?.smbertEmbedding;
-  }
+  Future<Uint8List?> smbertEmbeddingById(DocumentId id) async =>
+      box.get(id.toString())?.smbertEmbedding;
 
   @override
   Future<void> update(DocumentId id, ActiveDocumentData data) async {
