@@ -11,16 +11,16 @@ use crate::{
 #[derive(Error, Debug, Display)]
 #[allow(dead_code)]
 pub(crate) enum Error {
-    /// Invalid value for alpha: {0}. It must be in range [0, 1].
+    /// Invalid value for alpha: {0}. It must be greater than 0.
     InvalidAlpha(f32),
-    /// Invalid value for beta: {0}. It must be in range [0, 1].
+    /// Invalid value for beta: {0}. It must be greater than 0.
     InvalidBeta(f32),
     /// Failed to rank documents when updating the stack: {0}.
     Ranking(#[source] GenericError),
 }
 
 /// Stack of feed items
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub(crate) struct Stack {
     /// The alpha parameter of the beta distribution.
     alpha: f32,
@@ -34,10 +34,10 @@ impl Stack {
     #[allow(dead_code)]
     /// Creates a new Stack.
     pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
-        if alpha <= 0.0 || alpha > 1.0 {
+        if alpha <= 0.0 {
             return Err(Error::InvalidAlpha(alpha));
         }
-        if beta <= 0.0 || beta > 1.0 {
+        if beta <= 0.0 {
             return Err(Error::InvalidBeta(beta));
         }
 
@@ -81,41 +81,58 @@ impl Bucket<Document> for Stack {
 }
 #[cfg(test)]
 mod tests {
-    use crate::{document::Embedding, Id};
+    use claim::{assert_err, assert_matches, assert_none, assert_ok, assert_some};
     use ndarray::arr1;
+
+    use crate::{document::Embedding, Id};
 
     use super::*;
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn test_stack_initialisation() {
-        let stack_0 = Stack::new(0.01, 1.0, vec![]);
-        let stack_1 = Stack::new(0.0, 0.5, vec![]);
-        let stack_2 = Stack::new(1.01, 0.5, vec![]);
-        let stack_3 = Stack::new(0.5, 0.0, vec![]);
-        let stack_4 = Stack::new(0.5, 1.01, vec![]);
+        let stack = Stack::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
+        assert_ok!(stack);
 
-        assert!(stack_0.is_ok());
-        assert!(stack_1.is_err());
-        assert!(matches!(stack_1.err().unwrap(), Error::InvalidAlpha(_)));
-        assert!(stack_2.is_err());
-        assert!(matches!(stack_2.err().unwrap(), Error::InvalidAlpha(_)));
-        assert!(stack_3.is_err());
-        assert!(matches!(stack_3.err().unwrap(), Error::InvalidBeta(_)));
-        assert!(stack_4.is_err());
-        assert!(matches!(stack_4.err().unwrap(), Error::InvalidBeta(_)));
+        let stack = Stack::new(0.0, 0.5, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
+
+        let stack = Stack::new(0.5, 0.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
+
+        let stack = Stack::new(-0.0, 1.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
+
+        let stack = Stack::new(1.0, -0.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
+
+        let stack = Stack::new(-1.0, 1.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
+
+        let stack = Stack::new(1.0, -1.0, vec![]);
+        assert_err!(&stack);
+        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
     }
 
     #[test]
     #[allow(clippy::float_cmp)]
-    fn test_stack_bucket_impl() {
-        let mut stack_0 = Stack::new(0.01, 0.99, vec![]).unwrap();
+    fn test_stack_bucket_pop_empty() {
+        let mut stack = Stack::new(0.01, 0.99, vec![]).unwrap();
 
-        assert_eq!(stack_0.alpha(), 0.01);
-        assert_eq!(stack_0.beta(), 0.99);
-        assert!(stack_0.is_empty());
-        assert!(stack_0.pop().is_none());
+        assert_eq!(stack.alpha(), 0.01);
+        assert_eq!(stack.beta(), 0.99);
+        assert!(stack.is_empty());
+        assert_none!(stack.pop());
+    }
 
-        let doc_1 = Document {
+    #[test]
+    fn test_stack_bucket_pop() {
+        let doc = Document {
             id: Id::from_u128(u128::MIN),
             rank: usize::default(),
             title: String::default(),
@@ -124,10 +141,10 @@ mod tests {
             domain: String::default(),
             smbert_embedding: Embedding(arr1(&[1., 2., 3.])),
         };
-        let mut stack_1 = Stack::new(0.01, 0.99, vec![doc_1]).unwrap();
+        let mut stack = Stack::new(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
 
-        assert!(!stack_1.is_empty());
-        assert!(stack_1.pop().is_some());
-        assert!(stack_1.is_empty());
+        assert_some!(stack.pop());
+        assert_some!(stack.pop());
+        assert_none!(stack.pop());
     }
 }
