@@ -29,6 +29,11 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
       return _requestConverter
           .getSenderFromJson(incomingMessage as Map<String, Object>);
     } catch (e) {
+      // we ignore the error because we are already in the `onError` method,
+      // (so any `ConverterException` that was thrown is being handled already)
+      // and as a last resort, we are trying to get the `Sender` from the
+      // original message, and use it to send back an `EngineExceptionEvent`
+      // to a proper `Oneshot` channel
       return null;
     }
   }
