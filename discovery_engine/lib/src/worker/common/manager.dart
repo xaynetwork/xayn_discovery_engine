@@ -100,7 +100,7 @@ abstract class Manager<Request extends Object, Response extends Object> {
 
   /// Returns a new instance of [PlatformManager] which spawns a Worker upon
   /// its creation. If this process fails it will throw a [WorkerSpawnException].
-  static Future<PlatformManager> spawnWorker(Object entryPoint) async {
+  static Future<PlatformManager> spawnWorker(Object? entryPoint) async {
     try {
       return await createPlatformManager(entryPoint);
     } catch (e) {

@@ -109,6 +109,6 @@ class ClientEvent with _$ClientEvent {
       DocumentClosed;
 
   /// Converts json Map to [ClientEvent].
-  factory ClientEvent.fromJson(Map<String, dynamic> json) =>
+  factory ClientEvent.fromJson(Map<String, Object?> json) =>
       _$ClientEventFromJson(json);
 }

@@ -29,6 +29,16 @@ enum EngineExceptionReason {
   genericError,
   @JsonValue(1)
   noInitReceived,
+  @JsonValue(2)
+  wrongEventRequested,
+  @JsonValue(3)
+  wrongEventInResponse,
+  @JsonValue(4)
+  converterException,
+  @JsonValue(5)
+  emptyResponse,
+  @JsonValue(6)
+  responseTimeout,
   // other possible errors will be added below
 }
 
@@ -87,6 +97,6 @@ class EngineEvent with _$EngineEvent {
   ) = EngineExceptionRaised;
 
   /// Converts json Map to [EngineEvent].
-  factory EngineEvent.fromJson(Map<String, dynamic> json) =>
+  factory EngineEvent.fromJson(Map<String, Object?> json) =>
       _$EngineEventFromJson(json);
 }

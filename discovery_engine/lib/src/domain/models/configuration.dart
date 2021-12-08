@@ -14,6 +14,6 @@ class Configuration with _$Configuration {
     required String applicationDirectoryPath,
   }) = _Configuration;
 
-  factory Configuration.fromJson(Map<String, dynamic> json) =>
+  factory Configuration.fromJson(Map<String, Object?> json) =>
       _$ConfigurationFromJson(json);
 }

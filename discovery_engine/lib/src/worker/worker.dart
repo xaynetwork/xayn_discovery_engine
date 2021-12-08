@@ -1,5 +1,10 @@
 export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart'
-    show WorkerSpawnException, ResponseTimeoutException, ConverterException;
+    show
+        EngineInitException,
+        WorkerSpawnException,
+        ResponseTimeoutException,
+        ResponseEmptyException,
+        ConverterException;
 export 'package:xayn_discovery_engine/src/worker/common/manager.dart'
     show Manager;
 export 'package:xayn_discovery_engine/src/worker/common/oneshot.dart'
