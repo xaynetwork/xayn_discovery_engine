@@ -17,6 +17,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentStatus, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
+import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show
         EngineInitException,
@@ -258,8 +259,6 @@ class DiscoveryEngine {
       // we need to await the result otherwise catch won't work
       return await fn();
     } catch (e) {
-      // TODO: add proper logging
-      print(e);
       var reason = EngineExceptionReason.genericError;
 
       if (e is ConverterException) {
@@ -269,6 +268,9 @@ class DiscoveryEngine {
       } else if (e is ResponseTimeoutException) {
         reason = EngineExceptionReason.responseTimeout;
       }
+
+      // log the error
+      logger.e(e);
 
       // into [EngineExceptionRaised] event with a specific reason
       return EngineEvent.engineExceptionRaised(reason);
