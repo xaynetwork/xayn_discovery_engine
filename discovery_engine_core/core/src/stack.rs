@@ -27,13 +27,23 @@ pub(crate) struct Stack {
     /// The beta parameter of the beta distribution.
     beta: f32,
     /// Documents in the [`Stack`].
-    pub(crate) documents: Vec<Document>,
+    documents: Vec<Document>,
 }
 
 impl Stack {
     #[allow(dead_code)]
-    /// Creates a new Stack.
-    pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
+    /// Create a new Stack.
+    pub(crate) fn empty() -> Self {
+        Self {
+            alpha: 1.,
+            beta: 1.,
+            documents: vec![],
+        }
+    }
+
+    #[allow(dead_code)]
+    /// Create a Stack.
+    pub(crate) fn from_parts(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
         if alpha <= 0.0 {
             return Err(Error::InvalidAlpha(alpha));
         }
@@ -90,31 +100,41 @@ mod tests {
 
     #[test]
     #[allow(clippy::float_cmp)]
-    fn test_stack_initialisation() {
-        let stack = Stack::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
+    fn test_stack_empty() {
+        let stack = Stack::empty();
+
+        assert_eq!(stack.alpha, 1.);
+        assert_eq!(stack.beta, 1.);
+        assert!(stack.documents.is_empty());
+    }
+
+    #[test]
+    #[allow(clippy::float_cmp)]
+    fn test_stack_from_parts() {
+        let stack = Stack::from_parts(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
         assert_ok!(stack);
 
-        let stack = Stack::new(0.0, 0.5, vec![]);
+        let stack = Stack::from_parts(0.0, 0.5, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
 
-        let stack = Stack::new(0.5, 0.0, vec![]);
+        let stack = Stack::from_parts(0.5, 0.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
 
-        let stack = Stack::new(-0.0, 1.0, vec![]);
+        let stack = Stack::from_parts(-0.0, 1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
 
-        let stack = Stack::new(1.0, -0.0, vec![]);
+        let stack = Stack::from_parts(1.0, -0.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
 
-        let stack = Stack::new(-1.0, 1.0, vec![]);
+        let stack = Stack::from_parts(-1.0, 1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
 
-        let stack = Stack::new(1.0, -1.0, vec![]);
+        let stack = Stack::from_parts(1.0, -1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
     }
@@ -122,11 +142,8 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_stack_bucket_pop_empty() {
-        let mut stack = Stack::new(0.01, 0.99, vec![]).unwrap();
+        let mut stack = Stack::empty();
 
-        assert_eq!(stack.alpha(), 0.01);
-        assert_eq!(stack.beta(), 0.99);
-        assert!(stack.is_empty());
         assert_none!(stack.pop());
     }
 
@@ -141,7 +158,7 @@ mod tests {
             domain: String::default(),
             smbert_embedding: Embedding(arr1(&[1., 2., 3.])),
         };
-        let mut stack = Stack::new(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
+        let mut stack = Stack::from_parts(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
 
         assert_some!(stack.pop());
         assert_some!(stack.pop());
