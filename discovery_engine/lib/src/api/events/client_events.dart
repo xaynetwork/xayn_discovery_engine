@@ -1,15 +1,15 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
+import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
+    show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentStatus, DocumentFeedback;
+    show Document, DocumentViewMode, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 
 part 'client_events.freezed.dart';
 part 'client_events.g.dart';
 
-/// Abstract class implemented by events like [DocumentStatusChanged],
-/// [DocumentFeedbackChanged] or [DocumentClosed].
+/// Abstract class implemented by events like [DocumentFeedbackChanged].
 ///
 /// Used to group events related to [Document] changes.
 abstract class DocumentClientEvent {}
@@ -74,20 +74,14 @@ class ClientEvent with _$ClientEvent {
     Set<DocumentId> documentIds,
   ) = FeedDocumentsClosed;
 
-  /// Event created when the `DocumentStatus` changed:
-  /// - when the document was presented to the user the status changes
-  /// from `missed` to `presented`.
-  /// - when the document was presented but then was scrolled out of the screen
-  /// the status changes from `presented` to `skipped`. It means the user saw
-  /// the document, but it wasn't relevant.
-  /// - when the document was opened the status changes from `presented` or
-  /// `skipped` to `opened`. It means the user was interested enough in
-  /// the document to open it.
+  /// Event created when a [Document] has been viewed in a certain mode for
+  /// the given amount of time in seconds.
   @Implements<DocumentClientEvent>()
-  const factory ClientEvent.documentStatusChanged(
+  const factory ClientEvent.documentTimeLogged(
     DocumentId documentId,
-    DocumentStatus status,
-  ) = DocumentStatusChanged;
+    DocumentViewMode mode,
+    int seconds,
+  ) = DocumentTimeLogged;
 
   /// Event created when the user swipes the [Document] card or clicks a button
   /// to indicate that the document is `positive`, `negative` or `neutral`.
@@ -96,17 +90,6 @@ class ClientEvent with _$ClientEvent {
     DocumentId documentId,
     DocumentFeedback feedback,
   ) = DocumentFeedbackChanged;
-
-  /// Event created when the document was closed, either by going back to
-  /// documents list or by navigating further to a link contained by the document.
-  /// It helps to calculate how much time user spent reviewing the document.
-  ///
-  /// For cases when the user will open and close the same document multiple
-  /// times, the engine should store and use only the maximum time spent
-  /// by the user on a document.
-  @Implements<DocumentClientEvent>()
-  const factory ClientEvent.documentClosed(DocumentId documentId) =
-      DocumentClosed;
 
   /// Converts json Map to [ClientEvent].
   factory ClientEvent.fromJson(Map<String, dynamic> json) =>

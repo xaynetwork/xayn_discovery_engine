@@ -1,7 +1,7 @@
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show ClientEvent;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback;
+    show DocumentFeedback, DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -25,6 +25,8 @@ class DocumentManager {
     evt.maybeWhen(
       documentFeedbackChanged: (id, fdbk) => updateDocumentFeedback(id, fdbk),
       feedDocumentsClosed: (ids) => deactivateDocuments(ids),
+      documentTimeLogged: (id, mode, sec) =>
+          addActiveDocumentTime(id, mode, sec),
       orElse: throw UnimplementedError('handler not implemented for $evt'),
     );
   }
@@ -52,6 +54,19 @@ class DocumentManager {
       var doc = await _documentRepo.fetchById(id);
       doc = doc?.setInactive();
       if (doc != null) await _documentRepo.update(doc);
+    }
+  }
+
+  /// Add additional viewing time for the given active document.
+  Future<void> addActiveDocumentTime(
+    DocumentId id,
+    DocumentViewMode mode,
+    int sec,
+  ) async {
+    final activeData = await _activeRepo.fetchById(id);
+    if (activeData != null) {
+      activeData.addViewTime(mode, Duration(seconds: sec));
+      await _activeRepo.update(id, activeData);
     }
   }
 }

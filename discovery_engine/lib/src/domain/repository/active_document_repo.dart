@@ -7,6 +7,9 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 
 /// Repository interface for additional data relating to active documents.
 abstract class ActiveDocumentDataRepository {
+  /// Fetch active document data by id.
+  Future<ActiveDocumentData?> fetchById(DocumentId id);
+
   /// Fetch the SMBert embedding associated with the given document.
   Future<Uint8List?> smbertEmbeddingById(DocumentId id);
 

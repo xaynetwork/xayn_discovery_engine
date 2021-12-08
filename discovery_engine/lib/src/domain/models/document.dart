@@ -114,3 +114,10 @@ enum DocumentFeedback {
   @HiveField(2)
   negative,
 }
+
+/// Document viewer mode.
+enum DocumentViewMode {
+  story,
+  reader,
+  web,
+}

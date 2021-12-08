@@ -10,8 +10,7 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         NextFeedBatchRequested,
         FeedDocumentsClosed,
         DocumentClientEvent,
-        DocumentClosed,
-        DocumentStatusChanged,
+        DocumentTimeLogged,
         DocumentFeedbackChanged;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
