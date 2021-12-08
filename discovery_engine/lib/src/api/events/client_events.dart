@@ -2,9 +2,11 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentViewMode, DocumentFeedback;
+    show Document, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
+    show DocumentViewMode;
 
 part 'client_events.freezed.dart';
 part 'client_events.g.dart';
@@ -12,19 +14,19 @@ part 'client_events.g.dart';
 /// Abstract class implemented by events like [DocumentFeedbackChanged].
 ///
 /// Used to group events related to [Document] changes.
-abstract class DocumentClientEvent {}
+abstract class DocumentClientEvent implements ClientEvent {}
 
 /// Abstract class implemented by events like [FeedRequested],
 /// [NextFeedBatchRequested] or [FeedDocumentsClosed].
 ///
 /// Used to group discovery feed related events.
-abstract class FeedClientEvent {}
+abstract class FeedClientEvent implements ClientEvent {}
 
 /// Abstract class implemented by events like [Init], [ResetEngine] or
 /// [ConfigurationChanged].
 ///
 /// Used to group generic system events.
-abstract class SystemClientEvent {}
+abstract class SystemClientEvent implements ClientEvent {}
 
 @freezed
 class ClientEvent with _$ClientEvent {

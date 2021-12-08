@@ -1,9 +1,11 @@
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
-    show ClientEvent;
+    show DocumentClientEvent;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback, DocumentViewMode;
+    show DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
+    show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
@@ -11,6 +13,7 @@ import 'package:xayn_discovery_engine/src/domain/repository/changed_document_rep
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 
+/// Business logic concerning the management of documents.
 class DocumentManager {
   final DocumentRepository _documentRepo;
   final ActiveDocumentDataRepository _activeRepo;
@@ -18,13 +21,12 @@ class DocumentManager {
 
   DocumentManager(this._documentRepo, this._activeRepo, this._changedRepo);
 
-  /// Handle the given client event.
+  /// Handle the given document client event.
   ///
   /// Throws if the event does not have a handler implemented.
-  void handleClientEvent(ClientEvent evt) {
+  void handleDocumentClientEvent(DocumentClientEvent evt) {
     evt.maybeWhen(
       documentFeedbackChanged: (id, fdbk) => updateDocumentFeedback(id, fdbk),
-      feedDocumentsClosed: (ids) => deactivateDocuments(ids),
       documentTimeLogged: (id, mode, sec) =>
           addActiveDocumentTime(id, mode, sec),
       orElse: throw UnimplementedError('handler not implemented for $evt'),
@@ -50,11 +52,9 @@ class DocumentManager {
     await _activeRepo.removeByIds(ids);
     await _changedRepo.removeMany(ids);
 
-    for (final id in ids) {
-      var doc = await _documentRepo.fetchById(id);
-      doc = doc?.setInactive();
-      if (doc != null) await _documentRepo.update(doc);
-    }
+    final docs = await _documentRepo.fetchByIds(ids);
+    final inactiveDocs = docs.map((doc) => doc.setInactive());
+    await _documentRepo.updateMany(inactiveDocs);
   }
 
   /// Add additional viewing time for the given active document.
