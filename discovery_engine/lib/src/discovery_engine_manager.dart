@@ -1,5 +1,7 @@
 import 'dart:convert' show Converter;
 
+import 'package:universal_platform/universal_platform.dart'
+    show UniversalPlatform;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show ClientEvent, EngineEvent;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
@@ -10,8 +12,7 @@ import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show Manager, OneshotRequest, PlatformManager;
 
 /// A constant that is true if the application was compiled to run on the web.
-/// Taken from https://api.flutter.dev/flutter/foundation/kIsWeb-constant.html
-const bool kIsWeb = identical(0, 0.0);
+final kIsWeb = UniversalPlatform.isWeb;
 
 class DiscoveryEngineManager extends Manager<ClientEvent, EngineEvent> {
   final _requestConverter = OneshotRequestToJsonConverter();
