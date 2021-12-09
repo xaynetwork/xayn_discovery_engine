@@ -20,4 +20,5 @@ mod utils;
 pub use crate::{
     document::{Document, Embedding1, Id},
     engine::Engine,
+    stack::Ops as StackOps,
 };

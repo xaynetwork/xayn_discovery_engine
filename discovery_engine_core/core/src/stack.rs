@@ -1,6 +1,7 @@
+use derive_more::From;
 use displaydoc::Display;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use uuid::Uuid;
 
 use crate::{
     document::Document,
@@ -8,54 +9,46 @@ use crate::{
     mab::Bucket,
 };
 
+mod data;
+mod ops;
+// mod stacks;
+
+pub(crate) use data::StackData;
+pub use ops::Ops;
+
 #[derive(Error, Debug, Display)]
 #[allow(dead_code)]
 pub(crate) enum Error {
-    /// Invalid value for alpha: {0}. It must be greater than 0.
-    InvalidAlpha(f32),
-    /// Invalid value for beta: {0}. It must be greater than 0.
-    InvalidBeta(f32),
+    /// Failed to merge current documents with new ones.
+    Merge(#[source] GenericError),
     /// Failed to rank documents when updating the stack: {0}.
     Ranking(#[source] GenericError),
 }
 
-/// Stack of feed items
-#[derive(Deserialize, Serialize, Debug)]
+pub type BoxOps = Box<dyn Ops + Send + Sync>;
+
+/// Id of a [`Stack`].
+///
+/// `Id` is used to connect [`ops::Ops`] with [`data::Data`].
+#[derive(From)]
+pub struct Id(Uuid);
+
 pub(crate) struct Stack {
-    /// The alpha parameter of the beta distribution.
-    alpha: f32,
-    /// The beta parameter of the beta distribution.
-    beta: f32,
-    /// Documents in the [`Stack`].
-    documents: Vec<Document>,
+    pub(crate) data: StackData,
+    pub(crate) ops: BoxOps,
 }
 
 impl Stack {
+    /// Create a new `Stack` with the given [`StackData`] and customized [`Ops`].
     #[allow(dead_code)]
-    /// Create a new Stack.
-    pub(crate) fn empty() -> Self {
-        Self {
-            alpha: 1.,
-            beta: 1.,
-            documents: vec![],
-        }
+    pub(crate) fn new(data: StackData, ops: BoxOps) -> Self {
+        Self { data, ops }
     }
 
+    /// [`Id`] of this `Stack`.
     #[allow(dead_code)]
-    /// Create a Stack.
-    pub(crate) fn from_parts(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
-        if alpha <= 0.0 {
-            return Err(Error::InvalidAlpha(alpha));
-        }
-        if beta <= 0.0 {
-            return Err(Error::InvalidBeta(beta));
-        }
-
-        Ok(Self {
-            alpha,
-            beta,
-            documents,
-        })
+    pub(crate) fn id(&self) -> Id {
+        self.ops.id()
     }
 
     /// Ranks the slice of [`Document`] items and returns an updated [`Stack`].
@@ -65,84 +58,47 @@ impl Stack {
         new_feed_items: &[Document],
         ranker: &R,
     ) -> Result<Self, Error> {
-        self.documents.extend_from_slice(new_feed_items);
-        ranker.rank(&mut self.documents).map_err(Error::Ranking)?;
-
+        let mut items = self
+            .ops
+            .merge(&self.data.documents, new_feed_items)
+            .map_err(Error::Merge)?;
+        ranker.rank(&mut items).map_err(Error::Ranking)?;
+        self.data.documents = items;
         Ok(self)
     }
 }
 
 impl Bucket<Document> for Stack {
     fn alpha(&self) -> f32 {
-        self.alpha
+        self.data.alpha
     }
 
     fn beta(&self) -> f32 {
-        self.beta
+        self.data.beta
     }
 
     fn is_empty(&self) -> bool {
-        self.documents.is_empty()
+        self.data.documents.is_empty()
     }
 
     fn pop(&mut self) -> Option<Document> {
-        self.documents.pop()
+        self.data.documents.pop()
     }
 }
+
 #[cfg(test)]
 mod tests {
-    use claim::{assert_err, assert_matches, assert_none, assert_ok, assert_some};
+    use claim::{assert_none, assert_some};
     use ndarray::arr1;
 
-    use crate::{document::Embedding, Id};
+    use crate::{document::Embedding, stack::ops::MockOps, Id};
 
     use super::*;
 
     #[test]
     #[allow(clippy::float_cmp)]
-    fn test_stack_empty() {
-        let stack = Stack::empty();
-
-        assert_eq!(stack.alpha, 1.);
-        assert_eq!(stack.beta, 1.);
-        assert!(stack.documents.is_empty());
-    }
-
-    #[test]
-    #[allow(clippy::float_cmp)]
-    fn test_stack_from_parts() {
-        let stack = Stack::from_parts(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
-        assert_ok!(stack);
-
-        let stack = Stack::from_parts(0.0, 0.5, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
-
-        let stack = Stack::from_parts(0.5, 0.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
-
-        let stack = Stack::from_parts(-0.0, 1.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
-
-        let stack = Stack::from_parts(1.0, -0.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
-
-        let stack = Stack::from_parts(-1.0, 1.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
-
-        let stack = Stack::from_parts(1.0, -1.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
-    }
-
-    #[test]
-    #[allow(clippy::float_cmp)]
     fn test_stack_bucket_pop_empty() {
-        let mut stack = Stack::empty();
+        let mut stack = Stack::new(StackData::empty(), Box::new(MockOps::new()));
 
         assert_none!(stack.pop());
     }
@@ -158,7 +114,8 @@ mod tests {
             domain: String::default(),
             smbert_embedding: Embedding(arr1(&[1., 2., 3.])),
         };
-        let mut stack = Stack::from_parts(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
+        let data = StackData::from_parts(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
+        let mut stack = Stack::new(data, Box::new(MockOps::new()));
 
         assert_some!(stack.pop());
         assert_some!(stack.pop());

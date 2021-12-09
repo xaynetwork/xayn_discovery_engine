@@ -2,7 +2,10 @@ use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{document::Document, stack::Stack};
+use crate::{
+    document::Document,
+    stack::{BoxOps, Stack},
+};
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
@@ -19,6 +22,7 @@ pub struct Engine {
 }
 
 impl Engine {
+    /*
     /// Creates a new [`Engine`] from serialized state.
     pub fn new(state: &[u8]) -> Result<Self, Error> {
         let state = bincode::deserialize(state).map_err(Error::Deserialization)?;
@@ -29,10 +33,10 @@ impl Engine {
     pub fn serialize(&self) -> Result<Vec<u8>, Error> {
         bincode::serialize(&self.state).map_err(Error::Serialization)
     }
+    */
 }
 
 /// Internal state of [`Engine`].
-#[derive(Deserialize, Serialize)]
 pub(crate) struct InternalState {
     /// Stack of news in a news feed.
     pub(crate) news_feed: Stack,
