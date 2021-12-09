@@ -1,3 +1,4 @@
+use derivative::Derivative;
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -14,19 +15,21 @@ pub(crate) enum Error {
 }
 
 /// Common data of a [`Stack`].
-#[derive(Deserialize, Serialize, Debug)]
-pub(crate) struct StackData {
+#[derive(Derivative, Deserialize, Serialize, Debug, Default)]
+pub(crate) struct Data {
     /// The alpha parameter of the beta distribution.
+    #[derivative(Default(value = "1."))]
     pub(super) alpha: f32,
     /// The beta parameter of the beta distribution.
+    #[derivative(Default(value = "1."))]
     pub(super) beta: f32,
-    /// Documents in the [`StackData`].
+    /// Documents in the [`Data`].
     pub(super) documents: Vec<Document>,
 }
 
-impl StackData {
+impl Data {
     #[allow(dead_code)]
-    /// Create a new `StackData`.
+    /// Create a new `Data`.
     pub(crate) fn empty() -> Self {
         Self {
             alpha: 1.,
@@ -36,7 +39,7 @@ impl StackData {
     }
 
     #[allow(dead_code)]
-    /// Create a `StackData`.
+    /// Create a `Data`.
     pub(crate) fn from_parts(
         alpha: f32,
         beta: f32,
@@ -66,7 +69,7 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_stack_empty() {
-        let stack = StackData::empty();
+        let stack = Data::empty();
 
         assert_eq!(stack.alpha, 1.);
         assert_eq!(stack.beta, 1.);
@@ -76,30 +79,30 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_stack_from_parts() {
-        let stack = StackData::from_parts(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
+        let stack = Data::from_parts(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
         assert_ok!(stack);
 
-        let stack = StackData::from_parts(0.0, 0.5, vec![]);
+        let stack = Data::from_parts(0.0, 0.5, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
 
-        let stack = StackData::from_parts(0.5, 0.0, vec![]);
+        let stack = Data::from_parts(0.5, 0.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
 
-        let stack = StackData::from_parts(-0.0, 1.0, vec![]);
+        let stack = Data::from_parts(-0.0, 1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
 
-        let stack = StackData::from_parts(1.0, -0.0, vec![]);
+        let stack = Data::from_parts(1.0, -0.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
 
-        let stack = StackData::from_parts(-1.0, 1.0, vec![]);
+        let stack = Data::from_parts(-1.0, 1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
 
-        let stack = StackData::from_parts(1.0, -1.0, vec![]);
+        let stack = Data::from_parts(1.0, -1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
     }

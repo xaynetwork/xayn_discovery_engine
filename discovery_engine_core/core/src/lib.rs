@@ -14,11 +14,11 @@
 mod document;
 mod engine;
 mod mab;
-mod stack;
+/// Export types to customize the behaviour of a stack.
+pub mod stack;
 mod utils;
 
 pub use crate::{
     document::{Document, Embedding1, Id},
     engine::Engine,
-    stack::Ops as StackOps,
 };

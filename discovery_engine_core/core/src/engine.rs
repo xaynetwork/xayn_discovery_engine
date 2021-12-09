@@ -1,47 +1,65 @@
+use std::collections::HashMap;
+
 use displaydoc::Display;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
     document::Document,
-    stack::{BoxOps, Stack},
+    stack::{BoxStackOps, Data as StackData, Id as StackId, Stack},
 };
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// Failed to serialize internal state of the engine: {0}.
     Serialization(#[source] bincode::Error),
+
     /// Failed to deserialize internal state to create the engine: {0}.
     Deserialization(#[source] bincode::Error),
+
+    /// No operations on stack were provided.
+    NoStackOps,
 }
 
 /// Discovery Engine.
 pub struct Engine {
-    /// Internal state of the engine.
-    state: InternalState,
+    stacks: HashMap<StackId, Stack>,
 }
 
 impl Engine {
-    /*
-    /// Creates a new [`Engine`] from serialized state.
-    pub fn new(state: &[u8]) -> Result<Self, Error> {
-        let state = bincode::deserialize(state).map_err(Error::Deserialization)?;
-        Ok(Engine { state })
+    /// Creates a new `Engine` from serialized state and stack operations.
+    ///
+    /// If in the state has been serialized a [`StackData`] with an id but `stacks_ops` does
+    /// not contains an operation with that id, the [`StackData`] will be dropped.
+    pub fn new(state: &[u8], stacks_ops: Vec<BoxStackOps>) -> Result<Self, Error> {
+        if stacks_ops.is_empty() {
+            return Err(Error::NoStackOps);
+        }
+
+        let mut stacks_data: HashMap<StackId, StackData> =
+            bincode::deserialize(state).map_err(Error::Deserialization)?;
+
+        let stacks = stacks_ops
+            .into_iter()
+            .map(|ops| {
+                let id = ops.id();
+                let data = stacks_data.remove(&id).unwrap_or_default();
+                (id, Stack::new(data, ops))
+            })
+            .collect();
+
+        Ok(Engine { stacks })
     }
 
     /// Serializes [`InternalState`] of the engine.
     pub fn serialize(&self) -> Result<Vec<u8>, Error> {
-        bincode::serialize(&self.state).map_err(Error::Serialization)
-    }
-    */
-}
+        let stacks_data: HashMap<&StackId, &StackData> = self
+            .stacks
+            .iter()
+            .map(|(id, stack)| (id, &stack.data))
+            .collect();
 
-/// Internal state of [`Engine`].
-pub(crate) struct InternalState {
-    /// Stack of news in a news feed.
-    pub(crate) news_feed: Stack,
-    /// Stack of personalized news.
-    pub(crate) personalized_news: Stack,
+        bincode::serialize(&stacks_data).map_err(Error::Serialization)
+    }
 }
 
 /// A a wrapper around a dynamic error type, similar to `anyhow::Error`,

@@ -1,5 +1,6 @@
 use derive_more::From;
 use displaydoc::Display;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -11,9 +12,8 @@ use crate::{
 
 mod data;
 mod ops;
-// mod stacks;
 
-pub(crate) use data::StackData;
+pub(crate) use data::Data;
 pub use ops::Ops;
 
 #[derive(Error, Debug, Display)]
@@ -25,23 +25,23 @@ pub(crate) enum Error {
     Ranking(#[source] GenericError),
 }
 
-pub type BoxOps = Box<dyn Ops + Send + Sync>;
+pub type BoxStackOps = Box<dyn Ops + Send + Sync>;
 
 /// Id of a [`Stack`].
 ///
 /// `Id` is used to connect [`ops::Ops`] with [`data::Data`].
-#[derive(From)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, From)]
 pub struct Id(Uuid);
 
 pub(crate) struct Stack {
-    pub(crate) data: StackData,
-    pub(crate) ops: BoxOps,
+    pub(crate) data: Data,
+    pub(crate) ops: BoxStackOps,
 }
 
 impl Stack {
     /// Create a new `Stack` with the given [`StackData`] and customized [`Ops`].
     #[allow(dead_code)]
-    pub(crate) fn new(data: StackData, ops: BoxOps) -> Self {
+    pub(crate) fn new(data: Data, ops: BoxStackOps) -> Self {
         Self { data, ops }
     }
 
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_stack_bucket_pop_empty() {
-        let mut stack = Stack::new(StackData::empty(), Box::new(MockOps::new()));
+        let mut stack = Stack::new(Data::empty(), Box::new(MockOps::new()));
 
         assert_none!(stack.pop());
     }
@@ -114,7 +114,7 @@ mod tests {
             domain: String::default(),
             smbert_embedding: Embedding(arr1(&[1., 2., 3.])),
         };
-        let data = StackData::from_parts(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
+        let data = Data::from_parts(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
         let mut stack = Stack::new(data, Box::new(MockOps::new()));
 
         assert_some!(stack.pop());
