@@ -6,7 +6,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show documentTypeId, documentFeedbackTypeId, documentStatusTypeId;
+    show documentTypeId, documentFeedbackTypeId;
 
 part 'document.g.dart';
 
@@ -21,24 +21,20 @@ class Document {
   @HiveField(2)
   final DocumentFeedback feedback;
   @HiveField(3)
-  final DocumentStatus _status;
-  @HiveField(4)
   final int personalizedRank;
-  @HiveField(5)
+  @HiveField(4)
   final bool isActive;
 
   bool get isRelevant => feedback == DocumentFeedback.positive;
   bool get isNotRelevant => feedback == DocumentFeedback.negative;
   bool get isNeutral => feedback == DocumentFeedback.neutral;
-  bool get wasOpened => _status == DocumentStatus.opened;
 
   Document({
     required this.webResource,
     required this.personalizedRank,
     this.feedback = DocumentFeedback.neutral,
     this.isActive = true,
-  })  : documentId = DocumentId(),
-        _status = DocumentStatus.missed;
+  }) : documentId = DocumentId();
 
   Document._withId({
     required this.documentId,
@@ -46,7 +42,7 @@ class Document {
     required this.personalizedRank,
     this.feedback = DocumentFeedback.neutral,
     this.isActive = true,
-  }) : _status = DocumentStatus.missed;
+  });
 
   Document setActive() => Document._withId(
         documentId: documentId,
@@ -71,33 +67,6 @@ class Document {
         feedback: newFeedback,
         isActive: isActive,
       );
-}
-
-/// [DocumentStatus] indicates what the document status is in the context of
-/// other documents.
-///   - Every document starts with `missed`, which means the user didn't have
-/// the chance to see it.
-///   - When a document is displayed to the user its status is updated to
-/// `presented`.
-///   - When the user decides to read it, the status is updated to `opened`.
-///   - When the user decides that the document is not relevant, and scrolls
-/// further, the status is updated to `skipped`.
-///   - Sometimes if the user changes the decision a `skipped` document can
-/// become `opened`.
-@HiveType(typeId: documentStatusTypeId)
-enum DocumentStatus {
-  @JsonValue(0)
-  @HiveField(0)
-  skipped,
-  @JsonValue(1)
-  @HiveField(1)
-  presented,
-  @JsonValue(2)
-  @HiveField(2)
-  opened,
-  @JsonValue(3)
-  @HiveField(3)
-  missed,
 }
 
 /// [DocumentFeedback] indicates user's "sentiment" towards the document,
