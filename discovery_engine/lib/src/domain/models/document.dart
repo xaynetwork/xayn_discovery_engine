@@ -19,11 +19,11 @@ class Document {
   @HiveField(1)
   final WebResource webResource;
   @HiveField(2)
-  final DocumentFeedback feedback;
+  DocumentFeedback feedback;
   @HiveField(3)
   final int personalizedRank;
   @HiveField(4)
-  final bool isActive;
+  bool isActive;
 
   bool get isRelevant => feedback == DocumentFeedback.positive;
   bool get isNotRelevant => feedback == DocumentFeedback.negative;
@@ -35,38 +35,6 @@ class Document {
     this.feedback = DocumentFeedback.neutral,
     this.isActive = true,
   }) : documentId = DocumentId();
-
-  Document._withId({
-    required this.documentId,
-    required this.webResource,
-    required this.personalizedRank,
-    this.feedback = DocumentFeedback.neutral,
-    this.isActive = true,
-  });
-
-  Document setActive() => Document._withId(
-        documentId: documentId,
-        webResource: webResource,
-        personalizedRank: personalizedRank,
-        feedback: feedback,
-        isActive: true,
-      );
-
-  Document setInactive() => Document._withId(
-        documentId: documentId,
-        webResource: webResource,
-        personalizedRank: personalizedRank,
-        feedback: feedback,
-        isActive: false,
-      );
-
-  Document setFeedback(DocumentFeedback newFeedback) => Document._withId(
-        documentId: documentId,
-        webResource: webResource,
-        personalizedRank: personalizedRank,
-        feedback: newFeedback,
-        isActive: isActive,
-      );
 }
 
 /// [DocumentFeedback] indicates user's "sentiment" towards the document,

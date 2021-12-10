@@ -42,8 +42,8 @@ class DocumentManager {
   ) async {
     final doc = await _documentRepo.fetchById(id);
     if (doc != null && doc.isActive) {
-      final updatedDoc = doc.setFeedback(feedback);
-      await _documentRepo.update(updatedDoc);
+      doc.feedback = feedback;
+      await _documentRepo.update(doc);
     }
   }
 
@@ -53,8 +53,8 @@ class DocumentManager {
     await _changedRepo.removeMany(ids);
 
     final docs = await _documentRepo.fetchByIds(ids);
-    final inactiveDocs = docs.map((doc) => doc.setInactive());
-    await _documentRepo.updateMany(inactiveDocs);
+    final inactives = docs.map((doc) => doc..isActive = false);
+    await _documentRepo.updateMany(inactives);
   }
 
   /// Add additional viewing time for the given active document.
