@@ -28,9 +28,9 @@ pub(crate) enum Error {
 /// Convenience type that box a [`ops::Ops`] and add [`Send`] and [`Sync`].
 pub type BoxStackOps = Box<dyn Ops + Send + Sync>;
 
-/// Id of a [`Stack`].
+/// Id of a stack.
 ///
-/// `Id` is used to connect [`ops::Ops`] with [`data::Data`].
+/// `Id` is used to connect [`Ops`](ops::Ops) with the corresponding data of a stack.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, From)]
 pub struct Id(Uuid);
 
@@ -40,7 +40,7 @@ pub(crate) struct Stack {
 }
 
 impl Stack {
-    /// Create a new `Stack` with the given [`StackData`] and customized [`Ops`].
+    /// Create a new `Stack` with the given [`Data`] and customized [`Ops`].
     #[allow(dead_code)]
     pub(crate) fn new(data: Data, ops: BoxStackOps) -> Self {
         Self { data, ops }

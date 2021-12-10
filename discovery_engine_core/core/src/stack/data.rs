@@ -14,7 +14,7 @@ pub(crate) enum Error {
     InvalidBeta(f32),
 }
 
-/// Common data of a [`Stack`].
+/// Common data of a [`Stack`](super::Stack).
 #[derive(Derivative, Deserialize, Serialize, Debug)]
 #[derivative(Default)]
 pub(crate) struct Data {

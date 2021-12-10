@@ -11,7 +11,7 @@ use crate::{document::Document, engine::GenericError, stack::Id};
 pub trait Ops {
     /// Get the id for this set of operations.
     ///
-    /// Only one stack with a given id can be added to [`Engine`].
+    /// Only one stack with a given id can be added to [`Engine`](crate::engine::Engine).
     /// This method must always return the same value for a given implementation.
     fn id(&self) -> Id;
 

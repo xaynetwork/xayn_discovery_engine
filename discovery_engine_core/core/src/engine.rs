@@ -50,7 +50,9 @@ impl Engine {
         Ok(Engine { stacks })
     }
 
-    /// Serializes [`InternalState`] of the engine.
+    /// Serializes the state of the `Engine`.
+    ///
+    /// The result can be used with [`Engine::new`] to restore it.
     pub fn serialize(&self) -> Result<Vec<u8>, Error> {
         let stacks_data: HashMap<&StackId, &StackData> = self
             .stacks
