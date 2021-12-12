@@ -1,11 +1,20 @@
-import 'dart:isolate' show SendPort;
-
+import 'dart:isolate' show ReceivePort, SendPort;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/api.dart';
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
-    show OneshotRequestToJsonConverter, kPayloadKey, kSenderKey;
+    show
+        EngineEventToJsonConverter,
+        JsonToEngineEventConverter,
+        JsonToOneshotRequestConverter,
+        OneshotRequestToJsonConverter,
+        kPayloadKey,
+        kSenderKey;
+import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart';
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
-    show ConverterException, Oneshot, OneshotRequest;
+    show Oneshot, OneshotRequest;
+
+import 'matchers.dart';
+import 'mocks.dart';
 
 void main() {
   group('OneshotRequestToJsonConverter', () {
@@ -19,143 +28,145 @@ void main() {
     test(
         'when converting "FeedRequested" event, should contain a "SendPort" '
         'and a proper payload', () {
-      const event = ClientEvent.feedRequested();
-      final request = OneshotRequest(channel.sender, event);
-      final message = converter.convert(request);
+      const event_1 = ClientEvent.feedRequested();
+      final request_1 = OneshotRequest(channel.sender, event_1);
+      final message_1 = converter.convert(request_1);
+      final documentId = DocumentId();
+      final event_2 = ClientEvent.documentFeedbackChanged(
+        documentId,
+        DocumentFeedback.positive,
+      );
+      final request_2 = OneshotRequest(channel.sender, event_2);
+      final message_2 = converter.convert(request_2);
 
-      expect(message[kSenderKey], isA<SendPort>());
-      expect(message[kPayloadKey], equals({'type': 'feedRequested'}));
+      expect(message_1[kSenderKey], isA<SendPort>());
+      expect(message_1[kPayloadKey], equals({'type': 'feedRequested'}));
+      expect(message_2[kSenderKey], isA<SendPort>());
+      expect(
+        message_2[kPayloadKey],
+        equals({
+          'documentId': documentId.toJson(),
+          'feedback': 1,
+          'type': 'documentFeedbackChanged',
+        }),
+      );
     });
 
     test('when converting a "bad" event, should throw "ConverterException"',
         () {
-      const event = BadEvent();
+      const event = BadClientEvent();
       final request = OneshotRequest(channel.sender, event);
 
       expect(() => converter.convert(request), throwsConverterException);
     });
   });
-}
 
-/// A type matcher for [ConverterException].
-final isConverterException = isA<ConverterException>();
+  group('OneshotRequestToJsonConverter', () {
+    final converter = JsonToOneshotRequestConverter();
+    late ReceivePort channel;
 
-/// A matcher for [ConverterException].
-final throwsConverterException = throwsA(isConverterException);
+    setUp(() {
+      channel = ReceivePort();
+    });
 
-///
-///
-///
-///
-///
-class BadEvent implements ClientEvent {
-  const BadEvent();
-  @override
-  TResult map<TResult extends Object?>({
-    required TResult Function(Init value) init,
-    required TResult Function(ResetEngine value) resetEngine,
-    required TResult Function(ConfigurationChanged value) configurationChanged,
-    required TResult Function(FeedRequested value) feedRequested,
-    required TResult Function(NextFeedBatchRequested value)
-        nextFeedBatchRequested,
-    required TResult Function(FeedDocumentsClosed value) feedDocumentsClosed,
-    required TResult Function(DocumentStatusChanged value)
-        documentStatusChanged,
-    required TResult Function(DocumentFeedbackChanged value)
-        documentFeedbackChanged,
-    required TResult Function(DocumentClosed value) documentClosed,
-  }) {
-    throw UnimplementedError();
-  }
+    test('when....TODO', () {
+      final port = channel.sendPort;
+      final documentId = DocumentId();
+      final event_1 = {
+        kSenderKey: port,
+        kPayloadKey: {'type': 'feedRequested'}
+      };
+      final event_2 = {
+        kSenderKey: port,
+        kPayloadKey: {
+          'documentId': documentId.toJson(),
+          'feedback': 1,
+          'type': 'documentFeedbackChanged',
+        }
+      };
 
-  @override
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(Init value)? init,
-    TResult Function(ResetEngine value)? resetEngine,
-    TResult Function(ConfigurationChanged value)? configurationChanged,
-    TResult Function(FeedRequested value)? feedRequested,
-    TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
-    TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
-    TResult Function(DocumentStatusChanged value)? documentStatusChanged,
-    TResult Function(DocumentFeedbackChanged value)? documentFeedbackChanged,
-    TResult Function(DocumentClosed value)? documentClosed,
-  }) {
-    throw UnimplementedError();
-  }
+      final req_1 = converter.convert(event_1);
+      final req_2 = converter.convert(event_2);
 
-  @override
-  TResult maybeMap<TResult extends Object?>({
-    required TResult Function() orElse,
-    TResult Function(Init value)? init,
-    TResult Function(ResetEngine value)? resetEngine,
-    TResult Function(ConfigurationChanged value)? configurationChanged,
-    TResult Function(FeedRequested value)? feedRequested,
-    TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
-    TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
-    TResult Function(DocumentStatusChanged value)? documentStatusChanged,
-    TResult Function(DocumentFeedbackChanged value)? documentFeedbackChanged,
-    TResult Function(DocumentClosed value)? documentClosed,
-  }) {
-    throw UnimplementedError();
-  }
+      expect(req_1.payload, isA<FeedRequested>());
+      expect(req_1.sender, isA<Sender<SendingPort>>());
+      expect(req_1.sender.platformPort, isA<SendPort>());
+      expect(req_1.sender.platformPort, port);
 
-  @override
-  TResult maybeWhen<TResult extends Object?>({
-    required TResult Function() orElse,
-    TResult Function(Configuration configuration)? init,
-    TResult Function()? resetEngine,
-    TResult Function(String? feedMarket, int? maxItemsPerFeedBatch)?
-        configurationChanged,
-    TResult Function()? feedRequested,
-    TResult Function()? nextFeedBatchRequested,
-    TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
-    TResult Function(DocumentId documentId, DocumentStatus status)?
-        documentStatusChanged,
-    TResult Function(DocumentId documentId, DocumentFeedback feedback)?
-        documentFeedbackChanged,
-    TResult Function(DocumentId documentId)? documentClosed,
-  }) {
-    throw UnimplementedError();
-  }
+      expect(req_2.payload, isA<DocumentFeedbackChanged>());
+      expect(req_2.sender, isA<Sender<SendingPort>>());
+      expect(req_2.sender.platformPort, isA<SendPort>());
+      expect(req_2.sender.platformPort, port);
+    });
 
-  @override
-  Map<String, dynamic> toJson() {
-    throw UnimplementedError();
-  }
+    test('when converting a "bad" event, should throw "ConverterException"',
+        () {
+      expect(
+        () => converter.convert({'some': 'bas event'}),
+        throwsConverterException,
+      );
+    });
+  });
 
-  @override
-  TResult when<TResult extends Object?>({
-    required TResult Function(Configuration configuration) init,
-    required TResult Function() resetEngine,
-    required TResult Function(String? feedMarket, int? maxItemsPerFeedBatch)
-        configurationChanged,
-    required TResult Function() feedRequested,
-    required TResult Function() nextFeedBatchRequested,
-    required TResult Function(Set<DocumentId> documentIds) feedDocumentsClosed,
-    required TResult Function(DocumentId documentId, DocumentStatus status)
-        documentStatusChanged,
-    required TResult Function(DocumentId documentId, DocumentFeedback feedback)
-        documentFeedbackChanged,
-    required TResult Function(DocumentId documentId) documentClosed,
-  }) {
-    throw UnimplementedError();
-  }
+  group('EngineEventToJsonConverter', () {
+    final converter = EngineEventToJsonConverter();
 
-  @override
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function(Configuration configuration)? init,
-    TResult Function()? resetEngine,
-    TResult Function(String? feedMarket, int? maxItemsPerFeedBatch)?
-        configurationChanged,
-    TResult Function()? feedRequested,
-    TResult Function()? nextFeedBatchRequested,
-    TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
-    TResult Function(DocumentId documentId, DocumentStatus status)?
-        documentStatusChanged,
-    TResult Function(DocumentId documentId, DocumentFeedback feedback)?
-        documentFeedbackChanged,
-    TResult Function(DocumentId documentId)? documentClosed,
-  }) {
-    throw UnimplementedError();
-  }
+    test('when...TODO', () {
+      const event_1 = EngineEvent.feedRequestSucceeded([]);
+      final message_1 = converter.convert(event_1);
+      const event_2 = EngineEvent.engineExceptionRaised(
+        EngineExceptionReason.noInitReceived,
+      );
+      final message_2 = converter.convert(event_2);
+
+      expect(
+        message_1,
+        equals({'type': 'feedRequestSucceeded', 'items': <Object>[]}),
+      );
+      expect(
+        message_2,
+        equals({'type': 'engineExceptionRaised', 'reason': 1}),
+      );
+    });
+
+    test('when converting a "bad" event, should throw "ConverterException"',
+        () {
+      const event = BadEngineEvent();
+
+      expect(() => converter.convert(event), throwsConverterException);
+    });
+  });
+
+  group('JsonToEngineEventConverter', () {
+    final converter = JsonToEngineEventConverter();
+
+    test('when....TODO', () {
+      final event_1 = {
+        'type': 'feedRequestSucceeded',
+        'items': <Object>[],
+      };
+      final event_2 = {
+        'type': 'clientEventSucceeded',
+      };
+
+      final req_1 = converter.convert(event_1);
+      final req_2 = converter.convert(event_2);
+
+      expect(req_1, isA<FeedRequestSucceeded>());
+      expect((req_1 as FeedRequestSucceeded).items, isEmpty);
+      expect(req_2, isA<ClientEventSucceeded>());
+    });
+
+    test('when converting a "bad" event, should throw "ConverterException"',
+        () {
+      expect(
+        () => converter.convert({'type': 'feedRequested'}),
+        throwsConverterException,
+      );
+      expect(
+        () => converter.convert({'some': 'bas event'}),
+        throwsConverterException,
+      );
+    });
+  });
 }
