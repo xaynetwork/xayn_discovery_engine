@@ -99,7 +99,7 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_stack_bucket_pop_empty() {
-        let mut stack = Stack::new(Data::empty(), Box::new(MockOps::new()));
+        let mut stack = Stack::new(Data::default(), Box::new(MockOps::new()));
 
         assert_none!(stack.pop());
     }

@@ -15,7 +15,8 @@ pub(crate) enum Error {
 }
 
 /// Common data of a [`Stack`].
-#[derive(Derivative, Deserialize, Serialize, Debug, Default)]
+#[derive(Derivative, Deserialize, Serialize, Debug)]
+#[derivative(Default)]
 pub(crate) struct Data {
     /// The alpha parameter of the beta distribution.
     #[derivative(Default(value = "1."))]
@@ -28,16 +29,6 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    #[allow(dead_code)]
-    /// Create a new `Data`.
-    pub(crate) fn empty() -> Self {
-        Self {
-            alpha: 1.,
-            beta: 1.,
-            documents: vec![],
-        }
-    }
-
     #[allow(dead_code)]
     /// Create a `Data`.
     pub(crate) fn from_parts(
@@ -69,7 +60,7 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_stack_empty() {
-        let stack = Data::empty();
+        let stack = Data::default();
 
         assert_eq!(stack.alpha, 1.);
         assert_eq!(stack.beta, 1.);
