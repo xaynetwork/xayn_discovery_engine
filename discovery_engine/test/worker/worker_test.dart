@@ -112,5 +112,3 @@ void main() {
     });
   });
 }
-
-// const kTimeoutDuration = Duration(milliseconds: 5);
