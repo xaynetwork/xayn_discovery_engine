@@ -23,9 +23,9 @@ class DocumentManager {
 
   /// Handle the given document client event.
   ///
-  /// Throws if the event does not have a handler implemented.
-  void handleDocumentClientEvent(DocumentClientEvent evt) {
-    evt.maybeWhen(
+  /// Fails if the event [evt] does not have a handler implemented.
+  Future<void> handleDocumentClientEvent(DocumentClientEvent evt) async {
+    await evt.maybeWhen(
       documentFeedbackChanged: (id, fdbk) => updateDocumentFeedback(id, fdbk),
       documentTimeLogged: (id, mode, sec) =>
           addActiveDocumentTime(id, mode, sec),
@@ -35,16 +35,17 @@ class DocumentManager {
 
   /// Update feedback for the given document.
   ///
-  /// Has no effect if `id` does not identify an active document.
+  /// Fails if [id] does not identify an active document.
   Future<void> updateDocumentFeedback(
     DocumentId id,
     DocumentFeedback feedback,
   ) async {
     final doc = await _documentRepo.fetchById(id);
-    if (doc != null && doc.isActive) {
-      doc.feedback = feedback;
-      await _documentRepo.update(doc);
+    if (doc == null || !doc.isActive) {
+      throw ArgumentError('id $id does not identify an active document');
     }
+    doc.feedback = feedback;
+    await _documentRepo.update(doc);
   }
 
   /// Deactivate the given documents.
@@ -58,15 +59,21 @@ class DocumentManager {
   }
 
   /// Add additional viewing time for the given active document.
+  ///
+  /// Fails if [sec] is negative or [id] does not identify an active document.
   Future<void> addActiveDocumentTime(
     DocumentId id,
     DocumentViewMode mode,
     int sec,
   ) async {
-    final activeData = await _activeRepo.fetchById(id);
-    if (activeData != null) {
-      activeData.addViewTime(mode, Duration(seconds: sec));
-      await _activeRepo.update(id, activeData);
+    if (sec < 0) {
+      throw RangeError.range(sec, 0, null);
     }
+    final activeData = await _activeRepo.fetchById(id);
+    if (activeData == null) {
+      throw ArgumentError('id $id does not identify an active document');
+    }
+    activeData.addViewTime(mode, Duration(seconds: sec));
+    await _activeRepo.update(id, activeData);
   }
 }
