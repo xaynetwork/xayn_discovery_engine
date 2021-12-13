@@ -1,6 +1,16 @@
 import 'dart:isolate' show ReceivePort, SendPort;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/api/api.dart';
+import 'package:xayn_discovery_engine/src/api/api.dart'
+    show
+        ClientEvent,
+        DocumentId,
+        DocumentFeedback,
+        FeedRequested,
+        FeedRequestSucceeded,
+        ClientEventSucceeded,
+        DocumentFeedbackChanged,
+        EngineEvent,
+        EngineExceptionReason;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
     show
         EngineEventToJsonConverter,
@@ -9,12 +19,12 @@ import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
         OneshotRequestToJsonConverter,
         kPayloadKey,
         kSenderKey;
-import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart';
-import 'package:xayn_discovery_engine/src/worker/worker.dart'
-    show Oneshot, OneshotRequest;
 
-import 'matchers.dart';
-import 'mocks.dart';
+import 'package:xayn_discovery_engine/src/worker/worker.dart'
+    show Oneshot, OneshotRequest, Sender, SendingPort;
+
+import 'matchers.dart' show throwsConverterException;
+import 'mocks.dart' show BadClientEvent, BadEngineEvent;
 
 void main() {
   group('OneshotRequestToJsonConverter', () {

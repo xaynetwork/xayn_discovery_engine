@@ -3,7 +3,11 @@ import 'dart:convert' show Converter;
 
 import 'package:meta/meta.dart' show mustCallSuper;
 import 'package:xayn_discovery_engine/src/worker/common/exceptions.dart'
-    show ResponseEmptyException, ResponseTimeoutException, WorkerSpawnException;
+    show
+        ConverterException,
+        ManagerDisposedException,
+        ResponseTimeoutException,
+        WorkerSpawnException;
 import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart'
     show Oneshot, OneshotRequest;
 import 'package:xayn_discovery_engine/src/worker/common/platform_actors.dart'
@@ -138,6 +142,12 @@ abstract class Manager<Request extends Object, Response extends Object> {
   /// The response message from the Worker is deserialized to an appropriate
   /// [Request] and retured to the caller.
   Future<Response> send(Request event, {Duration? timeout}) async {
+    if (_responseController.isClosed) {
+      throw ManagerDisposedException(
+        'Send method can not be used after the Manager was disposed',
+      );
+    }
+
     final channel = Oneshot();
     final request = OneshotRequest(channel.sender, event);
 
@@ -161,18 +171,23 @@ abstract class Manager<Request extends Object, Response extends Object> {
       },
     );
 
-    if (responseMessage == null) {
-      throw ResponseEmptyException(
-        'Worker responded with an empty message to requested event: $event',
+    try {
+      final response = responseConverter.convert(responseMessage);
+
+      // Add a [Response] to the main stream
+      _responseController.add(response);
+
+      return response;
+    } on ConverterException {
+      rethrow;
+    } catch (e) {
+      // we need to catch also some runtime exceptions like "TypeError", etc.
+      throw ConverterException(
+        'Response Converter failed when converting a message from the Worker',
+        payload: responseMessage,
+        source: e,
       );
     }
-
-    final response = responseConverter.convert(responseMessage);
-
-    // Add a [Response] to the main stream
-    _responseController.add(response);
-
-    return response;
   }
 
   /// Performs a cleanup that includes closing responses StreamController,

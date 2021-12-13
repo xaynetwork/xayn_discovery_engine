@@ -28,7 +28,7 @@ class IsolatedReceivingPort extends ReceivingPort {
   void close() => _port.close();
 
   @override
-  Future<Object?> receive() => _port.first;
+  Future<Object> receive() async => (await _port.first) as Object;
 }
 
 OneshotChannel createChannel() {

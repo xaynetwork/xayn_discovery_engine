@@ -7,15 +7,19 @@ typedef _EntryPoint = void Function(SendPort sendPort);
 
 class _IsolatedPlatformManager extends PlatformManager {
   final Isolate _worker;
+  final ReceivePort _mainPort;
+  final ReceivePort _errorPort;
+  final Stream _messages;
+  final Stream _errors;
   final SendPort _workerChannel;
-  final Stream _managerChannel;
-  final Stream _errorChannel;
 
   _IsolatedPlatformManager._(
-    this._managerChannel,
     this._worker,
+    this._mainPort,
+    this._errorPort,
+    this._messages,
+    this._errors,
     this._workerChannel,
-    this._errorChannel,
   );
 
   static Future<PlatformManager> spawn(_EntryPoint entryPoint) async {
@@ -28,30 +32,36 @@ class _IsolatedPlatformManager extends PlatformManager {
       onError: errorPort.sendPort,
     );
 
-    final managerChannel = mainPort.asBroadcastStream();
-    final errorChannel = errorPort.asBroadcastStream();
-    final workerChannel = await managerChannel.first as SendPort;
+    final messages = mainPort.asBroadcastStream();
+    final errors = errorPort.asBroadcastStream();
+    final workerChannel = await messages.first as SendPort;
 
     return _IsolatedPlatformManager._(
-      managerChannel,
       worker,
+      mainPort,
+      errorPort,
+      messages,
+      errors,
       workerChannel,
-      errorChannel,
     );
   }
 
   @override
-  Stream<Object> get errors => _errorChannel.cast<Object>();
+  Stream<Object> get errors => _errors.cast<Object>();
 
   @override
-  Stream<Object> get messages => _managerChannel.cast<Object>();
+  Stream<Object> get messages => _messages.cast<Object>();
 
   @override
   void send(Object message, [List<Object>? transfer]) =>
       _workerChannel.send(message);
 
   @override
-  void dispose() => _worker.kill();
+  void dispose() {
+    _mainPort.close();
+    _errorPort.close();
+    _worker.kill();
+  }
 }
 
 Future<PlatformManager> createPlatformManager(Object? entryPoint) =>

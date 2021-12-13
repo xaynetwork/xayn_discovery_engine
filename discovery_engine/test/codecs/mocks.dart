@@ -1,4 +1,30 @@
-import 'package:xayn_discovery_engine/src/api/api.dart';
+import 'package:xayn_discovery_engine/src/api/api.dart'
+    show
+        ClientEvent,
+        ClientEventSucceeded,
+        Configuration,
+        ConfigurationChanged,
+        DocumentClosed,
+        DocumentFeedbackChanged,
+        DocumentId,
+        DocumentStatusChanged,
+        EngineEvent,
+        EngineExceptionRaised,
+        FeedDocumentsClosed,
+        FeedRequestFailed,
+        FeedRequestSucceeded,
+        FeedRequested,
+        Init,
+        NextFeedBatchAvailable,
+        NextFeedBatchRequestFailed,
+        NextFeedBatchRequestSucceeded,
+        NextFeedBatchRequested,
+        ResetEngine,
+        Document,
+        DocumentStatus,
+        DocumentFeedback,
+        FeedFailureReason,
+        EngineExceptionReason;
 
 class BadClientEvent implements ClientEvent {
   const BadClientEvent();

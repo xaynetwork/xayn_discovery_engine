@@ -3,7 +3,7 @@ export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart'
         EngineInitException,
         WorkerSpawnException,
         ResponseTimeoutException,
-        ResponseEmptyException,
+        ManagerDisposedException,
         ConverterException;
 export 'package:xayn_discovery_engine/src/worker/common/manager.dart'
     show Manager;

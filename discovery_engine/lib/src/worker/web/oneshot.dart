@@ -25,7 +25,8 @@ class WebReceivingPort extends ReceivingPort {
   void close() => _port.close();
 
   @override
-  Future<Object?> receive() async => (await _port.onMessage.first).data;
+  Future<Object> receive() async =>
+      (await _port.onMessage.first).data as Object;
 }
 
 OneshotChannel createChannel() {

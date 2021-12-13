@@ -1,6 +1,10 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
-    show Manager, ConverterException, ResponseTimeoutException;
+    show
+        ConverterException,
+        Manager,
+        ManagerDisposedException,
+        ResponseTimeoutException;
 
 import 'mocks/managers.dart'
     show MockManager, ThrowsOnRequestManager, ThrowsOnResponseManager;
@@ -86,4 +90,27 @@ void main() {
       );
     });
   });
+
+  group('dispose method', () {
+    test(
+        'when disposing a manager it should dispose the worker '
+        'close responses stream and throw a "ManagerDisposedException" '
+        'when trying to use the "send" method', () async {
+      final manager = await MockManager.create(MockWorker.entryPoint);
+      await manager.dispose();
+
+      expect(
+        manager.responses,
+        emitsInOrder(<Object>[
+          emitsDone,
+        ]),
+      );
+      expect(
+        manager.send(''),
+        throwsA(isA<ManagerDisposedException>()),
+      );
+    });
+  });
 }
+
+// const kTimeoutDuration = Duration(milliseconds: 5);

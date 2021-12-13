@@ -48,15 +48,15 @@ class ConverterException implements Exception {
     ''';
 }
 
-/// Thrown when the Response is empty (resolved to `null`).
-class ResponseEmptyException implements Exception {
+/// Thrown when the Manager tries to send something after being disposed.
+class ManagerDisposedException implements Exception {
   /// Message (or string representation of the exception).
   final String message;
 
-  ResponseEmptyException(this.message);
+  ManagerDisposedException(this.message);
 
   @override
-  String toString() => 'ResponseEmptyException: $message';
+  String toString() => 'ManagerDisposedException: $message';
 }
 
 /// Thrown when the Response takes too long to finish.
