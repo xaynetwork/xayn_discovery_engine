@@ -1,12 +1,18 @@
-import 'dart:isolate';
+import 'dart:isolate' show ReceivePort;
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/api/api.dart';
-import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart';
-import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
+import 'package:xayn_discovery_engine/src/api/api.dart'
+    show
+        EngineExceptionRaised,
+        FeedRequestSucceeded,
+        EngineExceptionReason,
+        ClientEvent;
+import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
+    show JsonToEngineEventConverter, kSenderKey, kPayloadKey;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     as entry_point show main, DiscoveryEngineWorker;
-import 'package:xayn_discovery_engine/src/worker/worker.dart';
+import 'package:xayn_discovery_engine/src/worker/worker.dart'
+    show Manager, PlatformManager, OneshotRequest;
 
 void main() {
   group('DiscoveryEngineWorker', () {
