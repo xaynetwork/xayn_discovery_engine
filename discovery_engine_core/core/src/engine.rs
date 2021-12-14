@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::{
     document::Document,
-    stack::{BoxStackOps, Data as StackData, Id as StackId, Stack},
+    stack::{BoxedOps, Data as StackData, Id as StackId, Stack},
 };
 
 #[derive(Error, Debug, Display)]
@@ -30,7 +30,7 @@ impl Engine {
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxStackOps`].
     /// Data related to missing operations will be dropped.
-    pub fn new(state: &[u8], stacks_ops: Vec<BoxStackOps>) -> Result<Self, Error> {
+    pub fn new(state: &[u8], stacks_ops: Vec<BoxedOps>) -> Result<Self, Error> {
         if stacks_ops.is_empty() {
             return Err(Error::NoStackOps);
         }
