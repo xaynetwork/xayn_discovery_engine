@@ -204,7 +204,7 @@ class BadEngineEvent implements EngineEvent {
   }
 
   @override
-  Map<String, dynamic> toJson() {
+  Map<String, Object> toJson() {
     throw UnimplementedError();
   }
 

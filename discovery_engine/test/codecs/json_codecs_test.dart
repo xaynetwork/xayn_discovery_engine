@@ -108,7 +108,10 @@ void main() {
 
       expect(req_2.payload, isA<DocumentFeedbackChanged>());
       expect((req_2.payload as DocumentFeedbackChanged).documentId, documentId);
-      expect((req_2.payload as DocumentFeedbackChanged).feedback, 1);
+      expect(
+        (req_2.payload as DocumentFeedbackChanged).feedback,
+        DocumentFeedback.positive,
+      );
       expect(req_2.sender, isA<Sender<SendingPort>>());
       expect(req_2.sender.platformPort, isA<SendPort>());
       expect(req_2.sender.platformPort, port);
