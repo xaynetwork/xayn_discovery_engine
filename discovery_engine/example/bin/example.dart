@@ -54,7 +54,7 @@ Future<void> main() async {
   // you can also use `async await` style for request/response
   final requestFeedResponse = await engine.requestFeed();
 
-  requestFeedResponse.maybeWhen(
+  requestFeedResponse.whenOrNull(
     feedRequestSucceeded: (items) {
       print(
         '\n[FeedRequestSucceeded]:\nupdate app state with Documents: $items',
@@ -65,9 +65,6 @@ Future<void> main() async {
     },
     engineExceptionRaised: (reason) {
       print('\nthere was an engine failure caused by $reason');
-    },
-    orElse: () {
-      // this should never be called
     },
   );
 
