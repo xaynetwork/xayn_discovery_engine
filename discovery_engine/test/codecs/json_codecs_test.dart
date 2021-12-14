@@ -79,7 +79,10 @@ void main() {
       channel = ReceivePort();
     });
 
-    test('when....TODO', () {
+    test(
+        'when converting correctly structured requests it should convert them'
+        'to proper "OneshotRequest" types with a "Sender" and "ClientEvent"',
+        () {
       final port = channel.sendPort;
       final documentId = DocumentId();
       final event_1 = {
@@ -104,6 +107,8 @@ void main() {
       expect(req_1.sender.platformPort, port);
 
       expect(req_2.payload, isA<DocumentFeedbackChanged>());
+      expect((req_2.payload as DocumentFeedbackChanged).documentId, documentId);
+      expect((req_2.payload as DocumentFeedbackChanged).feedback, 1);
       expect(req_2.sender, isA<Sender<SendingPort>>());
       expect(req_2.sender.platformPort, isA<SendPort>());
       expect(req_2.sender.platformPort, port);
@@ -121,7 +126,9 @@ void main() {
   group('EngineEventToJsonConverter', () {
     final converter = EngineEventToJsonConverter();
 
-    test('when...TODO', () {
+    test(
+        'when converting "EngineEvent" types it should convert them'
+        'to correctly structured JSON Maps', () {
       const event_1 = EngineEvent.feedRequestSucceeded([]);
       final message_1 = converter.convert(event_1);
       const event_2 = EngineEvent.engineExceptionRaised(
@@ -150,7 +157,9 @@ void main() {
   group('JsonToEngineEventConverter', () {
     final converter = JsonToEngineEventConverter();
 
-    test('when....TODO', () {
+    test(
+        'when converting correctly structured JSON Maps with events it should '
+        'convert them to proper "EngineEvent" types', () {
       final event_1 = {
         'type': 'feedRequestSucceeded',
         'items': <Object>[],
