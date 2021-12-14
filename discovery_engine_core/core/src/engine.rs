@@ -49,7 +49,8 @@ impl Engine {
 
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
-            .collect::<Result<_, _>>().map_err(Error::InvalidStack)?;
+            .collect::<Result<_, _>>()
+            .map_err(Error::InvalidStack)?;
 
         Ok(Engine { stacks })
     }
