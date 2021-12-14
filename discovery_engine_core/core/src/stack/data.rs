@@ -31,11 +31,7 @@ pub(crate) struct Data {
 impl Data {
     #[allow(dead_code)]
     /// Create a `Data`.
-    pub(crate) fn new(
-        alpha: f32,
-        beta: f32,
-        documents: Vec<Document>,
-    ) -> Result<Self, Error> {
+    pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
         if alpha <= 0.0 {
             return Err(Error::InvalidAlpha(alpha));
         }
