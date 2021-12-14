@@ -82,12 +82,12 @@ Future<void> main() async {
   await Future<void>.delayed(const Duration(milliseconds: 10));
 
   // clean up
-  await subscription.cancel();
   print('\ndisposing Discovery Engine...');
+  await subscription.cancel();
   await engine.dispose();
   print('Engine disposed.');
 
-  // after disposing the engine you can't no longer send events
+  // after disposing the engine you can't send events any longer
   final resp = await engine.send(const ResetEngine());
   print('\n${(resp as EngineExceptionRaised).reason}');
 }
