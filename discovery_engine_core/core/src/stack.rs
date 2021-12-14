@@ -25,7 +25,7 @@ pub(crate) enum Error {
     Ranking(#[source] GenericError),
 }
 
-/// Convenience type that box a [`ops::Ops`] and add [`Send`] and [`Sync`].
+/// Convenience type that boxes an [`ops::Ops`] and adds [`Send`] and [`Sync`].
 pub type BoxStackOps = Box<dyn Ops + Send + Sync>;
 
 /// Id of a stack.
