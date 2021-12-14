@@ -64,7 +64,7 @@ impl Engine {
     }
 }
 
-/// A a wrapper around a dynamic error type, similar to `anyhow::Error`,
+/// A wrapper around a dynamic error type, similar to `anyhow::Error`,
 /// but without the need to declare `anyhow` as a dependency.
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
