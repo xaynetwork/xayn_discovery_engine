@@ -28,8 +28,8 @@ pub struct Engine {
 impl Engine {
     /// Creates a new `Engine` from serialized state and stack operations.
     ///
-    /// The `Engine` only keep in its state data related to the current [`BoxStackOps`],
-    /// data related to missing operations will be dropped.
+    /// The `Engine` only keeps in its state data related to the current [`BoxStackOps`].
+    /// Data related to missing operations will be dropped.
     pub fn new(state: &[u8], stacks_ops: Vec<BoxStackOps>) -> Result<Self, Error> {
         if stacks_ops.is_empty() {
             return Err(Error::NoStackOps);
