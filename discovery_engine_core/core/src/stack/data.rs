@@ -24,7 +24,7 @@ pub(crate) struct Data {
     /// The beta parameter of the beta distribution.
     #[derivative(Default(value = "1."))]
     pub(super) beta: f32,
-    /// Documents in the [`Stack`].
+    /// Documents in the [`Stack`](super::Stack).
     pub(super) documents: Vec<Document>,
 }
 
