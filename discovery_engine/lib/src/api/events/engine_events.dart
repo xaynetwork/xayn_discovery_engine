@@ -37,6 +37,8 @@ enum EngineExceptionReason {
   converterException,
   @JsonValue(5)
   responseTimeout,
+  @JsonValue(6)
+  engineDisposed,
   // other possible errors will be added below
 }
 

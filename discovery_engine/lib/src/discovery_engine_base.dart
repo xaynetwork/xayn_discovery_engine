@@ -23,7 +23,11 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
-    show ConverterException, EngineInitException, ResponseTimeoutException;
+    show
+        EngineInitException,
+        ConverterException,
+        ManagerDisposedException,
+        ResponseTimeoutException;
 
 /// A constant that is true if the application was compiled to run on the web.
 final kIsWeb = UniversalPlatform.isWeb;
@@ -259,6 +263,14 @@ class DiscoveryEngine {
     });
   }
 
+  /// Send an [ClientEvent] to the [DiscoveryEngine] and wait for a response.
+  Future<EngineEvent> send(ClientEvent event) =>
+      _trySend(() => _manager.send(event));
+
+  /// Performs a cleanup that includes closing all communication channels
+  /// and disposing the underlying PlatformWorker.
+  Future<void> dispose() => _manager.dispose();
+
   Future<EngineEvent> _trySend(Future<EngineEvent> Function() fn) async {
     try {
       // we need to await the result otherwise catch won't work
@@ -270,6 +282,8 @@ class DiscoveryEngine {
         reason = EngineExceptionReason.converterException;
       } else if (e is ResponseTimeoutException) {
         reason = EngineExceptionReason.responseTimeout;
+      } else if (e is ManagerDisposedException) {
+        reason = EngineExceptionReason.engineDisposed;
       }
 
       // log the error
