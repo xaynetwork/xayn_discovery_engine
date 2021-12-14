@@ -1,3 +1,5 @@
+//! Export types to customize the behaviour of a stack.
+
 use derive_more::From;
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
@@ -56,12 +58,12 @@ impl Stack {
     #[allow(dead_code)]
     pub(crate) fn update<R: Ranker>(
         mut self,
-        new_feed_items: &[Document],
+        new_documents: &[Document],
         ranker: &R,
     ) -> Result<Self, Error> {
         let mut items = self
             .ops
-            .merge(&self.data.documents, new_feed_items)
+            .merge(&self.data.documents, new_documents)
             .map_err(Error::Merge)?;
         ranker.rank(&mut items).map_err(Error::Ranking)?;
         self.data.documents = items;
@@ -115,7 +117,7 @@ mod tests {
             domain: String::default(),
             smbert_embedding: Embedding(arr1(&[1., 2., 3.])),
         };
-        let data = Data::from_parts(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
+        let data = Data::new(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
         let mut stack = Stack::new(data, Box::new(MockOps::new()));
 
         assert_some!(stack.pop());

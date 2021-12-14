@@ -3,7 +3,7 @@ use mockall::automock;
 
 use crate::{document::Document, engine::GenericError, stack::Id};
 
-/// Operations to customize the behaviour of a `[Stack]`.
+/// Operations to customize the behaviour of a [`Stack`].
 ///
 /// Each stack can get and select new items using different sources
 /// or different strategies.
@@ -15,7 +15,7 @@ pub trait Ops {
     /// This method must always return the same value for a given implementation.
     fn id(&self) -> Id;
 
-    /// Returns new items that could be added to the `[Stack]`.
+    /// Returns new items that could be added to the [`Stack`].
     ///
     /// Personalized key phrases can be optionally used to return items
     /// tailored to the user's interests.

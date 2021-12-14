@@ -31,7 +31,7 @@ pub(crate) struct Data {
 impl Data {
     #[allow(dead_code)]
     /// Create a `Data`.
-    pub(crate) fn from_parts(
+    pub(crate) fn new(
         alpha: f32,
         beta: f32,
         documents: Vec<Document>,
@@ -70,30 +70,30 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_stack_from_parts() {
-        let stack = Data::from_parts(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
+        let stack = Data::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
         assert_ok!(stack);
 
-        let stack = Data::from_parts(0.0, 0.5, vec![]);
+        let stack = Data::new(0.0, 0.5, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
 
-        let stack = Data::from_parts(0.5, 0.0, vec![]);
+        let stack = Data::new(0.5, 0.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
 
-        let stack = Data::from_parts(-0.0, 1.0, vec![]);
+        let stack = Data::new(-0.0, 1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
 
-        let stack = Data::from_parts(1.0, -0.0, vec![]);
+        let stack = Data::new(1.0, -0.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
 
-        let stack = Data::from_parts(-1.0, 1.0, vec![]);
+        let stack = Data::new(-1.0, 1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
 
-        let stack = Data::from_parts(1.0, -1.0, vec![]);
+        let stack = Data::new(1.0, -1.0, vec![]);
         assert_err!(&stack);
         assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
     }
