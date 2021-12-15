@@ -20,7 +20,7 @@ Future<void> main() async {
   final repo = HiveActiveDocumentDataRepository();
 
   group('ActiveDocumentDataRepository', () {
-    final data = ActiveDocumentData(smbertEmbedding: Uint8List(0));
+    final data = ActiveDocumentData(Uint8List(0));
     final id1 = DocumentId();
 
     tearDown(() async {
@@ -51,7 +51,7 @@ Future<void> main() async {
 
       test('smbert embedding of updated existing', () async {
         final embUpdated = Uint8List(1);
-        await repo.update(id1, ActiveDocumentData(smbertEmbedding: embUpdated));
+        await repo.update(id1, ActiveDocumentData(embUpdated));
         expect(box, hasLength(1));
         expect(await repo.smbertEmbeddingById(id1), embUpdated);
       });

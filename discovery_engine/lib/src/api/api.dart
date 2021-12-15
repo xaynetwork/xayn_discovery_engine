@@ -10,8 +10,7 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         NextFeedBatchRequested,
         FeedDocumentsClosed,
         DocumentClientEvent,
-        DocumentClosed,
-        DocumentStatusChanged,
+        DocumentTimeLogged,
         DocumentFeedbackChanged;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
@@ -32,7 +31,7 @@ export 'package:xayn_discovery_engine/src/api/models/document.dart'
 export 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 export 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback, DocumentStatus;
+    show DocumentFeedback;
 export 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, SearchId;
 export 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'

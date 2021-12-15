@@ -25,4 +25,9 @@ class HiveChangedDocumentRepository implements ChangedDocumentRepository {
   Future<void> removeAll() async {
     await box.clear();
   }
+
+  @override
+  Future<void> removeMany(Iterable<DocumentId> ids) async {
+    await box.deleteAll(ids);
+  }
 }

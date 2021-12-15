@@ -6,7 +6,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show documentTypeId, documentFeedbackTypeId, documentStatusTypeId;
+    show documentTypeId, documentFeedbackTypeId;
 
 part 'document.g.dart';
 
@@ -19,75 +19,22 @@ class Document {
   @HiveField(1)
   final WebResource webResource;
   @HiveField(2)
-  final DocumentFeedback _feedback;
+  DocumentFeedback feedback;
   @HiveField(3)
-  final DocumentStatus _status;
-  @HiveField(4)
   final int personalizedRank;
-  @HiveField(5)
-  final bool isActive;
+  @HiveField(4)
+  bool isActive;
 
-  bool get isRelevant => _feedback == DocumentFeedback.positive;
-  bool get isNotRelevant => _feedback == DocumentFeedback.negative;
-  bool get isNeutral => _feedback == DocumentFeedback.neutral;
-  bool get wasOpened => _status == DocumentStatus.opened;
+  bool get isRelevant => feedback == DocumentFeedback.positive;
+  bool get isNotRelevant => feedback == DocumentFeedback.negative;
+  bool get isNeutral => feedback == DocumentFeedback.neutral;
 
   Document({
     required this.webResource,
     required this.personalizedRank,
+    this.feedback = DocumentFeedback.neutral,
     this.isActive = true,
-  })  : documentId = DocumentId(),
-        _feedback = DocumentFeedback.neutral,
-        _status = DocumentStatus.missed;
-
-  Document._withId({
-    required this.documentId,
-    required this.webResource,
-    required this.personalizedRank,
-    this.isActive = true,
-  })  : _feedback = DocumentFeedback.neutral,
-        _status = DocumentStatus.missed;
-
-  Document setActive() => Document._withId(
-        documentId: documentId,
-        webResource: webResource,
-        personalizedRank: personalizedRank,
-        isActive: true,
-      );
-
-  Document setInactive() => Document._withId(
-        documentId: documentId,
-        webResource: webResource,
-        personalizedRank: personalizedRank,
-        isActive: false,
-      );
-}
-
-/// [DocumentStatus] indicates what the document status is in the context of
-/// other documents.
-///   - Every document starts with `missed`, which means the user didn't have
-/// the chance to see it.
-///   - When a document is displayed to the user its status is updated to
-/// `presented`.
-///   - When the user decides to read it, the status is updated to `opened`.
-///   - When the user decides that the document is not relevant, and scrolls
-/// further, the status is updated to `skipped`.
-///   - Sometimes if the user changes the decision a `skipped` document can
-/// become `opened`.
-@HiveType(typeId: documentStatusTypeId)
-enum DocumentStatus {
-  @JsonValue(0)
-  @HiveField(0)
-  skipped,
-  @JsonValue(1)
-  @HiveField(1)
-  presented,
-  @JsonValue(2)
-  @HiveField(2)
-  opened,
-  @JsonValue(3)
-  @HiveField(3)
-  missed,
+  }) : documentId = DocumentId();
 }
 
 /// [DocumentFeedback] indicates user's "sentiment" towards the document,
