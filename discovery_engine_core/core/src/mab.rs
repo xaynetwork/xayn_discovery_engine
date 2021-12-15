@@ -145,6 +145,14 @@ where
 mod tests {
     use super::*;
 
+    struct MockBetaSampler;
+
+    impl BetaSample for MockBetaSampler {
+        fn sample(&self, alpha: f32, beta: f32) -> Result<f32, Error> {
+            Ok(alpha - beta)
+        }
+    }
+
     struct Stack {
         alpha: f32,
         beta: f32,
@@ -193,7 +201,8 @@ mod tests {
         };
 
         let stacks = vec![&mut stack_0, &mut stack_1, &mut stack_2, &mut stack_3];
-        let mab = Selection::new(BetaSampler);
+
+        let mab = Selection::new(MockBetaSampler);
 
         let docs = mab.select(stacks, 10).unwrap();
         assert_eq!(docs[0], 3);
