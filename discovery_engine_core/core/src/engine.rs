@@ -28,7 +28,7 @@ pub struct Engine {
 impl Engine {
     /// Creates a new `Engine` from serialized state and stack operations.
     ///
-    /// The `Engine` only keeps in its state data related to the current [`BoxStackOps`].
+    /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
     pub fn new(state: &[u8], stacks_ops: Vec<BoxedOps>) -> Result<Self, Error> {
         if stacks_ops.is_empty() {
