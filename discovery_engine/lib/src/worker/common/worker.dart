@@ -1,4 +1,4 @@
-import 'dart:async' show FutureOr, StreamSubscription;
+import 'dart:async' show StreamSubscription;
 import 'dart:convert' show Converter;
 
 import 'package:meta/meta.dart' show mustCallSuper;

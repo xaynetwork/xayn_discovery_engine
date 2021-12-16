@@ -11,12 +11,11 @@ class DiscoveryEngineManager extends Manager<ClientEvent, EngineEvent> {
   final _requestConverter = OneshotRequestToJsonConverter();
   final _responseConverter = JsonToEngineEventConverter();
 
-  DiscoveryEngineManager.fromPlatformManager(PlatformManager manager)
-      : super(manager);
+  DiscoveryEngineManager._(PlatformManager manager) : super(manager);
 
   static Future<DiscoveryEngineManager> create(Object? entryPoint) async {
     final platformManager = await Manager.spawnWorker(entryPoint);
-    return DiscoveryEngineManager.fromPlatformManager(platformManager);
+    return DiscoveryEngineManager._(platformManager);
   }
 
   @override
