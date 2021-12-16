@@ -47,7 +47,7 @@ void main() {
     });
 
     test(
-        'if worker responds with something else than allowed events it should '
+        'if worker responds with something other than allowed events it should '
         'catch it and respond with "EngineExceptionRaised" event '
         'with "wrongEventInResponse" reason', () async {
       final engine = await createEngineWithEntryPoint(withWrongEventResponse);

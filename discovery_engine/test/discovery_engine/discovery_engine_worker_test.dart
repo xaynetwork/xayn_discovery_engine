@@ -46,13 +46,18 @@ void main() {
 
     test(
         'when sending a bad massage it should respond with '
-        '"EngineExceptionRaised" event with "genericError" reason', () async {
+        '"EngineExceptionRaised" event with "converterException" reason',
+        () async {
       manager.send('');
 
       final responseMsg = await manager.messages.first;
       final response = responseConverter.convert(responseMsg);
 
       expect(response, isA<EngineExceptionRaised>());
+      expect(
+        (response as EngineExceptionRaised).reason,
+        EngineExceptionReason.converterException,
+      );
     });
 
     test(
@@ -76,11 +81,12 @@ void main() {
     test(
         'when sending a message with a Sender but with bad payload it should '
         'respond with "EngineExceptionRaised" event with "converterException" '
-        'reason but sended over using a Sender channel', () async {
+        'reason but sent over using a Sender channel', () async {
       final channel = ReceivePort();
 
       manager.send({
         kSenderKey: channel.sendPort,
+        kPayloadKey: {'bad': 'payload'}
       });
 
       final responseMsg = await channel.first as Object;

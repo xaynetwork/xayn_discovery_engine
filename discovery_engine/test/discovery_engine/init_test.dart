@@ -24,7 +24,7 @@ void main() {
       expect(engine, isA<DiscoveryEngine>());
     });
 
-    test('when passing a bad entrypoint it should throw "EngineInitException"',
+    test('when passing a bad entry point it should throw "EngineInitException"',
         () {
       void wrongTypeSignature() {}
       void nonStaticOrTopLevelFunction(SendPort sendPort) {}
@@ -40,7 +40,7 @@ void main() {
     });
 
     test(
-        'if the response to the "Init" event is different then '
+        'if the response to the "Init" event is different to '
         '"ClientEventSucceeded" it should throw "EngineInitException"', () {
       expect(
         createEngineWithEntryPoint(withWrongEventResponse),

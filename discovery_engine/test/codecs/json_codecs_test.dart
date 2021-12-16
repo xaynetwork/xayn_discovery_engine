@@ -42,6 +42,7 @@ void main() {
       final message_1 = converter.convert(request_1) as Map;
 
       expect(message_1[kSenderKey], isA<SendPort>());
+      expect(message_1[kPayloadKey], equals({'type': 'feedRequested'}));
 
       final documentId = DocumentId();
       final event_2 = ClientEvent.documentFeedbackChanged(
@@ -51,7 +52,6 @@ void main() {
       final request_2 = OneshotRequest(channel.sender, event_2);
       final message_2 = converter.convert(request_2) as Map;
 
-      expect(message_1[kPayloadKey], equals({'type': 'feedRequested'}));
       expect(message_2[kSenderKey], isA<SendPort>());
       expect(
         message_2[kPayloadKey],
@@ -72,7 +72,7 @@ void main() {
     });
   });
 
-  group('OneshotRequestToJsonConverter', () {
+  group('JsonToOneshotRequestConverter', () {
     final converter = JsonToOneshotRequestConverter();
     late ReceivePort channel;
 
@@ -121,7 +121,7 @@ void main() {
     test('when converting a "bad" event, should throw "ConverterException"',
         () {
       expect(
-        () => converter.convert({'some': 'bas event'}),
+        () => converter.convert({'some': 'bad event'}),
         throwsConverterException,
       );
     });
@@ -190,7 +190,7 @@ void main() {
         throwsConverterException,
       );
       expect(
-        () => converter.convert({'some': 'bas event'}),
+        () => converter.convert({'some': 'bad event'}),
         throwsConverterException,
       );
     });
