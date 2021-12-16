@@ -93,7 +93,7 @@ void main() {
 
   group('dispose method', () {
     test(
-        'when disposing a manager it should dispose the worker '
+        'when disposing a manager it should dispose the worker, '
         'close responses stream and throw a "ManagerDisposedException" '
         'when trying to use the "send" method', () async {
       final manager = await MockManager.create(MockWorker.entryPoint);

@@ -9,7 +9,10 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         EngineInitException;
 
 import 'utils/utils.dart'
-    show MockDiscoveryEngineWorker, createEngineWithEntryPoint;
+    show
+        MockDiscoveryEngineWorker,
+        createEngineWithEntryPoint,
+        withSuccessResponse;
 
 void main() {
   group('DiscoveryEngine init', () {
@@ -46,9 +49,6 @@ void main() {
     });
   });
 }
-
-void withSuccessResponse(Object initialMessage) =>
-    MockDiscoveryEngineWorker(initialMessage);
 
 void withWrongEventResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,

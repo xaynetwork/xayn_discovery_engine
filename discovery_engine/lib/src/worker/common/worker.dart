@@ -79,7 +79,7 @@ abstract class Worker<Request extends Object, Response extends Object> {
   }
 
   /// Handles events from [PlatformWorker] messages stream.
-  FutureOr<void> onMessage(OneshotRequest<Request> request);
+  Future<void> onMessage(OneshotRequest<Request> request);
 
   /// Called with the error object upon any errors from [PlatformWorker]
   /// messages stream.

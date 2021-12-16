@@ -7,7 +7,10 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         EngineExceptionReason;
 
 import 'utils/utils.dart'
-    show MockDiscoveryEngineWorker, createEngineWithEntryPoint;
+    show
+        MockDiscoveryEngineWorker,
+        createEngineWithEntryPoint,
+        withSuccessResponse;
 
 void main() {
   group('DiscoveryEngine resetEngine', () {
@@ -48,9 +51,6 @@ void main() {
     });
   });
 }
-
-void withSuccessResponse(Object initialMessage) =>
-    MockDiscoveryEngineWorker(initialMessage);
 
 void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,

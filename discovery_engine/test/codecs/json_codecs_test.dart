@@ -19,7 +19,6 @@ import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
         OneshotRequestToJsonConverter,
         kPayloadKey,
         kSenderKey;
-
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show Oneshot, OneshotRequest, Sender, SendingPort;
 
@@ -41,6 +40,9 @@ void main() {
       const event_1 = ClientEvent.feedRequested();
       final request_1 = OneshotRequest(channel.sender, event_1);
       final message_1 = converter.convert(request_1);
+
+      expect(message_1[kSenderKey], isA<SendPort>());
+
       final documentId = DocumentId();
       final event_2 = ClientEvent.documentFeedbackChanged(
         documentId,
@@ -49,7 +51,6 @@ void main() {
       final request_2 = OneshotRequest(channel.sender, event_2);
       final message_2 = converter.convert(request_2);
 
-      expect(message_1[kSenderKey], isA<SendPort>());
       expect(message_1[kPayloadKey], equals({'type': 'feedRequested'}));
       expect(message_2[kSenderKey], isA<SendPort>());
       expect(
@@ -89,6 +90,13 @@ void main() {
         kSenderKey: port,
         kPayloadKey: {'type': 'feedRequested'}
       };
+      final req_1 = converter.convert(event_1);
+
+      expect(req_1.payload, isA<FeedRequested>());
+      expect(req_1.sender, isA<Sender<SendingPort>>());
+      expect(req_1.sender.platformPort, isA<SendPort>());
+      expect(req_1.sender.platformPort, port);
+
       final event_2 = {
         kSenderKey: port,
         kPayloadKey: {
@@ -98,20 +106,13 @@ void main() {
         }
       };
 
-      final req_1 = converter.convert(event_1);
       final req_2 = converter.convert(event_2);
-
-      expect(req_1.payload, isA<FeedRequested>());
-      expect(req_1.sender, isA<Sender<SendingPort>>());
-      expect(req_1.sender.platformPort, isA<SendPort>());
-      expect(req_1.sender.platformPort, port);
+      // ignore: non_constant_identifier_names
+      final req_2_payload = req_2.payload as DocumentFeedbackChanged;
 
       expect(req_2.payload, isA<DocumentFeedbackChanged>());
-      expect((req_2.payload as DocumentFeedbackChanged).documentId, documentId);
-      expect(
-        (req_2.payload as DocumentFeedbackChanged).feedback,
-        DocumentFeedback.positive,
-      );
+      expect(req_2_payload.documentId, documentId);
+      expect(req_2_payload.feedback, DocumentFeedback.positive);
       expect(req_2.sender, isA<Sender<SendingPort>>());
       expect(req_2.sender.platformPort, isA<SendPort>());
       expect(req_2.sender.platformPort, port);
@@ -134,15 +135,17 @@ void main() {
         'to correctly structured JSON Maps', () {
       const event_1 = EngineEvent.feedRequestSucceeded([]);
       final message_1 = converter.convert(event_1);
-      const event_2 = EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.noInitReceived,
-      );
-      final message_2 = converter.convert(event_2);
 
       expect(
         message_1,
         equals({'type': 'feedRequestSucceeded', 'items': <Object>[]}),
       );
+
+      const event_2 = EngineEvent.engineExceptionRaised(
+        EngineExceptionReason.noInitReceived,
+      );
+      final message_2 = converter.convert(event_2);
+
       expect(
         message_2,
         equals({'type': 'engineExceptionRaised', 'reason': 1}),
@@ -167,15 +170,16 @@ void main() {
         'type': 'feedRequestSucceeded',
         'items': <Object>[],
       };
+      final req_1 = converter.convert(event_1) as FeedRequestSucceeded;
+
+      expect(req_1, isA<FeedRequestSucceeded>());
+      expect(req_1.items, isEmpty);
+
       final event_2 = {
         'type': 'clientEventSucceeded',
       };
-
-      final req_1 = converter.convert(event_1);
       final req_2 = converter.convert(event_2);
 
-      expect(req_1, isA<FeedRequestSucceeded>());
-      expect((req_1 as FeedRequestSucceeded).items, isEmpty);
       expect(req_2, isA<ClientEventSucceeded>());
     });
 

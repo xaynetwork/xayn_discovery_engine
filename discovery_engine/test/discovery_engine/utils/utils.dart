@@ -60,6 +60,9 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
 Future<DiscoveryEngine> createEngineWithEntryPoint(Object entryPoint) =>
     DiscoveryEngine.init(configuration: mockConfig, entryPoint: entryPoint);
 
+void withSuccessResponse(Object initialMessage) =>
+    MockDiscoveryEngineWorker(initialMessage);
+
 const mockConfig = Configuration(
   apiKey: '**********',
   apiBaseUrl: 'https://example-api.dev',
