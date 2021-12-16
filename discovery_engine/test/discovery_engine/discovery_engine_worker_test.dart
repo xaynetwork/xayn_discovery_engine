@@ -38,7 +38,7 @@ void main() {
         kPayloadKey: {'type': 'feedRequested'}
       });
 
-      final responseMsg = await channel.first as Map<String, Object>;
+      final responseMsg = await channel.first as Object;
       final response = responseConverter.convert(responseMsg);
 
       expect(response, isA<FeedRequestSucceeded>());
@@ -49,7 +49,7 @@ void main() {
         '"EngineExceptionRaised" event with "genericError" reason', () async {
       manager.send('');
 
-      final responseMsg = await manager.messages.first as Map<String, Object>;
+      final responseMsg = await manager.messages.first;
       final response = responseConverter.convert(responseMsg);
 
       expect(response, isA<EngineExceptionRaised>());
@@ -63,7 +63,7 @@ void main() {
         kPayloadKey: {'type': 'feedRequested'}
       });
 
-      final responseMsg = await manager.messages.first as Map<String, Object>;
+      final responseMsg = await manager.messages.first;
       final response = responseConverter.convert(responseMsg);
 
       expect(response, isA<EngineExceptionRaised>());
@@ -83,7 +83,7 @@ void main() {
         kSenderKey: channel.sendPort,
       });
 
-      final responseMsg = await channel.first as Map<String, Object>;
+      final responseMsg = await channel.first as Object;
       final response = responseConverter.convert(responseMsg);
 
       expect(response, isA<EngineExceptionRaised>());
@@ -108,7 +108,7 @@ void main() {
         kPayloadKey: {'type': 'feedRequested'}
       });
 
-      final responseMsg = await channel.first as Map<String, Object>;
+      final responseMsg = await channel.first as Object;
       final response = responseConverter.convert(responseMsg);
 
       expect(response, isA<EngineExceptionRaised>());

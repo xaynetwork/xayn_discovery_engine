@@ -11,12 +11,11 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   final _responseConverter = EngineEventToJsonConverter();
 
   @override
-  Converter<Map<String, Object>, OneshotRequest<ClientEvent>>
-      get requestConverter => _requestConverter;
+  Converter<Object, OneshotRequest<ClientEvent>> get requestConverter =>
+      _requestConverter;
 
   @override
-  Converter<EngineEvent, Map<String, Object>> get responseConverter =>
-      _responseConverter;
+  Converter<EngineEvent, Object> get responseConverter => _responseConverter;
 
   DiscoveryEngineWorker(Object message) : super(message);
 
@@ -26,8 +25,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
     try {
       // the conversion could fail because of a bad event so we still
       // might be able to extract only the sender from the message
-      return _requestConverter
-          .getSenderFromJson(incomingMessage as Map<String, Object>);
+      return _requestConverter.getSenderFromJson(incomingMessage);
     } catch (e) {
       // we ignore the error because we are already in the `onError` method,
       // (so any `ConverterException` that was thrown is being handled already)

@@ -39,7 +39,7 @@ void main() {
         'and a proper payload', () {
       const event_1 = ClientEvent.feedRequested();
       final request_1 = OneshotRequest(channel.sender, event_1);
-      final message_1 = converter.convert(request_1);
+      final message_1 = converter.convert(request_1) as Map;
 
       expect(message_1[kSenderKey], isA<SendPort>());
 
@@ -49,7 +49,7 @@ void main() {
         DocumentFeedback.positive,
       );
       final request_2 = OneshotRequest(channel.sender, event_2);
-      final message_2 = converter.convert(request_2);
+      final message_2 = converter.convert(request_2) as Map;
 
       expect(message_1[kPayloadKey], equals({'type': 'feedRequested'}));
       expect(message_2[kSenderKey], isA<SendPort>());

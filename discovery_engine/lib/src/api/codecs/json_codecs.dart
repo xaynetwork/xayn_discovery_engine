@@ -9,9 +9,9 @@ const kSenderKey = 'sender';
 const kPayloadKey = 'payload';
 
 class OneshotRequestToJsonConverter
-    extends Converter<OneshotRequest<ClientEvent>, Map<String, Object>> {
+    extends Converter<OneshotRequest<ClientEvent>, Object> {
   @override
-  Map<String, Object> convert(OneshotRequest<ClientEvent> input) {
+  Object convert(OneshotRequest<ClientEvent> input) {
     try {
       return <String, Object>{
         kSenderKey: input.sender.platformPort,
@@ -28,13 +28,14 @@ class OneshotRequestToJsonConverter
 }
 
 class JsonToOneshotRequestConverter
-    extends Converter<Map<String, Object>, OneshotRequest<ClientEvent>> {
+    extends Converter<Object, OneshotRequest<ClientEvent>> {
   @override
-  OneshotRequest<ClientEvent> convert(Map<String, Object> input) {
+  OneshotRequest<ClientEvent> convert(Object input) {
     try {
-      final jsonPayload = (input[kPayloadKey] as Map).cast<String, Object>();
+      final map = (input as Map).cast<String, Object>();
+      final jsonPayload = (map[kPayloadKey] as Map).cast<String, Object>();
       final payload = ClientEvent.fromJson(jsonPayload);
-      final sender = getSenderFromJson(input);
+      final sender = getSenderFromJson(map);
       return OneshotRequest(sender, payload);
     } catch (e) {
       throw ConverterException(
@@ -45,18 +46,18 @@ class JsonToOneshotRequestConverter
     }
   }
 
-  Sender<SendingPort> getSenderFromJson(Map<String, Object> input) {
-    final jsonSender = input[kSenderKey] as Object;
+  Sender<SendingPort> getSenderFromJson(Object input) {
+    final map = (input as Map).cast<String, Object>();
+    final jsonSender = map[kSenderKey] as Object;
     return Sender.fromPlatformPort(jsonSender);
   }
 }
 
-class EngineEventToJsonConverter
-    extends Converter<EngineEvent, Map<String, Object>> {
+class EngineEventToJsonConverter extends Converter<EngineEvent, Object> {
   @override
-  Map<String, Object> convert(EngineEvent input) {
+  Object convert(EngineEvent input) {
     try {
-      return input.toJson().cast();
+      return input.toJson();
     } catch (e) {
       throw ConverterException(
         'EngineEvent to JSON conversion failed',
@@ -67,12 +68,12 @@ class EngineEventToJsonConverter
   }
 }
 
-class JsonToEngineEventConverter
-    extends Converter<Map<String, Object>, EngineEvent> {
+class JsonToEngineEventConverter extends Converter<Object, EngineEvent> {
   @override
-  EngineEvent convert(Map<String, Object> input) {
+  EngineEvent convert(Object input) {
     try {
-      return EngineEvent.fromJson(input);
+      final map = (input as Map).cast<String, Object>();
+      return EngineEvent.fromJson(map);
     } catch (e) {
       throw ConverterException(
         'JSON to EngineEvent conversion failed',
