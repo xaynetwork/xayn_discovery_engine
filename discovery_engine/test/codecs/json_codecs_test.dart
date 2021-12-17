@@ -186,6 +186,7 @@ void main() {
     test('when converting a "bad" event, should throw "ConverterException"',
         () {
       expect(
+        // a JSON representation of a [ClientEvent], not an [EngineEvent]
         () => converter.convert({'type': 'feedRequested'}),
         throwsConverterException,
       );
