@@ -61,12 +61,10 @@ Future<void> main() async {
       test('update existing', () async {
         expect(doc1.isActive, isTrue);
 
-        final doc1Updated = doc1.setInactive();
-        await repo.update(doc1Updated);
+        await repo.update(doc1..isActive = false);
 
         expect(box, hasLength(1));
-        expect(box.values.first, isNot(doc1));
-        expect(box.values.first, equals(doc1Updated));
+        expect(box.values.first.isActive, isFalse);
       });
 
       test('add new', () async {

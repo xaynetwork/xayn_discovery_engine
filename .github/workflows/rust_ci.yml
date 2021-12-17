@@ -17,6 +17,7 @@ env:
   RUST_NIGHTLY: nightly-2021-09-09
   RUST_WORKSPACE: ${{ github.workspace }}/discovery_engine_core
   RUSTFLAGS: "-D warnings"
+  RUSTDOCFLAGS: "-D warnings"
 
 jobs:
   cargo-format:
@@ -30,6 +31,8 @@ jobs:
         run: rustup toolchain install ${{ env.RUST_NIGHTLY }} --component rustfmt
 
       - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+        with:
+          working-directory: ${{ env.RUST_WORKSPACE }}
 
       - name: cargo fmt
         working-directory: ${{ env.RUST_WORKSPACE }}
@@ -46,6 +49,8 @@ jobs:
         run: rustup show
 
       - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+        with:
+          working-directory: ${{ env.RUST_WORKSPACE }}
 
       - name: cargo clippy
         working-directory: ${{ env.RUST_WORKSPACE }}
@@ -62,9 +67,27 @@ jobs:
         run: rustup show
 
       - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+        with:
+          working-directory: ${{ env.RUST_WORKSPACE }}
 
       - name: Run tests
         working-directory: ${{ env.RUST_WORKSPACE }}
         run: |
           cargo test --all-targets --quiet
           cargo test --doc --quiet
+
+  cargo-doc:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Install rust toolchain
+        working-directory: ${{ env.RUST_WORKSPACE }}
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+
+      - name: cargo doc
+        working-directory: ${{ env.RUST_WORKSPACE }}
+        run: cargo doc --all-features --no-deps --document-private-items

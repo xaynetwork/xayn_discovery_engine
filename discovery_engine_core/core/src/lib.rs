@@ -1,4 +1,5 @@
 //! Xayn Discovery Engine core.
+
 #![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
 #![deny(
     clippy::pedantic,
@@ -14,7 +15,7 @@
 mod document;
 mod engine;
 mod mab;
-mod stack;
+pub mod stack;
 mod utils;
 
 pub use crate::{
