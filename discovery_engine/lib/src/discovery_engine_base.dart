@@ -14,7 +14,7 @@ import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentStatus, DocumentFeedback;
+    show Document, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
@@ -185,40 +185,6 @@ class DiscoveryEngine {
   Future<EngineEvent> closeFeedDocuments(Set<DocumentId> documentIds) {
     return _trySend(() async {
       final event = ClientEvent.feedDocumentsClosed(documentIds);
-      final response = await _manager.send(event);
-
-      return response.mapEvent(
-        clientEventSucceeded: true,
-        engineExceptionRaised: true,
-      );
-    });
-  }
-
-  /// Changes the status of a [Document].
-  ///
-  /// - when the [Document] was presented to the user the status should change
-  /// from [DocumentStatus.missed] to [DocumentStatus.presented].
-  ///
-  /// - when the [Document] was presented but then was scrolled out of the
-  /// screen the status should change from [DocumentStatus.presented] to
-  /// [DocumentStatus.skipped]. It means the user saw the [Document],
-  /// but it wasn't relevant.
-  ///
-  /// - when the [Document] was opened the status should change from
-  /// [DocumentStatus.presented] or [DocumentStatus.skipped] to
-  /// [DocumentStatus.opened]. It means the user was interested enough in
-  /// the [Document] to open it.
-  ///
-  /// In response it can return:
-  /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
-  /// for such failure.
-  Future<EngineEvent> changeDocumentStatus({
-    required DocumentId documentId,
-    required DocumentStatus status,
-  }) {
-    return _trySend(() async {
-      final event = ClientEvent.documentStatusChanged(documentId, status);
       final response = await _manager.send(event);
 
       return response.mapEvent(
