@@ -10,17 +10,17 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         FeedRequestSucceeded,
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
-        NextFeedBatchRequestSucceeded;
+        NextFeedBatchRequestSucceeded,
+        DocumentViewMode,
+        DocumentFeedback,
+        Configuration,
+        DocumentId;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     as entry_point show main;
-import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
-    show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentStatus, DocumentFeedback;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show Document;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show ConverterException, EngineInitException, ResponseTimeoutException;
@@ -199,31 +199,20 @@ class DiscoveryEngine {
     });
   }
 
-  /// Changes the status of a [Document].
-  ///
-  /// - when the [Document] was presented to the user the status should change
-  /// from [DocumentStatus.missed] to [DocumentStatus.presented].
-  ///
-  /// - when the [Document] was presented but then was scrolled out of the
-  /// screen the status should change from [DocumentStatus.presented] to
-  /// [DocumentStatus.skipped]. It means the user saw the [Document],
-  /// but it wasn't relevant.
-  ///
-  /// - when the [Document] was opened the status should change from
-  /// [DocumentStatus.presented] or [DocumentStatus.skipped] to
-  /// [DocumentStatus.opened]. It means the user was interested enough in
-  /// the [Document] to open it.
+  /// Logs the time in seconds spent by a user on a [Document] in a certain
+  /// mode.
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> changeDocumentStatus({
+  Future<EngineEvent> logDocumentTime({
     required DocumentId documentId,
-    required DocumentStatus status,
+    required DocumentViewMode mode,
+    required int seconds,
   }) {
     return _trySend(() async {
-      final event = ClientEvent.documentStatusChanged(documentId, status);
+      final event = ClientEvent.documentTimeLogged(documentId, mode, seconds);
       final response = await _manager.send(event);
 
       return response.mapEvent(

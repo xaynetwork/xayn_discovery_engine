@@ -89,10 +89,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
       documentFeedbackChanged: (documentId, feedback) async {
         return const EngineEvent.clientEventSucceeded();
       },
-      documentStatusChanged: (documentId, status) async {
-        return const EngineEvent.clientEventSucceeded();
-      },
-      documentClosed: (documentId) async {
+      documentTimeLogged: (documentId, mode, seconds) async {
         return const EngineEvent.clientEventSucceeded();
       },
     );

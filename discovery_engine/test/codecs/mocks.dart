@@ -4,13 +4,17 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ClientEventSucceeded,
         Configuration,
         ConfigurationChanged,
-        DocumentClosed,
+        Document,
+        DocumentFeedback,
+        DocumentViewMode,
         DocumentFeedbackChanged,
         DocumentId,
-        DocumentStatusChanged,
+        DocumentTimeLogged,
         EngineEvent,
         EngineExceptionRaised,
+        EngineExceptionReason,
         FeedDocumentsClosed,
+        FeedFailureReason,
         FeedRequestFailed,
         FeedRequestSucceeded,
         FeedRequested,
@@ -19,12 +23,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded,
         NextFeedBatchRequested,
-        ResetEngine,
-        Document,
-        DocumentStatus,
-        DocumentFeedback,
-        FeedFailureReason,
-        EngineExceptionReason;
+        ResetEngine;
 
 class BadClientEvent implements ClientEvent {
   const BadClientEvent();
@@ -37,11 +36,9 @@ class BadClientEvent implements ClientEvent {
     required TResult Function(NextFeedBatchRequested value)
         nextFeedBatchRequested,
     required TResult Function(FeedDocumentsClosed value) feedDocumentsClosed,
-    required TResult Function(DocumentStatusChanged value)
-        documentStatusChanged,
+    required TResult Function(DocumentTimeLogged value) documentTimeLogged,
     required TResult Function(DocumentFeedbackChanged value)
         documentFeedbackChanged,
-    required TResult Function(DocumentClosed value) documentClosed,
   }) {
     throw UnimplementedError();
   }
@@ -54,9 +51,8 @@ class BadClientEvent implements ClientEvent {
     TResult Function(FeedRequested value)? feedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
-    TResult Function(DocumentStatusChanged value)? documentStatusChanged,
+    TResult Function(DocumentTimeLogged value)? documentTimeLogged,
     TResult Function(DocumentFeedbackChanged value)? documentFeedbackChanged,
-    TResult Function(DocumentClosed value)? documentClosed,
   }) {
     throw UnimplementedError();
   }
@@ -70,9 +66,8 @@ class BadClientEvent implements ClientEvent {
     TResult Function(FeedRequested value)? feedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
-    TResult Function(DocumentStatusChanged value)? documentStatusChanged,
+    TResult Function(DocumentTimeLogged value)? documentTimeLogged,
     TResult Function(DocumentFeedbackChanged value)? documentFeedbackChanged,
-    TResult Function(DocumentClosed value)? documentClosed,
   }) {
     throw UnimplementedError();
   }
@@ -87,11 +82,10 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? feedRequested,
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
-    TResult Function(DocumentId documentId, DocumentStatus status)?
-        documentStatusChanged,
+    TResult Function(DocumentId documentId, DocumentViewMode mode, int seconds)?
+        documentTimeLogged,
     TResult Function(DocumentId documentId, DocumentFeedback feedback)?
         documentFeedbackChanged,
-    TResult Function(DocumentId documentId)? documentClosed,
   }) {
     throw UnimplementedError();
   }
@@ -110,11 +104,14 @@ class BadClientEvent implements ClientEvent {
     required TResult Function() feedRequested,
     required TResult Function() nextFeedBatchRequested,
     required TResult Function(Set<DocumentId> documentIds) feedDocumentsClosed,
-    required TResult Function(DocumentId documentId, DocumentStatus status)
-        documentStatusChanged,
+    required TResult Function(
+      DocumentId documentId,
+      DocumentViewMode mode,
+      int seconds,
+    )
+        documentTimeLogged,
     required TResult Function(DocumentId documentId, DocumentFeedback feedback)
         documentFeedbackChanged,
-    required TResult Function(DocumentId documentId) documentClosed,
   }) {
     throw UnimplementedError();
   }
@@ -128,11 +125,14 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? feedRequested,
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
-    TResult Function(DocumentId documentId, DocumentStatus status)?
-        documentStatusChanged,
+    TResult Function(
+      DocumentId documentId,
+      DocumentViewMode mode,
+      int seconds,
+    )?
+        documentTimeLogged,
     TResult Function(DocumentId documentId, DocumentFeedback feedback)?
         documentFeedbackChanged,
-    TResult Function(DocumentId documentId)? documentClosed,
   }) {
     throw UnimplementedError();
   }

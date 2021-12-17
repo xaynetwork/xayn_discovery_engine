@@ -34,5 +34,7 @@ export 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show DocumentFeedback;
 export 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, SearchId;
+export 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
+    show DocumentViewMode;
 export 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
