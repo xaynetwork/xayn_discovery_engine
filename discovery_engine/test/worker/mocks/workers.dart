@@ -25,7 +25,7 @@ class MockWorker extends Worker<Object, Object> {
   }
 
   @override
-  void onMessage(request) {
+  Future<void> onMessage(request) async {
     if (request.payload == 'ping') {
       send('pong', request.sender);
     } else if (request.payload is Map &&

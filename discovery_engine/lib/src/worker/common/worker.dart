@@ -79,7 +79,7 @@ abstract class Worker<Request extends Object, Response extends Object> {
   }
 
   /// Handles events from [PlatformWorker] messages stream.
-  void onMessage(OneshotRequest<Request> request);
+  Future<void> onMessage(OneshotRequest<Request> request);
 
   /// Called with the error object upon any errors from [PlatformWorker]
   /// messages stream.
@@ -88,11 +88,14 @@ abstract class Worker<Request extends Object, Response extends Object> {
     Object? incomingMessage,
   });
 
-  void _onMessage(Object message) {
+  Future<void> _onMessage(Object message) async {
     try {
       // let's convert incoming messages to a `OneshotRequest<Request>`
       final OneshotRequest<Request> request = requestConverter.convert(message);
-      onMessage(request);
+      // we need to await 'onMessage' in case it's async,
+      // otherwise it might "swallow" exceptions and send
+      // some generic errors to the manager errors stream
+      await onMessage(request);
     } catch (e) {
       onError(e, incomingMessage: message);
     }

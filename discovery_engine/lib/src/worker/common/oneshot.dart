@@ -56,7 +56,7 @@ class Receiver<T extends ReceivingPort> {
   T? _port;
   Receiver(this._port);
 
-  Future<Object?> receive() async {
+  Future<Object> receive() async {
     final port = _port;
     _port = null;
 
@@ -87,7 +87,7 @@ abstract class SendingPort extends ClosingPort {
 }
 
 abstract class ReceivingPort extends ClosingPort {
-  Future<Object?> receive();
+  Future<Object> receive();
 }
 
 class OneshotChannel {

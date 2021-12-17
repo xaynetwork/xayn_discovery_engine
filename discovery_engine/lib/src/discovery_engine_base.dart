@@ -1,3 +1,5 @@
+import 'package:universal_platform/universal_platform.dart'
+    show UniversalPlatform;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
@@ -11,6 +13,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextFeedBatchRequestSucceeded;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
+import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
+    as entry_point show main;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -19,11 +23,10 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
-    show
-        EngineInitException,
-        ResponseEmptyException,
-        ResponseTimeoutException,
-        ConverterException;
+    show ConverterException, EngineInitException, ResponseTimeoutException;
+
+/// A constant that is true if the application was compiled to run on the web.
+final kIsWeb = UniversalPlatform.isWeb;
 
 /// This class exposes Xayn Discovery Engine API to the clients.
 class DiscoveryEngine {
@@ -58,9 +61,11 @@ class DiscoveryEngine {
   /// ```
   static Future<DiscoveryEngine> init({
     required Configuration configuration,
+    Object? entryPoint,
   }) async {
     try {
-      final manager = await DiscoveryEngineManager.create();
+      entryPoint ??= kIsWeb ? null : entry_point.main;
+      final manager = await DiscoveryEngineManager.create(entryPoint);
       final initEvent = ClientEvent.init(configuration);
       final response = await manager.send(initEvent);
 
@@ -263,8 +268,6 @@ class DiscoveryEngine {
 
       if (e is ConverterException) {
         reason = EngineExceptionReason.converterException;
-      } else if (e is ResponseEmptyException) {
-        reason = EngineExceptionReason.emptyResponse;
       } else if (e is ResponseTimeoutException) {
         reason = EngineExceptionReason.responseTimeout;
       }

@@ -1,18 +1,11 @@
 import 'dart:convert' show Converter;
 
-import 'package:universal_platform/universal_platform.dart'
-    show UniversalPlatform;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show ClientEvent, EngineEvent;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
     show OneshotRequestToJsonConverter, JsonToEngineEventConverter;
-import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
-    as entry_point show main;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show Manager, OneshotRequest, PlatformManager;
-
-/// A constant that is true if the application was compiled to run on the web.
-final kIsWeb = UniversalPlatform.isWeb;
 
 class DiscoveryEngineManager extends Manager<ClientEvent, EngineEvent> {
   final _requestConverter = OneshotRequestToJsonConverter();
@@ -20,17 +13,15 @@ class DiscoveryEngineManager extends Manager<ClientEvent, EngineEvent> {
 
   DiscoveryEngineManager._(PlatformManager manager) : super(manager);
 
-  static Future<DiscoveryEngineManager> create() async {
-    final platformManager =
-        await Manager.spawnWorker(kIsWeb ? null : entry_point.main);
+  static Future<DiscoveryEngineManager> create(Object? entryPoint) async {
+    final platformManager = await Manager.spawnWorker(entryPoint);
     return DiscoveryEngineManager._(platformManager);
   }
 
   @override
-  Converter<OneshotRequest<ClientEvent>, Map<String, Object>>
-      get requestConverter => _requestConverter;
+  Converter<OneshotRequest<ClientEvent>, Object> get requestConverter =>
+      _requestConverter;
 
   @override
-  Converter<Map<String, Object>, EngineEvent> get responseConverter =>
-      _responseConverter;
+  Converter<Object, EngineEvent> get responseConverter => _responseConverter;
 }
