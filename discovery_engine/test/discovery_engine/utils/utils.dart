@@ -16,9 +16,8 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent feedRequestedResponse;
   final EngineEvent nextFeedBatchRequestedResponse;
   final EngineEvent feedDocumentsClosedResponse;
-  final EngineEvent documentStatusChangedResponse;
   final EngineEvent documentFeedbackChangedResponse;
-  final EngineEvent documentClosedResponse;
+  final EngineEvent documentTimeLoggedResponse;
 
   MockDiscoveryEngineWorker(
     Object initialMessage, {
@@ -30,11 +29,9 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.nextFeedBatchRequestedResponse =
         const EngineEvent.nextFeedBatchRequestSucceeded([]),
     this.feedDocumentsClosedResponse = const EngineEvent.clientEventSucceeded(),
-    this.documentStatusChangedResponse =
-        const EngineEvent.clientEventSucceeded(),
     this.documentFeedbackChangedResponse =
         const EngineEvent.clientEventSucceeded(),
-    this.documentClosedResponse = const EngineEvent.clientEventSucceeded(),
+    this.documentTimeLoggedResponse = const EngineEvent.clientEventSucceeded(),
   }) : super(initialMessage);
 
   @override
@@ -46,9 +43,8 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       feedRequested: (_) => feedRequestedResponse,
       nextFeedBatchRequested: (_) => nextFeedBatchRequestedResponse,
       feedDocumentsClosed: (_) => feedDocumentsClosedResponse,
-      documentStatusChanged: (_) => documentStatusChangedResponse,
       documentFeedbackChanged: (_) => documentFeedbackChangedResponse,
-      documentClosed: (_) => documentClosedResponse,
+      documentTimeLogged: (_) => documentTimeLoggedResponse,
     );
     return send(response, request.sender);
   }
