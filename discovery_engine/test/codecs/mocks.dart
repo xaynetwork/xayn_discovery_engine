@@ -6,6 +6,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ConfigurationChanged,
         Document,
         DocumentFeedback,
+        DocumentViewMode,
         DocumentFeedbackChanged,
         DocumentId,
         DocumentTimeLogged,
@@ -23,8 +24,6 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextFeedBatchRequestSucceeded,
         NextFeedBatchRequested,
         ResetEngine;
-import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
-    show DocumentViewMode;
 
 class BadClientEvent implements ClientEvent {
   const BadClientEvent();

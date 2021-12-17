@@ -10,19 +10,17 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         FeedRequestSucceeded,
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
-        NextFeedBatchRequestSucceeded;
+        NextFeedBatchRequestSucceeded,
+        DocumentViewMode,
+        DocumentFeedback,
+        Configuration,
+        DocumentId;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     as entry_point show main;
-import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
-    show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentFeedback;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
-import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
-    show DocumentViewMode;
+    show Document;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show ConverterException, EngineInitException, ResponseTimeoutException;
