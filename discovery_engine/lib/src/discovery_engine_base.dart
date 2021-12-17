@@ -199,7 +199,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Logs the amount of seconds spent by a user on a [Document] in a certain
+  /// Logs the time in seconds spent by a user on a [Document] in a certain
   /// mode.
   ///
   /// In response it can return:
