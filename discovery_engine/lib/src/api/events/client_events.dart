@@ -1,12 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
-    show Configuration;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentFeedback;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
-import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
-    show DocumentViewMode;
+import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart';
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
+import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart';
 
 part 'client_events.freezed.dart';
 part 'client_events.g.dart';
