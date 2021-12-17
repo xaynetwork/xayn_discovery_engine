@@ -28,6 +28,6 @@ class HiveChangedDocumentRepository implements ChangedDocumentRepository {
 
   @override
   Future<void> removeMany(Iterable<DocumentId> ids) async {
-    await box.deleteAll(ids);
+    await box.deleteAll(ids.map<String>((id) => id.toString()));
   }
 }

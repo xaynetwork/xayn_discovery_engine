@@ -22,6 +22,7 @@ Future<void> main() async {
   group('ActiveDocumentDataRepository', () {
     final data = ActiveDocumentData(Uint8List(0));
     final id1 = DocumentId();
+    final id2 = DocumentId();
 
     tearDown(() async {
       await box.clear();
@@ -36,6 +37,15 @@ Future<void> main() async {
         await repo.update(id1, data);
         expect(box, hasLength(1));
         expect(box.values.first, equals(data));
+      });
+
+      test('fetch none', () async {
+        expect(await repo.fetchById(id1), isNull);
+      });
+
+      test('remove by ids', () async {
+        await repo.removeByIds([id1]);
+        expect(box.values, isEmpty);
       });
     });
 
@@ -54,6 +64,24 @@ Future<void> main() async {
         await repo.update(id1, ActiveDocumentData(embUpdated));
         expect(box, hasLength(1));
         expect(await repo.smbertEmbeddingById(id1), embUpdated);
+      });
+
+      test('fetch present then absent', () async {
+        expect(await repo.fetchById(id1), equals(data));
+        expect(await repo.fetchById(id2), isNull);
+      });
+
+      test('remove absent then present', () async {
+        await repo.removeByIds([id2]);
+        expect(box, hasLength(1));
+
+        await repo.removeByIds([id1]);
+        expect(box, isEmpty);
+      });
+
+      test('remove absent and present', () async {
+        await repo.removeByIds([id1, id2]);
+        expect(box, isEmpty);
       });
     });
   });
