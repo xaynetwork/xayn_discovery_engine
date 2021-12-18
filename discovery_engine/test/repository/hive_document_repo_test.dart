@@ -47,7 +47,7 @@ Future<void> main() async {
         expect(box, isEmpty);
         await repo.update(doc1);
         expect(box, hasLength(1));
-        expect(box.values.first, equals(doc1));
+        expect(box.values.first, doc1);
       });
 
       test('fetch all from none', () async {
@@ -93,7 +93,7 @@ Future<void> main() async {
 
       test('fetch present then absent', () async {
         final doc1Fetched = await repo.fetchById(doc1.documentId);
-        expect(doc1Fetched, equals(doc1));
+        expect(doc1Fetched, doc1);
 
         final doc2Fetched = await repo.fetchById(doc2.documentId);
         expect(doc2Fetched, isNull);
@@ -102,7 +102,7 @@ Future<void> main() async {
       test('fetch all', () async {
         var all = await repo.fetchAll();
         expect(all, hasLength(1));
-        expect(all.first, equals(doc1));
+        expect(all.first, doc1);
 
         await repo.update(doc2);
         all = await repo.fetchAll();

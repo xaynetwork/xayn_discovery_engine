@@ -36,7 +36,7 @@ Future<void> main() async {
       test('add new', () async {
         await repo.update(id1, data);
         expect(box, hasLength(1));
-        expect(box.values.first, equals(data));
+        expect(box.values.first, data);
       });
 
       test('fetch none', () async {
@@ -67,7 +67,7 @@ Future<void> main() async {
       });
 
       test('fetch present then absent', () async {
-        expect(await repo.fetchById(id1), equals(data));
+        expect(await repo.fetchById(id1), data);
         expect(await repo.fetchById(id2), isNull);
       });
 

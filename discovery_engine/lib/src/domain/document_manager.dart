@@ -44,8 +44,7 @@ class DocumentManager {
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
     }
-    doc.feedback = feedback;
-    await _documentRepo.update(doc);
+    await _documentRepo.update(doc..feedback = feedback);
   }
 
   /// Deactivate the given documents.
