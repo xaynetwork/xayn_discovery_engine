@@ -17,7 +17,7 @@ Future<void> main() async {
   final repo = HiveDocumentRepository();
 
   group('DocumentRepository', () {
-    final empty = WebResource.fromJson(<String, String>{
+    final dummy = WebResource.fromJson(<String, String>{
       'title': 'Example',
       'displayUrl': 'domain.com',
       'snippet': 'snippet',
@@ -25,11 +25,11 @@ Future<void> main() async {
     });
     final doc1 = Document(
       personalizedRank: 0,
-      webResource: empty,
+      webResource: dummy,
     );
     final doc2 = Document(
       personalizedRank: 1,
-      webResource: empty,
+      webResource: dummy,
     );
 
     tearDown(() async {
