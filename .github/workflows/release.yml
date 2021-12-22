@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - "main"
+      - 'main'
+      - 'TB-3116_push_to_release_repo'
 
 permissions:
   contents: read
