@@ -38,3 +38,5 @@ export 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 export 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
+export 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart'
+    show WebResourceProvider;
