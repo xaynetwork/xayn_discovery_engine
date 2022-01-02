@@ -12,7 +12,6 @@
 #![warn(missing_docs, unreachable_pub)]
 #![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
 
-/// Personalized document that is returned from [`Engine`].
 pub mod document;
 mod engine;
 mod mab;

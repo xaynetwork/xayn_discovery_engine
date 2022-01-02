@@ -1,3 +1,5 @@
+//! Personalized document that is returned from [`Engine`].
+
 use std::convert::TryFrom;
 
 use derive_more::{Deref, Display};
@@ -18,6 +20,7 @@ pub enum Error {
 
 /// Unique identifier of the [`Document`].
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
+#[cfg_attr(test, derive(Default))]
 pub struct Id(pub Uuid);
 
 impl Id {
@@ -37,6 +40,7 @@ impl TryFrom<&[u8]> for Id {
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Default))]
 pub struct Document {
     /// Unique identifier of the document.
     pub id: Id,
@@ -65,6 +69,7 @@ pub struct Document {
 
 /// A d-dimensional sequence embedding.
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Default))]
 pub struct Embedding<D>(pub Array<f32, D>)
 where
     D: Dimension;

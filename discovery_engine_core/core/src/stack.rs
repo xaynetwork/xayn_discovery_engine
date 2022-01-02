@@ -19,7 +19,7 @@ mod ops;
 pub(crate) use data::Data;
 pub use ops::Ops;
 
-/// Errors that could occurs while manipulating a stack.
+/// Errors that could occur while manipulating a stack.
 #[derive(Error, Debug, DisplayDoc)]
 #[allow(dead_code)]
 pub enum Error {
@@ -47,6 +47,7 @@ pub type BoxedOps = Box<dyn Ops + Send + Sync>;
 ///
 /// `Id` is used to connect [`Ops`](ops::Ops) with the corresponding data of a stack.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, From, Display)]
+#[cfg_attr(test, derive(Default))]
 pub struct Id(Uuid);
 
 #[derive(Derivative)]
@@ -125,44 +126,29 @@ impl Bucket<Document> for Stack {
 #[cfg(test)]
 mod tests {
     use claim::{assert_matches, assert_none, assert_ok, assert_some};
-    use ndarray::arr1;
     use uuid::Uuid;
 
     use std::fmt::Debug;
 
-    use crate::{
-        document::{Embedding, Id as DocumentId},
-        stack::ops::MockOps,
-    };
+    use crate::{document::Id as DocumentId, stack::ops::MockOps};
 
     use super::*;
 
-    // checks that `f` returns ok if the argument contains only documents valid `stack_id`
-    fn check_valid_document<T, F>(f: F, stack_id: Id)
+    // assert that `f` returns ok if the argument contains only documents valid `stack_id`
+    fn assert_valid_document<T, F>(f: F, stack_id: Id)
     where
         T: Debug,
         F: Fn(&[Document]) -> Result<T, Error>,
     {
         let doc_1 = Document {
-            id: DocumentId::from_u128(u128::MIN),
             stack_id,
-            rank: usize::default(),
-            title: String::default(),
-            snippet: String::default(),
-            url: String::default(),
-            domain: String::default(),
-            smbert_embedding: Embedding(arr1(&[])),
+            ..Document::default()
         };
 
         let doc_2 = Document {
-            id: DocumentId::from_u128(u128::MAX),
+            id: DocumentId::from_u128(1),
             stack_id,
-            rank: usize::default(),
-            title: String::default(),
-            snippet: String::default(),
-            url: String::default(),
-            domain: String::default(),
-            smbert_embedding: Embedding(arr1(&[])),
+            ..Document::default()
         };
 
         assert_ok!(f(&[]));
@@ -170,35 +156,24 @@ mod tests {
         assert_ok!(f(&[doc_1, doc_2]));
     }
 
-    // checks that `f` returns an error if the argument contains a Document with an invalid `stack_id`
-    fn check_invalid_document<T, F>(f: F, stack_id_ok: Id)
+    // assert that `f` returns an error if the argument contains a Document with an invalid `stack_id`
+    fn assert_invalid_document<T, F>(f: F, stack_id_ok: Id)
     where
         T: Debug,
         F: Fn(&[Document]) -> Result<T, Error>,
     {
         let stack_id_ko = Uuid::from_u128(stack_id_ok.0.as_u128() + 1).into();
-        let doc_id_ko = DocumentId::from_u128(u128::MAX);
+        let doc_id_ko = DocumentId::from_u128(1);
 
         let doc_ok = Document {
-            id: DocumentId::from_u128(u128::MIN),
             stack_id: stack_id_ok,
-            rank: usize::default(),
-            title: String::default(),
-            snippet: String::default(),
-            url: String::default(),
-            domain: String::default(),
-            smbert_embedding: Embedding(arr1(&[])),
+            ..Document::default()
         };
 
         let doc_ko = Document {
             id: doc_id_ko,
             stack_id: stack_id_ko,
-            rank: usize::default(),
-            title: String::default(),
-            snippet: String::default(),
-            url: String::default(),
-            domain: String::default(),
-            smbert_embedding: Embedding(arr1(&[])),
+            ..Document::default()
         };
 
         let assert_invalid_document = |docs: &[Document]| {
@@ -217,9 +192,9 @@ mod tests {
 
     #[test]
     fn test_stack_validate_documents_stack_id_ok() {
-        let stack_id = Uuid::from_u128(1).into();
+        let stack_id = Id::default();
 
-        check_valid_document(
+        assert_valid_document(
             |docs| Stack::validate_documents_stack_id(docs, stack_id),
             stack_id,
         );
@@ -227,9 +202,9 @@ mod tests {
 
     #[test]
     fn test_stack_validate_documents_stack_id_ko() {
-        let stack_id = Uuid::from_u128(1).into();
+        let stack_id = Id::default();
 
-        check_invalid_document(
+        assert_invalid_document(
             |docs| Stack::validate_documents_stack_id(docs, stack_id),
             stack_id,
         );
@@ -238,15 +213,15 @@ mod tests {
     #[test]
     fn test_stack_new_from_default() {
         let mut ops = MockOps::new();
-        ops.expect_id().returning(|| Uuid::from_u128(1).into());
+        ops.expect_id().returning(Id::default);
         assert_ok!(Stack::new(Data::default(), Box::new(ops)));
     }
 
     #[test]
     fn test_stack_new_valid_documents() {
-        let stack_id = Uuid::from_u128(1).into();
+        let stack_id = Id::default();
 
-        check_valid_document(
+        assert_valid_document(
             |docs| {
                 let mut ops = MockOps::new();
                 ops.expect_id().returning(move || stack_id);
@@ -260,9 +235,9 @@ mod tests {
 
     #[test]
     fn test_stack_new_invalid_documents() {
-        let stack_id = Uuid::from_u128(1).into();
+        let stack_id = Id::default();
 
-        check_invalid_document(
+        assert_invalid_document(
             |docs| {
                 let mut ops = MockOps::new();
                 ops.expect_id().returning(move || stack_id);
@@ -281,7 +256,7 @@ mod tests {
         let beta = 0.99;
 
         let mut ops = MockOps::new();
-        ops.expect_id().returning(move || Uuid::nil().into());
+        ops.expect_id().returning(Id::default);
 
         let data = Data::new(alpha, beta, vec![]).unwrap();
         let stack = Stack::new(data, Box::new(ops)).unwrap();
@@ -293,7 +268,7 @@ mod tests {
     #[test]
     fn test_stack_bucket_pop_empty() {
         let mut ops = MockOps::new();
-        ops.expect_id().returning(move || Uuid::nil().into());
+        ops.expect_id().returning(Id::default);
 
         let mut stack = Stack::new(Data::default(), Box::new(ops)).unwrap();
 
@@ -302,20 +277,11 @@ mod tests {
 
     #[test]
     fn test_stack_bucket_pop() {
-        let doc = Document {
-            id: DocumentId::from_u128(u128::MIN),
-            stack_id: Id(Uuid::nil()),
-            rank: usize::default(),
-            title: String::default(),
-            snippet: String::default(),
-            url: String::default(),
-            domain: String::default(),
-            smbert_embedding: Embedding(arr1(&[])),
-        };
+        let doc = Document::default();
 
         let data = Data::new(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
         let mut ops = MockOps::new();
-        ops.expect_id().returning(move || Uuid::nil().into());
+        ops.expect_id().returning(Id::default);
         let mut stack = Stack::new(data, Box::new(ops)).unwrap();
 
         assert_some!(stack.pop());
@@ -326,25 +292,16 @@ mod tests {
     #[test]
     fn test_stack_bucket_is_empty() {
         let mut ops = MockOps::new();
-        ops.expect_id().returning(move || Uuid::nil().into());
+        ops.expect_id().returning(Id::default);
         let data = Data::default();
         let stack = Stack::new(data, Box::new(ops)).unwrap();
 
         assert!(stack.is_empty());
 
-        let doc = Document {
-            id: DocumentId::from_u128(u128::MIN),
-            stack_id: Id(Uuid::nil()),
-            rank: usize::default(),
-            title: String::default(),
-            snippet: String::default(),
-            url: String::default(),
-            domain: String::default(),
-            smbert_embedding: Embedding(arr1(&[])),
-        };
+        let doc = Document::default();
 
         let mut ops = MockOps::new();
-        ops.expect_id().returning(move || Uuid::nil().into());
+        ops.expect_id().returning(Id::default);
         let data = Data::new(1., 1., vec![doc]).unwrap();
         let mut stack = Stack::new(data, Box::new(ops)).unwrap();
 
