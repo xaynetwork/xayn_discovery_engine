@@ -1,4 +1,4 @@
-//! Personalized document that is returned from [`Engine`].
+//! Personalized document that is returned from [`Engine`](crate::engine::Engine).
 
 use std::convert::TryFrom;
 
