@@ -39,7 +39,7 @@ $ dart run
 ## Web example
 
 ```sh
-# activate the dart webdev package
+# activate the dart webdev package (checked with dart v2.14.4 and webdev v2.7.4)
 dart pub global activate webdev
 
 # compile the web worker file to javascript
@@ -48,7 +48,7 @@ dart compile js -o web/worker.dart.js ../lib/src/discovery_engine_worker.dart
 # start the server
 webdev serve
 
-# open up you browser at http://localhost:8080, and check out the console
+# open up your browser at http://localhost:8080, and check the console
 open http://localhost:8080
 ```
 
