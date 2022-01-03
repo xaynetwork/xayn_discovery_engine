@@ -24,8 +24,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show
-        EngineInitException,
         ConverterException,
+        EngineInitException,
         ManagerDisposedException,
         ResponseTimeoutException;
 
@@ -252,7 +252,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Send an [ClientEvent] to the [DiscoveryEngine] and wait for a response.
+  /// Send a [ClientEvent] to the [DiscoveryEngine] and wait for a response.
   Future<EngineEvent> send(ClientEvent event) =>
       _trySend(() => _manager.send(event));
 

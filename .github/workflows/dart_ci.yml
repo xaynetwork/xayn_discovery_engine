@@ -32,7 +32,7 @@ jobs:
           sdk: ${{ env.DART_VERSION }}
 
       - name: Check formatting
-        working-directory: discovery_engine
+        working-directory: ${{ env.DART_WORKSPACE }}
         run: dart format --output=none --set-exit-if-changed .
 
   dart-analyze:
@@ -50,11 +50,11 @@ jobs:
           sdk: ${{ env.DART_VERSION }}
 
       - name: Install dependencies
-        working-directory: discovery_engine
+        working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub get
 
       - name: Install dependencies for the example
-        working-directory: discovery_engine/example
+        working-directory: ${{ env.DART_WORKSPACE }}/example
         run: dart pub get
 
       - name: Other Dart code generation
@@ -62,7 +62,7 @@ jobs:
         run: dart run build_runner build
 
       - name: Analyze code
-        working-directory: discovery_engine
+        working-directory: ${{ env.DART_WORKSPACE }}
         run: dart analyze --fatal-infos
 
   dart-test:
@@ -80,7 +80,7 @@ jobs:
           sdk: ${{ env.DART_VERSION }}
 
       - name: Install dependencies
-        working-directory: discovery_engine
+        working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub get
 
       - name: Other Dart code generation
@@ -88,7 +88,7 @@ jobs:
         run: dart run build_runner build
 
       - name: Run tests
-        working-directory: discovery_engine
+        working-directory: ${{ env.DART_WORKSPACE }}
         run: dart test
 
   dart-doc:
@@ -106,7 +106,7 @@ jobs:
           sdk: ${{ env.DART_VERSION }}
 
       - name: Install dartdoc
-        working-directory: discovery_engine
+        working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub global activate dartdoc
 
       - name: Other Dart code generation
@@ -114,7 +114,7 @@ jobs:
         run: dart run build_runner build
 
       - name: Check documentation
-        working-directory: discovery_engine
+        working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
 
   # this is an helper that needs all the real leafs of the workflow.
