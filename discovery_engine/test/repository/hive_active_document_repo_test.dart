@@ -1,3 +1,4 @@
+import 'dart:io' show Directory;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Hive;
@@ -12,11 +13,10 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_
     show HiveActiveDocumentDataRepository;
 
 Future<void> main() async {
+  Hive.init(Directory.current.path);
   Hive.registerAdapter(ActiveDocumentDataAdapter());
-  final box = await Hive.openBox<ActiveDocumentData>(
-    activeDocumentDataBox,
-    bytes: Uint8List(0),
-  );
+
+  final box = await Hive.openBox<ActiveDocumentData>(activeDocumentDataBox);
   final repo = HiveActiveDocumentDataRepository();
 
   group('ActiveDocumentDataRepository', () {
@@ -26,6 +26,10 @@ Future<void> main() async {
 
     tearDown(() async {
       await box.clear();
+    });
+
+    tearDownAll(() async {
+      await box.deleteFromDisk();
     });
 
     group('empty box', () {

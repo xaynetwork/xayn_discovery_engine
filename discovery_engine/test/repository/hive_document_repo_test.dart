@@ -16,13 +16,13 @@ import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_
     show UriAdapter;
 
 Future<void> main() async {
+  Hive.init(Directory.current.path);
   Hive.registerAdapter(DocumentAdapter());
   Hive.registerAdapter(DocumentFeedbackAdapter());
   Hive.registerAdapter(WebResourceAdapter());
   Hive.registerAdapter(DocumentIdAdapter());
   Hive.registerAdapter(UriAdapter());
 
-  Hive.init(Directory.current.path);
   final box = await Hive.openBox<Document>(documentBox);
   final repo = HiveDocumentRepository();
 
