@@ -12,13 +12,10 @@
 #![warn(missing_docs, unreachable_pub)]
 #![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
 
-mod document;
+pub mod document;
 mod engine;
 mod mab;
 pub mod stack;
 mod utils;
 
-pub use crate::{
-    document::{Document, Embedding1, Id},
-    engine::Engine,
-};
+pub use crate::engine::Engine;

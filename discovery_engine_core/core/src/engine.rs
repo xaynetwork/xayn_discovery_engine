@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::{
     document::Document,
-    stack::{BoxedOps, Data as StackData, Id as StackId, Stack},
+    stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
 };
 
 #[derive(Error, Debug, Display)]
@@ -18,6 +18,9 @@ pub enum Error {
 
     /// No operations on stack were provided.
     NoStackOps,
+
+    /// Invalid stack: {0}.
+    InvalidStack(#[source] stack::Error),
 }
 
 /// Discovery Engine.
@@ -43,9 +46,11 @@ impl Engine {
             .map(|ops| {
                 let id = ops.id();
                 let data = stacks_data.remove(&id).unwrap_or_default();
-                (id, Stack::new(data, ops))
+
+                Stack::new(data, ops).map(|stack| (id, stack))
             })
-            .collect();
+            .collect::<Result<_, _>>()
+            .map_err(Error::InvalidStack)?;
 
         Ok(Engine { stacks })
     }
