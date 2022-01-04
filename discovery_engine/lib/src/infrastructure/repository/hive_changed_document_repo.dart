@@ -17,17 +17,12 @@ class HiveChangedDocumentRepository implements ChangedDocumentRepository {
       box.values.map((bytes) => DocumentId.fromBytes(bytes)).toList();
 
   @override
-  Future<void> add(DocumentId id) async {
-    await box.put(id.toString(), id.value);
-  }
+  Future<void> add(DocumentId id) => box.put(id.toString(), id.value);
 
   @override
-  Future<void> removeAll() async {
-    await box.clear();
-  }
+  Future<void> removeAll() => box.clear();
 
   @override
-  Future<void> removeMany(Iterable<DocumentId> ids) async {
-    await box.deleteAll(ids);
-  }
+  Future<void> removeMany(Iterable<DocumentId> ids) =>
+      box.deleteAll(ids.map<String>((id) => id.toString()));
 }

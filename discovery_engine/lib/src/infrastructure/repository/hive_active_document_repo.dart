@@ -24,12 +24,10 @@ class HiveActiveDocumentDataRepository implements ActiveDocumentDataRepository {
       box.get(id.toString())?.smbertEmbedding;
 
   @override
-  Future<void> update(DocumentId id, ActiveDocumentData data) async {
-    await box.put(id.toString(), data);
-  }
+  Future<void> update(DocumentId id, ActiveDocumentData data) =>
+      box.put(id.toString(), data);
 
   @override
-  Future<void> removeByIds(Iterable<DocumentId> ids) async {
-    await box.deleteAll(ids);
-  }
+  Future<void> removeByIds(Iterable<DocumentId> ids) =>
+      box.deleteAll(ids.map<String>((id) => id.toString()));
 }

@@ -29,12 +29,17 @@ Future<void> main() async {
         expect(box, hasLength(1));
       });
 
-      test('fetch all from none', () async {
+      test('fetch all', () async {
         expect(await repo.fetchAll(), isEmpty);
       });
 
-      test('remove all from none', () async {
+      test('remove all', () async {
         await repo.removeAll();
+        expect(box, isEmpty);
+      });
+
+      test('remove many', () async {
+        await repo.removeMany([id1, id2]);
         expect(box, isEmpty);
       });
     });
@@ -69,6 +74,19 @@ Future<void> main() async {
 
       test('remove all', () async {
         await repo.removeAll();
+        expect(box, isEmpty);
+      });
+
+      test('remove absent then present', () async {
+        await repo.removeMany([id2]);
+        expect(box, hasLength(1));
+
+        await repo.removeMany([id1]);
+        expect(box, isEmpty);
+      });
+
+      test('remove absent then present', () async {
+        await repo.removeMany([id1, id2]);
         expect(box, isEmpty);
       });
     });
