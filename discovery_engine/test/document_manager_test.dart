@@ -105,8 +105,8 @@ Future<void> main() async {
       );
       // other repos unchanged
       expect(activeBox, hasLength(1));
-      expect(await activeRepo.fetchById(id1), data);
-      expect(await changedRepo.fetchAll(), [id1]);
+      expect(await activeRepo.fetchById(id1), equals(data));
+      expect(await changedRepo.fetchAll(), equals([id1]));
     });
 
     test('deactivate documents', () async {
@@ -148,12 +148,12 @@ Future<void> main() async {
       expect(activeBox, hasLength(1));
       var dataUpdated = await activeRepo.fetchById(id1);
       expect(dataUpdated, isNotNull);
-      expect(dataUpdated!.smbertEmbedding, data.smbertEmbedding);
-      expect(dataUpdated.getViewTime(mode), const Duration(seconds: 5));
+      expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
+      expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 5)));
 
       // other repos unchanged
       expect(await docRepo.fetchAll(), unorderedEquals(<Document>[doc1, doc2]));
-      expect(await changedRepo.fetchAll(), [id1]);
+      expect(await changedRepo.fetchAll(), equals([id1]));
 
       // add a further 3 seconds
       await mgr.addActiveDocumentTime(id1, mode, 3);
@@ -161,8 +161,8 @@ Future<void> main() async {
       expect(activeBox, hasLength(1));
       dataUpdated = await activeRepo.fetchById(id1);
       expect(dataUpdated, isNotNull);
-      expect(dataUpdated!.smbertEmbedding, data.smbertEmbedding);
-      expect(dataUpdated.getViewTime(mode), const Duration(seconds: 8));
+      expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
+      expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
     });
   });
 }

@@ -36,7 +36,7 @@ Future<void> main() async {
       test('add new', () async {
         await repo.update(id1, data);
         expect(box, hasLength(1));
-        expect(box.values.first, data);
+        expect(box.values.first, equals(data));
       });
 
       test('fetch none', () async {
@@ -63,11 +63,11 @@ Future<void> main() async {
         final embUpdated = Uint8List(1);
         await repo.update(id1, ActiveDocumentData(embUpdated));
         expect(box, hasLength(1));
-        expect(await repo.smbertEmbeddingById(id1), embUpdated);
+        expect(await repo.smbertEmbeddingById(id1), equals(embUpdated));
       });
 
       test('fetch present then absent', () async {
-        expect(await repo.fetchById(id1), data);
+        expect(await repo.fetchById(id1), equals(data));
         expect(await repo.fetchById(id2), isNull);
       });
 

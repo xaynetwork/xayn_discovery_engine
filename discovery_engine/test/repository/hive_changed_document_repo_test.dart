@@ -52,7 +52,7 @@ Future<void> main() async {
       test('fetch all from one', () async {
         final all = await repo.fetchAll();
         expect(all, hasLength(1));
-        expect(all.first, id1);
+        expect(all.first, equals(id1));
       });
 
       test('add existing and fetch it', () async {
@@ -61,7 +61,7 @@ Future<void> main() async {
 
         final all = await repo.fetchAll();
         expect(all, hasLength(1));
-        expect(all.first, id1);
+        expect(all.first, equals(id1));
       });
 
       test('add new and fetch all', () async {
