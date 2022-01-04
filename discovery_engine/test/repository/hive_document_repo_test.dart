@@ -1,11 +1,14 @@
-import 'dart:typed_data' show Uint8List;
+import 'dart:io' show Directory;
+// import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentAdapter, DocumentFeedback;
+    show Document, DocumentAdapter, DocumentFeedback, DocumentFeedbackAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentIdAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource;
+    show WebResource, WebResourceAdapter, UriAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -13,7 +16,14 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_documen
 
 Future<void> main() async {
   Hive.registerAdapter(DocumentAdapter());
-  final box = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
+  Hive.registerAdapter(DocumentFeedbackAdapter());
+  Hive.registerAdapter(WebResourceAdapter());
+  Hive.registerAdapter(DocumentIdAdapter());
+  Hive.registerAdapter(UriAdapter());
+
+  Hive.init(Directory.current.path);
+  final box = await Hive.openBox<Document>(documentBox);
+  // final box = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
   final repo = HiveDocumentRepository();
 
   group('DocumentRepository', () {
