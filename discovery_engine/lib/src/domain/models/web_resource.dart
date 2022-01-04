@@ -1,9 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hive/hive.dart'
-    show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
+import 'package:hive/hive.dart' show HiveType, HiveField;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart';
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show webResourceTypeId, uriTypeId;
+    show webResourceTypeId;
 
 part 'web_resource.freezed.dart';
 part 'web_resource.g.dart';
@@ -25,20 +24,4 @@ class WebResource with _$WebResource {
 
   factory WebResource.fromJson(Map<String, Object?> json) =>
       _$WebResourceFromJson(json);
-}
-
-class UriAdapter extends TypeAdapter<Uri> {
-  @override
-  final typeId = uriTypeId;
-
-  @override
-  Uri read(BinaryReader reader) {
-    final uriStr = reader.readString();
-    return Uri.parse(uriStr);
-  }
-
-  @override
-  void write(BinaryWriter writer, Uri obj) {
-    writer.writeString(obj.toString());
-  }
 }

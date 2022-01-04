@@ -1,13 +1,10 @@
 import 'dart:typed_data' show UnmodifiableUint8ListView, Uint8List;
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
-import 'package:hive/hive.dart' show TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:uuid/uuid.dart' show Uuid;
 
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
-import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show documentIdTypeId;
 
 /// [_UniqueId] represents base for unique identifiers for other models like
 /// [SearchId] or [DocumentId].
@@ -59,22 +56,4 @@ class SearchId extends _UniqueId {
   SearchId() : super();
   SearchId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
   SearchId.fromJson(Map<String, Object> json) : super.fromJson(json);
-}
-
-// Can be generated automatically
-class DocumentIdAdapter extends TypeAdapter<DocumentId> {
-  @override
-  final typeId = documentIdTypeId;
-
-  @override
-  DocumentId read(BinaryReader reader) {
-    final bytes = reader.readByteList();
-    return DocumentId.fromBytes(bytes);
-  }
-
-  @override
-  void write(BinaryWriter writer, DocumentId obj) {
-    final bytes = obj.value.buffer.asUint8List();
-    writer.writeByteList(bytes);
-  }
 }
