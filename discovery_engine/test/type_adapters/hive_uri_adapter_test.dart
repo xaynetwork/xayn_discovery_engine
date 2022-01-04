@@ -6,13 +6,13 @@ import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_
     show UriAdapter;
 
 void main() {
-  group('HiveUriAdapter', () {
+  group('UriAdapter', () {
     late Box<Uri> box;
 
     setUpAll(() async {
       Hive.registerAdapter(UriAdapter());
       Hive.init(Directory.current.path);
-      box = await Hive.openBox<Uri>('HiveUriAdapter');
+      box = await Hive.openBox<Uri>('UriAdapter');
     });
 
     tearDown(() async {
