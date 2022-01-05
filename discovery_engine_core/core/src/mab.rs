@@ -81,7 +81,6 @@ impl<'bs, 'b, BS, B, T> SelectionIter<'bs, 'b, BS, B, T>
 where
     B: Bucket<T>,
 {
-    #[allow(dead_code)]
     fn new(beta_sampler: &'bs BS, buckets: Vec<&'b mut B>) -> Self {
         Self {
             beta_sampler,
