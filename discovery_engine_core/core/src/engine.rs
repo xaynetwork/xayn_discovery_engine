@@ -23,7 +23,7 @@ pub enum Error {
     /// Invalid stack: {0}.
     InvalidStack(#[source] stack::Error),
 
-    /// Error while selecting the document to return: {0}.
+    /// Error while selecting the documents to return: {0}.
     Selection(#[from] mab::Error),
 }
 
