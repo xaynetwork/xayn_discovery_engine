@@ -1,7 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart'
-    show WebResourceProvider, $WebResourceProviderCopyWith;
+import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart';
 
 part 'web_resource.freezed.dart';
 part 'web_resource.g.dart';
