@@ -23,7 +23,7 @@ void main() {
     });
 
     test('when passing a bad entry point it should throw "EngineInitException"',
-        () async {
+        () {
       void wrongTypeSignature() {}
 
       expect(
