@@ -6,6 +6,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, DocumentFeedback, DocumentFeedbackAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource, WebResourceAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart'
+    show WebResourceProviderAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -20,6 +22,7 @@ Future<void> main() async {
   Hive.registerAdapter(DocumentAdapter());
   Hive.registerAdapter(DocumentFeedbackAdapter());
   Hive.registerAdapter(WebResourceAdapter());
+  Hive.registerAdapter(WebResourceProviderAdapter());
   Hive.registerAdapter(DocumentIdAdapter());
   Hive.registerAdapter(UriAdapter());
 
