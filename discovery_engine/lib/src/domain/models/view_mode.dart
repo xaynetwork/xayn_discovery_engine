@@ -1,4 +1,5 @@
-import 'package:hive/hive.dart';
+import 'package:hive/hive.dart'
+    show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show documentViewModeTypeId;
 
