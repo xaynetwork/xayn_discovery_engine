@@ -7,7 +7,7 @@ use thiserror::Error;
 use crate::utils::nan_safe_f32_cmp;
 
 #[derive(Error, Debug, Display)]
-pub(crate) enum Error {
+pub enum Error {
     /// Error while sampling.
     Sampling(#[from] BetaError),
     /// No items left in a [`Bucket`].
@@ -81,7 +81,6 @@ impl<'bs, 'b, BS, B, T> SelectionIter<'bs, 'b, BS, B, T>
 where
     B: Bucket<T>,
 {
-    #[allow(dead_code)]
     fn new(beta_sampler: &'bs BS, buckets: Vec<&'b mut B>) -> Self {
         Self {
             beta_sampler,
@@ -115,13 +114,11 @@ where
     }
 }
 
-#[allow(dead_code)]
 pub(crate) struct Selection<BS> {
     beta_sampler: BS,
 }
 
 impl<BS> Selection<BS> {
-    #[allow(dead_code)]
     pub(crate) fn new(beta_sampler: BS) -> Self {
         Self { beta_sampler }
     }
@@ -131,7 +128,6 @@ impl<BS> Selection<BS>
 where
     BS: BetaSample,
 {
-    #[allow(dead_code)]
     pub(crate) fn select<B, T>(&self, buckets: Vec<&mut B>, n: u32) -> Result<Vec<T>, Error>
     where
         B: Bucket<T>,

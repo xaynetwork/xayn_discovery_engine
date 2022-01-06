@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::{
     document::Document,
+    mab::{self, BetaSampler, Selection},
     stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
 };
 
@@ -21,6 +22,9 @@ pub enum Error {
 
     /// Invalid stack: {0}.
     InvalidStack(#[source] stack::Error),
+
+    /// Error while selecting the documents to return: {0}.
+    Selection(#[from] mab::Error),
 }
 
 /// Discovery Engine.
@@ -66,6 +70,13 @@ impl Engine {
             .collect();
 
         bincode::serialize(&stacks_data).map_err(Error::Serialization)
+    }
+
+    /// Returns at most `max_documents` [`Document`]s for the feed.
+    pub fn get_feed_documents(&mut self, max_documents: u32) -> Result<Vec<Document>, Error> {
+        Selection::new(BetaSampler)
+            .select(self.stacks.values_mut().collect(), max_documents)
+            .map_err(|e| e.into())
     }
 }
 
