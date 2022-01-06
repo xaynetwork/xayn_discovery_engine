@@ -17,11 +17,16 @@ Future<void> main() async {
   final repo = HiveDocumentRepository();
 
   group('DocumentRepository', () {
-    final dummy = WebResource.fromJson(<String, String>{
+    final dummy = WebResource.fromJson(const <String, Object>{
       'title': 'Example',
       'displayUrl': 'domain.com',
       'snippet': 'snippet',
-      'url': 'http://domain.com'
+      'url': 'http://domain.com',
+      'datePublished': '1980-01-01T00:00:00.000000',
+      'provider': <String, String>{
+        'name': 'domain',
+        'thumbnail': 'http://thumbnail.domain.com',
+      },
     });
     final doc1 = Document(
       personalizedRank: 0,
