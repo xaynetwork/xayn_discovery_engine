@@ -1,5 +1,3 @@
-import 'dart:isolate' show SendPort;
-
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
@@ -27,14 +25,9 @@ void main() {
     test('when passing a bad entry point it should throw "EngineInitException"',
         () {
       void wrongTypeSignature() {}
-      void nonStaticOrTopLevelFunction(SendPort sendPort) {}
 
       expect(
         createEngineWithEntryPoint(wrongTypeSignature),
-        throwsA(isA<EngineInitException>()),
-      );
-      expect(
-        createEngineWithEntryPoint(nonStaticOrTopLevelFunction),
         throwsA(isA<EngineInitException>()),
       );
     });
