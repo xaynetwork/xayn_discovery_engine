@@ -1,25 +1,3 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
 # Flutter/Dart/Pub related
 # Libraries should not include pubspec.lock, per https://dart.dev/guides/libraries/private-files#pubspeclock.
 /pubspec.lock
@@ -27,3 +5,12 @@
 .dart_tool/
 .packages
 build/
+
+# When we push to the release repository
+# we need to upload also the following files.
+# DELETE_AFTER_THIS_IN_RELEASE
+android/src/main/jniLibs/
+# TODO: update with proper file references
+ios/libxayn_*.a
+# ios/Classes/XaynAiFfiCommon.h
+# ios/Classes/XaynAiFfiDart.h
