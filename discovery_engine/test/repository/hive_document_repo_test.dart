@@ -3,7 +3,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentAdapter, DocumentFeedback;
+    show Document, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -12,7 +12,6 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_documen
     show HiveDocumentRepository;
 
 Future<void> main() async {
-  Hive.registerAdapter(DocumentAdapter());
   final box = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
   final repo = HiveDocumentRepository();
 

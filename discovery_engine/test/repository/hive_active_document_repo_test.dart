@@ -3,16 +3,17 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
-    show ActiveDocumentData, ActiveDocumentDataAdapter;
+    show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
+    show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show activeDocumentDataBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 
 Future<void> main() async {
-  Hive.registerAdapter(ActiveDocumentDataAdapter());
   final box = await Hive.openBox<ActiveDocumentData>(
     activeDocumentDataBox,
     bytes: Uint8List(0),
@@ -34,6 +35,8 @@ Future<void> main() async {
       });
 
       test('add new', () async {
+        const duration = Duration(seconds: 3);
+        data.addViewTime(DocumentViewMode.web, duration);
         await repo.update(id1, data);
         expect(box, hasLength(1));
         expect(box.values.first, equals(data));
