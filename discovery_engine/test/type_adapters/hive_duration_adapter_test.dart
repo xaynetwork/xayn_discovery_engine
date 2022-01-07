@@ -10,8 +10,8 @@ void main() {
     late Box<Duration> box;
 
     setUpAll(() async {
-      Hive.registerAdapter(DurationAdapter());
       Hive.init(Directory.current.path);
+      Hive.registerAdapter(DurationAdapter());
       box = await Hive.openBox<Duration>('DurationAdapter');
     });
 

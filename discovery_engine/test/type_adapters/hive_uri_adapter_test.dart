@@ -10,8 +10,8 @@ void main() {
     late Box<Uri> box;
 
     setUpAll(() async {
-      Hive.registerAdapter(UriAdapter());
       Hive.init(Directory.current.path);
+      Hive.registerAdapter(UriAdapter());
       box = await Hive.openBox<Uri>('UriAdapter');
     });
 
@@ -30,13 +30,7 @@ void main() {
       final uri = box.get(key)!;
 
       expect(box, hasLength(1));
-      expect(uri.scheme, equals('http'));
-      expect(uri.host, equals('example.com'));
-      expect(uri.path, equals('/some/url'));
-      expect(uri.pathSegments, equals(['some', 'url']));
-      expect(uri.port, equals(8080));
-      expect(uri.query, equals('query=some%20query'));
-      expect(uri.queryParameters, equals({'query': 'some query'}));
+      expect(uri, equals(value));
     });
   });
 }

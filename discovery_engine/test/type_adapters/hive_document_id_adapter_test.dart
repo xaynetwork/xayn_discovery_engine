@@ -12,8 +12,8 @@ void main() {
     late Box<DocumentId> box;
 
     setUpAll(() async {
-      Hive.registerAdapter(DocumentIdAdapter());
       Hive.init(Directory.current.path);
+      Hive.registerAdapter(DocumentIdAdapter());
       box = await Hive.openBox<DocumentId>('DocumentIdAdapter');
     });
 
