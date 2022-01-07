@@ -2,6 +2,7 @@
 
 use std::convert::TryFrom;
 
+use derivative::Derivative;
 use derive_more::{Deref, Display};
 use displaydoc::Display as DisplayDoc;
 use ndarray::{Array, Dimension, Ix1};
@@ -65,6 +66,22 @@ pub struct Document {
 
     /// Embedding from smbert.
     pub smbert_embedding: Embedding1,
+}
+
+/// Indicates user's "sentiment" towards the document,
+/// essentially if the user "liked" or "disliked" the document.
+#[derive(Clone, Copy, Debug, Derivative, Serialize, Deserialize)]
+#[derivative(Default)]
+pub enum UserReaction {
+    /// No reaction from the user.
+    #[derivative(Default)]
+    Neutral,
+
+    /// The user is interested.
+    Positive,
+
+    /// The user is not interested.
+    Negative,
 }
 
 /// A d-dimensional sequence embedding.
