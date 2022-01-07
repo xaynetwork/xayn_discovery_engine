@@ -10,8 +10,9 @@ permissions:
   contents: read
 
 env:
-  DART_VERSION: '2.14.4'
+  FLUTTER_VERSION: '2.8.1'
   DART_WORKSPACE: ${{ github.workspace }}/discovery_engine
+  FLUTTER_WORKSPACE: ${{ github.workspace }}/discovery_engine_flutter
 
 jobs:
   release:
@@ -28,14 +29,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Install dart
-        uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
+      - name: Install flutter
+        uses: subosito/flutter-action@4389e6cbc6cb8a4b18c628ff96ff90be0e926aa8 # v1.5.3
         with:
-          sdk: ${{ env.DART_VERSION }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
 
-      - name: Install dependencies
+      - name: Install dart dependencies
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub get
+
+      - name: Install futter dependencies
+        working-directory: ${{ env.FLUTTER_WORKSPACE }}
+        run: flutter pub get
 
       - name: Other Dart code generation
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -59,6 +64,7 @@ jobs:
           SRC_COMMIT_MSG=$(git log --format=%B -n1)
           git config --global user.email $EMAIL
           git config --global user.name $USERNAME
+
           # Check if the branch exists, if so, clone using the existing branch,
           # if not, clone using the default branch and let git push to send to the right branch
           BRANCH_EXISTS=$(git ls-remote --heads "git@github.com:$DST_REPO.git" $BRANCH | wc -l);
@@ -68,13 +74,20 @@ jobs:
             git clone -b $BRANCH --depth 1 "git@github.com:$DST_REPO.git" $CLONE_DIR;
           fi
           cd $CLONE_DIR
+
           # Cleaning all files on the destination repository
           # --ignore-unmatch avoid to fail if the repository is empty
           git rm --ignore-unmatch -r .
-          rsync -a --exclude example ${{ env.DART_WORKSPACE }}/ .
+
+          rsync -a ${{ env.DART_WORKSPACE }}/ ./discovery_engine/
+          rsync -a --exclude example ${{ env.FLUTTER_WORKSPACE }}/ ./discovery_engine_flutter/
+
           # Remove files from .gitignore that needs to be uploaded to the release repo
-          sed -i -e '/DELETE_AFTER_THIS_IN_RELEASE/,$d' .gitignore
+          sed -i -e '/DELETE_AFTER_THIS_IN_RELEASE/,$d' ./discovery_engine/.gitignore
+          sed -i -e '/DELETE_AFTER_THIS_IN_RELEASE/,$d' ./discovery_engine_flutter/.gitignore
+
           git add -A
+
           # Commit only if something changed
           if [ $(git status --porcelain | wc -l) -gt 0 ]; then
             git commit --message "$SRC_COMMIT_MSG
