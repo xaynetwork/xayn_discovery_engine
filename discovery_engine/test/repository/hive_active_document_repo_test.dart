@@ -49,10 +49,6 @@ Future<void> main() async {
         await repo.update(id1, data);
         expect(box, hasLength(1));
         expect(box.values.first, equals(data));
-        expect(
-          box.values.first.viewTime[DocumentViewMode.web],
-          equals(duration),
-        );
       });
 
       test('fetch none', () async {

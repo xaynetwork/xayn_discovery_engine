@@ -1,5 +1,6 @@
 import 'dart:typed_data' show Uint8List;
 
+import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:hive/hive.dart';
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
@@ -10,7 +11,7 @@ part 'active_data.g.dart';
 
 /// Additional data pertaining to active documents.
 @HiveType(typeId: activeDocumentDataTypeId)
-class ActiveDocumentData {
+class ActiveDocumentData with EquatableMixin {
   @HiveField(0)
   final Uint8List smbertEmbedding;
   @HiveField(1)
@@ -26,4 +27,7 @@ class ActiveDocumentData {
   /// Get the time spent in the given view mode.
   Duration getViewTime(DocumentViewMode mode) =>
       viewTime[mode] ?? Duration.zero;
+
+  @override
+  List<Object?> get props => [smbertEmbedding, viewTime];
 }
