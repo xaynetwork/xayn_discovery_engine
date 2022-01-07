@@ -1,4 +1,3 @@
-import 'dart:io' show Directory;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Hive;
@@ -11,9 +10,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed
     show HiveChangedDocumentRepository;
 
 Future<void> main() async {
-  Hive.init(Directory.current.path);
-
-  final box = await Hive.openBox<Uint8List>(changedDocumentIdBox);
+  final box =
+      await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
   final repo = HiveChangedDocumentRepository();
 
   group('ChangedDocumentRepository', () {
@@ -22,10 +20,6 @@ Future<void> main() async {
 
     tearDown(() async {
       await box.clear();
-    });
-
-    tearDownAll(() async {
-      await box.deleteFromDisk();
     });
 
     group('empty box', () {

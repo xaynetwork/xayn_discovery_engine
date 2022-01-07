@@ -1,28 +1,23 @@
-import 'dart:io' show Directory;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
-    show ActiveDocumentData, ActiveDocumentDataAdapter;
+    show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
-    show DocumentViewMode, DocumentViewModeAdapter;
+    show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show activeDocumentDataBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
-    show DurationAdapter;
 
 Future<void> main() async {
-  Hive.init(Directory.current.path);
-  Hive.registerAdapter(DurationAdapter());
-  Hive.registerAdapter(DocumentViewModeAdapter());
-  Hive.registerAdapter(ActiveDocumentDataAdapter());
-
-  final box = await Hive.openBox<ActiveDocumentData>(activeDocumentDataBox);
+  final box = await Hive.openBox<ActiveDocumentData>(
+    activeDocumentDataBox,
+    bytes: Uint8List(0),
+  );
   final repo = HiveActiveDocumentDataRepository();
 
   group('ActiveDocumentDataRepository', () {
@@ -32,10 +27,6 @@ Future<void> main() async {
 
     tearDown(() async {
       await box.clear();
-    });
-
-    tearDownAll(() async {
-      await box.deleteFromDisk();
     });
 
     group('empty box', () {
