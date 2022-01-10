@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/assets/native/json_reader.dart'
+import 'package:xayn_discovery_engine/src/infrastructure/assets/native/json_manifest_reader.dart'
     show JsonManifestReader;
 
 void main() {
