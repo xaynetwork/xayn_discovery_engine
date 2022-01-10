@@ -15,6 +15,7 @@ dependencies:
     git:
       url: git@github.com:xaynetwork/xayn_discovery_engine_release.git
       ref: main
+      path: discovery_engine
 
 dev_dependencies:
   flutter_test:
