@@ -76,13 +76,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_lints:
-    dependency: "direct dev"
-    description:
-      name: flutter_lints
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "1.0.4"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -109,13 +102,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.3.0"
-  lints:
-    dependency: transitive
-    description:
-      name: lints
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "1.0.1"
   logger:
     dependency: transitive
     description:
@@ -220,13 +206,11 @@ packages:
     source: hosted
     version: "2.1.1"
   xayn_discovery_engine:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      path: "."
-      ref: main
-      resolved-ref: efd4639d40adfac0ba4d45c3eca7d388c07b4914
-      url: "git@github.com:xaynetwork/xayn_discovery_engine_release.git"
-    source: git
+      path: "../../discovery_engine"
+      relative: true
+    source: path
     version: "0.1.0"
   xayn_discovery_engine_flutter:
     dependency: "direct main"

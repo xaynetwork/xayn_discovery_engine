@@ -9,8 +9,8 @@ build/
 # When we push to the release repository
 # we need to upload also the following files.
 # DELETE_AFTER_THIS_IN_RELEASE
-android/src/main/jniLibs/
 # TODO: update with proper file references
-ios/libxayn_*.a
+# android/src/main/jniLibs/
+# ios/libxayn_*.a
 # ios/Classes/XaynAiFfiCommon.h
 # ios/Classes/XaynAiFfiDart.h

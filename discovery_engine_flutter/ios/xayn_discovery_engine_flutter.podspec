@@ -22,5 +22,5 @@ Xayn Discovery Engine flutter plugin project.
   s.swift_version = '5.0'
   # Forces loading the binaries
   # TODO: update to proper paths and filenames when the binaries are published
-  s.xcconfig = { 'OTHER_LDFLAGS' => '-force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_ffi_c_x86_64-apple-ios.a" -force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_ffi_c_aarch64-apple-ios.a"'}
+  # s.xcconfig = { 'OTHER_LDFLAGS' => '-force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_ffi_c_x86_64-apple-ios.a" -force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_ffi_c_aarch64-apple-ios.a"'}
 end

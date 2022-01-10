@@ -17,8 +17,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final String _platformVersion = 'Unknown';
-
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initEngine() async {
     // provide initial configuration for the engine
@@ -74,8 +72,6 @@ class _MyAppState extends State<MyApp> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Running on: $_platformVersion\n'),
-              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: initEngine,
                 child: const Text('Init engine'),
