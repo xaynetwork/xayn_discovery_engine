@@ -9,7 +9,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/reader.dart'
 class JsonManifestReader implements ManifestReader {
   @override
   Future<Manifest> read(String path) async {
-    final dynamic json = jsonDecode(await File(path).readAsString());
-    return Manifest.fromJson(json as Map<dynamic, dynamic>);
+    final json = jsonDecode(await File(path).readAsString()) as Map;
+    return Manifest.fromJson(json.cast<String, Object>());
   }
 }

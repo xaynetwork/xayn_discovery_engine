@@ -3,10 +3,11 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/json_read
     show JsonManifestReader;
 
 void main() {
-  group('read json', () {
+  group('JsonManifestReader', () {
     test('read json', () async {
-      final reader = await JsonManifestReader().read('../asset_manifest.json');
-      expect(1, 1);
+      final manifest =
+          await JsonManifestReader().read('../asset_manifest.json');
+      expect(manifest.assets, isNotEmpty);
     });
   });
 }
