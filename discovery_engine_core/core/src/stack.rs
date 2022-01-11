@@ -93,7 +93,7 @@ impl Stack {
     /// Register the feedback from the user. This will change the parameters
     #[allow(dead_code)]
     pub(crate) fn feedback_from_reaction(&mut self, reaction: UserReaction) {
-        // avoid to make the distribution too skewed
+        // to avoid making the distribution too skewed
         const MAX_BETA_PARAMS: f32 = 1000.;
 
         fn update(value: &mut f32) {
