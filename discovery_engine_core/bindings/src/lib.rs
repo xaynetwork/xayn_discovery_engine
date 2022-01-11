@@ -1,6 +1,6 @@
 // Copyright 2022 Xayn AG
 
-//! FFI and logic bindings to discovery_engine_core.
+//! FFI and logic bindings to `discovery_engine_core`.
 
 #![deny(
     clippy::pedantic,
