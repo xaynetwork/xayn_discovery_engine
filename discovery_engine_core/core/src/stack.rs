@@ -121,6 +121,7 @@ impl Stack {
 
         Ok(())
     }
+
 }
 
 impl Bucket<Document> for Stack {
@@ -339,7 +340,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.feedback_from_reaction(UserReaction::Positive);
+        stack.update_relevance(UserReaction::Positive);
 
         approx_eq!(f32, alpha + 1., stack.alpha());
         approx_eq!(f32, beta, stack.beta());
@@ -354,7 +355,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.feedback_from_reaction(UserReaction::Negative);
+        stack.update_relevance(UserReaction::Negative);
 
         approx_eq!(f32, beta + 1., stack.beta());
         approx_eq!(f32, alpha, stack.alpha());
@@ -369,7 +370,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.feedback_from_reaction(UserReaction::Neutral);
+        stack.update_relevance(UserReaction::Neutral);
 
         approx_eq!(f32, beta, stack.beta());
         approx_eq!(f32, alpha, stack.alpha());
