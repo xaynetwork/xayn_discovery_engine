@@ -1,4 +1,4 @@
-group 'com.example.xayn_discovery_engine_flutter'
+group 'com.xayn.xayn_discovery_engine_flutter'
 version '1.0-SNAPSHOT'
 
 buildscript {
