@@ -12,5 +12,3 @@ build/
 # TODO: update with proper file references
 # android/src/main/jniLibs/
 # ios/libxayn_*.a
-# ios/Classes/XaynAiFfiCommon.h
-# ios/Classes/XaynAiFfiDart.h
