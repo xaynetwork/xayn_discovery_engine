@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - xayn_discovery_engine_flutter (0.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - xayn_discovery_engine_flutter (from `.symlinks/plugins/xayn_discovery_engine_flutter/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  xayn_discovery_engine_flutter:
+    :path: ".symlinks/plugins/xayn_discovery_engine_flutter/ios"
+
+SPEC CHECKSUMS:
+  Flutter: 50d75fe2f02b26cc09d224853bb45737f8b3214a
+  xayn_discovery_engine_flutter: cf6b4969cdb29874b428dac2ae7c96a2ee17aee0
+
+PODFILE CHECKSUM: ff04e37f9f537fe4c5e19a090390f7947e1323a5
+
+COCOAPODS: 1.10.0
