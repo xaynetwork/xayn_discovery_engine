@@ -90,21 +90,21 @@ impl Stack {
         Ok(self)
     }
 
-    /// Register the feedback from the user. This will change the parameters
+    /// Updates the relevance of the Stack based on the user feedback.
     #[allow(dead_code)]
-    pub(crate) fn feedback_from_reaction(&mut self, reaction: UserReaction) {
+    pub(crate) fn update_relevance(&mut self, reaction: UserReaction) {
         // to avoid making the distribution too skewed
         const MAX_BETA_PARAMS: f32 = 1000.;
 
-        fn update(value: &mut f32) {
+        fn incr(value: &mut f32) {
             if *value < MAX_BETA_PARAMS {
                 (*value) += 1.;
             }
         }
 
         match reaction {
-            UserReaction::Positive => update(&mut self.data.alpha),
-            UserReaction::Negative => update(&mut self.data.beta),
+            UserReaction::Positive => incr(&mut self.data.alpha),
+            UserReaction::Negative => incr(&mut self.data.beta),
             UserReaction::Neutral => (),
         }
     }
