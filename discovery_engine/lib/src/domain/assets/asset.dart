@@ -1,5 +1,4 @@
-import 'package:json_annotation/json_annotation.dart'
-    show JsonKey, JsonSerializable;
+import 'package:json_annotation/json_annotation.dart';
 
 part 'asset.g.dart';
 
@@ -28,13 +27,22 @@ part 'asset.g.dart';
 /// reassembled.
 @JsonSerializable(createToJson: false)
 class Asset {
-  @JsonKey(name: 'url_suffix')
+  @JsonKey(disallowNullValue: true, required: true)
+  final String id;
+  @JsonKey(name: 'url_suffix', disallowNullValue: true, required: true)
   final String urlSuffix;
-  @JsonKey(fromJson: Checksum._checksumFromString)
+  @JsonKey(
+    fromJson: Checksum._checksumFromString,
+    disallowNullValue: true,
+    required: true,
+  )
+  @JsonKey(disallowNullValue: true, required: true)
   final Checksum checksum;
+
+  @JsonKey(disallowNullValue: true, required: true)
   final List<Fragment> fragments;
 
-  Asset(this.urlSuffix, this.checksum, this.fragments);
+  Asset(this.id, this.urlSuffix, this.checksum, this.fragments);
 
   factory Asset.fromJson(Map json) => _$AssetFromJson(json);
 }
@@ -42,9 +50,13 @@ class Asset {
 /// A fragment of an asset.
 @JsonSerializable(createToJson: false)
 class Fragment {
-  @JsonKey(name: 'url_suffix')
+  @JsonKey(name: 'url_suffix', disallowNullValue: true, required: true)
   final String urlSuffix;
-  @JsonKey(fromJson: Checksum._checksumFromString)
+  @JsonKey(
+    fromJson: Checksum._checksumFromString,
+    disallowNullValue: true,
+    required: true,
+  )
   final Checksum checksum;
 
   Fragment(this.urlSuffix, this.checksum);
@@ -55,6 +67,7 @@ class Fragment {
 /// The checksum an asset/fragment.
 @JsonSerializable(createToJson: false)
 class Checksum {
+  @JsonKey(disallowNullValue: true, required: true)
   final String checksum;
 
   Checksum(this.checksum);
@@ -67,6 +80,7 @@ class Checksum {
 
 @JsonSerializable(createToJson: false)
 class Manifest {
+  @JsonKey(disallowNullValue: true, required: true)
   final List<Asset> assets;
 
   Manifest(this.assets);
