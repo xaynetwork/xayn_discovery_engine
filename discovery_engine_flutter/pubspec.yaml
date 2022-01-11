@@ -34,7 +34,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: com.example.xayn_discovery_engine_flutter
+        package: com.xayn.xayn_discovery_engine_flutter
         pluginClass: XaynDiscoveryEngineFlutterPlugin
       ios:
         pluginClass: XaynDiscoveryEngineFlutterPlugin

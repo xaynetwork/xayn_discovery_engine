@@ -1,4 +1,4 @@
-package com.example.xayn_discovery_engine_flutter
+package com.xayn.xayn_discovery_engine_flutter
 
 import androidx.annotation.NonNull
 
