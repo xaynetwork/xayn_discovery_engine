@@ -121,7 +121,6 @@ impl Stack {
 
         Ok(())
     }
-
 }
 
 impl Bucket<Document> for Stack {
