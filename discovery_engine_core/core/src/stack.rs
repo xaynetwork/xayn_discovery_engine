@@ -8,7 +8,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use crate::{
-    document::{Document, Id as DocumentId},
+    document::{Document, Id as DocumentId, UserReaction},
     engine::{GenericError, Ranker},
     mab::Bucket,
 };
@@ -60,7 +60,6 @@ pub(crate) struct Stack {
 
 impl Stack {
     /// Create a new `Stack` with the given [`Data`] and customized [`Ops`].
-    #[allow(dead_code)]
     pub(crate) fn new(data: Data, ops: BoxedOps) -> Result<Self, Error> {
         Self::validate_documents_stack_id(&data.documents, ops.id())?;
 
@@ -89,6 +88,25 @@ impl Stack {
         ranker.rank(&mut items).map_err(Error::Ranking)?;
         self.data.documents = items;
         Ok(self)
+    }
+
+    /// Updates the relevance of the Stack based on the user feedback.
+    #[allow(dead_code)]
+    pub(crate) fn update_relevance(&mut self, reaction: UserReaction) {
+        // to avoid making the distribution too skewed
+        const MAX_BETA_PARAMS: f32 = 1000.;
+
+        fn incr(value: &mut f32) {
+            if *value < MAX_BETA_PARAMS {
+                (*value) += 1.;
+            }
+        }
+
+        match reaction {
+            UserReaction::Positive => incr(&mut self.data.alpha),
+            UserReaction::Negative => incr(&mut self.data.beta),
+            UserReaction::Neutral => (),
+        }
     }
 
     /// It checks that every document belongs to a stack.
@@ -125,10 +143,12 @@ impl Bucket<Document> for Stack {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
+
     use claim::{assert_matches, assert_none, assert_ok, assert_some};
     use uuid::Uuid;
-
-    use std::fmt::Debug;
+    // TODO use our own when exposed as a crate
+    use float_cmp::approx_eq;
 
     use crate::{document::Id as DocumentId, stack::ops::MockOps};
 
@@ -308,5 +328,50 @@ mod tests {
         assert!(!stack.is_empty());
         stack.pop();
         assert!(stack.is_empty());
+    }
+
+    #[test]
+    fn test_stack_feedback_reaction_positive() {
+        let mut ops = MockOps::new();
+        ops.expect_id().returning(Id::default);
+        let data = Data::default();
+        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let alpha = stack.alpha();
+        let beta = stack.beta();
+
+        stack.update_relevance(UserReaction::Positive);
+
+        approx_eq!(f32, alpha + 1., stack.alpha());
+        approx_eq!(f32, beta, stack.beta());
+    }
+
+    #[test]
+    fn test_stack_feedback_reaction_negative() {
+        let mut ops = MockOps::new();
+        ops.expect_id().returning(Id::default);
+        let data = Data::default();
+        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let alpha = stack.alpha();
+        let beta = stack.beta();
+
+        stack.update_relevance(UserReaction::Negative);
+
+        approx_eq!(f32, beta + 1., stack.beta());
+        approx_eq!(f32, alpha, stack.alpha());
+    }
+
+    #[test]
+    fn test_stack_feedback_reaction_neutral() {
+        let mut ops = MockOps::new();
+        ops.expect_id().returning(Id::default);
+        let data = Data::default();
+        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let alpha = stack.alpha();
+        let beta = stack.beta();
+
+        stack.update_relevance(UserReaction::Neutral);
+
+        approx_eq!(f32, beta, stack.beta());
+        approx_eq!(f32, alpha, stack.alpha());
     }
 }

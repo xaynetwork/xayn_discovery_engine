@@ -451,6 +451,7 @@ dependencies = [
  "derivative",
  "derive_more",
  "displaydoc",
+ "float-cmp",
  "mockall",
  "ndarray",
  "rand",
