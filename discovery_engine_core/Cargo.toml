@@ -1,11 +1,15 @@
 [workspace]
 members = [
-    "core",
-    "bindings"
+    "bindings",
+    "core"
 ]
 resolver = "2"
 
 [patch.crates-io.async-bindgen]
+git = "ssh://git@github.com/xaynetwork/xayn_async_bindgen.git"
+branch = "TY-2250-2-unreachable-pub-warning"
+
+[patch.crates-io.async-bindgen-gen-dart]
 git = "ssh://git@github.com/xaynetwork/xayn_async_bindgen.git"
 branch = "TY-2250-2-unreachable-pub-warning"
 

@@ -1,0 +1,8 @@
+name: 'XaynDiscoveryEngineBindings'
+description: 'Bindings to xayn_discovery_engine_core'
+output: 'lib/src/genesis.ffigen.dart'
+headers:
+  entry-points:
+    - '../discovery_engine_core/include/XaynDiscoveryEngineBindings.h'
+  include-directives:
+    - '../discovery_engine_core/include/XaynDiscoveryEngineBindings.h'
