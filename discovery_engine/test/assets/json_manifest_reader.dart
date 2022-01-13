@@ -19,10 +19,7 @@ void main() {
         // all Asset members are not empty strings
         expect(
           manifest.assets.every(
-            (it) =>
-                it.id.isNotEmpty &&
-                it.urlSuffix.isNotEmpty &&
-                it.checksum.checksum.isNotEmpty,
+            (it) => it.urlSuffix.isNotEmpty && it.checksum.checksum.isNotEmpty,
           ),
           isTrue,
         );
