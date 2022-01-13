@@ -79,9 +79,10 @@ jobs:
           # --ignore-unmatch avoid to fail if the repository is empty
           git rm --ignore-unmatch -r .
 
-          rsync ${{ github.workspace }}/asset_manifest.json ./
           rsync -a --exclude example ${{ env.DART_WORKSPACE }}/ ./discovery_engine/
           rsync -a --exclude example ${{ env.FLUTTER_WORKSPACE }}/ ./discovery_engine_flutter/
+          rsync ${{ github.workspace }}/asset_manifest.json ./discovery_engine/assets/asset_manifest.json
+          rsync ${{ github.workspace }}/asset_manifest.json ./discovery_engine_flutter/assets/asset_manifest.json
 
           # Remove files from .gitignore that needs to be uploaded to the release repo
           sed -i -e '/DELETE_AFTER_THIS_IN_RELEASE/,$d' ./discovery_engine/.gitignore
