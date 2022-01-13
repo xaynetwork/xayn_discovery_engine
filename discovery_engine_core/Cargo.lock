@@ -29,7 +29,7 @@ checksum = "84450d0b4a8bd1ba4144ce8ce718fbc5d071358b1e5384bace6536b3d1f2d5b3"
 [[package]]
 name = "async-bindgen"
 version = "0.1.0"
-source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#db3f894ce12f499e45ec9e5e27fd62a525e49426"
+source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
 dependencies = [
  "async-bindgen-derive",
  "async-std",
@@ -41,7 +41,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-derive"
 version = "0.1.0"
-source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#db3f894ce12f499e45ec9e5e27fd62a525e49426"
+source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
 dependencies = [
  "heck 0.4.0",
  "once_cell",
@@ -53,7 +53,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-gen-dart"
 version = "0.1.0"
-source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#db3f894ce12f499e45ec9e5e27fd62a525e49426"
+source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
 dependencies = [
  "anyhow",
  "handlebars",
