@@ -29,7 +29,7 @@ checksum = "84450d0b4a8bd1ba4144ce8ce718fbc5d071358b1e5384bace6536b3d1f2d5b3"
 [[package]]
 name = "async-bindgen"
 version = "0.1.0"
-source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
 dependencies = [
  "async-bindgen-derive",
  "async-std",
@@ -41,7 +41,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-derive"
 version = "0.1.0"
-source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
 dependencies = [
  "heck 0.4.0",
  "once_cell",
@@ -53,7 +53,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-gen-dart"
 version = "0.1.0"
-source = "git+ssh://git@github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2250-2-unreachable-pub-warning#8127932e25e8c481d63fccadddccf28fa37bcd98"
 dependencies = [
  "anyhow",
  "handlebars",
@@ -1521,7 +1521,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 [[package]]
 name = "xayn-dart-api-dl"
 version = "0.3.0+2.0.0"
-source = "git+ssh://git@github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#e204c9798d7dc1723fa5a880cae0d8f7b7390e92"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#e204c9798d7dc1723fa5a880cae0d8f7b7390e92"
 dependencies = [
  "displaydoc",
  "once_cell",
@@ -1533,7 +1533,7 @@ dependencies = [
 [[package]]
 name = "xayn-dart-api-dl-sys"
 version = "0.3.0+2.0.0"
-source = "git+ssh://git@github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#e204c9798d7dc1723fa5a880cae0d8f7b7390e92"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#e204c9798d7dc1723fa5a880cae0d8f7b7390e92"
 dependencies = [
  "bindgen",
  "cc",

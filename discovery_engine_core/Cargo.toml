@@ -6,17 +6,17 @@ members = [
 resolver = "2"
 
 [patch.crates-io.async-bindgen]
-git = "ssh://git@github.com/xaynetwork/xayn_async_bindgen.git"
+git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
 branch = "TY-2250-2-unreachable-pub-warning"
 
 [patch.crates-io.async-bindgen-gen-dart]
-git = "ssh://git@github.com/xaynetwork/xayn_async_bindgen.git"
+git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
 branch = "TY-2250-2-unreachable-pub-warning"
 
 [patch.crates-io.xayn-dart-api-dl]
-git = "ssh://git@github.com/xaynetwork/xayn_dart_api_dl.git"
+git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
 branch = "main"
 
 [patch.crates-io.xayn-dart-api-dl-sys]
-git = "ssh://git@github.com/xaynetwork/xayn_dart_api_dl.git"
+git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
 branch = "main"
