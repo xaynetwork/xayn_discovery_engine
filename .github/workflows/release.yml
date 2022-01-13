@@ -81,7 +81,7 @@ jobs:
 
           rsync -a --exclude example ${{ env.DART_WORKSPACE }}/ ./discovery_engine/
           rsync -a --exclude example ${{ env.FLUTTER_WORKSPACE }}/ ./discovery_engine_flutter/
-          rsync ${{ github.workspace }}/asset_manifest.json ./discovery_engine/assets/asset_manifest.json
+          rsync ${{ github.workspace }}/asset_manifest.json ./discovery_engine/lib/assets/asset_manifest.json
           rsync ${{ github.workspace }}/asset_manifest.json ./discovery_engine_flutter/assets/asset_manifest.json
 
           # Remove files from .gitignore that needs to be uploaded to the release repo
