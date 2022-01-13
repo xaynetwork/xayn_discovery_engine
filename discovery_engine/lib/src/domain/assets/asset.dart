@@ -28,7 +28,7 @@ part 'asset.g.dart';
 @JsonSerializable(createToJson: false)
 class Asset {
   @JsonKey(disallowNullValue: true, required: true)
-  final String id;
+  final AssetType id;
   @JsonKey(name: 'url_suffix', disallowNullValue: true, required: true)
   final String urlSuffix;
   @JsonKey(
@@ -45,6 +45,12 @@ class Asset {
   Asset(this.id, this.urlSuffix, this.checksum, this.fragments);
 
   factory Asset.fromJson(Map json) => _$AssetFromJson(json);
+}
+
+// Type of an asset.
+enum AssetType {
+  smbertVocab,
+  smbertModel,
 }
 
 /// A fragment of an asset.
