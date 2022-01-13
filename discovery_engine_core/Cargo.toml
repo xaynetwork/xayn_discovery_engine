@@ -7,11 +7,11 @@ resolver = "2"
 
 [patch.crates-io.async-bindgen]
 git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
-branch = "TY-2250-2-unreachable-pub-warning"
+branch = "TY-2285-do-not-use-type-alias"
 
 [patch.crates-io.async-bindgen-gen-dart]
 git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
-branch = "TY-2250-2-unreachable-pub-warning"
+branch = "TY-2285-do-not-use-type-alias"
 
 [patch.crates-io.xayn-dart-api-dl]
 git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
