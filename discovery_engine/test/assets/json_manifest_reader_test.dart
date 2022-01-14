@@ -26,7 +26,7 @@ void main() {
           'when given a properly formated manifest file it should read it '
           'without throwing Exceptions', () async {
         final manifest =
-            await JsonManifestReader().read('../asset_manifest.json');
+            await JsonManifestReader().read('lib/assets/asset_manifest.json');
 
         // list of Assets is not empty
         expect(manifest.assets, isNotEmpty);
