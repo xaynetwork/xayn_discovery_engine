@@ -1,0 +1,10 @@
+[package]
+name = "xayn-discovery-engine-bindings"
+version = "0.1.0"
+edition = "2018"
+license = "AGPL-3.0-only"
+
+[dependencies]
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
