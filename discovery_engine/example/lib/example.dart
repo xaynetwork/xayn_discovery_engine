@@ -21,16 +21,17 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         NextFeedBatchAvailable,
         NextFeedBatchRequestSucceeded,
         NextFeedBatchRequested,
-        ResetEngine;
+        ResetEngine,
+        FeedMarket;
 
 Future<void> runExample() async {
   // provide initial configuration for the engine
-  const config = Configuration(
+  final config = Configuration(
     apiKey: '**********',
     apiBaseUrl: 'https://example-api.dev',
-    feedMarket: 'de-DE',
     maxItemsPerFeedBatch: 50,
     applicationDirectoryPath: './',
+    feedMarkets: {const FeedMarket(countyCode: 'DE', langCode: 'de')},
   );
 
   late DiscoveryEngine engine;
@@ -42,7 +43,7 @@ Future<void> runExample() async {
     // all the modules and binaries and establish communication channels
     print('Starting the Discovery Engine...');
     engine = await DiscoveryEngine.init(configuration: config);
-    print('Engine initialized successfuly.');
+    print('Engine initialized successfully.');
   } on EngineInitException catch (e) {
     // message what went wrong
     print(e.message);

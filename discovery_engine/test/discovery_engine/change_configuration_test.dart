@@ -18,7 +18,9 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         EngineEvent,
         ClientEventSucceeded,
         EngineExceptionRaised,
-        EngineExceptionReason;
+        EngineExceptionReason,
+        ClientEvent,
+        FeedMarket;
 
 import 'utils/utils.dart'
     show
@@ -49,7 +51,10 @@ void main() {
         'if worker responds with "EngineExceptionRaised" event it should pass it'
         'as a response of the Discovery Engine', () async {
       final engine = await createEngineWithEntryPoint(withErrorResponse);
-      final response = await engine.changeConfiguration(feedMarket: 'de-DE');
+
+      final response = await engine.changeConfiguration(
+        feedMarkets: {const FeedMarket(countyCode: 'DE', langCode: 'de')},
+      );
 
       expect(response, isA<EngineExceptionRaised>());
       expect(
@@ -72,6 +77,19 @@ void main() {
         EngineExceptionReason.wrongEventInResponse,
       );
     });
+  });
+
+  group('Check events', () {
+    test(
+      'GIVEN empty set of FeedMarket WHEN create ChangeConfiguration event THEN throw AssertError',
+      () {
+        const values = <FeedMarket>{};
+        expect(
+          () => ClientEvent.configurationChanged(feedMarkets: values),
+          throwsA(isA<AssertionError>()),
+        );
+      },
+    );
   });
 }
 

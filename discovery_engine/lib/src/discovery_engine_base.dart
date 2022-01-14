@@ -28,7 +28,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         DocumentViewMode,
         DocumentFeedback,
         Configuration,
-        DocumentId;
+        DocumentId,
+        FeedMarkets;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -131,12 +132,12 @@ class DiscoveryEngine {
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> changeConfiguration({
-    String? feedMarket,
+    FeedMarkets? feedMarkets,
     int? maxItemsPerFeedBatch,
   }) async {
     return _trySend(() async {
       final event = ClientEvent.configurationChanged(
-        feedMarket: feedMarket,
+        feedMarkets: feedMarkets,
         maxItemsPerFeedBatch: maxItemsPerFeedBatch,
       );
       final response = await _manager.send(event);

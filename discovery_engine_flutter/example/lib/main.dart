@@ -34,12 +34,12 @@ class _MyAppState extends State<MyApp> {
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initEngine() async {
     // provide initial configuration for the engine
-    const config = Configuration(
+    final config = Configuration(
       apiKey: '**********',
       apiBaseUrl: 'https://example-api.dev',
-      feedMarket: 'de-DE',
       maxItemsPerFeedBatch: 50,
       applicationDirectoryPath: './',
+      feedMarkets: {const FeedMarket(countyCode: 'DE', langCode: 'de')},
     );
 
     late DiscoveryEngine engine;
