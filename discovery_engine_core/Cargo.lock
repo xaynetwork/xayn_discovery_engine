@@ -29,7 +29,7 @@ checksum = "84450d0b4a8bd1ba4144ce8ce718fbc5d071358b1e5384bace6536b3d1f2d5b3"
 [[package]]
 name = "async-bindgen"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2285-do-not-use-type-alias#d3ce63fa50229b6981c2a70ac5544dfc9a0cbd13"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#2023676c9f9cd8f0b703fb3c62cd75ead1447239"
 dependencies = [
  "async-bindgen-derive",
  "async-std",
@@ -41,7 +41,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-derive"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2285-do-not-use-type-alias#d3ce63fa50229b6981c2a70ac5544dfc9a0cbd13"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#2023676c9f9cd8f0b703fb3c62cd75ead1447239"
 dependencies = [
  "heck 0.4.0",
  "once_cell",
@@ -53,7 +53,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-gen-dart"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=TY-2285-do-not-use-type-alias#d3ce63fa50229b6981c2a70ac5544dfc9a0cbd13"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#2023676c9f9cd8f0b703fb3c62cd75ead1447239"
 dependencies = [
  "anyhow",
  "handlebars",
