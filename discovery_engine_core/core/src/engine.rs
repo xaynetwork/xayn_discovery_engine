@@ -18,7 +18,7 @@ use displaydoc::Display;
 use thiserror::Error;
 
 use crate::{
-    document::Document,
+    document::{Document, TimeLogged, UserReacted},
     mab::{self, BetaSampler, Selection},
     stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
 };
@@ -37,21 +37,42 @@ pub enum Error {
     /// Invalid stack: {0}.
     InvalidStack(#[source] stack::Error),
 
+    /// Invalid stack id: {0}.
+    InvalidStackId(StackId),
+
+    /// An operation on a stack failed: {0}.
+    StackOpFailed(#[source] stack::Error),
+
     /// Error while selecting the documents to return: {0}.
     Selection(#[from] mab::Error),
+
+    /// Error while using the ranker.
+    Ranker(#[from] GenericError),
+
+    /// A list of errors that could occur during some operation.
+    // This is often used when we want to run an operation on multiple data but
+    // we don't want to return on the first error.
+    // This is mainly done to maximize the amount of learning that we can do or
+    // try to run as many system to rank document as possible and discard only the one
+    // that are returning an error.
+    Errors(Vec<Error>),
 }
 
 /// Discovery Engine.
-pub struct Engine {
+pub struct Engine<R> {
     stacks: HashMap<StackId, Stack>,
+    ranker: R,
 }
 
-impl Engine {
+impl<R> Engine<R>
+where
+    R: Ranker,
+{
     /// Creates a new `Engine` from serialized state and stack operations.
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    pub fn new(state: &[u8], stacks_ops: Vec<BoxedOps>) -> Result<Self, Error> {
+    pub fn new(state: &[u8], ranker: R, stacks_ops: Vec<BoxedOps>) -> Result<Self, Error> {
         if stacks_ops.is_empty() {
             return Err(Error::NoStackOps);
         }
@@ -70,7 +91,7 @@ impl Engine {
             .collect::<Result<_, _>>()
             .map_err(Error::InvalidStack)?;
 
-        Ok(Engine { stacks })
+        Ok(Engine { stacks, ranker })
     }
 
     /// Serializes the state of the `Engine`.
@@ -92,6 +113,49 @@ impl Engine {
             .select(self.stacks.values_mut().collect(), max_documents)
             .map_err(|e| e.into())
     }
+
+    /// Process the feedback about the user spending some time on a document.
+    pub fn time_logged(&mut self, time_logged: &TimeLogged) -> Result<(), Error> {
+        self.ranker.time_logged(time_logged)?;
+
+        ranker_updated(self.stacks.values_mut(), &self.ranker)
+    }
+
+    /// Process the feedback about the user reacting to a document.
+    pub fn user_reacted(&mut self, reaction: &UserReacted) -> Result<(), Error> {
+        let stack = self
+            .stacks
+            .get_mut(&reaction.stack_id)
+            .ok_or(Error::InvalidStackId(reaction.stack_id))?;
+
+        stack.update_relevance(reaction.reaction);
+
+        self.ranker.user_reacted(reaction)?;
+
+        ranker_updated(self.stacks.values_mut(), &self.ranker)
+    }
+}
+
+/// The ranker has been updated.
+///
+/// The ranker could rank the documents in a different order so we update the stacks with it.
+fn ranker_updated<'a, R: Ranker>(
+    stacks: impl Iterator<Item = &'a mut Stack>,
+    ranker: &R,
+) -> Result<(), Error> {
+    let errors = stacks.fold(vec![], |mut errors, stack| {
+        if let Err(e) = stack.rank(ranker).map_err(Error::StackOpFailed) {
+            errors.push(e);
+        }
+
+        errors
+    });
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::Errors(errors))
+    }
 }
 
 /// A wrapper around a dynamic error type, similar to `anyhow::Error`,
@@ -99,7 +163,13 @@ impl Engine {
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
 /// Provides a method for ranking slice of [`Document`] items.
-pub(crate) trait Ranker {
+pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
     fn rank(&self, items: &mut [Document]) -> Result<(), GenericError>;
+
+    /// Learn from the time a user spent on a document.
+    fn time_logged(&mut self, time_logged: &TimeLogged) -> Result<(), GenericError>;
+
+    /// Learn from a user's interaction.
+    fn user_reacted(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
 }
