@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# Rung by passing in the function name to call as first parameter to the script.
+# E.g.  ./tmp_script.sh build_rust
+#
+# Be aware that this script will in a follow up PR be replaced with an ob runner.
+
 set -eux
 cd "$(dirname $0)"
 
@@ -26,6 +31,11 @@ function test_rust() {
     cd ..
 }
 
+function find_cargo_bin_dir() {
+    # Doesn't respect cargo config option, but good enough for us for now
+    echo "${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin"
+}
+
 function build_bindgen() {
     build_rust
 
@@ -35,8 +45,7 @@ function build_bindgen() {
     cd ..
 
     cd discovery_engine_core
-    #TODO rename to cargo-async-bindgen and use cargo async-bindgen
-    ~/.cargo/bin/async-bindgen-gen-dart \
+    "$(find_cargo_bin_dir)/async-bindgen-gen-dart" \
         --ffi-class XaynDiscoveryEngineBindingsFfi \
         --genesis ../discovery_engine/lib/src/ffi/genesis.ffigen.dart
     cd ..
