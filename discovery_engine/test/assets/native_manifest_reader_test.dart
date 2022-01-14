@@ -16,17 +16,16 @@ import 'package:json_annotation/json_annotation.dart'
     show MissingRequiredKeysException, DisallowedNullValueException;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/assets/native/json_manifest_reader.dart'
-    show JsonManifestReader;
+import 'package:xayn_discovery_engine/src/infrastructure/assets/native/manifest_reader.dart'
+    show NativeManifestReader;
 
 void main() {
-  group('JsonManifestReader', () {
+  group('NativeManifestReader', () {
     group('read', () {
       test(
           'when given a properly formated manifest file it should read it '
           'without throwing Exceptions', () async {
-        final manifest =
-            await JsonManifestReader().read('lib/assets/asset_manifest.json');
+        final manifest = await NativeManifestReader().read();
 
         // list of Assets is not empty
         expect(manifest.assets, isNotEmpty);
