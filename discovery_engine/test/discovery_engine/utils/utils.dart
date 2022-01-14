@@ -15,7 +15,7 @@
 import 'dart:isolate' show SendPort;
 
 import 'package:xayn_discovery_engine/src/api/api.dart'
-    show Configuration, EngineEvent;
+    show Configuration, EngineEvent, FeedMarket;
 import 'package:xayn_discovery_engine/src/discovery_engine_base.dart'
     show DiscoveryEngine;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -73,10 +73,10 @@ Future<DiscoveryEngine> createEngineWithEntryPoint(Object entryPoint) =>
 void withSuccessResponse(Object initialMessage) =>
     MockDiscoveryEngineWorker(initialMessage);
 
-const mockConfig = Configuration(
+final mockConfig = Configuration(
   apiKey: '**********',
   apiBaseUrl: 'https://example-api.dev',
-  feedMarket: 'de-DE',
   maxItemsPerFeedBatch: 50,
   applicationDirectoryPath: './',
+  feedMarkets: {const FeedMarket(countyCode: 'DE', langCode: 'de')},
 );

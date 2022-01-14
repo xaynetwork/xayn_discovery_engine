@@ -15,6 +15,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
+import 'package:xayn_discovery_engine/src/domain/models/market/feed_market.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart';
 
@@ -55,8 +56,9 @@ class ClientEvent with _$ClientEvent {
   /// Event created when the user changes market or count (nb of items per page)
   /// for the feed ie. in global settings.
   @Implements<SystemClientEvent>()
+  @Assert('feedMarkets == null || feedMarkets.length>0')
   const factory ClientEvent.configurationChanged({
-    String? feedMarket,
+    FeedMarkets? feedMarkets,
     int? maxItemsPerFeedBatch,
   }) = ConfigurationChanged;
 

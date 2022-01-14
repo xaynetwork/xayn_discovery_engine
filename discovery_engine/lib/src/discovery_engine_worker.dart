@@ -88,7 +88,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
       resetEngine: () async {
         return const EngineEvent.clientEventSucceeded();
       },
-      configurationChanged: (feedMarket, maxItemsPerFeedBatch) async {
+      configurationChanged: (feedMarkets, maxItemsPerFeedBatch) async {
         return const EngineEvent.clientEventSucceeded();
       },
       feedRequested: () async {

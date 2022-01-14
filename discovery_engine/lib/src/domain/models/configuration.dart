@@ -13,19 +13,22 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:xayn_discovery_engine/discovery_engine.dart';
 
 part 'configuration.freezed.dart';
+
 part 'configuration.g.dart';
 
 /// Class that holds data needed for the initialisation of the discovery engine.
 @freezed
 class Configuration with _$Configuration {
+  @Assert('feedMarkets.length > 0')
   const factory Configuration({
     required String apiKey,
     required String apiBaseUrl,
-    required String feedMarket,
     required int maxItemsPerFeedBatch,
     required String applicationDirectoryPath,
+    required FeedMarkets feedMarkets,
   }) = _Configuration;
 
   factory Configuration.fromJson(Map<String, Object?> json) =>
