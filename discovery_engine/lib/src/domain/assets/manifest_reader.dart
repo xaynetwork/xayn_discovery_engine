@@ -13,17 +13,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:convert' show jsonDecode;
-import 'dart:io' show File;
-
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Manifest;
-import 'package:xayn_discovery_engine/src/domain/assets/reader.dart'
-    show ManifestReader;
 
-class JsonManifestReader implements ManifestReader {
-  @override
-  Future<Manifest> read(String path) async {
-    final json = jsonDecode(await File(path).readAsString()) as Map;
+abstract class ManifestReader {
+  /// Loads and returns the assets [Manifest].
+  Future<Manifest> read() async {
+    final jsonString = await loadManifestAsString();
+    final json = jsonDecode(jsonString) as Map;
     return Manifest.fromJson(json.cast<String, Object>());
   }
+
+  /// Loads the [Manifest] json file as [String] from bundled assets.
+  Future<String> loadManifestAsString();
 }

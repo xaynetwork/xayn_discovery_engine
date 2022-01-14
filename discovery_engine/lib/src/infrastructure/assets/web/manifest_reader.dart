@@ -11,10 +11,18 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import 'dart:html' show HttpRequest;
 
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
-    show Manifest;
+import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
+    show ManifestReader;
 
-abstract class ManifestReader {
-  Future<Manifest> read(String path);
+class WebManifestReader extends ManifestReader {
+  @override
+  Future<String> loadManifestAsString() async {
+    const assetUrl =
+        'packages/xayn_discovery_engine/assets/asset_manifest.json';
+    return HttpRequest.getString(assetUrl);
+  }
 }
+
+ManifestReader createManifestReader() => WebManifestReader();
