@@ -55,6 +55,13 @@ function build_bindgen() {
     cp ./discovery_engine_core/bindings/include/*.h ./discovery_engine_flutter/ios/Classes/
 }
 
+function test_dart_with_bindgen() {
+    build_bindgen
+    cd discovery_engine
+    dart test
+    cd ..
+}
+
 function install_async_bindgen_cli() {
     cargo install \
         --git https://github.com/xaynetwork/xayn_async_bindgen.git \
