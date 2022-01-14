@@ -95,4 +95,7 @@ jobs:
 
       - name: cargo doc
         working-directory: ${{ env.RUST_WORKSPACE }}
-        run: cargo doc --all-features --no-deps --document-private-items
+        run: |
+          # workaround for some code being created after rust wants to parse it
+          cargo check --quiet 2>/dev/null || :
+          cargo doc --all-features --no-deps --document-private-items
