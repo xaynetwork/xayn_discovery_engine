@@ -61,6 +61,10 @@ jobs:
         with:
           working-directory: ${{ env.RUST_WORKSPACE }}
 
+      - name: Install libclang-10-dev
+        # required by ffigen
+        run: sudo apt-get install libclang-10-dev
+
       - name: Install dependencies
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub get
@@ -101,6 +105,10 @@ jobs:
       - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
         with:
           working-directory: ${{ env.RUST_WORKSPACE }}
+
+      - name: Install libclang-10-dev
+        # required by ffigen
+        run: sudo apt-get install libclang-10-dev
 
       - name: Install dependencies
         working-directory: ${{ env.DART_WORKSPACE }}

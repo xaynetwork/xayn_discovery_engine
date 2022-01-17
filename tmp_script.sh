@@ -151,8 +151,8 @@ function clean_codegen() {
         -or -name '*.ffigen.dart' \
         -or -name '*.ext.dart' \
     \) -exec rm '{}' \;
-    rm discovery_engine_core/bindings/include/*
-    rm discovery_engine_core/bindings/src/async_bindings/*
+    rm discovery_engine_core/bindings/include/* || :
+    rm discovery_engine_core/bindings/src/async_bindings/* || :
 }
 
 CMD="$1"
