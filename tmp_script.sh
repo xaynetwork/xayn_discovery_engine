@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Rung by passing in the function name to call as first parameter to the script.
 # E.g.  ./tmp_script.sh build_rust
