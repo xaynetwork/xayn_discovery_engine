@@ -2,9 +2,9 @@ name: Dart CI
 
 on:
   push:
-    branches-ignore:
-      - 'main'
-      - '_bors*'
+    branches:
+      - '_bors_staging'
+      - '_bors_trying'
     paths:
       - '.github/workflows/dart_ci.yml'
       - 'discovery_engine/**'

@@ -2,9 +2,9 @@ name: Rust CI
 
 on:
   push:
-    branches-ignore:
-      - 'main'
-      - '_bors*'
+    branches:
+      - '_bors_staging'
+      - '_bors_trying'
     paths:
       - '.github/workflows/rust_ci.yml'
       - 'discovery_engine_core/**'
