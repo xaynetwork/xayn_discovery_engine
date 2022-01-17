@@ -57,7 +57,7 @@ function codegen_workaround() {
     if [ "${_CODEGEN_WORKAROUND_DONE:-0}" = 0 ]; then
         _CODEGEN_WORKAROUND_DONE=1
         cd discovery_engine_core
-        cargo check --quiet 2>/dev/null
+        cargo check --quiet 2>/dev/null || :
         cd ..
     fi
 }
@@ -151,6 +151,8 @@ function clean_codegen() {
         -or -name '*.ffigen.dart' \
         -or -name '*.ext.dart' \
     \) -exec rm '{}' \;
+    rm discovery_engine_core/bindings/include/*
+    rm discovery_engine_core/bindings/src/async_bindings/*
 }
 
 CMD="$1"
