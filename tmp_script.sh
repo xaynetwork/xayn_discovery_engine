@@ -132,6 +132,11 @@ function build_bindgen_glue() {
     copy_ios_headers
 }
 
+function build_rust_ffi() {
+    build_bindgen_glue
+    build_rust
+}
+
 function test_all() {
     test_rust_full
     build_bindgen_glue

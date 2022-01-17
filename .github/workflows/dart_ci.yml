@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/dart_ci.yml'
       - 'discovery_engine/**'
+      - 'discovery_engine_core/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +17,8 @@ permissions:
 env:
   DART_VERSION: '2.14.4'
   DART_WORKSPACE: ${{ github.workspace }}/discovery_engine
+  RUST_WORKSPACE: ${{ github.workspace }}/discovery_engine_core
+
 
 jobs:
   dart-format:
@@ -49,6 +52,14 @@ jobs:
         with:
           sdk: ${{ env.DART_VERSION }}
 
+      - name: Install rust toolchain
+        working-directory: ${{ env.RUST_WORKSPACE }}
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+        with:
+          working-directory: ${{ env.RUST_WORKSPACE }}
+
       - name: Install dependencies
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub get
@@ -60,6 +71,9 @@ jobs:
       - name: Other Dart code generation
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart run build_runner build
+
+      - name: Generate FFI glue
+        run: ./tmp_script.sh build_bindgen_glue
 
       - name: Analyze code
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -79,6 +93,14 @@ jobs:
         with:
           sdk: ${{ env.DART_VERSION }}
 
+      - name: Install rust toolchain
+        working-directory: ${{ env.RUST_WORKSPACE }}
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+        with:
+          working-directory: ${{ env.RUST_WORKSPACE }}
+
       - name: Install dependencies
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub get
@@ -86,6 +108,9 @@ jobs:
       - name: Other Dart code generation
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart run build_runner build
+
+      - name: Generate rust FFI
+        run: ./tmp_script.sh build_rust_ffi
 
       - name: Run tests
         working-directory: ${{ env.DART_WORKSPACE }}
