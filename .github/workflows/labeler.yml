@@ -2,8 +2,6 @@ name: PR Label Assigner
 
 on:
   pull_request:
-    branches:
-      - main
     types: [opened, converted_to_draft, ready_for_review]
   workflow_dispatch:
 
