@@ -46,7 +46,7 @@ export 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 export 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show DocumentFeedback;
-export 'package:xayn_discovery_engine/src/domain/models/market/feed_market.dart'
+export 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 export 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, SearchId;

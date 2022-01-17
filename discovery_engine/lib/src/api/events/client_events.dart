@@ -15,7 +15,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
-import 'package:xayn_discovery_engine/src/domain/models/market/feed_market.dart';
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart';
 
