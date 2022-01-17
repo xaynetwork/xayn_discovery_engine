@@ -6,6 +6,7 @@ on:
       - '.github/workflows/dart_ci.yml'
       - 'discovery_engine/**'
       - 'discovery_engine_core/**'
+      - 'tmp_script.sh'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
