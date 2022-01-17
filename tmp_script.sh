@@ -144,6 +144,14 @@ function test_all() {
     test_dart_full
 }
 
+function clean_codegen() {
+    find . \(\
+        -name '*.g.dart' \
+        -or -name '*.freezed.dart' \
+        -or -name '*.ffigen.dart' \
+        -or -name '*.ext.dart' \
+    \) -exec rm '{}' \;
+}
 
 CMD="$1"
 shift
