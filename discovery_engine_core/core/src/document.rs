@@ -14,7 +14,7 @@
 
 //! Personalized document that is returned from [`Engine`](crate::engine::Engine).
 
-use std::convert::TryFrom;
+use std::{convert::TryFrom, time::Duration};
 
 use derivative::Derivative;
 use derive_more::{Deref, Display};
@@ -117,7 +117,7 @@ pub struct TimeLogged {
     pub smbert: Embedding1,
 
     /// Time spent on the documents in seconds.
-    pub seconds: u32,
+    pub seconds: Duration,
     /* we don't have a `DocumentViewMode` in here because at the moment the
      * coi just consider one time. On the dart side we are saving all this values
      * and when we call the feedbackloop we will decide which value to use or to aggregate them. */
