@@ -1,9 +1,17 @@
+# We import environment variables from .env
+set dotenv-load := true
 
-# Make sure that some env variables are set for all jobs.
-#FIXME: .env support will be added in follow up PR
-export RUST_WORKSPACE := env_var_or_default("RUST_WORKSPACE", "discovery_engine_core")
-export DART_WORKSPACE := env_var_or_default("DART_WORKSPACE", "discovery_engine")
-export CARGO_INSTALL_ROOT := env_var_or_default("CARGO_INSTALL_ROOT", "cargo-installs")
+# If CI is set and add rust flags
+export RUSTFLAGS := if env_var_or_default("CI", "false") == "true" {
+    trim(env_var_or_default("RUSTFLAGS", "") + " -D warnings")
+} else {
+    env_var_or_default("RUSTFLAGS", "")
+}
+export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
+    trim(env_var_or_default("RUSTFLAGS", "") + " -D warnings")
+} else {
+    env_var_or_default("RUSTFLAGS", "")
+}
 
 # Runs just --list
 default:
@@ -11,7 +19,11 @@ default:
 
 # Gets/updates dart deps
 dart-deps:
-    cd "$DART_WORKSPACE"; \
+    #!/usr/bin/env sh
+    set -eux
+    cd "$DART_WORKSPACE";
+    dart pub get
+    cd example
     dart pub get
 
 # Fetches rust dependencies
@@ -36,8 +48,10 @@ dart-fmt:
 
 # Formats rust (checks only on CI)
 rust-fmt:
-    cd "$RUST_WORKSPACE"; \
-    cargo +nightly fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};\
+    #!/usr/bin/env sh
+    set -eux
+    cd "$RUST_WORKSPACE";
+    cargo +"$RUST_NIGHTLY" fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};
     cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }}
 
 # Formats all code (checks only on CI)
@@ -70,12 +84,12 @@ rust-check: _codegen-order-workaround
 check: rust-check dart-check
 
 # Checks if dart documentation can be build without issues
-dart-check-doc: dart-build
+dart-check-doc: _run-build-runner
     cd "$DART_WORKSPACE"; \
     dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
 
 # Checks if rust documentation can be build without issues
-rust-check_doc: _codegen-order-workaround
+rust-check-doc: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo doc --all-features --no-deps --document-private-items --locked
 
@@ -93,7 +107,7 @@ rust-doc *args:
 doc: dart-doc rust-doc
 
 # Checks if documentation can be build without issues
-check_doc: dart-check-doc rust-check_doc
+check-doc: dart-check-doc rust-check-doc
 
 _run-cbindgen: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
@@ -130,9 +144,12 @@ dart-test: rust-build dart-build
     dart test
 
 # Tests rust
-rust-test:
-    cd "$RUST_WORKSPACE"; \
-    cargo test --locked
+rust-test: rust-build
+    #!/usr/bin/env sh
+    set -eux
+    cd "$RUST_WORKSPACE";
+    cargo test --all-targets --quiet --locked
+    cargo test --doc --quiet --locked
 
 # Tests dart and rust
 test: rust-test dart-test
@@ -169,6 +186,82 @@ _pre-push: clean-gen-files fmt check test
 # Runs formatting, checks and test steps after deleting generated files.
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
+
+
+#FIXME set CI
+ci-setup-release-repo $BRANCH do_push="--do-push": deps dart-build
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    function error() {
+        echo "$@" >&2
+        exit 1
+    }
+
+    EMAIL="$(git config user.email)"
+    if [ -z "$EMAIL" ]; then
+        error "git user.email must be set"
+    fi
+    USERNAME="$(git config user.name)"
+    if [ -z "$USERNAME" ]; then
+        error "git user.namel must be set"
+    fi
+
+    # Create a temporary folder to clone the other repo
+    DST_DIR=$(mktemp -d)
+    DST_REPO='git@github.com:xaynetwork/xayn_discovery_engine_release.git'
+
+    SRC_COMMIT=$(git rev-parse HEAD)
+    SRC_COMMIT_MSG=$(git log --format=%B -n1)
+
+    NEEDS_PUSH=false
+
+    # Check if the branch exists, if so, clone using the existing branch,
+    # if not, clone using the default branch and let git push to send to the right branch
+    BRANCH_EXISTS=$(git ls-remote --heads "$DST_REPO" "$BRANCH" | wc -l);
+    if [ $BRANCH_EXISTS -eq 0 ]; then
+        NEEDS_PUSH=true
+        # We do not need to create a branch as we use `git push -u origin HEAD:$BRANCH`
+        git clone --depth 1 "$DST_REPO" "$DST_DIR"
+    else
+        git clone -b "$BRANCH" --depth 1 "$DST_REPO" "$DST_DIR";
+    fi
+
+    WS_ROOT="$(pwd)"
+    cd "$DST_DIR"
+
+    # Cleaning all files on the destination repository
+    # --ignore-unmatch avoid to fail if the repository is empty
+    git rm --ignore-unmatch -r .
+
+    rsync -a --exclude example "$WS_ROOT/$DART_WORKSPACE/" "$DST_DIR/$DART_WORKSPACE"
+    rsync -a --exclude examples "$WS_ROOT/$RUST_WORKSPACE/" "$DST_DIR/$RUST_WORKSPACE"
+    rsync -a --exclude example "$WS_ROOT/$FLUTTER_WORKSPACE/" "$DST_DIR/$FLUTTER_WORKSPACE"
+
+    # Remove files from .gitignore that needs to be uploaded to the release repo
+    find . -type f -name .gitignore -exec sed -i -e '/DELETE_AFTER_THIS_IN_RELEASE/,$d' '{}' \;
+
+    git add -A
+
+    # Commit only if something changed
+    if [ $(git status --porcelain | wc -l) -gt 0 ]; then
+        NEEDS_PUSH=true
+        git commit --message "$SRC_COMMIT_MSG
+        https://github.com/xaynetwork/xayn_discovery_engine/commit/$SRC_COMMIT
+        https://github.com/xaynetwork/xayn_discovery_engine/tree/$BRANCH"
+    fi
+
+    if [ "$NEEDS_PUSH" = "true" ]; then
+        if [ "{{do_push}}" = "--do-push" ]; then
+            git push -u origin HEAD:"$BRANCH"
+        else
+            echo "Repo prepared at: $DST_DIR"
+            echo "To push use:  git push -u origin HEAD:$BRANCH"
+        fi
+    fi
+
+print-env:
+    export
 
 alias d := dart-test
 alias r := rust-test

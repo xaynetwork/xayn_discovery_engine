@@ -1,0 +1,55 @@
+name: 'setup job'
+description: 'Setup dart and/or rust CI job'
+inputs:
+  dart:
+    description: 'Setup dart'
+  rust:
+    description: 'Setup rust'
+  deps:
+    description: 'Fetch/Install dependencies'
+    default: true
+  #FIXME flutter, flutter-ws
+runs:
+  using: "composite"
+  steps:
+    - name: Load .env
+      uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
+
+    - name: Install just
+      uses: extractions/setup-just@aa5d15c144db4585980a44ebfdd2cf337c4f14cb #v1.4.0
+      with:
+        just-version: '0.10.5'
+
+    - name: Install dart
+      uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
+      if: inputs.dart
+      with:
+        sdk: ${{ env.DART_VERSION }}
+
+    - name: Install rust toolchain
+      working-directory: ${{ env.RUST_WORKSPACE }}
+      if: inputs.rust
+      shell: bash
+      run: |
+        # Rustup when used will automatically install the toolchain
+        # specified in rust-toolchain.toml
+        rustup show
+
+    - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      if: inputs.rust
+      with:
+        working-directory: ${{ env.RUST_WORKSPACE }}
+
+    - name: Setup dependencies
+      shell: bash
+      if: inputs.deps
+      run: |
+        if [ "${{ inputs.dart }}" = "true" -a "${{ inputs.rust }}" = "true" ]; then
+          # ffigen dep, not handled by `just deps` as it's OS specific.
+          sudo apt-get install libclang-10-dev
+          just deps
+        elif [ "${{ inputs.dart }}" = "true" ]; then
+          just dart-deps
+        elif [ "${{ inputs.rust }}" = "true" ]; then
+          just rust-deps
+        fi
