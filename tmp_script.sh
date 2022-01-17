@@ -25,7 +25,7 @@ function gen_dart_genesis_extension() {
 }
 
 function get_dart_deps() {
-    if [ "${_DART_PUB_GET_DONE:-0}" = 1 ]; then
+    if [ "${_DART_PUB_GET_DONE:-0}" = 0 ]; then
         _DART_PUB_GET_DONE=1
         cd discovery_engine
         dart pub get
@@ -54,7 +54,7 @@ function copy_ios_headers() {
 }
 
 function codegen_workaround() {
-    if [ "${_CODEGEN_WORKAROUND_DONE:-0}" = 1 ]; then
+    if [ "${_CODEGEN_WORKAROUND_DONE:-0}" = 0 ]; then
         _CODEGEN_WORKAROUND_DONE=1
         cd discovery_engine_core
         cargo check --quiet 2>/dev/null
