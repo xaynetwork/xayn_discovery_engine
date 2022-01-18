@@ -13,11 +13,11 @@ _codegen_workaround:
     cd "$RUST_WORKSPACE"; \
     cargo check --quiet 2>/dev/null || :
 
-# Check rust related formatting
-rust_check_fmt:
+# Format rust code and sort dependencies
+rust_fmt:
     cd "$RUST_WORKSPACE"; \
-    cargo +nightly fmt --all -- --check ;\
-    cargo sort --grouped --workspace --check
+    cargo +nightly fmt --all ;\
+    cargo sort --grouped --workspace
 
 _rust_check_only: _codegen_workaround
     cd "$RUST_WORKSPACE"; \
@@ -36,7 +36,7 @@ _rust_test_only: _codegen_workaround
     cargo test --locked
 
 # Check rust related code (formatting, linting, type checks, etc.)
-rust_check: rust_check_fmt _rust_check_only _rust_check_doc_only
+rust_check: rust_fmt _rust_check_only _rust_check_doc_only
 
 # Run rust tests, including checks
 rust_test: rust_check _rust_test_only
@@ -53,10 +53,10 @@ dart_get_deps:
     cd "$DART_WORKSPACE"; \
     dart pub get
 
-# Check dart formatting
-dart_check_fmt:
+# Format dart code
+dart_fmt:
     cd "$DART_WORKSPACE"; \
-    dart format --output=none --set-exit-if-changed .
+    dart format .
 
 _dart_check_only: dart_get_deps
     cd "$DART_WORKSPACE"; \
@@ -90,7 +90,7 @@ _dart_gen_ffi: rust_gen_ffi _dart_gen_genesis_only _dart_gen_genesis_ext_only
 dart_gen_code: _dart_gen_ffi _dart_gen_build_runner
 
 # Check dart code for correctness (including formatting)
-dart_check: dart_gen_code _dart_check_only _dart_check_doc_only
+dart_check: dart_gen_code dart_fmt _dart_check_only _dart_check_doc_only
 
 # Run dart tests (including ffi tests)
 dart_test: dart_gen_code dart_check _rust_build_only _dart_test_only
