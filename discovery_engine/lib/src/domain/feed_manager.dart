@@ -11,33 +11,33 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
 
 /// Business logic concerning the management of the feed.
 class FeedManager {
-  final DocumentManager _documentMgr;
+  final DocumentManager _docMgr;
   final Engine _engine;
+  final int _maxDocs;
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
 
-  FeedManager(this._documentMgr, this._engine)
-      : _docRepo = _documentMgr.documentRepo,
-        _activeRepo = _documentMgr.activeRepo;
+  FeedManager(this._docMgr, this._engine, this._maxDocs)
+      : _docRepo = _docMgr.documentRepo,
+        _activeRepo = _docMgr.activeRepo;
 
   /// Handle the given feed client event.
   ///
-  /// Fails if [evt] does not have a handler implemented.
-  Future<void> handleFeedClientEvent(FeedClientEvent evt) async {
-    await evt.maybeWhen(
+  /// Fails if [event] does not have a handler implemented.
+  Future<void> handleFeedClientEvent(FeedClientEvent event) async {
+    await event.maybeWhen(
       feedRequested: () => restoreFeed(),
       nextFeedBatchRequested: () => nextFeedBatch(),
-      feedDocumentsClosed: (ids) => _documentMgr.deactivateDocuments(ids),
-      orElse: throw UnimplementedError('handler not implemented for $evt'),
+      feedDocumentsClosed: (ids) => _docMgr.deactivateDocuments(ids),
+      orElse: throw UnimplementedError('handler not implemented for $event'),
     );
   }
 
   Future<void> restoreFeed() async {} // TODO
 
+  /// Obtain the next batch of feed documents and persist to repositories.
   Future<void> nextFeedBatch() async {
-    const maxDocs = 10; // FIXME hard coded for now
-
-    final feedDocs = _engine.getFeedDocuments(maxDocs);
+    final feedDocs = _engine.getFeedDocuments(_maxDocs);
 
     await _docRepo.updateMany(feedDocs.keys);
     for (final feedDoc in feedDocs.entries) {
