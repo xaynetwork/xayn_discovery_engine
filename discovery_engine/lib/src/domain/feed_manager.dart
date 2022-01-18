@@ -33,7 +33,7 @@ class FeedManager {
     );
   }
 
-  Future<void> restoreFeed() async {} // TODO
+  Future<void> restoreFeed() async {} // TODO once timestamps addded to Document
 
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<void> nextFeedBatch() async {
