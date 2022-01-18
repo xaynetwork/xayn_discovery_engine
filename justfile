@@ -3,6 +3,7 @@
 #FIXME: Consider using .env for this, but only if used also on CI
 export RUST_WORKSPACE := env_var_or_default("RUST_WORKSPACE", "discovery_engine_core")
 export DART_WORKSPACE := env_var_or_default("DART_WORKSPACE", "discovery_engine")
+export CARGO_INSTALL_ROOT := env_var_or_default("CARGO_INSTALL_ROOT", "cargo-installs")
 
 # Run just --list
 default:
@@ -77,9 +78,9 @@ _dart_gen_genesis_only: dart_get_deps
     cd "$DART_WORKSPACE"; \
     dart run ffigen --config ffigen.yaml
 
-_dart_gen_genesis_ext_only:
+_dart_gen_genesis_ext_only: install_async_bindgen
     cd "$RUST_WORKSPACE"; \
-    "${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin/async-bindgen-gen-dart" \
+    "{{justfile_directory()}}/$CARGO_INSTALL_ROOT/bin/async-bindgen-gen-dart" \
         --ffi-class XaynDiscoveryEngineBindingsFfi \
         --genesis ../discovery_engine/lib/src/ffi/genesis.ffigen.dart
 
@@ -111,8 +112,9 @@ codegen_clean:
     -rm "$RUST_WORKSPACE"/bindings/src/async_bindings/* || :
 
 # Install async bindgen CLI utility.
-install_async_bindgen:
+install_async_bindgen *args:
     cargo install \
         --git https://github.com/xaynetwork/xayn_async_bindgen.git \
+        {{args}} \
         async-bindgen-gen-dart \
-        "$@"
+        "$@" ;
