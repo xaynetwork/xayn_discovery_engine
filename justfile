@@ -16,8 +16,8 @@ _codegen_workaround:
 # Format rust code and sort dependencies
 rust_fmt:
     cd "$RUST_WORKSPACE"; \
-    cargo +nightly fmt --all ;\
-    cargo sort --grouped --workspace
+    cargo +nightly fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};\
+    cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }}
 
 _rust_check_only: _codegen_workaround
     cd "$RUST_WORKSPACE"; \
@@ -56,7 +56,7 @@ dart_get_deps:
 # Format dart code
 dart_fmt:
     cd "$DART_WORKSPACE"; \
-    dart format .
+    dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
 
 _dart_check_only: dart_get_deps
     cd "$DART_WORKSPACE"; \
