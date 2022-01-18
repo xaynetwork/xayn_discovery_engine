@@ -78,5 +78,5 @@ final mockConfig = Configuration(
   apiBaseUrl: 'https://example-api.dev',
   maxItemsPerFeedBatch: 50,
   applicationDirectoryPath: './',
-  feedMarkets: {const FeedMarket(countyCode: 'DE', langCode: 'de')},
+  feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
 );
