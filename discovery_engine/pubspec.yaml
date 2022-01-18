@@ -8,9 +8,11 @@ environment:
   sdk: '>=2.14.2 <3.0.0'
 
 dependencies:
+  crypto: 3.0.1
   equatable: 2.0.3
   freezed_annotation: 0.15.0
   hive: 2.0.4
+  http: 0.13.4
   json_annotation: 4.3.0
   logger: 1.1.0
   meta: 1.7.0

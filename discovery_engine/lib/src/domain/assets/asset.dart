@@ -65,6 +65,8 @@ class Asset {
 enum AssetType {
   smbertVocab,
   smbertModel,
+  webWorkerScript,
+  wasmScript,
 }
 
 /// A fragment of an asset.
