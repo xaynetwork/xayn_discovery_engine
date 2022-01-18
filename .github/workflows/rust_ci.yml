@@ -91,3 +91,14 @@ jobs:
       - name: cargo doc
         working-directory: ${{ env.RUST_WORKSPACE }}
         run: cargo doc --all-features --no-deps --document-private-items
+
+  ci-ok:
+    name: ci-ok
+    needs:
+      - cargo-format
+      - cargo-clippy
+      - cargo-test
+      - cargo-doc
+    runs-on: ubuntu-20.04
+    steps:
+        run: echo "Helper job"
