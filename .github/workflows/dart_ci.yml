@@ -6,7 +6,7 @@ on:
       - '.github/workflows/dart_ci.yml'
       - 'discovery_engine/**'
       - 'discovery_engine_core/**'
-      - 'tmp_script.sh'
+      - 'job_runner.sh'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -66,7 +66,7 @@ jobs:
         run: sudo apt-get install libclang-10-dev
 
       - name: Install async-bindgen-gen-dart
-        run: ./tmp_script.sh install_async_bindgen_cli
+        run: ./job_runner.sh install_async_bindgen_cli
 
       - name: Install dependencies
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -81,7 +81,7 @@ jobs:
         run: dart run build_runner build
 
       - name: Generate FFI glue
-        run: ./tmp_script.sh build_bindgen_glue
+        run: ./job_runner.sh build_bindgen_glue
 
       - name: Analyze code
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -110,7 +110,7 @@ jobs:
           working-directory: ${{ env.RUST_WORKSPACE }}
 
       - name: Install async-bindgen-gen-dart
-        run: ./tmp_script.sh install_async_bindgen_cli
+        run: ./job_runner.sh install_async_bindgen_cli
 
       - name: Install libclang-10-dev
         # required by ffigen
@@ -125,7 +125,7 @@ jobs:
         run: dart run build_runner build
 
       - name: Generate rust FFI
-        run: ./tmp_script.sh build_rust_ffi
+        run: ./job_runner.sh build_rust_ffi
 
       - name: Run tests
         working-directory: ${{ env.DART_WORKSPACE }}

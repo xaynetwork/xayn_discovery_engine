@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Rung by passing in the function name to call as first parameter to the script.
-# E.g.  ./tmp_script.sh build_rust
+# E.g.  ./job_runner.sh build_rust
 #
 # Be aware that this script will in a follow up PR be replaced with an ob runner.
 
