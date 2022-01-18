@@ -122,10 +122,8 @@ function test_rust_full() {
 
 function build_bindgen_glue() {
     codegen_workaround
-    # make sure cbindgen did run properly, but we don't really
-    # care if there is a problem with rust at this point in time
     cd discovery_engine_core
-    cargo check || :
+    cargo check
     cd ..
     gen_dart_genesis
     gen_dart_genesis_extension
