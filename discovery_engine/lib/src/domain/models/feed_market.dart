@@ -7,17 +7,17 @@ typedef FeedMarkets = Set<FeedMarket>;
 
 @JsonSerializable()
 class FeedMarket extends Equatable {
-  final String countyCode;
+  final String countryCode;
   final String langCode;
 
   const FeedMarket({
-    required this.countyCode,
+    required this.countryCode,
     required this.langCode,
   });
 
   @override
   List<Object> get props => [
-        countyCode,
+        countryCode,
         langCode,
       ];
 
