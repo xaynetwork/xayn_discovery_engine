@@ -22,6 +22,10 @@ _rust_check_only: _codegen_workaround
     cd "$RUST_WORKSPACE"; \
     cargo clippy --all-targets --locked
 
+_rust_check_doc_only: _codegen_workaround
+    cd "$RUST_WORKSPACE"; \
+    cargo doc --all-features --no-deps --document-private-items --locked
+
 _rust_build_only: _codegen_workaround
     cd "$RUST_WORKSPACE"; \
     cargo build --locked
@@ -31,7 +35,7 @@ _rust_test_only: _codegen_workaround
     cargo test --locked
 
 # Check rust related code (formatting, linting, type checks, etc.)
-rust_check: rust_check_fmt _rust_check_only
+rust_check: rust_check_fmt _rust_check_only _rust_check_doc_only
 
 # Run rust tests, including checks
 rust_test: rust_check _rust_test_only
@@ -57,6 +61,10 @@ _dart_check_only: dart_get_deps
     cd "$DART_WORKSPACE"; \
     dart analyze --fatal-infos
 
+_dart_check_doc_only: dart_get_deps
+    cd "$DART_WORKSPACE"; \
+    dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
+
 _dart_test_only:
     cd "$DART_WORKSPACE"; \
     dart test
@@ -81,7 +89,7 @@ _dart_gen_ffi: rust_gen_ffi _dart_gen_genesis_only _dart_gen_genesis_ext_only
 dart_gen_code: _dart_gen_ffi _dart_gen_build_runner
 
 # Check dart code for correctness (including formatting)
-dart_check: dart_gen_code _dart_check_only
+dart_check: dart_gen_code _dart_check_only _dart_check_doc_only
 
 # Run dart tests (including ffi tests)
 dart_test: dart_gen_code dart_check _rust_build_only _dart_test_only
