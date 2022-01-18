@@ -66,7 +66,11 @@ jobs:
         run: sudo apt-get install libclang-10-dev
 
       - name: Install async-bindgen-gen-dart
-        run: ./job_runner.sh install_async_bindgen_cli
+        run: |
+          cargo install \
+            --git https://github.com/xaynetwork/xayn_async_bindgen.git \
+            async-bindgen-gen-dart \
+            "$@"
 
       - name: Install dependencies
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -80,8 +84,20 @@ jobs:
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart run build_runner build
 
-      - name: Generate FFI glue
-        run: ./job_runner.sh build_bindgen_glue
+      - name: Generate rust FFI glue
+        run: |
+          cd "$RUST_WORKSPACE"
+          # Codegen order workaround
+          cargo check --quiet 2>/dev/null || :
+          # Run cbindgen and build the shared object
+          cargo check
+          # Generate dart bindings
+          cd "$DART_WORKSPACE"
+          dart run ffigen --config ffigen.yaml
+          cd "$RUST_WORKSPACE"
+          "${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin/async-bindgen-gen-dart" \
+            --ffi-class XaynDiscoveryEngineBindingsFfi \
+            --genesis ../discovery_engine/lib/src/ffi/genesis.ffigen.dart
 
       - name: Analyze code
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -110,7 +126,11 @@ jobs:
           working-directory: ${{ env.RUST_WORKSPACE }}
 
       - name: Install async-bindgen-gen-dart
-        run: ./job_runner.sh install_async_bindgen_cli
+        run: |
+          cargo install \
+            --git https://github.com/xaynetwork/xayn_async_bindgen.git \
+            async-bindgen-gen-dart \
+            "$@"
 
       - name: Install libclang-10-dev
         # required by ffigen
@@ -125,7 +145,20 @@ jobs:
         run: dart run build_runner build
 
       - name: Generate rust FFI
-        run: ./job_runner.sh build_rust_ffi
+        run: |
+          cd "$RUST_WORKSPACE"
+          # Codegen order workaround
+          cargo check --quiet 2>/dev/null || :
+          # Run cbindgen and build the shared object
+          cargo build
+          # Generate dart bindings
+          cd "$DART_WORKSPACE"
+          dart run ffigen --config ffigen.yaml
+          cd "$RUST_WORKSPACE"
+          "${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin/async-bindgen-gen-dart" \
+            --ffi-class XaynDiscoveryEngineBindingsFfi \
+            --genesis ../discovery_engine/lib/src/ffi/genesis.ffigen.dart
+
 
       - name: Run tests
         working-directory: ${{ env.DART_WORKSPACE }}
