@@ -1,6 +1,22 @@
 [workspace]
 members = [
-    "core",
-    "bindings"
+    "bindings",
+    "core"
 ]
 resolver = "2"
+
+[patch.crates-io.async-bindgen]
+git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
+branch = "main"
+
+[patch.crates-io.async-bindgen-gen-dart]
+git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
+branch = "main"
+
+[patch.crates-io.xayn-dart-api-dl]
+git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
+branch = "main"
+
+[patch.crates-io.xayn-dart-api-dl-sys]
+git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
+branch = "main"

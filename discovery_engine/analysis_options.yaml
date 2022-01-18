@@ -9,6 +9,8 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    - "**/*.ext.dart"
+    - "**/*.ffigen.dart"
 
 linter:
   rules:

@@ -1,0 +1,11 @@
+name: 'XaynDiscoveryEngineBindingsFfi'
+description: 'Bindings to xayn_discovery_engine_core'
+output: 'lib/src/ffi/genesis.ffigen.dart'
+headers:
+  entry-points:
+    - '../discovery_engine_core/bindings/include/XaynDiscoveryEngineBindings.h'
+  include-directives:
+    - '../discovery_engine_core/bindings/include/XaynDiscoveryEngineBindings.h'
+compiler-opts-automatic:
+  macos:
+    include-c-standard-library: false

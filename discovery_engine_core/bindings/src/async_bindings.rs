@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,13 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
-library discovery_engine;
+//! Module containing auto-generated sub-modules with async-bindings.
+//!
+//! This exists as a workaround to cbindgen not being able to handle
+//! proc-macro generated code on stable.
 
-export 'package:xayn_discovery_engine/src/api/api.dart';
-export 'package:xayn_discovery_engine/src/discovery_engine_base.dart';
-//FIXME: remove once wo do use it in domain logic we do expose
-export 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncCore;
-export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart';
+#[rustfmt::skip]
+pub mod async_core;

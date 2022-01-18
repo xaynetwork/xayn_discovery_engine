@@ -13,3 +13,5 @@ pubspec.lock
 # DELETE_AFTER_THIS_IN_RELEASE
 *.g.dart
 *.freezed.dart
+*.ffigen.dart
+*.ext.dart

@@ -54,7 +54,10 @@ jobs:
 
       - name: cargo clippy
         working-directory: ${{ env.RUST_WORKSPACE }}
-        run: cargo clippy --all-targets -- --deny warnings
+        run: |
+          # workaround for some code being created after rust wants to parse it
+          cargo check --quiet 2>/dev/null || :
+          cargo clippy --all-targets -- --deny warnings
 
   cargo-test:
     runs-on: ubuntu-20.04
@@ -73,6 +76,8 @@ jobs:
       - name: Run tests
         working-directory: ${{ env.RUST_WORKSPACE }}
         run: |
+          # workaround for some code being created after rust wants to parse it
+          cargo check --quiet 2>/dev/null || :
           cargo test --all-targets --quiet
           cargo test --doc --quiet
 
@@ -90,4 +95,7 @@ jobs:
 
       - name: cargo doc
         working-directory: ${{ env.RUST_WORKSPACE }}
-        run: cargo doc --all-features --no-deps --document-private-items
+        run: |
+          # workaround for some code being created after rust wants to parse it
+          cargo check --quiet 2>/dev/null || :
+          cargo doc --all-features --no-deps --document-private-items
