@@ -101,4 +101,4 @@ jobs:
       - cargo-doc
     runs-on: ubuntu-20.04
     steps:
-        run: echo "Helper job"
+      - run: echo "Helper job"
