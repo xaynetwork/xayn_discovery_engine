@@ -1,4 +1,4 @@
-name: CI 
+name: CI
 on:
   push:
     paths:
@@ -47,7 +47,7 @@ jobs:
               - 'discovery_engine_core/**'
               - '.github/workflows/ci.yml'
 
-  # DART CI 
+  # DART CI
   dart-format:
     name: dart-format
     needs: selection
@@ -118,7 +118,7 @@ jobs:
           cd "$RUST_WORKSPACE"
           # Codegen order workaround
           cargo check --quiet 2>/dev/null || :
-          # Run cbindgen and build the shared object
+          # Run cbindgen
           cargo check
           # Generate dart bindings
           cd "$DART_WORKSPACE"
@@ -145,7 +145,7 @@ jobs:
           then
             exit 1
           fi
-          
+
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
@@ -177,10 +177,6 @@ jobs:
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub get
 
-      - name: Other Dart code generation
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart run build_runner build
-
       - name: Generate rust FFI
         run: |
           cd "$RUST_WORKSPACE"
@@ -196,6 +192,9 @@ jobs:
             --ffi-class XaynDiscoveryEngineBindingsFfi \
             --genesis ../discovery_engine/lib/src/ffi/genesis.ffigen.dart
 
+      - name: Other Dart code generation
+        working-directory: ${{ env.DART_WORKSPACE }}
+        run: dart run build_runner build
 
       - name: Run tests
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -245,7 +244,7 @@ jobs:
           else
             exit 1
           fi
-  
+
   # RUST CI
 
   cargo-format:
@@ -346,7 +345,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: exit 0
-  
+
   ci-ok:
     name: ci-ok
     needs: [selection, dart-ok, cargo-ok]
@@ -358,7 +357,7 @@ jobs:
         run: |
           if (${{ needs.selection.outputs.dart == 'true'}} || ${{ needs.selection.outputs.rust == 'true' }} )
           then
-            if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) || 
+            if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) ||
             (${{needs.selection.outputs.dart == 'true'}} && ${{needs.dart-ok.result == 'success'}} && ${{needs.selection.outputs.rust != 'true'}}))
             then
               exit 0
@@ -368,4 +367,4 @@ jobs:
           else
             exit 1
           fi
-            
+
