@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "bindings",
-    "core"
+    "core",
 ]
 resolver = "2"
 
