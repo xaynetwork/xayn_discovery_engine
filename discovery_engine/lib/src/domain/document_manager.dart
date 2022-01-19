@@ -29,11 +29,11 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
 
 /// Business logic concerning the management of documents.
 class DocumentManager {
-  final DocumentRepository _documentRepo;
-  final ActiveDocumentDataRepository _activeRepo;
+  final DocumentRepository documentRepo;
+  final ActiveDocumentDataRepository activeRepo;
   final ChangedDocumentRepository _changedRepo;
 
-  DocumentManager(this._documentRepo, this._activeRepo, this._changedRepo);
+  DocumentManager(this.documentRepo, this.activeRepo, this._changedRepo);
 
   /// Handle the given document client event.
   ///
@@ -54,21 +54,21 @@ class DocumentManager {
     DocumentId id,
     DocumentFeedback feedback,
   ) async {
-    final doc = await _documentRepo.fetchById(id);
+    final doc = await documentRepo.fetchById(id);
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
     }
-    await _documentRepo.update(doc..feedback = feedback);
+    await documentRepo.update(doc..feedback = feedback);
   }
 
   /// Deactivate the given documents.
   Future<void> deactivateDocuments(Set<DocumentId> ids) async {
-    await _activeRepo.removeByIds(ids);
+    await activeRepo.removeByIds(ids);
     await _changedRepo.removeMany(ids);
 
-    final docs = await _documentRepo.fetchByIds(ids);
+    final docs = await documentRepo.fetchByIds(ids);
     final inactives = docs.map((doc) => doc..isActive = false);
-    await _documentRepo.updateMany(inactives);
+    await documentRepo.updateMany(inactives);
   }
 
   /// Add additional viewing time for the given active document.
@@ -82,11 +82,11 @@ class DocumentManager {
     if (sec < 0) {
       throw RangeError.range(sec, 0, null);
     }
-    final activeData = await _activeRepo.fetchById(id);
+    final activeData = await activeRepo.fetchById(id);
     if (activeData == null) {
       throw ArgumentError('id $id does not identify an active document');
     }
     activeData.addViewTime(mode, Duration(seconds: sec));
-    await _activeRepo.update(id, activeData);
+    await activeRepo.update(id, activeData);
   }
 }
