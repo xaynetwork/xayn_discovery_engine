@@ -10,17 +10,17 @@ default:
     @{{just_executable()}} --list
 
 # Get/update dart deps
-dart_deps:
+dart-deps:
     cd "$DART_WORKSPACE"; \
     dart pub get
 
 # Fetch rust dependencies
-rust_deps:
+rust-deps:
     cd "$RUST_WORKSPACE"; \
     cargo fetch --locked
 
 # Installs async-bindgen cli tool
-install_async_bindgen *args:
+install-async-bindgen *args:
     cargo install \
         --git https://github.com/xaynetwork/xayn_async_bindgen.git \
         {{args}} \
@@ -28,96 +28,96 @@ install_async_bindgen *args:
         "$@" ;
 
 # Get/Update/Fetch/Install all dependencies
-deps: dart_deps rust_deps install_async_bindgen
+deps: dart-deps rust-deps install-async-bindgen
 
 # Format dart (checks only on CI)
-dart_fmt:
+dart-fmt:
     cd "$DART_WORKSPACE"; \
     dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
 
 # Format rust (checks only on CI)
-rust_fmt:
+rust-fmt:
     cd "$RUST_WORKSPACE"; \
     cargo +nightly fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};\
     cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }}
 
 # Format all code (checks only on CI)
-fmt: rust_fmt dart_fmt
+fmt: rust-fmt dart-fmt
 
 # Check dart code, fails on info on CI
-dart_check: dart_build
+dart-check: dart-build
     cd "$DART_WORKSPACE"; \
     dart analyze {{ if env_var_or_default("CI", "false") == "true" { "--fatal-infos" } else { "" } }}
 
-_codegen_order_workaround:
+_codegen-order-workaround:
     cd "$RUST_WORKSPACE"; \
     cargo check --quiet 2>/dev/null || :
 
 # Check rust code, fails on warnings on CI
-rust_check: _codegen_order_workaround
+rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo clippy --all-targets --locked #TODO DENY WARNINGS ON CI
 
 # Check rust and dart code, fails if there are any issues on CI
-check: rust_check dart_check
+check: rust-check dart-check
 
 # Check if dart documentation can be build without issues
-dart_check_doc:
+dart-check-doc:
     cd "$DART_WORKSPACE"; \
     dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
 
 # Check if dart documentation can be build without issues
-rust_check_doc: _codegen_order_workaround
+rust-check_doc: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo doc --all-features --no-deps --document-private-items --locked
 
 # Check if documentation can be build without issues
-check_doc: dart_check_doc rust_check_doc
+check_doc: dart-check-doc rust-check_doc
 
-_run_cbindgen: _codegen_order_workaround
+_run-cbindgen: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo check
 
-_run_ffigen:
+_run-ffigen:
     cd "$DART_WORKSPACE"; \
     dart run ffigen --config ffigen.yaml
 
-_run_async_bindgen:
+_run-async-bindgen:
     cd "$RUST_WORKSPACE"; \
     "{{justfile_directory()}}/$CARGO_INSTALL_ROOT/bin/async-bindgen-gen-dart" \
         --ffi-class XaynDiscoveryEngineBindingsFfi \
         --genesis ../"$DART_WORKSPACE"/lib/src/ffi/genesis.ffigen.dart
 
-_run_build_runner:
+_run-build-runner:
     cd "$DART_WORKSPACE"; \
     dart run build_runner build --delete-conflicting-outputs
 
 # Builds dart (runs all codegen steps)
-dart_build: _run_cbindgen _run_ffigen _run_async_bindgen _run_build_runner
+dart-build: _run-cbindgen _run-ffigen _run-async-bindgen _run-build-runner
 
 # Builds rust
-rust_build:
+rust-build:
     cd "$RUST_WORKSPACE"; \
     cargo build --locked
 
 # Builds dart and rust
-build: rust_build dart_build
+build: rust-build dart-build
 
 # Tests dart (builds all necessary parts)
-dart_test: rust_build dart_build
+dart-test: rust-build dart-build
     cd "$DART_WORKSPACE"; \
     dart test
 
 # Tests rust
-rust_test:
+rust-test:
     cd "$RUST_WORKSPACE"; \
     cargo test --locked
 
 # Test dart and rust
-test: rust_test dart_test
+test: rust-test dart-test
 
 # Cleans up all generated files
-clean_files:
+clean-files:
     find . \( -name '*.g.dart' \
         -or -name '*.freezed.dart' \
         -or -name '*.ffigen.dart' \
@@ -127,33 +127,33 @@ clean_files:
     -rm "$RUST_WORKSPACE"/bindings/src/async_bindings/*
 
 # Cleans up rusts build cache
-rust_clean_deps:
+rust-clean-deps:
     cd "$RUST_WORKSPACE"; \
     cargo clean
 
 # Cleans up darts build cache
-dart_clean_deps:
+dart-clean-deps:
     find "$DART_WORKSPACE" -type d -name .dart_tool -prune -exec rm -r '{}' \;
 
 # Remvoes all local cargo isntalls
-remove_local_cargo_installs:
+remove-local-cargo-installs:
     rm -r "$CARGO_INSTALL_ROOT"
 
 # Removes all local dependencies artifacts
-clean_deps: rust_clean_deps dart_clean_deps remove_local_cargo_installs
+clean-deps: rust-clean-deps dart-clean-deps remove-local-cargo-installs
 
 # Removes all local cached dependencies and generated files
-clean_fully: clean_files clean_deps
+clean-fully: clean-files clean-deps
 
 # Workaround to set env variable CI for all job dependencies
-_pre_push: clean_files fmt check test
+_pre-push: clean-files fmt check test
 
 # Runs formatting check and test steps after deleting generated files.
-pre_push $CI="true":
-    @{{just_executable()}} _pre_push
+pre-push $CI="true":
+    @{{just_executable()}} _pre-push
 
-alias cf := clean_files
-alias d := dart_test
-alias r := rust_test
+alias cf := clean-files
+alias d := dart-test
+alias r := rust-test
 alias t := test
-alias pp := pre_push
+alias pp := pre-push
