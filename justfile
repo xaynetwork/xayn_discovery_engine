@@ -100,6 +100,9 @@ rust_build:
     cd "$RUST_WORKSPACE"; \
     cargo build --locked
 
+# Builds dart and rust
+build: rust_build dart_build
+
 # Tests dart (builds all necessary parts)
 dart_test: rust_build dart_build
     cd "$DART_WORKSPACE"; \
