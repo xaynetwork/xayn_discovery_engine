@@ -162,7 +162,7 @@ fn ranker_updated<'a, R: Ranker>(
 /// but without the need to declare `anyhow` as a dependency.
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
-/// Provides a method for ranking slice of [`Document`] items.
+/// Provides a method for ranking a slice of [`Document`] items.
 pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
     fn rank(&self, items: &mut [Document]) -> Result<(), GenericError>;
