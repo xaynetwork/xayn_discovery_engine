@@ -15,6 +15,7 @@
 import 'dart:typed_data' show Uint8List, BytesBuilder;
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Asset, Fragment;
+import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 /// Fetches the asset aither from the urlSuffix or from [Fragment]s
 /// and returns a single bytes list.
@@ -22,6 +23,10 @@ abstract class AssetFetcher {
   Future<Uint8List> fetchFragment(String urlSuffix);
   Future<Uint8List> fetchAsset(Asset asset) async {
     final builder = BytesBuilder(copy: false);
+
+    final message =
+        'AssetFetcher:\nasset id: ${asset.id},\nasset url: ${asset.urlSuffix}\nhasFragments${asset.fragments.isNotEmpty}';
+    logger.i(message);
 
     if (asset.fragments.isEmpty) {
       final bytes = await fetchFragment(asset.urlSuffix);

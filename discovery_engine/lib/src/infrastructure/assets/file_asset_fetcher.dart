@@ -19,6 +19,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
     show AssetFetcher;
 import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
     show DataProvider;
+import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 class FileAssetFetcher extends AssetFetcher {
   final String baseDirectoryPath;
@@ -28,11 +29,14 @@ class FileAssetFetcher extends AssetFetcher {
   @override
   Future<Uint8List> fetchFragment(String urlSuffix) async {
     final path = DataProvider.joinPaths([baseDirectoryPath, urlSuffix]);
+    logger.i('AssetFetcher fetchFragment: $path');
+
     final file = File(path);
 
     if (!file.existsSync()) {
-      final msg = 'Unable to fetch static AI files:\nurl: $path';
-      return Future.error(msg);
+      final message = 'Unable to fetch static AI files:\nurl: $path';
+      logger.e(message);
+      return Future.error(message);
     }
 
     return File(path).readAsBytes();

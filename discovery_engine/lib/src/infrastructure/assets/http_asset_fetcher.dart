@@ -20,6 +20,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
     show AssetFetcher;
 import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
     show DataProvider;
+import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 class HttpAssetFetcher extends AssetFetcher {
   final String _baseUrl;
@@ -28,18 +29,29 @@ class HttpAssetFetcher extends AssetFetcher {
 
   @override
   Future<Uint8List> fetchFragment(String urlSuffix) async {
-    // TODO: maybe configure RetryClient
-    final client = RetryClient(http.Client());
-
     final url = DataProvider.joinPaths([_baseUrl, urlSuffix]);
+
+    logger.i('AssetFetcher fetchFragment: $url');
+
+    final client = RetryClient(
+      http.Client(),
+      retries: 2,
+      onRetry: (req, res, retryCount) {
+        final message =
+            'AssetFetcher:\nrequest url:${req.url},\nresponse statusCode:${res?.statusCode},\nretry nb: $retryCount';
+        logger.i(message);
+      },
+    );
+
     final uri = Uri.parse(url);
     final response = await client.get(uri);
 
     if (response.statusCode != 200) {
       // triggers when the asset is not available on the provided url
-      final msg =
+      final message =
           'error loading asset: $uri,\nstatus: ${response.statusCode}\nerror: ${response.reasonPhrase}';
-      return Future.error(msg);
+      logger.e(message);
+      return Future.error(message);
     }
 
     return response.bodyBytes;
