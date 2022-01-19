@@ -14,25 +14,29 @@
 
 import 'dart:io' show Directory, File;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart';
+import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
+    show ManifestReader;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/data_provider.dart'
     show createDataProvider;
-import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart'
-    show HttpAssetFetcher;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
 import 'utils/local_asset_server.dart' show LocalAssetServer;
-import 'utils/mock_http_asset_fetcher.dart' show MockHttpAssetFetcher;
+import 'utils/mock_http_asset_fetcher.dart' show HttpAssetFetcherWithCounter;
 import 'utils/mock_manifest_reader.dart'
     show MockManifestReader, goodJson, wrongChecksumJson;
+
+const kServerUrl = 'http://localhost:8080';
 
 void main() {
   group('DataProvider', () {
     group('getSetupData', () {
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
+      final baseAssetPath = '$outputPath/assets';
       final vocabPath = '$outputPath/assets/smbert_v0000/vocab.txt';
       final modelPath = '$outputPath/assets/smbert_v0000/smbert.onnx';
+      final assetFetcher = HttpAssetFetcherWithCounter('http://localhost:8080');
+      final manifestReader = MockManifestReader(goodJson);
 
       late LocalAssetServer server;
 
@@ -41,6 +45,7 @@ void main() {
       });
 
       tearDown(() {
+        assetFetcher.resetCount();
         Directory(outputPath).deleteSync(recursive: true);
       });
 
@@ -52,11 +57,8 @@ void main() {
           'when provided with proper json manifest it can download assets '
           'and asset fragments, and save them to a specified output path',
           () async {
-        final dataProvider = createDataProvider(
-          HttpAssetFetcher('http://localhost:8080'),
-          MockManifestReader(goodJson),
-          outputPath,
-        );
+        final dataProvider =
+            createDataProvider(assetFetcher, manifestReader, outputPath);
 
         final setupData =
             (await dataProvider.getSetupData()) as NativeSetupData;
@@ -71,68 +73,44 @@ void main() {
           'when the assets were already downloaded and the checksums are matching '
           'it will serve those assets instead of fetching them again',
           () async {
-        await _prepareOutputFiles(
-          json: goodJson,
-          vocabPath: vocabPath,
-          modelPath: modelPath,
-        );
-
-        final mockAssetFetcher = MockHttpAssetFetcher('http://localhost:8080');
-        final dataProvider = createDataProvider(
-          mockAssetFetcher,
-          MockManifestReader(goodJson),
-          outputPath,
-        );
+        final dataProvider =
+            createDataProvider(assetFetcher, manifestReader, outputPath);
+        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
 
         await dataProvider.getSetupData();
 
-        expect(mockAssetFetcher.callCount, equals(0));
+        expect(assetFetcher.callCount, equals(0));
       });
 
       test(
           'when the assets were already downloaded but the checksums '
           'are NOT matching, it will fetch new files from the server',
           () async {
-        await _prepareOutputFiles(
-          json: wrongChecksumJson,
-          vocabPath: vocabPath,
-          modelPath: modelPath,
-        );
-
-        final mockAssetFetcher = MockHttpAssetFetcher('http://localhost:8080');
-        final dataProvider = createDataProvider(
-          mockAssetFetcher,
-          MockManifestReader(wrongChecksumJson),
-          outputPath,
-        );
+        final manifestReader = MockManifestReader(wrongChecksumJson);
+        final dataProvider =
+            createDataProvider(assetFetcher, manifestReader, outputPath);
+        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
 
         await dataProvider.getSetupData();
 
-        expect(mockAssetFetcher.callCount, equals(4));
+        expect(assetFetcher.callCount, equals(4));
       });
     });
   });
 }
 
-Future<void> _prepareOutputFiles({
-  required Map<String, Object> json,
-  required String vocabPath,
-  required String modelPath,
-}) async {
-  final realAssetFetcher = HttpAssetFetcher('http://localhost:8080');
-  final manifestReader = MockManifestReader(json);
+Future<void> _prepareOutputFiles(
+  HttpAssetFetcherWithCounter assetFetcher,
+  ManifestReader manifestReader,
+  String basePath,
+) async {
   final manifest = await manifestReader.read();
 
-  await _fetchFile(realAssetFetcher, manifest.assets.first, vocabPath);
-  await _fetchFile(realAssetFetcher, manifest.assets.last, modelPath);
-}
-
-Future<void> _fetchFile(
-  HttpAssetFetcher fetcher,
-  Asset asset,
-  String filePath,
-) async {
-  final bytes = await fetcher.fetchAsset(asset);
-  final file = File(filePath)..createSync(recursive: true);
-  await file.writeAsBytes(bytes, flush: true);
+  for (final asset in manifest.assets) {
+    final bytes = await assetFetcher.fetchAsset(asset);
+    final filePath = '$basePath/${asset.urlSuffix}';
+    final file = File(filePath)..createSync(recursive: true);
+    await file.writeAsBytes(bytes, flush: true);
+    assetFetcher.resetCount();
+  }
 }
