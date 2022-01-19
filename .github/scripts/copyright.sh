@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ep
+set -e
 
 files_to_check() {
     find . \
