@@ -14,7 +14,7 @@
 
 //! Personalized document that is returned from [`Engine`](crate::engine::Engine).
 
-use std::convert::TryFrom;
+use std::{convert::TryFrom, time::Duration};
 
 use derivative::Derivative;
 use derive_more::{Deref, Display};
@@ -107,3 +107,34 @@ where
 
 /// A 1-dimensional sequence embedding.
 pub type Embedding1 = Embedding<Ix1>;
+
+/// Log the time that has been spent on the document.
+pub struct TimeSpent {
+    /// Id of the document.
+    pub id: Id,
+
+    /// Precomputed S-mBert of the document.
+    pub smbert: Embedding1,
+
+    /// Time spent on the documents in seconds.
+    pub seconds: Duration,
+    /* we don't have a `DocumentViewMode` in here because at the moment the
+       coi just consider one time. On the dart side we are saving all these values
+       and when we call the feedbackloop we will decide which value to use or to aggregate them.
+    */
+}
+
+/// User reacted to a document.
+pub struct UserReacted {
+    /// Id of the document.
+    pub id: Id,
+
+    /// Stack from which the document has been taken.
+    pub stack_id: StackId,
+
+    /// Precomputed S-mBert of the document.
+    pub smbert: Embedding1,
+
+    /// Reaction.
+    pub reaction: UserReaction,
+}

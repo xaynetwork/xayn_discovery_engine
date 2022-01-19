@@ -23,7 +23,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         DocumentViewMode,
         DocumentFeedbackChanged,
         DocumentId,
-        DocumentTimeLogged,
+        DocumentTimeSpent,
         EngineEvent,
         EngineExceptionRaised,
         EngineExceptionReason,
@@ -52,7 +52,7 @@ class BadClientEvent implements ClientEvent {
     required TResult Function(NextFeedBatchRequested value)
         nextFeedBatchRequested,
     required TResult Function(FeedDocumentsClosed value) feedDocumentsClosed,
-    required TResult Function(DocumentTimeLogged value) documentTimeLogged,
+    required TResult Function(DocumentTimeSpent value) documentTimeSpent,
     required TResult Function(DocumentFeedbackChanged value)
         documentFeedbackChanged,
   }) {
@@ -67,7 +67,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(FeedRequested value)? feedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
-    TResult Function(DocumentTimeLogged value)? documentTimeLogged,
+    TResult Function(DocumentTimeSpent value)? documentTimeSpent,
     TResult Function(DocumentFeedbackChanged value)? documentFeedbackChanged,
   }) {
     throw UnimplementedError();
@@ -82,7 +82,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(FeedRequested value)? feedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
-    TResult Function(DocumentTimeLogged value)? documentTimeLogged,
+    TResult Function(DocumentTimeSpent value)? documentTimeSpent,
     TResult Function(DocumentFeedbackChanged value)? documentFeedbackChanged,
   }) {
     throw UnimplementedError();
@@ -102,7 +102,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
     TResult Function(DocumentId documentId, DocumentViewMode mode, int seconds)?
-        documentTimeLogged,
+        documentTimeSpent,
     TResult Function(DocumentId documentId, DocumentFeedback feedback)?
         documentFeedbackChanged,
   }) {
@@ -131,7 +131,7 @@ class BadClientEvent implements ClientEvent {
       DocumentViewMode mode,
       int seconds,
     )
-        documentTimeLogged,
+        documentTimeSpent,
     required TResult Function(DocumentId documentId, DocumentFeedback feedback)
         documentFeedbackChanged,
   }) {
@@ -155,7 +155,7 @@ class BadClientEvent implements ClientEvent {
       DocumentViewMode mode,
       int seconds,
     )?
-        documentTimeLogged,
+        documentTimeSpent,
     TResult Function(DocumentId documentId, DocumentFeedback feedback)?
         documentFeedbackChanged,
   }) {

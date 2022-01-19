@@ -86,7 +86,7 @@ impl Stack {
         self.ops.id()
     }
 
-    /// Ranks the slice of [`Document`] items and returns an updated [`Stack`].
+    /// Updates the internal documents with the new one and returns an updated [`Stack`].
     #[allow(dead_code)]
     pub(crate) fn update<R: Ranker>(
         mut self,
@@ -102,6 +102,15 @@ impl Stack {
         ranker.rank(&mut items).map_err(Error::Ranking)?;
         self.data.documents = items;
         Ok(self)
+    }
+
+    /// Rank the internal documents.
+    ///
+    /// This is useful when the [`Ranker`] has been updated.
+    pub(crate) fn rank<R: Ranker>(&mut self, ranker: &R) -> Result<(), Error> {
+        ranker
+            .rank(&mut self.data.documents)
+            .map_err(Error::Ranking)
     }
 
     /// Updates the relevance of the Stack based on the user feedback.

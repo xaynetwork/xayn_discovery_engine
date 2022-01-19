@@ -91,11 +91,11 @@ class ClientEvent with _$ClientEvent {
   /// Event created when a [Document] has been viewed in a certain mode for
   /// the given amount of time in seconds.
   @Implements<DocumentClientEvent>()
-  const factory ClientEvent.documentTimeLogged(
+  const factory ClientEvent.documentTimeSpent(
     DocumentId documentId,
     DocumentViewMode mode,
     int seconds,
-  ) = DocumentTimeLogged;
+  ) = DocumentTimeSpent;
 
   /// Event created when the user swipes the [Document] card or clicks a button
   /// to indicate that the document is `positive`, `negative` or `neutral`.
