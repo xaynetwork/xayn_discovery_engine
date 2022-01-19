@@ -53,8 +53,8 @@ pub enum Error {
     // This is often used when we want to run an operation on multiple data but
     // we don't want to return on the first error.
     // This is mainly done to maximize the amount of learning that we can do or
-    // try to run as many system to rank document as possible and discard only the one
-    // that are returning an error.
+    // try to run as many systems as possible to rank the documents, and discard only the ones
+    // that are returning errors.
     Errors(Vec<Error>),
 }
 
