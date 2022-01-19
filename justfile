@@ -17,7 +17,7 @@ dart-deps:
 # Fetch rust dependencies
 rust-deps:
     cd "$RUST_WORKSPACE"; \
-    cargo fetch --locked
+    cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
 # Installs async-bindgen cli tool
 install-async-bindgen *args:
