@@ -315,11 +315,42 @@ jobs:
     # this is an helper that needs all the real leafs of the workflow.
     # It makes easier notify_main_failure because we only need to check
     # for this job
-  ci-ok:
-    name: ci-ok
-    needs: [dart-test, selection]
-    if: ${{ needs.changes.outputs.dart == 'true' }}
+
+  cargo-ok:
+    name: cargo-ok
+    needs:
+      - cargo-format
+      - cargo-clippy
+      - cargo-test
+      - cargo-doc
     runs-on: ubuntu-20.04
     steps:
       - name: Nothing to do
         run: echo "Helper job nothing to do"
+  ci-ok:
+    name: ci-ok
+    needs: [selection, dart-doc, cargo-ok]
+    if: ${{ always() }}
+    runs-on: ubuntu-20.04
+    steps:
+      - if: ${{ needs.changes.outputs.dart == 'true' }} && ${{ needs.changes.outputs.rust == 'true' }} && ${{ needs.cargo-ok.status == 'success' }} && ${{ needs.dart-doc.status == 'success' }}
+        name: Check dart and rust
+        run: exit 0
+      - if: ${{ needs.changes.outputs.dart == 'true' }} && ${{ needs.dart-doc.status == 'success' }}
+        name: Check dart
+        run: exit 0
+      - if: ${{ needs.changes.outputs.rust == 'true' }} && ${{ needs.cargo-ok.status == 'success' }}
+        name: Check rust
+        run: exit 0
+      - name: Nothing successful 
+        run: exit 1
+
+
+        - if: 
+          (${{ needs.changes.outputs.dart == 'true' }} && ${{ needs.changes.outputs.rust == 'true' }} && ${{ needs.cargo-ok.status == 'success' }} && ${{ needs.dart-doc.status == 'success' }}) || 
+          (${{ needs.changes.outputs.dart == 'true' }} && ${{ needs.dart-doc.status == 'success' }}) ||
+          (${{ needs.changes.outputs.rust == 'true' }} && ${{ needs.cargo-ok.status == 'success' }})
+        name: Check rust
+        run: exit 0
+      - name: Nothing successful 
+        run: exit 1
