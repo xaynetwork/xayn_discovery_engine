@@ -1,4 +1,4 @@
-name: CI(dart)
+name: CI 
 
 on:
   push:
@@ -325,32 +325,28 @@ jobs:
       - cargo-doc
     runs-on: ubuntu-20.04
     steps:
-      - name: Nothing to do
-        run: echo "Helper job nothing to do"
+      - run: exit 0
+  
   ci-ok:
     name: ci-ok
     needs: [selection, dart-doc, cargo-ok]
-    if: ${{ always() }}
+    if: ${{always()}}
     runs-on: ubuntu-20.04
+    timeout-minutes: 5
     steps:
-      - if: ${{ needs.changes.outputs.dart == 'true' }} && ${{ needs.changes.outputs.rust == 'true' }} && ${{ needs.cargo-ok.status == 'success' }} && ${{ needs.dart-doc.status == 'success' }}
-        name: Check dart and rust
-        run: exit 0
-      - if: ${{ needs.changes.outputs.dart == 'true' }} && ${{ needs.dart-doc.status == 'success' }}
-        name: Check dart
-        run: exit 0
-      - if: ${{ needs.changes.outputs.rust == 'true' }} && ${{ needs.cargo-ok.status == 'success' }}
-        name: Check rust
-        run: exit 0
-      - name: Nothing successful 
-        run: exit 1
-
-
-        - if: 
-          (${{ needs.changes.outputs.dart == 'true' }} && ${{ needs.changes.outputs.rust == 'true' }} && ${{ needs.cargo-ok.status == 'success' }} && ${{ needs.dart-doc.status == 'success' }}) || 
-          (${{ needs.changes.outputs.dart == 'true' }} && ${{ needs.dart-doc.status == 'success' }}) ||
-          (${{ needs.changes.outputs.rust == 'true' }} && ${{ needs.cargo-ok.status == 'success' }})
-        name: Check rust
-        run: exit 0
-      - name: Nothing successful 
-        run: exit 1
+      - name: CI OK Testing
+        if: ${{ needs.selection.outputs.dart == 'true' }} || ${{ needs.selection.outputs.rust == 'true' }}
+        run: |
+          if ( ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.cargo-ok.result == 'success'}} )
+          then
+            exit 0
+          elif ( ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.changes.outputs.test2 == 'false' }} )
+          then
+            exit 0
+          elif ( ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.cargo-ok.result == 'success'}} && ${{ needs.changes.outputs.test == 'false' }} )
+          then
+            exit 0
+          else
+            exit 1
+          fi
+            
