@@ -17,7 +17,7 @@ import 'dart:io' show Directory, File;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
     show ManifestReader;
-import 'package:xayn_discovery_engine/src/infrastructure/assets/data_provider.dart'
+import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
