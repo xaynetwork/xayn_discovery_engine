@@ -20,17 +20,14 @@ import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
     show ManifestReader;
 
 /// Data that is required to initialize [`XaynAi`].
-class SetupData {
-  SetupData(Map<AssetType, dynamic> assets) {
-    throw UnsupportedError('Unsupported platform.');
-  }
+abstract class SetupData {
+  Map<AssetType, Object> get assets;
 }
 
 /// Reads the assets manifest and provides the [SetupData] to further use.
 abstract class DataProvider {
   AssetFetcher get assetFetcher;
   ManifestReader get manifestReader;
-  Uri get baseUri;
 
   Future<SetupData> getSetupData() {
     throw UnsupportedError('Unsupported platform.');

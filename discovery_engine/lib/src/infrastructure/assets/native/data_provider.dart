@@ -22,6 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
     show DataProvider, SetupData;
 import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
     show ManifestReader;
+import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 const _baseAssetsPath = 'assets';
 
@@ -30,17 +31,16 @@ class NativeDataProvider extends DataProvider {
   final AssetFetcher assetFetcher;
   @override
   final ManifestReader manifestReader;
-  @override
-  final Uri baseUri;
+  final String storageDirectoryPath;
 
   NativeDataProvider(
     this.assetFetcher,
     this.manifestReader,
-    this.baseUri,
+    this.storageDirectoryPath,
   );
 
   String get baseDirectoryPath =>
-      DataProvider.joinPaths([baseUri.toFilePath(), _baseAssetsPath]);
+      DataProvider.joinPaths([storageDirectoryPath, _baseAssetsPath]);
 
   @override
   Future<SetupData> getSetupData() async {
@@ -53,12 +53,14 @@ class NativeDataProvider extends DataProvider {
       paths.putIfAbsent(asset.id, () => path);
     }
 
-    return SetupData(paths);
+    return NativeSetupData(paths);
   }
 
   /// Returns the path to the data, if the data is not on disk yet
   /// it will be copied from the bundle to the disk.
   Future<String> _getData(Asset asset) async {
+    logger.i('DataProvider: get asset data for asset id: ${asset.id}');
+
     final filePath =
         DataProvider.joinPaths([baseDirectoryPath, asset.urlSuffix]);
     final assetFile = File(filePath);
@@ -68,12 +70,20 @@ class NativeDataProvider extends DataProvider {
     // Only write the data on disk if the file does not exist or the checksum does not match.
     // The last check is useful in case the app is closed before we can finish to write,
     // and it can be also useful during development to test with different models.
-    if (!assetFile.existsSync() ||
+    var doesExist = assetFile.existsSync();
+
+    if (doesExist &&
         !await _verifyChecksum(assetFile, asset.checksum.checksumAsHex)) {
       await assetFile.delete();
+      doesExist = false;
+    }
+
+    if (!doesExist) {
       final bytes = await assetFetcher.fetchAsset(asset);
       await assetFile.writeAsBytes(bytes, flush: true);
     }
+
+    logger.i('DataProvider: asset saved under path:\n${assetFile.path}');
 
     return assetFile.path;
   }
@@ -84,9 +94,22 @@ class NativeDataProvider extends DataProvider {
   }
 }
 
+class NativeSetupData extends SetupData {
+  final Map<AssetType, Object> _assets;
+  final String smbertVocab;
+  final String smbertModel;
+
+  @override
+  Map<AssetType, Object> get assets => _assets;
+
+  NativeSetupData(this._assets)
+      : smbertVocab = _assets[AssetType.smbertVocab]! as String,
+        smbertModel = _assets[AssetType.smbertModel]! as String;
+}
+
 DataProvider createDataProvider(
   final AssetFetcher assetFetcher,
   final ManifestReader manifestReader,
-  final Uri baseUri,
+  final String storageDirectoryPath,
 ) =>
-    NativeDataProvider(assetFetcher, manifestReader, baseUri);
+    NativeDataProvider(assetFetcher, manifestReader, storageDirectoryPath);

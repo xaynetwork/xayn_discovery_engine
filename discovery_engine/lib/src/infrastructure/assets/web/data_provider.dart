@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:typed_data' show Uint8List;
+
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show AssetType;
 import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
@@ -28,19 +30,15 @@ class WebDataProvider extends DataProvider {
   final AssetFetcher assetFetcher;
   @override
   final ManifestReader manifestReader;
-  @override
-  // TODO: maybe we don't need it
-  final Uri baseUri;
 
   WebDataProvider(
     this.assetFetcher,
     this.manifestReader,
-    this.baseUri,
   );
 
   @override
   Future<SetupData> getSetupData() async {
-    final fetched = <AssetType, dynamic>{};
+    final fetched = <AssetType, Object>{};
     final manifest = await manifestReader.read();
 
     for (final asset in manifest.assets) {
@@ -58,13 +56,26 @@ class WebDataProvider extends DataProvider {
       }
     }
 
-    return SetupData(fetched);
+    return WebSetupData(fetched);
   }
+}
+
+class WebSetupData extends SetupData {
+  final Map<AssetType, Object> _assets;
+  final Uint8List smbertVocab;
+  final Uint8List smbertModel;
+
+  @override
+  Map<AssetType, Object> get assets => _assets;
+
+  WebSetupData(this._assets)
+      : smbertVocab = _assets[AssetType.smbertVocab]! as Uint8List,
+        smbertModel = _assets[AssetType.smbertModel]! as Uint8List;
 }
 
 DataProvider createDataProvider(
   final AssetFetcher assetFetcher,
   final ManifestReader manifestReader,
-  final Uri baseUri,
+  final String storageDirectoryPath,
 ) =>
-    WebDataProvider(assetFetcher, manifestReader, baseUri);
+    WebDataProvider(assetFetcher, manifestReader);
