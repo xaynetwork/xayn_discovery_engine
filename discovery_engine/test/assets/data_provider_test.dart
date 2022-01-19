@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io' show Directory, File;
+
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
     show ManifestReader;
@@ -26,15 +27,13 @@ import 'utils/mock_http_asset_fetcher.dart' show HttpAssetFetcherWithCounter;
 import 'utils/mock_manifest_reader.dart'
     show MockManifestReader, goodJson, wrongChecksumJson;
 
-const kServerUrl = 'http://localhost:8080';
-
 void main() {
   group('DataProvider', () {
     group('getSetupData', () {
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
       final baseAssetPath = '$outputPath/assets';
-      final vocabPath = '$outputPath/assets/smbert_v0000/vocab.txt';
-      final modelPath = '$outputPath/assets/smbert_v0000/smbert.onnx';
+      final vocabPath = '$baseAssetPath/smbert_v0000/vocab.txt';
+      final modelPath = '$baseAssetPath/smbert_v0000/smbert.onnx';
       final assetFetcher = HttpAssetFetcherWithCounter('http://localhost:8080');
       final manifestReader = MockManifestReader(goodJson);
 
