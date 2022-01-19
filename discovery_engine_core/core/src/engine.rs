@@ -18,7 +18,7 @@ use displaydoc::Display;
 use thiserror::Error;
 
 use crate::{
-    document::{Document, TimeLogged, UserReacted},
+    document::{Document, TimeSpent, UserReacted},
     mab::{self, BetaSampler, Selection},
     stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
 };
@@ -50,11 +50,6 @@ pub enum Error {
     Ranker(#[from] GenericError),
 
     /// A list of errors that could occur during some operation.
-    // This is often used when we want to run an operation on multiple data but
-    // we don't want to return on the first error.
-    // This is mainly done to maximize the amount of learning that we can do or
-    // try to run as many systems as possible to rank the documents, and discard only the ones
-    // that are returning errors.
     Errors(Vec<Error>),
 }
 
@@ -115,31 +110,29 @@ where
     }
 
     /// Process the feedback about the user spending some time on a document.
-    pub fn time_logged(&mut self, time_logged: &TimeLogged) -> Result<(), Error> {
+    pub fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), Error> {
         self.ranker.time_logged(time_logged)?;
 
-        ranker_updated(self.stacks.values_mut(), &self.ranker)
+        rank_stacks(self.stacks.values_mut(), &self.ranker)
     }
 
     /// Process the feedback about the user reacting to a document.
-    pub fn user_reacted(&mut self, reaction: &UserReacted) -> Result<(), Error> {
+    pub fn user_reacted(&mut self, reacted: &UserReacted) -> Result<(), Error> {
         let stack = self
             .stacks
-            .get_mut(&reaction.stack_id)
-            .ok_or(Error::InvalidStackId(reaction.stack_id))?;
+            .get_mut(&reacted.stack_id)
+            .ok_or(Error::InvalidStackId(reacted.stack_id))?;
 
-        stack.update_relevance(reaction.reaction);
+        stack.update_relevance(reacted.reaction);
 
-        self.ranker.user_reacted(reaction)?;
+        self.ranker.user_reacted(reacted)?;
 
-        ranker_updated(self.stacks.values_mut(), &self.ranker)
+        rank_stacks(self.stacks.values_mut(), &self.ranker)
     }
 }
 
-/// The ranker has been updated.
-///
 /// The ranker could rank the documents in a different order so we update the stacks with it.
-fn ranker_updated<'a, R: Ranker>(
+fn rank_stacks<'a, R: Ranker>(
     stacks: impl Iterator<Item = &'a mut Stack>,
     ranker: &R,
 ) -> Result<(), Error> {
@@ -168,7 +161,7 @@ pub trait Ranker {
     fn rank(&self, items: &mut [Document]) -> Result<(), GenericError>;
 
     /// Learn from the time a user spent on a document.
-    fn time_logged(&mut self, time_logged: &TimeLogged) -> Result<(), GenericError>;
+    fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), GenericError>;
 
     /// Learn from a user's interaction.
     fn user_reacted(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;

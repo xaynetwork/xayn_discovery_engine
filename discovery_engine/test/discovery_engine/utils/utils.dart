@@ -58,7 +58,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       nextFeedBatchRequested: (_) => nextFeedBatchRequestedResponse,
       feedDocumentsClosed: (_) => feedDocumentsClosedResponse,
       documentFeedbackChanged: (_) => documentFeedbackChangedResponse,
-      documentTimeLogged: (_) => documentTimeLoggedResponse,
+      documentTimeSpent: (_) => documentTimeLoggedResponse,
     );
     return send(response, request.sender);
   }

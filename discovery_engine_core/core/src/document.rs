@@ -109,7 +109,7 @@ where
 pub type Embedding1 = Embedding<Ix1>;
 
 /// Log the time that has been spent on the document.
-pub struct TimeLogged {
+pub struct TimeSpent {
     /// Id of the document.
     pub id: Id,
 
@@ -119,8 +119,9 @@ pub struct TimeLogged {
     /// Time spent on the documents in seconds.
     pub seconds: Duration,
     /* we don't have a `DocumentViewMode` in here because at the moment the
-     * coi just consider one time. On the dart side we are saving all these values
-     * and when we call the feedbackloop we will decide which value to use or to aggregate them. */
+       coi just consider one time. On the dart side we are saving all these values
+       and when we call the feedbackloop we will decide which value to use or to aggregate them.
+    */
 }
 
 /// User reacted to a document.

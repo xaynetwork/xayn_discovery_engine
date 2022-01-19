@@ -24,7 +24,7 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         NextFeedBatchRequested,
         FeedDocumentsClosed,
         DocumentClientEvent,
-        DocumentTimeLogged,
+        DocumentTimeSpent,
         DocumentFeedbackChanged;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
