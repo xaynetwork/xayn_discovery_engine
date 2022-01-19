@@ -95,6 +95,19 @@ void main() {
 
         expect(assetFetcher.callCount, equals(4));
       });
+
+      test(
+          'when server responds with "503 - Service Unavailable" status '
+          'the fetcher is able to retry the request', () async {
+        await server.close();
+        server = await LocalAssetServer.start(retryCount: 1);
+
+        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
+
+        expect(server.callCount.values, equals([1, 1, 1, 1]));
+        expect(File(vocabPath).existsSync(), isTrue);
+        expect(File(modelPath).existsSync(), isTrue);
+      });
     });
   });
 }

@@ -19,9 +19,14 @@ const kMockDataPath = '/test/assets/utils/input';
 class LocalAssetServer {
   final HttpServer _server;
   final String _mockDataPath;
+  final int _retryCount;
+  final Map<String, int> _callCount = {};
+
+  Map<String, int> get callCount => _callCount;
 
   LocalAssetServer._(
-    this._server, {
+    this._server,
+    this._retryCount, {
     String? mockDataPath,
   }) : _mockDataPath = mockDataPath ?? kMockDataPath {
     _handleRequests();
@@ -31,8 +36,12 @@ class LocalAssetServer {
     await for (final request in _server) {
       final filePath = '${Directory.current.path}$_mockDataPath${request.uri}';
       final file = File(filePath);
+      final callCount = _callCount[filePath] ?? 0;
 
-      if (!file.existsSync()) {
+      if (callCount < _retryCount) {
+        request.response.statusCode = HttpStatus.serviceUnavailable;
+        _callCount[filePath] = callCount + 1;
+      } else if (!file.existsSync()) {
         request.response.statusCode = HttpStatus.notFound;
       } else {
         await file.openRead().pipe(request.response);
@@ -42,9 +51,9 @@ class LocalAssetServer {
     }
   }
 
-  static Future<LocalAssetServer> start() async {
+  static Future<LocalAssetServer> start({int retryCount = 0}) async {
     final server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
-    return LocalAssetServer._(server);
+    return LocalAssetServer._(server, retryCount);
   }
 
   Future<void> close() async {
