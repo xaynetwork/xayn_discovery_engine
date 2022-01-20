@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
-    show FeedClientEvent;
+    show FeedClientEvent, FeedRequested;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -40,11 +40,14 @@ class FeedManager {
   /// Handle the given feed client event.
   ///
   /// Fails if [event] does not have a handler implemented.
+  /// If [event] is [FeedRequested], returns the feed documents.
+  /// Returns an empty list in all other cases.
   Future<List<Document>> handleFeedClientEvent(FeedClientEvent event) {
     return event.maybeWhen(
       feedRequested: () => restoreFeed(),
       nextFeedBatchRequested: () => nextFeedBatch().then((_) => []),
-      feedDocumentsClosed: (ids) => _docMgr.deactivateDocuments(ids).then((_) => []),
+      feedDocumentsClosed: (ids) =>
+          _docMgr.deactivateDocuments(ids).then((_) => []),
       orElse: throw UnimplementedError('handler not implemented for $event'),
     );
   }
