@@ -23,8 +23,6 @@ import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
 import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
     show ManifestReader;
 
-const _baseAssetUrl = 'assets/assets';
-
 class WebDataProvider extends DataProvider {
   @override
   final AssetFetcher assetFetcher;
@@ -38,39 +36,31 @@ class WebDataProvider extends DataProvider {
 
   @override
   Future<SetupData> getSetupData() async {
-    final fetched = <AssetType, Object>{};
+    final fetched = <AssetType, Uint8List>{};
     final manifest = await manifestReader.read();
 
     for (final asset in manifest.assets) {
-      final path = DataProvider.joinPaths([_baseAssetUrl, asset.urlSuffix]);
-
-      // We also load the wasm/worker script here in order to check its integrity/checksum.
-      // The browser keeps it in cache so `injectWasmScript` does not download it again.
       final bytes = await assetFetcher.fetchAsset(asset);
-
-      if (asset.id == AssetType.webWorkerScript ||
-          asset.id == AssetType.wasmScript) {
-        fetched.putIfAbsent(asset.id, () => path);
-      } else {
-        fetched.putIfAbsent(asset.id, () => bytes);
-      }
+      fetched.putIfAbsent(asset.id, () => bytes);
     }
 
-    return WebSetupData(fetched);
+    return WebSetupData(
+      smbertVocab: fetched[AssetType.smbertVocab]!,
+      smbertModel: fetched[AssetType.smbertModel]!,
+    );
   }
 }
 
 class WebSetupData extends SetupData {
-  final Map<AssetType, Object> _assets;
+  @override
   final Uint8List smbertVocab;
+  @override
   final Uint8List smbertModel;
 
-  @override
-  Map<AssetType, Object> get assets => _assets;
-
-  WebSetupData(this._assets)
-      : smbertVocab = _assets[AssetType.smbertVocab]! as Uint8List,
-        smbertModel = _assets[AssetType.smbertModel]! as Uint8List;
+  WebSetupData({
+    required this.smbertVocab,
+    required this.smbertModel,
+  });
 }
 
 DataProvider createDataProvider(

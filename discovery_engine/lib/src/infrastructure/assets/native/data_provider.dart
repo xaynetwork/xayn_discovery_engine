@@ -53,7 +53,10 @@ class NativeDataProvider extends DataProvider {
       paths.putIfAbsent(asset.id, () => path);
     }
 
-    return NativeSetupData(paths);
+    return NativeSetupData(
+      smbertVocab: paths[AssetType.smbertVocab]!,
+      smbertModel: paths[AssetType.smbertModel]!,
+    );
   }
 
   /// Returns the path to the data, if the data is not on disk yet
@@ -95,16 +98,15 @@ class NativeDataProvider extends DataProvider {
 }
 
 class NativeSetupData extends SetupData {
-  final Map<AssetType, Object> _assets;
+  @override
   final String smbertVocab;
+  @override
   final String smbertModel;
 
-  @override
-  Map<AssetType, Object> get assets => _assets;
-
-  NativeSetupData(this._assets)
-      : smbertVocab = _assets[AssetType.smbertVocab]! as String,
-        smbertModel = _assets[AssetType.smbertModel]! as String;
+  NativeSetupData({
+    required this.smbertVocab,
+    required this.smbertModel,
+  });
 }
 
 DataProvider createDataProvider(

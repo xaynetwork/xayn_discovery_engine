@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
-    show AssetType;
 import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
     show AssetFetcher;
 import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
@@ -21,7 +19,8 @@ import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
 
 /// Data that is required to initialize [`XaynAi`].
 abstract class SetupData {
-  Map<AssetType, Object> get assets;
+  Object get smbertVocab;
+  Object get smbertModel;
 }
 
 /// Reads the assets manifest and provides the [SetupData] to further use.
