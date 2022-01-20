@@ -17,7 +17,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Asset, Fragment;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
-/// Fetches the asset aither from the urlSuffix or from [Fragment]s
+/// Fetches the asset either from the `urlSuffix` or from [Fragment]s
 /// and returns a single bytes list.
 abstract class AssetFetcher {
   Future<Uint8List> fetchFragment(String urlSuffix);
@@ -25,7 +25,7 @@ abstract class AssetFetcher {
     final builder = BytesBuilder(copy: false);
 
     final message =
-        'AssetFetcher:\nasset id: ${asset.id},\nasset url: ${asset.urlSuffix}\nhasFragments${asset.fragments.isNotEmpty}';
+        'AssetFetcher:\n  id: ${asset.id},\n  url: ${asset.urlSuffix}\n  hasFragments: ${asset.fragments.isNotEmpty}';
     logger.i(message);
 
     if (asset.fragments.isEmpty) {
@@ -38,7 +38,6 @@ abstract class AssetFetcher {
       builder.add(bytes);
     }
 
-    // Returns the bytes currently contained in this builder and clears it.
     return builder.takeBytes();
   }
 }

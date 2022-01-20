@@ -45,6 +45,7 @@ void main() {
 
       tearDown(() {
         assetFetcher.resetCount();
+        server.resetRequestFailCount();
         Directory(outputPath).deleteSync(recursive: true);
       });
 
@@ -98,8 +99,7 @@ void main() {
       test(
           'when server responds with "503 - Service Unavailable" status '
           'the fetcher is able to retry the request', () async {
-        await server.close();
-        server = await LocalAssetServer.start(retryCount: 1);
+        server.setRequestFailCount(1);
 
         await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
 

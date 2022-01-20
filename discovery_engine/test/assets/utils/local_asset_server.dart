@@ -19,17 +19,29 @@ const kMockDataPath = '/test/assets/utils/input';
 class LocalAssetServer {
   final HttpServer _server;
   final String _mockDataPath;
-  final int _retryCount;
   final Map<String, int> _callCount = {};
+  int _failCount = 0;
 
   Map<String, int> get callCount => _callCount;
 
   LocalAssetServer._(
-    this._server,
-    this._retryCount, {
+    this._server, {
     String? mockDataPath,
   }) : _mockDataPath = mockDataPath ?? kMockDataPath {
     _handleRequests();
+  }
+
+  /// Set's the number of times each request will respond with
+  /// "503 - Service Unavailable" status before it will be successful.
+  void setRequestFailCount(int count) {
+    assert(count >= 0, 'Request failure count can\'t be negative');
+    _failCount = count;
+  }
+
+  /// Resets fail and call counters.
+  void resetRequestFailCount() {
+    setRequestFailCount(0);
+    _callCount.clear();
   }
 
   Future<void> _handleRequests() async {
@@ -38,7 +50,7 @@ class LocalAssetServer {
       final file = File(filePath);
       final callCount = _callCount[filePath] ?? 0;
 
-      if (callCount < _retryCount) {
+      if (callCount < _failCount) {
         request.response.statusCode = HttpStatus.serviceUnavailable;
         _callCount[filePath] = callCount + 1;
       } else if (!file.existsSync()) {
@@ -51,9 +63,9 @@ class LocalAssetServer {
     }
   }
 
-  static Future<LocalAssetServer> start({int retryCount = 0}) async {
+  static Future<LocalAssetServer> start() async {
     final server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
-    return LocalAssetServer._(server, retryCount);
+    return LocalAssetServer._(server);
   }
 
   Future<void> close() async {

@@ -38,7 +38,7 @@ class HttpAssetFetcher extends AssetFetcher {
       retries: 2,
       onRetry: (req, res, retryCount) {
         final message =
-            'AssetFetcher:\nrequest url:${req.url},\nresponse statusCode:${res?.statusCode},\nretry nb: $retryCount';
+            'AssetFetcher:\n  request url: ${req.url},\n  response statusCode: ${res?.statusCode},\n  retry nb: $retryCount';
         logger.i(message);
       },
     );
@@ -49,7 +49,7 @@ class HttpAssetFetcher extends AssetFetcher {
     if (response.statusCode != 200) {
       // triggers when the asset is not available on the provided url
       final message =
-          'error loading asset: $uri,\nstatus: ${response.statusCode}\nerror: ${response.reasonPhrase}';
+          'error loading asset: $uri,\n  status: ${response.statusCode}\n  error: ${response.reasonPhrase}';
       logger.e(message);
       return Future.error(message);
     }
