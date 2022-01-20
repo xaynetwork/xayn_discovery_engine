@@ -118,7 +118,7 @@ _run-build-runner:
 dart-build: _run-cbindgen _run-ffigen _run-async-bindgen _run-build-runner
 
 # Builds rust
-rust-build:
+rust-build: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo build --locked
 
