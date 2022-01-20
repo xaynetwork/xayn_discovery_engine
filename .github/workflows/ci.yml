@@ -44,7 +44,7 @@ jobs:
   dart-format:
     name: dart-format
     needs: selection
-    if: ${{ needs.changes.outputs.dart }}
+    if: ${{ needs.changes.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
@@ -63,7 +63,7 @@ jobs:
   dart-analyze:
     name: dart-analyze
     needs: [dart-format, selection]
-    if: ${{ needs.changes.outputs.dart }}
+    if: ${{ needs.changes.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
@@ -128,7 +128,7 @@ jobs:
   dart-test:
     name: dart-test
     needs: [dart-analyze, selection]
-    if: ${{ needs.changes.outputs.dart }}
+    if: ${{ needs.changes.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
@@ -190,7 +190,7 @@ jobs:
   dart-doc:
     name: dart-doc
     needs: [dart-test, selection]
-    if: ${{ needs.changes.outputs.dart }}
+    if: ${{ needs.changes.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
@@ -218,7 +218,7 @@ jobs:
 
   cargo-format:
     needs: selection
-    if: ${{ needs.changes.outputs.rust }}
+    if: ${{ needs.changes.outputs.rust == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
@@ -238,7 +238,7 @@ jobs:
 
   cargo-clippy:
     needs: selection
-    if: ${{ needs.changes.outputs.rust }}
+    if: ${{ needs.changes.outputs.rust == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
@@ -261,7 +261,7 @@ jobs:
 
   cargo-test:
     needs: selection
-    if: ${{ needs.changes.outputs.rust }}
+    if: ${{ needs.changes.outputs.rust == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
@@ -285,7 +285,7 @@ jobs:
 
   cargo-doc:
     needs: selection
-    if: ${{ needs.changes.outputs.rust }}
+    if: ${{ needs.changes.outputs.rust == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
@@ -324,9 +324,9 @@ jobs:
     steps:
       - name: CI OK Testing
         run: |
-          if [[ ${{ needs.selection.outputs.dart }} && ${{ needs.selection.outputs.rust }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.cargo-ok.result == 'success'}} ||
-            ${{ needs.selection.outputs.dart }} && ${{ needs.dart-doc.result == 'success'}} && ${{ !needs.selection.outputs.rust }} ||
-            ${{ needs.selection.outputs.rust }} && ${{ needs.cargo-ok.result == 'success'}} && ${{ !needs.selection.outputs.dart }} ]]
+          if [[ ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.cargo-ok.result == 'success'}} ||
+            ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.selection.outputs.rust == 'false' }} ||
+            ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.cargo-ok.result == 'success'}} && ${{ !needs.selection.outputs.dart == 'false' }} ]]
           then
             exit 0
           else
