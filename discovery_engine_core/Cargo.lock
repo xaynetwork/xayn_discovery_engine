@@ -1569,3 +1569,16 @@ dependencies = [
  "thiserror",
  "uuid",
 ]
+
+[[package]]
+name = "xayn-discovery-engine-providers"
+version = "0.1.0"
+dependencies = [
+ "claim",
+ "displaydoc",
+ "itertools",
+ "lazy_static",
+ "maplit",
+ "thiserror",
+ "xayn-discovery-engine-core",
+]

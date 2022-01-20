@@ -23,6 +23,7 @@ typedef FeedMarkets = Set<FeedMarket>;
 class FeedMarket extends Equatable {
   /// Country code as per ISO 3166-1 alpha-2 definition.
   final String countryCode;
+
   /// Language code as per ISO ISO 639-1 definition.
   final String langCode;
 

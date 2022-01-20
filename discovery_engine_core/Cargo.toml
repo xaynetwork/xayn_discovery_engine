@@ -2,6 +2,7 @@
 members = [
     "bindings",
     "core",
+    "providers",
 ]
 resolver = "2"
 
