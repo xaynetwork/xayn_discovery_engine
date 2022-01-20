@@ -12,31 +12,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:equatable/equatable.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
+import 'dart:typed_data' show Uint8List;
 
-part 'feed_market.g.dart';
+import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart'
+    show HttpAssetFetcher;
 
-typedef FeedMarkets = Set<FeedMarket>;
+class HttpAssetFetcherWithCounter extends HttpAssetFetcher {
+  int _callCount = 0;
+  int get callCount => _callCount;
 
-@JsonSerializable()
-class FeedMarket extends Equatable {
-  final String countryCode;
-  final String langCode;
-
-  const FeedMarket({
-    required this.countryCode,
-    required this.langCode,
-  });
+  HttpAssetFetcherWithCounter(String baseUrl) : super(baseUrl);
 
   @override
-  List<Object> get props => [
-        countryCode,
-        langCode,
-      ];
+  Future<Uint8List> fetchFragment(String urlSuffix) async {
+    _callCount += 1;
+    return super.fetchFragment(urlSuffix);
+  }
 
-  factory FeedMarket.fromJson(Map<String, Object?> json) =>
-      _$FeedMarketFromJson(json);
-
-  Map<String, dynamic> toJson() => _$FeedMarketToJson(this);
+  void resetCount() {
+    _callCount = 0;
+  }
 }
