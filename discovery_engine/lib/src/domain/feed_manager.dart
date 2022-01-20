@@ -40,11 +40,11 @@ class FeedManager {
   /// Handle the given feed client event.
   ///
   /// Fails if [event] does not have a handler implemented.
-  Future<List<Document>?> handleFeedClientEvent(FeedClientEvent event) async {
-    await event.maybeWhen(
+  Future<List<Document>> handleFeedClientEvent(FeedClientEvent event) {
+    return event.maybeWhen(
       feedRequested: () => restoreFeed(),
-      nextFeedBatchRequested: () => nextFeedBatch(),
-      feedDocumentsClosed: (ids) => _docMgr.deactivateDocuments(ids),
+      nextFeedBatchRequested: () => nextFeedBatch().then((_) => []),
+      feedDocumentsClosed: (ids) => _docMgr.deactivateDocuments(ids).then((_) => []),
       orElse: throw UnimplementedError('handler not implemented for $event'),
     );
   }
