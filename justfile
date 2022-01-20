@@ -174,7 +174,6 @@ _pre-push: clean-files fmt check test
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
-alias cf := clean-files
 alias d := dart-test
 alias r := rust-test
 alias t := test
