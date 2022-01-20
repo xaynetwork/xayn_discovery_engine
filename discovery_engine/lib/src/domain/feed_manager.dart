@@ -18,6 +18,8 @@ import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
@@ -38,7 +40,7 @@ class FeedManager {
   /// Handle the given feed client event.
   ///
   /// Fails if [event] does not have a handler implemented.
-  Future<void> handleFeedClientEvent(FeedClientEvent event) async {
+  Future<List<Document>?> handleFeedClientEvent(FeedClientEvent event) async {
     await event.maybeWhen(
       feedRequested: () => restoreFeed(),
       nextFeedBatchRequested: () => nextFeedBatch(),
@@ -47,7 +49,14 @@ class FeedManager {
     );
   }
 
-  Future<void> restoreFeed() async {} // TODO once timestamps addded to Document
+  /// Restore (or initialise, if called for the first time) the feed.
+  Future<List<Document>?> restoreFeed() async {
+    await _docRepo.fetchAll().then((docs) {
+      docs.retainWhere((doc) => doc.isActive);
+      docs.sort((doc1, doc2) => doc1.timestamp.compareTo(doc2.timestamp));
+      return docs;
+    });
+  }
 
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<void> nextFeedBatch() async {
