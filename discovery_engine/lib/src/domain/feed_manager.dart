@@ -49,14 +49,19 @@ class FeedManager {
     );
   }
 
-  /// Restore (or initialise, if called for the first time) the feed.
-  Future<List<Document>?> restoreFeed() async {
-    await _docRepo.fetchAll().then((docs) {
-      docs.retainWhere((doc) => doc.isActive);
-      docs.sort((doc1, doc2) => doc1.timestamp.compareTo(doc2.timestamp));
-      return docs;
-    });
-  }
+  /// Generates the feed of active documents, ordered by their global rank.
+  ///
+  /// That is, documents are ordered by their timestamp, then local rank.
+  Future<List<Document>> restoreFeed() => _docRepo.fetchAll().then(
+        (docs) => docs
+          ..retainWhere((doc) => doc.isActive)
+          ..sort((doc1, doc2) {
+            final ord = doc1.timestamp.compareTo(doc2.timestamp);
+            return ord == 0
+                ? doc1.personalizedRank.compareTo(doc2.personalizedRank)
+                : ord;
+          }),
+      );
 
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<void> nextFeedBatch() async {
