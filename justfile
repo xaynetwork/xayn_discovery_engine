@@ -5,21 +5,21 @@ export RUST_WORKSPACE := env_var_or_default("RUST_WORKSPACE", "discovery_engine_
 export DART_WORKSPACE := env_var_or_default("DART_WORKSPACE", "discovery_engine")
 export CARGO_INSTALL_ROOT := env_var_or_default("CARGO_INSTALL_ROOT", "cargo-installs")
 
-# Run just --list
+# Runs just --list
 default:
     @{{just_executable()}} --list
 
-# Get/update dart deps
+# Gets/updates dart deps
 dart-deps:
     cd "$DART_WORKSPACE"; \
     dart pub get
 
-# Fetch rust dependencies
+# Fetches rust dependencies
 rust-deps:
     cd "$RUST_WORKSPACE"; \
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
-# Installs async-bindgen cli tool
+# Installs the async-bindgen CLI tool
 install-async-bindgen *args:
     cargo install \
         --git https://github.com/xaynetwork/xayn_async_bindgen.git \
@@ -30,48 +30,70 @@ install-async-bindgen *args:
 # Get/Update/Fetch/Install all dependencies
 deps: dart-deps rust-deps install-async-bindgen
 
-# Format dart (checks only on CI)
+# Formats dart (checks only on CI)
 dart-fmt:
     cd "$DART_WORKSPACE"; \
     dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
 
-# Format rust (checks only on CI)
+# Formats rust (checks only on CI)
 rust-fmt:
     cd "$RUST_WORKSPACE"; \
     cargo +nightly fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};\
     cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }}
 
-# Format all code (checks only on CI)
+# Formats all code (checks only on CI)
 fmt: rust-fmt dart-fmt
 
-# Check dart code, fails on info on CI
+# Checks dart code, fails on info on CI
 dart-check: dart-build
     cd "$DART_WORKSPACE"; \
     dart analyze {{ if env_var_or_default("CI", "false") == "true" { "--fatal-infos" } else { "" } }}
 
+# async-bindgen generates extern C functions which
+# cbindgen needs to process, but cbindgen can't see them
+# without using a nightly rust feature. But we are fixed
+# to stable (it also does more then we need, making it rather
+# slow). As a work around we currently write the generated
+# code into a file, but that happens after cbindgen/rust
+# parsed all files, so we need to run cargo check once
+# before we need it. When we have time this will be
+# replaced by a better workaround.
 _codegen-order-workaround:
     cd "$RUST_WORKSPACE"; \
     cargo check --quiet 2>/dev/null || :
 
-# Check rust code, fails on warnings on CI
+# Checks rust code, fails on warnings on CI
 rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo clippy --all-targets --locked #TODO DENY WARNINGS ON CI
 
-# Check rust and dart code, fails if there are any issues on CI
+# Checks rust and dart code, fails if there are any issues on CI
 check: rust-check dart-check
 
-# Check if dart documentation can be build without issues
-dart-check-doc:
+# Checks if dart documentation can be build without issues
+dart-check-doc: dart-build
     cd "$DART_WORKSPACE"; \
     dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
 
-# Check if dart documentation can be build without issues
+# Checks if rust documentation can be build without issues
 rust-check_doc: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo doc --all-features --no-deps --document-private-items --locked
 
-# Check if documentation can be build without issues
+# Builds dart documentation
+dart-doc *args: dart-build
+    cd "$DART_WORKSPACE"; \
+    dart pub global run dartdoc:dartdoc {{args}}
+
+# Builds rust documentation
+rust-doc *args:
+    cd "$RUST_WORKSPACE"; \
+    cargo doc --all-features --document-private-items --locked {{args}}
+
+# Builds rust and dart documentation
+doc: dart-doc rust-doc
+
+# Checks if documentation can be build without issues
 check_doc: dart-check-doc rust-check_doc
 
 _run-cbindgen: _codegen-order-workaround
@@ -113,7 +135,7 @@ rust-test:
     cd "$RUST_WORKSPACE"; \
     cargo test --locked
 
-# Test dart and rust
+# Tests dart and rust
 test: rust-test dart-test
 
 # Cleans up all generated files
@@ -139,7 +161,7 @@ dart-clean-deps:
 remove-local-cargo-installs:
     rm -r "$CARGO_INSTALL_ROOT"
 
-# Removes all local dependencies artifacts
+# Removes all local dependency artifacts
 clean-deps: rust-clean-deps dart-clean-deps remove-local-cargo-installs
 
 # Removes all local cached dependencies and generated files
@@ -148,7 +170,7 @@ clean-fully: clean-files clean-deps
 # Workaround to set env variable CI for all job dependencies
 _pre-push: clean-files fmt check test
 
-# Runs formatting check and test steps after deleting generated files.
+# Runs formatting, checks and test steps after deleting generated files.
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
