@@ -37,7 +37,6 @@ jobs:
             dart:
               - 'discovery_engine/**'
               - 'discovery_engine_core/**'
-              - 'job_runner.sh'
             rust:
               - 'discovery_engine_core/**'
 
