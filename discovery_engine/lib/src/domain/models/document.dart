@@ -38,6 +38,8 @@ class Document {
   final int personalizedRank;
   @HiveField(4)
   bool isActive;
+  @HiveField(5)
+  DateTime timestamp;
 
   bool get isRelevant => feedback == DocumentFeedback.positive;
   bool get isNotRelevant => feedback == DocumentFeedback.negative;
@@ -48,7 +50,8 @@ class Document {
     required this.personalizedRank,
     this.feedback = DocumentFeedback.neutral,
     this.isActive = true,
-  }) : documentId = DocumentId();
+  })  : documentId = DocumentId(),
+        timestamp = DateTime.now().toUtc();
 }
 
 /// [DocumentFeedback] indicates user's "sentiment" towards the document,
