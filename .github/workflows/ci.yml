@@ -3,11 +3,9 @@ name: CI
 on:
   push:
     paths:
-      - '.github/workflows/dart_ci.yml'
       - 'discovery_engine/**'
       - 'discovery_engine_core/**'
       - 'job_runner.sh'
-      - '.github/workflows/rust_ci.yml'
       - 'discovery_engine_core/**'
 
 concurrency:
@@ -312,10 +310,6 @@ jobs:
           cargo check --quiet 2>/dev/null || :
           cargo doc --all-features --no-deps --document-private-items
 
-    # this is an helper that needs all the real leafs of the workflow.
-    # It makes easier notify_main_failure because we only need to check
-    # for this job
-
   cargo-ok:
     name: cargo-ok
     needs:
@@ -340,10 +334,10 @@ jobs:
           if ( ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.cargo-ok.result == 'success'}} )
           then
             exit 0
-          elif ( ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.changes.outputs.test2 == 'false' }} )
+          elif ( ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.selection.outputs.rust == 'false' }} )
           then
             exit 0
-          elif ( ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.cargo-ok.result == 'success'}} && ${{ needs.changes.outputs.test == 'false' }} )
+          elif ( ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.cargo-ok.result == 'success'}} && ${{ needs.selection.outputs.dart == 'false' }} )
           then
             exit 0
           else
