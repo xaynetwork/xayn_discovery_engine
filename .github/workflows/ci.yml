@@ -47,7 +47,7 @@ jobs:
   dart-format:
     name: dart-format
     needs: selection
-    if: ${{ needs.changes.outputs.dart == 'true' }}
+    if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
