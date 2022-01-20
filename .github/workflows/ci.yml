@@ -2,6 +2,7 @@ name: CI
 on:
   push:
     paths:
+      - '.github/workflows/ci.yml'
       - 'discovery_engine/**'
       - 'discovery_engine_core/**'
 
@@ -37,8 +38,10 @@ jobs:
             dart:
               - 'discovery_engine/**'
               - 'discovery_engine_core/**'
+              - '.github/workflows/ci.yml'
             rust:
               - 'discovery_engine_core/**'
+              - '.github/workflows/ci.yml'
 
   # DART CI 
   dart-format:
