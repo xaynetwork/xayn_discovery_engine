@@ -1,5 +1,4 @@
 name: CI 
-
 on:
   push:
     paths:
@@ -38,19 +37,17 @@ jobs:
         with:
           filters: |
             dart:
-              - '.github/workflows/dart_ci.yml'
               - 'discovery_engine/**'
               - 'discovery_engine_core/**'
               - 'job_runner.sh'
             rust:
-              - '.github/workflows/rust_ci.yml'
               - 'discovery_engine_core/**'
 
   # DART CI 
   dart-format:
     name: dart-format
     needs: selection
-    if: ${{ needs.changes.outputs.dart == 'true' }}
+    if: ${{ needs.changes.outputs.dart }}
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
@@ -69,7 +66,7 @@ jobs:
   dart-analyze:
     name: dart-analyze
     needs: [dart-format, selection]
-    if: ${{ needs.changes.outputs.dart == 'true' }}
+    if: ${{ needs.changes.outputs.dart }}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
@@ -134,7 +131,7 @@ jobs:
   dart-test:
     name: dart-test
     needs: [dart-analyze, selection]
-    if: ${{ needs.changes.outputs.dart == 'true' }}
+    if: ${{ needs.changes.outputs.dart }}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
@@ -196,7 +193,7 @@ jobs:
   dart-doc:
     name: dart-doc
     needs: [dart-test, selection]
-    if: ${{ needs.changes.outputs.dart == 'true' }}
+    if: ${{ needs.changes.outputs.dart }}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
@@ -224,7 +221,7 @@ jobs:
 
   cargo-format:
     needs: selection
-    if: ${{ needs.changes.outputs.rust == 'true' }}
+    if: ${{ needs.changes.outputs.rust }}
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
@@ -244,7 +241,7 @@ jobs:
 
   cargo-clippy:
     needs: selection
-    if: ${{ needs.changes.outputs.rust == 'true' }}
+    if: ${{ needs.changes.outputs.rust }}
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
@@ -267,7 +264,7 @@ jobs:
 
   cargo-test:
     needs: selection
-    if: ${{ needs.changes.outputs.rust == 'true' }}
+    if: ${{ needs.changes.outputs.rust }}
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
@@ -291,7 +288,7 @@ jobs:
 
   cargo-doc:
     needs: selection
-    if: ${{ needs.changes.outputs.rust == 'true' }}
+    if: ${{ needs.changes.outputs.rust }}
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
@@ -329,15 +326,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: CI OK Testing
-        if: ${{ needs.selection.outputs.dart == 'true' }} || ${{ needs.selection.outputs.rust == 'true' }}
         run: |
-          if ( ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.cargo-ok.result == 'success'}} )
-          then
-            exit 0
-          elif ( ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.selection.outputs.rust == 'false' }} )
-          then
-            exit 0
-          elif ( ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.cargo-ok.result == 'success'}} && ${{ needs.selection.outputs.dart == 'false' }} )
+          if [[ ${{ needs.selection.outputs.dart }} && ${{ needs.selection.outputs.rust }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.cargo-ok.result == 'success'}} ||
+            ${{ needs.selection.outputs.dart }} && ${{ needs.dart-doc.result == 'success'}} && ${{ !needs.selection.outputs.rust }} ||
+            ${{ needs.selection.outputs.rust }} && ${{ needs.cargo-ok.result == 'success'}} && ${{ !needs.selection.outputs.dart }} ]]
           then
             exit 0
           else
