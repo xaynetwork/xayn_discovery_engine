@@ -5,6 +5,7 @@ on:
       - '.github/workflows/ci.yml'
       - 'discovery_engine/**'
       - 'discovery_engine_core/**'
+      - 'discovery_engine_flutter/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
