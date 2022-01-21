@@ -30,6 +30,8 @@ jobs:
       dart: ${{ steps.filter.outputs.dart }}
       rust: ${{ steps.filter.outputs.rust }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
       # For pull requests it's not necessary to checkout the code
       - uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721
         id: filter
