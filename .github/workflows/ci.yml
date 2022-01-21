@@ -24,7 +24,7 @@ env:
 
 jobs:
   selection:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     # Set job outputs to values from filter step
     outputs:
       dart: ${{ steps.filter.outputs.dart }}
