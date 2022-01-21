@@ -50,10 +50,10 @@ impl Filter {
     }
 
     /// Build the expression.
-    pub(crate) fn build(self) -> String {
-        let keywords = Expr::or_from_iter(self.keywords.into_iter().map(|k| format!("\"{}\"", k)));
-        let markets = Expr::or_from_iter(self.markets.into_iter());
-        let site_types = Expr::or_from_iter(self.site_types.into_iter());
+    pub(crate) fn build(&self) -> String {
+        let keywords = Expr::or_from_iter(self.keywords.iter().map(|k| format!("\"{}\"", k)));
+        let markets = Expr::or_from_iter(self.markets.iter());
+        let site_types = Expr::or_from_iter(self.site_types.iter());
 
         keywords.and(markets).and(site_types).build()
     }
@@ -80,8 +80,8 @@ impl Market {
     }
 }
 
-impl From<Market> for Expr {
-    fn from(market: Market) -> Self {
+impl From<&Market> for Expr {
+    fn from(market: &Market) -> Self {
         let country: Expr = format!("thread.country:{}", market.country).into();
         country.and(format!("language:{}", market.language))
     }
@@ -98,8 +98,8 @@ pub enum SiteType {
     Discussions,
 }
 
-impl From<SiteType> for Expr {
-    fn from(site_type: SiteType) -> Self {
+impl From<&SiteType> for Expr {
+    fn from(site_type: &SiteType) -> Self {
         format!(
             "site_type:{}",
             match site_type {

@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use crate::filter::Filter;
 
 /// Query to do to the provider.
-pub(crate) struct Query {
+pub(crate) struct Query<'filter> {
     /// API token.
     token: String,
 
@@ -26,11 +26,11 @@ pub(crate) struct Query {
     size: u8,
 
     /// Filter that define which posts will be returned.
-    filter: Filter,
+    filter: &'filter Filter,
 }
 
-impl Query {
-    pub(crate) fn new(token: String, filter: Filter, size: Option<u8>) -> Self {
+impl<'filter> Query<'filter> {
+    pub(crate) fn new(token: String, filter: &'filter Filter, size: Option<u8>) -> Self {
         Self {
             token,
             filter,
@@ -39,11 +39,11 @@ impl Query {
     }
 }
 
-impl<S> From<Query> for HashMap<String, String, S>
+impl<'filter, S> From<Query<'filter>> for HashMap<String, String, S>
 where
     S: std::hash::BuildHasher + Default,
 {
-    fn from(query: Query) -> HashMap<String, String, S> {
+    fn from(query: Query<'filter>) -> HashMap<String, String, S> {
         std::array::IntoIter::new([
             ("token", query.token),
             ("size", query.size.to_string()),

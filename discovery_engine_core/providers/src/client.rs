@@ -37,7 +37,7 @@ impl Client {
     ///
     /// `filter` can be used to query only documents of interests,
     /// `size` optionally limit the number of item we want.
-    pub async fn get(&self, filter: Filter, size: Option<u8>) -> Result<Vec<Document>, Error> {
+    pub async fn get(&self, filter: &Filter, size: Option<u8>) -> Result<Vec<Document>, Error> {
         let _query = Query::new(self.token.clone(), filter, size);
 
         // just to use it until we really use it
