@@ -8,6 +8,15 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.8.2"
+  async_bindgen_dart_utils:
+    dependency: transitive
+    description:
+      path: async_bindgen_dart_utils
+      ref: HEAD
+      resolved-ref: "2023676c9f9cd8f0b703fb3c62cd75ead1447239"
+      url: "https://github.com/xaynetwork/xayn_async_bindgen.git"
+    source: git
+    version: "0.1.0"
   boolean_selector:
     dependency: transitive
     description:

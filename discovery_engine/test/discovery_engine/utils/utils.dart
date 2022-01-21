@@ -58,7 +58,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       nextFeedBatchRequested: (_) => nextFeedBatchRequestedResponse,
       feedDocumentsClosed: (_) => feedDocumentsClosedResponse,
       documentFeedbackChanged: (_) => documentFeedbackChangedResponse,
-      documentTimeLogged: (_) => documentTimeLoggedResponse,
+      documentTimeSpent: (_) => documentTimeLoggedResponse,
     );
     return send(response, request.sender);
   }
@@ -78,5 +78,5 @@ final mockConfig = Configuration(
   apiBaseUrl: 'https://example-api.dev',
   maxItemsPerFeedBatch: 50,
   applicationDirectoryPath: './',
-  feedMarkets: {const FeedMarket(countyCode: 'DE', langCode: 'de')},
+  feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
 );

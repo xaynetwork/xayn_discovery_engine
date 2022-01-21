@@ -19,4 +19,6 @@ library discovery_engine;
 
 export 'package:xayn_discovery_engine/src/api/api.dart';
 export 'package:xayn_discovery_engine/src/discovery_engine_base.dart';
+//FIXME: remove once wo do use it in domain logic we do expose
+export 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncCore;
 export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart';

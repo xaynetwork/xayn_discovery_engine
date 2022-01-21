@@ -4,6 +4,7 @@ on:
     branches-ignore:
       - 'main'
       - '_bors*'
+
     paths:
       - '.github/workflows/ci.yml'
       - 'discovery_engine/**'
@@ -148,6 +149,7 @@ jobs:
           then
             exit 1
           fi
+
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 

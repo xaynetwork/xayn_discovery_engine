@@ -25,3 +25,13 @@
 )]
 #![warn(missing_docs, unreachable_pub)]
 #![allow(clippy::must_use_candidate)]
+
+mod async_bindings;
+
+#[async_bindgen::api]
+impl AsyncCore {
+    /// Adds two bytes.
+    pub async fn add(x: u8, y: u8) -> u8 {
+        x + y
+    }
+}

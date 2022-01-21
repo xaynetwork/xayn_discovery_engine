@@ -231,7 +231,7 @@ class DiscoveryEngine {
     required int seconds,
   }) {
     return _trySend(() async {
-      final event = ClientEvent.documentTimeLogged(documentId, mode, seconds);
+      final event = ClientEvent.documentTimeSpent(documentId, mode, seconds);
       final response = await _manager.send(event);
 
       return response.mapEvent(
