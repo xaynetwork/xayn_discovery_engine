@@ -1,4 +1,4 @@
-name: Bors CI 
+name: Merge master CI
 on:
   push:
     branches:
