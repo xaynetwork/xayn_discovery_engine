@@ -18,7 +18,7 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Manifest, Fragment;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
-    show manifestReader;
+    show createManifestReader;
 
 void main() {
   group('ManifestReader', () {
@@ -26,6 +26,7 @@ void main() {
       test(
           'when given a properly formated manifest file it should read it '
           'without throwing Exceptions', () async {
+        final manifestReader = createManifestReader();
         final manifest = await manifestReader.read();
 
         // list of Assets is not empty

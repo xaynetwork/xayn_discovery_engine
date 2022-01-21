@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,12 +12,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/discovery_engine.dart' show asyncCore;
+import 'dart:typed_data' show Uint8List;
 
-void main() {
-  test('calling async ffi functions works', () async {
-    final x = await asyncCore.add(10, 22);
-    expect(x, equals(32));
-  });
+import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart'
+    show HttpAssetFetcher;
+
+class HttpAssetFetcherWithCounter extends HttpAssetFetcher {
+  int _callCount = 0;
+  int get callCount => _callCount;
+
+  HttpAssetFetcherWithCounter(String baseUrl) : super(baseUrl);
+
+  @override
+  Future<Uint8List> fetchFragment(String urlSuffix) async {
+    _callCount += 1;
+    return super.fetchFragment(urlSuffix);
+  }
+
+  void resetCount() {
+    _callCount = 0;
+  }
 }

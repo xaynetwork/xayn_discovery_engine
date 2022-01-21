@@ -12,9 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/src/infrastructure/assets/native/manifest_reader.dart'
+export 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
+    if (dart.library.html) 'package:xayn_discovery_engine/src/infrastructure/assets/web/data_provider.dart'
+    show createDataProvider;
+
+export 'package:xayn_discovery_engine/src/infrastructure/assets/native/manifest_reader.dart'
     if (dart.library.html) 'package:xayn_discovery_engine/src/infrastructure/assets/web/manifest_reader.dart'
     show createManifestReader;
-
-/// Default ManifestReader.
-final manifestReader = createManifestReader();

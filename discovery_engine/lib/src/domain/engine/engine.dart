@@ -12,12 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/discovery_engine.dart' show asyncCore;
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
+    show ActiveDocumentData;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 
-void main() {
-  test('calling async ffi functions works', () async {
-    final x = await asyncCore.add(10, 22);
-    expect(x, equals(32));
-  });
+/// Interface to Discovery Engine core.
+abstract class Engine {
+  /// Retrieves at most [maxDocuments] feed documents.
+  Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments);
 }
