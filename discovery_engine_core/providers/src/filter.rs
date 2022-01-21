@@ -20,7 +20,7 @@ use thiserror::Error;
 use crate::{expression::Expr, languages};
 
 /// Filter the data using custom criteria.
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct Filter {
     keywords: Vec<String>,
     markets: Vec<Market>,
@@ -88,7 +88,7 @@ impl From<&Market> for Expr {
 }
 
 /// Type of website.
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SiteType {
     /// News website.
     News,
