@@ -218,6 +218,17 @@ jobs:
       - name: Check documentation
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
+
+  dart-ok:
+    name: dart-ok
+    needs:
+      - dart-format
+      - dart-analyze
+      - dart-test
+      - dart-doc
+    runs-on: ubuntu-20.04
+    steps:
+      - run: exit 0
   
   # RUST CI
 
@@ -322,18 +333,22 @@ jobs:
   
   ci-ok:
     name: ci-ok
-    needs: [selection, dart-doc, cargo-ok]
+    needs: [selection, dart-ok, cargo-ok]
     if: ${{always()}}
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
       - name: CI OK Testing
         run: |
-          if [[ ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.cargo-ok.result == 'success'}} ||
-            ${{ needs.selection.outputs.dart == 'true' }} && ${{ needs.dart-doc.result == 'success'}} && ${{ needs.selection.outputs.rust == 'false' }} ||
-            ${{ needs.selection.outputs.rust == 'true' }} && ${{ needs.cargo-ok.result == 'success'}} && ${{ !needs.selection.outputs.dart == 'false' }} ]]
+          if (${{ needs.selection.outputs.dart == 'true'}} || ${{ needs.selection.outputs.rust == 'true' }} )
           then
-            exit 0
+            if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) || 
+            (${{needs.selection.outputs.dart == 'true'}} && ${{needs.dart-ok.result == 'success'}} && ${{needs.selection.outputs.rust != 'true'}}))
+            then
+              exit 0
+            else
+              exit 1
+            fi
           else
             exit 1
           fi
