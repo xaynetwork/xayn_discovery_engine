@@ -19,9 +19,9 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
-import 'package:xayn_discovery_engine/src/domain/models/document.dart';
+    show Document, DocumentFeedback;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 

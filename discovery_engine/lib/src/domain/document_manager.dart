@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data';
-
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show DocumentClientEvent;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
