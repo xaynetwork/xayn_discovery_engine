@@ -69,7 +69,7 @@ jobs:
 
   dart-analyze:
     name: dart-analyze
-    needs: [dart-format, selection]
+    needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
@@ -134,11 +134,18 @@ jobs:
 
   dart-test:
     name: dart-test
-    needs: [dart-analyze, selection]
-    if: ${{ needs.selection.outputs.dart == 'true' }}
+    needs: [selection, cargo-test]
+    if: ${{ always()}}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
+      - name: Check cargo-test
+        run: |
+          if( ${{ needs.cargo-test.result == 'failure'}})
+          then
+            exit 1
+          fi
+          
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
@@ -196,7 +203,7 @@ jobs:
 
   dart-doc:
     name: dart-doc
-    needs: [dart-test, selection]
+    needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes: 15
@@ -228,9 +235,16 @@ jobs:
       - dart-analyze
       - dart-test
       - dart-doc
+    if: ${{always()}}
     runs-on: ubuntu-20.04
     steps:
-      - run: exit 0
+      - run: |
+          if(${{needs.dart-format.result == 'success'}} && ${{needs.dart-analyze.result == 'success'}} && ${{needs.dart-test.result == 'success'}} && ${{needs.dart-doc.result == 'success'}})
+          then
+            exit 0
+          else
+            exit 1
+          fi
   
   # RUST CI
 
