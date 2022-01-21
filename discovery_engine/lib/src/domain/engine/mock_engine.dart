@@ -20,6 +20,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 
@@ -58,5 +60,24 @@ class MockEngine implements Engine {
     } else {
       return {doc1: active1, doc2: active2};
     }
+  }
+
+  @override
+  void timeLogged(
+    DocumentId docId, {
+    required Uint8List smbertEmbedding,
+    required Duration seconds,
+  }) {
+    // TODO: implement timeLogged
+  }
+
+  @override
+  void userReacted(
+    DocumentId docId, {
+    required Object stackId,
+    required Uint8List smbertEmbedding,
+    required DocumentFeedback reaction,
+  }) {
+    // TODO: implement userReacted
   }
 }

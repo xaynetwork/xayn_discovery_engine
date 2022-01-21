@@ -18,6 +18,8 @@ import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
+import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
+    show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -48,11 +50,12 @@ Future<void> main() async {
   final changedBox =
       await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
 
+  final engine = MockEngine();
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
 
-  final mgr = DocumentManager(docRepo, activeRepo, changedRepo);
+  final mgr = DocumentManager(engine, docRepo, activeRepo, changedRepo);
 
   group('DocumentManager', () {
     final data = ActiveDocumentData(Uint8List(0));

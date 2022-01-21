@@ -12,13 +12,33 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:typed_data' show Uint8List;
+
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document;
+    show Document, DocumentFeedback;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
   /// Retrieves at most [maxDocuments] feed documents.
   Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments);
+
+  /// Process the feedback about the user spending some time on a document.
+  void timeLogged(
+    DocumentId docId, {
+    required Uint8List smbertEmbedding,
+    required Duration seconds,
+  });
+
+  /// Process the feedback about the user reacting to a document.
+  void userReacted(
+    DocumentId docId, {
+    // TODO: do we need it, or could the stackId be determined on the rust side?
+    required Object stackId,
+    required Uint8List smbertEmbedding,
+    required DocumentFeedback reaction,
+  });
 }

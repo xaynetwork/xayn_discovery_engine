@@ -12,8 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:typed_data';
+
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show DocumentClientEvent;
+import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
+    show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -29,11 +33,17 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
 
 /// Business logic concerning the management of documents.
 class DocumentManager {
+  final Engine _engine;
   final DocumentRepository documentRepo;
   final ActiveDocumentDataRepository activeRepo;
   final ChangedDocumentRepository _changedRepo;
 
-  DocumentManager(this.documentRepo, this.activeRepo, this._changedRepo);
+  DocumentManager(
+    this._engine,
+    this.documentRepo,
+    this.activeRepo,
+    this._changedRepo,
+  );
 
   /// Handle the given document client event.
   ///
@@ -59,6 +69,16 @@ class DocumentManager {
       throw ArgumentError('id $id does not identify an active document');
     }
     await documentRepo.update(doc..feedback = feedback);
+    final smbertEmbedding = await activeRepo.smbertEmbeddingById(id);
+    if (smbertEmbedding == null) {
+      throw ArgumentError('id $id does not have active data attached');
+    }
+    _engine.userReacted(
+      id,
+      stackId: '',
+      smbertEmbedding: smbertEmbedding,
+      reaction: feedback,
+    );
   }
 
   /// Deactivate the given documents.
@@ -88,5 +108,16 @@ class DocumentManager {
     }
     activeData.addViewTime(mode, Duration(seconds: sec));
     await activeRepo.update(id, activeData);
+
+    // As we don't have a `DocumentViewMode` on the Rust side at the moment,
+    // we need to decide which value to use or to aggregate all view modes.
+    final sumDuration = activeData.viewTime.values
+        .reduce((aggregate, duration) => aggregate + duration);
+
+    _engine.timeLogged(
+      id,
+      smbertEmbedding: activeData.smbertEmbedding,
+      seconds: sumDuration,
+    );
   }
 }
