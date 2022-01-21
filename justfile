@@ -1,6 +1,6 @@
 
 # Make sure that some env variables are set for all jobs.
-#FIXME: Consider using .env for this, but only if used also on CI
+#FIXME: .env support will be added in follow up PR
 export RUST_WORKSPACE := env_var_or_default("RUST_WORKSPACE", "discovery_engine_core")
 export DART_WORKSPACE := env_var_or_default("DART_WORKSPACE", "discovery_engine")
 export CARGO_INSTALL_ROOT := env_var_or_default("CARGO_INSTALL_ROOT", "cargo-installs")
@@ -19,13 +19,12 @@ rust-deps:
     cd "$RUST_WORKSPACE"; \
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
-# Installs the async-bindgen CLI tool
+# Installs the async-bindgen CLI tool (--force can be passed in)
 install-async-bindgen *args:
     cargo install \
         --git https://github.com/xaynetwork/xayn_async_bindgen.git \
         {{args}} \
-        async-bindgen-gen-dart \
-        "$@" ;
+        async-bindgen-gen-dart
 
 # Get/Update/Fetch/Install all dependencies
 deps: dart-deps rust-deps install-async-bindgen
@@ -139,7 +138,7 @@ rust-test:
 test: rust-test dart-test
 
 # Cleans up all generated files
-clean-files:
+clean-gen-files:
     find . \( -name '*.g.dart' \
         -or -name '*.freezed.dart' \
         -or -name '*.ffigen.dart' \
@@ -149,26 +148,23 @@ clean-files:
     -rm "$RUST_WORKSPACE"/bindings/src/async_bindings/*
 
 # Cleans up rusts build cache
-rust-clean-deps:
+rust-clean:
     cd "$RUST_WORKSPACE"; \
     cargo clean
 
 # Cleans up darts build cache
-dart-clean-deps:
+dart-clean:
     find "$DART_WORKSPACE" -type d -name .dart_tool -prune -exec rm -r '{}' \;
 
 # Remvoes all local cargo isntalls
 remove-local-cargo-installs:
-    rm -r "$CARGO_INSTALL_ROOT"
-
-# Removes all local dependency artifacts
-clean-deps: rust-clean-deps dart-clean-deps remove-local-cargo-installs
+    -rm -r "$CARGO_INSTALL_ROOT"
 
 # Removes all local cached dependencies and generated files
-clean-fully: clean-files clean-deps
+clean: clean-gen-files rust-clean dart-clean remove-local-cargo-installs
 
 # Workaround to set env variable CI for all job dependencies
-_pre-push: clean-files fmt check test
+_pre-push: clean-gen-files fmt check test
 
 # Runs formatting, checks and test steps after deleting generated files.
 pre-push $CI="true":
