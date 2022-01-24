@@ -1,6 +1,9 @@
 name: CI 
 on:
   push:
+    branches-ignore:
+      - 'main'
+      - '_bors*'
     paths:
       - '.github/workflows/ci*'
       - 'discovery_engine/**'
