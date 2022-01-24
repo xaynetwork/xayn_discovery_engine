@@ -21,7 +21,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 
@@ -37,16 +37,17 @@ final resource = WebResource.fromJson(const <String, Object>{
   },
 });
 
+final stackId = StackId();
 final doc1 = Document(
+  stackId: stackId,
   personalizedRank: 0,
   webResource: resource,
 );
-
 final doc2 = Document(
+  stackId: stackId,
   personalizedRank: 1,
   webResource: resource,
 );
-
 final active1 = ActiveDocumentData(Uint8List(0));
 final active2 = ActiveDocumentData(Uint8List(1));
 
@@ -74,7 +75,7 @@ class MockEngine implements Engine {
   @override
   void userReacted(
     DocumentId docId, {
-    required Object stackId,
+    required StackId stackId,
     required Uint8List smbertEmbedding,
     required DocumentFeedback reaction,
   }) {

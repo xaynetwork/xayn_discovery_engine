@@ -19,7 +19,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
@@ -36,8 +36,7 @@ abstract class Engine {
   /// Process the feedback about the user reacting to a document.
   void userReacted(
     DocumentId docId, {
-    // TODO: do we need it, or could the stackId be determined on the rust side?
-    required Object stackId,
+    required StackId stackId,
     required Uint8List smbertEmbedding,
     required DocumentFeedback reaction,
   });

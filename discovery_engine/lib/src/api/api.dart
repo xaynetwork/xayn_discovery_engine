@@ -49,7 +49,7 @@ export 'package:xayn_discovery_engine/src/domain/models/document.dart'
 export 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 export 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, SearchId;
+    show DocumentId, StackId;
 export 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 export 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'

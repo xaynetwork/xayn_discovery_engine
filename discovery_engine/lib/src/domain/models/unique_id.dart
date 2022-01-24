@@ -21,7 +21,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 
 /// [_UniqueId] represents base for unique identifiers for other models like
-/// [SearchId] or [DocumentId].
+/// [StackId] or [DocumentId].
 abstract class _UniqueId with EquatableMixin {
   final UnmodifiableUint8ListView value;
 
@@ -65,9 +65,9 @@ class DocumentId extends _UniqueId {
   DocumentId.fromJson(Map<String, Object> json) : super.fromJson(json);
 }
 
-/// Unique identifier of a search.
-class SearchId extends _UniqueId {
-  SearchId() : super();
-  SearchId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
-  SearchId.fromJson(Map<String, Object> json) : super.fromJson(json);
+/// Unique identifier of a stack that the [Document] belongs to.
+class StackId extends _UniqueId {
+  StackId() : super();
+  StackId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
+  StackId.fromJson(Map<String, Object> json) : super.fromJson(json);
 }

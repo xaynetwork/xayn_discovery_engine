@@ -18,6 +18,8 @@ import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentFeedback;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show StackId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -41,11 +43,14 @@ Future<void> main() async {
         'thumbnail': 'http://thumbnail.domain.com',
       },
     });
+    final stackId = StackId();
     final doc1 = Document(
+      stackId: stackId,
       personalizedRank: 0,
       webResource: dummy,
     );
     final doc2 = Document(
+      stackId: stackId,
       personalizedRank: 1,
       webResource: dummy,
     );

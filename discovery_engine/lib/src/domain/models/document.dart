@@ -16,7 +16,7 @@ import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:json_annotation/json_annotation.dart' show JsonValue;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
@@ -31,14 +31,16 @@ class Document {
   @HiveField(0)
   final DocumentId documentId;
   @HiveField(1)
-  final WebResource webResource;
+  final StackId stackId;
   @HiveField(2)
-  DocumentFeedback feedback;
+  final WebResource webResource;
   @HiveField(3)
-  final int personalizedRank;
+  DocumentFeedback feedback;
   @HiveField(4)
-  bool isActive;
+  final int personalizedRank;
   @HiveField(5)
+  bool isActive;
+  @HiveField(6)
   DateTime timestamp;
 
   bool get isRelevant => feedback == DocumentFeedback.positive;
@@ -46,6 +48,7 @@ class Document {
   bool get isNeutral => feedback == DocumentFeedback.neutral;
 
   Document({
+    required this.stackId,
     required this.webResource,
     required this.personalizedRank,
     this.feedback = DocumentFeedback.neutral,

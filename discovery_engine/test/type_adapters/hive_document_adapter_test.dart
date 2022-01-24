@@ -18,6 +18,8 @@ import 'package:hive/hive.dart' show Hive, Box;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, DocumentFeedback, DocumentFeedbackAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show StackId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource, WebResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart'
@@ -63,7 +65,9 @@ void main() {
           'thumbnail': 'http://thumbnail.domain.com',
         },
       });
+      final stackId = StackId();
       final value = Document(
+        stackId: stackId,
         personalizedRank: 0,
         feedback: DocumentFeedback.positive,
         isActive: true,

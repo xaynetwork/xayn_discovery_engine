@@ -25,7 +25,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show DocumentAdapter, Document, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
@@ -70,12 +70,15 @@ Future<void> main() async {
         'thumbnail': 'http://thumbnail.domain.com',
       },
     });
+    final stackId = StackId();
     final doc1 = Document(
+      stackId: stackId,
       personalizedRank: 0,
       webResource: dummy,
       isActive: true,
     );
     final doc2 = Document(
+      stackId: stackId,
       personalizedRank: 1,
       webResource: dummy,
       isActive: false,

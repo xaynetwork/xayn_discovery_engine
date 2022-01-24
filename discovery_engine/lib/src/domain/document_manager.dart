@@ -73,7 +73,7 @@ class DocumentManager {
     }
     _engine.userReacted(
       id,
-      stackId: '',
+      stackId: doc.stackId,
       smbertEmbedding: smbertEmbedding,
       reaction: feedback,
     );
