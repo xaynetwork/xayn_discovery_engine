@@ -76,6 +76,7 @@ class MockEngine implements Engine {
   void userReacted(
     DocumentId docId, {
     required StackId stackId,
+    required String snippet,
     required Uint8List smbertEmbedding,
     required DocumentFeedback reaction,
   }) {

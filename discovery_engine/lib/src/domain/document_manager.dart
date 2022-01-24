@@ -71,9 +71,13 @@ class DocumentManager {
     if (smbertEmbedding == null) {
       throw StateError('id $id does not have active data attached');
     }
+    final snippet = doc.webResource.snippet.isNotEmpty
+        ? doc.webResource.snippet
+        : doc.webResource.title;
     _engine.userReacted(
       id,
       stackId: doc.stackId,
+      snippet: snippet,
       smbertEmbedding: smbertEmbedding,
       reaction: feedback,
     );
