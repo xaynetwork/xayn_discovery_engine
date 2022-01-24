@@ -92,6 +92,8 @@ Future<void> main() async {
       await docRepo.updateMany([doc1, doc2]);
       await activeRepo.update(id1, data);
       await changedRepo.add(id1);
+
+      engine.resetCallCounter();
     });
 
     tearDown(() async {
@@ -124,6 +126,7 @@ Future<void> main() async {
     test('update active document feedback', () async {
       const newFeedback = DocumentFeedback.positive;
       await mgr.updateDocumentFeedback(id1, newFeedback);
+      expect(engine.getCallCount('userReacted'), equals(1));
       expect(
         docBox.values,
         unorderedEquals(<Document>[doc1..feedback = newFeedback, doc2]),
@@ -188,6 +191,7 @@ Future<void> main() async {
       expect(dataUpdated, isNotNull);
       expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
       expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
+      expect(engine.getCallCount('timeLogged'), equals(2));
     });
   });
 }

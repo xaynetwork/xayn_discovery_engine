@@ -52,8 +52,25 @@ final active1 = ActiveDocumentData(Uint8List(0));
 final active2 = ActiveDocumentData(Uint8List(1));
 
 class MockEngine implements Engine {
+  final Map<String, int> callCounter = {};
+
+  void _incrementCount(String key) {
+    final count = getCallCount(key);
+    callCounter[key] = count + 1;
+  }
+
+  int getCallCount(String key) {
+    return callCounter[key] ?? 0;
+  }
+
+  void resetCallCounter() {
+    callCounter.clear();
+  }
+
   @override
   Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments) {
+    _incrementCount('getFeedDocuments');
+
     if (maxDocuments < 1) {
       return {};
     } else if (maxDocuments == 1) {
@@ -69,7 +86,7 @@ class MockEngine implements Engine {
     required Uint8List smbertEmbedding,
     required Duration seconds,
   }) {
-    // TODO: implement timeLogged
+    _incrementCount('timeLogged');
   }
 
   @override
@@ -80,6 +97,6 @@ class MockEngine implements Engine {
     required Uint8List smbertEmbedding,
     required DocumentFeedback reaction,
   }) {
-    // TODO: implement userReacted
+    _incrementCount('userReacted');
   }
 }
