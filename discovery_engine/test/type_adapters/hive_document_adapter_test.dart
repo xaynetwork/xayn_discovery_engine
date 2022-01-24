@@ -26,6 +26,8 @@ import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.da
     show WebResourceProviderAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_document_id_adapter.dart'
     show DocumentIdAdapter;
+import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_stack_id_adapter.dart'
+    show StackIdAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_adapter.dart'
     show UriAdapter;
 
@@ -39,6 +41,7 @@ void main() {
       Hive.registerAdapter(DocumentFeedbackAdapter());
       Hive.registerAdapter(WebResourceAdapter());
       Hive.registerAdapter(WebResourceProviderAdapter());
+      Hive.registerAdapter(StackIdAdapter());
       Hive.registerAdapter(DocumentIdAdapter());
       Hive.registerAdapter(UriAdapter());
 
