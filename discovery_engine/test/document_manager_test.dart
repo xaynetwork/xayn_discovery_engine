@@ -123,6 +123,18 @@ Future<void> main() async {
       );
     });
 
+    test(
+        'if there is no smbert embedding associated with the document '
+        'it should throw StateError', () async {
+      // let's get rid of active document data of doc1
+      await activeRepo.removeByIds({id1});
+
+      expect(
+        () => mgr.updateDocumentFeedback(id1, DocumentFeedback.positive),
+        throwsStateError,
+      );
+    });
+
     test('update active document feedback', () async {
       const newFeedback = DocumentFeedback.positive;
       await mgr.updateDocumentFeedback(id1, newFeedback);
