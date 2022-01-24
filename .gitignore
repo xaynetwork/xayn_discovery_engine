@@ -3,3 +3,5 @@
 
 # MacOS files
 .DS_Store
+
+cargo-installs/
