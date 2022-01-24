@@ -1,6 +1,9 @@
-name: CI 
+name: Bors CI 
 on:
   push:
+    branches:
+      - '_bors_staging'
+      - '_bors_trying'
     paths:
       - '.github/workflows/ci.yml'
       - 'discovery_engine/**'
