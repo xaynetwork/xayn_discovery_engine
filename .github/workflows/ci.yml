@@ -17,18 +17,9 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  DART_VERSION: '2.14.4'
-  DART_WORKSPACE: ${{ github.workspace }}/discovery_engine
-  RUST_WORKSPACE: ${{ github.workspace }}/discovery_engine_core
-  RUST_NIGHTLY: nightly-2021-09-09
-  RUSTFLAGS: "-D warnings"
-  RUSTDOCFLAGS: "-D warnings"
-
-
 jobs:
   dev-ci:
-    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@master
+    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@main
   
   ci-ok:
     name: ci-ok
