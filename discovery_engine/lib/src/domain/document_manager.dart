@@ -69,7 +69,7 @@ class DocumentManager {
     await documentRepo.update(doc..feedback = feedback);
     final smbertEmbedding = await activeRepo.smbertEmbeddingById(id);
     if (smbertEmbedding == null) {
-      throw ArgumentError('id $id does not have active data attached');
+      throw StateError('id $id does not have active data attached');
     }
     _engine.userReacted(
       id,
