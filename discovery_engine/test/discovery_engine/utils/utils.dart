@@ -76,6 +76,7 @@ void withSuccessResponse(Object initialMessage) =>
 final mockConfig = Configuration(
   apiKey: '**********',
   apiBaseUrl: 'https://example-api.dev',
+  assetsUrl: 'https://ai-assets.dev',
   maxItemsPerFeedBatch: 50,
   applicationDirectoryPath: './',
   feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},

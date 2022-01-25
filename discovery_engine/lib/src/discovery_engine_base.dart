@@ -67,6 +67,7 @@ class DiscoveryEngine {
   ///   const config = Configuration(
   ///     apiKey: '**********',
   ///     apiBaseUrl: 'https://example-api.dev',
+  ///     assetsUrl: 'https://ai-assets.dev',
   ///     feedMarket: 'de-DE',
   ///     maxItemsPerFeedBatch: 50,
   ///     applicationDirectoryPath: './',
