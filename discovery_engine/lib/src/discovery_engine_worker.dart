@@ -17,6 +17,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
     show ClientEvent, EngineEvent, EngineExceptionReason;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
     show JsonToOneshotRequestConverter, EngineEventToJsonConverter;
+import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart';
+import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart';
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show ConverterException, OneshotRequest, Sender, Worker;
 
@@ -68,22 +70,27 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   @override
   Future<void> onMessage(request) async {
     final clientEvent = request.payload;
-    // This is just initial handler to respond with some events
-    //
-    // TODO: replace with proper handler
-    // Events can be grouped by type
-    // if (clientEvent is SystemClientEvent) {
-    //   // pass the event to dedicated manager
-    // } else if (clientEvent is FeedClientEvent) {
-    //   // pass the event to DocumentManager
-    // } else if (clientEvent is DocumentClientEvent) {
-    //   // pass the event to DocumentManager
-    // } else {
-    //   // handle wrong event type???
-    // }
     final response = await clientEvent.when(
       init: (configuration) async {
-        return const EngineEvent.clientEventSucceeded();
+        final assetFetcher = HttpAssetFetcher(configuration.assetsUrl);
+        final manifestReader = createManifestReader();
+        final dataProvider = createDataProvider(
+          assetFetcher,
+          manifestReader,
+          configuration.applicationDirectoryPath,
+        );
+        try {
+          final setupData = await dataProvider.getSetupData();
+          // TODO: use setupData to initialize the engine
+          print(setupData);
+
+          return const EngineEvent.clientEventSucceeded();
+        } catch (e) {
+          return const EngineEvent.engineExceptionRaised(
+            // TODO: introduce dedicated variant
+            EngineExceptionReason.genericError,
+          );
+        }
       },
       resetEngine: () async {
         return const EngineEvent.clientEventSucceeded();
