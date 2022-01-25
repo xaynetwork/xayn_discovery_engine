@@ -90,8 +90,14 @@ jobs:
 
           # Commit only if something changed
           if [ $(git status --porcelain | wc -l) -gt 0 ]; then
-            git commit --message "$SRC_COMMIT_MSG
+            git commit --message "This commit is a complete release.
+            The next commit need to set the dependencies references."
+
+            # change deps to the commit we just did
+            sed -i s/change_me_to_commit_ref/$(git rev-parse HEAD)/ ./discovery_engine_flutter/pubspec.yaml
+            git commit -a --message "$SRC_COMMIT_MSG
             https://github.com/xaynetwork/xayn_discovery_engine/commit/$SRC_COMMIT
             https://github.com/xaynetwork/xayn_discovery_engine/tree/$BRANCH"
+
             git push -u origin HEAD:$BRANCH
           fi
