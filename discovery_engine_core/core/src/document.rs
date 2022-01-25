@@ -132,6 +132,9 @@ pub struct UserReacted {
     /// Stack from which the document has been taken.
     pub stack_id: StackId,
 
+    /// Text snippet of the document.
+    pub snippet: String,
+
     /// Precomputed S-mBert of the document.
     pub smbert: Embedding1,
 
