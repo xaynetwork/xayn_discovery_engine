@@ -18,12 +18,14 @@ import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
+import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
+    show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show DocumentAdapter, Document, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
@@ -48,11 +50,12 @@ Future<void> main() async {
   final changedBox =
       await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
 
+  final engine = MockEngine();
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
 
-  final mgr = DocumentManager(docRepo, activeRepo, changedRepo);
+  final mgr = DocumentManager(engine, docRepo, activeRepo, changedRepo);
 
   group('DocumentManager', () {
     final data = ActiveDocumentData(Uint8List(0));
@@ -67,12 +70,15 @@ Future<void> main() async {
         'thumbnail': 'http://thumbnail.domain.com',
       },
     });
+    final stackId = StackId();
     final doc1 = Document(
+      stackId: stackId,
       personalizedRank: 0,
       webResource: dummy,
       isActive: true,
     );
     final doc2 = Document(
+      stackId: stackId,
       personalizedRank: 1,
       webResource: dummy,
       isActive: false,
@@ -86,6 +92,8 @@ Future<void> main() async {
       await docRepo.updateMany([doc1, doc2]);
       await activeRepo.update(id1, data);
       await changedRepo.add(id1);
+
+      engine.resetCallCounter();
     });
 
     tearDown(() async {
@@ -115,9 +123,22 @@ Future<void> main() async {
       );
     });
 
+    test(
+        'if there is no smbert embedding associated with the document '
+        'it should throw StateError', () async {
+      // let's get rid of active document data of doc1
+      await activeRepo.removeByIds({id1});
+
+      expect(
+        () => mgr.updateDocumentFeedback(id1, DocumentFeedback.positive),
+        throwsStateError,
+      );
+    });
+
     test('update active document feedback', () async {
       const newFeedback = DocumentFeedback.positive;
       await mgr.updateDocumentFeedback(id1, newFeedback);
+      expect(engine.getCallCount('userReacted'), equals(1));
       expect(
         docBox.values,
         unorderedEquals(<Document>[doc1..feedback = newFeedback, doc2]),
@@ -182,6 +203,7 @@ Future<void> main() async {
       expect(dataUpdated, isNotNull);
       expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
       expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
+      expect(engine.getCallCount('timeLogged'), equals(2));
     });
   });
 }

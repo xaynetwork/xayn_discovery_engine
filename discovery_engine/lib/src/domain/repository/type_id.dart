@@ -21,3 +21,4 @@ const webResourceTypeId = 5;
 const webResourceProviderTypeId = 6;
 const uriTypeId = 7;
 const durationTypeId = 8;
+const stackIdTypeId = 9;
