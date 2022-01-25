@@ -341,17 +341,17 @@ jobs:
   
   run-ok:
     name: run-ok
-     needs: [selection, dart-ok, cargo-ok]
-     if: ${{always()}}
-     runs-on: ubuntu-20.04
-     timeout-minutes: 5
-     steps:
-       - name: Run Check
-         run: |
-            if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) || 
-            (${{needs.selection.outputs.dart == 'true'}} && ${{needs.dart-ok.result == 'success'}} && ${{needs.selection.outputs.rust != 'true'}}))
-            then
-              exit 0
-            else
-              exit 1
-            fi
+    needs: [selection, dart-ok, cargo-ok]
+    if: ${{always()}}
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+      - name: Run Check
+        run: |
+          if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) || 
+          (${{needs.selection.outputs.dart == 'true'}} && ${{needs.dart-ok.result == 'success'}} && ${{needs.selection.outputs.rust != 'true'}}))
+          then
+            exit 0
+          else
+            exit 1
+          fi
