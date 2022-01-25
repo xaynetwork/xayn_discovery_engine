@@ -3,18 +3,9 @@ name: Reusable Dev CI
 on:
   workflow_call:
     outputs:
-      dart_output:
-        description: Output if dart has to be run 
-        value: ${{ jobs.selection.outputs.dart }}
-      rust_output:
-        description: Output if rust has to be run 
-        value: ${{ jobs.selection.outputs.rust }}
-      cargo-ok:
-        description: Output of the cargo-ok job
-        value: ${{ jobs.cargo-ok.result }}
-      dart-ok:
-        description: Output of the dart-ok job
-        value: ${{ jobs.dart-ok.result }}
+      wf-result:
+        description: Result of the run
+        value: ${{ jobs.run-ok.result }}
 
 env:
   DART_VERSION: '2.14.4'
@@ -347,3 +338,22 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: exit 0
+  
+  run-ok:
+    name: run-ok
+     needs: [selection, dart-ok, cargo-ok]
+     if: ${{always()}}
+     runs-on: ubuntu-20.04
+     timeout-minutes: 5
+     steps:
+       - name: Run Check
+         run: |
+            if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) || 
+            (${{needs.selection.outputs.dart == 'true'}} && ${{needs.dart-ok.result == 'success'}} && ${{needs.selection.outputs.rust != 'true'}}))
+            then
+              exit 0
+            else
+              exit 1
+            fi
+
+

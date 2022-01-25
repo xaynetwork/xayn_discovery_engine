@@ -29,11 +29,9 @@ jobs:
     steps:
       - name: CI OK Testing
         run: |
-          if (( (${{needs.dev-ci.outputs.rust_output != 'true'}} || ${{needs.dev-ci.outputs.cargo-ok == 'success'}}) && (${{needs.dev-ci.outputs.dart_output != 'true'}} || ${{needs.dev-ci.outputs.dart-ok == 'success'}}) ) || 
-          (${{needs.dev-ci.outputs.dart_output == 'true'}} && ${{needs.dev-ci.outputs.dart-ok == 'success'}} && ${{needs.dev-ci.outputs.rust_output != 'true'}}))
+          if ( ${{needs.dev-ci.outputs.wf-result == 'success'}} )
           then
             exit 0
           else
             exit 1
           fi
-        
