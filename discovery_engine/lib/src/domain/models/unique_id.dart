@@ -20,16 +20,16 @@ import 'package:uuid/uuid.dart' show Uuid;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 
-/// [_UniqueId] represents base for unique identifiers for other models like
+/// [UniqueId] represents base for unique identifiers for other models like
 /// [StackId] or [DocumentId].
-abstract class _UniqueId with EquatableMixin {
+abstract class UniqueId with EquatableMixin {
   final UnmodifiableUint8ListView value;
 
-  _UniqueId() : value = _generateId();
+  UniqueId() : value = _generateId();
 
-  _UniqueId.fromBytes(Uint8List bytes) : value = _validateId(bytes);
+  UniqueId.fromBytes(Uint8List bytes) : value = _validateId(bytes);
 
-  _UniqueId.fromJson(Map<String, Object> json)
+  UniqueId.fromJson(Map<String, Object> json)
       : value = _validateId(_bytesFromJson(json));
 
   static UnmodifiableUint8ListView _generateId() {
@@ -59,14 +59,14 @@ abstract class _UniqueId with EquatableMixin {
 }
 
 /// Unique identifier of a [Document].
-class DocumentId extends _UniqueId {
+class DocumentId extends UniqueId {
   DocumentId() : super();
   DocumentId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
   DocumentId.fromJson(Map<String, Object> json) : super.fromJson(json);
 }
 
 /// Unique identifier of a stack that the [Document] belongs to.
-class StackId extends _UniqueId {
+class StackId extends UniqueId {
   StackId() : super();
   StackId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
   StackId.fromJson(Map<String, Object> json) : super.fromJson(json);

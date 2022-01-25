@@ -14,23 +14,37 @@
 
 import 'package:hive/hive.dart' show TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show StackId;
+    show UniqueId, DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show stackIdTypeId;
+    show documentIdTypeId, stackIdTypeId;
 
-class StackIdAdapter extends TypeAdapter<StackId> {
+abstract class _UniqueIdAdapter<T extends UniqueId> extends TypeAdapter<T> {
   @override
-  final typeId = stackIdTypeId;
-
-  @override
-  StackId read(BinaryReader reader) {
-    final bytes = reader.readByteList();
-    return StackId.fromBytes(bytes);
-  }
-
-  @override
-  void write(BinaryWriter writer, StackId obj) {
+  void write(BinaryWriter writer, T obj) {
     final bytes = obj.value.buffer.asUint8List();
     writer.writeByteList(bytes);
   }
+
+  @override
+  T read(BinaryReader reader) {
+    final bytes = reader.readByteList();
+    switch (typeId) {
+      case documentIdTypeId:
+        return DocumentId.fromBytes(bytes) as T;
+      case stackIdTypeId:
+        return StackId.fromBytes(bytes) as T;
+      default:
+        throw ArgumentError.value('unrecognized "typeId"');
+    }
+  }
+}
+
+class DocumentIdAdapter extends _UniqueIdAdapter<DocumentId> {
+  @override
+  final typeId = documentIdTypeId;
+}
+
+class StackIdAdapter extends _UniqueIdAdapter<StackId> {
+  @override
+  final typeId = stackIdTypeId;
 }
