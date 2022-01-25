@@ -87,7 +87,11 @@ class DiscoveryEngine {
       entryPoint ??= kIsWeb ? null : entry_point.main;
       final manager = await DiscoveryEngineManager.create(entryPoint);
       final initEvent = ClientEvent.init(configuration);
-      final response = await manager.send(initEvent);
+      final response = await manager.send(
+        initEvent,
+        // TODO: decide if we need more time for initialization
+        timeout: const Duration(seconds: 120),
+      );
 
       if (response is! ClientEventSucceeded) {
         await manager.dispose();

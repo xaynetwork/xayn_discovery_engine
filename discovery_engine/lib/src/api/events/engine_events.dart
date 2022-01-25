@@ -53,6 +53,8 @@ enum EngineExceptionReason {
   responseTimeout,
   @JsonValue(6)
   engineDisposed,
+  @JsonValue(7)
+  engineNotReady,
   // other possible errors will be added below
 }
 

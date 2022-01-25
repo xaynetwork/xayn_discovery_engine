@@ -17,14 +17,15 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
     show ClientEvent, EngineEvent, EngineExceptionReason;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
     show JsonToOneshotRequestConverter, EngineEventToJsonConverter;
-import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart';
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show ConverterException, OneshotRequest, Sender, Worker;
 
 class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   final _requestConverter = JsonToOneshotRequestConverter();
   final _responseConverter = EngineEventToJsonConverter();
+  final _handler = EventHandler();
 
   @override
   Converter<Object, OneshotRequest<ClientEvent>> get requestConverter =>
@@ -70,51 +71,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   @override
   Future<void> onMessage(request) async {
     final clientEvent = request.payload;
-    final response = await clientEvent.when(
-      init: (configuration) async {
-        final assetFetcher = HttpAssetFetcher(configuration.assetsUrl);
-        final manifestReader = createManifestReader();
-        final dataProvider = createDataProvider(
-          assetFetcher,
-          manifestReader,
-          configuration.applicationDirectoryPath,
-        );
-        try {
-          final setupData = await dataProvider.getSetupData();
-          // TODO: use setupData to initialize the engine
-          print(setupData);
-
-          return const EngineEvent.clientEventSucceeded();
-        } catch (e) {
-          return const EngineEvent.engineExceptionRaised(
-            // TODO: introduce dedicated variant
-            EngineExceptionReason.genericError,
-          );
-        }
-      },
-      resetEngine: () async {
-        return const EngineEvent.clientEventSucceeded();
-      },
-      configurationChanged: (feedMarkets, maxItemsPerFeedBatch) async {
-        return const EngineEvent.clientEventSucceeded();
-      },
-      feedRequested: () async {
-        return const EngineEvent.feedRequestSucceeded([]);
-      },
-      nextFeedBatchRequested: () async {
-        return const EngineEvent.nextFeedBatchRequestSucceeded([]);
-      },
-      feedDocumentsClosed: (documentIds) async {
-        return const EngineEvent.clientEventSucceeded();
-      },
-      documentFeedbackChanged: (documentId, feedback) async {
-        return const EngineEvent.clientEventSucceeded();
-      },
-      documentTimeSpent: (documentId, mode, seconds) async {
-        return const EngineEvent.clientEventSucceeded();
-      },
-    );
-
+    final response = await _handler.handleMessage(clientEvent);
     send(response, request.sender);
   }
 }
