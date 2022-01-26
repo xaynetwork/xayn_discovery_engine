@@ -15,6 +15,7 @@
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:json_annotation/json_annotation.dart' show JsonValue;
+import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
@@ -55,6 +56,15 @@ class Document {
     this.isActive = true,
   })  : documentId = DocumentId(),
         timestamp = DateTime.now().toUtc();
+
+  api.Document toApiDocument() => api.Document(
+        documentId: documentId,
+        webResource: webResource,
+        feedback: feedback,
+        nonPersonalizedRank: personalizedRank, // TODO remove?
+        personalizedRank: personalizedRank,
+        isActive: isActive,
+      );
 }
 
 /// [DocumentFeedback] indicates user's "sentiment" towards the document,
