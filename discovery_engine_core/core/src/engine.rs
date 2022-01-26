@@ -103,7 +103,10 @@ where
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
-    pub fn get_feed_documents(&mut self, max_documents: u32) -> Result<Vec<Document>, Error> {
+    pub async fn get_feed_documents(&mut self, max_documents: u32) -> Result<Vec<Document>, Error>
+    where
+        R: Send + Sync,
+    {
         Selection::new(BetaSampler)
             .select(self.stacks.values_mut().collect(), max_documents)
             .map_err(|e| e.into())

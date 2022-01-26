@@ -19,7 +19,9 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document;
+    show Document, DocumentFeedback;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 
@@ -35,22 +37,40 @@ final resource = WebResource.fromJson(const <String, Object>{
   },
 });
 
+final stackId = StackId();
 final doc1 = Document(
+  stackId: stackId,
   personalizedRank: 0,
   webResource: resource,
 );
-
 final doc2 = Document(
+  stackId: stackId,
   personalizedRank: 1,
   webResource: resource,
 );
-
 final active1 = ActiveDocumentData(Uint8List(0));
 final active2 = ActiveDocumentData(Uint8List(1));
 
 class MockEngine implements Engine {
+  final Map<String, int> callCounter = {};
+
+  void _incrementCount(String key) {
+    final count = getCallCount(key);
+    callCounter[key] = count + 1;
+  }
+
+  int getCallCount(String key) {
+    return callCounter[key] ?? 0;
+  }
+
+  void resetCallCounter() {
+    callCounter.clear();
+  }
+
   @override
   Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments) {
+    _incrementCount('getFeedDocuments');
+
     if (maxDocuments < 1) {
       return {};
     } else if (maxDocuments == 1) {
@@ -58,5 +78,25 @@ class MockEngine implements Engine {
     } else {
       return {doc1: active1, doc2: active2};
     }
+  }
+
+  @override
+  void timeLogged(
+    DocumentId docId, {
+    required Uint8List smbertEmbedding,
+    required Duration seconds,
+  }) {
+    _incrementCount('timeLogged');
+  }
+
+  @override
+  void userReacted(
+    DocumentId docId, {
+    required StackId stackId,
+    required String snippet,
+    required Uint8List smbertEmbedding,
+    required DocumentFeedback reaction,
+  }) {
+    _incrementCount('userReacted');
   }
 }

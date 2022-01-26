@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 
@@ -21,6 +22,7 @@ use crate::{document::Document, engine::GenericError, stack::Id};
 ///
 /// Each stack can get and select new items using different sources
 /// or different strategies.
+#[async_trait]
 #[cfg_attr(test, automock)]
 pub trait Ops {
     /// Get the id for this set of operations.
@@ -33,7 +35,7 @@ pub trait Ops {
     ///
     /// Personalized key phrases can be optionally used to return items
     /// tailored to the user's interests.
-    fn new_items(&self, keyphrases: &[String]) -> Result<Vec<Document>, GenericError>;
+    async fn new_items(&self, keyphrases: &[String]) -> Result<Vec<Document>, GenericError>;
 
     /// Merge current and new items.
     fn merge(&self, current: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
