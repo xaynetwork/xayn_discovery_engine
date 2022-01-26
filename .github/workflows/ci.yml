@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: CI OK Testing
         run: |
+          echo ${{needs.dev-ci.outputs.wf-value}}
+          echo ${{needs.dev-ci.outputs.wf-result}}
           if ( ${{needs.dev-ci.outputs.wf-value == 'success'}} )
           then
             exit 0
