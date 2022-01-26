@@ -30,8 +30,9 @@ jobs:
       - name: CI OK Testing
         run: |
           echo ${{needs.dev-ci.outputs.wf-result}}
+          echo ${{needs.dev-ci.outputs.wf-value}}
           wf-result
-          if ( ${{needs.dev-ci.outputs.wf-result == 'success'}} )
+          if ( ${{needs.dev-ci.outputs.wf-value == 'success'}} )
           then
             exit 0
           else
