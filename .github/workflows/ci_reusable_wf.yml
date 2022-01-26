@@ -347,9 +347,7 @@ jobs:
     needs: [selection, dart-ok, cargo-ok]
     if: ${{always()}}
     outputs:
-    run-result:
-      description: "Run Result"
-      value: ${{ steps.run-check.outputs.run-check }}
+      run-result:  ${{ steps.run-check.outputs.run-check }}
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
