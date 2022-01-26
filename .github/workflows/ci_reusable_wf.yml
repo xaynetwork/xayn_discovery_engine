@@ -370,4 +370,4 @@ jobs:
     if: ${{always()}}
     steps:
       - name: run check
-        run: echo ${{ jobs.run-ok.outputs.run-result }}
+        run: echo ${{ needs.run-ok.outputs.run-result }}
