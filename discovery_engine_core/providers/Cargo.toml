@@ -6,7 +6,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4", features = ["wasmbind", "serde"] }
+chrono = { version = "0.4", default_features = false, features = ["serde"] }
 displaydoc = "0.2.3"
 itertools = "0.10.3"
 lazy_static = "1.4.0"
@@ -15,7 +15,6 @@ reqwest = { version = "0.11.9", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0.30"
-xayn-discovery-engine-core = { path = "../core" }
 
 [dev-dependencies]
 claim = "0.5.0"

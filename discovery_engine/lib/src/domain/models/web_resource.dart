@@ -34,7 +34,12 @@ class WebResource with _$WebResource {
     @HiveField(2) required Uri url,
     @HiveField(3) required Uri displayUrl,
     @HiveField(4) required DateTime datePublished,
-    @HiveField(5) WebResourceProvider? provider,
+    @HiveField(5) required WebResourceProvider? provider,
+    @HiveField(6) required int rank,
+    @HiveField(7) required double? score,
+    @HiveField(8) required String country,
+    @HiveField(9) required String language,
+    @HiveField(10) required String topic,
   }) = _WebResource;
 
   factory WebResource.fromJson(Map<String, Object?> json) =>

@@ -13,69 +13,104 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use chrono::NaiveDateTime;
-use serde::{de, Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer, Serialize};
 
-#[derive(Debug, Deserialize)]
+/// Topic of the publisher.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Topic {
+    /// News.
     News,
+
+    /// Sport.
     Sport,
+
+    /// Tech.
     Tech,
+
+    /// World.
     World,
+
+    /// Finance.
     Finance,
+
+    /// Politics.
     Politics,
+
+    /// Business.
     Business,
+
+    /// Economics.
     Economics,
+
+    /// Entertainment.
     Entertainment,
+
+    /// Beauty.
     Beauty,
+
+    /// Travel.
     Travel,
+
+    /// Music.
     Music,
+
+    /// Food.
     Food,
+
+    /// Science.
     Science,
+
+    /// Gaming
+    /// .
     Gaming,
+
+    /// Energy.
     Energy,
+
+    /// Topic has not been recognized.
     #[serde(other)]
     Unrecognized,
 }
 
 /// A news article
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct Article {
-    /// Newscatcher API's unique identifier for each news article
+    /// Newscatcher API's unique identifier for each news article.
     #[serde(rename(deserialize = "_id"))]
     pub id: String,
 
-    /// The title of the article
+    /// The title of the article.
     pub title: String,
 
-    /// How well the article is matching your search criteria
+    /// How well the article is matching your search criteria.
     #[serde(rename(deserialize = "_score"))]
     pub score: Option<f32>,
 
-    /// The page rank of the source website
+    /// The page rank of the source website.
     pub rank: usize,
 
-    /// The URL of the article's source
+    /// The URL of the article's source.
     pub clean_url: String,
 
-    /// Short summary of the article provided by the publisher
+    /// Short summary of the article provided by the publisher.
     pub excerpt: String,
 
-    /// Full URL where the article was originally published
+    /// Full URL where the article was originally published.
     pub link: String,
 
-    /// A link to a thumbnail image of the article
+    /// A link to a thumbnail image of the article.
     pub media: String,
 
     /// The main topic of the news publisher.
     /// Important: This parameter is not deducted on a per-article level:
-    /// it is deducted on the per-publisher level
+    /// it is deducted on the per-publisher level.
     pub topic: Topic,
 
-    /// The country of the publisher
+    /// The country of the publisher.
     pub country: String,
 
-    /// The language of the article
+    /// The language of the article.
     pub language: String,
 
     /// While Newscatcher claims to have some sort of timezone support in their
