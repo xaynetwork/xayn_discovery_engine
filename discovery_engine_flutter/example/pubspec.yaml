@@ -33,6 +33,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^1.0.0
 
 # to use local version of xayn_discovery_engine we need to override it here
 dependency_overrides:

@@ -26,6 +26,7 @@ class Configuration with _$Configuration {
   const factory Configuration({
     required String apiKey,
     required String apiBaseUrl,
+    required String assetsUrl,
     required int maxItemsPerFeedBatch,
     required String applicationDirectoryPath,
     required FeedMarkets feedMarkets,
