@@ -55,6 +55,10 @@ enum EngineExceptionReason {
   engineDisposed,
   @JsonValue(7)
   engineNotReady,
+  @JsonValue(8)
+  failedToReadManifest,
+  @JsonValue(9)
+  failedToGetAssets,
   // other possible errors will be added below
 }
 

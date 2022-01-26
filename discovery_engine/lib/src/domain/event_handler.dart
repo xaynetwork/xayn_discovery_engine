@@ -23,6 +23,10 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         EngineExceptionReason,
         FeedClientEvent,
         Init;
+import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
+    show SetupData, DataProviderException;
+import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
+    show ManifestReaderException;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -65,88 +69,40 @@ import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_
     show UriAdapter;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
+const kEnginePath = 'engine';
+const kDatabasePath = 'database';
+
 class EventHandler {
-  // core engine
-  final _engineFuture = Completer<Engine>();
-  // repositories
+  final _engineInitCompleter = Completer<bool>();
+
+  late final Engine _engine;
   late final DocumentRepository _documentRepository;
   late final ActiveDocumentDataRepository _activeDataRepository;
   late final ChangedDocumentRepository _changedDocumentRepository;
-  // managers
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
 
-  Future<EngineEvent> _initEngine(Configuration config) async {
-    try {
-      // init hive
-      // TODO: fix Firefox incognito issue
-      Hive.init('${config.applicationDirectoryPath}/database');
-      // register hive adapters
-      Hive.registerAdapter(DocumentAdapter());
-      Hive.registerAdapter(DocumentFeedbackAdapter());
-      Hive.registerAdapter(ActiveDocumentDataAdapter());
-      Hive.registerAdapter(WebResourceAdapter());
-      Hive.registerAdapter(WebResourceProviderAdapter());
-      Hive.registerAdapter(DocumentIdAdapter());
-      Hive.registerAdapter(UriAdapter());
-
-      // open boxes
-      await Hive.openBox<Document>(documentBox);
-      await Hive.openBox<ActiveDocumentData>(activeDocumentDataBox);
-      await Hive.openBox<Uint8List>(changedDocumentIdBox);
-
-      // create repositories
-      _documentRepository = HiveDocumentRepository();
-      _activeDataRepository = HiveActiveDocumentDataRepository();
-      _changedDocumentRepository = HiveChangedDocumentRepository();
-
-      // fetch AI assets
-      final assetFetcher = HttpAssetFetcher(config.assetsUrl);
-      final manifestReader = createManifestReader();
-      final dataProvider = createDataProvider(
-        assetFetcher,
-        manifestReader,
-        config.applicationDirectoryPath,
-      );
-      await dataProvider.getSetupData();
-      // TODO: replace with real engine and pass in setup data
-      final engine = MockEngine();
-
-      // init managers
-      _documentManager = DocumentManager(
-        _documentRepository,
-        _activeDataRepository,
-        _changedDocumentRepository,
-      );
-      _feedManager =
-          FeedManager(_documentManager, engine, config.maxItemsPerFeedBatch);
-
-      // complete future
-      _engineFuture.complete(engine);
-
-      return const EngineEvent.clientEventSucceeded();
-    } catch (e) {
-      logger.e(e);
-      return const EngineEvent.engineExceptionRaised(
-        // TODO: add dedicated variants
-        EngineExceptionReason.genericError,
-      );
-    }
-  }
-
+  /// Decides what to do with incoming [ClientEvent] by passing it
+  /// to a dedicated manager and returns apropriate reponse in form
+  /// of a proper [EngineEvent].
   Future<EngineEvent> handleMessage(ClientEvent clientEvent) async {
     if (clientEvent is Init) {
       return _initEngine(clientEvent.configuration);
     }
 
-    if (!_engineFuture.isCompleted) {
+    if (!_engineInitCompleter.isCompleted) {
       return const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
       );
     }
 
-    // alwas wait for the engien to be ready before handling the next event
-    await _engineFuture.future;
+    // if something went wrong during the engine initialisation the result
+    // of the future will be `false`
+    if (!await _engineInitCompleter.future) {
+      return const EngineEvent.engineExceptionRaised(
+        EngineExceptionReason.engineDisposed,
+      );
+    }
 
     // prepare reposnses
     EngineEvent response = const EngineEvent.clientEventSucceeded();
@@ -165,5 +121,93 @@ class EventHandler {
     }
 
     return response;
+  }
+
+  Future<EngineEvent> _initEngine(Configuration config) async {
+    try {
+      // init hive
+      await _initDatabase(config.applicationDirectoryPath);
+
+      // create repositories
+      _documentRepository = HiveDocumentRepository();
+      _activeDataRepository = HiveActiveDocumentDataRepository();
+      _changedDocumentRepository = HiveChangedDocumentRepository();
+
+      // fetch AI assets
+      await _fetchAssets(config);
+
+      // init the engine
+      // TODO: replace with real engine and pass in setup data
+      _engine = MockEngine();
+
+      // init managers
+      _documentManager = DocumentManager(
+        _documentRepository,
+        _activeDataRepository,
+        _changedDocumentRepository,
+      );
+      _feedManager =
+          FeedManager(_documentManager, _engine, config.maxItemsPerFeedBatch);
+
+      // complete future
+      _engineInitCompleter.complete(true);
+
+      return const EngineEvent.clientEventSucceeded();
+    } catch (e) {
+      var reason = EngineExceptionReason.genericError;
+
+      if (e is ManifestReaderException) {
+        reason = EngineExceptionReason.failedToReadManifest;
+      } else if (e is DataProviderException) {
+        reason = EngineExceptionReason.failedToGetAssets;
+      }
+
+      _engineInitCompleter.complete(false);
+
+      // log the error
+      logger.e(e);
+
+      return EngineEvent.engineExceptionRaised(reason);
+    }
+  }
+
+  Future<SetupData> _fetchAssets(Configuration config) async {
+    final assetFetcher = HttpAssetFetcher(config.assetsUrl);
+    final manifestReader = createManifestReader();
+    final dataProvider = createDataProvider(
+      assetFetcher,
+      manifestReader,
+      config.applicationDirectoryPath,
+    );
+    final setupData = await dataProvider.getSetupData();
+    return setupData;
+  }
+
+  Future<void> _initDatabase(String appDir) async {
+    Hive.init('$appDir/$kEnginePath/$kDatabasePath');
+    // register hive adapters
+    Hive.registerAdapter(DocumentAdapter());
+    Hive.registerAdapter(DocumentFeedbackAdapter());
+    Hive.registerAdapter(ActiveDocumentDataAdapter());
+    Hive.registerAdapter(WebResourceAdapter());
+    Hive.registerAdapter(WebResourceProviderAdapter());
+    Hive.registerAdapter(DocumentIdAdapter());
+    Hive.registerAdapter(UriAdapter());
+
+    // open boxes
+    await _openDbBox<Document>(documentBox);
+    await _openDbBox<ActiveDocumentData>(activeDocumentDataBox);
+    await _openDbBox<Uint8List>(changedDocumentIdBox);
+  }
+
+  /// Tries to open a box persisted on disk. In case of failure opens it in memory.
+  Future<void> _openDbBox<T>(String name) async {
+    try {
+      await Hive.openBox<T>(name);
+    } catch (e) {
+      /// Some browsers (ie. Firefox) are not allowing the use of IndexedDB
+      /// in `Private Mode`, so we need to use Hive in-memory instead
+      await Hive.openBox<T>(name, bytes: Uint8List(0));
+    }
   }
 }
