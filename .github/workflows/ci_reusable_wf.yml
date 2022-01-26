@@ -6,6 +6,9 @@ on:
       wf-result:
         description: Result of the run
         value: ${{ jobs.run-ok.result }}
+      wf-value:
+        description: Result of run-ok
+        value: ${{ jobs.run-ok.outputs.run-result }}
 
 env:
   DART_VERSION: '2.14.4'
@@ -343,15 +346,22 @@ jobs:
     name: run-ok
     needs: [selection, dart-ok, cargo-ok]
     if: ${{always()}}
+    outputs:
+    run-result:
+      description: "Run Result"
+      value: ${{ steps.run-check.outputs.run-check }}
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
       - name: Run Check
+        id: run-check
         run: |
           if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) || 
           (${{needs.selection.outputs.dart == 'true'}} && ${{needs.dart-ok.result == 'success'}} && ${{needs.selection.outputs.rust != 'true'}}))
           then
+            echo "::set-output name=run-check::$(echo 'success')"
             exit 0
           else
+            echo "::set-output name=run-check::$(echo 'failed')"
             exit 1
           fi
