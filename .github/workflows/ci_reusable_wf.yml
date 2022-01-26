@@ -366,6 +366,7 @@ jobs:
   test-output:
     name: test-output
     needs: run-ok
+    runs-on: ubuntu-20.04
     if: ${{always()}}
     steps:
       - name: run check
