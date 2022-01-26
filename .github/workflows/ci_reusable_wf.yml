@@ -41,7 +41,7 @@ jobs:
               - '.github/workflows/ci*'
             rust:
               - 'discovery_engine_core/**'
-              - '.github/workflows/ci*'
+              # - '.github/workflows/ci*'
 
   # DART CI 
   dart-format:
