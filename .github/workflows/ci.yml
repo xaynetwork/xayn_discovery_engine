@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   dev-ci:
-    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@DEVOPS671_adding_bors_reusable_wf
+    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@main
   
   ci-ok:
     name: ci-ok
