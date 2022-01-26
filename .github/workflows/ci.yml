@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   dev-ci:
-    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@main
+    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@DEVOPS671_adding_bors_reusable_wf
   
   ci-ok:
     name: ci-ok
@@ -30,6 +30,7 @@ jobs:
       - name: CI OK Testing
         run: |
           echo ${{needs.dev-ci.outputs.wf-result}}
+          wf-result
           if ( ${{needs.dev-ci.outputs.wf-result == 'success'}} )
           then
             exit 0
