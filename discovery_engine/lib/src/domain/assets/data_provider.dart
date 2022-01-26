@@ -40,3 +40,14 @@ abstract class DataProvider {
     return paths.where((e) => e.isNotEmpty).join('/');
   }
 }
+
+/// Thrown when a there is an issue with downloading AI assets.
+class DataProviderException implements Exception {
+  /// Message (or string representation of the exception).
+  final String message;
+
+  DataProviderException(this.message);
+
+  @override
+  String toString() => 'DataProviderException: $message';
+}
