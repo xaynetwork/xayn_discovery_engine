@@ -155,7 +155,11 @@ abstract class Manager<Request extends Object, Response extends Object> {
   ///
   /// The response message from the Worker is deserialized to an appropriate
   /// [Request] and retured to the caller.
-  Future<Response> send(Request event, {Duration? timeout}) async {
+  Future<Response> send(
+    Request event, {
+    Duration? timeout,
+    bool shouldTimeout = true,
+  }) async {
     if (_responseController.isClosed) {
       throw ManagerDisposedException(
         'Send method can not be used after the Manager was disposed',
@@ -170,20 +174,26 @@ abstract class Manager<Request extends Object, Response extends Object> {
     _manager.send(requestMessage, [channel.sender.platformPort]);
 
     // Wait for a message and convert it to proper [Response] object
-    final responseMessage = await channel.receiver.receive()
-        // Wait for [Response] message only for a specified
-        // [Duration], otherwise throw a timeout exception
-        .timeout(
-      timeout ?? kDefaultRequestTimeout,
-      onTimeout: () {
-        // close the port of the Receiver
-        channel.receiver.dispose();
+    var responseFuture = channel.receiver.receive();
 
-        throw ResponseTimeoutException(
-          'Worker couldn\'t respond in time to requested event: $event',
-        );
-      },
-    );
+    if (shouldTimeout) {
+      // Wait for [Response] message only for a specified
+      // [Duration], otherwise throw a timeout exception
+      responseFuture = responseFuture.timeout(
+        timeout ?? kDefaultRequestTimeout,
+        onTimeout: () {
+          // close the port of the Receiver
+          channel.receiver.dispose();
+
+          throw ResponseTimeoutException(
+            'Worker couldn\'t respond in time to requested event: $event',
+          );
+        },
+      );
+    }
+
+    // Wait for the Future to resolve (or timeout)
+    final responseMessage = await responseFuture;
 
     try {
       final response = responseConverter.convert(responseMessage);
