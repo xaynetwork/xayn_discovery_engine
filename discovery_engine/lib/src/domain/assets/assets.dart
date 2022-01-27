@@ -11,19 +11,11 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-import 'dart:convert' show jsonDecode;
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
-    show Manifest;
-
-abstract class ManifestReader {
-  /// Loads and returns the assets [Manifest].
-  Future<Manifest> read() async {
-    final jsonString = await loadManifestAsString();
-    final json = jsonDecode(jsonString) as Map;
-    return Manifest.fromJson(json.cast<String, Object>());
-  }
-
-  /// Loads the [Manifest] json file as [String] from bundled assets.
-  Future<String> loadManifestAsString();
-}
+export 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
+    show Manifest, Asset, AssetType, Checksum, Fragment;
+export 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
+    show AssetFetcher, AssetFetcherException;
+export 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
+    show DataProvider, SetupData;
+export 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
+    show ManifestReader;

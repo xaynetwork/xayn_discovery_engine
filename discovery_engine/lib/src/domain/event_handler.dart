@@ -23,10 +23,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         EngineExceptionReason,
         FeedClientEvent,
         Init;
-import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
-    show SetupData, DataProviderException;
-import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
-    show ManifestReaderException;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show AssetFetcherException, SetupData;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -158,9 +156,7 @@ class EventHandler {
     } catch (e) {
       var reason = EngineExceptionReason.genericError;
 
-      if (e is ManifestReaderException) {
-        reason = EngineExceptionReason.failedToReadManifest;
-      } else if (e is DataProviderException) {
+      if (e is AssetFetcherException) {
         reason = EngineExceptionReason.failedToGetAssets;
       }
 

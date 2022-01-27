@@ -17,7 +17,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:http/http.dart' as http;
 import 'package:http_retry/http_retry.dart' show RetryClient;
 import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
-    show AssetFetcher;
+    show AssetFetcher, AssetFetcherException;
 import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
     show DataProvider;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
@@ -51,7 +51,7 @@ class HttpAssetFetcher extends AssetFetcher {
       final message =
           'error loading asset: $uri,\n  status: ${response.statusCode}\n  error: ${response.reasonPhrase}';
       logger.e(message);
-      return Future.error(message);
+      throw AssetFetcherException(message);
     }
 
     return response.bodyBytes;
