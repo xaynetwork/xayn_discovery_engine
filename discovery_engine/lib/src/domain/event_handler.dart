@@ -63,8 +63,10 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed
     show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_document_id_adapter.dart'
-    show DocumentIdAdapter;
+import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
+    show DurationAdapter;
+import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_unique_id_adapter.dart'
+    show DocumentIdAdapter, StackIdAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_adapter.dart'
     show UriAdapter;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
@@ -109,8 +111,7 @@ class EventHandler {
 
     try {
       if (clientEvent is FeedClientEvent) {
-        // TODO: reassign response to whatever FeedManager returns
-        await _feedManager.handleFeedClientEvent(clientEvent);
+        response = await _feedManager.handleFeedClientEvent(clientEvent);
       } else if (clientEvent is DocumentClientEvent) {
         await _documentManager.handleDocumentClientEvent(clientEvent);
       }
@@ -142,6 +143,7 @@ class EventHandler {
 
       // init managers
       _documentManager = DocumentManager(
+        _engine,
         _documentRepository,
         _activeDataRepository,
         _changedDocumentRepository,
@@ -192,6 +194,8 @@ class EventHandler {
     Hive.registerAdapter(WebResourceAdapter());
     Hive.registerAdapter(WebResourceProviderAdapter());
     Hive.registerAdapter(DocumentIdAdapter());
+    Hive.registerAdapter(StackIdAdapter());
+    Hive.registerAdapter(DurationAdapter());
     Hive.registerAdapter(UriAdapter());
 
     // open boxes
