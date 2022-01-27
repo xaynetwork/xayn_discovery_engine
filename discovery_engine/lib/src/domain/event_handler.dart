@@ -170,12 +170,14 @@ class EventHandler {
   }
 
   Future<SetupData> _fetchAssets(Configuration config) async {
+    final appDir = config.applicationDirectoryPath;
+    final storageDirPath = '$appDir/$kEnginePath';
     final assetFetcher = HttpAssetFetcher(config.assetsUrl);
     final manifestReader = createManifestReader();
     final dataProvider = createDataProvider(
       assetFetcher,
       manifestReader,
-      config.applicationDirectoryPath,
+      storageDirPath,
     );
     final setupData = await dataProvider.getSetupData();
     return setupData;
