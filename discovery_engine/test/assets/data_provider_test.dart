@@ -30,17 +30,19 @@ import 'utils/mock_manifest_reader.dart'
 void main() {
   group('DataProvider', () {
     group('getSetupData', () {
+      const port = 8081;
+      const assetUrl = 'http://localhost:$port';
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
       final baseAssetPath = '$outputPath/assets';
       final vocabPath = '$baseAssetPath/smbert_v0000/vocab.txt';
       final modelPath = '$baseAssetPath/smbert_v0000/smbert.onnx';
-      final assetFetcher = HttpAssetFetcherWithCounter('http://localhost:8080');
+      final assetFetcher = HttpAssetFetcherWithCounter(assetUrl);
       final manifestReader = MockManifestReader(goodJson);
 
       late LocalAssetServer server;
 
       setUpAll(() async {
-        server = await LocalAssetServer.start();
+        server = await LocalAssetServer.start(port);
       });
 
       tearDown(() {
