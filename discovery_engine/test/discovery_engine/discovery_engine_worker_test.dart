@@ -43,8 +43,8 @@ void main() {
     });
 
     test(
-        'when sending "FeedRequested" event as payload it should respond with '
-        '"FeedRequestSucceeded" event', () async {
+        'when sending event before "Init" event as payload it should respond with '
+        '"EngineExceptionRaised" event', () async {
       final channel = ReceivePort();
 
       manager.send({
@@ -55,7 +55,11 @@ void main() {
       final responseMsg = await channel.first as Object;
       final response = responseConverter.convert(responseMsg);
 
-      expect(response, isA<FeedRequestSucceeded>());
+      expect(response, isA<EngineExceptionRaised>());
+      expect(
+        (response as EngineExceptionRaised).reason,
+        equals(EngineExceptionReason.engineNotReady),
+      );
     });
 
     test(
