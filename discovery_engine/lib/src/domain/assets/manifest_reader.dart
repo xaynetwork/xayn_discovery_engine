@@ -27,14 +27,3 @@ abstract class ManifestReader {
   /// Loads the [Manifest] json file as [String] from bundled assets.
   Future<String> loadManifestAsString();
 }
-
-/// Thrown when a there is an issue reading the assets manifest file.
-class ManifestReaderException implements Exception {
-  /// Message (or string representation of the exception).
-  final String message;
-
-  ManifestReaderException(this.message);
-
-  @override
-  String toString() => 'ManifestReaderException: $message';
-}
