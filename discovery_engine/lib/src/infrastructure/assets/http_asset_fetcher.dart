@@ -43,8 +43,15 @@ class HttpAssetFetcher extends AssetFetcher {
       },
     );
 
-    final uri = Uri.parse(url);
-    final response = await client.get(uri);
+    final uri = Uri.tryParse(url);
+
+    if (uri == null) {
+      throw AssetFetcherException('Can\'t parse url: $url');
+    }
+
+    final response = await client
+        .get(uri)
+        .onError((error, stackTrace) => throw AssetFetcherException('$error'));
 
     if (response.statusCode != 200) {
       // triggers when the asset is not available on the provided url
