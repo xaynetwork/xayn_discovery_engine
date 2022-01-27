@@ -14,6 +14,8 @@
 
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
+import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
+    show EngineEvent;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -38,19 +40,37 @@ class FeedManager {
   /// Handle the given feed client event.
   ///
   /// Fails if [event] does not have a handler implemented.
-  Future<void> handleFeedClientEvent(FeedClientEvent event) async {
-    await event.maybeWhen(
-      feedRequested: () => restoreFeed(),
-      nextFeedBatchRequested: () => nextFeedBatch(),
-      feedDocumentsClosed: (ids) => _docMgr.deactivateDocuments(ids),
-      orElse: throw UnimplementedError('handler not implemented for $event'),
-    );
-  }
+  Future<EngineEvent> handleFeedClientEvent(FeedClientEvent event) =>
+      event.maybeWhen(
+        feedRequested: () => restoreFeed(),
+        nextFeedBatchRequested: () => nextFeedBatch(),
+        feedDocumentsClosed: (ids) => _docMgr
+            .deactivateDocuments(ids)
+            .then((_) => const EngineEvent.clientEventSucceeded()),
+        orElse: throw UnimplementedError('handler not implemented for $event'),
+      );
 
-  Future<void> restoreFeed() async {} // TODO once timestamps addded to Document
+  /// Generates the feed of active documents, ordered by their global rank.
+  ///
+  /// That is, documents are ordered by their timestamp, then local rank.
+  Future<EngineEvent> restoreFeed() => _docRepo.fetchAll().then(
+        (docs) {
+          final sortedActives = docs
+            ..retainWhere((doc) => doc.isActive)
+            ..sort((doc1, doc2) {
+              final ord = doc1.timestamp.compareTo(doc2.timestamp);
+              return ord == 0
+                  ? doc1.personalizedRank.compareTo(doc2.personalizedRank)
+                  : ord;
+            });
+
+          final feed = sortedActives.map((doc) => doc.toApiDocument()).toList();
+          return EngineEvent.feedRequestSucceeded(feed);
+        },
+      );
 
   /// Obtain the next batch of feed documents and persist to repositories.
-  Future<void> nextFeedBatch() async {
+  Future<EngineEvent> nextFeedBatch() async {
     final feedDocs = _engine.getFeedDocuments(_maxDocs);
 
     await _docRepo.updateMany(feedDocs.keys);
@@ -58,5 +78,8 @@ class FeedManager {
       final id = feedDoc.key.documentId;
       await _activeRepo.update(id, feedDoc.value);
     }
+
+    final docs = feedDocs.keys.map((doc) => doc.toApiDocument()).toList();
+    return EngineEvent.nextFeedBatchRequestSucceeded(docs);
   }
 }
