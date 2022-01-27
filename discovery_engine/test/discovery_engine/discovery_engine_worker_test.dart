@@ -16,11 +16,7 @@ import 'dart:isolate' show ReceivePort;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/api.dart'
-    show
-        EngineExceptionRaised,
-        FeedRequestSucceeded,
-        EngineExceptionReason,
-        ClientEvent;
+    show EngineExceptionRaised, EngineExceptionReason, ClientEvent;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
     show JsonToEngineEventConverter, kSenderKey, kPayloadKey;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
