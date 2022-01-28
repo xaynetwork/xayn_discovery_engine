@@ -29,6 +29,7 @@ pub(crate) enum Expr {
 }
 
 impl Expr {
+    #[allow(dead_code)]
     pub(crate) fn and(self, expr: impl Into<Expr>) -> Expr {
         let expr = expr.into();
         match (self, expr) {
