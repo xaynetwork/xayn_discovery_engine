@@ -98,6 +98,19 @@ class EngineEvent with _$EngineEvent {
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchAvailable() = NextFeedBatchAvailable;
 
+  /// Event created when fetching of AI assets has started.
+  @Implements<SystemEngineEvent>()
+  const factory EngineEvent.fetchingAssetsStarted() = FetchingAssetsStarted;
+
+  /// Event created when fetching of AI assets has progressed.
+  @Implements<SystemEngineEvent>()
+  const factory EngineEvent.fetchingAssetsProgressed(double percentage) =
+      FetchingAssetsProgressed;
+
+  /// Event created when fetching of AI assets has finished.
+  @Implements<SystemEngineEvent>()
+  const factory EngineEvent.fetchingAssetsFinished() = FetchingAssetsFinished;
+
   /// Event created to inform the client that a particular "fire and forget"
   /// event, like DocumentFeedbackChanged, was successfuly processed
   /// by the engine.

@@ -37,6 +37,9 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         NextFeedBatchAvailable,
         FeedFailureReason,
         SystemEngineEvent,
+        FetchingAssetsStarted,
+        FetchingAssetsProgressed,
+        FetchingAssetsFinished,
         ClientEventSucceeded,
         EngineExceptionRaised,
         EngineExceptionReason;

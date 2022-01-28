@@ -307,6 +307,9 @@ extension _MapEvent on EngineEvent {
     bool? nextFeedBatchRequestSucceeded,
     bool? nextFeedBatchRequestFailed,
     bool? nextFeedBatchAvailable,
+    bool? fetchingAssetsStarted,
+    bool? fetchingAssetsProgressed,
+    bool? fetchingAssetsFinished,
     bool? clientEventSucceeded,
     bool? engineExceptionRaised,
   }) =>
@@ -318,6 +321,9 @@ extension _MapEvent on EngineEvent {
         nextFeedBatchRequestFailed:
             _maybePassThrough(nextFeedBatchRequestFailed),
         nextFeedBatchAvailable: _maybePassThrough(nextFeedBatchAvailable),
+        fetchingAssetsStarted: _maybePassThrough(fetchingAssetsStarted),
+        fetchingAssetsProgressed: _maybePassThrough(fetchingAssetsProgressed),
+        fetchingAssetsFinished: _maybePassThrough(fetchingAssetsFinished),
         clientEventSucceeded: _maybePassThrough(clientEventSucceeded),
         engineExceptionRaised: _maybePassThrough(engineExceptionRaised),
       );

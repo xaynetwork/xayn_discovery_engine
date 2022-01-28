@@ -20,25 +20,28 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ConfigurationChanged,
         Document,
         DocumentFeedback,
-        DocumentViewMode,
         DocumentFeedbackChanged,
         DocumentId,
         DocumentTimeSpent,
+        DocumentViewMode,
         EngineEvent,
         EngineExceptionRaised,
         EngineExceptionReason,
         FeedDocumentsClosed,
         FeedFailureReason,
+        FeedMarkets,
         FeedRequestFailed,
         FeedRequestSucceeded,
         FeedRequested,
+        FetchingAssetsFinished,
+        FetchingAssetsProgressed,
+        FetchingAssetsStarted,
         Init,
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded,
         NextFeedBatchRequested,
-        ResetEngine,
-        FeedMarkets;
+        ResetEngine;
 
 class BadClientEvent implements ClientEvent {
   const BadClientEvent();
@@ -176,6 +179,12 @@ class BadEngineEvent implements EngineEvent {
         nextFeedBatchRequestFailed,
     required TResult Function(NextFeedBatchAvailable value)
         nextFeedBatchAvailable,
+    required TResult Function(FetchingAssetsStarted value)
+        fetchingAssetsStarted,
+    required TResult Function(FetchingAssetsProgressed value)
+        fetchingAssetsProgressed,
+    required TResult Function(FetchingAssetsFinished value)
+        fetchingAssetsFinished,
     required TResult Function(ClientEventSucceeded value) clientEventSucceeded,
     required TResult Function(EngineExceptionRaised value)
         engineExceptionRaised,
@@ -192,6 +201,9 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(NextFeedBatchRequestFailed value)?
         nextFeedBatchRequestFailed,
     TResult Function(NextFeedBatchAvailable value)? nextFeedBatchAvailable,
+    TResult Function(FetchingAssetsStarted value)? fetchingAssetsStarted,
+    TResult Function(FetchingAssetsProgressed value)? fetchingAssetsProgressed,
+    TResult Function(FetchingAssetsFinished value)? fetchingAssetsFinished,
     TResult Function(ClientEventSucceeded value)? clientEventSucceeded,
     TResult Function(EngineExceptionRaised value)? engineExceptionRaised,
   }) {
@@ -208,6 +220,9 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(NextFeedBatchRequestFailed value)?
         nextFeedBatchRequestFailed,
     TResult Function(NextFeedBatchAvailable value)? nextFeedBatchAvailable,
+    TResult Function(FetchingAssetsStarted value)? fetchingAssetsStarted,
+    TResult Function(FetchingAssetsProgressed value)? fetchingAssetsProgressed,
+    TResult Function(FetchingAssetsFinished value)? fetchingAssetsFinished,
     TResult Function(ClientEventSucceeded value)? clientEventSucceeded,
     TResult Function(EngineExceptionRaised value)? engineExceptionRaised,
   }) {
@@ -222,6 +237,9 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(List<Document> items)? nextFeedBatchRequestSucceeded,
     TResult Function(FeedFailureReason reason)? nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
+    TResult Function()? fetchingAssetsStarted,
+    TResult Function(double percentage)? fetchingAssetsProgressed,
+    TResult Function()? fetchingAssetsFinished,
     TResult Function()? clientEventSucceeded,
     TResult Function(EngineExceptionReason reason)? engineExceptionRaised,
   }) {
@@ -242,6 +260,9 @@ class BadEngineEvent implements EngineEvent {
     required TResult Function(FeedFailureReason reason)
         nextFeedBatchRequestFailed,
     required TResult Function() nextFeedBatchAvailable,
+    required TResult Function() fetchingAssetsStarted,
+    required TResult Function(double percentage) fetchingAssetsProgressed,
+    required TResult Function() fetchingAssetsFinished,
     required TResult Function() clientEventSucceeded,
     required TResult Function(EngineExceptionReason reason)
         engineExceptionRaised,
@@ -256,6 +277,9 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(List<Document> items)? nextFeedBatchRequestSucceeded,
     TResult Function(FeedFailureReason reason)? nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
+    TResult Function()? fetchingAssetsStarted,
+    TResult Function(double percentage)? fetchingAssetsProgressed,
+    TResult Function()? fetchingAssetsFinished,
     TResult Function()? clientEventSucceeded,
     TResult Function(EngineExceptionReason reason)? engineExceptionRaised,
   }) {
