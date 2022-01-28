@@ -16,26 +16,32 @@ import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show EngineEvent;
-import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
-    show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
+    show ChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 
 /// Business logic concerning the management of the feed.
 class FeedManager {
-  final DocumentManager _docMgr;
   final Engine _engine;
   final int _maxDocs;
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
+  final ChangedDocumentRepository _changedRepo;
 
-  FeedManager(this._docMgr, this._engine, this._maxDocs)
-      : _docRepo = _docMgr.documentRepo,
-        _activeRepo = _docMgr.activeRepo;
+  FeedManager(
+    this._engine,
+    this._maxDocs,
+    this._docRepo,
+    this._activeRepo,
+    this._changedRepo,
+  );
 
   /// Handle the given feed client event.
   ///
@@ -44,9 +50,7 @@ class FeedManager {
       event.maybeWhen(
         feedRequested: () => restoreFeed(),
         nextFeedBatchRequested: () => nextFeedBatch(),
-        feedDocumentsClosed: (ids) => _docMgr
-            .deactivateDocuments(ids)
-            .then((_) => const EngineEvent.clientEventSucceeded()),
+        feedDocumentsClosed: (ids) => deactivateDocuments(ids),
         orElse: throw UnimplementedError('handler not implemented for $event'),
       );
 
@@ -58,10 +62,10 @@ class FeedManager {
           final sortedActives = docs
             ..retainWhere((doc) => doc.isActive)
             ..sort((doc1, doc2) {
-              final ord = doc1.timestamp.compareTo(doc2.timestamp);
-              return ord == 0
+              final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
+              return timeOrd == 0
                   ? doc1.personalizedRank.compareTo(doc2.personalizedRank)
-                  : ord;
+                  : timeOrd;
             });
 
           final feed = sortedActives.map((doc) => doc.toApiDocument()).toList();
@@ -81,5 +85,17 @@ class FeedManager {
 
     final docs = feedDocs.keys.map((doc) => doc.toApiDocument()).toList();
     return EngineEvent.nextFeedBatchRequestSucceeded(docs);
+  }
+
+  /// Deactivate the given documents.
+  Future<EngineEvent> deactivateDocuments(Set<DocumentId> ids) async {
+    await _activeRepo.removeByIds(ids);
+    await _changedRepo.removeMany(ids);
+
+    final docs = await _docRepo.fetchByIds(ids);
+    final inactives = docs.map((doc) => doc..isActive = false);
+    await _docRepo.updateMany(inactives);
+
+    return const EngineEvent.clientEventSucceeded();
   }
 }

@@ -14,20 +14,18 @@
 
 import 'dart:typed_data' show Uint8List;
 
-import 'package:hive/hive.dart' show Hive;
+import 'package:hive/hive.dart';
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
-    show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
+import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
+    show FeedManager;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentAdapter, Document, DocumentFeedback;
+    show Document, DocumentAdapter, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
-import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
-    show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -55,9 +53,9 @@ Future<void> main() async {
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
 
-  final mgr = DocumentManager(engine, docRepo, activeRepo);
+  final mgr = FeedManager(engine, 5, docRepo, activeRepo, changedRepo);
 
-  group('DocumentManager', () {
+  group('FeedManager', () {
     final data = ActiveDocumentData(Uint8List(0));
     final dummy = WebResource.fromJson(<String, Object>{
       'title': 'Example',
@@ -109,87 +107,19 @@ Future<void> main() async {
       data.viewTime.clear();
     });
 
-    test('update absent document feedback', () async {
-      expect(
-        () => mgr.updateDocumentFeedback(id3, DocumentFeedback.positive),
-        throwsArgumentError,
-      );
-    });
+    test('deactivate documents', () async {
+      await mgr.deactivateDocuments({id1, id2, id3});
 
-    test('update inactive document feedback', () async {
-      expect(
-        () => mgr.updateDocumentFeedback(id2, DocumentFeedback.positive),
-        throwsArgumentError,
-      );
-    });
+      // id1 should be removed from active and changed repos
+      expect(activeBox, isEmpty);
+      expect(changedBox, isEmpty);
 
-    test(
-        'if there is no smbert embedding associated with the document '
-        'it should throw StateError', () async {
-      // let's get rid of active document data of doc1
-      await activeRepo.removeByIds({id1});
-
-      expect(
-        () => mgr.updateDocumentFeedback(id1, DocumentFeedback.positive),
-        throwsStateError,
-      );
-    });
-
-    test('update active document feedback', () async {
-      const newFeedback = DocumentFeedback.positive;
-      await mgr.updateDocumentFeedback(id1, newFeedback);
-      expect(engine.getCallCount('userReacted'), equals(1));
-      expect(
-        docBox.values,
-        unorderedEquals(<Document>[doc1..feedback = newFeedback, doc2]),
-      );
-      // other repos unchanged
-      expect(activeBox, hasLength(1));
-      expect(await activeRepo.fetchById(id1), equals(data));
-      expect(await changedRepo.fetchAll(), equals([id1]));
-    });
-
-    test('add negative document time', () async {
-      const mode = DocumentViewMode.story;
-      expect(() => mgr.addActiveDocumentTime(id1, mode, -1), throwsRangeError);
-    });
-
-    test('add time to document without active data', () async {
-      const mode = DocumentViewMode.story;
-      expect(
-        () => mgr.addActiveDocumentTime(id2, mode, 1),
-        throwsArgumentError,
-      );
-    });
-
-    test('add positive time to document with active data', () async {
-      const mode = DocumentViewMode.story;
-
-      // active repo contains just {id1: data} where data satisfies:
-      expect(data.getViewTime(mode), Duration.zero);
-
-      // add 5 seconds to id1
-      await mgr.addActiveDocumentTime(id1, mode, 5);
-
-      expect(activeBox, hasLength(1));
-      var dataUpdated = await activeRepo.fetchById(id1);
-      expect(dataUpdated, isNotNull);
-      expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
-      expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 5)));
-
-      // other repos unchanged
-      expect(await docRepo.fetchAll(), unorderedEquals(<Document>[doc1, doc2]));
-      expect(await changedRepo.fetchAll(), equals([id1]));
-
-      // add a further 3 seconds
-      await mgr.addActiveDocumentTime(id1, mode, 3);
-
-      expect(activeBox, hasLength(1));
-      dataUpdated = await activeRepo.fetchById(id1);
-      expect(dataUpdated, isNotNull);
-      expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
-      expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
-      expect(engine.getCallCount('timeLogged'), equals(2));
+      // id1 should now be deactivated, id2 still inactive
+      expect(docBox, hasLength(2));
+      final docs = await docRepo.fetchByIds({id1, id2});
+      expect(docs, hasLength(2));
+      expect(docs[0].isActive, isFalse);
+      expect(docs[1].isActive, isFalse);
     });
   });
 }
