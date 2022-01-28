@@ -122,6 +122,8 @@ pub struct TimeSpent {
        coi just consider one time. On the dart side we are saving all these values
        and when we call the feedbackloop we will decide which value to use or to aggregate them.
     */
+    /// Reaction.
+    pub reaction: UserReaction,
 }
 
 /// User reacted to a document.
