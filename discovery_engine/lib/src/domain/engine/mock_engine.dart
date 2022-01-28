@@ -25,34 +25,40 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
     show WebResource;
 
-final resource = WebResource.fromJson(const <String, Object>{
-  'title': 'Example',
-  'displayUrl': 'domain.com',
-  'snippet': 'snippet',
-  'url': 'http://domain.com',
-  'datePublished': '1980-01-01T00:00:00.000000',
-  'provider': <String, String>{
-    'name': 'domain',
-    'thumbnail': 'http://thumbnail.domain.com',
-  },
-});
-
-final stackId = StackId();
-final doc1 = Document(
-  stackId: stackId,
-  personalizedRank: 0,
-  webResource: resource,
-);
-final doc2 = Document(
-  stackId: stackId,
-  personalizedRank: 1,
-  webResource: resource,
-);
-final active1 = ActiveDocumentData(Uint8List(0));
-final active2 = ActiveDocumentData(Uint8List(1));
-
 class MockEngine implements Engine {
   final Map<String, int> callCounter = {};
+  late Document doc0;
+  late Document doc1;
+  late ActiveDocumentData active0;
+  late ActiveDocumentData active1;
+
+  MockEngine() {
+    final resource = WebResource.fromJson(const <String, Object>{
+      'title': 'Example',
+      'displayUrl': 'domain.com',
+      'snippet': 'snippet',
+      'url': 'http://domain.com',
+      'datePublished': '1980-01-01T00:00:00.000000',
+      'provider': <String, String>{
+        'name': 'domain',
+        'thumbnail': 'http://thumbnail.domain.com',
+      },
+    });
+    final stackId = StackId();
+
+    doc0 = Document(
+      stackId: stackId,
+      personalizedRank: 0,
+      webResource: resource,
+    );
+    doc1 = Document(
+      stackId: stackId,
+      personalizedRank: 1,
+      webResource: resource,
+    );
+    active0 = ActiveDocumentData(Uint8List(0));
+    active1 = ActiveDocumentData(Uint8List(1));
+  }
 
   void _incrementCount(String key) {
     final count = getCallCount(key);
@@ -74,9 +80,9 @@ class MockEngine implements Engine {
     if (maxDocuments < 1) {
       return {};
     } else if (maxDocuments == 1) {
-      return {doc1: active1};
+      return {doc0: active0};
     } else {
-      return {doc1: active1, doc2: active2};
+      return {doc0: active0, doc1: active1};
     }
   }
 
