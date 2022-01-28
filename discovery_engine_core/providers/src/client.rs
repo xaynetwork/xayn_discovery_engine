@@ -12,19 +12,47 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Client do get new documents.
+//! Client to get new documents.
 
-use xayn_discovery_engine_core::document::Document;
+use std::collections::HashMap;
 
-use crate::{filter::Filter, query::Query};
+use displaydoc::Display as DisplayDoc;
+use thiserror::Error;
 
-// TODO: replace with error form the http library + Filter error
-pub enum Error {}
+use crate::{
+    filter::{Filter, Market},
+    newscatcher::{Article, Response as NewscatcherResponse},
+};
+
+#[derive(Error, Debug, DisplayDoc)]
+pub enum Error {
+    /// Failed to execute the HTTP request: {0}
+    RequestExecution(#[source] reqwest::Error),
+    /// Server returned a non-successful status code: {0}
+    StatusCode(#[source] reqwest::Error),
+    /// Failed to decode the server's response: {0}
+    Decoding(#[source] reqwest::Error),
+}
 
 /// Client that can provide documents.
 pub struct Client {
     token: String,
     url: String,
+}
+
+/// Parameters determining which news to fetch
+pub struct NewsQuery {
+    market: Market,
+    filter: Filter,
+    /// How many articles to return (per page).
+    page_size: Option<usize>,
+}
+
+/// Parameters determining which headlines to fetch
+pub struct HeadlinesQuery {
+    market: Market,
+    /// How many articles to return (per page).
+    page_size: Option<usize>,
 }
 
 impl Client {
@@ -33,16 +61,221 @@ impl Client {
         Self { token, url }
     }
 
-    /// Get document from a provider,
-    ///
-    /// `filter` can be used to query only documents of interests,
-    /// `size` optionally limit the number of item we want.
-    pub async fn get(&self, filter: &Filter, size: Option<u8>) -> Result<Vec<Document>, Error> {
-        let _query = Query::new(self.token.clone(), filter, size);
+    /// Retrieve news from the remote API
+    pub async fn news(&self, params: &NewsQuery) -> Result<Vec<Article>, Error> {
+        let mut query: HashMap<String, String> = HashMap::new();
+        query.insert("sort_by".into(), "relevancy".into());
+        Self::build_news_query(&mut query, params);
 
-        // just to use it until we really use it
-        let _url = self.url.clone();
+        let c = reqwest::Client::new();
+        let response = c
+            .get(format!("{}/v2/search", self.url))
+            .header("x-api-key", &self.token)
+            .query(&query)
+            .send()
+            .await
+            .map_err(Error::RequestExecution)?
+            .error_for_status()
+            .map_err(Error::StatusCode)?;
 
-        Ok(vec![])
+        let news: NewscatcherResponse = response.json().await.map_err(Error::Decoding)?;
+        let result: Vec<Article> = news.articles.into_iter().collect();
+        Ok(result)
+    }
+
+    fn build_news_query(query: &mut HashMap<String, String>, params: &NewsQuery) {
+        query.insert("lang".to_string(), params.market.language.clone());
+        query.insert("countries".to_string(), params.market.country.clone());
+        query.insert(
+            "page_size".to_string(),
+            params.page_size.unwrap_or(100).to_string(),
+        );
+        query.insert("q".to_string(), params.filter.build());
+    }
+
+    /// Retrieve headlines from the remote API
+    pub async fn headlines(&self, params: &HeadlinesQuery) -> Result<Vec<Article>, Error> {
+        let mut query: HashMap<String, String> = HashMap::new();
+        Self::build_headlines_query(&mut query, params);
+
+        let c = reqwest::Client::new();
+        let response = c
+            .get(format!("{}/v2/latest_headlines", self.url))
+            .header("x-api-key", &self.token)
+            .query(&query)
+            .send()
+            .await
+            .map_err(Error::RequestExecution)?
+            .error_for_status()
+            .map_err(Error::StatusCode)?;
+
+        let news: NewscatcherResponse = response.json().await.map_err(Error::Decoding)?;
+        let result: Vec<Article> = news.articles.into_iter().collect();
+        Ok(result)
+    }
+
+    fn build_headlines_query(query: &mut HashMap<String, String>, params: &HeadlinesQuery) {
+        query.insert("lang".to_string(), params.market.language.clone());
+        query.insert("countries".to_string(), params.market.country.clone());
+        query.insert(
+            "page_size".to_string(),
+            params.page_size.unwrap_or(100).to_string(),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDateTime;
+
+    use crate::newscatcher::Topic;
+    use wiremock::{
+        matchers::{header, method, path, query_param},
+        Mock,
+        MockServer,
+        ResponseTemplate,
+    };
+
+    #[tokio::test]
+    async fn test_simple_news_query() {
+        let mock_server = MockServer::start().await;
+        let client = Client {
+            token: "test-token".to_string(),
+            url: mock_server.uri(),
+        };
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v2/search"))
+            .and(query_param("q", "\"Climate change\""))
+            .and(query_param("sort_by", "relevancy"))
+            .and(query_param("lang", "en"))
+            .and(query_param("countries", "AU"))
+            .and(query_param("page_size", "2"))
+            .and(header("x-api-key", "test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let filter = Filter::default().add_keyword("Climate change");
+
+        let params = NewsQuery {
+            market: Market {
+                language: "en".to_string(),
+                country: "AU".to_string(),
+            },
+            filter,
+            page_size: Some(2),
+        };
+
+        let docs = client.news(&params).await.unwrap();
+
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        assert_eq!(doc.title, "Businesses \u{2018}more concerned than ever'");
+    }
+
+    #[tokio::test]
+    async fn test_news_multiple_keywords() {
+        let mock_server = MockServer::start().await;
+        let client = Client {
+            token: "test-token".to_string(),
+            url: mock_server.uri(),
+        };
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/msft-vs-aapl.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v2/search"))
+            .and(query_param("q", "\"Bill Gates\" OR \"Tim Cook\""))
+            .and(query_param("sort_by", "relevancy"))
+            .and(query_param("lang", "de"))
+            .and(query_param("countries", "DE"))
+            .and(query_param("page_size", "2"))
+            .and(header("x-api-key", "test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let filter = Filter::default()
+            .add_keyword("Bill Gates")
+            .add_keyword("Tim Cook");
+
+        let params = NewsQuery {
+            market: Market {
+                language: "de".to_string(),
+                country: "DE".to_string(),
+            },
+            filter,
+            page_size: Some(2),
+        };
+
+        let docs = client.news(&params).await.unwrap();
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(0).unwrap();
+        assert_eq!(
+            doc.title,
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{e4}t teilweise \u{fc}berlegen ist"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_headlines() {
+        let mock_server = MockServer::start().await;
+        let client = Client {
+            token: "test-token".to_string(),
+            url: mock_server.uri(),
+        };
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v2/latest_headlines"))
+            .and(query_param("lang", "en"))
+            .and(query_param("countries", "US"))
+            .and(query_param("page_size", "2"))
+            .and(header("x-api-key", "test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let params = HeadlinesQuery {
+            market: Market {
+                language: "en".to_string(),
+                country: "US".to_string(),
+            },
+            page_size: Some(2),
+        };
+
+        let docs = client.headlines(&params).await.unwrap();
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        let expected = Article {
+            id: "0251ae9f73ec12f4d3eced9c4dc9ccc8".to_string(),
+            title: "Jerusalem blanketed in white after rare snowfall".to_string(),
+            score: None,
+            rank: 6510,
+            clean_url: "xayn.com".to_string(),
+            excerpt: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
+            link: "https://xayn.com".to_string(),
+            media: "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/6179684043a88260009773cd_hero-phone.png".to_string(),
+            topic: Topic::Gaming,
+            country: "US".to_string(),
+            language: "en".to_string(),
+            published_date: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+        };
+
+        assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
     }
 }

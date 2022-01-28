@@ -29,8 +29,8 @@
 mod client;
 mod expression;
 mod filter;
-mod languages;
-mod query;
+mod newscatcher;
 
-pub use client::Client;
-pub use filter::{Filter, Market, SiteType};
+pub use client::{Client, HeadlinesQuery, NewsQuery};
+pub use filter::{Filter, Market};
+pub use newscatcher::Article;
