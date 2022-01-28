@@ -14,6 +14,11 @@
 
 import 'dart:typed_data' show Uint8List;
 
+import 'package:xayn_discovery_engine/src/api/api.dart'
+    show
+        FetchingAssetsStarted,
+        FetchingAssetsProgressed,
+        FetchingAssetsFinished;
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show AssetType;
 import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
@@ -39,10 +44,24 @@ class WebDataProvider extends DataProvider {
     final fetched = <AssetType, Uint8List>{};
     final manifest = await manifestReader.read();
 
+    // assets started fetching
+    assetsStatusCtrl.add(const FetchingAssetsStarted());
+
     for (final asset in manifest.assets) {
-      final bytes = await assetFetcher.fetchAsset(asset);
+      final bytes = await assetFetcher.fetchAsset(
+        asset,
+        onFetched: (urlSuffix) {
+          final currentCount = (fetchedAssets..add(urlSuffix)).length;
+          final progress = currentCount * 100 / manifestReader.fragmentsTotal;
+          assetsStatusCtrl.add(FetchingAssetsProgressed(progress));
+        },
+      );
       fetched.putIfAbsent(asset.id, () => bytes);
     }
+
+    // assets finished fetching
+    assetsStatusCtrl.add(const FetchingAssetsFinished());
+    await assetsStatusCtrl.close();
 
     return WebSetupData(
       smbertVocab: fetched[AssetType.smbertVocab]!,

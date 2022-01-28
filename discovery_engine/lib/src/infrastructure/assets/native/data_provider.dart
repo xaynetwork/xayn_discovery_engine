@@ -14,6 +14,11 @@
 
 import 'dart:io' show File, Directory;
 import 'package:crypto/crypto.dart' show sha256;
+import 'package:xayn_discovery_engine/src/api/api.dart'
+    show
+        FetchingAssetsStarted,
+        FetchingAssetsProgressed,
+        FetchingAssetsFinished;
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Asset, AssetType;
 import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
@@ -45,13 +50,19 @@ class NativeDataProvider extends DataProvider {
   @override
   Future<SetupData> getSetupData() async {
     final paths = <AssetType, String>{};
-
     final manifest = await manifestReader.read();
+
+    // assets started fetching
+    assetsStatusCtrl.add(const FetchingAssetsStarted());
 
     for (final asset in manifest.assets) {
       final path = await _getData(asset);
       paths.putIfAbsent(asset.id, () => path);
     }
+
+    // assets finished fetching
+    assetsStatusCtrl.add(const FetchingAssetsFinished());
+    await assetsStatusCtrl.close();
 
     return NativeSetupData(
       smbertVocab: paths[AssetType.smbertVocab]!,
@@ -86,7 +97,14 @@ class NativeDataProvider extends DataProvider {
     }
 
     if (!doesExist) {
-      final bytes = await assetFetcher.fetchAsset(asset);
+      final bytes = await assetFetcher.fetchAsset(
+        asset,
+        onFetched: (urlSuffix) {
+          final currentCount = (fetchedAssets..add(urlSuffix)).length;
+          final progress = currentCount * 100 / manifestReader.fragmentsTotal;
+          assetsStatusCtrl.add(FetchingAssetsProgressed(progress));
+        },
+      );
       await assetFile.writeAsBytes(bytes, flush: true);
     }
 

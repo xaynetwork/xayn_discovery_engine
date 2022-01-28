@@ -16,6 +16,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart' show Hive;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
+        AssetsStatusEngineEvent,
         ClientEvent,
         DocumentClientEvent,
         EngineEvent,
@@ -25,7 +26,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         Init,
         SystemClientEvent;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
-    show AssetFetcherException, SetupData;
+    show AssetFetcherException, DataProvider, SetupData;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -78,6 +79,10 @@ class EventHandler {
   late final ChangedDocumentRepository _changedDocumentRepository;
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
+  late final DataProvider _dataProvider;
+
+  Stream<AssetsStatusEngineEvent> get assetsProgress =>
+      _dataProvider.assetsProgress;
 
   /// Decides what to do with incoming [ClientEvent] by passing it
   /// to a dedicated manager and returns the appropriate response in the form
@@ -181,12 +186,12 @@ class EventHandler {
     final storageDirPath = '$appDir/$kEnginePath';
     final assetFetcher = HttpAssetFetcher(config.assetsUrl);
     final manifestReader = createManifestReader();
-    final dataProvider = createDataProvider(
+    _dataProvider = createDataProvider(
       assetFetcher,
       manifestReader,
       storageDirPath,
     );
-    return dataProvider.getSetupData();
+    return _dataProvider.getSetupData();
   }
 
   Future<void> _initDatabase(String appDir) async {
