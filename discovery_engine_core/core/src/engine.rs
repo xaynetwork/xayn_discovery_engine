@@ -82,10 +82,14 @@ pub struct Engine<R> {
     #[allow(dead_code)]
     config: Config,
     stacks: HashMap<StackId, RwLock<Stack>>,
-    ranker: RwLock<R>,
+    ranker: R,
 }
 
-impl<R> Engine<R>
+impl<
+        // required for mock of Ops: conditional trait bounds aren't supported in the where clause
+        #[cfg(not(test))] R,
+        #[cfg(test)] R: Sync,
+    > Engine<R>
 where
     R: Ranker,
 {
@@ -134,8 +138,6 @@ where
             .collect::<Result<_, _>>()
             .map_err(Error::InvalidStack)?;
 
-        let ranker = RwLock::new(ranker);
-
         Ok(Engine {
             config,
             stacks,
@@ -146,6 +148,7 @@ where
     /// Serializes the state of the `Engine`.
     ///
     /// The result can be used with [`Engine::new`] to restore it.
+    #[allow(clippy::future_not_send)]
     pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
         let state = self
             .stacks
@@ -176,25 +179,25 @@ where
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
+    #[allow(clippy::future_not_send)]
     pub async fn get_feed_documents(&self, max_documents: usize) -> Result<Vec<Document>, Error> {
-        Selection::new(BetaSampler)
-            .select(self.stacks.values(), max_documents)
+        Selection::new(BetaSampler, self.stacks.values())
+            .select(max_documents)
             .await
             .map_err(|e| e.into())
     }
 
     /// Process the feedback about the user spending some time on a document.
-    pub async fn time_spent(&self, time_spent: &TimeSpent) -> Result<(), Error> {
-        self.ranker
-            .write()
-            .await
-            .log_document_view_time(time_spent)?;
+    #[allow(clippy::future_not_send)]
+    pub async fn time_spent(&mut self, time_spent: &TimeSpent) -> Result<(), Error> {
+        self.ranker.log_document_view_time(time_spent)?;
 
-        rank_stacks(self.stacks.values(), &self.ranker).await
+        rank_stacks(self.stacks.values(), &mut self.ranker).await
     }
 
     /// Process the feedback about the user reacting to a document.
-    pub async fn user_reacted(&self, reacted: &UserReacted) -> Result<(), Error> {
+    #[allow(clippy::future_not_send)]
+    pub async fn user_reacted(&mut self, reacted: &UserReacted) -> Result<(), Error> {
         self.stacks
             .get(&reacted.stack_id)
             .ok_or(Error::InvalidStackId(reacted.stack_id))?
@@ -202,19 +205,18 @@ where
             .await
             .update_relevance(reacted.reaction);
 
-        self.ranker.write().await.log_user_reaction(reacted)?;
+        self.ranker.log_user_reaction(reacted)?;
 
-        rank_stacks(self.stacks.values(), &self.ranker).await
+        rank_stacks(self.stacks.values(), &mut self.ranker).await
     }
 
+    /// Updates the stacks with data related to the top key phrases of the current data.
     #[allow(dead_code)]
-    async fn update_stacks<'a>(&'a self, top: usize) -> Result<(), Error>
-    where
-        R: 'a + Send + Sync,
-    {
-        let key_phrases = self.ranker.write().await.select_top_key_phrases(top);
+    #[allow(clippy::future_not_send)]
+    async fn update_stacks(&mut self, top: usize) -> Result<(), Error> {
+        let key_phrases = self.ranker.select_top_key_phrases(top);
         let key_phrases = &key_phrases;
-        let ranker = &self.ranker;
+        let ranker = &mut self.ranker;
 
         self.stacks
             .values()
@@ -232,7 +234,7 @@ where
                 stack
                     .write()
                     .await
-                    .update(&documents, self.ranker.write().await)
+                    .update(&documents, ranker)
                     .map_err(GenericError::from)
             })
             .await
@@ -241,7 +243,8 @@ where
 }
 
 /// The ranker could rank the documents in a different order so we update the stacks with it.
-async fn rank_stacks<'a, I, R>(stacks: I, ranker: &RwLock<R>) -> Result<(), Error>
+#[allow(clippy::future_not_send)]
+async fn rank_stacks<'a, I, R>(stacks: I, ranker: &mut R) -> Result<(), Error>
 where
     I: IntoIterator<Item = &'a RwLock<Stack>>,
     R: Ranker,
@@ -251,7 +254,7 @@ where
         .map(|stack| async move { stack })
         .collect::<FuturesUnordered<_>>()
         .fold(vec![], |mut errors, stack| async move {
-            if let Err(error) = stack.write().await.rank(ranker.write().await) {
+            if let Err(error) = stack.write().await.rank(ranker) {
                 errors.push(Error::StackOpFailed(error));
             }
 

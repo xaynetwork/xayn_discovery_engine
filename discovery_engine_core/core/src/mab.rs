@@ -65,6 +65,8 @@ pub(crate) trait Bucket<T> {
     fn pop(&mut self) -> Option<T>;
 }
 
+/// Samples the next element from the buckets.
+#[allow(clippy::future_not_send)]
 async fn pull_arms<BS, B, T>(beta_sampler: &BS, buckets: &[&RwLock<B>]) -> Option<Result<T, Error>>
 where
     BS: BetaSample,
@@ -101,30 +103,38 @@ where
     }
 }
 
-struct SelectionStream<'bs, 'b, BS, B, T>
-where
-    B: Bucket<T>,
-{
-    beta_sampler: &'bs BS,
+/// A stream to select elements from buckets.
+pub(crate) struct Selection<'b, BS, B, T> {
+    beta_sampler: BS,
     buckets: Vec<&'b RwLock<B>>,
     bucket_type: PhantomData<T>,
 }
 
-impl<'bs, 'b, BS, B, T> SelectionStream<'bs, 'b, BS, B, T>
-where
-    BS: BetaSample,
-    B: Bucket<T>,
-{
-    fn new(beta_sampler: &'bs BS, buckets: Vec<&'b RwLock<B>>) -> Self {
+impl<'b, BS, B, T> Selection<'b, BS, B, T> {
+    /// Creates a selective steam.
+    pub(crate) fn new<I>(beta_sampler: BS, buckets: I) -> Self
+    where
+        I: IntoIterator<Item = &'b RwLock<B>>,
+    {
         Self {
             beta_sampler,
-            buckets,
+            buckets: buckets.into_iter().collect(),
             bucket_type: PhantomData,
         }
     }
+
+    /// Selects n elements.
+    #[allow(clippy::future_not_send)]
+    pub(crate) async fn select(self, n: usize) -> Result<Vec<T>, Error>
+    where
+        BS: BetaSample,
+        B: Bucket<T>,
+    {
+        self.take(n).try_collect().await
+    }
 }
 
-impl<'bs, 'b, BS, B, T> Stream for SelectionStream<'bs, 'b, BS, B, T>
+impl<'b, BS, B, T> Stream for Selection<'b, BS, B, T>
 where
     BS: BetaSample,
     B: Bucket<T>,
@@ -132,35 +142,9 @@ where
     type Item = Result<T, Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let next = pull_arms(self.beta_sampler, &self.buckets);
+        let next = pull_arms(&self.beta_sampler, &self.buckets);
         pin_mut!(next);
         next.poll(cx)
-    }
-}
-
-pub(crate) struct Selection<BS> {
-    beta_sampler: BS,
-}
-
-impl<BS> Selection<BS> {
-    pub(crate) fn new(beta_sampler: BS) -> Self {
-        Self { beta_sampler }
-    }
-}
-
-impl<BS> Selection<BS>
-where
-    BS: BetaSample,
-{
-    pub(crate) async fn select<'b, I, B, T>(&self, buckets: I, n: usize) -> Result<Vec<T>, Error>
-    where
-        I: IntoIterator<Item = &'b RwLock<B>>,
-        B: 'b + Bucket<T>,
-    {
-        SelectionStream::new(&self.beta_sampler, buckets.into_iter().collect())
-            .take(n)
-            .try_collect()
-            .await
     }
 }
 
@@ -225,11 +209,14 @@ mod tests {
             docs: vec![4, 5, 6],
         });
 
-        let stacks = vec![&stack_0, &stack_1, &stack_2, &stack_3];
+        let docs = Selection::new(
+            MockBetaSampler,
+            vec![&stack_0, &stack_1, &stack_2, &stack_3],
+        )
+        .select(10)
+        .await
+        .unwrap();
 
-        let mab = Selection::new(MockBetaSampler);
-
-        let docs = mab.select(stacks, 10).await.unwrap();
         assert_eq!(docs[0], 3);
         assert_eq!(docs[1], 2);
         assert_eq!(docs[2], 1);

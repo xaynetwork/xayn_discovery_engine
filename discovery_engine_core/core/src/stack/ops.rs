@@ -15,18 +15,22 @@
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use tokio::sync::RwLock;
 
 use crate::{document::Document, engine::GenericError, ranker::Ranker, stack::Id};
 use xayn_ai::ranker::Embedding;
 
-// trait F: Fn(&str) -> Result<Embedding, GenericError> + Send {}
+// required for mock of Ops
+#[cfg(not(test))]
+pub(crate) type R<'a> = &'a mut dyn Ranker;
+#[cfg(test)]
+pub(crate) type R<'a> = &'a mut (dyn Ranker + Sync);
 
 /// Operations to customize the behaviour of a stack.
 ///
 /// Each stack can get and select new items using different sources
 /// or different strategies.
-// #[cfg_attr(test, automock)]
+#[cfg_attr(test, automock)]
+// automock must be placed before async_trait
 #[async_trait]
 pub trait Ops {
     /// Get the id for this set of operations.
@@ -39,10 +43,10 @@ pub trait Ops {
     ///
     /// Personalized key phrases can be optionally used to return items
     /// tailored to the user's interests.
-    async fn new_items(
+    async fn new_items<'a>(
         &self,
         key_phrases: &[String],
-        compute_smbert: &RwLock<dyn Ranker + Send + Sync>,
+        ranker: R<'a>,
     ) -> Result<Vec<Document>, GenericError>;
 
     /// Merge current and new items.
