@@ -25,7 +25,7 @@ import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentAdapter, DocumentFeedback;
+    show Document, DocumentAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
