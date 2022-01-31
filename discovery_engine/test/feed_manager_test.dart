@@ -59,36 +59,40 @@ Future<void> main() async {
   final mgr = FeedManager(engine, maxBatch, docRepo, activeRepo, changedRepo);
 
   group('FeedManager', () {
-    final data = ActiveDocumentData(Uint8List(0));
-    final dummy = WebResource.fromJson(<String, Object>{
-      'title': 'Example',
-      'displayUrl': 'domain.com',
-      'snippet': 'snippet',
-      'url': 'http://domain.com',
-      'datePublished': '1980-01-01T00:00:00.000000',
-      'provider': <String, String>{
-        'name': 'domain',
-        'thumbnail': 'http://thumbnail.domain.com',
-      },
-    });
-    final stackId = StackId();
-    final doc2 = Document(
-      stackId: stackId,
-      personalizedRank: 2,
-      webResource: dummy,
-      isActive: true,
-    );
-    final doc3 = Document(
-      stackId: stackId,
-      personalizedRank: 3,
-      webResource: dummy,
-      isActive: false,
-    );
-    final id2 = doc2.documentId;
-    final id3 = doc3.documentId;
+    late ActiveDocumentData data;
+    late Document doc2, doc3;
+    late DocumentId id2, id3;
     final id = DocumentId();
 
     setUp(() async {
+      data = ActiveDocumentData(Uint8List(0));
+      final dummy = WebResource.fromJson(<String, Object>{
+        'title': 'Example',
+        'displayUrl': 'domain.com',
+        'snippet': 'snippet',
+        'url': 'http://domain.com',
+        'datePublished': '1980-01-01T00:00:00.000000',
+        'provider': <String, String>{
+          'name': 'domain',
+          'thumbnail': 'http://thumbnail.domain.com',
+        },
+      });
+      final stackId = StackId();
+      doc2 = Document(
+        stackId: stackId,
+        personalizedRank: 2,
+        webResource: dummy,
+        isActive: true,
+      );
+      doc3 = Document(
+        stackId: stackId,
+        personalizedRank: 3,
+        webResource: dummy,
+        isActive: false,
+      );
+      id2 = doc2.documentId;
+      id3 = doc3.documentId;
+
       // doc2 is active & changed, doc3 is neither
       await docRepo.updateMany([doc2, doc3]);
       await activeRepo.update(id2, data);
@@ -101,13 +105,6 @@ Future<void> main() async {
       await docBox.clear();
       await activeBox.clear();
       await changedBox.clear();
-
-      // reset test data
-      doc2.isActive = true;
-      doc2.feedback = DocumentFeedback.neutral;
-      doc3.isActive = false;
-      doc3.feedback = DocumentFeedback.neutral;
-      data.viewTime.clear();
     });
 
     test('deactivate documents', () async {
