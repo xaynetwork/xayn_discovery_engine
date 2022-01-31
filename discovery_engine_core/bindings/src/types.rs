@@ -18,4 +18,5 @@ mod boxed;
 pub mod duration;
 pub mod slice;
 pub mod string;
+pub mod uuid;
 pub mod vec;
