@@ -13,20 +13,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io' show File, Directory;
+
 import 'package:crypto/crypto.dart' show sha256;
-import 'package:xayn_discovery_engine/src/api/api.dart'
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show
-        FetchingAssetsStarted,
-        FetchingAssetsProgressed,
-        FetchingAssetsFinished;
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
-    show Asset, AssetType;
-import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
-    show AssetFetcher;
-import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
-    show DataProvider, SetupData;
-import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
-    show ManifestReader;
+        Asset,
+        AssetType,
+        AssetFetcher,
+        AssetReporter,
+        DataProvider,
+        ManifestReader,
+        SetupData;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 const _baseAssetsPath = 'assets';
@@ -35,11 +32,14 @@ class NativeDataProvider extends DataProvider {
   @override
   final AssetFetcher assetFetcher;
   @override
+  final AssetReporter assetReporter;
+  @override
   final ManifestReader manifestReader;
   final String storageDirectoryPath;
 
   NativeDataProvider(
     this.assetFetcher,
+    this.assetReporter,
     this.manifestReader,
     this.storageDirectoryPath,
   );
@@ -52,17 +52,14 @@ class NativeDataProvider extends DataProvider {
     final paths = <AssetType, String>{};
     final manifest = await manifestReader.read();
 
-    // assets started fetching
-    assetsStatusCtrl.add(const FetchingAssetsStarted());
+    assetReporter.fetchingStarted(manifest);
 
     for (final asset in manifest.assets) {
       final path = await _getData(asset);
       paths.putIfAbsent(asset.id, () => path);
     }
 
-    // assets finished fetching
-    assetsStatusCtrl.add(const FetchingAssetsFinished());
-    await assetsStatusCtrl.close();
+    await assetReporter.fetchingFinished();
 
     return NativeSetupData(
       smbertVocab: paths[AssetType.smbertVocab]!,
@@ -99,11 +96,7 @@ class NativeDataProvider extends DataProvider {
     if (!doesExist) {
       final bytes = await assetFetcher.fetchAsset(
         asset,
-        onFetched: (urlSuffix) {
-          final currentCount = (fetchedAssets..add(urlSuffix)).length;
-          final progress = currentCount * 100 / manifestReader.fragmentsTotal;
-          assetsStatusCtrl.add(FetchingAssetsProgressed(progress));
-        },
+        onFetched: assetReporter.assetFetched,
       );
       await assetFile.writeAsBytes(bytes, flush: true);
     }
@@ -145,7 +138,13 @@ class NativeSetupData extends SetupData {
 
 DataProvider createDataProvider(
   final AssetFetcher assetFetcher,
+  final AssetReporter assetReporter,
   final ManifestReader manifestReader,
   final String storageDirectoryPath,
 ) =>
-    NativeDataProvider(assetFetcher, manifestReader, storageDirectoryPath);
+    NativeDataProvider(
+      assetFetcher,
+      assetReporter,
+      manifestReader,
+      storageDirectoryPath,
+    );

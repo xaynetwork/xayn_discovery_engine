@@ -12,12 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async' show StreamController;
-
-import 'package:xayn_discovery_engine/src/api/api.dart'
-    show AssetsStatusEngineEvent;
 import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
     show AssetFetcher;
+import 'package:xayn_discovery_engine/src/domain/assets/asset_reporter.dart'
+    show AssetReporter;
 import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
     show ManifestReader;
 
@@ -34,11 +32,8 @@ abstract class SetupData {
 /// Reads the assets manifest and provides the [SetupData] to further use.
 abstract class DataProvider {
   AssetFetcher get assetFetcher;
+  AssetReporter get assetReporter;
   ManifestReader get manifestReader;
-
-  final Set<String> fetchedAssets = {};
-  final assetsStatusCtrl = StreamController<AssetsStatusEngineEvent>();
-  Stream<AssetsStatusEngineEvent> get assetsProgress => assetsStatusCtrl.stream;
 
   Future<SetupData> getSetupData() {
     throw UnsupportedError('Unsupported platform.');

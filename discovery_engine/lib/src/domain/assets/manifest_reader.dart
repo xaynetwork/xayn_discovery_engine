@@ -17,18 +17,11 @@ import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Manifest;
 
 abstract class ManifestReader {
-  int fragmentsTotal = 0;
-
   /// Loads and returns the assets [Manifest].
   Future<Manifest> read() async {
     final jsonString = await loadManifestAsString();
     final json = jsonDecode(jsonString) as Map;
     final manifest = Manifest.fromJson(json.cast<String, Object>());
-    fragmentsTotal = manifest.assets.fold<int>(
-      0,
-      (sum, asset) =>
-          sum + (asset.fragments.isNotEmpty ? asset.fragments.length : 1),
-    );
     return manifest;
   }
 

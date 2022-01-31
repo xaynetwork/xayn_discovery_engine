@@ -34,7 +34,11 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   @override
   Converter<EngineEvent, Object> get responseConverter => _responseConverter;
 
-  DiscoveryEngineWorker(Object message) : super(message);
+  DiscoveryEngineWorker(Object message) : super(message) {
+    _handler.assetsProgress.listen((event) {
+      send(event as EngineEvent);
+    });
+  }
 
   Sender? _getSenderFromMessageOrNull(Object? incomingMessage) {
     if (incomingMessage == null) return null;
