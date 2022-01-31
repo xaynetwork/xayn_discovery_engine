@@ -17,12 +17,12 @@
 use std::{convert::TryFrom, time::Duration};
 
 use derivative::Derivative;
-use derive_more::{Deref, Display};
+use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
-use ndarray::{Array, Dimension, Ix1};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
+use xayn_ai::ranker::Embedding;
 
 use crate::stack::Id as StackId;
 
@@ -79,7 +79,7 @@ pub struct Document {
     pub domain: String,
 
     /// Embedding from smbert.
-    pub smbert_embedding: Embedding1,
+    pub smbert_embedding: Embedding,
 }
 
 /// Indicates user's "sentiment" towards the document,
@@ -98,23 +98,13 @@ pub enum UserReaction {
     Negative,
 }
 
-/// A d-dimensional sequence embedding.
-#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Default))]
-pub struct Embedding<D>(pub Array<f32, D>)
-where
-    D: Dimension;
-
-/// A 1-dimensional sequence embedding.
-pub type Embedding1 = Embedding<Ix1>;
-
 /// Log the time that has been spent on the document.
 pub struct TimeSpent {
     /// Id of the document.
     pub id: Id,
 
     /// Precomputed S-mBert of the document.
-    pub smbert: Embedding1,
+    pub smbert: Embedding,
 
     /// Time spent on the documents in seconds.
     pub seconds: Duration,
@@ -138,7 +128,7 @@ pub struct UserReacted {
     pub snippet: String,
 
     /// Precomputed S-mBert of the document.
-    pub smbert: Embedding1,
+    pub smbert: Embedding,
 
     /// Reaction.
     pub reaction: UserReaction,

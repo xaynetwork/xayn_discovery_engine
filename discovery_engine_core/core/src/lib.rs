@@ -29,6 +29,7 @@
 pub mod document;
 mod engine;
 mod mab;
+mod ranker;
 pub mod stack;
 mod utils;
 
