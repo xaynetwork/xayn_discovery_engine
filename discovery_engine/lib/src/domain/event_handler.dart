@@ -12,7 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async' show Completer;
 import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart' show Hive;
 import 'package:xayn_discovery_engine/src/api/api.dart'
@@ -20,6 +19,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ClientEvent,
         DocumentClientEvent,
         EngineEvent,
+        EngineExceptionRaised,
         EngineExceptionReason,
         FeedClientEvent,
         Init;
@@ -73,35 +73,50 @@ const kEnginePath = 'engine';
 const kDatabasePath = 'database';
 
 class EventHandler {
-  final _engineInitCompleter = Completer<bool>();
-
-  late final Engine _engine;
+  Future<Engine>? _engineFuture;
   late final DocumentRepository _documentRepository;
   late final ActiveDocumentDataRepository _activeDataRepository;
   late final ChangedDocumentRepository _changedDocumentRepository;
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
 
+  EngineExceptionRaised _handleInitError(Object e) {
+    logger.e(e);
+    _engineFuture = null;
+    final reason = e is AssetFetcherException
+        ? EngineExceptionReason.failedToGetAssets
+        : EngineExceptionReason.genericError;
+    return EngineExceptionRaised(reason);
+  }
+
   /// Decides what to do with incoming [ClientEvent] by passing it
   /// to a dedicated manager and returns the appropriate response in the in form
   /// of a proper [EngineEvent].
+  ///
+  /// This handler is invoked by a [ClientEvent]s stream listener, so it is
+  /// called each time there is a new event on the stream, without waiting for
+  /// previous events to finish processing.
   Future<EngineEvent> handleMessage(ClientEvent clientEvent) async {
     if (clientEvent is Init) {
-      return _initEngine(clientEvent.configuration);
+      try {
+        _engineFuture = _initEngine(clientEvent.configuration);
+        await _engineFuture;
+        return const EngineEvent.clientEventSucceeded();
+      } catch (e) {
+        return _handleInitError(e);
+      }
     }
 
-    if (!_engineInitCompleter.isCompleted) {
+    if (_engineFuture == null) {
       return const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
       );
     }
 
-    // if something went wrong during the engine initialisation the result
-    // of the future will be `false`
-    if (!await _engineInitCompleter.future) {
-      return const EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.engineDisposed,
-      );
+    try {
+      await _engineFuture;
+    } catch (e) {
+      return _handleInitError(e);
     }
 
     // prepare reposnses
@@ -125,49 +140,36 @@ class EventHandler {
     return response;
   }
 
-  Future<EngineEvent> _initEngine(Configuration config) async {
-    try {
-      // init hive
-      await _initDatabase(config.applicationDirectoryPath);
+  Future<Engine> _initEngine(Configuration config) async {
+    // init hive
+    await _initDatabase(config.applicationDirectoryPath);
 
-      // create repositories
-      _documentRepository = HiveDocumentRepository();
-      _activeDataRepository = HiveActiveDocumentDataRepository();
-      _changedDocumentRepository = HiveChangedDocumentRepository();
+    // create repositories
+    _documentRepository = HiveDocumentRepository();
+    _activeDataRepository = HiveActiveDocumentDataRepository();
+    _changedDocumentRepository = HiveChangedDocumentRepository();
 
-      // fetch AI assets
-      await _fetchAssets(config);
+    // fetch AI assets
+    await _fetchAssets(config);
 
-      // init the engine
-      // TODO: replace with real engine and pass in setup data
-      _engine = MockEngine();
+    // init the engine
+    // TODO: replace with real engine and pass in setup data
+    final engine = MockEngine();
 
-      // init managers
-      _documentManager = DocumentManager(
-        _engine,
-        _documentRepository,
-        _activeDataRepository,
-        _changedDocumentRepository,
-      );
-      _feedManager =
-          FeedManager(_documentManager, _engine, config.maxItemsPerFeedBatch);
+    // init managers
+    _documentManager = DocumentManager(
+      engine,
+      _documentRepository,
+      _activeDataRepository,
+      _changedDocumentRepository,
+    );
+    _feedManager = FeedManager(
+      _documentManager,
+      engine,
+      config.maxItemsPerFeedBatch,
+    );
 
-      // complete future
-      _engineInitCompleter.complete(true);
-
-      return const EngineEvent.clientEventSucceeded();
-    } catch (e) {
-      final reason = e is AssetFetcherException
-          ? EngineExceptionReason.failedToGetAssets
-          : EngineExceptionReason.genericError;
-
-      _engineInitCompleter.complete(false);
-
-      // log the error
-      logger.e(e);
-
-      return EngineEvent.engineExceptionRaised(reason);
-    }
+    return engine;
   }
 
   Future<SetupData> _fetchAssets(Configuration config) async {
@@ -180,8 +182,7 @@ class EventHandler {
       manifestReader,
       storageDirPath,
     );
-    final setupData = await dataProvider.getSetupData();
-    return setupData;
+    return dataProvider.getSetupData();
   }
 
   Future<void> _initDatabase(String appDir) async {
