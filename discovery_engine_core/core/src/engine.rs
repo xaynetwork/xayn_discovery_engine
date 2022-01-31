@@ -244,11 +244,10 @@ where
 
 /// The ranker could rank the documents in a different order so we update the stacks with it.
 #[allow(clippy::future_not_send)]
-async fn rank_stacks<'a, I, R>(stacks: I, ranker: &mut R) -> Result<(), Error>
-where
-    I: IntoIterator<Item = &'a RwLock<Stack>>,
-    R: Ranker,
-{
+async fn rank_stacks<'a>(
+    stacks: impl IntoIterator<Item = &'a RwLock<Stack>>,
+    ranker: &mut impl Ranker,
+) -> Result<(), Error> {
     let errors = stacks
         .into_iter()
         .map(|stack| async move { stack })

@@ -57,21 +57,23 @@ impl BetaSample for BetaSampler {
 pub(crate) trait Bucket<T> {
     /// Returns the alpha parameter of the beta distribution.
     fn alpha(&self) -> f32;
+
     /// Returns the beta parameter of the beta distribution.
     fn beta(&self) -> f32;
+
     /// Checks if the bucket is empty.
     fn is_empty(&self) -> bool;
+
     /// Removes the next best element from this bucket and returns it, or `None` if it is empty.
     fn pop(&mut self) -> Option<T>;
 }
 
 /// Samples the next element from the buckets.
 #[allow(clippy::future_not_send)]
-async fn pull_arms<BS, B, T>(beta_sampler: &BS, buckets: &[&RwLock<B>]) -> Option<Result<T, Error>>
-where
-    BS: BetaSample,
-    B: Bucket<T>,
-{
+async fn pull_arms<T>(
+    beta_sampler: &impl BetaSample,
+    buckets: &[&RwLock<impl Bucket<T>>],
+) -> Option<Result<T, Error>> {
     match buckets
         .iter()
         .map(|&bucket| async move { bucket })
@@ -112,10 +114,7 @@ pub(crate) struct Selection<'b, BS, B, T> {
 
 impl<'b, BS, B, T> Selection<'b, BS, B, T> {
     /// Creates a selective steam.
-    pub(crate) fn new<I>(beta_sampler: BS, buckets: I) -> Self
-    where
-        I: IntoIterator<Item = &'b RwLock<B>>,
-    {
+    pub(crate) fn new(beta_sampler: BS, buckets: impl IntoIterator<Item = &'b RwLock<B>>) -> Self {
         Self {
             beta_sampler,
             buckets: buckets.into_iter().collect(),

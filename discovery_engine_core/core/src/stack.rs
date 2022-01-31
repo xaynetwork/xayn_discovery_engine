@@ -41,9 +41,6 @@ pub enum Error {
     /// Failed to merge current documents with new ones.
     Merge(#[source] GenericError),
 
-    /// Failed to get new items.
-    NewItems(#[source] GenericError),
-
     /// Failed to rank documents when updating the stack: {0}.
     Ranking(#[source] GenericError),
 

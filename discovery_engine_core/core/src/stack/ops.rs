@@ -16,14 +16,14 @@ use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 
-use crate::{document::Document, engine::GenericError, ranker::Ranker, stack::Id};
+use crate::{document::Document, engine::GenericError, ranker, stack::Id};
 use xayn_ai::ranker::Embedding;
 
 // required for mock of Ops
 #[cfg(not(test))]
-pub(crate) type R<'a> = &'a mut dyn Ranker;
+pub(crate) type R<'a> = &'a mut dyn ranker::Ranker;
 #[cfg(test)]
-pub(crate) type R<'a> = &'a mut (dyn Ranker + Sync);
+pub(crate) type R<'a> = &'a mut (dyn ranker::Ranker + Sync);
 
 /// Operations to customize the behaviour of a stack.
 ///
@@ -46,7 +46,7 @@ pub trait Ops {
     async fn new_items<'a>(
         &self,
         key_phrases: &[String],
-        ranker: R<'a>,
+        ranker: Ranker<'a>,
     ) -> Result<Vec<Document>, GenericError>;
 
     /// Merge current and new items.
