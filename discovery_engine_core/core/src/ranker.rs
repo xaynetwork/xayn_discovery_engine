@@ -29,6 +29,9 @@ pub trait Ranker {
 
     /// Logs a user's interaction.
     fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
+
+    /// Selects the top key phrases from the positive cois, sorted in descending relevance.
+    fn select_top_key_phrases(&mut self, top: usize) -> Vec<String>;
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
@@ -52,6 +55,10 @@ impl Ranker for xayn_ai::ranker::Ranker {
             &reaction.smbert,
         );
         Ok(())
+    }
+
+    fn select_top_key_phrases(&mut self, top: usize) -> Vec<String> {
+        todo!(/* expose KeyPhrase in xayn_ai */)
     }
 }
 

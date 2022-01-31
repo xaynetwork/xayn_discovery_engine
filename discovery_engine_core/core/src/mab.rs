@@ -12,11 +12,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, marker::PhantomData};
+use std::{
+    cmp::Ordering,
+    future::Future,
+    marker::PhantomData,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use displaydoc::Display;
+use futures::{
+    pin_mut,
+    stream::{FuturesUnordered, Stream, StreamExt, TryStreamExt},
+};
 use rand_distr::{Beta, BetaError, Distribution};
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 use crate::utils::nan_safe_f32_cmp;
 
@@ -48,54 +59,63 @@ pub(crate) trait Bucket<T> {
     fn alpha(&self) -> f32;
     /// Returns the beta parameter of the beta distribution.
     fn beta(&self) -> f32;
-    /// Returns `true` if the bucket contains no elements.
+    /// Checks if the bucket is empty.
     fn is_empty(&self) -> bool;
     /// Removes the next best element from this bucket and returns it, or `None` if it is empty.
     fn pop(&mut self) -> Option<T>;
 }
 
-fn pull_arms<B, T>(beta_sampler: &impl BetaSample, buckets: &mut [&mut B]) -> Result<T, Error>
+async fn pull_arms<BS, B, T>(beta_sampler: &BS, buckets: &[&RwLock<B>]) -> Option<Result<T, Error>>
 where
+    BS: BetaSample,
     B: Bucket<T>,
 {
-    let sample_from_bucket = |bucket: &B| beta_sampler.sample(bucket.alpha(), bucket.beta());
-
-    let mut buckets = buckets.iter_mut();
-
-    let first_bucket = buckets.next().ok_or(Error::NoBucketsToPull)?;
-    let first_sample = sample_from_bucket(first_bucket)?;
-
-    let bucket = buckets
-        .try_fold(
-            (first_sample, first_bucket),
-            |max, bucket| -> Result<_, Error> {
-                let sample = sample_from_bucket(bucket)?;
-                if let Ordering::Greater = nan_safe_f32_cmp(&sample, &max.0) {
-                    Ok((sample, bucket))
+    match buckets
+        .iter()
+        .map(|&bucket| async move { bucket })
+        .collect::<FuturesUnordered<_>>()
+        .filter_map(|bucket| async move {
+            let br = bucket.read().await;
+            (!br.is_empty()).then(|| {
+                beta_sampler
+                    .sample(br.alpha(), br.beta())
+                    .map(|sample| (sample, bucket))
+            })
+        })
+        .try_fold(None, |max, current| async move {
+            if let Some((max_sample, _)) = max {
+                if let Ordering::Greater = nan_safe_f32_cmp(&current.0, &max_sample) {
+                    Ok(Some(current))
                 } else {
                     Ok(max)
                 }
-            },
-        )?
-        .1;
-
-    bucket.pop().ok_or(Error::EmptyBucket)
+            } else {
+                Ok(Some(current))
+            }
+        })
+        .await
+    {
+        Ok(Some((_, bucket))) => bucket.write().await.pop().map(Ok),
+        Ok(None) => None,
+        Err(error) => Some(Err(error)),
+    }
 }
 
-struct SelectionIter<'bs, 'b, BS, B, T>
+struct SelectionStream<'bs, 'b, BS, B, T>
 where
     B: Bucket<T>,
 {
     beta_sampler: &'bs BS,
-    buckets: Vec<&'b mut B>,
+    buckets: Vec<&'b RwLock<B>>,
     bucket_type: PhantomData<T>,
 }
 
-impl<'bs, 'b, BS, B, T> SelectionIter<'bs, 'b, BS, B, T>
+impl<'bs, 'b, BS, B, T> SelectionStream<'bs, 'b, BS, B, T>
 where
+    BS: BetaSample,
     B: Bucket<T>,
 {
-    fn new(beta_sampler: &'bs BS, buckets: Vec<&'b mut B>) -> Self {
+    fn new(beta_sampler: &'bs BS, buckets: Vec<&'b RwLock<B>>) -> Self {
         Self {
             beta_sampler,
             buckets,
@@ -104,27 +124,17 @@ where
     }
 }
 
-impl<'bs, 'b, BS, B, T> Iterator for SelectionIter<'bs, 'b, BS, B, T>
+impl<'bs, 'b, BS, B, T> Stream for SelectionStream<'bs, 'b, BS, B, T>
 where
     BS: BetaSample,
     B: Bucket<T>,
 {
     type Item = Result<T, Error>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut buckets = vec![];
-        std::mem::swap(&mut self.buckets, &mut buckets);
-
-        self.buckets = buckets
-            .into_iter()
-            .filter(|bucket| !bucket.is_empty())
-            .collect::<Vec<&mut B>>();
-
-        if self.buckets.is_empty() {
-            None
-        } else {
-            Some(pull_arms(self.beta_sampler, &mut self.buckets))
-        }
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let next = pull_arms(self.beta_sampler, &self.buckets);
+        pin_mut!(next);
+        next.poll(cx)
     }
 }
 
@@ -142,17 +152,22 @@ impl<BS> Selection<BS>
 where
     BS: BetaSample,
 {
-    pub(crate) fn select<B, T>(&self, buckets: Vec<&mut B>, n: u32) -> Result<Vec<T>, Error>
+    pub(crate) async fn select<'b, I, B, T>(&self, buckets: I, n: usize) -> Result<Vec<T>, Error>
     where
-        B: Bucket<T>,
+        I: IntoIterator<Item = &'b RwLock<B>>,
+        B: 'b + Bucket<T>,
     {
-        let selection = SelectionIter::new(&self.beta_sampler, buckets);
-        selection.take(n as usize).collect()
+        SelectionStream::new(&self.beta_sampler, buckets.into_iter().collect())
+            .take(n)
+            .try_collect()
+            .await
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use tokio::sync::RwLock;
+
     use super::*;
 
     struct MockBetaSampler;
@@ -187,34 +202,34 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_selection() {
-        let mut stack_0 = Stack {
+    #[tokio::test]
+    async fn test_selection() {
+        let stack_0 = RwLock::new(Stack {
             alpha: 0.01,
             beta: 1.0,
             docs: vec![],
-        };
-        let mut stack_1 = Stack {
+        });
+        let stack_1 = RwLock::new(Stack {
             alpha: 0.01,
             beta: 1.0,
             docs: vec![0],
-        };
-        let mut stack_2 = Stack {
+        });
+        let stack_2 = RwLock::new(Stack {
             alpha: 1.0,
             beta: 0.001,
             docs: vec![1, 2, 3],
-        };
-        let mut stack_3 = Stack {
+        });
+        let stack_3 = RwLock::new(Stack {
             alpha: 0.001,
             beta: 1.0,
             docs: vec![4, 5, 6],
-        };
+        });
 
-        let stacks = vec![&mut stack_0, &mut stack_1, &mut stack_2, &mut stack_3];
+        let stacks = vec![&stack_0, &stack_1, &stack_2, &stack_3];
 
         let mab = Selection::new(MockBetaSampler);
 
-        let docs = mab.select(stacks, 10).unwrap();
+        let docs = mab.select(stacks, 10).await.unwrap();
         assert_eq!(docs[0], 3);
         assert_eq!(docs[1], 2);
         assert_eq!(docs[2], 1);

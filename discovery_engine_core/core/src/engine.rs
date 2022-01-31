@@ -15,7 +15,9 @@
 use std::collections::HashMap;
 
 use displaydoc::Display;
+use futures::stream::{FuturesUnordered, StreamExt, TryStreamExt};
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 use crate::{
     document::{Document, TimeSpent, UserReacted},
@@ -79,8 +81,8 @@ pub struct Config {
 pub struct Engine<R> {
     #[allow(dead_code)]
     config: Config,
-    stacks: HashMap<StackId, Stack>,
-    ranker: R,
+    stacks: HashMap<StackId, RwLock<Stack>>,
+    ranker: RwLock<R>,
 }
 
 impl<R> Engine<R>
@@ -119,8 +121,7 @@ where
             return Err(Error::NoStackOps);
         }
 
-        let mut stacks_data: HashMap<StackId, StackData> =
-            bincode::deserialize(state).map_err(Error::Deserialization)?;
+        let mut stacks_data = Self::deserialize(state)?;
 
         let stacks = stacks_ops
             .into_iter()
@@ -128,10 +129,12 @@ where
                 let id = ops.id();
                 let data = stacks_data.remove(&id).unwrap_or_default();
 
-                Stack::new(data, ops).map(|stack| (id, stack))
+                Stack::new(data, ops).map(|stack| (id, RwLock::new(stack)))
             })
             .collect::<Result<_, _>>()
             .map_err(Error::InvalidStack)?;
+
+        let ranker = RwLock::new(ranker);
 
         Ok(Engine {
             config,
@@ -143,60 +146,118 @@ where
     /// Serializes the state of the `Engine`.
     ///
     /// The result can be used with [`Engine::new`] to restore it.
-    pub fn serialize(&self) -> Result<Vec<u8>, Error> {
-        let stacks_data: HashMap<&StackId, &StackData> = self
+    pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
+        let state = self
             .stacks
             .iter()
-            .map(|(id, stack)| (id, &stack.data))
-            .collect();
+            .map(|(&id, stack)| async move {
+                bincode::serialize(&stack.read().await.data)
+                    .map(|data| (id, data))
+                    .map_err(Error::Serialization)
+            })
+            .collect::<FuturesUnordered<_>>()
+            .try_collect::<HashMap<_, _>>()
+            .await?;
 
-        bincode::serialize(&stacks_data).map_err(Error::Serialization)
+        bincode::serialize(&state).map_err(Error::Serialization)
+    }
+
+    /// Deserializes the state of the engine.
+    fn deserialize(state: &[u8]) -> Result<HashMap<StackId, StackData>, Error> {
+        bincode::deserialize::<HashMap<_, Vec<_>>>(state)
+            .map_err(Error::Deserialization)?
+            .into_iter()
+            .map(|(id, data)| {
+                bincode::deserialize(&data)
+                    .map(|data| (id, data))
+                    .map_err(Error::Deserialization)
+            })
+            .collect()
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
-    pub async fn get_feed_documents(&mut self, max_documents: u32) -> Result<Vec<Document>, Error>
-    where
-        R: Send + Sync,
-    {
+    pub async fn get_feed_documents(&self, max_documents: usize) -> Result<Vec<Document>, Error> {
         Selection::new(BetaSampler)
-            .select(self.stacks.values_mut().collect(), max_documents)
+            .select(self.stacks.values(), max_documents)
+            .await
             .map_err(|e| e.into())
     }
 
     /// Process the feedback about the user spending some time on a document.
-    pub fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), Error> {
-        self.ranker.log_document_view_time(time_logged)?;
+    pub async fn time_spent(&self, time_spent: &TimeSpent) -> Result<(), Error> {
+        self.ranker
+            .write()
+            .await
+            .log_document_view_time(time_spent)?;
 
-        rank_stacks(self.stacks.values_mut(), &mut self.ranker)
+        rank_stacks(self.stacks.values(), &self.ranker).await
     }
 
     /// Process the feedback about the user reacting to a document.
-    pub fn user_reacted(&mut self, reacted: &UserReacted) -> Result<(), Error> {
-        let stack = self
-            .stacks
-            .get_mut(&reacted.stack_id)
-            .ok_or(Error::InvalidStackId(reacted.stack_id))?;
+    pub async fn user_reacted(&self, reacted: &UserReacted) -> Result<(), Error> {
+        self.stacks
+            .get(&reacted.stack_id)
+            .ok_or(Error::InvalidStackId(reacted.stack_id))?
+            .write()
+            .await
+            .update_relevance(reacted.reaction);
 
-        stack.update_relevance(reacted.reaction);
+        self.ranker.write().await.log_user_reaction(reacted)?;
 
-        self.ranker.log_user_reaction(reacted)?;
+        rank_stacks(self.stacks.values(), &self.ranker).await
+    }
 
-        rank_stacks(self.stacks.values_mut(), &mut self.ranker)
+    #[allow(dead_code)]
+    async fn update_stacks<'a>(&'a self, top: usize) -> Result<(), Error>
+    where
+        R: 'a + Send + Sync,
+    {
+        let key_phrases = self.ranker.write().await.select_top_key_phrases(top);
+        let key_phrases = &key_phrases;
+        let ranker = &self.ranker;
+
+        self.stacks
+            .values()
+            .map(|stack| async move {
+                stack
+                    .read()
+                    .await
+                    .ops
+                    .new_items(key_phrases, ranker)
+                    .await
+                    .map(|documents| (stack, documents))
+            })
+            .collect::<FuturesUnordered<_>>()
+            .try_for_each(|(stack, documents)| async move {
+                stack
+                    .write()
+                    .await
+                    .update(&documents, self.ranker.write().await)
+                    .map_err(GenericError::from)
+            })
+            .await
+            .map_err(Into::into)
     }
 }
 
 /// The ranker could rank the documents in a different order so we update the stacks with it.
-fn rank_stacks<'a, R: Ranker>(
-    stacks: impl Iterator<Item = &'a mut Stack>,
-    ranker: &mut R,
-) -> Result<(), Error> {
-    let errors = stacks.fold(vec![], |mut errors, stack| {
-        if let Err(e) = stack.rank(ranker).map_err(Error::StackOpFailed) {
-            errors.push(e);
-        }
+async fn rank_stacks<'a, I, R>(stacks: I, ranker: &RwLock<R>) -> Result<(), Error>
+where
+    I: IntoIterator<Item = &'a RwLock<Stack>>,
+    R: Ranker,
+{
+    let errors = stacks
+        .into_iter()
+        .map(|stack| async move { stack })
+        .collect::<FuturesUnordered<_>>()
+        .fold(vec![], |mut errors, stack| async move {
+            if let Err(error) = stack.write().await.rank(ranker.write().await) {
+                errors.push(Error::StackOpFailed(error));
+            }
 
-        errors
-    });
+            errors
+        })
+        .await;
 
     if errors.is_empty() {
         Ok(())
