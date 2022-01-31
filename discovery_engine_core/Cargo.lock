@@ -2370,6 +2370,10 @@ dependencies = [
  "async-bindgen-gen-dart",
  "cbindgen",
  "heck 0.4.0",
+ "ndarray",
+ "rand 0.8.4",
+ "uuid",
+ "xayn-discovery-engine-core",
 ]
 
 [[package]]

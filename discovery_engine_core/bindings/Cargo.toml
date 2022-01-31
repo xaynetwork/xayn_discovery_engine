@@ -4,11 +4,20 @@ version = "0.1.0"
 edition = "2018"
 license = "AGPL-3.0-only"
 
+[features]
+default = ["additional-ffi-methods"]
+additional-ffi-methods = []
+
 [dependencies]
 async-bindgen = "0.1.0"
+core = { package = "xayn-discovery-engine-core", path = "../core" }
+ndarray = "=0.15.3"
+uuid = "0.8.2"
 
 [dev-dependencies]
 async-bindgen-gen-dart = "0.1.0"
+rand = "0.8.4"
+uuid = { version = "0.8.2", features = ["v4"] }
 
 [build-dependencies]
 cbindgen = "=0.20.0"

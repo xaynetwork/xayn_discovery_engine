@@ -24,9 +24,10 @@
     unsafe_op_in_unsafe_fn
 )]
 #![warn(missing_docs, unreachable_pub)]
-#![allow(clippy::must_use_candidate)]
+#![allow(clippy::must_use_candidate, clippy::module_name_repetitions)]
 
-mod async_bindings;
+pub mod async_bindings;
+pub mod types;
 
 #[async_bindgen::api]
 impl AsyncCore {
