@@ -24,36 +24,27 @@ import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
-    show ChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 
 /// Business logic concerning the management of documents.
 class DocumentManager {
   final Engine _engine;
-  final DocumentRepository documentRepo;
-  final ActiveDocumentDataRepository activeRepo;
-  final ChangedDocumentRepository _changedRepo;
+  final DocumentRepository _documentRepo;
+  final ActiveDocumentDataRepository _activeRepo;
 
-  DocumentManager(
-    this._engine,
-    this.documentRepo,
-    this.activeRepo,
-    this._changedRepo,
-  );
+  DocumentManager(this._engine, this._documentRepo, this._activeRepo);
 
   /// Handle the given document client event.
   ///
   /// Fails if the event [evt] does not have a handler implemented.
-  Future<void> handleDocumentClientEvent(DocumentClientEvent evt) async {
-    await evt.maybeWhen(
-      documentFeedbackChanged: (id, fdbk) => updateDocumentFeedback(id, fdbk),
-      documentTimeSpent: (id, mode, sec) =>
-          addActiveDocumentTime(id, mode, sec),
-      orElse: throw UnimplementedError('handler not implemented for $evt'),
-    );
-  }
+  Future<void> handleDocumentClientEvent(DocumentClientEvent evt) =>
+      evt.maybeWhen(
+        documentFeedbackChanged: (id, fdbk) => updateDocumentFeedback(id, fdbk),
+        documentTimeSpent: (id, mode, sec) =>
+            addActiveDocumentTime(id, mode, sec),
+        orElse: throw UnimplementedError('handler not implemented for $evt'),
+      );
 
   /// Update feedback for the given document.
   ///
@@ -62,12 +53,12 @@ class DocumentManager {
     DocumentId id,
     DocumentFeedback feedback,
   ) async {
-    final doc = await documentRepo.fetchById(id);
+    final doc = await _documentRepo.fetchById(id);
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
     }
-    await documentRepo.update(doc..feedback = feedback);
-    final smbertEmbedding = await activeRepo.smbertEmbeddingById(id);
+    await _documentRepo.update(doc..feedback = feedback);
+    final smbertEmbedding = await _activeRepo.smbertEmbeddingById(id);
     if (smbertEmbedding == null) {
       throw StateError('id $id does not have active data attached');
     }
@@ -83,16 +74,6 @@ class DocumentManager {
     );
   }
 
-  /// Deactivate the given documents.
-  Future<void> deactivateDocuments(Set<DocumentId> ids) async {
-    await activeRepo.removeByIds(ids);
-    await _changedRepo.removeMany(ids);
-
-    final docs = await documentRepo.fetchByIds(ids);
-    final inactives = docs.map((doc) => doc..isActive = false);
-    await documentRepo.updateMany(inactives);
-  }
-
   /// Add additional viewing time for the given active document.
   ///
   /// Fails if [sec] is negative or [id] does not identify an active document.
@@ -104,12 +85,12 @@ class DocumentManager {
     if (sec < 0) {
       throw RangeError.range(sec, 0, null);
     }
-    final activeData = await activeRepo.fetchById(id);
+    final activeData = await _activeRepo.fetchById(id);
     if (activeData == null) {
       throw ArgumentError('id $id does not identify an active document');
     }
     activeData.addViewTime(mode, Duration(seconds: sec));
-    await activeRepo.update(id, activeData);
+    await _activeRepo.update(id, activeData);
 
     // As we don't have a `DocumentViewMode` on the Rust side at the moment,
     // we need to decide which value to use or to aggregate all view modes.

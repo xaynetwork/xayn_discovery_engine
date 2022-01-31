@@ -55,7 +55,7 @@ Future<void> main() async {
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
 
-  final mgr = DocumentManager(engine, docRepo, activeRepo, changedRepo);
+  final mgr = DocumentManager(engine, docRepo, activeRepo);
 
   group('DocumentManager', () {
     final data = ActiveDocumentData(Uint8List(0));
@@ -147,20 +147,6 @@ Future<void> main() async {
       expect(activeBox, hasLength(1));
       expect(await activeRepo.fetchById(id1), equals(data));
       expect(await changedRepo.fetchAll(), equals([id1]));
-    });
-
-    test('deactivate documents', () async {
-      await mgr.deactivateDocuments({id1, id2, id3});
-
-      // id1 should be removed from active and changed repos
-      expect(activeBox, isEmpty);
-      expect(changedBox, isEmpty);
-
-      // document id1 should be deactivated
-      expect(
-        docBox.values,
-        unorderedEquals(<Document>[doc1..isActive = false, doc2]),
-      );
     });
 
     test('add negative document time', () async {
