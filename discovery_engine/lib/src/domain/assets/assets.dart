@@ -11,6 +11,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 export 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Manifest, Asset, AssetType, Checksum, Fragment;
 export 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'

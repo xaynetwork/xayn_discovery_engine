@@ -42,7 +42,7 @@ abstract class AssetFetcher {
   }
 }
 
-/// Thrown when a there is an issue with downloading AI assets.
+/// Thrown when there is an issue with downloading AI assets.
 class AssetFetcherException implements Exception {
   /// Message (or string representation of the exception).
   final String message;

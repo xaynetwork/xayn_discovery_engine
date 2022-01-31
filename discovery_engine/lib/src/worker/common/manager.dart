@@ -154,11 +154,11 @@ abstract class Manager<Request extends Object, Response extends Object> {
   /// and the request is wrapped together with Sender's port in a [OneshotRequest].
   ///
   /// The response message from the Worker is deserialized to an appropriate
-  /// [Request] and retured to the caller.
+  /// [Request] and returned to the caller.
   Future<Response> send(
     Request event, {
     Duration? timeout,
-    bool shouldTimeout = true,
+    bool enableTimeout = true,
   }) async {
     if (_responseController.isClosed) {
       throw ManagerDisposedException(
@@ -176,7 +176,7 @@ abstract class Manager<Request extends Object, Response extends Object> {
     // Wait for a message and convert it to proper [Response] object
     var responseFuture = channel.receiver.receive();
 
-    if (shouldTimeout) {
+    if (enableTimeout) {
       // Wait for [Response] message only for a specified
       // [Duration], otherwise throw a timeout exception
       responseFuture = responseFuture.timeout(

@@ -83,7 +83,7 @@ class EventHandler {
   late final FeedManager _feedManager;
 
   /// Decides what to do with incoming [ClientEvent] by passing it
-  /// to a dedicated manager and returns apropriate reponse in form
+  /// to a dedicated manager and returns the appropriate response in the in form
   /// of a proper [EngineEvent].
   Future<EngineEvent> handleMessage(ClientEvent clientEvent) async {
     if (clientEvent is Init) {
@@ -114,6 +114,9 @@ class EventHandler {
         await _documentManager.handleDocumentClientEvent(clientEvent);
       }
     } catch (e) {
+      // log the error
+      logger.e(e);
+
       response = const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
       );
@@ -154,11 +157,9 @@ class EventHandler {
 
       return const EngineEvent.clientEventSucceeded();
     } catch (e) {
-      var reason = EngineExceptionReason.genericError;
-
-      if (e is AssetFetcherException) {
-        reason = EngineExceptionReason.failedToGetAssets;
-      }
+      final reason = e is AssetFetcherException
+          ? EngineExceptionReason.failedToGetAssets
+          : EngineExceptionReason.genericError;
 
       _engineInitCompleter.complete(false);
 
@@ -207,7 +208,7 @@ class EventHandler {
     try {
       await Hive.openBox<T>(name);
     } catch (e) {
-      /// Some browsers (ie. Firefox) are not allowing the use of IndexedDB
+      /// Some browsers (e.g. Firefox) are not allowing the use of IndexedDB
       /// in `Private Mode`, so we need to use Hive in-memory instead
       await Hive.openBox<T>(name, bytes: Uint8List(0));
     }
