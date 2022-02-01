@@ -90,7 +90,7 @@ class DocumentManager {
       throw ArgumentError('id $id does not identify an active document');
     }
     final doc = await _documentRepo.fetchById(id);
-    if (doc == null) {
+    if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
     }
 
