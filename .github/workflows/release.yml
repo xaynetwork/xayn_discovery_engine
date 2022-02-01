@@ -34,7 +34,6 @@ jobs:
         with:
           dart: true
           rust: true
-          #flutter: true  # why did we flutter pub get before?
 
       - name: Get current branch
         shell: bash

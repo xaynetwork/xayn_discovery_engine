@@ -144,7 +144,7 @@ dart-test: rust-build dart-build
     dart test
 
 # Tests rust
-rust-test: rust-build
+rust-test: _codegen-order-workaround
     #!/usr/bin/env sh
     set -eux
     cd "$RUST_WORKSPACE";
@@ -259,9 +259,6 @@ ci-setup-release-repo $BRANCH do_push="--do-push": deps dart-build
             echo "To push use:  git push -u origin HEAD:$BRANCH"
         fi
     fi
-
-print-env:
-    export
 
 alias d := dart-test
 alias r := rust-test
