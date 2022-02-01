@@ -91,6 +91,7 @@ class MockEngine implements Engine {
     DocumentId docId, {
     required Uint8List smbertEmbedding,
     required Duration seconds,
+    required DocumentFeedback reaction,
   }) {
     _incrementCount('timeLogged');
   }

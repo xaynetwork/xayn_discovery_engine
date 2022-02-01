@@ -89,6 +89,11 @@ class DocumentManager {
     if (activeData == null) {
       throw ArgumentError('id $id does not identify an active document');
     }
+    final doc = await _documentRepo.fetchById(id);
+    if (doc == null) {
+      throw ArgumentError('id $id does not identify an active document');
+    }
+
     activeData.addViewTime(mode, Duration(seconds: sec));
     await _activeRepo.update(id, activeData);
 
@@ -101,6 +106,7 @@ class DocumentManager {
       id,
       smbertEmbedding: activeData.smbertEmbedding,
       seconds: sumDuration,
+      reaction: doc.feedback,
     );
   }
 }

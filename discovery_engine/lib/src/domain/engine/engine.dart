@@ -31,6 +31,7 @@ abstract class Engine {
     DocumentId docId, {
     required Uint8List smbertEmbedding,
     required Duration seconds,
+    required DocumentFeedback reaction,
   });
 
   /// Process the feedback about the user reacting to a document.
