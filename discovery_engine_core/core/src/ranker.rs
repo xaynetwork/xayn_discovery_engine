@@ -38,7 +38,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
 
     fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), GenericError> {
         self.log_document_view_time(
-            (&time_logged.reaction).into(),
+            time_logged.reaction.into(),
             &time_logged.smbert,
             time_logged.seconds,
         );
@@ -47,7 +47,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
 
     fn user_reacted(&mut self, reaction: &UserReacted) -> Result<(), GenericError> {
         self.log_user_reaction(
-            (&reaction.reaction).into(),
+            reaction.reaction.into(),
             &reaction.snippet,
             &reaction.smbert,
         );
