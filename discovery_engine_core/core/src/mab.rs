@@ -16,6 +16,7 @@ use std::{
     cmp::Ordering,
     future::Future,
     marker::PhantomData,
+    ops::Deref,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -68,38 +69,28 @@ pub(crate) trait Bucket<T> {
     fn pop(&mut self) -> Option<T>;
 }
 
-/// Samples the next element from the buckets.
-#[allow(clippy::future_not_send)]
-async fn pull_arms<T>(
+/// Samples the next bucket.
+fn pull_arms<T>(
     beta_sampler: &impl BetaSample,
-    buckets: &[&RwLock<impl Bucket<T>>],
-) -> Option<Result<T, Error>> {
+    buckets: &[impl Deref<Target = impl Bucket<T>>],
+) -> Option<Result<usize, Error>> {
     match buckets
         .iter()
-        .map(|&bucket| async move { bucket })
-        .collect::<FuturesUnordered<_>>()
-        .filter_map(|bucket| async move {
-            let br = bucket.read().await;
-            (!br.is_empty()).then(|| {
-                beta_sampler
-                    .sample(br.alpha(), br.beta())
-                    .map(|sample| (sample, bucket))
-            })
-        })
-        .try_fold(None, |max, current| async move {
+        .enumerate()
+        .filter(|(_, bucket)| !bucket.is_empty())
+        .try_fold(None, |max, (index, bucket)| {
+            let sample = beta_sampler.sample(bucket.alpha(), bucket.beta())?;
             if let Some((max_sample, _)) = max {
-                if let Ordering::Greater = nan_safe_f32_cmp(&current.0, &max_sample) {
-                    Ok(Some(current))
+                if let Ordering::Greater = nan_safe_f32_cmp(&sample, &max_sample) {
+                    Ok(Some((sample, index)))
                 } else {
                     Ok(max)
                 }
             } else {
-                Ok(Some(current))
+                Ok(Some((sample, index)))
             }
-        })
-        .await
-    {
-        Ok(Some((_, bucket))) => bucket.write().await.pop().map(Ok),
+        }) {
+        Ok(Some((_, index))) => Some(Ok(index)),
         Ok(None) => None,
         Err(error) => Some(Err(error)),
     }
@@ -122,7 +113,7 @@ impl<'b, BS, B, T> Selection<'b, BS, B, T> {
         }
     }
 
-    /// Selects n elements.
+    /// Selects up to n elements.
     #[allow(clippy::future_not_send)]
     pub(crate) async fn select(self, n: usize) -> Result<Vec<T>, Error>
     where
@@ -141,9 +132,27 @@ where
     type Item = Result<T, Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let next = pull_arms(&self.beta_sampler, &self.buckets);
-        pin_mut!(next);
-        next.poll(cx)
+        let buckets = self
+            .buckets
+            .iter()
+            .map(|bucket| bucket.read())
+            .collect::<FuturesUnordered<_>>()
+            .collect::<Vec<_>>();
+        pin_mut!(buckets);
+
+        match buckets
+            .poll(cx)
+            .map(|buckets| pull_arms(&self.beta_sampler, &buckets))
+        {
+            Poll::Ready(Some(Ok(index))) => {
+                let bucket = self.buckets[index].write();
+                pin_mut!(bucket);
+                bucket.poll(cx).map(|mut bucket| bucket.pop().map(Ok))
+            }
+            Poll::Ready(Some(Err(error))) => Poll::Ready(Some(Err(error))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
