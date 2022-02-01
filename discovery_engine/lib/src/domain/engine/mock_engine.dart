@@ -134,4 +134,16 @@ class MockSetupData extends SetupData {
 
   @override
   Object get smbertVocab => '';
+
+  @override
+  Object get kpeClassifier => '';
+
+  @override
+  Object get kpeCnn => '';
+
+  @override
+  Object get kpeModel => '';
+
+  @override
+  Object get kpeVocab => '';
 }

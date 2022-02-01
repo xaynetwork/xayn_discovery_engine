@@ -47,6 +47,11 @@ class WebDataProvider extends DataProvider {
     return WebSetupData(
       smbertVocab: fetched[AssetType.smbertVocab]!,
       smbertModel: fetched[AssetType.smbertModel]!,
+      // TODO: make sure they are not null when updating manifest json
+      kpeVocab: fetched[AssetType.kpeVocab] ?? Uint8List(0),
+      kpeModel: fetched[AssetType.kpeModel] ?? Uint8List(0),
+      kpeCnn: fetched[AssetType.kpeCnn] ?? Uint8List(0),
+      kpeClassifier: fetched[AssetType.kpeClassifier] ?? Uint8List(0),
     );
   }
 }
@@ -56,10 +61,22 @@ class WebSetupData extends SetupData {
   final Uint8List smbertVocab;
   @override
   final Uint8List smbertModel;
+  @override
+  final Uint8List kpeVocab;
+  @override
+  final Uint8List kpeModel;
+  @override
+  final Uint8List kpeCnn;
+  @override
+  final Uint8List kpeClassifier;
 
   WebSetupData({
     required this.smbertVocab,
     required this.smbertModel,
+    required this.kpeVocab,
+    required this.kpeModel,
+    required this.kpeCnn,
+    required this.kpeClassifier,
   });
 }
 

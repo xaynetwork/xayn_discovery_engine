@@ -21,6 +21,10 @@ import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
 abstract class SetupData {
   Object get smbertVocab;
   Object get smbertModel;
+  Object get kpeVocab;
+  Object get kpeModel;
+  Object get kpeCnn;
+  Object get kpeClassifier;
 }
 
 /// Reads the assets manifest and provides the [SetupData] to further use.
