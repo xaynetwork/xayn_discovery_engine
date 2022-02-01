@@ -3,12 +3,13 @@ description: 'Setup dart and/or rust CI job'
 inputs:
   dart:
     description: 'Setup dart'
+    default: false
   rust:
     description: 'Setup rust'
+    default: false
   deps:
     description: 'Fetch/Install dependencies'
     default: true
-  #FIXME flutter, flutter-ws
 runs:
   using: "composite"
   steps:
@@ -28,15 +29,22 @@ runs:
 
     - name: Install rust toolchain
       working-directory: ${{ env.RUST_WORKSPACE }}
-      if: inputs.rust
+      if: inputs.rust != 'false'
       shell: bash
       run: |
-        # Rustup when used will automatically install the toolchain
-        # specified in rust-toolchain.toml
-        rustup show
+        if [[ "${{ inputs.rust }}" == "true" ]]; then
+          # Rustup when used will automatically install the toolchain
+          # specified in rust-toolchain.toml
+          rustup show
+        elif [[ "${{ inputs.rust }}" == "nightly" ]]; then
+          rustup toolchain install "${{ env.RUST_NIGHTLY }}"
+        else
+          echo "rust input must be set to `true` or `nightly`" >&2
+          exit 1
+        fi
 
     - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
-      if: inputs.rust
+      if: inputs.rust != 'false'
       with:
         working-directory: ${{ env.RUST_WORKSPACE }}
 
@@ -44,12 +52,12 @@ runs:
       shell: bash
       if: inputs.deps
       run: |
-        if [ "${{ inputs.dart }}" = "true" -a "${{ inputs.rust }}" = "true" ]; then
+        if [[ "${{ inputs.dart }}" == "true" && "${{ inputs.rust }}" != "false" ]]; then
           # ffigen dep, not handled by `just deps` as it's OS specific.
           sudo apt-get install libclang-10-dev
           just deps
         elif [ "${{ inputs.dart }}" = "true" ]; then
           just dart-deps
-        elif [ "${{ inputs.rust }}" = "true" ]; then
+        elif [ "${{ inputs.rust }}" != "false" ]; then
           just rust-deps
         fi
