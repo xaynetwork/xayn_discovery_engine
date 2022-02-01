@@ -71,8 +71,8 @@ impl From<Id> for DocumentId {
     }
 }
 
-impl From<&UserReaction> for UserFeedback {
-    fn from(reaction: &UserReaction) -> Self {
+impl From<UserReaction> for UserFeedback {
+    fn from(reaction: UserReaction) -> Self {
         match reaction {
             UserReaction::Neutral => UserFeedback::NotGiven,
             UserReaction::Positive => UserFeedback::Relevant,
