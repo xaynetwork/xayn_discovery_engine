@@ -159,12 +159,13 @@ class EventHandler {
       engine,
       _documentRepository,
       _activeDataRepository,
-      _changedDocumentRepository,
     );
     _feedManager = FeedManager(
-      _documentManager,
       engine,
       config.maxItemsPerFeedBatch,
+      _documentRepository,
+      _activeDataRepository,
+      _changedDocumentRepository,
     );
 
     return engine;
