@@ -30,12 +30,13 @@ jobs:
               - 'discovery_engine_core/**'
               - 'discovery_engine_flutter/**'
               - '.github/workflows/ci*'
-              - '.ci/setup-job/action.yml'
+              - '.github/actions/setup-job/*'
               - 'justfile'
             rust:
               - 'discovery_engine_core/**'
               - '.github/workflows/ci*'
-              - '.ci/setup-job/action.yml'
+              - '.github/actions/setup-job/*'
+              - '.github/actions/install-cargo-sort/*'
               - 'justfile'
 
   # DART CI
@@ -50,7 +51,7 @@ jobs:
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the dart CI.
-        uses: ./.ci/setup-job
+        uses: ./.github/actions/setup-job
         with:
           dart: true
           deps: false
@@ -69,7 +70,7 @@ jobs:
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust/dart CI.
-        uses: ./.ci/setup-job
+        uses: ./.github/actions/setup-job
         with:
           dart: true
           rust: true
@@ -99,7 +100,7 @@ jobs:
           sdk: ${{ env.DART_VERSION }}
 
       - name: Setup the rust/dart CI.
-        uses: ./.ci/setup-job
+        uses: ./.github/actions/setup-job
         with:
           dart: true
           rust: true
@@ -118,7 +119,7 @@ jobs:
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the dart CI.
-        uses: ./.ci/setup-job
+        uses: ./.github/actions/setup-job
         with:
           dart: true
 
@@ -157,13 +158,13 @@ jobs:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI.
-        uses: ./.ci/setup-job
+        uses: ./.github/actions/setup-job
         with:
           rust: nightly
           deps: false
 
       - name: Install cargo-sort
-        uses: ./.ci/install-cargo-sort
+        uses: ./.github/actions/install-cargo-sort
 
       - name: cargo fmt
         run: just rust-fmt
@@ -177,7 +178,7 @@ jobs:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.ci/setup-job
+        uses: ./.github/actions/setup-job
         with:
           rust: true
 
@@ -194,7 +195,7 @@ jobs:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.ci/setup-job
+        uses: ./.github/actions/setup-job
         with:
           rust: true
 
@@ -211,7 +212,7 @@ jobs:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.ci/setup-job
+        uses: ./.github/actions/setup-job
         with:
           rust: true
 
