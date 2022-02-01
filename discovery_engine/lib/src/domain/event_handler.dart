@@ -80,15 +80,6 @@ class EventHandler {
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
 
-  EngineExceptionRaised _handleInitError(Object e) {
-    logger.e(e);
-    _engineFuture = null;
-    final reason = e is AssetFetcherException
-        ? EngineExceptionReason.failedToGetAssets
-        : EngineExceptionReason.genericError;
-    return EngineExceptionRaised(reason);
-  }
-
   /// Decides what to do with incoming [ClientEvent] by passing it
   /// to a dedicated manager and returns the appropriate response in the in form
   /// of a proper [EngineEvent].
@@ -103,7 +94,12 @@ class EventHandler {
         await _engineFuture;
         return const EngineEvent.clientEventSucceeded();
       } catch (e) {
-        return _handleInitError(e);
+        logger.e(e);
+        _engineFuture = null;
+        final reason = e is AssetFetcherException
+            ? EngineExceptionReason.failedToGetAssets
+            : EngineExceptionReason.genericError;
+        return EngineExceptionRaised(reason);
       }
     }
 
@@ -115,8 +111,10 @@ class EventHandler {
 
     try {
       await _engineFuture;
-    } catch (e) {
-      return _handleInitError(e);
+    } catch (_) {
+      return const EngineEvent.engineExceptionRaised(
+        EngineExceptionReason.engineNotReady,
+      );
     }
 
     // prepare reposnses
