@@ -81,7 +81,7 @@ class EventHandler {
   late final FeedManager _feedManager;
 
   /// Decides what to do with incoming [ClientEvent] by passing it
-  /// to a dedicated manager and returns the appropriate response in the in form
+  /// to a dedicated manager and returns the appropriate response in the form
   /// of a proper [EngineEvent].
   ///
   /// This handler is invoked by a [ClientEvent]s stream listener, so it is
