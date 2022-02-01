@@ -117,7 +117,7 @@ class EventHandler {
       );
     }
 
-    // prepare reposnses
+    // prepare responses
     EngineEvent response = const EngineEvent.clientEventSucceeded();
 
     try {
