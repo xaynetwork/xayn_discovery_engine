@@ -56,11 +56,10 @@ class NativeDataProvider extends DataProvider {
     return NativeSetupData(
       smbertVocab: paths[AssetType.smbertVocab]!,
       smbertModel: paths[AssetType.smbertModel]!,
-      // TODO: make sure they are not null when updating manifest json
-      kpeVocab: paths[AssetType.kpeVocab] ?? '',
-      kpeModel: paths[AssetType.kpeModel] ?? '',
-      kpeCnn: paths[AssetType.kpeCnn] ?? '',
-      kpeClassifier: paths[AssetType.kpeClassifier] ?? '',
+      kpeVocab: paths[AssetType.kpeVocab]!,
+      kpeModel: paths[AssetType.kpeModel]!,
+      kpeCnn: paths[AssetType.kpeCnn]!,
+      kpeClassifier: paths[AssetType.kpeClassifier]!,
     );
   }
 
