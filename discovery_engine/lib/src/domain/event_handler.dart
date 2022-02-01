@@ -22,7 +22,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         EngineExceptionRaised,
         EngineExceptionReason,
         FeedClientEvent,
-        Init;
+        Init,
+        SystemClientEvent;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show AssetFetcherException, SetupData;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
@@ -105,7 +106,7 @@ class EventHandler {
 
     if (_engineFuture == null) {
       return const EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.engineNotReady,
+        EngineExceptionReason.noInitReceived,
       );
     }
 
@@ -125,6 +126,12 @@ class EventHandler {
         response = await _feedManager.handleFeedClientEvent(clientEvent);
       } else if (clientEvent is DocumentClientEvent) {
         await _documentManager.handleDocumentClientEvent(clientEvent);
+      } else if (clientEvent is SystemClientEvent) {
+        // TODO: we need to handle other system events (reset and config changed)
+      } else {
+        response = const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventRequested,
+        );
       }
     } catch (e) {
       // log the error
