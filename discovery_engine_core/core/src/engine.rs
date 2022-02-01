@@ -115,7 +115,7 @@ where
 
     /// Process the feedback about the user spending some time on a document.
     pub fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), Error> {
-        self.ranker.time_logged(time_logged)?;
+        self.ranker.log_document_view_time(time_logged)?;
 
         rank_stacks(self.stacks.values_mut(), &mut self.ranker)
     }
@@ -129,7 +129,7 @@ where
 
         stack.update_relevance(reacted.reaction);
 
-        self.ranker.user_reacted(reacted)?;
+        self.ranker.log_user_reaction(reacted)?;
 
         rank_stacks(self.stacks.values_mut(), &mut self.ranker)
     }

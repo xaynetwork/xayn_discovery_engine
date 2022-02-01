@@ -24,11 +24,11 @@ pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
     fn rank(&mut self, items: &mut [Document]) -> Result<(), GenericError>;
 
-    /// Learn from the time a user spent on a document.
-    fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), GenericError>;
+    /// Logs the time a user spent on a document.
+    fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError>;
 
-    /// Learn from a user's interaction.
-    fn user_reacted(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
+    /// Logs a user's interaction.
+    fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
@@ -36,16 +36,16 @@ impl Ranker for xayn_ai::ranker::Ranker {
         self.rank(items).map_err(Into::into)
     }
 
-    fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), GenericError> {
+    fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError> {
         self.log_document_view_time(
-            time_logged.reaction.into(),
-            &time_logged.smbert,
-            time_logged.seconds,
+            time_spent.reaction.into(),
+            &time_spent.smbert,
+            time_spent.seconds,
         );
         Ok(())
     }
 
-    fn user_reacted(&mut self, reaction: &UserReacted) -> Result<(), GenericError> {
+    fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError> {
         self.log_user_reaction(
             reaction.reaction.into(),
             &reaction.snippet,
