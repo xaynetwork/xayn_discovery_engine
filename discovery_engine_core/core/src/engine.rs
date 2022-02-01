@@ -53,8 +53,27 @@ pub enum Error {
     Errors(Vec<Error>),
 }
 
+#[allow(dead_code)]
+/// Feed market.
+struct Market {
+    country_code: String,
+    lang_code: String,
+}
+
+#[allow(dead_code)]
+/// Discovery Engine configuration settings.
+pub struct Config {
+    api_key: String,
+    api_base_url: String,
+    markets: Vec<Market>,
+    smbert_vocab: Vec<u8>,
+    smbert_model: Vec<u8>,
+}
+
 /// Discovery Engine.
 pub struct Engine<R> {
+    #[allow(dead_code)]
+    config: Config,
     stacks: HashMap<StackId, Stack>,
     ranker: R,
 }
@@ -63,11 +82,25 @@ impl<R> Engine<R>
 where
     R: Ranker,
 {
+    /// Creates a new `Engine` from configuration.
+    pub fn from_config(config: Config, ranker: R) -> Self {
+        Self {
+            config,
+            stacks: HashMap::new(), // FIXME check
+            ranker,
+        }
+    }
+
     /// Creates a new `Engine` from serialized state and stack operations.
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    pub fn new(state: &[u8], ranker: R, stacks_ops: Vec<BoxedOps>) -> Result<Self, Error> {
+    pub fn new(
+        state: &[u8],
+        config: Config, // FIXME part of state?
+        ranker: R,
+        stacks_ops: Vec<BoxedOps>,
+    ) -> Result<Self, Error> {
         if stacks_ops.is_empty() {
             return Err(Error::NoStackOps);
         }
@@ -86,7 +119,11 @@ where
             .collect::<Result<_, _>>()
             .map_err(Error::InvalidStack)?;
 
-        Ok(Engine { stacks, ranker })
+        Ok(Engine {
+            config,
+            stacks,
+            ranker,
+        })
     }
 
     /// Serializes the state of the `Engine`.
