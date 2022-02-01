@@ -157,8 +157,7 @@ abstract class Manager<Request extends Object, Response extends Object> {
   /// [Request] and returned to the caller.
   Future<Response> send(
     Request event, {
-    Duration? timeout,
-    bool enableTimeout = true,
+    Duration? timeout = kDefaultRequestTimeout,
   }) async {
     if (_responseController.isClosed) {
       throw ManagerDisposedException(
@@ -176,11 +175,11 @@ abstract class Manager<Request extends Object, Response extends Object> {
     // Wait for a message and convert it to proper [Response] object
     var responseFuture = channel.receiver.receive();
 
-    if (enableTimeout) {
+    if (timeout != null) {
       // Wait for [Response] message only for a specified
       // [Duration], otherwise throw a timeout exception
       responseFuture = responseFuture.timeout(
-        timeout ?? kDefaultRequestTimeout,
+        timeout,
         onTimeout: () {
           // close the port of the Receiver
           channel.receiver.dispose();
