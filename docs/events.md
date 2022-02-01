@@ -460,7 +460,7 @@ Event created by the engine for multitude of generic reasons, also as a "failure
 
 ```dart
 enum EngineExceptionReason {
-  noInitReceived,
+  engineNotReady,
   // other possible errors will be added below
 }
 

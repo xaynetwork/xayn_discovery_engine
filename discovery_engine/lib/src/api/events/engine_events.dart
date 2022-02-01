@@ -42,7 +42,7 @@ enum EngineExceptionReason {
   @JsonValue(0)
   genericError,
   @JsonValue(1)
-  noInitReceived,
+  engineNotReady,
   @JsonValue(2)
   wrongEventRequested,
   @JsonValue(3)
@@ -54,8 +54,6 @@ enum EngineExceptionReason {
   @JsonValue(6)
   engineDisposed,
   @JsonValue(7)
-  engineNotReady,
-  @JsonValue(8)
   failedToGetAssets,
   // other possible errors will be added below
 }

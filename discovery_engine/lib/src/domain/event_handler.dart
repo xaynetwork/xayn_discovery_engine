@@ -106,7 +106,7 @@ class EventHandler {
 
     if (_engineFuture == null) {
       return const EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.noInitReceived,
+        EngineExceptionReason.engineNotReady,
       );
     }
 
