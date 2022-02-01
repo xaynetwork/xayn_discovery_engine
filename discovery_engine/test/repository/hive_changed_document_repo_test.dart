@@ -23,7 +23,11 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
     show HiveChangedDocumentRepository;
 
+import '../logging.dart' show setupLogging;
+
 Future<void> main() async {
+  setupLogging();
+
   final box =
       await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
   final repo = HiveChangedDocumentRepository();

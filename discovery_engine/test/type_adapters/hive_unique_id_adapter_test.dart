@@ -21,7 +21,11 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_unique_id_adapter.dart'
     show DocumentIdAdapter, StackIdAdapter;
 
+import '../logging.dart' show setupLogging;
+
 void main() {
+  setupLogging();
+
   Hive.init(Directory.current.path);
   Hive.registerAdapter(DocumentIdAdapter());
   Hive.registerAdapter(StackIdAdapter());

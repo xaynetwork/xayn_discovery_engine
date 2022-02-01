@@ -24,7 +24,11 @@ import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
     show DurationAdapter;
 
+import '../logging.dart' show setupLogging;
+
 void main() {
+  setupLogging();
+
   group('ActiveDocumentDataAdapter', () {
     late Box<ActiveDocumentData> box;
 

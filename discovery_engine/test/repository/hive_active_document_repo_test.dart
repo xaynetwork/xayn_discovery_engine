@@ -27,7 +27,11 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 
+import '../logging.dart' show setupLogging;
+
 Future<void> main() async {
+  setupLogging();
+
   final box = await Hive.openBox<ActiveDocumentData>(
     activeDocumentDataBox,
     bytes: Uint8List(0),

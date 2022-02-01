@@ -28,7 +28,11 @@ import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show Manager, PlatformManager, OneshotRequest;
 
+import '../logging.dart' show setupLogging;
+
 void main() {
+  setupLogging();
+
   group('DiscoveryEngineWorker', () {
     late PlatformManager manager;
     late JsonToEngineEventConverter responseConverter;

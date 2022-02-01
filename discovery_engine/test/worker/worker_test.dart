@@ -20,12 +20,15 @@ import 'package:xayn_discovery_engine/src/worker/worker.dart'
         ManagerDisposedException,
         ResponseTimeoutException;
 
+import '../logging.dart' show setupLogging;
 import 'mocks/managers.dart'
     show MockManager, ThrowsOnRequestManager, ThrowsOnResponseManager;
 import 'mocks/workers.dart'
     show MockWorker, ThrowsOnRequestWorker, ThrowsOnResponseWorker;
 
 void main() {
+  setupLogging();
+
   group('Worker abstraction:', () {
     late Manager manager;
 

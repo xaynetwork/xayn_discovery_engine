@@ -19,7 +19,11 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
     show DurationAdapter;
 
+import '../logging.dart' show setupLogging;
+
 void main() {
+  setupLogging();
+
   group('DurationAdapter', () {
     late Box<Duration> box;
 

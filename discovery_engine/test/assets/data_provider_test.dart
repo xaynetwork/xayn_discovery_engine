@@ -22,12 +22,15 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
+import '../logging.dart' show setupLogging;
 import 'utils/local_asset_server.dart' show LocalAssetServer;
 import 'utils/mock_http_asset_fetcher.dart' show HttpAssetFetcherWithCounter;
 import 'utils/mock_manifest_reader.dart'
     show MockManifestReader, goodJson, wrongChecksumJson;
 
 void main() {
+  setupLogging();
+
   group('DataProvider', () {
     group('getSetupData', () {
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
