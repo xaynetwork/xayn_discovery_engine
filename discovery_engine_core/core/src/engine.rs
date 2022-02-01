@@ -229,8 +229,7 @@ where
     /// Updates the stacks with data related to the top key phrases of the current data.
     #[allow(dead_code)]
     async fn update_stacks(&mut self, top: usize) -> Result<(), Error> {
-        let key_phrases = self.ranker.select_top_key_phrases(top);
-        let key_phrases = &key_phrases;
+        let key_phrases = &self.ranker.select_top_key_phrases(top);
         let ranker = &mut self.ranker;
 
         self.stacks
