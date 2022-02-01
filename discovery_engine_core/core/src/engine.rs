@@ -84,12 +84,21 @@ where
     R: Ranker,
 {
     /// Creates a new `Engine` from configuration.
-    pub fn from_config(config: Config, ranker: R) -> Self {
-        Self {
+    pub fn from_config(config: Config, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
+        let stacks = stack_ops
+            .into_iter()
+            .map(|ops| {
+                let id = ops.id();
+                Stack::new(StackData::default(), ops).map(|stack| (id, stack))
+            })
+            .collect::<Result<_, _>>()
+            .map_err(Error::InvalidStack)?;
+
+        Ok(Self {
             config,
-            stacks: HashMap::new(), // FIXME check
+            stacks,
             ranker,
-        }
+        })
     }
 
     /// Creates a new `Engine` from serialized state and stack operations.
@@ -98,7 +107,7 @@ where
     /// Data related to missing operations will be dropped.
     pub fn new(
         state: &[u8],
-        config: Config, // FIXME part of state?
+        config: Config,
         ranker: R,
         stacks_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
