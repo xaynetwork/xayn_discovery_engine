@@ -85,13 +85,9 @@ pub struct Engine<R> {
     ranker: R,
 }
 
-impl<
-        // required for mock of Ops: conditional trait bounds aren't supported in the where clause
-        #[cfg(not(test))] R,
-        #[cfg(test)] R: Sync,
-    > Engine<R>
+impl<R> Engine<R>
 where
-    R: Ranker,
+    R: Ranker + Send + Sync,
 {
     /// Creates a new `Engine` from configuration.
     pub fn from_config(config: Config, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
@@ -138,7 +134,7 @@ where
             .collect::<Result<_, _>>()
             .map_err(Error::InvalidStack)?;
 
-        Ok(Engine {
+        Ok(Self {
             config,
             stacks,
             ranker,
@@ -148,7 +144,6 @@ where
     /// Serializes the state of the `Engine`.
     ///
     /// The result can be used with [`Engine::new`] to restore it.
-    #[allow(clippy::future_not_send)]
     pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
         let state = self
             .stacks
@@ -179,7 +174,6 @@ where
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
-    #[allow(clippy::future_not_send)]
     pub async fn get_feed_documents(&self, max_documents: usize) -> Result<Vec<Document>, Error> {
         Selection::new(BetaSampler, self.stacks.values())
             .select(max_documents)
@@ -187,16 +181,38 @@ where
             .map_err(|e| e.into())
     }
 
+    /// The ranker could rank the documents in a different order so we update the stacks with it.
+    async fn rank_stacks(&self) -> Result<(), Error> {
+        let errors = self
+            .stacks
+            .values()
+            .into_iter()
+            .map(|stack| async move { stack })
+            .collect::<FuturesUnordered<_>>()
+            .fold(vec![], |mut errors, stack| async move {
+                if let Err(error) = stack.write().await.rank(&mut self.ranker) {
+                    errors.push(Error::StackOpFailed(error));
+                }
+
+                errors
+            })
+            .await;
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::Errors(errors))
+        }
+    }
+
     /// Process the feedback about the user spending some time on a document.
-    #[allow(clippy::future_not_send)]
     pub async fn time_spent(&mut self, time_spent: &TimeSpent) -> Result<(), Error> {
         self.ranker.log_document_view_time(time_spent)?;
 
-        rank_stacks(self.stacks.values(), &mut self.ranker).await
+        self.rank_stacks().await
     }
 
     /// Process the feedback about the user reacting to a document.
-    #[allow(clippy::future_not_send)]
     pub async fn user_reacted(&mut self, reacted: &UserReacted) -> Result<(), Error> {
         self.stacks
             .get(&reacted.stack_id)
@@ -207,12 +223,11 @@ where
 
         self.ranker.log_user_reaction(reacted)?;
 
-        rank_stacks(self.stacks.values(), &mut self.ranker).await
+        self.rank_stacks().await
     }
 
     /// Updates the stacks with data related to the top key phrases of the current data.
     #[allow(dead_code)]
-    #[allow(clippy::future_not_send)]
     async fn update_stacks(&mut self, top: usize) -> Result<(), Error> {
         let key_phrases = self.ranker.select_top_key_phrases(top);
         let key_phrases = &key_phrases;
@@ -239,32 +254,6 @@ where
             })
             .await
             .map_err(Into::into)
-    }
-}
-
-/// The ranker could rank the documents in a different order so we update the stacks with it.
-#[allow(clippy::future_not_send)]
-async fn rank_stacks<'a>(
-    stacks: impl IntoIterator<Item = &'a RwLock<Stack>>,
-    ranker: &mut impl Ranker,
-) -> Result<(), Error> {
-    let errors = stacks
-        .into_iter()
-        .map(|stack| async move { stack })
-        .collect::<FuturesUnordered<_>>()
-        .fold(vec![], |mut errors, stack| async move {
-            if let Err(error) = stack.write().await.rank(ranker) {
-                errors.push(Error::StackOpFailed(error));
-            }
-
-            errors
-        })
-        .await;
-
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(Error::Errors(errors))
     }
 }
 

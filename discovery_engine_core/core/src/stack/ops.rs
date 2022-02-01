@@ -17,13 +17,9 @@ use async_trait::async_trait;
 use mockall::automock;
 
 use crate::{document::Document, engine::GenericError, ranker, stack::Id};
-use xayn_ai::ranker::Embedding;
 
 // required for mock of Ops
-#[cfg(not(test))]
-pub(crate) type R<'a> = &'a mut dyn ranker::Ranker;
-#[cfg(test)]
-pub(crate) type R<'a> = &'a mut (dyn ranker::Ranker + Sync);
+pub(crate) type Ranker<'a> = &'a mut (dyn ranker::Ranker + Sync);
 
 /// Operations to customize the behaviour of a stack.
 ///

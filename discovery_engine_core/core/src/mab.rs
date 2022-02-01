@@ -24,7 +24,7 @@ use std::{
 use displaydoc::Display;
 use futures::{
     pin_mut,
-    stream::{FuturesUnordered, Stream, StreamExt, TryStreamExt},
+    stream::{FuturesUnordered, Stream, StreamExt, Take, TryCollect, TryStreamExt},
 };
 use rand_distr::{Beta, BetaError, Distribution};
 use thiserror::Error;
@@ -79,16 +79,19 @@ fn pull_arms<T>(
         .enumerate()
         .filter(|(_, bucket)| !bucket.is_empty())
         .try_fold(None, |max, (index, bucket)| {
-            let sample = beta_sampler.sample(bucket.alpha(), bucket.beta())?;
-            if let Some((max_sample, _)) = max {
-                if let Ordering::Greater = nan_safe_f32_cmp(&sample, &max_sample) {
-                    Ok(Some((sample, index)))
-                } else {
-                    Ok(max)
-                }
-            } else {
-                Ok(Some((sample, index)))
-            }
+            beta_sampler
+                .sample(bucket.alpha(), bucket.beta())
+                .map(|sample| {
+                    if let Some((max_sample, _)) = max {
+                        if let Ordering::Greater = nan_safe_f32_cmp(&sample, &max_sample) {
+                            Some((sample, index))
+                        } else {
+                            max
+                        }
+                    } else {
+                        Some((sample, index))
+                    }
+                })
         }) {
         Ok(Some((_, index))) => Some(Ok(index)),
         Ok(None) => None,
@@ -103,6 +106,10 @@ pub(crate) struct Selection<'b, BS, B, T> {
     bucket_type: PhantomData<T>,
 }
 
+/// A future of selected elements, collected as `Vec<T>`.
+#[must_use = "futures do nothing unless they are awaited/polled"]
+pub(crate) type Selected<'b, BS, B, T> = TryCollect<Take<Selection<'b, BS, B, T>>, Vec<T>>;
+
 impl<'b, BS, B, T> Selection<'b, BS, B, T> {
     /// Creates a selective steam.
     pub(crate) fn new(beta_sampler: BS, buckets: impl IntoIterator<Item = &'b RwLock<B>>) -> Self {
@@ -114,13 +121,12 @@ impl<'b, BS, B, T> Selection<'b, BS, B, T> {
     }
 
     /// Selects up to n elements.
-    #[allow(clippy::future_not_send)]
-    pub(crate) async fn select(self, n: usize) -> Result<Vec<T>, Error>
+    pub(crate) fn select(self, n: usize) -> Selected<'b, BS, B, T>
     where
         BS: BetaSample,
         B: Bucket<T>,
     {
-        self.take(n).try_collect().await
+        self.take(n).try_collect()
     }
 }
 
