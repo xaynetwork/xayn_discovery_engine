@@ -15,9 +15,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
-import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart';
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show webResourceTypeId;
+    show webResourceTypeId, webResourceProviderTypeId;
 
 part 'web_resource.freezed.dart';
 part 'web_resource.g.dart';
@@ -44,4 +43,19 @@ class WebResource with _$WebResource {
 
   factory WebResource.fromJson(Map<String, Object?> json) =>
       _$WebResourceFromJson(json);
+}
+
+/// The [WebResourceProvider] class represents the provider of a `WebResource`.
+/// [name] represents the provider's legal name
+/// [thumbnail] is `Uri` which contains a link to the thumbnail-sized logo for the provider.
+@freezed
+class WebResourceProvider with _$WebResourceProvider {
+  @HiveType(typeId: webResourceProviderTypeId)
+  const factory WebResourceProvider({
+    @HiveField(0) required String name,
+    @HiveField(1) required Uri? thumbnail,
+  }) = _WebResourceProvider;
+
+  factory WebResourceProvider.fromJson(Map<String, Object?> json) =>
+      _$WebResourceProviderFromJson(json);
 }

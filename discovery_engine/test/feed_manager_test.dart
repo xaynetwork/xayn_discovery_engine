@@ -29,7 +29,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource;
+    show WebResource, WebResourceProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox, activeDocumentDataBox, changedDocumentIdBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
@@ -70,17 +70,22 @@ Future<void> main() async {
 
     setUp(() async {
       data = ActiveDocumentData(Uint8List(0));
-      final dummy = WebResource.fromJson(<String, Object>{
-        'title': 'Example',
-        'displayUrl': 'domain.com',
-        'snippet': 'snippet',
-        'url': 'http://domain.com',
-        'datePublished': '1980-01-01T00:00:00.000000',
-        'provider': <String, String>{
-          'name': 'domain',
-          'thumbnail': 'http://thumbnail.domain.com',
-        },
-      });
+      final dummy = WebResource(
+        title: 'Example',
+        snippet: 'snippet',
+        url: Uri.parse('https://domain.com'),
+        displayUrl: Uri.parse('domain.com'),
+        datePublished: DateTime.utc(2022, 01, 01),
+        provider: WebResourceProvider(
+          name: 'domain',
+          thumbnail: Uri.parse('http://thumbnail.domain.com'),
+        ),
+        rank: 10,
+        score: 0.1,
+        country: 'en',
+        language: 'en',
+        topic: 'news',
+      );
       final stackId = StackId();
       doc2 = Document(
         stackId: stackId,

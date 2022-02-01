@@ -43,6 +43,11 @@ class MockEngine implements Engine {
         'name': 'domain',
         'thumbnail': 'http://thumbnail.domain.com',
       },
+      'rank': 10,
+      'score': 0.1,
+      'country': 'en',
+      'language': 'en',
+      'topic': 'news',
     });
     final stackId = StackId();
 
