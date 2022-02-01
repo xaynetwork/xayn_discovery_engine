@@ -21,6 +21,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         EngineExceptionRaised,
         EngineExceptionReason;
 
+import '../logging.dart' show setupLogging;
 import 'utils/utils.dart'
     show
         MockDiscoveryEngineWorker,
@@ -28,6 +29,8 @@ import 'utils/utils.dart'
         withSuccessResponse;
 
 void main() {
+  setupLogging();
+
   group('DiscoveryEngine closeFeedDocuments', () {
     test(
         'if worker responds with "ClientEventSucceeded" event it should pass it'

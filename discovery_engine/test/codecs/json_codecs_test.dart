@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:isolate' show ReceivePort, SendPort;
+
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
@@ -36,10 +37,13 @@ import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show Oneshot, OneshotRequest, Sender, SendingPort;
 
+import '../logging.dart' show setupLogging;
 import 'matchers.dart' show throwsConverterException;
 import 'mocks.dart' show BadClientEvent, BadEngineEvent;
 
 void main() {
+  setupLogging();
+
   group('OneshotRequestToJsonConverter', () {
     final converter = OneshotRequestToJsonConverter();
     late Oneshot channel;

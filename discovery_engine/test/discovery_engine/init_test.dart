@@ -20,6 +20,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         EngineExceptionReason,
         EngineInitException;
 
+import '../logging.dart' show setupLogging;
 import 'utils/utils.dart'
     show
         MockDiscoveryEngineWorker,
@@ -27,6 +28,8 @@ import 'utils/utils.dart'
         withSuccessResponse;
 
 void main() {
+  setupLogging();
+
   group('DiscoveryEngine init', () {
     test(
         'when calling "init" it should create and initialize '

@@ -15,7 +15,11 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart';
 
+import '../logging.dart' show setupLogging;
+
 void main() {
+  setupLogging();
+
   test(
     'GIVEN empty set of FeedMarket WHEN create a Configuration THEN throw AssertError',
     () {

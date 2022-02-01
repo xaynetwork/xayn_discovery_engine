@@ -39,7 +39,11 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 
+import 'logging.dart' show setupLogging;
+
 Future<void> main() async {
+  setupLogging();
+
   Hive.registerAdapter(DocumentAdapter());
 
   final docBox = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));

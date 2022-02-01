@@ -20,7 +20,11 @@ import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createManifestReader;
 
+import '../logging.dart' show setupLogging;
+
 void main() {
+  setupLogging();
+
   group('ManifestReader', () {
     group('read', () {
       test(
