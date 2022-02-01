@@ -166,6 +166,25 @@ Future<void> main() async {
       );
     });
 
+    test('add time to an inactive document with active document data',
+        () async {
+      const mode = DocumentViewMode.story;
+      await activeRepo.update(id2, data);
+      expect(
+        () => mgr.addActiveDocumentTime(id2, mode, 1),
+        throwsArgumentError,
+      );
+    });
+
+    test('add time to an absent document with active document data', () async {
+      const mode = DocumentViewMode.story;
+      await activeRepo.update(id3, data);
+      expect(
+        () => mgr.addActiveDocumentTime(id3, mode, 1),
+        throwsArgumentError,
+      );
+    });
+
     test('add positive time to document with active data', () async {
       const mode = DocumentViewMode.story;
 
