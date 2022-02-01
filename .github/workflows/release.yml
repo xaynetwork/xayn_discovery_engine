@@ -35,15 +35,16 @@ jobs:
           dart: true
           rust: true
 
-      - name: Get current branch
+      - name: Generate Files
         shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: current_branch
+        run: just dart-build
+
+      - name: Configure Git
+        shell: bash
+        run: |
+          git config --global user.email "ci@xayn.com"
+          git config --global user.name "ci"
 
       - name: Copy Repository
         shell: bash
-        run: .github/scripts/copyright.sh
-        # TODO
-        # git config --global user.email "ci@xayn.com"
-        # git config --global user.name "ci"
-        # just ci-setup-release-repo "${{ steps.current_branch.output.branch }}" --do-push
+        run: .github/scripts/release.sh --do-push "${{ steps.current_branch.output.branch }}"

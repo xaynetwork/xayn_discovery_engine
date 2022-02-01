@@ -187,78 +187,12 @@ _pre-push: clean-gen-files fmt check test
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
+# Dry-run the release script.
+_dry-run-release: clean deps dart-build
+    {{justfile_directory()}}/.github/scripts/release.sh --dry-run
 
-#FIXME set CI
-ci-setup-release-repo $BRANCH do_push="--do-push": deps dart-build
-    #!/usr/bin/env bash
-    set -euxo pipefail
-
-    function error() {
-        echo "$@" >&2
-        exit 1
-    }
-
-    EMAIL="$(git config user.email)"
-    if [ -z "$EMAIL" ]; then
-        error "git user.email must be set"
-    fi
-    USERNAME="$(git config user.name)"
-    if [ -z "$USERNAME" ]; then
-        error "git user.namel must be set"
-    fi
-
-    # Create a temporary folder to clone the other repo
-    DST_DIR=$(mktemp -d)
-    DST_REPO='git@github.com:xaynetwork/xayn_discovery_engine_release.git'
-
-    SRC_COMMIT=$(git rev-parse HEAD)
-    SRC_COMMIT_MSG=$(git log --format=%B -n1)
-
-    NEEDS_PUSH=false
-
-    # Check if the branch exists, if so, clone using the existing branch,
-    # if not, clone using the default branch and let git push to send to the right branch
-    BRANCH_EXISTS=$(git ls-remote --heads "$DST_REPO" "$BRANCH" | wc -l);
-    if [ $BRANCH_EXISTS -eq 0 ]; then
-        NEEDS_PUSH=true
-        # We do not need to create a branch as we use `git push -u origin HEAD:$BRANCH`
-        git clone --depth 1 "$DST_REPO" "$DST_DIR"
-    else
-        git clone -b "$BRANCH" --depth 1 "$DST_REPO" "$DST_DIR";
-    fi
-
-    WS_ROOT="$(pwd)"
-    cd "$DST_DIR"
-
-    # Cleaning all files on the destination repository
-    # --ignore-unmatch avoid to fail if the repository is empty
-    git rm --ignore-unmatch -r .
-
-    rsync -a --exclude example "$WS_ROOT/$DART_WORKSPACE/" "$DST_DIR/$DART_WORKSPACE"
-    rsync -a --exclude examples "$WS_ROOT/$RUST_WORKSPACE/" "$DST_DIR/$RUST_WORKSPACE"
-    rsync -a --exclude example "$WS_ROOT/$FLUTTER_WORKSPACE/" "$DST_DIR/$FLUTTER_WORKSPACE"
-
-    # Remove files from .gitignore that needs to be uploaded to the release repo
-    find . -type f -name .gitignore -exec sed -i -e '/DELETE_AFTER_THIS_IN_RELEASE/,$d' '{}' \;
-
-    git add -A
-
-    # Commit only if something changed
-    if [ $(git status --porcelain | wc -l) -gt 0 ]; then
-        NEEDS_PUSH=true
-        git commit --message "$SRC_COMMIT_MSG
-        https://github.com/xaynetwork/xayn_discovery_engine/commit/$SRC_COMMIT
-        https://github.com/xaynetwork/xayn_discovery_engine/tree/$BRANCH"
-    fi
-
-    if [ "$NEEDS_PUSH" = "true" ]; then
-        if [ "{{do_push}}" = "--do-push" ]; then
-            git push -u origin HEAD:"$BRANCH"
-        else
-            echo "Repo prepared at: $DST_DIR"
-            echo "To push use:  git push -u origin HEAD:$BRANCH"
-        fi
-    fi
+dry-run-release:
+     @CI=true {{just_executable()}} _dry-run-release
 
 alias d := dart-test
 alias r := rust-test
