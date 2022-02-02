@@ -23,8 +23,9 @@ use uuid::Uuid;
 
 use crate::{
     document::{Document, Id as DocumentId, UserReaction},
-    engine::{GenericError, Ranker},
+    engine::GenericError,
     mab::Bucket,
+    ranker::Ranker,
 };
 
 mod data;
@@ -91,7 +92,7 @@ impl Stack {
     pub(crate) fn update<R: Ranker>(
         mut self,
         new_documents: &[Document],
-        ranker: &R,
+        ranker: &mut R,
     ) -> Result<Self, Error> {
         Self::validate_documents_stack_id(new_documents, self.ops.id())?;
 
@@ -107,7 +108,7 @@ impl Stack {
     /// Rank the internal documents.
     ///
     /// This is useful when the [`Ranker`] has been updated.
-    pub(crate) fn rank<R: Ranker>(&mut self, ranker: &R) -> Result<(), Error> {
+    pub(crate) fn rank<R: Ranker>(&mut self, ranker: &mut R) -> Result<(), Error> {
         ranker
             .rank(&mut self.data.documents)
             .map_err(Error::Ranking)

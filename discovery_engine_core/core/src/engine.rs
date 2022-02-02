@@ -20,6 +20,7 @@ use thiserror::Error;
 use crate::{
     document::{Document, TimeSpent, UserReacted},
     mab::{self, BetaSampler, Selection},
+    ranker::Ranker,
     stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
 };
 
@@ -114,9 +115,9 @@ where
 
     /// Process the feedback about the user spending some time on a document.
     pub fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), Error> {
-        self.ranker.time_logged(time_logged)?;
+        self.ranker.log_document_view_time(time_logged)?;
 
-        rank_stacks(self.stacks.values_mut(), &self.ranker)
+        rank_stacks(self.stacks.values_mut(), &mut self.ranker)
     }
 
     /// Process the feedback about the user reacting to a document.
@@ -128,16 +129,16 @@ where
 
         stack.update_relevance(reacted.reaction);
 
-        self.ranker.user_reacted(reacted)?;
+        self.ranker.log_user_reaction(reacted)?;
 
-        rank_stacks(self.stacks.values_mut(), &self.ranker)
+        rank_stacks(self.stacks.values_mut(), &mut self.ranker)
     }
 }
 
 /// The ranker could rank the documents in a different order so we update the stacks with it.
 fn rank_stacks<'a, R: Ranker>(
     stacks: impl Iterator<Item = &'a mut Stack>,
-    ranker: &R,
+    ranker: &mut R,
 ) -> Result<(), Error> {
     let errors = stacks.fold(vec![], |mut errors, stack| {
         if let Err(e) = stack.rank(ranker).map_err(Error::StackOpFailed) {
@@ -157,15 +158,3 @@ fn rank_stacks<'a, R: Ranker>(
 /// A wrapper around a dynamic error type, similar to `anyhow::Error`,
 /// but without the need to declare `anyhow` as a dependency.
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
-
-/// Provides a method for ranking a slice of [`Document`] items.
-pub trait Ranker {
-    /// Performs the ranking of [`Document`] items.
-    fn rank(&self, items: &mut [Document]) -> Result<(), GenericError>;
-
-    /// Learn from the time a user spent on a document.
-    fn time_logged(&mut self, time_logged: &TimeSpent) -> Result<(), GenericError>;
-
-    /// Learn from a user's interaction.
-    fn user_reacted(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
-}
