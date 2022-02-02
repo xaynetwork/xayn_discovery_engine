@@ -18,8 +18,6 @@ use std::ptr;
 
 /// Creates a rust `String` with given capacity at given memory address.
 ///
-/// The `String` is created at given address, not it's content.
-///
 /// # Safety
 ///
 /// It must be valid to write a `String` instance to given pointer,
@@ -36,28 +34,31 @@ pub unsafe extern "C" fn init_string_at(place: *mut String, capacity: usize) -> 
 
 /// Sets the length of the rust `String` at given memory address.
 ///
-/// Use this after you write to the strings data buffer behind
-/// `len` (but before it's end indicated by `capacity`) to make
-/// the newly written string data available to rust.
+/// Use this after you wrote to the string's data buffer `len` bytes
+/// to make the newly written data available to rust.
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid `String` instance.
+/// - The pointer must point to a valid `String` instance.
+/// - `len <= capacity` must hold
+/// - all bytes up to the new len must be initialized
+/// - the string buffer from index `0` to `len` must contain
+///   a valid utf8 string after the len was set.
 #[no_mangle]
-pub unsafe extern "C" fn set_string_len(string_place: *mut String, len: usize) {
+pub unsafe extern "C" fn set_string_len(string: *mut String, len: usize) {
     unsafe {
-        (*string_place).as_mut_vec().set_len(len);
+        (*string).as_mut_vec().set_len(len);
     }
 }
 
-/// Returns the length of an rust `String` at given memory address.
+/// Returns the length of a rust `String` at given memory address.
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid `String` instance.
 #[no_mangle]
 pub unsafe extern "C" fn get_string_len(string: *mut String) -> usize {
-    unsafe { (*string).len() }
+    unsafe { &*string }.len()
 }
 
 /// Returns a pointer to the underlying buffer of the given rust string.
@@ -75,12 +76,9 @@ pub unsafe extern "C" fn get_string_buffer(string: *mut String) -> *mut u8 {
 }
 
 /// Alloc an uninitialized `Box<String>`, mainly used for testing.
-#[cfg(feature = "additional-ffi-methods")]
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_string_box() -> *mut String {
-    use super::boxed::alloc_uninitialized_box;
-
-    alloc_uninitialized_box()
+pub extern "C" fn alloc_uninitialized_string() -> *mut String {
+    super::boxed::alloc_uninitialized()
 }
 
 /// Drops a `Box<String>`, mainly used for testing.
@@ -88,12 +86,11 @@ pub extern "C" fn alloc_uninitialized_string_box() -> *mut String {
 /// # Safety
 ///
 /// The pointer must represent a valid `Box<String>` instance.
-#[cfg(feature = "additional-ffi-methods")]
 #[no_mangle]
-pub unsafe extern "C" fn drop_string_box(boxed: *mut String) {
-    use super::boxed::drop_box;
+pub unsafe extern "C" fn drop_string(boxed: *mut String) {
+    use super::boxed::drop;
 
-    unsafe { drop_box(boxed) };
+    unsafe { drop(boxed) };
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -17,21 +17,21 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 
 void main() {
-  test('parsing written empty string works', () {
+  test('reading written empty string works', () {
     const string = '';
-    final place = ffi.alloc_uninitialized_string_box();
+    final place = ffi.alloc_uninitialized_string();
     string.writeNative(place);
     final res = StringFfi.readNative(place);
-    ffi.drop_string_box(place);
+    ffi.drop_string(place);
     expect(res, equals(string));
   });
 
-  test('parsing written string yields same result', () {
+  test('reading written string yields same result', () {
     const string = 'a&+KLA)&+fjw)&+f';
-    final place = ffi.alloc_uninitialized_string_box();
+    final place = ffi.alloc_uninitialized_string();
     string.writeNative(place);
     final res = StringFfi.readNative(place);
-    ffi.drop_string_box(place);
+    ffi.drop_string(place);
     expect(res, equals(string));
   });
 }

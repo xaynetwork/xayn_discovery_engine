@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Modules containing FFI glue for `Box<[u8]>`.
+//! Modules containing FFI glue for arrays (i.e. `Box<[T]>`) handling.
 
 use std::{mem::MaybeUninit, slice};
 
-/// Allocates a slice of (uninitialized) bytes of given length.
+/// Allocates an array of (uninitialized) `T` memory objects of given length.
 pub(super) fn alloc_uninitialized_slice<T>(len: usize) -> *mut T {
     let mut vec = Vec::<MaybeUninit<T>>::with_capacity(len);
     //SAFE: MaybeUninit doesn't need initialization
@@ -28,45 +28,33 @@ pub(super) fn alloc_uninitialized_slice<T>(len: usize) -> *mut T {
 }
 
 /// Creates a `Box<[T]>` from a pointer to the first element and the slice len.
-pub(super) unsafe fn boxed_slice<T>(ptr: *mut T, len: usize) -> Box<[T]> {
+pub(super) unsafe fn boxed_slice_from_raw_parts<T>(ptr: *mut T, len: usize) -> Box<[T]> {
     unsafe { Box::from_raw(slice::from_raw_parts_mut(ptr, len)) }
 }
 
-/// Get length of an `Box<Vec<T>>`.
-#[allow(dead_code)]
-pub(super) unsafe fn get_boxed_vec_len<T>(ptr: *mut Vec<T>) -> usize {
-    unsafe { &*ptr }.len()
-}
-
-/// Get a pointer to the beginning of an `Box<Vec<T>>`
-#[allow(dead_code)]
-pub(super) unsafe fn get_boxed_vec_buffer<T>(ptr: *mut Vec<T>) -> *mut T {
-    unsafe { &mut *ptr }.as_mut_ptr()
-}
-
-/// Increments the pointer by one element
+/// Given a pointer to an element in an array, returns a pointer to the next element.
 ///
 /// # Safety
 ///
 /// This is basically an alias for `ptr.offset(1)` and
 /// all safety constraints from `offset` apply.
 #[allow(dead_code)]
-pub(super) unsafe fn next_slice_element<T>(ptr: *mut T) -> *mut T {
-    unsafe { ptr.offset(1) }
+pub(super) unsafe fn next_element<T>(element: *mut T) -> *mut T {
+    unsafe { element.offset(1) }
 }
 
-/// Allocates an uninitialized slice of bytes
+/// Allocates an uninitialized array of floats.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_f32_slice(len: usize) -> *mut f32 {
     alloc_uninitialized_slice(len)
 }
 
-/// Drops a `Box<[u8]>`
+/// Drops a `Box<[f32]>`.
 ///
 /// # Safety
 ///
 /// The pointer must represent a valid `Box<[f32]>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_f32_slice(ptr: *mut f32, len: usize) {
-    drop(unsafe { boxed_slice(ptr, len) });
+    drop(unsafe { boxed_slice_from_raw_parts(ptr, len) });
 }

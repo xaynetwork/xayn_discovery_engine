@@ -17,3 +17,4 @@
 mod boxed;
 pub mod slice;
 pub mod string;
+pub mod vec;

@@ -12,24 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! FFI functions for handling `Box<T>`.
+//! Modules containing FFI glue for `Vec<T>`.
 
-use std::mem::MaybeUninit;
-
-/// Allocates a box of an uninitialized `T` and returns the pointer to it.
-///
-/// Mostly used for testing `init_T_at` ffi functions
-pub(super) fn alloc_uninitialized<T>() -> *mut T {
-    Box::into_raw(Box::new(MaybeUninit::<T>::uninit())).cast()
+/// Get length of a `Box<Vec<T>>`.
+#[allow(dead_code)]
+pub(super) unsafe fn get_vec_len<T>(vec: *mut Vec<T>) -> usize {
+    unsafe { &*vec }.len()
 }
 
-/// Drops a `Box<T>`, `T` must be initialized.
-///
-/// Mostly used for testing `init_T_at` ffi functions
-///
-/// # Safety
-///
-/// The pointer must represent a valid `Box<T>` instance.
-pub(super) unsafe fn drop<T: ?Sized>(boxed: *mut T) {
-    unsafe { Box::from_raw(boxed) };
+/// Get a pointer to the beginning of a `Box<Vec<T>>`'s buffer.
+#[allow(dead_code)]
+pub(super) unsafe fn get_vec_buffer<T>(vec: *mut Vec<T>) -> *mut T {
+    unsafe { &mut *vec }.as_mut_ptr()
 }
