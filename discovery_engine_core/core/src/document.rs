@@ -83,13 +83,12 @@ pub struct Document {
     pub smbert_embedding: Embedding,
 
     /// Resource this document refers to.
-    pub web_resource: WebResource,
+    pub resource: NewsResource,
 }
 
-/// Represents different kinds of resources like web, image, video, news,
-/// that are delivered by an external content API.
+/// Represents a news that is delivered by an external content API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WebResource {
+pub struct NewsResource {
     /// Title of the resource.
     pub title: String,
 
@@ -99,15 +98,11 @@ pub struct WebResource {
     /// Url to reach the resource.
     pub url: Url,
 
-    /// Url to display to the user.
-    // TODO: not sure it make sense to have this here, seems a ui decision
-    pub display_url: Url,
-
     /// Publishing date.
     pub date_published: NaiveDateTime,
 
-    /// Provider.
-    pub provider: Option<WebResourceProvider>,
+    /// Thumbnail of the image attached to the news.
+    pub thumbnail: Option<Url>,
 
     /// The rank of the domain of the source,
     pub rank: usize,
@@ -125,40 +120,26 @@ pub struct WebResource {
     pub topic: Topic,
 }
 
-impl TryFrom<Article> for WebResource {
+impl TryFrom<Article> for NewsResource {
     type Error = Error;
     fn try_from(article: Article) -> Result<Self, Self::Error> {
         let media = article.media;
 
-        Ok(WebResource {
+        Ok(NewsResource {
             title: article.title,
             snippet: article.excerpt,
             date_published: article.published_date,
             url: Url::parse(&article.link)?,
-            display_url: Url::parse(&article.clean_url)?,
+            thumbnail: (!media.is_empty())
+                .then(|| Url::parse(&media))
+                .transpose()?,
             rank: article.rank,
             score: article.score,
             country: article.country,
             language: article.language,
             topic: article.topic,
-            provider: Some(WebResourceProvider {
-                name: String::new(),
-                thumbnail: (!media.is_empty())
-                    .then(|| Url::parse(&media))
-                    .transpose()?,
-            }),
         })
     }
-}
-
-/// Represents the provider of a [`WebResource`].
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WebResourceProvider {
-    /// Provider's name.
-    pub name: String,
-
-    /// Url to the thumbnail-sized logo for the provider.
-    pub thumbnail: Option<Url>,
 }
 
 /// Indicates user's "sentiment" towards the document,
@@ -223,7 +204,7 @@ pub(crate) fn document_from_article(
         id: Uuid::new_v4().into(),
         stack_id,
         smbert_embedding,
-        web_resource: article.try_into()?,
+        resource: article.try_into()?,
     })
 }
 
@@ -234,19 +215,14 @@ mod tests {
 
     use super::*;
 
-    fn example_url() -> Url {
-        Url::parse("https://example.net").unwrap(/* used only in tests */)
-    }
-
-    impl Default for WebResource {
+    impl Default for NewsResource {
         fn default() -> Self {
             Self {
                 title: String::default(),
                 snippet: String::default(),
                 url: example_url(),
-                display_url: example_url(),
+                thumbnail: None,
                 date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
-                provider: None,
                 score: None,
                 rank: 0,
                 country: "en".to_string(),
@@ -256,66 +232,12 @@ mod tests {
         }
     }
 
-    impl Default for WebResourceProvider {
-        fn default() -> Self {
-            Self {
-                name: String::default(),
-                thumbnail: None,
-            }
-        }
+    fn example_url() -> Url {
+        Url::parse("https://example.net").unwrap(/* used only in tests */)
     }
 
-    #[test]
-    fn test_web_resource_from_article() {
-        let title = "title".to_string();
-        let clean_url = "https://example.com/".to_string();
-        let excerpt = "summary of the article".to_string();
-        let link = "https://example.com/news/".to_string();
-        let media = "https://example.com/news/image/".to_string();
-        let country = "en".to_string();
-        let language = "en".to_string();
-        let score = Some(0.75);
-        let rank = 10;
-        let topic = Topic::News;
-        let published_date = NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0);
-
-        let article = Article {
-            id: "id".to_string(),
-            title: title.clone(),
-            score,
-            rank,
-            clean_url: clean_url.clone(),
-            excerpt: excerpt.clone(),
-            link: link.clone(),
-            media: media.clone(),
-            topic: topic.clone(),
-            country: country.clone(),
-            language: language.clone(),
-            published_date,
-        };
-
-        let web_resource: WebResource = article.try_into().unwrap();
-
-        assert_eq!(title, web_resource.title);
-        assert_eq!(clean_url, web_resource.display_url.to_string());
-        assert_eq!(excerpt, web_resource.snippet);
-        assert_eq!(link, web_resource.url.to_string());
-        assert_eq!(country, web_resource.country);
-        assert_eq!(language, web_resource.language);
-        assert_eq!(score, web_resource.score);
-        assert_eq!(rank, web_resource.rank);
-        assert_eq!(topic, web_resource.topic);
-        assert_eq!(published_date, web_resource.date_published);
-
-        let provider = web_resource.provider.unwrap();
-
-        assert_eq!(String::new(), provider.name);
-        assert_eq!(media, provider.thumbnail.unwrap().to_string());
-    }
-
-    #[test]
-    fn test_web_resource_from_article_invalid_links() {
-        let article = Article {
+    fn mock_article() -> Article {
+        Article {
             id: "id".to_string(),
             title: "title".to_string(),
             score: Some(0.75),
@@ -325,52 +247,60 @@ mod tests {
             link: "https://example.com/news/".to_string(),
             media: "https://example.com/news/image/".to_string(),
             topic: Topic::News,
-            country: "en".to_string(),
+            country: "EN".to_string(),
             language: "en".to_string(),
             published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
-        };
+        }
+    }
 
+    #[test]
+    fn test_news_resource_from_article() {
+        let article = mock_article();
+
+        let resource: NewsResource = article.clone().try_into().unwrap();
+
+        assert_eq!(article.title, resource.title);
+        assert_eq!(article.excerpt, resource.snippet);
+        assert_eq!(article.link, resource.url.to_string());
+        assert_eq!(article.media, resource.thumbnail.unwrap().to_string());
+        assert_eq!(article.country, resource.country);
+        assert_eq!(article.language, resource.language);
+        assert_eq!(article.score, resource.score);
+        assert_eq!(article.rank, resource.rank);
+        assert_eq!(article.topic, resource.topic);
+        assert_eq!(article.published_date, resource.date_published);
+    }
+
+    #[test]
+    fn test_news_resource_from_article_invalid_link() {
         let invalid_url = Article {
             link: String::new(),
-            ..article.clone()
+            ..mock_article()
         };
-        let res: Result<WebResource, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
 
-        let invalid_url = Article {
-            clean_url: String::new(),
-            ..article.clone()
-        };
-        let res: Result<WebResource, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
-
-        let invalid_url = Article {
-            media: "invalid".to_string(),
-            ..article
-        };
-        let res: Result<WebResource, _> = invalid_url.try_into();
+        let res: Result<NewsResource, _> = invalid_url.try_into();
         assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
     }
 
     #[test]
-    fn test_web_resource_from_article_empty_media() {
+    fn test_news_resource_from_article_empty_media() {
         let article = Article {
-            id: "id".to_string(),
-            title: "title".to_string(),
-            score: Some(0.75),
-            rank: 10,
-            clean_url: "https://example.com/".to_string(),
-            excerpt: "summary of the article".to_string(),
-            link: "https://example.com/news/".to_string(),
             media: "".to_string(),
-            topic: Topic::News,
-            country: "en".to_string(),
-            language: "en".to_string(),
-            published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            ..mock_article()
         };
 
-        let web_resource: WebResource = article.try_into().unwrap();
-        let thumbnail = web_resource.provider.unwrap().thumbnail;
-        assert_none!(thumbnail);
+        let res: NewsResource = article.try_into().unwrap();
+        assert_none!(res.thumbnail);
+    }
+
+    #[test]
+    fn test_news_resource_from_article_invalid_media() {
+        let invalid_url = Article {
+            media: "invalid".to_string(),
+            ..mock_article()
+        };
+
+        let res: Result<NewsResource, _> = invalid_url.try_into();
+        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
     }
 }

@@ -20,10 +20,10 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentFeedback;
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
-import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource;
 
 class MockEngine implements Engine {
   final Map<String, int> callCounter = {};
@@ -33,7 +33,7 @@ class MockEngine implements Engine {
   late ActiveDocumentData active1;
 
   MockEngine() {
-    final resource = WebResource.fromJson(const <String, Object>{
+    final resource = NewsResource.fromJson(const <String, Object>{
       'title': 'Example',
       'displayUrl': 'domain.com',
       'snippet': 'snippet',
@@ -45,7 +45,7 @@ class MockEngine implements Engine {
       },
       'rank': 10,
       'score': 0.1,
-      'country': 'en',
+      'country': 'EN',
       'language': 'en',
       'topic': 'news',
     });
@@ -54,12 +54,12 @@ class MockEngine implements Engine {
     doc0 = Document(
       stackId: stackId,
       personalizedRank: 0,
-      webResource: resource,
+      resource: resource,
     );
     doc1 = Document(
       stackId: stackId,
       personalizedRank: 1,
-      webResource: resource,
+      resource: resource,
     );
     active0 = ActiveDocumentData(Uint8List(0));
     active1 = ActiveDocumentData(Uint8List(1));

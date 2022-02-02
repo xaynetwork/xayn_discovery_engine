@@ -20,13 +20,12 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentFeedback;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show StackId;
-import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource, WebResourceProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 
+import '../discovery_engine/utils/utils.dart';
 import '../logging.dart' show setupLogging;
 
 Future<void> main() async {
@@ -36,32 +35,16 @@ Future<void> main() async {
   final repo = HiveDocumentRepository();
 
   group('DocumentRepository', () {
-    final dummy = WebResource(
-      title: 'Example',
-      snippet: 'snippet',
-      url: Uri.parse('https://domain.com'),
-      displayUrl: Uri.parse('domain.com'),
-      datePublished: DateTime.utc(2022, 01, 01),
-      provider: WebResourceProvider(
-        name: 'domain',
-        thumbnail: Uri.parse('http://thumbnail.domain.com'),
-      ),
-      rank: 10,
-      score: 0.1,
-      country: 'en',
-      language: 'en',
-      topic: 'news',
-    );
     final stackId = StackId();
     final doc1 = Document(
       stackId: stackId,
       personalizedRank: 0,
-      webResource: dummy,
+      resource: mockNewsResource,
     );
     final doc2 = Document(
       stackId: stackId,
       personalizedRank: 1,
-      webResource: dummy,
+      resource: mockNewsResource,
     );
 
     tearDown(() async {

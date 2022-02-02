@@ -25,7 +25,7 @@ class Document {
 
   /// Contains all data from search API that are needed for the UI.
   /// It's a base class for web, news, video, image resources.
-  final WebResource webResource;
+  final NewsResource resource;
 
   // These 2 fields can be private cause the UI 
   // only needs to know derived state:
@@ -50,7 +50,7 @@ class Document {
   Document._({
     required this.documentId,
     required this.queryId,
-    required this.webResource,
+    required this.resource,
     required this.nonPersonalizedRank,
     required this.personalizedRank,
     DocumentFeedback feedback = DocumentFeedback.neutral,

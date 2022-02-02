@@ -48,9 +48,9 @@ export 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show DocumentFeedback;
 export 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
+export 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 export 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 export 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
-export 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource, WebResourceProvider;
