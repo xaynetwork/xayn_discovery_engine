@@ -67,8 +67,12 @@ pub struct Config {
     api_key: String,
     api_base_url: String,
     markets: Vec<Market>,
-    smbert_vocab: Vec<u8>,
-    smbert_model: Vec<u8>,
+    smbert_vocab: String,
+    smbert_model: String,
+    kpe_vocab: String,
+    kpe_model: String,
+    kpe_cnn: String,
+    kpe_classifier: String,
 }
 
 /// Discovery Engine.
