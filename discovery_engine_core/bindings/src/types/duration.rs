@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-/// Initializes a `Duration` field at given place.
+/// Initializes a [`Duration`] field at given place.
 ///
 /// # Safety
 ///
@@ -34,8 +34,8 @@ pub unsafe extern "C" fn init_duration_at(place: *mut Duration, seconds: u64, na
 ///
 /// The pointer must point to a valid [`Duration`] instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_duration_seconds(place: *mut Duration) -> u64 {
-    unsafe { &*place }.as_secs()
+pub unsafe extern "C" fn get_duration_seconds(duration: *mut Duration) -> u64 {
+    unsafe { &*duration }.as_secs()
 }
 
 /// Gets the (subseconds) nanoseconds of a duration at given place.
@@ -44,17 +44,14 @@ pub unsafe extern "C" fn get_duration_seconds(place: *mut Duration) -> u64 {
 ///
 /// The pointer must point to a valid [`Duration`] instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_duration_nanos(place: *mut Duration) -> u32 {
-    unsafe { &*place }.subsec_nanos()
+pub unsafe extern "C" fn get_duration_nanos(duration: *mut Duration) -> u32 {
+    unsafe { &*duration }.subsec_nanos()
 }
 
 /// Alloc an uninitialized `Box<Duration>`, mainly used for testing.
-#[cfg(feature = "additional-ffi-methods")]
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_duration_box() -> *mut Duration {
-    use super::boxed::alloc_uninitialized_box;
-
-    alloc_uninitialized_box()
+pub extern "C" fn alloc_uninitialized_duration() -> *mut Duration {
+    super::boxed::alloc_uninitialized()
 }
 
 /// Drops a `Box<Duration>`, mainly used for testing.
@@ -62,23 +59,18 @@ pub extern "C" fn alloc_uninitialized_duration_box() -> *mut Duration {
 /// # Safety
 ///
 /// The pointer must represent a valid `Box<Duration>` instance.
-#[cfg(feature = "additional-ffi-methods")]
 #[no_mangle]
-pub unsafe extern "C" fn drop_duration_box(boxed: *mut Duration) {
-    use super::boxed::drop_box;
-
-    unsafe { drop_box(boxed) };
+pub unsafe extern "C" fn drop_duration(duration: *mut Duration) {
+   unsafe {  super::boxed::drop(duration) };
 }
 
 #[cfg(test)]
 mod tests {
-    use rand::random;
-
     use super::*;
 
     #[test]
     fn test_reading_duration() {
-        let place = &mut Duration::new(random(), random());
+        let place = &mut Duration::new(78978, 89378);
         let read = unsafe {
             let secs = get_duration_seconds(place);
             let nanos = get_duration_nanos(place);
@@ -89,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_writing_duration() {
-        let duration = Duration::new(random(), random());
+        let duration = Duration::new(78978, 89378);
         let place = &mut Duration::default();
         unsafe {
             init_duration_at(place, duration.as_secs(), duration.subsec_nanos());

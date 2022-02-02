@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -27,15 +27,15 @@ extension DurationFfi on Duration {
   /// Reads a dart [Duration] from a rust duration.
   ///
   /// Be aware that darts [Duration] has both less precision and  is more
-  /// limited wrt. the max duration as it stores the duration as a `int`
+  /// limited wrt. the max duration as it stores the duration as an `int`
   /// of microseconds.
   ///
   /// Sub microseconds precision will be ignored.
   ///
-  /// In case of to large durations an exception will be throw.
-  ///
+  /// In case of a too large durations an exception will be throw.
   static Duration readNative(final Pointer<RustDuration> durationPlace) {
-    const maxDurationSeconds = 0x8637bd05af6;
+    const i64Max = 0x7fffffffffffffff;
+    const maxDurationSeconds = i64Max ~/ Duration.microsecondsPerSecond;
     final seconds = ffi.get_duration_seconds(durationPlace);
     if (seconds > maxDurationSeconds) {
       throw ArgumentError.value(

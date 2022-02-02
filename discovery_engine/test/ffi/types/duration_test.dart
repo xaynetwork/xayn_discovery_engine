@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -18,12 +18,12 @@ import 'package:xayn_discovery_engine/src/ffi/types/duration.dart'
     show DurationFfi;
 
 void main() {
-  test('parsing written duration yields same result', () {
+  test('reading written duration yields same result', () {
     const duration = Duration(seconds: 4949, microseconds: 5012);
-    final place = ffi.alloc_uninitialized_duration_box();
+    final place = ffi.alloc_uninitialized_duration();
     duration.writeNative(place);
     final res = DurationFfi.readNative(place);
-    ffi.drop_duration_box(place);
+    ffi.drop_duration(place);
     expect(res, equals(duration));
   });
 }
