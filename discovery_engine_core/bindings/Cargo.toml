@@ -12,7 +12,6 @@ uuid = "0.8.2"
 
 [dev-dependencies]
 async-bindgen-gen-dart = "0.1.0"
-rand = "0.8.4"
 uuid = { version = "0.8.2", features = ["v4"] }
 
 [build-dependencies]
