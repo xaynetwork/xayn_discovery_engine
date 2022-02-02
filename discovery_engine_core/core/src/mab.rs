@@ -24,7 +24,7 @@ use std::{
 use displaydoc::Display;
 use futures::{
     pin_mut,
-    stream::{FuturesUnordered, Stream, StreamExt, Take, TryCollect, TryStreamExt},
+    stream::{FuturesUnordered, Stream, StreamExt, TryStreamExt},
 };
 use rand_distr::{Beta, BetaError, Distribution};
 use thiserror::Error;
@@ -72,10 +72,10 @@ pub(crate) trait Bucket<T> {
 /// Samples the next bucket.
 fn pull_arms<T>(
     beta_sampler: &impl BetaSample,
-    buckets: &[impl Deref<Target = impl Bucket<T>>],
+    buckets: Vec<impl Deref<Target = impl Bucket<T>>>,
 ) -> Option<Result<usize, Error>> {
     match buckets
-        .iter()
+        .into_iter()
         .enumerate()
         .filter(|(_, bucket)| !bucket.is_empty())
         .try_fold(None, |max, (index, bucket)| {
@@ -103,12 +103,8 @@ fn pull_arms<T>(
 pub(crate) struct Selection<'b, BS, B, T> {
     beta_sampler: BS,
     buckets: Vec<&'b RwLock<B>>,
-    bucket_type: PhantomData<T>,
+    bucket_type: PhantomData<&'b T>,
 }
-
-/// A future of selected elements, collected as `Vec<T>`.
-#[must_use = "futures do nothing unless they are awaited/polled"]
-pub(crate) type Selected<'b, BS, B, T> = TryCollect<Take<Selection<'b, BS, B, T>>, Vec<T>>;
 
 impl<'b, BS, B, T> Selection<'b, BS, B, T> {
     /// Creates a selective steam.
@@ -121,10 +117,14 @@ impl<'b, BS, B, T> Selection<'b, BS, B, T> {
     }
 
     /// Selects up to n elements.
-    pub(crate) fn select(self, n: usize) -> Selected<'b, BS, B, T>
+    pub(crate) fn select(
+        self,
+        n: usize,
+    ) -> impl 'b + Future<Output = Result<Vec<T>, Error>> + Send + Sync
     where
-        BS: BetaSample,
-        B: Bucket<T>,
+        BS: 'b + BetaSample + Send + Sync,
+        B: Bucket<T> + Send + Sync,
+        T: Send + Sync,
     {
         self.take(n).try_collect()
     }
@@ -148,7 +148,7 @@ where
 
         match buckets
             .poll(cx)
-            .map(|buckets| pull_arms(&self.beta_sampler, &buckets))
+            .map(|buckets| pull_arms(&self.beta_sampler, buckets))
         {
             Poll::Ready(Some(Ok(index))) => {
                 let bucket = self.buckets[index].write();
