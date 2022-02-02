@@ -29,7 +29,7 @@ use url::Url;
 use uuid::Uuid;
 use xayn_ai::ranker::Embedding;
 
-use xayn_discovery_engine_providers::{Article, Topic};
+use xayn_discovery_engine_providers::Article;
 
 use crate::stack::Id as StackId;
 
@@ -117,7 +117,7 @@ pub struct NewsResource {
     pub language: String,
 
     /// Main topic of the publisher.
-    pub topic: Topic,
+    pub topic: String,
 }
 
 impl TryFrom<Article> for NewsResource {
@@ -137,7 +137,7 @@ impl TryFrom<Article> for NewsResource {
             score: article.score,
             country: article.country,
             language: article.language,
-            topic: article.topic,
+            topic: article.topic.to_string(),
         })
     }
 }
@@ -213,6 +213,8 @@ mod tests {
     use chrono::NaiveDate;
     use claim::{assert_matches, assert_none};
 
+    use xayn_discovery_engine_providers::Topic;
+
     use super::*;
 
     impl Default for NewsResource {
@@ -227,7 +229,7 @@ mod tests {
                 rank: 0,
                 country: "en".to_string(),
                 language: "en".to_string(),
-                topic: Topic::Unrecognized,
+                topic: Topic::Unrecognized.to_string(),
             }
         }
     }
@@ -267,7 +269,7 @@ mod tests {
         assert_eq!(article.language, resource.language);
         assert_eq!(article.score, resource.score);
         assert_eq!(article.rank, resource.rank);
-        assert_eq!(article.topic, resource.topic);
+        assert_eq!(article.topic.to_string(), resource.topic);
         assert_eq!(article.published_date, resource.date_published);
     }
 
