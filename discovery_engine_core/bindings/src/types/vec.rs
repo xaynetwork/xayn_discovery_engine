@@ -12,27 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! FFI and logic bindings to `discovery_engine_core`.
+//! Modules containing FFI glue for `Vec<T>`.
 
-#![deny(
-    clippy::pedantic,
-    clippy::future_not_send,
-    noop_method_call,
-    rust_2018_idioms,
-    rust_2021_compatibility,
-    unused_qualifications,
-    unsafe_op_in_unsafe_fn
-)]
-#![warn(missing_docs, unreachable_pub)]
-#![allow(clippy::must_use_candidate, clippy::module_name_repetitions)]
+/// Get length of a `Box<Vec<T>>`.
+#[allow(dead_code)]
+pub(super) unsafe fn get_vec_len<T>(vec: *mut Vec<T>) -> usize {
+    unsafe { &*vec }.len()
+}
 
-pub mod async_bindings;
-pub mod types;
-
-#[async_bindgen::api]
-impl AsyncCore {
-    /// Adds two bytes.
-    pub async fn add(x: u8, y: u8) -> u8 {
-        x + y
-    }
+/// Get a pointer to the beginning of a `Box<Vec<T>>`'s buffer.
+#[allow(dead_code)]
+pub(super) unsafe fn get_vec_buffer<T>(vec: *mut Vec<T>) -> *mut T {
+    unsafe { &mut *vec }.as_mut_ptr()
 }

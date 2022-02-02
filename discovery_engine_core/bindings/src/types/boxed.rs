@@ -12,27 +12,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! FFI and logic bindings to `discovery_engine_core`.
+//! FFI functions for handling `Box<T>`.
 
-#![deny(
-    clippy::pedantic,
-    clippy::future_not_send,
-    noop_method_call,
-    rust_2018_idioms,
-    rust_2021_compatibility,
-    unused_qualifications,
-    unsafe_op_in_unsafe_fn
-)]
-#![warn(missing_docs, unreachable_pub)]
-#![allow(clippy::must_use_candidate, clippy::module_name_repetitions)]
+use std::mem::MaybeUninit;
 
-pub mod async_bindings;
-pub mod types;
+/// Allocates a box of an uninitialized `T` and returns the pointer to it.
+///
+/// Mostly used for testing `init_T_at` ffi functions
+pub(super) fn alloc_uninitialized<T>() -> *mut T {
+    Box::into_raw(Box::new(MaybeUninit::<T>::uninit())).cast()
+}
 
-#[async_bindgen::api]
-impl AsyncCore {
-    /// Adds two bytes.
-    pub async fn add(x: u8, y: u8) -> u8 {
-        x + y
-    }
+/// Drops a `Box<T>`, `T` must be initialized.
+///
+/// Mostly used for testing `init_T_at` ffi functions
+///
+/// # Safety
+///
+/// The pointer must represent a valid `Box<T>` instance.
+pub(super) unsafe fn drop<T: ?Sized>(boxed: *mut T) {
+    unsafe { Box::from_raw(boxed) };
 }

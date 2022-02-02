@@ -12,27 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! FFI and logic bindings to `discovery_engine_core`.
+//! Modules containing FFI glue for various types.
 
-#![deny(
-    clippy::pedantic,
-    clippy::future_not_send,
-    noop_method_call,
-    rust_2018_idioms,
-    rust_2021_compatibility,
-    unused_qualifications,
-    unsafe_op_in_unsafe_fn
-)]
-#![warn(missing_docs, unreachable_pub)]
-#![allow(clippy::must_use_candidate, clippy::module_name_repetitions)]
-
-pub mod async_bindings;
-pub mod types;
-
-#[async_bindgen::api]
-impl AsyncCore {
-    /// Adds two bytes.
-    pub async fn add(x: u8, y: u8) -> u8 {
-        x + y
-    }
-}
+mod boxed;
+pub mod slice;
+pub mod string;
+pub mod vec;
