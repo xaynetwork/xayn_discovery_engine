@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
 void main() {
   test('reading written document id yields same result', () {
     final uuid = DocumentId.fromBytes(Uuid.parseAsByteList(const Uuid().v4()));
-    final place = ffi.alloc_uninit_uuid();
+    final place = ffi.alloc_uninitialized_uuid();
     uuid.writeNative(place);
     final res = DocumentIdFfi.readNative(place);
     ffi.drop_uuid(place);
@@ -31,7 +31,7 @@ void main() {
 
   test('reading written stack id yields same result', () {
     final uuid = StackId.fromBytes(Uuid.parseAsByteList(const Uuid().v4()));
-    final place = ffi.alloc_uninit_uuid();
+    final place = ffi.alloc_uninitialized_uuid();
     uuid.writeNative(place);
     final res = StackIdFfi.readNative(place);
     ffi.drop_uuid(place);

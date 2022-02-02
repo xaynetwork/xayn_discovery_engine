@@ -65,7 +65,7 @@ pub unsafe extern "C" fn get_uuid_bytes(uuid: *mut Uuid) -> *const u8 {
 
 /// Alloc an uninitialized `Box<Uuid>`, mainly used for testing.
 #[no_mangle]
-pub extern "C" fn alloc_uninit_uuid() -> *mut Uuid {
+pub extern "C" fn alloc_uninitialized_uuid() -> *mut Uuid {
     super::boxed::alloc_uninitialized()
 }
 
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_reading_writing_uuid_works() {
         let uuid = Uuid::new_v4();
-        let place = alloc_uninit_uuid();
+        let place = alloc_uninitialized_uuid();
         let b = uuid.as_bytes();
         unsafe {
             init_uuid_at(
