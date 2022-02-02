@@ -61,7 +61,7 @@ pub extern "C" fn alloc_uninitialized_duration() -> *mut Duration {
 /// The pointer must represent a valid `Box<Duration>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_duration(duration: *mut Duration) {
-   unsafe {  super::boxed::drop(duration) };
+    unsafe { super::boxed::drop(duration) };
 }
 
 #[cfg(test)]
