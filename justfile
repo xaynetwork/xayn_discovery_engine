@@ -174,14 +174,17 @@ dart-clean:
     find "$DART_WORKSPACE" -type d -name .dart_tool -prune -exec rm -r '{}' \;
 
 # Remvoes all local cargo isntalls
-remove-local-cargo-installs:
+clean-tools:
     -rm -r "$CARGO_INSTALL_ROOT"
 
 # Removes all local cached dependencies and generated files
-clean: clean-gen-files rust-clean dart-clean remove-local-cargo-installs
+clean: clean-gen-files rust-clean dart-clean
+
+# Runs clean and removes local installed tools
+clean-fully: clean clean-tools
 
 # Workaround to set env variable CI for all job dependencies
-_pre-push: clean-gen-files fmt check test
+_pre-push: deps clean-gen-files fmt check test
 
 # Runs formatting, checks and test steps after deleting generated files.
 pre-push $CI="true":
