@@ -18,13 +18,9 @@ use core::document::{Embedding, Embedding1};
 
 use ndarray::Array;
 
-use crate::types::slice::boxed_slice;
+use crate::types::slice::boxed_slice_from_raw_parts;
 
 /// Creates a rust `Embedding1` with given capacity at given memory address.
-///
-/// The `Embedding1` is created at given address, not it's content.
-///
-/// Returns a pointer to the begin of the buffer of the embedding.
 ///
 /// # Safety
 ///
@@ -34,10 +30,10 @@ use crate::types::slice::boxed_slice;
 #[no_mangle]
 pub unsafe extern "C" fn init_embedding1_at(
     place: *mut Embedding1,
-    float_slice: *mut f32,
+    owning_ptr: *mut f32,
     len: usize,
 ) {
-    let vec = unsafe { boxed_slice::<f32>(float_slice, len).into() };
+    let vec = unsafe { boxed_slice_from_raw_parts::<f32>(owning_ptr, len).into() };
     let embedding = Embedding(Array::from_vec(vec));
     unsafe {
         place.write(embedding);
@@ -50,42 +46,36 @@ pub unsafe extern "C" fn init_embedding1_at(
 ///
 /// The pointer must point to a valid [`Embedding1`] instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_embedding1_buffer(place: *mut Embedding1) -> *mut f32 {
-    let embedding = unsafe { &mut *place };
+pub unsafe extern "C" fn get_embedding1_buffer(embedding: *mut Embedding1) -> *mut f32 {
+    let embedding = unsafe { &mut *embedding };
     embedding.0.as_mut_ptr()
 }
 
-/// Returns len of given embeddings buffer.
+/// Returns len of the given embedding.
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`Embedding1`] instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_embedding1_buffer_len(place: *mut Embedding1) -> usize {
+pub unsafe extern "C" fn get_embedding1_buffer_len(embedding: *mut Embedding1) -> usize {
     //WARNING: This holds for `Embedding1` but not for all possible `ndarray::Array<...>`.
-    unsafe { &*place }.len()
+    unsafe { &*embedding }.len()
 }
 
-/// Alloc an uninitialized `Box<String>`, mainly used for testing.
-#[cfg(feature = "additional-ffi-methods")]
+/// Alloc an uninitialized `Box<Embedding1>`, mainly used for testing.
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_embedding1_box() -> *mut Embedding1 {
-    use super::boxed::alloc_uninitialized_box;
-
-    alloc_uninitialized_box()
+pub extern "C" fn alloc_uninitialized_embedding1() -> *mut Embedding1 {
+    super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<String>`, mainly used for testing.
+/// Drops a `Box<Embedding1>`, mainly used for testing.
 ///
 /// # Safety
 ///
 /// The pointer must represent a valid `Box<Embedding1>` instance.
-#[cfg(feature = "additional-ffi-methods")]
 #[no_mangle]
-pub unsafe extern "C" fn drop_embedding1_box(boxed: *mut Embedding1) {
-    use super::boxed::drop_box;
-
-    unsafe { drop_box(boxed) };
+pub unsafe extern "C" fn drop_embedding1(embedding: *mut Embedding1) {
+    unsafe { super::boxed::drop(embedding) };
 }
 
 #[cfg(test)]
@@ -93,7 +83,6 @@ mod tests {
     use std::{ptr, slice};
 
     use ndarray::arr1;
-    use rand::{distributions::Standard, prelude::Distribution, thread_rng, Rng};
 
     use crate::types::slice::alloc_uninitialized_f32_slice;
 
@@ -101,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_reading_embedding1_works() {
-        let place = &mut random_embedding();
+        let place = &mut arbitrary_embeddig();
         let read = unsafe {
             let buffer_view = slice::from_raw_parts(
                 get_embedding1_buffer(place),
@@ -114,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_writing_embedding1_works() {
-        let embedding = random_embedding();
+        let embedding = arbitrary_embeddig();
         let len = embedding.len();
         let place: &mut Embedding1 = &mut Embedding(arr1(&[]));
         unsafe {
@@ -125,11 +114,7 @@ mod tests {
         assert_eq!(embedding.0, place.0);
     }
 
-    fn random_embedding() -> Embedding1 {
-        let rng = &mut thread_rng();
-        let len = rng.gen_range(1..1024);
-        Embedding(Array::from_vec(
-            Standard.sample_iter(rng).take(len).collect(),
-        ))
+    fn arbitrary_embeddig() -> Embedding1 {
+        Embedding(arr1(&[0.0, 1.2, 3.1, 0.4]))
     }
 }

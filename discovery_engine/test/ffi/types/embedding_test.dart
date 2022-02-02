@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -20,22 +20,22 @@ import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
     show Embedding1Ffi;
 
 void main() {
-  test('parsing written empty embeddings works', () {
+  test('reading written empty embeddings works', () {
     final embedding = Float32List(0);
-    final place = ffi.alloc_uninitialized_embedding1_box();
+    final place = ffi.alloc_uninitialized_embedding1();
     embedding.writeNative(place);
     final res = Embedding1Ffi.readNative(place);
-    ffi.drop_embedding1_box(place);
+    ffi.drop_embedding1(place);
     expect(res, equals(embedding));
   });
 
-  test('parsing written embeddings yields same result', () {
+  test('reading written embeddings yields same result', () {
     final embedding =
         Float32List.fromList([18.4, 6.9, 13.2, 7.8945, 8.2, 0.3, 7.8, 9.479]);
-    final place = ffi.alloc_uninitialized_embedding1_box();
+    final place = ffi.alloc_uninitialized_embedding1();
     embedding.writeNative(place);
     final res = Embedding1Ffi.readNative(place);
-    ffi.drop_embedding1_box(place);
+    ffi.drop_embedding1(place);
     expect(res, equals(embedding));
   });
 }
