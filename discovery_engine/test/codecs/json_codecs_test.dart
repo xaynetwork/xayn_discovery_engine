@@ -160,7 +160,7 @@ void main() {
       );
 
       const event_2 = EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.noInitReceived,
+        EngineExceptionReason.engineNotReady,
       );
       final message_2 = converter.convert(event_2);
 

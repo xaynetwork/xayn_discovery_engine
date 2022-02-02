@@ -16,11 +16,7 @@ import 'dart:isolate' show ReceivePort;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/api.dart'
-    show
-        EngineExceptionRaised,
-        FeedRequestSucceeded,
-        EngineExceptionReason,
-        ClientEvent;
+    show EngineExceptionRaised, EngineExceptionReason, ClientEvent;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
     show JsonToEngineEventConverter, kSenderKey, kPayloadKey;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -47,8 +43,8 @@ void main() {
     });
 
     test(
-        'when sending "FeedRequested" event as payload it should respond with '
-        '"FeedRequestSucceeded" event', () async {
+        'when sending event before "Init" event as payload it should respond with '
+        '"EngineExceptionRaised" event', () async {
       final channel = ReceivePort();
 
       manager.send({
@@ -59,7 +55,11 @@ void main() {
       final responseMsg = await channel.first as Object;
       final response = responseConverter.convert(responseMsg);
 
-      expect(response, isA<FeedRequestSucceeded>());
+      expect(response, isA<EngineExceptionRaised>());
+      expect(
+        (response as EngineExceptionRaised).reason,
+        equals(EngineExceptionReason.engineNotReady),
+      );
     });
 
     test(

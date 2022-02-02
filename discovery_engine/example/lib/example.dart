@@ -29,7 +29,7 @@ Future<void> runExample() async {
   final config = Configuration(
     apiKey: '**********',
     apiBaseUrl: 'https://example-api.dev',
-    assetsUrl: 'https://ai-assets.dev',
+    assetsUrl: '<replace with a working URL to assets server>',
     maxItemsPerFeedBatch: 50,
     applicationDirectoryPath: './',
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},

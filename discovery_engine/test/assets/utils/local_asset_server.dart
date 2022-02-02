@@ -63,8 +63,8 @@ class LocalAssetServer {
     }
   }
 
-  static Future<LocalAssetServer> start() async {
-    final server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
+  static Future<LocalAssetServer> start([int port = 8080]) async {
+    final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
     return LocalAssetServer._(server);
   }
 

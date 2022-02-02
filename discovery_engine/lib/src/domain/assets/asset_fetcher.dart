@@ -41,3 +41,14 @@ abstract class AssetFetcher {
     return builder.takeBytes();
   }
 }
+
+/// Thrown when there is an issue with downloading AI assets.
+class AssetFetcherException implements Exception {
+  /// Message (or string representation of the exception).
+  final String message;
+
+  AssetFetcherException(this.message);
+
+  @override
+  String toString() => 'AssetFetcherException: $message';
+}

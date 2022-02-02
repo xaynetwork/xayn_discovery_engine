@@ -154,8 +154,11 @@ abstract class Manager<Request extends Object, Response extends Object> {
   /// and the request is wrapped together with Sender's port in a [OneshotRequest].
   ///
   /// The response message from the Worker is deserialized to an appropriate
-  /// [Request] and retured to the caller.
-  Future<Response> send(Request event, {Duration? timeout}) async {
+  /// [Request] and returned to the caller.
+  Future<Response> send(
+    Request event, {
+    Duration? timeout = kDefaultRequestTimeout,
+  }) async {
     if (_responseController.isClosed) {
       throw ManagerDisposedException(
         'Send method can not be used after the Manager was disposed',
@@ -170,20 +173,26 @@ abstract class Manager<Request extends Object, Response extends Object> {
     _manager.send(requestMessage, [channel.sender.platformPort]);
 
     // Wait for a message and convert it to proper [Response] object
-    final responseMessage = await channel.receiver.receive()
-        // Wait for [Response] message only for a specified
-        // [Duration], otherwise throw a timeout exception
-        .timeout(
-      timeout ?? kDefaultRequestTimeout,
-      onTimeout: () {
-        // close the port of the Receiver
-        channel.receiver.dispose();
+    var responseFuture = channel.receiver.receive();
 
-        throw ResponseTimeoutException(
-          'Worker couldn\'t respond in time to requested event: $event',
-        );
-      },
-    );
+    if (timeout != null) {
+      // Wait for [Response] message only for a specified
+      // [Duration], otherwise throw a timeout exception
+      responseFuture = responseFuture.timeout(
+        timeout,
+        onTimeout: () {
+          // close the port of the Receiver
+          channel.receiver.dispose();
+
+          throw ResponseTimeoutException(
+            'Worker couldn\'t respond in time to requested event: $event',
+          );
+        },
+      );
+    }
+
+    // Wait for the Future to resolve (or timeout)
+    final responseMessage = await responseFuture;
 
     try {
       final response = responseConverter.convert(responseMessage);
