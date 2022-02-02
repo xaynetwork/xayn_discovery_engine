@@ -98,6 +98,9 @@ pub struct NewsResource {
     /// Url to reach the resource.
     pub url: Url,
 
+    /// Url to the source of this news.
+    pub source_url: Url,
+
     /// Publishing date.
     pub date_published: NaiveDateTime,
 
@@ -130,6 +133,7 @@ impl TryFrom<Article> for NewsResource {
             snippet: article.excerpt,
             date_published: article.published_date,
             url: Url::parse(&article.link)?,
+            source_url: Url::parse(&article.clean_url)?,
             thumbnail: (!media.is_empty())
                 .then(|| Url::parse(&media))
                 .transpose()?,
@@ -223,6 +227,7 @@ mod tests {
                 title: String::default(),
                 snippet: String::default(),
                 url: example_url(),
+                source_url: example_url(),
                 thumbnail: None,
                 date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
                 score: None,
@@ -264,6 +269,7 @@ mod tests {
         assert_eq!(article.title, resource.title);
         assert_eq!(article.excerpt, resource.snippet);
         assert_eq!(article.link, resource.url.to_string());
+        assert_eq!(article.clean_url, resource.source_url.to_string());
         assert_eq!(article.media, resource.thumbnail.unwrap().to_string());
         assert_eq!(article.country, resource.country);
         assert_eq!(article.language, resource.language);
