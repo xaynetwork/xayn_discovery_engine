@@ -16,24 +16,24 @@ import 'dart:ffi' show Pointer, FloatPointer;
 import 'dart:typed_data' show Float32List;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustEmbedding1;
+    show RustEmbedding;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 
-extension Embedding1Ffi on Float32List {
+extension EmbeddingFfi on Float32List {
   void writeNative(
-    final Pointer<RustEmbedding1> place,
+    final Pointer<RustEmbedding> place,
   ) {
     final len = length;
     final buffer = ffi.alloc_uninitialized_f32_slice(len);
     buffer.asTypedList(len).setAll(0, this);
-    ffi.init_embedding1_at(place, buffer, len);
+    ffi.init_embedding_at(place, buffer, len);
   }
 
   static Float32List readNative(
-    final Pointer<RustEmbedding1> place,
+    final Pointer<RustEmbedding> place,
   ) {
-    final len = ffi.get_embedding1_buffer_len(place);
-    final data = ffi.get_embedding1_buffer(place).asTypedList(len);
+    final len = ffi.get_embedding_buffer_len(place);
+    final data = ffi.get_embedding_buffer(place).asTypedList(len);
     return Float32List.fromList(data);
   }
 }

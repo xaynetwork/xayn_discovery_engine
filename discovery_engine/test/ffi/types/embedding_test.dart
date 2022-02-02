@@ -17,25 +17,25 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
-    show Embedding1Ffi;
+    show EmbeddingFfi;
 
 void main() {
   test('reading written empty embeddings works', () {
     final embedding = Float32List(0);
-    final place = ffi.alloc_uninitialized_embedding1();
+    final place = ffi.alloc_uninitialized_embedding();
     embedding.writeNative(place);
-    final res = Embedding1Ffi.readNative(place);
-    ffi.drop_embedding1(place);
+    final res = EmbeddingFfi.readNative(place);
+    ffi.drop_embedding(place);
     expect(res, equals(embedding));
   });
 
   test('reading written embeddings yields same result', () {
     final embedding =
         Float32List.fromList([18.4, 6.9, 13.2, 7.8945, 8.2, 0.3, 7.8, 9.479]);
-    final place = ffi.alloc_uninitialized_embedding1();
+    final place = ffi.alloc_uninitialized_embedding();
     embedding.writeNative(place);
-    final res = Embedding1Ffi.readNative(place);
-    ffi.drop_embedding1(place);
+    final res = EmbeddingFfi.readNative(place);
+    ffi.drop_embedding(place);
     expect(res, equals(embedding));
   });
 }

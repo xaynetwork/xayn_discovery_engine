@@ -27,11 +27,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
-use xayn_ai::ranker::Embedding;
 
 use xayn_discovery_engine_providers::Article;
 
 use crate::stack::Id as StackId;
+
+pub use xayn_ai::ranker::Embedding;
 
 /// Errors that could happen when constructing a [`Document`].
 #[derive(Error, Debug, DisplayDoc)]

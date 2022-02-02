@@ -9,13 +9,13 @@ no_includes = true
 header = """
 // Typedefs to make sure this "unknown" types are treated as opaque by ffigen.
 typedef struct RustDuration RustDuration;
-typedef struct RustEmbedding1 RustEmbedding1;
+typedef struct RustEmbedding RustEmbedding;
 typedef struct RustUuid RustUuid;
 """
 
 [export.rename]
 # Renamings to avoid name conflicts/confusion in dart.
 "Duration" = "RustDuration"
-"Embedding1" = "RustEmbedding1"
+"Embedding" = "RustEmbedding"
 "String" = "RustString"
 "Uuid" = "RustUuid"
