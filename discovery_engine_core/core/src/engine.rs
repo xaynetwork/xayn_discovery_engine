@@ -55,7 +55,7 @@ pub enum Error {
 
 #[allow(dead_code)]
 /// Feed market.
-struct Market {
+pub(crate) struct Market {
     country_code: String,
     lang_code: String,
 }

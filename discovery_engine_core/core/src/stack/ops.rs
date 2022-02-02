@@ -16,7 +16,11 @@ use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 
-use crate::{document::Document, engine::GenericError, stack::Id};
+use crate::{
+    document::Document,
+    engine::{GenericError, Market},
+    stack::Id,
+};
 
 /// Operations to customize the behaviour of a stack.
 ///
@@ -39,6 +43,56 @@ pub trait Ops {
 
     /// Merge current and new items.
     fn merge(&self, current: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
+}
+
+#[allow(dead_code)]
+/// Stack of breaking news items.
+struct BreakingNews {
+    markets: Vec<Market>,
+}
+
+#[async_trait]
+impl Ops for BreakingNews {
+    fn id(&self) -> Id {
+        todo!()
+    }
+
+    async fn new_items(&self, _keyphrases: &[String]) -> Result<Vec<Document>, GenericError> {
+        todo!()
+    }
+
+    fn merge(
+        &self,
+        _current: &[Document],
+        _new: &[Document],
+    ) -> Result<Vec<Document>, GenericError> {
+        todo!()
+    }
+}
+
+#[allow(dead_code)]
+/// Stack of personalized news items.
+struct PersonalizedNews {
+    markets: Vec<Market>,
+}
+
+#[async_trait]
+impl Ops for PersonalizedNews {
+    fn id(&self) -> Id {
+        todo!()
+    }
+
+    async fn new_items(&self, _keyphrases: &[String]) -> Result<Vec<Document>, GenericError> {
+        todo!()
+    }
+
+    fn merge(
+        &self,
+        _current: &[Document],
+        _new: &[Document],
+    ) -> Result<Vec<Document>, GenericError> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
