@@ -18,7 +18,7 @@ use std::ptr;
 
 use uuid::Uuid;
 
-/// Creates a new UUID based on this byes (~ `[u8; 16]`).
+/// Creates a new UUID based on this bytes (~ `[u8; 16]`).
 ///
 /// The bytes are passed in as separate parameters as dart
 /// can't handle C values on the stack well.
@@ -28,8 +28,8 @@ use uuid::Uuid;
 /// It must be valid to write an [`Uuid`] to given pointer.
 #[no_mangle]
 pub unsafe extern "C" fn init_uuid_at(
-    uuid_place: *mut Uuid,
-    b0: u8, //retarded, but the simplest solution wrt. the limitations of dart
+    place: *mut Uuid,
+    b0: u8,
     b1: u8,
     b2: u8,
     b3: u8,
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn init_uuid_at(
     let uuid = Uuid::from_bytes([
         b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15,
     ]);
-    unsafe { ptr::write(uuid_place, uuid) }
+    unsafe { ptr::write(place, uuid) }
 }
 
 /// Returns a pointer to the beginning of the 16 byte long byte slice.
@@ -58,18 +58,15 @@ pub unsafe extern "C" fn init_uuid_at(
 ///
 /// The pointer must point to a initialized [`Uuid`].
 #[no_mangle]
-pub unsafe extern "C" fn get_uuid_bytes(uuid_place: *mut Uuid) -> *const u8 {
-    let uuid = unsafe { &*uuid_place };
+pub unsafe extern "C" fn get_uuid_bytes(uuid: *mut Uuid) -> *const u8 {
+    let uuid = unsafe { &*uuid };
     uuid.as_bytes().as_ptr()
 }
 
 /// Alloc an uninitialized `Box<Uuid>`, mainly used for testing.
-#[cfg(feature = "additional-ffi-methods")]
 #[no_mangle]
-pub extern "C" fn alloc_uninit_uuid_box() -> *mut Uuid {
-    use super::boxed::alloc_uninitialized_box;
-
-    alloc_uninitialized_box()
+pub extern "C" fn alloc_uninit_uuid() -> *mut Uuid {
+    super::boxed::alloc_uninitialized()
 }
 
 /// Drops a `Box<Uuid>`, mainly used for testing.
@@ -77,12 +74,9 @@ pub extern "C" fn alloc_uninit_uuid_box() -> *mut Uuid {
 /// # Safety
 ///
 /// The pointer must represent a initialized `Box<Uuid>`.
-#[cfg(feature = "additional-ffi-methods")]
 #[no_mangle]
-pub unsafe extern "C" fn drop_uuid_box(boxed: *mut Uuid) {
-    use super::boxed::drop_box;
-
-    unsafe { drop_box(boxed) }
+pub unsafe extern "C" fn drop_uuid(uuid: *mut Uuid) {
+    unsafe { super::boxed::drop(uuid) }
 }
 
 #[cfg(test)]
@@ -118,7 +112,7 @@ mod tests {
     #[test]
     fn test_reading_writing_uuid_works() {
         let uuid = Uuid::new_v4();
-        let place = alloc_uninit_uuid_box();
+        let place = alloc_uninit_uuid();
         let b = uuid.as_bytes();
         unsafe {
             init_uuid_at(

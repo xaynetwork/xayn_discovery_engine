@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -20,21 +20,21 @@ import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi, StackIdFfi;
 
 void main() {
-  test('parsing written document id yields same result', () {
+  test('reading written document id yields same result', () {
     final uuid = DocumentId.fromBytes(Uuid.parseAsByteList(const Uuid().v4()));
-    final place = ffi.alloc_uninit_uuid_box();
+    final place = ffi.alloc_uninit_uuid();
     uuid.writeNative(place);
     final res = DocumentIdFfi.readNative(place);
-    ffi.drop_uuid_box(place);
+    ffi.drop_uuid(place);
     expect(res, equals(uuid));
   });
 
-  test('parsing written stack id yields same result', () {
+  test('reading written stack id yields same result', () {
     final uuid = StackId.fromBytes(Uuid.parseAsByteList(const Uuid().v4()));
-    final place = ffi.alloc_uninit_uuid_box();
+    final place = ffi.alloc_uninit_uuid();
     uuid.writeNative(place);
     final res = StackIdFfi.readNative(place);
-    ffi.drop_uuid_box(place);
+    ffi.drop_uuid(place);
     expect(res, equals(uuid));
   });
 }
