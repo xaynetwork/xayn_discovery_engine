@@ -21,8 +21,7 @@ abstract class ManifestReader {
   Future<Manifest> read() async {
     final jsonString = await loadManifestAsString();
     final json = jsonDecode(jsonString) as Map;
-    final manifest = Manifest.fromJson(json.cast<String, Object>());
-    return manifest;
+    return Manifest.fromJson(json.cast<String, Object>());
   }
 
   /// Loads the [Manifest] json file as [String] from bundled assets.
