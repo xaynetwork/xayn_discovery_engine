@@ -56,7 +56,7 @@ pub unsafe extern "C" fn init_uuid_at(
 ///
 /// # Safety
 ///
-/// The pointer must point to a initialized [`Uuid`].
+/// The pointer must point to an initialized [`Uuid`].
 #[no_mangle]
 pub unsafe extern "C" fn get_uuid_bytes(uuid: *mut Uuid) -> *const u8 {
     let uuid = unsafe { &*uuid };
@@ -73,7 +73,7 @@ pub extern "C" fn alloc_uninitialized_uuid() -> *mut Uuid {
 ///
 /// # Safety
 ///
-/// The pointer must represent a initialized `Box<Uuid>`.
+/// The pointer must represent an initialized `Box<Uuid>`.
 #[no_mangle]
 pub unsafe extern "C" fn drop_uuid(uuid: *mut Uuid) {
     unsafe { super::boxed::drop(uuid) }
