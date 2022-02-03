@@ -59,7 +59,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
         self.log_user_reaction(
             reaction.reaction.into(),
             &reaction.snippet,
-            &reaction.smbert,
+            &reaction.smbert_embedding,
         );
         Ok(())
     }

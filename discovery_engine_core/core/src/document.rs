@@ -195,7 +195,7 @@ pub struct UserReacted {
     pub snippet: String,
 
     /// Precomputed S-mBert of the document.
-    pub smbert: Embedding,
+    pub smbert_embedding: Embedding,
 
     /// Reaction.
     pub reaction: UserReaction,
