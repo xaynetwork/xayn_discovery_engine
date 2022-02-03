@@ -15,6 +15,7 @@
 //! FFI functions for handling embeddings.
 
 use core::document::Embedding;
+use std::process::abort;
 
 use ndarray::Array;
 
@@ -33,8 +34,8 @@ pub unsafe extern "C" fn init_embedding_at(
     owning_ptr: *mut f32,
     len: usize,
 ) {
-    let vec = unsafe { boxed_slice_from_raw_parts::<f32>(owning_ptr, len).into() };
-    let embedding = Embedding::from(Array::from_vec(vec));
+    let boxed_slice = unsafe { boxed_slice_from_raw_parts::<f32>(owning_ptr, len) };
+    let embedding = Embedding::from(Array::from(boxed_slice));
     unsafe {
         place.write(embedding);
     }
@@ -55,10 +56,20 @@ pub unsafe extern "C" fn get_embedding_buffer(embedding: *const Embedding) -> *c
 /// # Safety
 ///
 /// The pointer must point to a valid [`Embedding`] instance.
+///
+/// # Aborts
+///
+/// Aborts if the embedding is not "contiguous and in standard order".
+//Note: Wether this is or isn't the case should (for our use case) be always
+// the same independent of input data. Hence this should be caught by
+// tests. If that isn't the case anymore it should be considered to
+// change this interface, e.g. to support reading a buffer with strides.
 #[no_mangle]
 pub unsafe extern "C" fn get_embedding_buffer_len(embedding: *mut Embedding) -> usize {
-    //WARNING: This holds for `Embedding` but not for all possible `ndarray::Array<...>`.
-    unsafe { &*embedding }.len()
+    unsafe { &*embedding }
+        .as_slice()
+        .unwrap_or_else(|| abort())
+        .len()
 }
 
 /// Alloc an uninitialized `Box<Embedding>`, mainly used for testing.
@@ -89,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_reading_embedding_works() {
-        let embedding = &mut arbitrary_embeddig();
+        let embedding = &mut arbitrary_embedding();
         let read = unsafe {
             let buffer_view = slice::from_raw_parts(
                 get_embedding_buffer(embedding),
@@ -102,7 +113,7 @@ mod tests {
 
     #[test]
     fn test_writing_embedding_works() {
-        let embedding = arbitrary_embeddig();
+        let embedding = arbitrary_embedding();
         let len = embedding.len();
         let place: &mut Embedding = &mut Embedding::from(arr1(&[]));
         unsafe {
@@ -113,7 +124,7 @@ mod tests {
         assert_eq!(*place, embedding);
     }
 
-    fn arbitrary_embeddig() -> Embedding {
+    fn arbitrary_embedding() -> Embedding {
         Embedding::from(arr1(&[0.0, 1.2, 3.1, 0.4]))
     }
 }
