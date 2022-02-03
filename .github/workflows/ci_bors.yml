@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   dev-ci:
-    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@updated-lock-file-because-of-upated-git-deps
+    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@main
 
   ci-ok:
     name: ci-ok
