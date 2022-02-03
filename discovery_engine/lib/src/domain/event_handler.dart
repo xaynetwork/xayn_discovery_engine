@@ -52,7 +52,7 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
 import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
     show EngineStateRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
-    show createDataProvider, createManifestReader;
+    show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart'
     show HttpAssetFetcher;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -201,14 +201,12 @@ class EventHandler {
     final appDir = config.applicationDirectoryPath;
     final storageDirPath = '$appDir/$kEnginePath';
     final assetFetcher = HttpAssetFetcher(config.assetsUrl);
-    final manifestReader = createManifestReader();
     final dataProvider = createDataProvider(
       assetFetcher,
       _assetReporter,
-      manifestReader,
       storageDirPath,
     );
-    return dataProvider.getSetupData();
+    return dataProvider.getSetupData(config.manifest);
   }
 
   Future<void> _initDatabase(String appDir) async {

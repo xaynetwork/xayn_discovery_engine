@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         AssetFetcher,
         AssetReporter,
         DataProvider,
-        ManifestReader,
+        Manifest,
         SetupData;
 
 class WebDataProvider extends DataProvider {
@@ -28,19 +28,15 @@ class WebDataProvider extends DataProvider {
   final AssetFetcher assetFetcher;
   @override
   final AssetReporter assetReporter;
-  @override
-  final ManifestReader manifestReader;
 
   WebDataProvider(
     this.assetFetcher,
     this.assetReporter,
-    this.manifestReader,
   );
 
   @override
-  Future<SetupData> getSetupData() async {
+  Future<SetupData> getSetupData(Manifest manifest) async {
     final fetched = <AssetType, Uint8List>{};
-    final manifest = await manifestReader.read();
 
     assetReporter.fetchingStarted(manifest);
 
@@ -92,7 +88,6 @@ class WebSetupData extends SetupData {
 DataProvider createDataProvider(
   final AssetFetcher assetFetcher,
   final AssetReporter assetReporter,
-  final ManifestReader manifestReader,
   final String storageDirectoryPath,
 ) =>
-    WebDataProvider(assetFetcher, assetReporter, manifestReader);
+    WebDataProvider(assetFetcher, assetReporter);
