@@ -173,7 +173,7 @@ mod tests {
     // TODO use our own when exposed as a crate
     use float_cmp::approx_eq;
 
-    use crate::{document::Id as DocumentId, stack::ops::MockOps};
+    use crate::{document::Id as DocumentId, stack::ops::tests::MockOps};
 
     use super::*;
 

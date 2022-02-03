@@ -13,21 +13,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use async_trait::async_trait;
-#[cfg(test)]
-use mockall::automock;
 
-use crate::{document::Document, engine::GenericError, ranker, stack::Id};
+use crate::{document::Document, engine::GenericError, ranker::Ranker, stack::Id};
 use xayn_ai::ranker::KeyPhrase;
-
-// required for mock of Ops
-pub(crate) type Ranker<'a> = &'a (dyn ranker::Ranker + Sync);
 
 /// Operations to customize the behaviour of a stack.
 ///
 /// Each stack can get and select new items using different sources
 /// or different strategies.
-#[cfg_attr(test, automock)]
-// automock must be placed before async_trait
 #[async_trait]
 pub trait Ops {
     /// Get the id for this set of operations.
@@ -43,7 +36,7 @@ pub trait Ops {
     async fn new_items<'a>(
         &self,
         key_phrases: &[KeyPhrase],
-        ranker: Ranker<'a>,
+        ranker: &'a (dyn Ranker + Sync),
     ) -> Result<Vec<Document>, GenericError>;
 
     /// Merge current and new items.
@@ -51,8 +44,34 @@ pub trait Ops {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
+    use mockall::mock;
+
     use super::*;
+
+    // mocking introduces an additional distinct lifetime without the alias
+    pub(crate) type R<'a> = &'a (dyn Ranker + Sync);
+
+    mock! {
+        pub(crate) Ops {}
+
+        #[async_trait]
+        impl Ops for Ops {
+            fn id(&self) -> Id;
+
+            async fn new_items<'a>(
+                &self,
+                key_phrases: &[KeyPhrase],
+                ranker: R<'a>,
+            ) -> Result<Vec<Document>, GenericError>;
+
+            fn merge(
+                &self,
+                current: &[Document],
+                new: &[Document],
+            ) -> Result<Vec<Document>, GenericError>;
+        }
+    }
 
     // check that Ops is object safe
     #[test]

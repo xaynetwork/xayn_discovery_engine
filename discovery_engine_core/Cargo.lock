@@ -2840,7 +2840,6 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "float-cmp",
- "futures",
  "mockall",
  "rand 0.8.4",
  "rand_distr",

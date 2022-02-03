@@ -15,13 +15,12 @@
 use std::collections::HashMap;
 
 use displaydoc::Display;
-use futures::stream::{FuturesUnordered, TryStreamExt};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
 use crate::{
     document::{Document, TimeSpent, UserReacted},
-    mab::{self, BetaSampler, Selection},
+    mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
 };
@@ -81,7 +80,7 @@ pub struct Config {
 pub struct Engine<R> {
     #[allow(dead_code)]
     config: Config,
-    stacks: HashMap<StackId, RwLock<Stack>>,
+    stacks: RwLock<HashMap<StackId, Stack>>,
     ranker: R,
 }
 
@@ -91,20 +90,9 @@ where
 {
     /// Creates a new `Engine` from configuration.
     pub fn from_config(config: Config, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
-        let stacks = stack_ops
-            .into_iter()
-            .map(|ops| {
-                let id = ops.id();
-                Stack::new(StackData::default(), ops).map(|stack| (id, stack))
-            })
-            .collect::<Result<_, _>>()
-            .map_err(Error::InvalidStack)?;
+        let stack_data = |_| StackData::default();
 
-        Ok(Self {
-            config,
-            stacks,
-            ranker,
-        })
+        Self::from_stack_data(config, ranker, stack_data, stack_ops)
     }
 
     /// Creates a new `Engine` from serialized state and stack operations.
@@ -115,23 +103,34 @@ where
         state: &[u8],
         config: Config,
         ranker: R,
-        stacks_ops: Vec<BoxedOps>,
+        stack_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
-        if stacks_ops.is_empty() {
+        if stack_ops.is_empty() {
             return Err(Error::NoStackOps);
         }
 
-        let mut stacks_data = Self::deserialize(state)?;
+        let mut stack_data =
+            bincode::deserialize::<HashMap<StackId, _>>(state).map_err(Error::Deserialization)?;
+        let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
-        let stacks = stacks_ops
+        Self::from_stack_data(config, ranker, stack_data, stack_ops)
+    }
+
+    fn from_stack_data(
+        config: Config,
+        ranker: R,
+        mut stack_data: impl FnMut(StackId) -> StackData,
+        stack_ops: Vec<BoxedOps>,
+    ) -> Result<Self, Error> {
+        let stacks = stack_ops
             .into_iter()
             .map(|ops| {
                 let id = ops.id();
-                let data = stacks_data.remove(&id).unwrap_or_default();
-
-                Stack::new(data, ops).map(|stack| (id, RwLock::new(stack)))
+                let data = stack_data(id);
+                Stack::new(data, ops).map(|stack| (id, stack))
             })
             .collect::<Result<_, _>>()
+            .map(RwLock::new)
             .map_err(Error::InvalidStack)?;
 
         Ok(Self {
@@ -145,48 +144,56 @@ where
     ///
     /// The result can be used with [`Engine::new`] to restore it.
     pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
-        let state = self
-            .stacks
+        let stacks = self.stacks.read().await;
+        let stacks_data = stacks
             .iter()
-            .map(|(&id, stack)| async move {
-                bincode::serialize(&stack.read().await.data)
-                    .map(|data| (id, data))
-                    .map_err(Error::Serialization)
-            })
-            .collect::<FuturesUnordered<_>>()
-            .try_collect::<HashMap<_, _>>()
-            .await?;
+            .map(|(id, stack)| (id, &stack.data))
+            .collect::<HashMap<_, _>>();
 
-        bincode::serialize(&state).map_err(Error::Serialization)
-    }
-
-    /// Deserializes the state of the engine.
-    fn deserialize(state: &[u8]) -> Result<HashMap<StackId, StackData>, Error> {
-        bincode::deserialize::<HashMap<_, Vec<_>>>(state)
-            .map_err(Error::Deserialization)?
-            .into_iter()
-            .map(|(id, data)| {
-                bincode::deserialize(&data)
-                    .map(|data| (id, data))
-                    .map_err(Error::Deserialization)
-            })
-            .collect()
+        bincode::serialize(&stacks_data).map_err(Error::Serialization)
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
     pub async fn get_feed_documents(&self, max_documents: usize) -> Result<Vec<Document>, Error> {
-        Selection::new(BetaSampler, self.stacks.values())
+        SelectionIter::new(BetaSampler, self.stacks.write().await.values_mut())
             .select(max_documents)
-            .await
-            .map_err(|e| e.into())
+            .map_err(Into::into)
     }
 
-    /// The ranker could rank the documents in a different order so we update the stacks with it.
-    async fn rank_stacks(&mut self) -> Result<(), Error> {
+    /// Process the feedback about the user spending some time on a document.
+    pub async fn time_spent(&mut self, time_spent: &TimeSpent) -> Result<(), Error> {
+        self.ranker.log_document_view_time(time_spent)?;
+
+        rank_stacks(self.stacks.write().await.values_mut(), &mut self.ranker)
+    }
+
+    /// Process the feedback about the user reacting to a document.
+    pub async fn user_reacted(&mut self, reacted: &UserReacted) -> Result<(), Error> {
+        let mut stacks = self.stacks.write().await;
+        stacks
+            .get_mut(&reacted.stack_id)
+            .ok_or(Error::InvalidStackId(reacted.stack_id))?
+            .update_relevance(reacted.reaction);
+
+        self.ranker.log_user_reaction(reacted)?;
+
+        rank_stacks(stacks.values_mut(), &mut self.ranker)
+    }
+
+    /// Updates the stacks with data related to the top key phrases of the current data.
+    #[allow(dead_code)]
+    async fn update_stacks(&mut self, top: usize) -> Result<(), Error> {
+        let key_phrases = &self.ranker.select_top_key_phrases(top);
+
         let mut errors = Vec::new();
-        for stack in self.stacks.values() {
-            if let Err(error) = stack.write().await.rank(&mut self.ranker) {
-                errors.push(Error::StackOpFailed(error));
+        for stack in self.stacks.write().await.values_mut() {
+            match stack.ops.new_items(key_phrases, &self.ranker).await {
+                Ok(documents) => {
+                    if let Err(error) = stack.update(&documents, &mut self.ranker) {
+                        errors.push(Error::StackOpFailed(error));
+                    }
+                }
+                Err(error) => errors.push(error.into()),
             }
         }
 
@@ -196,42 +203,25 @@ where
             Err(Error::Errors(errors))
         }
     }
+}
 
-    /// Process the feedback about the user spending some time on a document.
-    pub async fn time_spent(&mut self, time_spent: &TimeSpent) -> Result<(), Error> {
-        self.ranker.log_document_view_time(time_spent)?;
-
-        self.rank_stacks().await
-    }
-
-    /// Process the feedback about the user reacting to a document.
-    pub async fn user_reacted(&mut self, reacted: &UserReacted) -> Result<(), Error> {
-        self.stacks
-            .get(&reacted.stack_id)
-            .ok_or(Error::InvalidStackId(reacted.stack_id))?
-            .write()
-            .await
-            .update_relevance(reacted.reaction);
-
-        self.ranker.log_user_reaction(reacted)?;
-
-        self.rank_stacks().await
-    }
-
-    /// Updates the stacks with data related to the top key phrases of the current data.
-    #[allow(dead_code)]
-    async fn update_stacks(&mut self, top: usize) -> Result<(), Error> {
-        let key_phrases = &self.ranker.select_top_key_phrases(top);
-
-        for stack in self.stacks.values() {
-            let mut stack = stack.write().await;
-            let documents = stack.ops.new_items(key_phrases, &self.ranker).await?;
-            stack
-                .update(&documents, &mut self.ranker)
-                .map_err(Error::StackOpFailed)?;
+/// The ranker could rank the documents in a different order so we update the stacks with it.
+fn rank_stacks<'a>(
+    stacks: impl Iterator<Item = &'a mut Stack>,
+    ranker: &mut impl Ranker,
+) -> Result<(), Error> {
+    let errors = stacks.fold(Vec::new(), |mut errors, stack| {
+        if let Err(error) = stack.rank(ranker) {
+            errors.push(Error::StackOpFailed(error));
         }
 
+        errors
+    });
+
+    if errors.is_empty() {
         Ok(())
+    } else {
+        Err(Error::Errors(errors))
     }
 }
 
