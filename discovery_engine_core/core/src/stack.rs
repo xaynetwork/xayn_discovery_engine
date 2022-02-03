@@ -64,7 +64,7 @@ pub type BoxedOps = Box<dyn Ops + Send + Sync>;
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, From, Display)]
 #[repr(transparent)]
 #[cfg_attr(test, derive(Default))]
-pub struct Id(Uuid);
+pub struct Id(pub Uuid);
 
 #[derive(Derivative)]
 #[derivative(Debug)]
