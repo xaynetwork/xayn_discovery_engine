@@ -6,7 +6,7 @@ on:
       - '_bors*'
     paths:
       - '.github/workflows/ci*'
-      - '.github/actions/*'
+      - '.github/actions/**'
       - 'discovery_engine/**'
       - 'discovery_engine_core/**'
       - 'discovery_engine_flutter/**'
