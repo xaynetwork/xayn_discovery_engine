@@ -40,10 +40,8 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, DocumentFeedbackAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResourceAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart'
-    show WebResourceProviderAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
@@ -197,8 +195,7 @@ class EventHandler {
     Hive.registerAdapter(DocumentAdapter());
     Hive.registerAdapter(DocumentFeedbackAdapter());
     Hive.registerAdapter(ActiveDocumentDataAdapter());
-    Hive.registerAdapter(WebResourceAdapter());
-    Hive.registerAdapter(WebResourceProviderAdapter());
+    Hive.registerAdapter(NewsResourceAdapter());
     Hive.registerAdapter(DocumentIdAdapter());
     Hive.registerAdapter(StackIdAdapter());
     Hive.registerAdapter(DurationAdapter());

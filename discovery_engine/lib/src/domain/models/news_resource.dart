@@ -15,28 +15,31 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
-import 'package:xayn_discovery_engine/src/domain/models/web_resource_provider.dart';
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show webResourceTypeId;
+    show newsResourceTypeId;
 
-part 'web_resource.freezed.dart';
-part 'web_resource.g.dart';
+part 'news_resource.freezed.dart';
+part 'news_resource.g.dart';
 
-/// [WebResource] class is used to represent different kinds of resources
-/// like web, image, video, news, etc. that are delivered by an external
-/// content API, which might serve search results, news, or other types.
+/// [NewsResource] class is used to represent news that are
+/// delivered by an external content API.
 @freezed
-class WebResource with _$WebResource {
-  @HiveType(typeId: webResourceTypeId)
-  const factory WebResource({
+class NewsResource with _$NewsResource {
+  @HiveType(typeId: newsResourceTypeId)
+  const factory NewsResource({
     @HiveField(0) required String title,
     @HiveField(1) required String snippet,
     @HiveField(2) required Uri url,
-    @HiveField(3) required Uri displayUrl,
-    @HiveField(4) required DateTime datePublished,
-    @HiveField(5) WebResourceProvider? provider,
-  }) = _WebResource;
+    @HiveField(3) required Uri sourceUrl,
+    @HiveField(4) required Uri? thumbnail,
+    @HiveField(5) required DateTime datePublished,
+    @HiveField(6) required int rank,
+    @HiveField(7) required double? score,
+    @HiveField(8) required String country,
+    @HiveField(9) required String language,
+    @HiveField(10) required String topic,
+  }) = _NewsResource;
 
-  factory WebResource.fromJson(Map<String, Object?> json) =>
-      _$WebResourceFromJson(json);
+  factory NewsResource.fromJson(Map<String, Object?> json) =>
+      _$NewsResourceFromJson(json);
 }

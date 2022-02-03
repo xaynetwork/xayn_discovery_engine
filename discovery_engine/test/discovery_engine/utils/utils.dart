@@ -20,6 +20,8 @@ import 'package:xayn_discovery_engine/src/discovery_engine_base.dart'
     show DiscoveryEngine;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     show DiscoveryEngineWorker;
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 
 typedef EntryPoint = void Function(SendPort sendPort);
 
@@ -80,4 +82,18 @@ final mockConfig = Configuration(
   maxItemsPerFeedBatch: 50,
   applicationDirectoryPath: './',
   feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+);
+
+final mockNewsResource = NewsResource(
+  title: 'Example',
+  snippet: 'snippet',
+  url: Uri.parse('https://domain.com'),
+  sourceUrl: Uri.parse('domain.com'),
+  datePublished: DateTime.utc(2022, 01, 01),
+  thumbnail: Uri.parse('http://thumbnail.domain.com'),
+  rank: 10,
+  score: 0.1,
+  country: 'EN',
+  language: 'en',
+  topic: 'news',
 );

@@ -28,8 +28,6 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
-import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox, activeDocumentDataBox, changedDocumentIdBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
@@ -39,6 +37,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 
+import 'discovery_engine/utils/utils.dart';
 import 'logging.dart' show setupLogging;
 
 Future<void> main() async {
@@ -70,28 +69,17 @@ Future<void> main() async {
 
     setUp(() async {
       data = ActiveDocumentData(Uint8List(0));
-      final dummy = WebResource.fromJson(<String, Object>{
-        'title': 'Example',
-        'displayUrl': 'domain.com',
-        'snippet': 'snippet',
-        'url': 'http://domain.com',
-        'datePublished': '1980-01-01T00:00:00.000000',
-        'provider': <String, String>{
-          'name': 'domain',
-          'thumbnail': 'http://thumbnail.domain.com',
-        },
-      });
       final stackId = StackId();
       doc2 = Document(
         stackId: stackId,
         personalizedRank: 2,
-        webResource: dummy,
+        resource: mockNewsResource,
         isActive: true,
       );
       doc3 = Document(
         stackId: stackId,
         personalizedRank: 3,
-        webResource: dummy,
+        resource: mockNewsResource,
         isActive: false,
       );
       id2 = doc2.documentId;

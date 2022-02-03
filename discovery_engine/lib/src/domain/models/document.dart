@@ -16,10 +16,10 @@ import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:json_annotation/json_annotation.dart' show JsonValue;
 import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
-import 'package:xayn_discovery_engine/src/domain/models/web_resource.dart'
-    show WebResource;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show documentTypeId, documentFeedbackTypeId;
 
@@ -34,7 +34,7 @@ class Document {
   @HiveField(1)
   final StackId stackId;
   @HiveField(2)
-  final WebResource webResource;
+  final NewsResource resource;
   @HiveField(3)
   DocumentFeedback feedback;
   @HiveField(4)
@@ -50,7 +50,7 @@ class Document {
 
   Document({
     required this.stackId,
-    required this.webResource,
+    required this.resource,
     required this.personalizedRank,
     this.feedback = DocumentFeedback.neutral,
     this.isActive = true,
@@ -59,7 +59,7 @@ class Document {
 
   api.Document toApiDocument() => api.Document(
         documentId: documentId,
-        webResource: webResource,
+        resource: resource,
         feedback: feedback,
         nonPersonalizedRank: personalizedRank, // TODO remove?
         personalizedRank: personalizedRank,

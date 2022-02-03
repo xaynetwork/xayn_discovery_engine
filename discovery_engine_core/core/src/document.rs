@@ -14,15 +14,22 @@
 
 //! Personalized document that is returned from [`Engine`](crate::engine::Engine).
 
-use std::{convert::TryFrom, time::Duration};
+use std::{
+    convert::{TryFrom, TryInto},
+    time::Duration,
+};
 
+use chrono::NaiveDateTime;
 use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use url::Url;
 use uuid::Uuid;
 use xayn_ai::ranker::Embedding;
+
+use xayn_discovery_engine_providers::Article;
 
 use crate::stack::Id as StackId;
 
@@ -31,6 +38,9 @@ use crate::stack::Id as StackId;
 pub enum Error {
     /// Failed to parse Uuid: {0}.
     Parse(#[from] uuid::Error),
+
+    /// Impossible to parse the provided url: {0}.
+    InvalidUrl(#[from] url::ParseError),
 }
 
 /// Unique identifier of the [`Document`].
@@ -42,6 +52,12 @@ impl Id {
     /// Creates a [`Id`] from a 128bit value in big-endian order.
     pub fn from_u128(id: u128) -> Self {
         Id(Uuid::from_u128(id))
+    }
+}
+
+impl From<Uuid> for Id {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
     }
 }
 
@@ -63,23 +79,71 @@ pub struct Document {
     /// Stack from which the document has been taken.
     pub stack_id: StackId,
 
-    /// Position of the document from the source.
-    pub rank: usize,
-
-    /// Text title of the document.
-    pub title: String,
-
-    /// Text snippet of the document.
-    pub snippet: String,
-
-    /// URL of the document.
-    pub url: String,
-
-    /// Domain of the document.
-    pub domain: String,
-
     /// Embedding from smbert.
     pub smbert_embedding: Embedding,
+
+    /// Resource this document refers to.
+    pub resource: NewsResource,
+}
+
+/// Represents a news that is delivered by an external content API.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewsResource {
+    /// Title of the resource.
+    pub title: String,
+
+    /// Snippet of the resource.
+    pub snippet: String,
+
+    /// Url to reach the resource.
+    pub url: Url,
+
+    /// Url to the source of this news.
+    pub source_url: Url,
+
+    /// Publishing date.
+    pub date_published: NaiveDateTime,
+
+    /// Thumbnail of the image attached to the news.
+    pub thumbnail: Option<Url>,
+
+    /// The rank of the domain of the source,
+    pub rank: usize,
+
+    /// How much the article match the query.
+    pub score: Option<f32>,
+
+    /// The country of the publisher.
+    pub country: String,
+
+    /// The language of the article.
+    pub language: String,
+
+    /// Main topic of the publisher.
+    pub topic: String,
+}
+
+impl TryFrom<Article> for NewsResource {
+    type Error = Error;
+    fn try_from(article: Article) -> Result<Self, Self::Error> {
+        let media = article.media;
+
+        Ok(NewsResource {
+            title: article.title,
+            snippet: article.excerpt,
+            date_published: article.published_date,
+            url: Url::parse(&article.link)?,
+            source_url: Url::parse(&article.clean_url)?,
+            thumbnail: (!media.is_empty())
+                .then(|| Url::parse(&media))
+                .transpose()?,
+            rank: article.rank,
+            score: article.score,
+            country: article.country,
+            language: article.language,
+            topic: article.topic.to_string(),
+        })
+    }
 }
 
 /// Indicates user's "sentiment" towards the document,
@@ -132,4 +196,119 @@ pub struct UserReacted {
 
     /// Reaction.
     pub reaction: UserReaction,
+}
+
+#[allow(dead_code)]
+pub(crate) fn document_from_article(
+    article: Article,
+    stack_id: StackId,
+    smbert_embedding: Embedding,
+) -> Result<Document, Error> {
+    Ok(Document {
+        id: Uuid::new_v4().into(),
+        stack_id,
+        smbert_embedding,
+        resource: article.try_into()?,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::NaiveDate;
+    use claim::{assert_matches, assert_none};
+
+    use xayn_discovery_engine_providers::Topic;
+
+    use super::*;
+
+    impl Default for NewsResource {
+        fn default() -> Self {
+            Self {
+                title: String::default(),
+                snippet: String::default(),
+                url: example_url(),
+                source_url: example_url(),
+                thumbnail: None,
+                date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+                score: None,
+                rank: 0,
+                country: "en".to_string(),
+                language: "en".to_string(),
+                topic: Topic::Unrecognized.to_string(),
+            }
+        }
+    }
+
+    fn example_url() -> Url {
+        Url::parse("https://example.net").unwrap(/* used only in tests */)
+    }
+
+    fn mock_article() -> Article {
+        Article {
+            id: "id".to_string(),
+            title: "title".to_string(),
+            score: Some(0.75),
+            rank: 10,
+            clean_url: "https://example.com/".to_string(),
+            excerpt: "summary of the article".to_string(),
+            link: "https://example.com/news/".to_string(),
+            media: "https://example.com/news/image/".to_string(),
+            topic: Topic::News,
+            country: "EN".to_string(),
+            language: "en".to_string(),
+            published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+        }
+    }
+
+    #[test]
+    fn test_news_resource_from_article() {
+        let article = mock_article();
+
+        let resource: NewsResource = article.clone().try_into().unwrap();
+
+        assert_eq!(article.title, resource.title);
+        assert_eq!(article.excerpt, resource.snippet);
+        assert_eq!(article.link, resource.url.to_string());
+        assert_eq!(article.clean_url, resource.source_url.to_string());
+        assert_eq!(article.media, resource.thumbnail.unwrap().to_string());
+        assert_eq!(article.country, resource.country);
+        assert_eq!(article.language, resource.language);
+        assert_eq!(article.score, resource.score);
+        assert_eq!(article.rank, resource.rank);
+        assert_eq!(article.topic.to_string(), resource.topic);
+        assert_eq!(article.published_date, resource.date_published);
+    }
+
+    #[test]
+    fn test_news_resource_from_article_invalid_link() {
+        let invalid_url = Article {
+            link: String::new(),
+            ..mock_article()
+        };
+
+        let res: Result<NewsResource, _> = invalid_url.try_into();
+        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
+    }
+
+    #[test]
+    fn test_news_resource_from_article_empty_media() {
+        let article = Article {
+            media: "".to_string(),
+            ..mock_article()
+        };
+
+        let res: NewsResource = article.try_into().unwrap();
+        assert_none!(res.thumbnail);
+    }
+
+    #[test]
+    fn test_news_resource_from_article_invalid_media() {
+        let invalid_url = Article {
+            media: "invalid".to_string(),
+            ..mock_article()
+        };
+
+        let res: Result<NewsResource, _> = invalid_url.try_into();
+        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
+    }
 }
