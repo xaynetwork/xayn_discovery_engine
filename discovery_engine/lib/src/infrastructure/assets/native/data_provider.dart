@@ -14,14 +14,8 @@
 
 import 'dart:io' show File, Directory;
 import 'package:crypto/crypto.dart' show sha256;
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
-    show Asset, AssetType;
-import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
-    show AssetFetcher;
-import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
-    show DataProvider, SetupData;
-import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
-    show ManifestReader;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show Asset, AssetType, Manifest, AssetFetcher, DataProvider, SetupData;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 const _baseAssetsPath = 'assets';
@@ -29,13 +23,10 @@ const _baseAssetsPath = 'assets';
 class NativeDataProvider extends DataProvider {
   @override
   final AssetFetcher assetFetcher;
-  @override
-  final ManifestReader manifestReader;
   final String storageDirectoryPath;
 
   NativeDataProvider(
     this.assetFetcher,
-    this.manifestReader,
     this.storageDirectoryPath,
   );
 
@@ -43,10 +34,8 @@ class NativeDataProvider extends DataProvider {
       DataProvider.joinPaths([storageDirectoryPath, _baseAssetsPath]);
 
   @override
-  Future<SetupData> getSetupData() async {
+  Future<SetupData> getSetupData(Manifest manifest) async {
     final paths = <AssetType, String>{};
-
-    final manifest = await manifestReader.read();
 
     for (final asset in manifest.assets) {
       final path = await _getData(asset);
@@ -127,7 +116,6 @@ class NativeSetupData extends SetupData {
 
 DataProvider createDataProvider(
   final AssetFetcher assetFetcher,
-  final ManifestReader manifestReader,
   final String storageDirectoryPath,
 ) =>
-    NativeDataProvider(assetFetcher, manifestReader, storageDirectoryPath);
+    NativeDataProvider(assetFetcher, storageDirectoryPath);

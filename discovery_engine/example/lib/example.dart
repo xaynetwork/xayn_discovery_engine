@@ -18,24 +18,27 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         DiscoveryEngine,
         EngineExceptionRaised,
         EngineInitException,
+        FeedMarket,
         NextFeedBatchAvailable,
         NextFeedBatchRequestSucceeded,
         NextFeedBatchRequested,
         ResetEngine,
-        FeedMarket;
+        createManifestReader;
 
 Future<void> runExample() async {
   // provide initial configuration for the engine
+  final manifest = await createManifestReader().read();
   final config = Configuration(
     apiKey: '**********',
     apiBaseUrl: 'https://example-api.dev',
-    assetsUrl: '<replace with a working URL to assets server>',
+    assetsUrl: 'https://ai-assets.xaynet.dev',
     maxItemsPerFeedBatch: 50,
     applicationDirectoryPath: './',
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+    manifest: manifest,
   );
 
-  late DiscoveryEngine engine;
+  late DiscoveryEngine? engine;
 
   try {
     // Initialise the engine.
@@ -55,6 +58,8 @@ Future<void> runExample() async {
     print(e);
   }
 
+  if (engine == null) return;
+
   // set up a listener if you want to consume events from `Stream<EngineEvent>`,
   final subscription = engine.engineEvents.listen((event) {
     print('\n[Event stream listener]: new event received!');
@@ -63,7 +68,7 @@ Future<void> runExample() async {
     // let the user know or already send a request for the next batch
     if (event is NextFeedBatchAvailable) {
       // you can just fire and forget
-      engine.send(const NextFeedBatchRequested());
+      engine!.send(const NextFeedBatchRequested());
     }
   });
 

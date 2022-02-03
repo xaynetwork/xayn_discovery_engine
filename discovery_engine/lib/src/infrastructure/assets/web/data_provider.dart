@@ -14,30 +14,18 @@
 
 import 'dart:typed_data' show Uint8List;
 
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
-    show AssetType;
-import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
-    show AssetFetcher;
-import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
-    show DataProvider, SetupData;
-import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
-    show ManifestReader;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show AssetFetcher, AssetType, Manifest, DataProvider, SetupData;
 
 class WebDataProvider extends DataProvider {
   @override
   final AssetFetcher assetFetcher;
-  @override
-  final ManifestReader manifestReader;
 
-  WebDataProvider(
-    this.assetFetcher,
-    this.manifestReader,
-  );
+  WebDataProvider(this.assetFetcher);
 
   @override
-  Future<SetupData> getSetupData() async {
+  Future<SetupData> getSetupData(Manifest manifest) async {
     final fetched = <AssetType, Uint8List>{};
-    final manifest = await manifestReader.read();
 
     for (final asset in manifest.assets) {
       final bytes = await assetFetcher.fetchAsset(asset);
@@ -81,7 +69,6 @@ class WebSetupData extends SetupData {
 
 DataProvider createDataProvider(
   final AssetFetcher assetFetcher,
-  final ManifestReader manifestReader,
   final String storageDirectoryPath,
 ) =>
-    WebDataProvider(assetFetcher, manifestReader);
+    WebDataProvider(assetFetcher);

@@ -15,8 +15,8 @@
 import 'dart:io' show Directory, File;
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
-    show ManifestReader;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show Manifest;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
@@ -39,7 +39,7 @@ void main() {
       final baseAssetPath = '$outputPath/assets';
       final dummyAssetPath = '$baseAssetPath/dummy-asset';
       final assetFetcher = HttpAssetFetcherWithCounter(assetUrl);
-      final manifestReader = MockManifestReader(goodJson);
+      final manifest = Manifest.fromJson(goodJson);
 
       late LocalAssetServer server;
 
@@ -61,11 +61,10 @@ void main() {
           'when provided with proper json manifest it can download assets '
           'and asset fragments, and save them to a specified output path',
           () async {
-        final dataProvider =
-            createDataProvider(assetFetcher, manifestReader, outputPath);
+        final dataProvider = createDataProvider(assetFetcher, outputPath);
 
         final setupData =
-            (await dataProvider.getSetupData()) as NativeSetupData;
+            (await dataProvider.getSetupData(manifest)) as NativeSetupData;
 
         expect(File(dummyAssetPath).existsSync(), isTrue);
         expect(setupData.smbertVocab, equals(dummyAssetPath));
@@ -80,11 +79,10 @@ void main() {
           'when the assets were already downloaded and the checksums are matching '
           'it will serve those assets instead of fetching them again',
           () async {
-        final dataProvider =
-            createDataProvider(assetFetcher, manifestReader, outputPath);
-        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
+        final dataProvider = createDataProvider(assetFetcher, outputPath);
+        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
 
-        await dataProvider.getSetupData();
+        await dataProvider.getSetupData(manifest);
 
         expect(assetFetcher.callCount, equals(0));
       });
@@ -94,11 +92,11 @@ void main() {
           'are NOT matching, it will fetch new files from the server',
           () async {
         final manifestReader = MockManifestReader(wrongChecksumJson);
-        final dataProvider =
-            createDataProvider(assetFetcher, manifestReader, outputPath);
-        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
+        final manifest = await manifestReader.read();
+        final dataProvider = createDataProvider(assetFetcher, outputPath);
+        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
 
-        await dataProvider.getSetupData();
+        await dataProvider.getSetupData(manifest);
 
         expect(assetFetcher.callCount, equals(8));
       });
@@ -108,7 +106,7 @@ void main() {
           'the fetcher is able to retry the request', () async {
         server.setRequestFailCount(1);
 
-        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
+        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
 
         expect(server.callCount.values, equals([1]));
         expect(File(dummyAssetPath).existsSync(), isTrue);
@@ -119,11 +117,9 @@ void main() {
 
 Future<void> _prepareOutputFiles(
   HttpAssetFetcherWithCounter assetFetcher,
-  ManifestReader manifestReader,
+  Manifest manifest,
   String basePath,
 ) async {
-  final manifest = await manifestReader.read();
-
   for (final asset in manifest.assets) {
     final bytes = await assetFetcher.fetchAsset(asset);
     final filePath = '$basePath/${asset.urlSuffix}';

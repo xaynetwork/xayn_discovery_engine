@@ -25,5 +25,3 @@ class FlutterManifestReader extends ManifestReader {
     return rootBundle.loadString(path);
   }
 }
-
-ManifestReader createManifestReader() => FlutterManifestReader();

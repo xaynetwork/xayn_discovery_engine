@@ -39,7 +39,7 @@ part 'asset.g.dart';
 /// Using the URL suffix of the [Asset] is not allowed. The checksum of the
 /// [Asset] can be used to to verify its integrity after it has been
 /// reassembled.
-@JsonSerializable(createToJson: false)
+@JsonSerializable()
 class Asset {
   @JsonKey(disallowNullValue: true, required: true)
   final AssetType id;
@@ -47,10 +47,10 @@ class Asset {
   final String urlSuffix;
   @JsonKey(
     fromJson: Checksum._checksumFromString,
+    toJson: Checksum._checksumToString,
     disallowNullValue: true,
     required: true,
   )
-  @JsonKey(disallowNullValue: true, required: true)
   final Checksum checksum;
 
   @JsonKey(disallowNullValue: true, required: true)
@@ -58,7 +58,8 @@ class Asset {
 
   Asset(this.id, this.urlSuffix, this.checksum, this.fragments);
 
-  factory Asset.fromJson(Map json) => _$AssetFromJson(json);
+  factory Asset.fromJson(Map<String, Object?> json) => _$AssetFromJson(json);
+  Map<String, Object?> toJson() => _$AssetToJson(this);
 }
 
 // Type of an asset.
@@ -72,12 +73,13 @@ enum AssetType {
 }
 
 /// A fragment of an asset.
-@JsonSerializable(createToJson: false)
+@JsonSerializable()
 class Fragment {
   @JsonKey(name: 'url_suffix', disallowNullValue: true, required: true)
   final String urlSuffix;
   @JsonKey(
     fromJson: Checksum._checksumFromString,
+    toJson: Checksum._checksumToString,
     disallowNullValue: true,
     required: true,
   )
@@ -85,11 +87,13 @@ class Fragment {
 
   Fragment(this.urlSuffix, this.checksum);
 
-  factory Fragment.fromJson(Map json) => _$FragmentFromJson(json);
+  factory Fragment.fromJson(Map<String, Object?> json) =>
+      _$FragmentFromJson(json);
+  Map<String, Object?> toJson() => _$FragmentToJson(this);
 }
 
 /// The checksum an asset/fragment.
-@JsonSerializable(createToJson: false)
+@JsonSerializable(createToJson: false, createFactory: false)
 class Checksum {
   @JsonKey(disallowNullValue: true, required: true)
   final String checksum;
@@ -97,17 +101,22 @@ class Checksum {
   Checksum(this.checksum);
 
   static Checksum _checksumFromString(String checksum) => Checksum(checksum);
+  static String _checksumToString(Checksum? checksum) =>
+      checksum?.checksum ?? '';
 
   /// Returns the sha256 hash (hex-encoded) of the asset/fragment.
   String get checksumAsHex => checksum;
 }
 
-@JsonSerializable(createToJson: false)
+@JsonSerializable()
 class Manifest {
   @JsonKey(disallowNullValue: true, required: true)
   final List<Asset> assets;
 
   Manifest(this.assets);
 
-  factory Manifest.fromJson(Map json) => _$ManifestFromJson(json);
+  factory Manifest.fromJson(Map<String, Object?> json) =>
+      _$ManifestFromJson(json);
+
+  Map<String, Object?> toJson() => _$ManifestToJson(this);
 }

@@ -15,8 +15,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
-import 'dart:async';
-
+import 'package:path_provider/path_provider.dart';
 import 'package:xayn_discovery_engine_flutter/discovery_engine.dart';
 
 void main() {
@@ -34,16 +33,19 @@ class _MyAppState extends State<MyApp> {
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initEngine() async {
     // provide initial configuration for the engine
+    final appDir = await getApplicationDocumentsDirectory();
+    final manifest = await FlutterManifestReader().read();
     final config = Configuration(
       apiKey: '**********',
       apiBaseUrl: 'https://example-api.dev',
-      assetsUrl: '<replace with a working URL to assets server>',
+      assetsUrl: 'https://ai-assets.xaynet.dev',
       maxItemsPerFeedBatch: 50,
-      applicationDirectoryPath: './',
+      applicationDirectoryPath: appDir.path,
       feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+      manifest: manifest,
     );
 
-    late DiscoveryEngine engine;
+    late DiscoveryEngine? engine;
 
     try {
       // Initialise the engine.
@@ -62,6 +64,8 @@ class _MyAppState extends State<MyApp> {
       // something else went wrong, shouldn't happen
       print(e);
     }
+
+    if (engine == null) return;
 
     // set up a listener if you want to consume events from `Stream<EngineEvent>`,
     engine.engineEvents.listen((event) {

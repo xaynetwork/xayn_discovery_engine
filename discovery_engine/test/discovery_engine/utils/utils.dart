@@ -20,8 +20,12 @@ import 'package:xayn_discovery_engine/src/discovery_engine_base.dart'
     show DiscoveryEngine;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     show DiscoveryEngineWorker;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show Manifest;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
+
+import '../../assets/utils/mock_manifest_reader.dart';
 
 typedef EntryPoint = void Function(SendPort sendPort);
 
@@ -82,6 +86,7 @@ final mockConfig = Configuration(
   maxItemsPerFeedBatch: 50,
   applicationDirectoryPath: './',
   feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+  manifest: Manifest.fromJson(goodJson),
 );
 
 final mockNewsResource = NewsResource(
