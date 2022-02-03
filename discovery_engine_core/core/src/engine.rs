@@ -150,7 +150,7 @@ where
             .collect::<HashMap<_, _>>();
 
         let engine_state = bincode::serialize(&stacks_data).map_err(Error::Serialization)?;
-        let ranker_state = self.ranker.serialize()?;
+        let ranker_state = self.ranker.serialize().map_err(Error::Serialization)?;
 
         let state_data = StateData {
             engine_state,
