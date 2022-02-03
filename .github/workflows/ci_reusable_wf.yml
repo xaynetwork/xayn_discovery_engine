@@ -10,15 +10,6 @@ on:
         description: Result of run-ok
         value: ${{ jobs.run-ok.outputs.run-result }}
 
-env:
-  DART_VERSION: '2.14.4'
-  DART_WORKSPACE: ${{ github.workspace }}/discovery_engine
-  RUST_WORKSPACE: ${{ github.workspace }}/discovery_engine_core
-  RUST_NIGHTLY: nightly-2021-09-09
-  RUSTFLAGS: "-D warnings"
-  RUSTDOCFLAGS: "-D warnings"
-
-
 jobs:
   selection:
     runs-on: ubuntu-latest
@@ -39,11 +30,16 @@ jobs:
               - 'discovery_engine_core/**'
               - 'discovery_engine_flutter/**'
               - '.github/workflows/ci*'
+              - '.github/actions/setup-job/*'
+              - 'justfile'
             rust:
               - 'discovery_engine_core/**'
               - '.github/workflows/ci*'
+              - '.github/actions/setup-job/*'
+              - '.github/actions/install-cargo-sort/*'
+              - 'justfile'
 
-  # DART CI 
+  # DART CI
   dart-format:
     name: dart-format
     needs: selection
@@ -54,14 +50,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Install dart
-        uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
+      - name: Setup the dart CI.
+        uses: ./.github/actions/setup-job
         with:
-          sdk: ${{ env.DART_VERSION }}
+          dart: true
+          deps: false
 
       - name: Check formatting
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart format --output=none --set-exit-if-changed .
+        run: just dart-fmt
 
   dart-analyze:
     name: dart-analyze
@@ -73,60 +69,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Install dart
-        uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
+      - name: Setup the rust/dart CI.
+        uses: ./.github/actions/setup-job
         with:
-          sdk: ${{ env.DART_VERSION }}
-
-      - name: Install rust toolchain
-        working-directory: ${{ env.RUST_WORKSPACE }}
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
-        with:
-          working-directory: ${{ env.RUST_WORKSPACE }}
-
-      - name: Install libclang-10-dev
-        # required by ffigen
-        run: sudo apt-get install libclang-10-dev
-
-      - name: Install async-bindgen-gen-dart
-        run: |
-          cargo install \
-            --git https://github.com/xaynetwork/xayn_async_bindgen.git \
-            async-bindgen-gen-dart \
-            "$@"
-
-      - name: Install dependencies
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart pub get
-
-      - name: Install dependencies for the example
-        working-directory: ${{ env.DART_WORKSPACE }}/example
-        run: dart pub get
-
-      - name: Other Dart code generation
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart run build_runner build
-
-      - name: Generate rust FFI glue
-        run: |
-          cd "$RUST_WORKSPACE"
-          # Codegen order workaround
-          cargo check --quiet 2>/dev/null || :
-          # Run cbindgen and build the shared object
-          cargo check
-          # Generate dart bindings
-          cd "$DART_WORKSPACE"
-          dart run ffigen --config ffigen.yaml
-          cd "$RUST_WORKSPACE"
-          "${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin/async-bindgen-gen-dart" \
-            --ffi-class XaynDiscoveryEngineBindingsFfi \
-            --genesis ../discovery_engine/lib/src/ffi/genesis.ffigen.dart
+          dart: true
+          rust: true
 
       - name: Analyze code
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart analyze --fatal-infos
+        run: just dart-check
 
   dart-test:
     name: dart-test
@@ -149,52 +99,14 @@ jobs:
         with:
           sdk: ${{ env.DART_VERSION }}
 
-      - name: Install rust toolchain
-        working-directory: ${{ env.RUST_WORKSPACE }}
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      - name: Setup the rust/dart CI.
+        uses: ./.github/actions/setup-job
         with:
-          working-directory: ${{ env.RUST_WORKSPACE }}
-
-      - name: Install async-bindgen-gen-dart
-        run: |
-          cargo install \
-            --git https://github.com/xaynetwork/xayn_async_bindgen.git \
-            async-bindgen-gen-dart \
-            "$@"
-
-      - name: Install libclang-10-dev
-        # required by ffigen
-        run: sudo apt-get install libclang-10-dev
-
-      - name: Install dependencies
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart pub get
-
-      - name: Other Dart code generation
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart run build_runner build
-
-      - name: Generate rust FFI
-        run: |
-          cd "$RUST_WORKSPACE"
-          # Codegen order workaround
-          cargo check --quiet 2>/dev/null || :
-          # Run cbindgen and build the shared object
-          cargo build
-          # Generate dart bindings
-          cd "$DART_WORKSPACE"
-          dart run ffigen --config ffigen.yaml
-          cd "$RUST_WORKSPACE"
-          "${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin/async-bindgen-gen-dart" \
-            --ffi-class XaynDiscoveryEngineBindingsFfi \
-            --genesis ../discovery_engine/lib/src/ffi/genesis.ffigen.dart
-
+          dart: true
+          rust: true
 
       - name: Run tests
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart test
+        run: just dart-test
 
   dart-doc:
     name: dart-doc
@@ -206,22 +118,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Install dart
-        uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
+      - name: Setup the dart CI.
+        uses: ./.github/actions/setup-job
         with:
-          sdk: ${{ env.DART_VERSION }}
+          dart: true
 
       - name: Install dartdoc
         working-directory: ${{ env.DART_WORKSPACE }}
         run: dart pub global activate dartdoc
 
-      - name: Other Dart code generation
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart run build_runner build
-
       - name: Check documentation
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
+        run: just dart-check-doc
 
   dart-ok:
     name: dart-ok
@@ -240,9 +147,8 @@ jobs:
           else
             exit 1
           fi
-  
-  # RUST CI
 
+  # RUST CI
   cargo-format:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
@@ -251,17 +157,17 @@ jobs:
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Install rust toolchain
-        working-directory: ${{ env.RUST_WORKSPACE }}
-        run: rustup toolchain install ${{ env.RUST_NIGHTLY }} --component rustfmt
-
-      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      - name: Setup the CI.
+        uses: ./.github/actions/setup-job
         with:
-          working-directory: ${{ env.RUST_WORKSPACE }}
+          rust: nightly
+          deps: false
+
+      - name: Install cargo-sort
+        uses: ./.github/actions/install-cargo-sort
 
       - name: cargo fmt
-        working-directory: ${{ env.RUST_WORKSPACE }}
-        run: cargo +${{ env.RUST_NIGHTLY }} fmt --all -- --check
+        run: just rust-fmt
 
   cargo-clippy:
     needs: selection
@@ -271,20 +177,14 @@ jobs:
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Install rust toolchain
-        working-directory: ${{ env.RUST_WORKSPACE }}
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      - name: Setup the rust CI.
+        uses: ./.github/actions/setup-job
         with:
-          working-directory: ${{ env.RUST_WORKSPACE }}
+          rust: true
 
       - name: cargo clippy
-        working-directory: ${{ env.RUST_WORKSPACE }}
         run: |
-          # workaround for some code being created after rust wants to parse it
-          cargo check --quiet 2>/dev/null || :
-          cargo clippy --all-targets -- --deny warnings
+          just rust-check
 
   cargo-test:
     needs: selection
@@ -294,21 +194,14 @@ jobs:
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Install rust toolchain
-        working-directory: ${{ env.RUST_WORKSPACE }}
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      - name: Setup the rust CI.
+        uses: ./.github/actions/setup-job
         with:
-          working-directory: ${{ env.RUST_WORKSPACE }}
+          rust: true
 
       - name: Run tests
-        working-directory: ${{ env.RUST_WORKSPACE }}
         run: |
-          # workaround for some code being created after rust wants to parse it
-          cargo check --quiet 2>/dev/null || :
-          cargo test --all-targets --quiet
-          cargo test --doc --quiet
+          just rust-test
 
   cargo-doc:
     needs: selection
@@ -318,18 +211,14 @@ jobs:
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Install rust toolchain
-        working-directory: ${{ env.RUST_WORKSPACE }}
-        run: rustup show
-
-      - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      - name: Setup the rust CI.
+        uses: ./.github/actions/setup-job
+        with:
+          rust: true
 
       - name: cargo doc
-        working-directory: ${{ env.RUST_WORKSPACE }}
         run: |
-          # workaround for some code being created after rust wants to parse it
-          cargo check --quiet 2>/dev/null || :
-          cargo doc --all-features --no-deps --document-private-items
+          just rust-check-doc
 
   cargo-ok:
     name: cargo-ok
@@ -341,7 +230,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: exit 0
-  
+
   run-ok:
     name: run-ok
     needs: [selection, dart-ok, cargo-ok]
@@ -354,7 +243,7 @@ jobs:
       - name: Run Check
         id: run-check
         run: |
-          if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) || 
+          if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) ||
           (${{needs.selection.outputs.dart == 'true'}} && ${{needs.dart-ok.result == 'success'}} && ${{needs.selection.outputs.rust != 'true'}}))
           then
             echo "::set-output name=run-result::$(echo 'success')"

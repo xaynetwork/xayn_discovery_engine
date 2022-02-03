@@ -6,9 +6,11 @@ on:
       - '_bors*'
     paths:
       - '.github/workflows/ci*'
+      - '.github/actions/*'
       - 'discovery_engine/**'
       - 'discovery_engine_core/**'
       - 'discovery_engine_flutter/**'
+      - 'justfile'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,7 +22,7 @@ permissions:
 jobs:
   dev-ci:
     uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@main
-  
+
   ci-ok:
     name: ci-ok
     needs: [dev-ci]

@@ -1,9 +1,17 @@
+# We import environment variables from .env
+set dotenv-load := true
 
-# Make sure that some env variables are set for all jobs.
-#FIXME: .env support will be added in follow up PR
-export RUST_WORKSPACE := env_var_or_default("RUST_WORKSPACE", "discovery_engine_core")
-export DART_WORKSPACE := env_var_or_default("DART_WORKSPACE", "discovery_engine")
-export CARGO_INSTALL_ROOT := env_var_or_default("CARGO_INSTALL_ROOT", "cargo-installs")
+# If CI is set and add rust flags
+export RUSTFLAGS := if env_var_or_default("CI", "false") == "true" {
+    trim(env_var_or_default("RUSTFLAGS", "") + " -D warnings")
+} else {
+    env_var_or_default("RUSTFLAGS", "")
+}
+export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
+    trim(env_var_or_default("RUSTFLAGS", "") + " -D warnings")
+} else {
+    env_var_or_default("RUSTFLAGS", "")
+}
 
 # Runs just --list
 default:
@@ -11,7 +19,11 @@ default:
 
 # Gets/updates dart deps
 dart-deps:
-    cd "$DART_WORKSPACE"; \
+    #!/usr/bin/env sh
+    set -eux
+    cd "$DART_WORKSPACE";
+    dart pub get
+    cd example
     dart pub get
 
 # Fetches rust dependencies
@@ -36,8 +48,10 @@ dart-fmt:
 
 # Formats rust (checks only on CI)
 rust-fmt:
-    cd "$RUST_WORKSPACE"; \
-    cargo +nightly fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};\
+    #!/usr/bin/env sh
+    set -eux
+    cd "$RUST_WORKSPACE";
+    cargo +"$RUST_NIGHTLY" fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};
     cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }}
 
 # Formats all code (checks only on CI)
@@ -70,12 +84,12 @@ rust-check: _codegen-order-workaround
 check: rust-check dart-check
 
 # Checks if dart documentation can be build without issues
-dart-check-doc: dart-build
+dart-check-doc: _run-build-runner
     cd "$DART_WORKSPACE"; \
     dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
 
 # Checks if rust documentation can be build without issues
-rust-check_doc: _codegen-order-workaround
+rust-check-doc: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo doc --all-features --no-deps --document-private-items --locked
 
@@ -93,7 +107,7 @@ rust-doc *args:
 doc: dart-doc rust-doc
 
 # Checks if documentation can be build without issues
-check_doc: dart-check-doc rust-check_doc
+check-doc: dart-check-doc rust-check-doc
 
 _run-cbindgen: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
@@ -130,9 +144,12 @@ dart-test: rust-build dart-build
     dart test
 
 # Tests rust
-rust-test:
-    cd "$RUST_WORKSPACE"; \
-    cargo test --locked
+rust-test: _codegen-order-workaround
+    #!/usr/bin/env sh
+    set -eux
+    cd "$RUST_WORKSPACE";
+    cargo test --all-targets --quiet --locked
+    cargo test --doc --quiet --locked
 
 # Tests dart and rust
 test: rust-test dart-test
@@ -157,18 +174,28 @@ dart-clean:
     find "$DART_WORKSPACE" -type d -name .dart_tool -prune -exec rm -r '{}' \;
 
 # Remvoes all local cargo isntalls
-remove-local-cargo-installs:
+clean-tools:
     -rm -r "$CARGO_INSTALL_ROOT"
 
 # Removes all local cached dependencies and generated files
-clean: clean-gen-files rust-clean dart-clean remove-local-cargo-installs
+clean: clean-gen-files rust-clean dart-clean
+
+# Runs clean and removes local installed tools
+clean-fully: clean clean-tools
 
 # Workaround to set env variable CI for all job dependencies
-_pre-push: clean-gen-files fmt check test
+_pre-push: deps clean-gen-files fmt check test
 
 # Runs formatting, checks and test steps after deleting generated files.
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
+
+# Dry-run the release script.
+_dry-run-release: clean deps dart-build
+    {{justfile_directory()}}/.github/scripts/release.sh --dry-run
+
+dry-run-release:
+     @CI=true {{just_executable()}} _dry-run-release
 
 alias d := dart-test
 alias r := rust-test
