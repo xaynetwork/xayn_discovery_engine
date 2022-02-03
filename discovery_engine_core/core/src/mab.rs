@@ -181,8 +181,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_selection() {
+    #[test]
+    fn test_selection() {
         let mut stack_0 = Stack {
             alpha: 0.01,
             beta: 1.0,
@@ -204,12 +204,11 @@ mod tests {
             docs: vec![4, 5, 6],
         };
 
-        let docs = SelectionIter::new(
-            MockBetaSampler,
-            vec![&mut stack_0, &mut stack_1, &mut stack_2, &mut stack_3],
-        )
-        .select(10)
-        .unwrap();
+        let stacks = vec![&mut stack_0, &mut stack_1, &mut stack_2, &mut stack_3];
+
+        let docs = SelectionIter::new(MockBetaSampler, stacks)
+            .select(10)
+            .unwrap();
 
         assert_eq!(docs[0], 3);
         assert_eq!(docs[1], 2);
