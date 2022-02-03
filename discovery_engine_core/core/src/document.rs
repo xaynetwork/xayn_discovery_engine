@@ -149,7 +149,7 @@ impl TryFrom<Article> for NewsResource {
 
 /// Indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
-#[derive(Clone, Copy, Debug, Derivative, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Derivative, PartialEq, Serialize, Deserialize)]
 #[derivative(Default)]
 pub enum UserReaction {
     /// No reaction from the user.

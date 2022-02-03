@@ -10,6 +10,7 @@ header = """
 // Typedefs to make sure this "unknown" types are treated as opaque by ffigen.
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
+typedef struct RustUserReaction RustUserReaction;
 typedef struct RustUuid RustUuid;
 """
 
@@ -18,4 +19,5 @@ typedef struct RustUuid RustUuid;
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
 "String" = "RustString"
+"UserReaction" = "RustUserReaction"
 "Uuid" = "RustUuid"
