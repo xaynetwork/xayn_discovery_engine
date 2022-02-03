@@ -91,13 +91,9 @@ jobs:
           then
             exit 1
           fi
+
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
-
-      - name: Install dart
-        uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
-        with:
-          sdk: ${{ env.DART_VERSION }}
 
       - name: Setup the rust/dart CI.
         uses: ./.github/actions/setup-job
