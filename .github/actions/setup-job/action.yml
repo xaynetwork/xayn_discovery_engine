@@ -37,7 +37,7 @@ runs:
           # specified in rust-toolchain.toml
           rustup show
         elif [[ "${{ inputs.rust }}" == "nightly" ]]; then
-          rustup toolchain install "${{ env.RUST_NIGHTLY }}"
+          rustup toolchain install "${{ env.RUST_NIGHTLY }}" --component rustfmt  --profile minimal
         else
           echo "rust input must be set to `true` or `nightly`" >&2
           exit 1
