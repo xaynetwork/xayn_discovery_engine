@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 
 use displaydoc::Display;
-use futures::stream::{FuturesUnordered, StreamExt, TryStreamExt};
+use futures::stream::{FuturesUnordered, TryStreamExt};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -182,21 +182,13 @@ where
     }
 
     /// The ranker could rank the documents in a different order so we update the stacks with it.
-    async fn rank_stacks(&self) -> Result<(), Error> {
-        let errors = self
-            .stacks
-            .values()
-            .into_iter()
-            .map(|stack| async move { stack })
-            .collect::<FuturesUnordered<_>>()
-            .fold(vec![], |mut errors, stack| async move {
-                if let Err(error) = stack.write().await.rank(&mut self.ranker) {
-                    errors.push(Error::StackOpFailed(error));
-                }
-
-                errors
-            })
-            .await;
+    async fn rank_stacks(&mut self) -> Result<(), Error> {
+        let mut errors = Vec::new();
+        for stack in self.stacks.values() {
+            if let Err(error) = stack.write().await.rank(&mut self.ranker) {
+                errors.push(Error::StackOpFailed(error));
+            }
+        }
 
         if errors.is_empty() {
             Ok(())
@@ -230,29 +222,16 @@ where
     #[allow(dead_code)]
     async fn update_stacks(&mut self, top: usize) -> Result<(), Error> {
         let key_phrases = &self.ranker.select_top_key_phrases(top);
-        let ranker = &mut self.ranker;
 
-        self.stacks
-            .values()
-            .map(|stack| async move {
-                stack
-                    .read()
-                    .await
-                    .ops
-                    .new_items(key_phrases, ranker)
-                    .await
-                    .map(|documents| (stack, documents))
-            })
-            .collect::<FuturesUnordered<_>>()
-            .try_for_each(|(stack, documents)| async move {
-                stack
-                    .write()
-                    .await
-                    .update(&documents, ranker)
-                    .map_err(GenericError::from)
-            })
-            .await
-            .map_err(Into::into)
+        for stack in self.stacks.values() {
+            let mut stack = stack.write().await;
+            let documents = stack.ops.new_items(key_phrases, &self.ranker).await?;
+            stack
+                .update(&documents, &mut self.ranker)
+                .map_err(Error::StackOpFailed)?;
+        }
+
+        Ok(())
     }
 }
 

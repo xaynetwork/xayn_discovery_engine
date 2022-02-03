@@ -17,9 +17,10 @@ use async_trait::async_trait;
 use mockall::automock;
 
 use crate::{document::Document, engine::GenericError, ranker, stack::Id};
+use xayn_ai::ranker::KeyPhrase;
 
 // required for mock of Ops
-pub(crate) type Ranker<'a> = &'a mut (dyn ranker::Ranker + Sync);
+pub(crate) type Ranker<'a> = &'a (dyn ranker::Ranker + Sync);
 
 /// Operations to customize the behaviour of a stack.
 ///
@@ -41,7 +42,7 @@ pub trait Ops {
     /// tailored to the user's interests.
     async fn new_items<'a>(
         &self,
-        key_phrases: &[String],
+        key_phrases: &[KeyPhrase],
         ranker: Ranker<'a>,
     ) -> Result<Vec<Document>, GenericError>;
 
