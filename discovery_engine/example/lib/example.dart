@@ -19,8 +19,7 @@ Future<void> runExample() async {
   final config = Configuration(
     apiKey: '**********',
     apiBaseUrl: 'https://example-api.dev',
-    // assetsUrl: '<replace with a working URL to assets server>',
-    assetsUrl: 'https://ai-assets.xaynet.dev',
+    assetsUrl: '<replace with a working URL to assets server>',
     maxItemsPerFeedBatch: 50,
     applicationDirectoryPath: './',
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
@@ -36,15 +35,12 @@ Future<void> runExample() async {
     print('Starting the Discovery Engine...');
     engine = await DiscoveryEngine.init(
       configuration: config,
-      onAssetsProgress: (event) {
-        if (event is FetchingAssetsStarted) {
-          print('Fetching Assets Started');
-        } else if (event is FetchingAssetsProgressed) {
-          print('Fetching Assets Progress: ${event.percentage}');
-        } else if (event is FetchingAssetsFinished) {
-          print('Fetching Assets Finished');
-        }
-      },
+      onAssetsProgress: (event) => event.whenOrNull(
+        fetchingAssetsStarted: () => print('Fetching Assets Started'),
+        fetchingAssetsProgressed: (percentage) =>
+            print('Fetching Assets Progress: $percentage'),
+        fetchingAssetsFinished: () => print('Fetching Assets Finished'),
+      ),
     );
     print('Engine initialized successfully.');
   } on EngineInitException catch (e) {

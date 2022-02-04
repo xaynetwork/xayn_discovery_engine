@@ -83,7 +83,7 @@ class DiscoveryEngine {
   /// ```
   static Future<DiscoveryEngine> init({
     required Configuration configuration,
-    void Function(AssetsStatusEngineEvent event)? onAssetsProgress,
+    void Function(EngineEvent event)? onAssetsProgress,
     Object? entryPoint,
   }) async {
     try {
@@ -94,9 +94,7 @@ class DiscoveryEngine {
       if (onAssetsProgress != null) {
         subscription = manager.responses
             .where((event) => event is AssetsStatusEngineEvent)
-            .listen(
-              (event) => onAssetsProgress(event as AssetsStatusEngineEvent),
-            );
+            .listen(onAssetsProgress);
       }
 
       final initEvent = ClientEvent.init(configuration);
