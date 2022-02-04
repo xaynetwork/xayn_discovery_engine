@@ -25,7 +25,7 @@ import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 
-class MockEngine extends Engine {
+class MockEngine implements Engine {
   final Map<String, int> callCounter = {};
   late Document doc0;
   late Document doc1;
