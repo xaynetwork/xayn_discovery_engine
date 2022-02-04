@@ -12,30 +12,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show
-        Configuration,
-        DiscoveryEngine,
-        EngineExceptionRaised,
-        EngineInitException,
-        NextFeedBatchAvailable,
-        NextFeedBatchRequestSucceeded,
-        NextFeedBatchRequested,
-        ResetEngine,
-        FeedMarket;
+import 'package:xayn_discovery_engine/discovery_engine.dart';
 
 Future<void> runExample() async {
   // provide initial configuration for the engine
   final config = Configuration(
     apiKey: '**********',
     apiBaseUrl: 'https://example-api.dev',
-    assetsUrl: '<replace with a working URL to assets server>',
+    // assetsUrl: '<replace with a working URL to assets server>',
+    assetsUrl: 'https://ai-assets.xaynet.dev',
     maxItemsPerFeedBatch: 50,
     applicationDirectoryPath: './',
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
   );
 
-  late DiscoveryEngine engine;
+  late DiscoveryEngine? engine;
 
   try {
     // Initialise the engine.
@@ -43,7 +34,18 @@ Future<void> runExample() async {
     // This will spawn a Worker inside an Isolate (or WebWorker), instantiate
     // all the modules and binaries and establish communication channels
     print('Starting the Discovery Engine...');
-    engine = await DiscoveryEngine.init(configuration: config);
+    engine = await DiscoveryEngine.init(
+      configuration: config,
+      onAssetsProgress: (event) {
+        if (event is FetchingAssetsStarted) {
+          print('Fetching Assets Started');
+        } else if (event is FetchingAssetsProgressed) {
+          print('Fetching Assets Progress: ${event.percentage}');
+        } else if (event is FetchingAssetsFinished) {
+          print('Fetching Assets Finished');
+        }
+      },
+    );
     print('Engine initialized successfully.');
   } on EngineInitException catch (e) {
     // message what went wrong
@@ -55,6 +57,8 @@ Future<void> runExample() async {
     print(e);
   }
 
+  if (engine == null) return;
+
   // set up a listener if you want to consume events from `Stream<EngineEvent>`,
   final subscription = engine.engineEvents.listen((event) {
     print('\n[Event stream listener]: new event received!');
@@ -63,7 +67,7 @@ Future<void> runExample() async {
     // let the user know or already send a request for the next batch
     if (event is NextFeedBatchAvailable) {
       // you can just fire and forget
-      engine.send(const NextFeedBatchRequested());
+      engine!.send(const NextFeedBatchRequested());
     }
   });
 

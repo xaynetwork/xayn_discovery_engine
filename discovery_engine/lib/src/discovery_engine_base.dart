@@ -12,24 +12,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async' show StreamSubscription;
 import 'package:universal_platform/universal_platform.dart'
     show UniversalPlatform;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
         ClientEventSucceeded,
+        AssetsStatusEngineEvent,
+        Configuration,
+        DocumentFeedback,
+        DocumentId,
+        DocumentViewMode,
         EngineEvent,
         EngineExceptionReason,
+        FeedMarkets,
         FeedRequestFailed,
         FeedRequestSucceeded,
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
-        NextFeedBatchRequestSucceeded,
-        DocumentViewMode,
-        DocumentFeedback,
-        Configuration,
-        DocumentId,
-        FeedMarkets;
+        NextFeedBatchRequestSucceeded;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -81,13 +83,25 @@ class DiscoveryEngine {
   /// ```
   static Future<DiscoveryEngine> init({
     required Configuration configuration,
+    void Function(AssetsStatusEngineEvent event)? onAssetsProgress,
     Object? entryPoint,
   }) async {
     try {
       entryPoint ??= kIsWeb ? null : entry_point.main;
       final manager = await DiscoveryEngineManager.create(entryPoint);
+      StreamSubscription<EngineEvent>? subscription;
+
+      if (onAssetsProgress != null) {
+        subscription = manager.responses
+            .where((event) => event is AssetsStatusEngineEvent)
+            .listen(
+              (event) => onAssetsProgress(event as AssetsStatusEngineEvent),
+            );
+      }
+
       final initEvent = ClientEvent.init(configuration);
       final response = await manager.send(initEvent, timeout: null);
+      await subscription?.cancel();
 
       if (response is! ClientEventSucceeded) {
         await manager.dispose();
@@ -99,6 +113,7 @@ class DiscoveryEngine {
 
       return DiscoveryEngine._(manager);
     } catch (error) {
+      // rethrow exception thrown by issue with configuration
       if (error is EngineInitException) rethrow;
       // throw for the client to catch
       throw EngineInitException(
