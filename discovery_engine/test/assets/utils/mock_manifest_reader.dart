@@ -37,60 +37,60 @@ const goodJson = {
   'assets': [
     {
       'id': 'smbertVocab',
-      'url_suffix': 'smbert_v0000/vocab.txt',
+      'url_suffix': 'dummy-asset',
       'checksum':
-          '9e5e90102c699455e9039ff903284e0689394dd345bb11456706f087984d2eb7',
+          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
       'fragments': <Map<String, String>>[],
     },
     {
       'id': 'smbertModel',
-      'url_suffix': 'smbert_v0000/smbert.onnx',
+      'url_suffix': 'dummy-asset',
       'checksum':
-          'f1d29bfc97bf7ee86900e37531343c5a1f16ba091e9d1632a1e81b71da1b75ff',
+          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
       'fragments': [
         {
-          'url_suffix': 'smbert_v0000/smbert.onnx_11MB_00',
+          'url_suffix': 'dummy-asset',
           'checksum':
               'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d'
         },
         {
-          'url_suffix': 'smbert_v0000/smbert.onnx_11MB_01',
+          'url_suffix': 'dummy-asset',
           'checksum':
-              '43fd56f56bb9bb18bc9c33966325732b2d7e58bfe2504a2c5c164b071c1b8653'
+              'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d'
         },
         {
-          'url_suffix': 'smbert_v0000/smbert.onnx_11MB_02',
+          'url_suffix': 'dummy-asset',
           'checksum':
-              'd2e084143fcb04ffc0e548123e1f62fc19c5d73906b36e7771a085079cbf4d3c'
+              'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d'
         },
       ]
     },
     {
       'id': 'kpeVocab',
-      'url_suffix': 'kpe_v0000/vocab.txt',
+      'url_suffix': 'dummy-asset',
       'checksum':
-          '9e5e90102c699455e9039ff903284e0689394dd345bb11456706f087984d2eb7',
+          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
       'fragments': <Map<String, String>>[],
     },
     {
       'id': 'kpeModel',
-      'url_suffix': 'kpe_v0000/bert-quantized.onnx',
+      'url_suffix': 'dummy-asset',
       'checksum':
           'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
       'fragments': <Map<String, String>>[],
     },
     {
       'id': 'kpeCnn',
-      'url_suffix': 'kpe_v0000/cnn.binparams',
+      'url_suffix': 'dummy-asset',
       'checksum':
-          '43fd56f56bb9bb18bc9c33966325732b2d7e58bfe2504a2c5c164b071c1b8653',
+          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
       'fragments': <Map<String, String>>[],
     },
     {
       'id': 'kpeClassifier',
-      'url_suffix': 'kpe_v0000/classifier.binparams',
+      'url_suffix': 'dummy-asset',
       'checksum':
-          'd2e084143fcb04ffc0e548123e1f62fc19c5d73906b36e7771a085079cbf4d3c',
+          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
       'fragments': <Map<String, String>>[],
     }
   ]
