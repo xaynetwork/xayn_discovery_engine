@@ -37,8 +37,7 @@ void main() {
       const assetUrl = 'http://localhost:$port';
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
       final baseAssetPath = '$outputPath/assets';
-      final vocabPath = '$baseAssetPath/smbert_v0000/vocab.txt';
-      final modelPath = '$baseAssetPath/smbert_v0000/smbert.onnx';
+      final dummyAssetPath = '$baseAssetPath/dummy-asset';
       final assetFetcher = HttpAssetFetcherWithCounter(assetUrl);
       final manifestReader = MockManifestReader(goodJson);
 
@@ -68,10 +67,13 @@ void main() {
         final setupData =
             (await dataProvider.getSetupData()) as NativeSetupData;
 
-        expect(setupData.smbertVocab, equals(vocabPath));
-        expect(File(vocabPath).existsSync(), isTrue);
-        expect(setupData.smbertModel, equals(modelPath));
-        expect(File(modelPath).existsSync(), isTrue);
+        expect(File(dummyAssetPath).existsSync(), isTrue);
+        expect(setupData.smbertVocab, equals(dummyAssetPath));
+        expect(setupData.smbertModel, equals(dummyAssetPath));
+        expect(setupData.kpeVocab, equals(dummyAssetPath));
+        expect(setupData.kpeModel, equals(dummyAssetPath));
+        expect(setupData.kpeCnn, equals(dummyAssetPath));
+        expect(setupData.kpeClassifier, equals(dummyAssetPath));
       });
 
       test(
@@ -98,7 +100,7 @@ void main() {
 
         await dataProvider.getSetupData();
 
-        expect(assetFetcher.callCount, equals(4));
+        expect(assetFetcher.callCount, equals(8));
       });
 
       test(
@@ -108,9 +110,8 @@ void main() {
 
         await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
 
-        expect(server.callCount.values, equals([1, 1, 1, 1]));
-        expect(File(vocabPath).existsSync(), isTrue);
-        expect(File(modelPath).existsSync(), isTrue);
+        expect(server.callCount.values, equals([1]));
+        expect(File(dummyAssetPath).existsSync(), isTrue);
       });
     });
   });

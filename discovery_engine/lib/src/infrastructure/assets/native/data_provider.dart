@@ -56,6 +56,10 @@ class NativeDataProvider extends DataProvider {
     return NativeSetupData(
       smbertVocab: paths[AssetType.smbertVocab]!,
       smbertModel: paths[AssetType.smbertModel]!,
+      kpeVocab: paths[AssetType.kpeVocab]!,
+      kpeModel: paths[AssetType.kpeModel]!,
+      kpeCnn: paths[AssetType.kpeCnn]!,
+      kpeClassifier: paths[AssetType.kpeClassifier]!,
     );
   }
 
@@ -102,10 +106,22 @@ class NativeSetupData extends SetupData {
   final String smbertVocab;
   @override
   final String smbertModel;
+  @override
+  final String kpeVocab;
+  @override
+  final String kpeModel;
+  @override
+  final String kpeCnn;
+  @override
+  final String kpeClassifier;
 
   NativeSetupData({
     required this.smbertVocab,
     required this.smbertModel,
+    required this.kpeVocab,
+    required this.kpeModel,
+    required this.kpeCnn,
+    required this.kpeClassifier,
   });
 }
 
