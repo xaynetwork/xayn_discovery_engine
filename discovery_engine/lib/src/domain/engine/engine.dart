@@ -14,8 +14,6 @@
 
 import 'dart:typed_data' show Uint8List;
 
-import 'package:xayn_discovery_engine/src/domain/engine/engine_config.dart'
-    show EngineConfig;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -25,13 +23,8 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
-  /// Configuration needed to initialize the engine.
-  final EngineConfig config;
-
   /// Retrieves at most [maxDocuments] feed documents.
   Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments);
-
-  Engine(this.config);
 
   /// Process the feedback about the user spending some time on a document.
   void timeLogged(
