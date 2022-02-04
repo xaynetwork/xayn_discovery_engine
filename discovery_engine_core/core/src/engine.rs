@@ -237,13 +237,13 @@ fn rank_stacks<'a>(
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
 #[derive(Serialize, Deserialize)]
-pub struct EngineState(Vec<u8>);
+pub struct StackState(Vec<u8>);
 
 #[derive(Serialize, Deserialize)]
 struct RankerState(Vec<u8>);
 
 #[derive(Serialize, Deserialize)]
-struct StateData {
+struct State {
     /// The serialized engine state.
     engine: EngineState,
     /// The serialized ranker state.
