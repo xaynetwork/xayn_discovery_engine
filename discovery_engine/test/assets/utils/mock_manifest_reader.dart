@@ -96,47 +96,21 @@ const goodJson = {
   ]
 };
 
-const wrongChecksumJson = {
+final wrongChecksumJson = {
   'assets': [
-    {
-      'id': 'smbertVocab',
-      'url_suffix': 'smbert_v0000/vocab.txt',
-      'checksum': '123',
-      'fragments': <Map<String, String>>[],
-    },
-    {
-      'id': 'smbertModel',
-      'url_suffix': 'smbert_v0000/smbert.onnx',
-      'checksum': '123',
-      'fragments': [
-        {'url_suffix': 'smbert_v0000/smbert.onnx_11MB_00', 'checksum': '123'},
-        {'url_suffix': 'smbert_v0000/smbert.onnx_11MB_01', 'checksum': '123'},
-        {'url_suffix': 'smbert_v0000/smbert.onnx_11MB_02', 'checksum': '123'},
-      ]
-    },
-    {
-      'id': 'kpeVocab',
-      'url_suffix': 'kpe_v0000/vocab.txt',
-      'checksum': '123',
-      'fragments': <Map<String, String>>[],
-    },
-    {
-      'id': 'kpeModel',
-      'url_suffix': 'kpe_v0000/bert-quantized.onnx',
-      'checksum': '123',
-      'fragments': <Map<String, String>>[],
-    },
-    {
-      'id': 'kpeCnn',
-      'url_suffix': 'kpe_v0000/cnn.binparams',
-      'checksum': '123',
-      'fragments': <Map<String, String>>[],
-    },
-    {
-      'id': 'kpeClassifier',
-      'url_suffix': 'kpe_v0000/classifier.binparams',
-      'checksum': '123',
-      'fragments': <Map<String, String>>[],
-    }
+    ...(goodJson['assets'] as List<Map<String, Object>>).map(
+      (it) => {
+        ...it,
+        'checksum': '123',
+        'fragments': [
+          ...(it['fragments'] as List<Map<String, Object>>).map(
+            (fr) => {
+              ...fr,
+              'checksum': '123',
+            },
+          )
+        ]
+      },
+    )
   ]
 };
