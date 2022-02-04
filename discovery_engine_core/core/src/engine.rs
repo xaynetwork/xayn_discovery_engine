@@ -101,7 +101,7 @@ where
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
     pub fn new(
-        state: &EngineState,
+        state: &StackState,
         config: Config,
         ranker: R,
         stack_ops: Vec<BoxedOps>,
@@ -150,12 +150,12 @@ where
             .collect::<HashMap<_, _>>();
 
         let engine = bincode::serialize(&stacks_data)
-            .map(EngineState)
+            .map(StackState)
             .map_err(Error::Serialization)?;
 
         let ranker = self.ranker.serialize().map(RankerState)?;
 
-        let state_data = StateData { engine, ranker };
+        let state_data = State { engine, ranker };
 
         bincode::serialize(&state_data).map_err(Error::Serialization)
     }
@@ -245,7 +245,7 @@ struct RankerState(Vec<u8>);
 #[derive(Serialize, Deserialize)]
 struct State {
     /// The serialized engine state.
-    engine: EngineState,
+    engine: StackState,
     /// The serialized ranker state.
     ranker: RankerState,
 }
