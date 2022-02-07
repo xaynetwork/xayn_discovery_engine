@@ -34,7 +34,7 @@ abstract class Engine {
     required UserReaction reaction,
   });
 
-  /// Process the feedback about the user reacting to a document.
+  /// Process the user's reacting to a document.
   void userReacted(
     DocumentId docId, {
     required StackId stackId,
