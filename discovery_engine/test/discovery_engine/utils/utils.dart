@@ -53,7 +53,6 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   Future<void> onMessage(request) async {
     final response = request.payload.map<EngineEvent>(
       init: (_) => initResponse,
-      resetEngine: (_) => resetEngineResponse,
       configurationChanged: (_) => configurationChangedResponse,
       feedRequested: (_) => feedRequestedResponse,
       nextFeedBatchRequested: (_) => nextFeedBatchRequestedResponse,

@@ -64,7 +64,7 @@ class FeedManager {
             ..sort((doc1, doc2) {
               final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
               return timeOrd == 0
-                  ? doc1.personalizedRank.compareTo(doc2.personalizedRank)
+                  ? doc1.batchIndex.compareTo(doc2.batchIndex)
                   : timeOrd;
             });
 

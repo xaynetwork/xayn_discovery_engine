@@ -65,13 +65,13 @@ Future<void> main() async {
     final stackId = StackId();
     final doc1 = Document(
       stackId: stackId,
-      personalizedRank: 0,
+      batchIndex: 0,
       resource: mockNewsResource,
       isActive: true,
     );
     final doc2 = Document(
       stackId: stackId,
-      personalizedRank: 1,
+      batchIndex: 1,
       resource: mockNewsResource,
       isActive: false,
     );

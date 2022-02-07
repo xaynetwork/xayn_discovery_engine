@@ -38,7 +38,7 @@ class Document {
   @HiveField(3)
   UserReaction userReaction;
   @HiveField(4)
-  final int personalizedRank;
+  final int batchIndex;
   @HiveField(5)
   bool isActive;
   @HiveField(6)
@@ -51,8 +51,8 @@ class Document {
   Document({
     required this.stackId,
     required this.resource,
-    required this.personalizedRank,
     this.userReaction = UserReaction.neutral,
+    required this.batchIndex,
     this.isActive = true,
   })  : documentId = DocumentId(),
         timestamp = DateTime.now().toUtc();
@@ -61,8 +61,7 @@ class Document {
         documentId: documentId,
         resource: resource,
         userReaction: userReaction,
-        nonPersonalizedRank: personalizedRank, // TODO remove?
-        personalizedRank: personalizedRank,
+        batchIndex: batchIndex,
         isActive: isActive,
       );
 }

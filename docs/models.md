@@ -38,21 +38,13 @@ class Document {
   bool get isNotRelevant => _feedback == DocumentFeedback.negative;
   bool get wasOpened => _status == DocumentStatus.opened;
 
-  // These 2 fields below will be used to sort documents
-  // based on current personalisation state
-  final int nonPersonalizedRank;
-  final int personalizedRank;
-
-  int get currentRank(bool isPersonalisationOn) => isPersonalisationOn
-    ? personalizedRank 
-    : nonPersonalizedRank;
+  final int batchIndex;
 
   Document._({
     required this.documentId,
     required this.queryId,
     required this.resource,
-    required this.nonPersonalizedRank,
-    required this.personalizedRank,
+    required this.batchIndex,
     DocumentFeedback feedback = DocumentFeedback.neutral,
     DocumentStatus status = DocumentStatus.missed,
   }) : _feedback = feedback,

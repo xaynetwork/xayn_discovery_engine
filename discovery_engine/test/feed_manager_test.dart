@@ -72,13 +72,13 @@ Future<void> main() async {
       final stackId = StackId();
       doc2 = Document(
         stackId: stackId,
-        personalizedRank: 2,
+        batchIndex: 2,
         resource: mockNewsResource,
         isActive: true,
       );
       doc3 = Document(
         stackId: stackId,
-        personalizedRank: 3,
+        batchIndex: 3,
         resource: mockNewsResource,
         isActive: false,
       );
@@ -156,12 +156,12 @@ Future<void> main() async {
       expect(feed, hasLength(3));
       // doc1, doc2 have the earlier timestamp
       expect(feed![0].documentId, equals(engine.doc1.documentId));
-      expect(feed[0].personalizedRank, equals(1));
+      expect(feed[0].batchIndex, equals(1));
       expect(feed[1].documentId, equals(doc2.documentId));
-      expect(feed[1].personalizedRank, equals(2));
+      expect(feed[1].batchIndex, equals(2));
       // doc0 has the later timestamp
       expect(feed[2].documentId, equals(engine.doc0.documentId));
-      expect(feed[2].personalizedRank, equals(0));
+      expect(feed[2].batchIndex, equals(0));
       // doc3 is excluded since it is inactive
     });
   });

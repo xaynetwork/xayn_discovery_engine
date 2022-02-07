@@ -105,6 +105,6 @@ Future<void> runExample() async {
 
   print('\nAfter disposing the engine you can not send any events.');
   print('Trying to do that will cause:');
-  final resp = await engine.send(const ResetEngine());
+  final resp = await engine.send(const FeedRequested());
   print('${(resp as EngineExceptionRaised).reason}');
 }

@@ -40,8 +40,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded,
-        NextFeedBatchRequested,
-        ResetEngine;
+        NextFeedBatchRequested;
 
 class BadClientEvent implements ClientEvent {
   const BadClientEvent();
@@ -49,7 +48,6 @@ class BadClientEvent implements ClientEvent {
   @override
   TResult map<TResult extends Object?>({
     required TResult Function(Init value) init,
-    required TResult Function(ResetEngine value) resetEngine,
     required TResult Function(ConfigurationChanged value) configurationChanged,
     required TResult Function(FeedRequested value) feedRequested,
     required TResult Function(NextFeedBatchRequested value)
@@ -64,7 +62,6 @@ class BadClientEvent implements ClientEvent {
   @override
   TResult? mapOrNull<TResult extends Object?>({
     TResult Function(Init value)? init,
-    TResult Function(ResetEngine value)? resetEngine,
     TResult Function(ConfigurationChanged value)? configurationChanged,
     TResult Function(FeedRequested value)? feedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
@@ -79,7 +76,6 @@ class BadClientEvent implements ClientEvent {
   TResult maybeMap<TResult extends Object?>({
     required TResult Function() orElse,
     TResult Function(Init value)? init,
-    TResult Function(ResetEngine value)? resetEngine,
     TResult Function(ConfigurationChanged value)? configurationChanged,
     TResult Function(FeedRequested value)? feedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
@@ -119,7 +115,6 @@ class BadClientEvent implements ClientEvent {
   @override
   TResult when<TResult extends Object?>({
     required TResult Function(Configuration configuration) init,
-    required TResult Function() resetEngine,
     required TResult Function(
       FeedMarkets? feedMarkets,
       int? maxItemsPerFeedBatch,

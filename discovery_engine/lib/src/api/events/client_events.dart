@@ -33,7 +33,7 @@ abstract class DocumentClientEvent implements ClientEvent {}
 /// Used to group discovery feed related events.
 abstract class FeedClientEvent implements ClientEvent {}
 
-/// Abstract class implemented by events like [Init], [ResetEngine] or
+/// Abstract class implemented by events like [Init] or
 /// [ConfigurationChanged].
 ///
 /// Used to group generic system events.
@@ -48,10 +48,6 @@ class ClientEvent with _$ClientEvent {
   const factory ClientEvent.init(
     Configuration configuration,
   ) = Init;
-
-  /// Event created when the app decides to reset the AI (start fresh).
-  @Implements<SystemClientEvent>()
-  const factory ClientEvent.resetEngine() = ResetEngine;
 
   /// Event created when the user changes market or count (nb of items per page)
   /// for the feed ie. in global settings.
