@@ -36,7 +36,7 @@ class Document {
   @HiveField(2)
   final NewsResource resource;
   @HiveField(3)
-  UserReaction feedback;
+  UserReaction userReaction;
   @HiveField(4)
   final int personalizedRank;
   @HiveField(5)
@@ -44,15 +44,15 @@ class Document {
   @HiveField(6)
   DateTime timestamp;
 
-  bool get isRelevant => feedback == UserReaction.positive;
-  bool get isNotRelevant => feedback == UserReaction.negative;
-  bool get isNeutral => feedback == UserReaction.neutral;
+  bool get isRelevant => userReaction == UserReaction.positive;
+  bool get isNotRelevant => userReaction == UserReaction.negative;
+  bool get isNeutral => userReaction == UserReaction.neutral;
 
   Document({
     required this.stackId,
     required this.resource,
     required this.personalizedRank,
-    this.feedback = UserReaction.neutral,
+    this.userReaction = UserReaction.neutral,
     this.isActive = true,
   })  : documentId = DocumentId(),
         timestamp = DateTime.now().toUtc();
@@ -60,7 +60,7 @@ class Document {
   api.Document toApiDocument() => api.Document(
         documentId: documentId,
         resource: resource,
-        feedback: feedback,
+        userReaction: userReaction,
         nonPersonalizedRank: personalizedRank, // TODO remove?
         personalizedRank: personalizedRank,
         isActive: isActive,

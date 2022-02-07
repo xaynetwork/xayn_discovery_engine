@@ -52,9 +52,9 @@ Future<void> main() async {
 
       // reset test docs
       doc1.isActive = true;
-      doc1.feedback = UserReaction.neutral;
+      doc1.userReaction = UserReaction.neutral;
       doc2.isActive = true;
-      doc2.feedback = UserReaction.neutral;
+      doc2.userReaction = UserReaction.neutral;
     });
 
     group('empty box', () {

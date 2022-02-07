@@ -255,7 +255,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Changes the feedback of a [Document].
+  /// Changes the user reaction to a [Document].
   ///
   /// [UserReaction] variants are defined as:
   /// - [UserReaction.positive] indicates that the [Document] was **liked**
@@ -268,10 +268,10 @@ class DiscoveryEngine {
   /// for such failure.
   Future<EngineEvent> changeDocumentFeedback({
     required DocumentId documentId,
-    required UserReaction feedback,
+    required UserReaction userReaction,
   }) {
     return _trySend(() async {
-      final event = ClientEvent.documentFeedbackChanged(documentId, feedback);
+      final event = ClientEvent.userReactionChanged(documentId, userReaction);
       final response = await _manager.send(event);
 
       return response.mapEvent(

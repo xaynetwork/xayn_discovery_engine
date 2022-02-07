@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart';
 part 'client_events.freezed.dart';
 part 'client_events.g.dart';
 
-/// Abstract class implemented by events like [DocumentFeedbackChanged].
+/// Abstract class implemented by events like [UserReactionChanged].
 ///
 /// Used to group events related to [Document] changes.
 abstract class DocumentClientEvent implements ClientEvent {}
@@ -100,10 +100,10 @@ class ClientEvent with _$ClientEvent {
   /// Event created when the user swipes the [Document] card or clicks a button
   /// to indicate that the document is `positive`, `negative` or `neutral`.
   @Implements<DocumentClientEvent>()
-  const factory ClientEvent.documentFeedbackChanged(
+  const factory ClientEvent.userReactionChanged(
     DocumentId documentId,
-    UserReaction feedback,
-  ) = DocumentFeedbackChanged;
+    UserReaction userReaction,
+  ) = UserReactionChanged;
 
   /// Converts json Map to [ClientEvent].
   factory ClientEvent.fromJson(Map<String, Object?> json) =>

@@ -95,20 +95,20 @@ Future<void> main() async {
 
       // reset test data
       doc1.isActive = true;
-      doc1.feedback = UserReaction.neutral;
+      doc1.userReaction = UserReaction.neutral;
       doc2.isActive = false;
-      doc2.feedback = UserReaction.neutral;
+      doc2.userReaction = UserReaction.neutral;
       data.viewTime.clear();
     });
 
-    test('update absent document feedback', () async {
+    test('update absent document user reaction', () async {
       expect(
         () => mgr.updateDocumentFeedback(id3, UserReaction.positive),
         throwsArgumentError,
       );
     });
 
-    test('update inactive document feedback', () async {
+    test('update inactive document user reaction', () async {
       expect(
         () => mgr.updateDocumentFeedback(id2, UserReaction.positive),
         throwsArgumentError,
@@ -127,13 +127,13 @@ Future<void> main() async {
       );
     });
 
-    test('update active document feedback', () async {
-      const newFeedback = UserReaction.positive;
-      await mgr.updateDocumentFeedback(id1, newFeedback);
+    test('update active document user reaction', () async {
+      const newReaction = UserReaction.positive;
+      await mgr.updateDocumentFeedback(id1, newReaction);
       expect(engine.getCallCount('userReacted'), equals(1));
       expect(
         docBox.values,
-        unorderedEquals(<Document>[doc1..feedback = newFeedback, doc2]),
+        unorderedEquals(<Document>[doc1..userReaction = newReaction, doc2]),
       );
       // other repos unchanged
       expect(activeBox, hasLength(1));

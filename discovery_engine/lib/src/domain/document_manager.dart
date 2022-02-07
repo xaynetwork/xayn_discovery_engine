@@ -40,7 +40,8 @@ class DocumentManager {
   /// Fails if the event [evt] does not have a handler implemented.
   Future<void> handleDocumentClientEvent(DocumentClientEvent evt) =>
       evt.maybeWhen(
-        documentFeedbackChanged: (id, fdbk) => updateDocumentFeedback(id, fdbk),
+        userReactionChanged: (id, reaction) =>
+            updateDocumentFeedback(id, reaction),
         documentTimeSpent: (id, mode, sec) =>
             addActiveDocumentTime(id, mode, sec),
         orElse: throw UnimplementedError('handler not implemented for $evt'),
@@ -57,7 +58,7 @@ class DocumentManager {
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
     }
-    await _documentRepo.update(doc..feedback = feedback);
+    await _documentRepo.update(doc..userReaction = feedback);
     final smbertEmbedding = await _activeRepo.smbertEmbeddingById(id);
     if (smbertEmbedding == null) {
       throw StateError('id $id does not have active data attached');
@@ -106,7 +107,7 @@ class DocumentManager {
       id,
       smbertEmbedding: activeData.smbertEmbedding,
       seconds: sumDuration,
-      reaction: doc.feedback,
+      reaction: doc.userReaction,
     );
   }
 }

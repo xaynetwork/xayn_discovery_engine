@@ -41,7 +41,7 @@ void main() {
       expect(
         engine.changeDocumentFeedback(
           documentId: DocumentId(),
-          feedback: UserReaction.positive,
+          userReaction: UserReaction.positive,
         ),
         completion(isA<ClientEventSucceeded>()),
       );
@@ -53,7 +53,7 @@ void main() {
       final engine = await createEngineWithEntryPoint(withErrorResponse);
       final response = await engine.changeDocumentFeedback(
         documentId: DocumentId(),
-        feedback: UserReaction.positive,
+        userReaction: UserReaction.positive,
       );
 
       expect(response, isA<EngineExceptionRaised>());
@@ -70,7 +70,7 @@ void main() {
       final engine = await createEngineWithEntryPoint(withWrongEventResponse);
       final response = await engine.changeDocumentFeedback(
         documentId: DocumentId(),
-        feedback: UserReaction.positive,
+        userReaction: UserReaction.positive,
       );
 
       expect(response, isA<EngineExceptionRaised>());
@@ -84,13 +84,12 @@ void main() {
 
 void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
-      documentFeedbackChangedResponse: const EngineEvent.engineExceptionRaised(
+      userReactionChangedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
       ),
     );
 
 void withWrongEventResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
-      documentFeedbackChangedResponse:
-          const EngineEvent.nextFeedBatchAvailable(),
+      userReactionChangedResponse: const EngineEvent.nextFeedBatchAvailable(),
     );

@@ -31,7 +31,7 @@ class Document with _$Document {
   const factory Document({
     required DocumentId documentId,
     required NewsResource resource,
-    required UserReaction feedback,
+    required UserReaction userReaction,
     required int nonPersonalizedRank,
     required int personalizedRank,
     required bool isActive,
