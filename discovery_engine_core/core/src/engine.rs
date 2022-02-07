@@ -130,17 +130,21 @@ where
     R: Ranker + Send + Sync,
 {
     /// Creates a new `Engine`.
-    pub fn new(config: EndpointConfig, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
+    pub async fn new(
+        config: EndpointConfig,
+        ranker: R,
+        stack_ops: Vec<BoxedOps>,
+    ) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
-        Self::from_stack_data(config, ranker, stack_data, stack_ops)
+        Self::from_stack_data(config, ranker, stack_data, stack_ops).await
     }
 
     /// Creates a new `Engine` from serialized state and stack operations.
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    pub fn from_state(
+    pub async fn from_state(
         state: &StackState,
         config: EndpointConfig,
         ranker: R,
@@ -154,13 +158,13 @@ where
             .map_err(Error::Deserialization)?;
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
-        Self::from_stack_data(config, ranker, stack_data, stack_ops)
+        Self::from_stack_data(config, ranker, stack_data, stack_ops).await
     }
 
-    fn from_stack_data(
+    async fn from_stack_data(
         config: EndpointConfig,
         ranker: R,
-        mut stack_data: impl FnMut(StackId) -> StackData,
+        mut stack_data: impl FnMut(StackId) -> StackData + Send,
         stack_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
         let stacks = stack_ops
@@ -175,12 +179,15 @@ where
             .map_err(Error::InvalidStack)?;
         let core_config = CoreConfig::default();
 
-        Ok(Self {
+        let mut engine = Self {
             config,
             core_config,
             stacks,
             ranker,
-        })
+        };
+        engine.update_stacks().await?;
+
+        Ok(engine)
     }
 
     /// Serializes the state of the `Engine` and `Ranker` state.
@@ -239,7 +246,6 @@ where
     }
 
     /// Updates the stacks with data related to the top key phrases of the current data.
-    #[allow(dead_code)]
     async fn update_stacks(&mut self) -> Result<(), Error> {
         let key_phrases = &self
             .ranker
@@ -289,7 +295,7 @@ fn rank_stacks<'a>(
 
 impl Engine<xayn_ai::ranker::Ranker> {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
-    pub fn from_config(
+    pub async fn from_config(
         config: InitConfig,
         stacks_ops: Vec<BoxedOps>,
         state: Option<&[u8]>,
@@ -323,10 +329,10 @@ impl Engine<xayn_ai::ranker::Ranker> {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Engine::from_state(&state.engine, config.into(), ranker, stacks_ops)
+            Engine::from_state(&state.engine, config.into(), ranker, stacks_ops).await
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Engine::new(config.into(), ranker, stacks_ops)
+            Engine::new(config.into(), ranker, stacks_ops).await
         }
     }
 }
