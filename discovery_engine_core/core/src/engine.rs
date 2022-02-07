@@ -63,20 +63,31 @@ struct Market {
     lang_code: String,
 }
 
-#[allow(dead_code)]
 /// Discovery Engine configuration settings.
 pub struct Config {
+    #[allow(dead_code)]
     api_key: String,
+    #[allow(dead_code)]
     api_base_url: String,
+    #[allow(dead_code)]
     markets: Vec<Market>,
+    #[allow(dead_code)]
     smbert_vocab: String,
+    #[allow(dead_code)]
     smbert_model: String,
+    #[allow(dead_code)]
     kpe_vocab: String,
+    #[allow(dead_code)]
     kpe_model: String,
+    #[allow(dead_code)]
     kpe_cnn: String,
+    #[allow(dead_code)]
     kpe_classifier: String,
     /// The number of selected top key phrases while updating the stacks.
-    kpe_top: usize,
+    select_top: usize,
+    /// The number of newest documents per stack to keep while filtering the stacks.
+    #[allow(dead_code)]
+    keep_newest: usize,
 }
 
 /// Discovery Engine.
@@ -195,7 +206,7 @@ where
     /// Updates the stacks with data related to the top key phrases of the current data.
     #[allow(dead_code)]
     async fn update_stacks(&mut self) -> Result<(), Error> {
-        let key_phrases = &self.ranker.select_top_key_phrases(self.config.kpe_top);
+        let key_phrases = &self.ranker.select_top_key_phrases(self.config.select_top);
 
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
