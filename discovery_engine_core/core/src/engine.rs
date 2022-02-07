@@ -63,8 +63,8 @@ struct Market {
     lang_code: String,
 }
 
-#[allow(dead_code)]
 /// Discovery Engine configuration settings.
+#[allow(dead_code)]
 pub struct Config {
     api_key: String,
     api_base_url: String,
@@ -77,10 +77,29 @@ pub struct Config {
     kpe_classifier: String,
 }
 
+/// Temporary config to allow for configurations within the core without a mirroring outside impl.
+struct CoreConfig {
+    /// The number of selected top key phrases while updating the stacks.
+    select_top: usize,
+    /// The number of newest documents per stack to keep while filtering the stacks.
+    #[allow(dead_code)]
+    keep_newest: usize,
+}
+
+impl Default for CoreConfig {
+    fn default() -> Self {
+        Self {
+            select_top: 3,
+            keep_newest: 20,
+        }
+    }
+}
+
 /// Discovery Engine.
 pub struct Engine<R> {
     #[allow(dead_code)]
     config: Config,
+    core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
     ranker: R,
 }
@@ -133,9 +152,11 @@ where
             .collect::<Result<_, _>>()
             .map(RwLock::new)
             .map_err(Error::InvalidStack)?;
+        let core_config = CoreConfig::default();
 
         Ok(Self {
             config,
+            core_config,
             stacks,
             ranker,
         })
@@ -193,8 +214,10 @@ where
 
     /// Updates the stacks with data related to the top key phrases of the current data.
     #[allow(dead_code)]
-    async fn update_stacks(&mut self, top: usize) -> Result<(), Error> {
-        let key_phrases = &self.ranker.select_top_key_phrases(top);
+    async fn update_stacks(&mut self) -> Result<(), Error> {
+        let key_phrases = &self
+            .ranker
+            .select_top_key_phrases(self.core_config.select_top);
 
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
