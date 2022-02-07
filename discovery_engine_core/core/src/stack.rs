@@ -88,12 +88,11 @@ impl Stack {
     }
 
     /// Updates the internal documents with the new one and returns an updated [`Stack`].
-    #[allow(dead_code)]
-    pub(crate) fn update<R: Ranker>(
-        mut self,
+    pub(crate) fn update(
+        &mut self,
         new_documents: &[Document],
-        ranker: &mut R,
-    ) -> Result<Self, Error> {
+        ranker: &mut impl Ranker,
+    ) -> Result<(), Error> {
         Self::validate_documents_stack_id(new_documents, self.ops.id())?;
 
         let mut items = self
@@ -102,20 +101,20 @@ impl Stack {
             .map_err(Error::Merge)?;
         ranker.rank(&mut items).map_err(Error::Ranking)?;
         self.data.documents = items;
-        Ok(self)
+
+        Ok(())
     }
 
     /// Rank the internal documents.
     ///
     /// This is useful when the [`Ranker`] has been updated.
-    pub(crate) fn rank<R: Ranker>(&mut self, ranker: &mut R) -> Result<(), Error> {
+    pub(crate) fn rank(&mut self, ranker: &mut impl Ranker) -> Result<(), Error> {
         ranker
             .rank(&mut self.data.documents)
             .map_err(Error::Ranking)
     }
 
     /// Updates the relevance of the Stack based on the user feedback.
-    #[allow(dead_code)]
     pub(crate) fn update_relevance(&mut self, reaction: UserReaction) {
         // to avoid making the distribution too skewed
         const MAX_BETA_PARAMS: f32 = 1000.;
@@ -174,7 +173,7 @@ mod tests {
     // TODO use our own when exposed as a crate
     use float_cmp::approx_eq;
 
-    use crate::{document::Id as DocumentId, stack::ops::MockOps};
+    use crate::{document::Id as DocumentId, stack::ops::tests::MockOps};
 
     use super::*;
 

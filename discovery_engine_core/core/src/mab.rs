@@ -46,65 +46,92 @@ impl BetaSample for BetaSampler {
 pub(crate) trait Bucket<T> {
     /// Returns the alpha parameter of the beta distribution.
     fn alpha(&self) -> f32;
+
     /// Returns the beta parameter of the beta distribution.
     fn beta(&self) -> f32;
-    /// Returns `true` if the bucket contains no elements.
+
+    /// Checks if the bucket is empty.
     fn is_empty(&self) -> bool;
+
     /// Removes the next best element from this bucket and returns it, or `None` if it is empty.
     fn pop(&mut self) -> Option<T>;
 }
 
-fn pull_arms<B, T>(beta_sampler: &impl BetaSample, buckets: &mut [&mut B]) -> Result<T, Error>
+impl<B, T> Bucket<T> for &mut B
 where
     B: Bucket<T>,
 {
-    let sample_from_bucket = |bucket: &B| beta_sampler.sample(bucket.alpha(), bucket.beta());
+    fn alpha(&self) -> f32 {
+        (**self).alpha()
+    }
 
-    let mut buckets = buckets.iter_mut();
+    fn beta(&self) -> f32 {
+        (**self).beta()
+    }
 
-    let first_bucket = buckets.next().ok_or(Error::NoBucketsToPull)?;
-    let first_sample = sample_from_bucket(first_bucket)?;
+    fn is_empty(&self) -> bool {
+        (**self).is_empty()
+    }
 
-    let bucket = buckets
-        .try_fold(
-            (first_sample, first_bucket),
-            |max, bucket| -> Result<_, Error> {
-                let sample = sample_from_bucket(bucket)?;
-                if let Ordering::Greater = nan_safe_f32_cmp(&sample, &max.0) {
-                    Ok((sample, bucket))
-                } else {
-                    Ok(max)
-                }
-            },
-        )?
-        .1;
-
-    bucket.pop().ok_or(Error::EmptyBucket)
+    fn pop(&mut self) -> Option<T> {
+        (**self).pop()
+    }
 }
 
-struct SelectionIter<'bs, 'b, BS, B, T>
-where
-    B: Bucket<T>,
-{
-    beta_sampler: &'bs BS,
+/// Samples the next non-empty bucket.
+fn pull_arms<'b, T>(
+    beta_sampler: &impl BetaSample,
+    buckets: impl Iterator<Item = &'b mut impl Bucket<T>>,
+) -> Option<Result<&'b mut impl Bucket<T>, Error>> {
+    buckets
+        .filter(|bucket| !bucket.is_empty())
+        .try_fold(None, |max, bucket| {
+            beta_sampler
+                .sample(bucket.alpha(), bucket.beta())
+                .map(|sample| {
+                    if let Some((max_sample, _)) = max {
+                        if let Ordering::Greater = nan_safe_f32_cmp(&sample, &max_sample) {
+                            Some((sample, bucket))
+                        } else {
+                            max
+                        }
+                    } else {
+                        Some((sample, bucket))
+                    }
+                })
+        })
+        .transpose()
+        .map(|result| result.map(|(_, bucket)| bucket))
+}
+
+/// An iterator to select elements from buckets.
+pub(crate) struct SelectionIter<'b, BS, B, T> {
+    beta_sampler: BS,
     buckets: Vec<&'b mut B>,
     bucket_type: PhantomData<T>,
 }
 
-impl<'bs, 'b, BS, B, T> SelectionIter<'bs, 'b, BS, B, T>
-where
-    B: Bucket<T>,
-{
-    fn new(beta_sampler: &'bs BS, buckets: Vec<&'b mut B>) -> Self {
+impl<'b, BS, B, T> SelectionIter<'b, BS, B, T> {
+    /// Creates a selective iterator.
+    pub(crate) fn new(beta_sampler: BS, buckets: impl IntoIterator<Item = &'b mut B>) -> Self {
         Self {
             beta_sampler,
-            buckets,
+            buckets: buckets.into_iter().collect(),
             bucket_type: PhantomData,
         }
     }
+
+    /// Selects up to n elements.
+    pub(crate) fn select(self, n: usize) -> Result<Vec<T>, Error>
+    where
+        BS: BetaSample,
+        B: Bucket<T>,
+    {
+        self.take(n).collect()
+    }
 }
 
-impl<'bs, 'b, BS, B, T> Iterator for SelectionIter<'bs, 'b, BS, B, T>
+impl<'b, BS, B, T> Iterator for SelectionIter<'b, BS, B, T>
 where
     BS: BetaSample,
     B: Bucket<T>,
@@ -112,42 +139,9 @@ where
     type Item = Result<T, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut buckets = vec![];
-        std::mem::swap(&mut self.buckets, &mut buckets);
-
-        self.buckets = buckets
-            .into_iter()
-            .filter(|bucket| !bucket.is_empty())
-            .collect::<Vec<&mut B>>();
-
-        if self.buckets.is_empty() {
-            None
-        } else {
-            Some(pull_arms(self.beta_sampler, &mut self.buckets))
-        }
-    }
-}
-
-pub(crate) struct Selection<BS> {
-    beta_sampler: BS,
-}
-
-impl<BS> Selection<BS> {
-    pub(crate) fn new(beta_sampler: BS) -> Self {
-        Self { beta_sampler }
-    }
-}
-
-impl<BS> Selection<BS>
-where
-    BS: BetaSample,
-{
-    pub(crate) fn select<B, T>(&self, buckets: Vec<&mut B>, n: u32) -> Result<Vec<T>, Error>
-    where
-        B: Bucket<T>,
-    {
-        let selection = SelectionIter::new(&self.beta_sampler, buckets);
-        selection.take(n as usize).collect()
+        pull_arms(&self.beta_sampler, self.buckets.iter_mut()).map(|result| {
+            result.map(|bucket| bucket.pop().unwrap(/* sampled bucket is not empty */))
+        })
     }
 }
 
@@ -212,9 +206,10 @@ mod tests {
 
         let stacks = vec![&mut stack_0, &mut stack_1, &mut stack_2, &mut stack_3];
 
-        let mab = Selection::new(MockBetaSampler);
+        let docs = SelectionIter::new(MockBetaSampler, stacks)
+            .select(10)
+            .unwrap();
 
-        let docs = mab.select(stacks, 10).unwrap();
         assert_eq!(docs[0], 3);
         assert_eq!(docs[1], 2);
         assert_eq!(docs[2], 1);

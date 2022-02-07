@@ -2845,6 +2845,7 @@ dependencies = [
  "rand_distr",
  "serde",
  "thiserror",
+ "tokio",
  "url",
  "uuid",
  "xayn-ai",

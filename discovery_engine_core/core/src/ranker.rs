@@ -12,7 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use xayn_ai::{ranker::Embedding, DocumentId, UserFeedback};
+use xayn_ai::{
+    ranker::{Embedding, KeyPhrase},
+    DocumentId,
+    UserFeedback,
+};
 
 use crate::{
     document::{Document, Id, TimeSpent, UserReacted, UserReaction},
@@ -29,6 +33,9 @@ pub trait Ranker {
 
     /// Logs a user's interaction.
     fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
+
+    /// Selects the top key phrases from the positive cois, sorted in descending relevance.
+    fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase>;
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
@@ -52,6 +59,10 @@ impl Ranker for xayn_ai::ranker::Ranker {
             &reaction.smbert,
         );
         Ok(())
+    }
+
+    fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
+        self.select_top_key_phrases(top)
     }
 }
 
