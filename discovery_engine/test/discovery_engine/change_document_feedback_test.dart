@@ -68,7 +68,7 @@ void main() {
         'catch it and respond with "EngineExceptionRaised" event '
         'with "wrongEventInResponse" reason', () async {
       final engine = await createEngineWithEntryPoint(withWrongEventResponse);
-      final response = await engine.changeDocumentFeedback(
+      final response = await engine.changeUserReaction(
         documentId: DocumentId(),
         userReaction: UserReaction.positive,
       );
