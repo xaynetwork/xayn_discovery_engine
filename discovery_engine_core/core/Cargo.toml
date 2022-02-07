@@ -18,7 +18,7 @@ thiserror = "1.0.30"
 tokio = { version = "1.16.1", default-features = false, features = ["sync"] }
 url = { version = "2.2.2", features = ["serde"] }
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
-xayn-ai = { git = "https://github.com/xaynetwork/xayn_ai", branch = "TY-2384-update_config" }
+xayn-ai = { git = "https://github.com/xaynetwork/xayn_ai", branch = "master" }
 xayn-discovery-engine-providers = { path = "../providers" }
 
 [dev-dependencies]
