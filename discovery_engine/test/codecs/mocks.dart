@@ -105,7 +105,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
     TResult Function(DocumentId documentId, DocumentViewMode mode, int seconds)?
         documentTimeSpent,
-    TResult Function(DocumentId documentId, UserReaction feedback)?
+    TResult Function(DocumentId documentId, UserReaction userReaction)?
         userReactionChanged,
   }) {
     throw UnimplementedError();

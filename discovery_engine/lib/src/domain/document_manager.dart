@@ -47,18 +47,18 @@ class DocumentManager {
         orElse: throw UnimplementedError('handler not implemented for $evt'),
       );
 
-  /// Update feedback for the given document.
+  /// Update user reaction for the given document.
   ///
   /// Fails if [id] does not identify an active document.
   Future<void> updateDocumentFeedback(
     DocumentId id,
-    UserReaction feedback,
+    UserReaction userReaction,
   ) async {
     final doc = await _documentRepo.fetchById(id);
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
     }
-    await _documentRepo.update(doc..userReaction = feedback);
+    await _documentRepo.update(doc..userReaction = userReaction);
     final smbertEmbedding = await _activeRepo.smbertEmbeddingById(id);
     if (smbertEmbedding == null) {
       throw StateError('id $id does not have active data attached');
@@ -71,7 +71,7 @@ class DocumentManager {
       stackId: doc.stackId,
       snippet: snippet,
       smbertEmbedding: smbertEmbedding,
-      reaction: feedback,
+      reaction: userReaction,
     );
   }
 
