@@ -12,17 +12,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:io';
 import 'package:xayn_discovery_engine/discovery_engine.dart';
 
 Future<void> runExample() async {
   // provide initial configuration for the engine
   final manifest = await createManifestReader().read();
+  final appDirPath = Directory.current.path;
   final config = Configuration(
     apiKey: '**********',
     apiBaseUrl: 'https://example-api.dev',
     assetsUrl: 'https://ai-assets.xaynet.dev',
     maxItemsPerFeedBatch: 50,
-    applicationDirectoryPath: './',
+    applicationDirectoryPath: appDirPath,
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
     manifest: manifest,
   );

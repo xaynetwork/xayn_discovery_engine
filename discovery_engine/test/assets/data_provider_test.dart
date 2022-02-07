@@ -33,7 +33,7 @@ void main() {
 
   group('DataProvider', () {
     group('getSetupData', () {
-      const port = 8081;
+      const port = 8080;
       const assetUrl = 'http://localhost:$port';
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
       final baseAssetPath = '$outputPath/assets';
