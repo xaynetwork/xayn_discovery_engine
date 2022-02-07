@@ -50,7 +50,7 @@ class DocumentManager {
   /// Update user reaction for the given document.
   ///
   /// Fails if [id] does not identify an active document.
-  Future<void> updateDocumentFeedback(
+  Future<void> updateUserReaction(
     DocumentId id,
     UserReaction userReaction,
   ) async {
