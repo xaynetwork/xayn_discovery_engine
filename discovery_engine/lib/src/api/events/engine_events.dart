@@ -31,6 +31,10 @@ abstract class FeedEngineEvent {}
 /// Used to group generic system events.
 abstract class SystemEngineEvent {}
 
+/// Abstract class implemented by events used to communicate status of
+/// AI assets fetching process.
+abstract class AssetsStatusEngineEvent {}
+
 enum FeedFailureReason {
   @JsonValue(0)
   notAuthorised,
@@ -97,6 +101,19 @@ class EngineEvent with _$EngineEvent {
   /// event to ask for new documents.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchAvailable() = NextFeedBatchAvailable;
+
+  /// Event created when fetching of AI assets has started.
+  @Implements<AssetsStatusEngineEvent>()
+  const factory EngineEvent.fetchingAssetsStarted() = FetchingAssetsStarted;
+
+  /// Event created when fetching of AI assets has progressed.
+  @Implements<AssetsStatusEngineEvent>()
+  const factory EngineEvent.fetchingAssetsProgressed(double percentage) =
+      FetchingAssetsProgressed;
+
+  /// Event created when fetching of AI assets has finished.
+  @Implements<AssetsStatusEngineEvent>()
+  const factory EngineEvent.fetchingAssetsFinished() = FetchingAssetsFinished;
 
   /// Event created to inform the client that a particular "fire and forget"
   /// event, like DocumentFeedbackChanged, was successfuly processed

@@ -14,6 +14,8 @@
 
 import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
     show AssetFetcher;
+import 'package:xayn_discovery_engine/src/domain/assets/asset_reporter.dart'
+    show AssetReporter;
 import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
     show ManifestReader;
 
@@ -30,6 +32,7 @@ abstract class SetupData {
 /// Reads the assets manifest and provides the [SetupData] to further use.
 abstract class DataProvider {
   AssetFetcher get assetFetcher;
+  AssetReporter get assetReporter;
   ManifestReader get manifestReader;
 
   Future<SetupData> getSetupData() {

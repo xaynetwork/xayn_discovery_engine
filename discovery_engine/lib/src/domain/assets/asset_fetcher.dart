@@ -17,11 +17,13 @@ import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Asset, Fragment;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
+typedef OnFetched = void Function(String urlSuffix);
+
 /// Fetches the asset either from the `urlSuffix` or from [Fragment]s
 /// and returns a single bytes list.
 abstract class AssetFetcher {
   Future<Uint8List> fetchFragment(String urlSuffix);
-  Future<Uint8List> fetchAsset(Asset asset) async {
+  Future<Uint8List> fetchAsset(Asset asset, {OnFetched? onFetched}) async {
     final builder = BytesBuilder(copy: false);
 
     final message =
@@ -30,11 +32,13 @@ abstract class AssetFetcher {
 
     if (asset.fragments.isEmpty) {
       final bytes = await fetchFragment(asset.urlSuffix);
+      onFetched?.call(asset.urlSuffix);
       builder.add(bytes);
     }
 
     for (final fragment in asset.fragments) {
       final bytes = await fetchFragment(fragment.urlSuffix);
+      onFetched?.call(fragment.urlSuffix);
       builder.add(bytes);
     }
 

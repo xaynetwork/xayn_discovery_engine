@@ -14,23 +14,26 @@
 
 import 'dart:typed_data' show Uint8List;
 
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
-    show AssetType;
-import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
-    show AssetFetcher;
-import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
-    show DataProvider, SetupData;
-import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
-    show ManifestReader;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show
+        AssetType,
+        AssetFetcher,
+        AssetReporter,
+        DataProvider,
+        ManifestReader,
+        SetupData;
 
 class WebDataProvider extends DataProvider {
   @override
   final AssetFetcher assetFetcher;
   @override
+  final AssetReporter assetReporter;
+  @override
   final ManifestReader manifestReader;
 
   WebDataProvider(
     this.assetFetcher,
+    this.assetReporter,
     this.manifestReader,
   );
 
@@ -39,10 +42,17 @@ class WebDataProvider extends DataProvider {
     final fetched = <AssetType, Uint8List>{};
     final manifest = await manifestReader.read();
 
+    assetReporter.fetchingStarted(manifest);
+
     for (final asset in manifest.assets) {
-      final bytes = await assetFetcher.fetchAsset(asset);
+      final bytes = await assetFetcher.fetchAsset(
+        asset,
+        onFetched: assetReporter.assetFetched,
+      );
       fetched.putIfAbsent(asset.id, () => bytes);
     }
+
+    await assetReporter.fetchingFinished();
 
     return WebSetupData(
       smbertVocab: fetched[AssetType.smbertVocab]!,
@@ -81,7 +91,8 @@ class WebSetupData extends SetupData {
 
 DataProvider createDataProvider(
   final AssetFetcher assetFetcher,
+  final AssetReporter assetReporter,
   final ManifestReader manifestReader,
   final String storageDirectoryPath,
 ) =>
-    WebDataProvider(assetFetcher, manifestReader);
+    WebDataProvider(assetFetcher, assetReporter, manifestReader);

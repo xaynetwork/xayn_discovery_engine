@@ -16,6 +16,8 @@ export 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Manifest, Asset, AssetType, Checksum, Fragment;
 export 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
     show AssetFetcher, AssetFetcherException;
+export 'package:xayn_discovery_engine/src/domain/assets/asset_reporter.dart'
+    show AssetReporter;
 export 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
     show DataProvider, SetupData;
 export 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'

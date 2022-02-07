@@ -15,8 +15,8 @@
 import 'dart:io' show Directory, File;
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
-    show ManifestReader;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show AssetReporter, ManifestReader;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
@@ -42,9 +42,14 @@ void main() {
       final manifestReader = MockManifestReader(goodJson);
 
       late LocalAssetServer server;
+      late AssetReporter assetReporter;
 
       setUpAll(() async {
         server = await LocalAssetServer.start(port);
+      });
+
+      setUp(() async {
+        assetReporter = AssetReporter();
       });
 
       tearDown(() {
@@ -61,8 +66,12 @@ void main() {
           'when provided with proper json manifest it can download assets '
           'and asset fragments, and save them to a specified output path',
           () async {
-        final dataProvider =
-            createDataProvider(assetFetcher, manifestReader, outputPath);
+        final dataProvider = createDataProvider(
+          assetFetcher,
+          assetReporter,
+          manifestReader,
+          outputPath,
+        );
 
         final setupData =
             (await dataProvider.getSetupData()) as NativeSetupData;
@@ -80,8 +89,12 @@ void main() {
           'when the assets were already downloaded and the checksums are matching '
           'it will serve those assets instead of fetching them again',
           () async {
-        final dataProvider =
-            createDataProvider(assetFetcher, manifestReader, outputPath);
+        final dataProvider = createDataProvider(
+          assetFetcher,
+          assetReporter,
+          manifestReader,
+          outputPath,
+        );
         await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
 
         await dataProvider.getSetupData();
@@ -94,8 +107,12 @@ void main() {
           'are NOT matching, it will fetch new files from the server',
           () async {
         final manifestReader = MockManifestReader(wrongChecksumJson);
-        final dataProvider =
-            createDataProvider(assetFetcher, manifestReader, outputPath);
+        final dataProvider = createDataProvider(
+          assetFetcher,
+          assetReporter,
+          manifestReader,
+          outputPath,
+        );
         await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
 
         await dataProvider.getSetupData();
