@@ -75,11 +75,12 @@ pub struct Config {
     kpe_model: String,
     kpe_cnn: String,
     kpe_classifier: String,
+    /// The number of selected top key phrases while updating the stacks.
+    kpe_top: usize,
 }
 
 /// Discovery Engine.
 pub struct Engine<R> {
-    #[allow(dead_code)]
     config: Config,
     stacks: RwLock<HashMap<StackId, Stack>>,
     ranker: R,
@@ -193,8 +194,8 @@ where
 
     /// Updates the stacks with data related to the top key phrases of the current data.
     #[allow(dead_code)]
-    async fn update_stacks(&mut self, top: usize) -> Result<(), Error> {
-        let key_phrases = &self.ranker.select_top_key_phrases(top);
+    async fn update_stacks(&mut self) -> Result<(), Error> {
+        let key_phrases = &self.ranker.select_top_key_phrases(self.config.kpe_top);
 
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
