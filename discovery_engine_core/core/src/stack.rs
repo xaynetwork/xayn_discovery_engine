@@ -146,6 +146,7 @@ impl Stack {
     }
 
     /// Retains only the newest documents, given how many to keep.
+    #[allow(dead_code)]
     pub(crate) fn retain_newest(&mut self, keep: usize) {
         self.data.retain_newest(keep);
     }

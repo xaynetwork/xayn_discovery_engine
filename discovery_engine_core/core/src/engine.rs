@@ -87,6 +87,7 @@ struct CoreConfig {
     /// The number of selected top key phrases while updating the stacks.
     select_top: usize,
     /// The number of newest documents per stack to keep while filtering the stacks.
+    #[allow(dead_code)]
     keep_newest: usize,
 }
 
@@ -233,7 +234,6 @@ where
                 }
                 Err(error) => errors.push(error.into()),
             }
-            stack.retain_newest(self.core_config.keep_newest);
         }
 
         if errors.is_empty() {
