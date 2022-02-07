@@ -21,7 +21,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ClientEventSucceeded,
         AssetsStatusEngineEvent,
         Configuration,
-        DocumentFeedback,
+        UserReaction,
         DocumentId,
         DocumentViewMode,
         EngineEvent,
