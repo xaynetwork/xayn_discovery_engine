@@ -41,7 +41,7 @@ class DocumentManager {
   Future<void> handleDocumentClientEvent(DocumentClientEvent evt) =>
       evt.maybeWhen(
         userReactionChanged: (id, reaction) =>
-            updateDocumentFeedback(id, reaction),
+            updateUserReaction(id, reaction),
         documentTimeSpent: (id, mode, sec) =>
             addActiveDocumentTime(id, mode, sec),
         orElse: throw UnimplementedError('handler not implemented for $evt'),
