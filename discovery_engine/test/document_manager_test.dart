@@ -103,7 +103,7 @@ Future<void> main() async {
 
     test('update absent document user reaction', () async {
       expect(
-        () => mgr.updateDocumentFeedback(id3, UserReaction.positive),
+        () => mgr.updateUserReaction(id3, UserReaction.positive),
         throwsArgumentError,
       );
     });
