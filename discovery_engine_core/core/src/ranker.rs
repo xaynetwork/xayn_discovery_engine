@@ -36,6 +36,9 @@ pub trait Ranker {
 
     /// Selects the top key phrases from the positive cois, sorted in descending relevance.
     fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase>;
+
+    /// Serializes the state of the `Ranker`.
+    fn serialize(&self) -> Result<Vec<u8>, GenericError>;
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
@@ -63,6 +66,10 @@ impl Ranker for xayn_ai::ranker::Ranker {
 
     fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
         self.select_top_key_phrases(top)
+    }
+
+    fn serialize(&self) -> Result<Vec<u8>, GenericError> {
+        self.serialize().map_err(Into::into)
     }
 }
 

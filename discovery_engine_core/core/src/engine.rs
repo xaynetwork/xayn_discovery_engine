@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 
 use displaydoc::Display;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -140,9 +141,7 @@ where
         })
     }
 
-    /// Serializes the state of the `Engine`.
-    ///
-    /// The result can be used with [`Engine::new`] to restore it.
+    /// Serializes the state of the `Engine` and `Ranker` state.
     pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
         let stacks = self.stacks.read().await;
         let stacks_data = stacks
@@ -150,7 +149,15 @@ where
             .map(|(id, stack)| (id, &stack.data))
             .collect::<HashMap<_, _>>();
 
-        bincode::serialize(&stacks_data).map_err(Error::Serialization)
+        let engine_state = bincode::serialize(&stacks_data).map_err(Error::Serialization)?;
+        let ranker_state = self.ranker.serialize()?;
+
+        let state_data = StateData {
+            engine_state,
+            ranker_state,
+        };
+
+        bincode::serialize(&state_data).map_err(Error::Serialization)
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
@@ -228,3 +235,11 @@ fn rank_stacks<'a>(
 /// A wrapper around a dynamic error type, similar to `anyhow::Error`,
 /// but without the need to declare `anyhow` as a dependency.
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
+
+#[derive(Serialize, Deserialize)]
+struct StateData {
+    /// The serialized engine state.
+    engine_state: Vec<u8>,
+    /// The serialized ranker state.
+    ranker_state: Vec<u8>,
+}
