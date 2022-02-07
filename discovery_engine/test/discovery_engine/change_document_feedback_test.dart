@@ -32,7 +32,7 @@ import 'utils/utils.dart'
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine changeDocumentFeedback', () {
+  group('DiscoveryEngine changeUserReaction', () {
     test(
         'if worker responds with "ClientEventSucceeded" event it should pass it'
         'as a response of the Discovery Engine', () async {

@@ -110,7 +110,7 @@ Future<void> main() async {
 
     test('update inactive document user reaction', () async {
       expect(
-        () => mgr.updateDocumentFeedback(id2, UserReaction.positive),
+        () => mgr.updateUserReaction(id2, UserReaction.positive),
         throwsArgumentError,
       );
     });
@@ -122,14 +122,14 @@ Future<void> main() async {
       await activeRepo.removeByIds({id1});
 
       expect(
-        () => mgr.updateDocumentFeedback(id1, UserReaction.positive),
+        () => mgr.updateUserReaction(id1, UserReaction.positive),
         throwsStateError,
       );
     });
 
     test('update active document user reaction', () async {
       const newReaction = UserReaction.positive;
-      await mgr.updateDocumentFeedback(id1, newReaction);
+      await mgr.updateUserReaction(id1, newReaction);
       expect(engine.getCallCount('userReacted'), equals(1));
       expect(
         docBox.values,
