@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::repeat};
 
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
@@ -106,6 +106,8 @@ struct CoreConfig {
     select_top: usize,
     /// The number of top documents per stack to keep while filtering the stacks.
     keep_top: usize,
+    /// The lower bound of documents per stack at which new items are requested.
+    request_new: usize,
 }
 
 impl Default for CoreConfig {
@@ -113,6 +115,7 @@ impl Default for CoreConfig {
         Self {
             select_top: 3,
             keep_top: 20,
+            request_new: 3,
         }
     }
 }
@@ -185,7 +188,9 @@ where
             stacks,
             ranker,
         };
-        engine.update_stacks().await?;
+        engine
+            .update_stacks(repeat(engine.core_config.keep_top))
+            .await?;
 
         Ok(engine)
     }
@@ -219,10 +224,27 @@ where
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
-    pub async fn get_feed_documents(&self, max_documents: usize) -> Result<Vec<Document>, Error> {
-        SelectionIter::new(BetaSampler, self.stacks.write().await.values_mut())
-            .select(max_documents)
-            .map_err(Into::into)
+    pub async fn get_feed_documents(
+        &mut self,
+        max_documents: usize,
+    ) -> Result<Vec<Document>, Error> {
+        let mut stacks = self.stacks.write().await;
+        let documents =
+            SelectionIter::new(BetaSampler, stacks.values_mut()).select(max_documents)?;
+
+        let counts = stacks
+            .values()
+            .map(|stack| {
+                let len = stack.len();
+                (len <= self.core_config.request_new)
+                    .then(|| self.core_config.keep_top - len)
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<_>>();
+        drop(stacks /* guard */);
+        self.update_stacks(counts).await?;
+
+        Ok(documents)
     }
 
     /// Process the feedback about the user spending some time on a document.
@@ -246,14 +268,19 @@ where
     }
 
     /// Updates the stacks with data related to the top key phrases of the current data.
-    async fn update_stacks(&mut self) -> Result<(), Error> {
+    ///
+    /// Requires the number of new items to request for each stack.
+    async fn update_stacks(
+        &mut self,
+        counts: impl IntoIterator<IntoIter = impl Iterator<Item = usize> + Send> + Send,
+    ) -> Result<(), Error> {
         let key_phrases = &self
             .ranker
             .select_top_key_phrases(self.core_config.select_top);
 
         let mut errors = Vec::new();
-        for stack in self.stacks.write().await.values_mut() {
-            match stack.ops.new_items(key_phrases, &self.ranker).await {
+        for (stack, count) in self.stacks.write().await.values_mut().zip(counts) {
+            match stack.ops.new_items(count, key_phrases, &self.ranker).await {
                 Ok(documents) => {
                     if let Err(error) = stack.update(&documents, &mut self.ranker) {
                         errors.push(Error::StackOpFailed(error));
