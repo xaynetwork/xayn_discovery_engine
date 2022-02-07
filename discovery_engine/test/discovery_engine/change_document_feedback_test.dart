@@ -51,7 +51,7 @@ void main() {
         'if worker responds with "EngineExceptionRaised" event it should pass it'
         'as a response of the Discovery Engine', () async {
       final engine = await createEngineWithEntryPoint(withErrorResponse);
-      final response = await engine.changeDocumentFeedback(
+      final response = await engine.changeUserReaction(
         documentId: DocumentId(),
         userReaction: UserReaction.positive,
       );
