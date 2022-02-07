@@ -266,7 +266,7 @@ class DiscoveryEngine {
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> changeDocumentFeedback({
+  Future<EngineEvent> changeUserReaction({
     required DocumentId documentId,
     required UserReaction userReaction,
   }) {
