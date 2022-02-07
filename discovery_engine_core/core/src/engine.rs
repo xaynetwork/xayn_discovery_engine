@@ -101,7 +101,7 @@ where
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
     pub fn new(
-        state: &[u8],
+        state: &EngineState,
         config: Config,
         ranker: R,
         stack_ops: Vec<BoxedOps>,
@@ -110,8 +110,8 @@ where
             return Err(Error::NoStackOps);
         }
 
-        let mut stack_data =
-            bincode::deserialize::<HashMap<StackId, _>>(state).map_err(Error::Deserialization)?;
+        let mut stack_data = bincode::deserialize::<HashMap<StackId, _>>(&state.0)
+            .map_err(Error::Deserialization)?;
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
         Self::from_stack_data(config, ranker, stack_data, stack_ops)
@@ -149,13 +149,13 @@ where
             .map(|(id, stack)| (id, &stack.data))
             .collect::<HashMap<_, _>>();
 
-        let engine_state = bincode::serialize(&stacks_data).map_err(Error::Serialization)?;
-        let ranker_state = self.ranker.serialize().map_err(Error::Serialization)?;
+        let engine = bincode::serialize(&stacks_data)
+            .map(EngineState)
+            .map_err(Error::Serialization)?;
 
-        let state_data = StateData {
-            engine_state,
-            ranker_state,
-        };
+        let ranker = self.ranker.serialize().map(RankerState)?;
+
+        let state_data = StateData { engine, ranker };
 
         bincode::serialize(&state_data).map_err(Error::Serialization)
     }
@@ -237,9 +237,15 @@ fn rank_stacks<'a>(
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
 #[derive(Serialize, Deserialize)]
+pub struct EngineState(Vec<u8>);
+
+#[derive(Serialize, Deserialize)]
+struct RankerState(Vec<u8>);
+
+#[derive(Serialize, Deserialize)]
 struct StateData {
     /// The serialized engine state.
-    engine_state: Vec<u8>,
+    engine: EngineState,
     /// The serialized ranker state.
-    ranker_state: Vec<u8>,
+    ranker: RankerState,
 }
