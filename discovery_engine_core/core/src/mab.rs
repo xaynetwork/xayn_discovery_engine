@@ -62,19 +62,19 @@ where
     B: Bucket<T>,
 {
     fn alpha(&self) -> f32 {
-        (&**self).alpha()
+        (**self).alpha()
     }
 
     fn beta(&self) -> f32 {
-        (&**self).beta()
+        (**self).beta()
     }
 
     fn is_empty(&self) -> bool {
-        (&**self).is_empty()
+        (**self).is_empty()
     }
 
     fn pop(&mut self) -> Option<T> {
-        (*self).pop()
+        (**self).pop()
     }
 }
 
