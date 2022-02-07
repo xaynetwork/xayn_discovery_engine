@@ -29,7 +29,7 @@ use crate::{
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// Failed to serialize internal state of the engine: {0}.
-    Serialization(#[source] bincode::Error),
+    Serialization(#[source] GenericError),
 
     /// Failed to deserialize internal state to create the engine: {0}.
     Deserialization(#[source] bincode::Error),
@@ -151,13 +151,17 @@ where
 
         let engine = bincode::serialize(&stacks_data)
             .map(StackState)
-            .map_err(Error::Serialization)?;
+            .map_err(|err| Error::Serialization(err.into()))?;
 
-        let ranker = self.ranker.serialize().map(RankerState)?;
+        let ranker = self
+            .ranker
+            .serialize()
+            .map(RankerState)
+            .map_err(Error::Serialization)?;
 
         let state_data = State { engine, ranker };
 
-        bincode::serialize(&state_data).map_err(Error::Serialization)
+        bincode::serialize(&state_data).map_err(|err| Error::Serialization(err.into()))
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
