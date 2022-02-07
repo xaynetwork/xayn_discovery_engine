@@ -19,7 +19,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
         DocumentId,
-        DocumentFeedback,
+        UserReaction,
         FeedRequested,
         FeedRequestSucceeded,
         ClientEventSucceeded,
@@ -65,7 +65,7 @@ void main() {
       final documentId = DocumentId();
       final event_2 = ClientEvent.documentFeedbackChanged(
         documentId,
-        DocumentFeedback.positive,
+        UserReaction.positive,
       );
       final request_2 = OneshotRequest(channel.sender, event_2);
       final message_2 = converter.convert(request_2) as Map;
@@ -130,7 +130,7 @@ void main() {
 
       expect(req_2.payload, isA<DocumentFeedbackChanged>());
       expect(req_2_payload.documentId, documentId);
-      expect(req_2_payload.feedback, DocumentFeedback.positive);
+      expect(req_2_payload.feedback, UserReaction.positive);
       expect(req_2.sender, isA<Sender<SendingPort>>());
       expect(req_2.sender.platformPort, isA<SendPort>());
       expect(req_2.sender.platformPort, port);

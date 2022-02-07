@@ -102,7 +102,7 @@ class ClientEvent with _$ClientEvent {
   @Implements<DocumentClientEvent>()
   const factory ClientEvent.documentFeedbackChanged(
     DocumentId documentId,
-    DocumentFeedback feedback,
+    UserReaction feedback,
   ) = DocumentFeedbackChanged;
 
   /// Converts json Map to [ClientEvent].

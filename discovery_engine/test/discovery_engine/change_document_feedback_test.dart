@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         EngineEvent,
         EngineExceptionRaised,
         EngineExceptionReason,
-        DocumentFeedback;
+        UserReaction;
 
 import '../logging.dart' show setupLogging;
 import 'utils/utils.dart'
@@ -41,7 +41,7 @@ void main() {
       expect(
         engine.changeDocumentFeedback(
           documentId: DocumentId(),
-          feedback: DocumentFeedback.positive,
+          feedback: UserReaction.positive,
         ),
         completion(isA<ClientEventSucceeded>()),
       );
@@ -53,7 +53,7 @@ void main() {
       final engine = await createEngineWithEntryPoint(withErrorResponse);
       final response = await engine.changeDocumentFeedback(
         documentId: DocumentId(),
-        feedback: DocumentFeedback.positive,
+        feedback: UserReaction.positive,
       );
 
       expect(response, isA<EngineExceptionRaised>());
@@ -70,7 +70,7 @@ void main() {
       final engine = await createEngineWithEntryPoint(withWrongEventResponse);
       final response = await engine.changeDocumentFeedback(
         documentId: DocumentId(),
-        feedback: DocumentFeedback.positive,
+        feedback: UserReaction.positive,
       );
 
       expect(response, isA<EngineExceptionRaised>());

@@ -17,7 +17,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentFeedback;
+    show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -52,9 +52,9 @@ Future<void> main() async {
 
       // reset test docs
       doc1.isActive = true;
-      doc1.feedback = DocumentFeedback.neutral;
+      doc1.feedback = UserReaction.neutral;
       doc2.isActive = true;
-      doc2.feedback = DocumentFeedback.neutral;
+      doc2.feedback = UserReaction.neutral;
     });
 
     group('empty box', () {

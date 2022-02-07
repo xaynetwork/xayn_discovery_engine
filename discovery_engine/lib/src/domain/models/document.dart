@@ -21,7 +21,7 @@ import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show documentTypeId, documentFeedbackTypeId;
+    show documentTypeId, userReactionTypeId;
 
 part 'document.g.dart';
 
@@ -36,7 +36,7 @@ class Document {
   @HiveField(2)
   final NewsResource resource;
   @HiveField(3)
-  DocumentFeedback feedback;
+  UserReaction feedback;
   @HiveField(4)
   final int personalizedRank;
   @HiveField(5)
@@ -44,15 +44,15 @@ class Document {
   @HiveField(6)
   DateTime timestamp;
 
-  bool get isRelevant => feedback == DocumentFeedback.positive;
-  bool get isNotRelevant => feedback == DocumentFeedback.negative;
-  bool get isNeutral => feedback == DocumentFeedback.neutral;
+  bool get isRelevant => feedback == UserReaction.positive;
+  bool get isNotRelevant => feedback == UserReaction.negative;
+  bool get isNeutral => feedback == UserReaction.neutral;
 
   Document({
     required this.stackId,
     required this.resource,
     required this.personalizedRank,
-    this.feedback = DocumentFeedback.neutral,
+    this.feedback = UserReaction.neutral,
     this.isActive = true,
   })  : documentId = DocumentId(),
         timestamp = DateTime.now().toUtc();
@@ -67,10 +67,10 @@ class Document {
       );
 }
 
-/// [DocumentFeedback] indicates user's "sentiment" towards the document,
+/// [UserReaction] indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
-@HiveType(typeId: documentFeedbackTypeId)
-enum DocumentFeedback {
+@HiveType(typeId: userReactionTypeId)
+enum UserReaction {
   @JsonValue(0)
   @HiveField(0)
   neutral,

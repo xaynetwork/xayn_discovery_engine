@@ -17,7 +17,7 @@ import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback;
+    show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -51,7 +51,7 @@ class DocumentManager {
   /// Fails if [id] does not identify an active document.
   Future<void> updateDocumentFeedback(
     DocumentId id,
-    DocumentFeedback feedback,
+    UserReaction feedback,
   ) async {
     final doc = await _documentRepo.fetchById(id);
     if (doc == null || !doc.isActive) {

@@ -40,7 +40,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentAdapter, DocumentFeedbackAdapter;
+    show Document, DocumentAdapter, UserReactionAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -200,7 +200,7 @@ class EventHandler {
     Hive.init('$appDir/$kEnginePath/$kDatabasePath');
     // register hive adapters
     Hive.registerAdapter(DocumentAdapter());
-    Hive.registerAdapter(DocumentFeedbackAdapter());
+    Hive.registerAdapter(UserReactionAdapter());
     Hive.registerAdapter(ActiveDocumentDataAdapter());
     Hive.registerAdapter(NewsResourceAdapter());
     Hive.registerAdapter(DocumentIdAdapter());

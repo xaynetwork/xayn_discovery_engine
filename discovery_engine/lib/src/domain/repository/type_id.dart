@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const documentTypeId = 0;
-const documentFeedbackTypeId = 1;
+const userReactionTypeId = 1;
 const activeDocumentDataTypeId = 2;
 const documentIdTypeId = 3;
 const documentViewModeTypeId = 4;

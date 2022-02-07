@@ -257,10 +257,10 @@ class DiscoveryEngine {
 
   /// Changes the feedback of a [Document].
   ///
-  /// [DocumentFeedback] variants are defined as:
-  /// - [DocumentFeedback.positive] indicates that the [Document] was **liked**
-  /// - [DocumentFeedback.negative] indicates that the [Document] was **diliked**
-  /// - [DocumentFeedback.neutral] as a default **neutral** state of the [Document].
+  /// [UserReaction] variants are defined as:
+  /// - [UserReaction.positive] indicates that the [Document] was **liked**
+  /// - [UserReaction.negative] indicates that the [Document] was **diliked**
+  /// - [UserReaction.neutral] as a default **neutral** state of the [Document].
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
@@ -268,7 +268,7 @@ class DiscoveryEngine {
   /// for such failure.
   Future<EngineEvent> changeDocumentFeedback({
     required DocumentId documentId,
-    required DocumentFeedback feedback,
+    required UserReaction feedback,
   }) {
     return _trySend(() async {
       final event = ClientEvent.documentFeedbackChanged(documentId, feedback);

@@ -17,7 +17,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentFeedback;
+    show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 
@@ -31,7 +31,7 @@ abstract class Engine {
     DocumentId docId, {
     required Uint8List smbertEmbedding,
     required Duration seconds,
-    required DocumentFeedback reaction,
+    required UserReaction reaction,
   });
 
   /// Process the feedback about the user reacting to a document.
@@ -40,6 +40,6 @@ abstract class Engine {
     required StackId stackId,
     required String snippet,
     required Uint8List smbertEmbedding,
-    required DocumentFeedback reaction,
+    required UserReaction reaction,
   });
 }

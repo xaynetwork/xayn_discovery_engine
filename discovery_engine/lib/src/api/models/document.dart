@@ -14,7 +14,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback;
+    show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
@@ -31,7 +31,7 @@ class Document with _$Document {
   const factory Document({
     required DocumentId documentId,
     required NewsResource resource,
-    required DocumentFeedback feedback,
+    required UserReaction feedback,
     required int nonPersonalizedRank,
     required int personalizedRank,
     required bool isActive,

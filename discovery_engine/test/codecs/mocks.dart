@@ -20,6 +20,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ConfigurationChanged,
         Document,
         DocumentFeedback,
+        UserReaction,
+        DocumentViewMode,
         DocumentFeedbackChanged,
         DocumentId,
         DocumentTimeSpent,
@@ -106,7 +108,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
     TResult Function(DocumentId documentId, DocumentViewMode mode, int seconds)?
         documentTimeSpent,
-    TResult Function(DocumentId documentId, DocumentFeedback feedback)?
+    TResult Function(DocumentId documentId, UserReaction feedback)?
         documentFeedbackChanged,
   }) {
     throw UnimplementedError();
@@ -135,7 +137,7 @@ class BadClientEvent implements ClientEvent {
       int seconds,
     )
         documentTimeSpent,
-    required TResult Function(DocumentId documentId, DocumentFeedback feedback)
+    required TResult Function(DocumentId documentId, UserReaction feedback)
         documentFeedbackChanged,
   }) {
     throw UnimplementedError();
@@ -159,7 +161,7 @@ class BadClientEvent implements ClientEvent {
       int seconds,
     )?
         documentTimeSpent,
-    TResult Function(DocumentId documentId, DocumentFeedback feedback)?
+    TResult Function(DocumentId documentId, UserReaction feedback)?
         documentFeedbackChanged,
   }) {
     throw UnimplementedError();

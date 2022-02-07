@@ -49,7 +49,7 @@ export 'package:xayn_discovery_engine/src/api/models/document.dart'
 export 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 export 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback;
+    show UserReaction;
 export 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 export 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
