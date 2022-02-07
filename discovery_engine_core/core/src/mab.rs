@@ -50,6 +50,9 @@ pub(crate) trait Bucket<T> {
     /// Returns the beta parameter of the beta distribution.
     fn beta(&self) -> f32;
 
+    /// Gets the number of elements in the bucket.
+    fn len(&self) -> usize;
+
     /// Checks if the bucket is empty.
     fn is_empty(&self) -> bool;
 
@@ -67,6 +70,10 @@ where
 
     fn beta(&self) -> f32 {
         (**self).beta()
+    }
+
+    fn len(&self) -> usize {
+        (**self).len()
     }
 
     fn is_empty(&self) -> bool {
@@ -170,6 +177,10 @@ mod tests {
 
         fn beta(&self) -> f32 {
             self.beta
+        }
+
+        fn len(&self) -> usize {
+            self.docs.len()
         }
 
         fn is_empty(&self) -> bool {

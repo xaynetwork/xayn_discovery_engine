@@ -145,6 +145,14 @@ impl Stack {
 
         Ok(())
     }
+
+    pub(crate) fn len(&self) -> usize {
+        self.data.documents.len()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.data.documents.is_empty()
+    }
 }
 
 impl Bucket<Document> for Stack {
@@ -156,8 +164,12 @@ impl Bucket<Document> for Stack {
         self.data.beta
     }
 
+    fn len(&self) -> usize {
+        self.len()
+    }
+
     fn is_empty(&self) -> bool {
-        self.data.documents.is_empty()
+        self.is_empty()
     }
 
     fn pop(&mut self) -> Option<Document> {
