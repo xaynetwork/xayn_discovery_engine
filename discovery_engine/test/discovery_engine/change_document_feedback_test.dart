@@ -39,7 +39,7 @@ void main() {
       final engine = await createEngineWithEntryPoint(withSuccessResponse);
 
       expect(
-        engine.changeDocumentFeedback(
+        engine.changeUserReaction(
           documentId: DocumentId(),
           userReaction: UserReaction.positive,
         ),
