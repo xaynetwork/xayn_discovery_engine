@@ -1034,7 +1034,7 @@ dependencies = [
 [[package]]
 name = "kpe"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#cce2ebd0bd2891338fadf5cbb5328ad90475b2cf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2383-requirements_and_cleanup#41fb93f3063004aa37a99d2622935ed2c94cb09d"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1057,7 +1057,7 @@ dependencies = [
 [[package]]
 name = "layer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#cce2ebd0bd2891338fadf5cbb5328ad90475b2cf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2383-requirements_and_cleanup#41fb93f3063004aa37a99d2622935ed2c94cb09d"
 dependencies = [
  "bincode",
  "displaydoc",
@@ -1912,7 +1912,7 @@ dependencies = [
 [[package]]
 name = "rubert"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#cce2ebd0bd2891338fadf5cbb5328ad90475b2cf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2383-requirements_and_cleanup#41fb93f3063004aa37a99d2622935ed2c94cb09d"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1927,7 +1927,7 @@ dependencies = [
 [[package]]
 name = "rubert-tokenizer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#cce2ebd0bd2891338fadf5cbb5328ad90475b2cf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2383-requirements_and_cleanup#41fb93f3063004aa37a99d2622935ed2c94cb09d"
 dependencies = [
  "displaydoc",
  "num-traits",
@@ -2770,7 +2770,7 @@ dependencies = [
 [[package]]
 name = "xayn-ai"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#cce2ebd0bd2891338fadf5cbb5328ad90475b2cf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2383-requirements_and_cleanup#41fb93f3063004aa37a99d2622935ed2c94cb09d"
 dependencies = [
  "anyhow",
  "bincode",
