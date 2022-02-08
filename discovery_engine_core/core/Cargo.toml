@@ -27,3 +27,6 @@ claim = "0.5.0"
 float-cmp = "0.9.0"
 mockall = "0.11.0"
 tokio = { version = "1.16.1", default-features = false, features = ["macros", "rt", "sync"] }
+
+[lib]
+crate-type = ["staticlib"]
