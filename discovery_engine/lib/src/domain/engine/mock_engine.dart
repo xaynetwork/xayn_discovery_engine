@@ -54,12 +54,12 @@ class MockEngine implements Engine {
 
     doc0 = Document(
       stackId: stackId,
-      personalizedRank: 0,
+      batchIndex: 0,
       resource: resource,
     );
     doc1 = Document(
       stackId: stackId,
-      personalizedRank: 1,
+      batchIndex: 1,
       resource: resource,
     );
     active0 = ActiveDocumentData(Uint8List(0));

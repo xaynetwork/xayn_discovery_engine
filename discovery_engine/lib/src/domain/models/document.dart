@@ -41,7 +41,7 @@ class Document {
   @HiveField(3)
   UserReaction userReaction;
   @HiveField(4)
-  final int personalizedRank;
+  final int batchIndex;
   @HiveField(5)
   bool isActive;
   @HiveField(6)
@@ -54,7 +54,7 @@ class Document {
   Document({
     required this.stackId,
     required this.resource,
-    required this.personalizedRank,
+    required this.batchIndex,
     this.userReaction = UserReaction.neutral,
     this.isActive = true,
   })  : documentId = DocumentId(),
@@ -64,8 +64,7 @@ class Document {
         documentId: documentId,
         resource: resource,
         userReaction: userReaction,
-        nonPersonalizedRank: personalizedRank, // TODO remove?
-        personalizedRank: personalizedRank,
+        batchIndex: batchIndex,
         isActive: isActive,
       );
 }

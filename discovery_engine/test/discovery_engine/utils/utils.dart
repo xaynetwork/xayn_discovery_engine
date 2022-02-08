@@ -27,7 +27,6 @@ typedef EntryPoint = void Function(SendPort sendPort);
 
 class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent initResponse;
-  final EngineEvent resetEngineResponse;
   final EngineEvent configurationChangedResponse;
   final EngineEvent feedRequestedResponse;
   final EngineEvent nextFeedBatchRequestedResponse;
@@ -38,7 +37,6 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   MockDiscoveryEngineWorker(
     Object initialMessage, {
     this.initResponse = const EngineEvent.clientEventSucceeded(),
-    this.resetEngineResponse = const EngineEvent.clientEventSucceeded(),
     this.configurationChangedResponse =
         const EngineEvent.clientEventSucceeded(),
     this.feedRequestedResponse = const EngineEvent.feedRequestSucceeded([]),
@@ -53,7 +51,6 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   Future<void> onMessage(request) async {
     final response = request.payload.map<EngineEvent>(
       init: (_) => initResponse,
-      resetEngine: (_) => resetEngineResponse,
       configurationChanged: (_) => configurationChangedResponse,
       feedRequested: (_) => feedRequestedResponse,
       nextFeedBatchRequested: (_) => nextFeedBatchRequestedResponse,

@@ -17,7 +17,6 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         ClientEvent,
         SystemClientEvent,
         Init,
-        ResetEngine,
         ConfigurationChanged,
         FeedClientEvent,
         FeedRequested,

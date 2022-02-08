@@ -121,24 +121,6 @@ class DiscoveryEngine {
     }
   }
 
-  /// Resets the AI (fresh start).
-  ///
-  /// In response it can return:
-  /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
-  /// for such failure.
-  Future<EngineEvent> resetEngine() {
-    return _trySend(() async {
-      const event = ClientEvent.resetEngine();
-      final response = await _manager.send(event);
-
-      return response.mapEvent(
-        clientEventSucceeded: true,
-        engineExceptionRaised: true,
-      );
-    });
-  }
-
   /// Changes configuration for the news feed.
   ///
   /// In response it can return:

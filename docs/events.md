@@ -46,34 +46,6 @@ class Init extends ClientEvent {
 }
 ```
 
-### ResetEngine
-
-Event created when the app decides to reset the AI (start fresh).
-
-```dart
-class ResetEngine extends ClientEvent {
-  const ResetEngine();
-}
-```
-
-### PersonalizationChanged
-
-Events created when the user toggles the AI on/off.
-
-When the personalisation is OFF:
-- we are still reranking all the incoming results, but we don't use personal data to do it
-- we are preventing storing queries and documents in the history, and sending/processing document-related events (likes, dislikes, opened, closed)
-
-Every document gets a rank from the reranker only once. When we toggle we switch between the API rank and Engine rank.
-
-```dart
-class PersonalizationChanged extends ClientEvent {
-  final bool isOn;
-
-  const PersonalizationChanged(this.isOn);
-}
-```
-
 ### ConfigurationChanged
 
 Event created when the user changes market for the feed ie. in global settings or changes some parameters for search, like market or count (nb of items per page).
@@ -170,22 +142,13 @@ Event created when the user triggers a search query:
  - by selecting item provided by autosuggestion
  - by selecting item from history of past searches
  - by changing the search market
- - by changing the type of search
 
 ```dart
-enum SearchType {
-  web,
-  image,
-  video,
-  news,
-}
 
 class SearchRequested extends ClientEvent {
   final String term;
-  /// Search types => web, image, video, news, etc.
-  final List<SearchType> types;
 
-  const SearchRequested(this.term, this.types);
+  const SearchRequested(this.term);
 }
 
 class SearchRequestSucceeded extends EngineEvent {
@@ -342,7 +305,7 @@ Same as `DocumentStatusChanged` with `DocumentStatus.opened` but for pages in th
 - opened as a direct url, by typing it in the search field
 - navigated to inside of the webview, after clicking on a link
 
-The engine responds to that event with `DocumentFromUrlCreated` which contains `documentId` to be used with other "document" events, like `DocumentClosed`, `DocumentFeedbackChanged`, etc.
+The engine responds to that event with `DocumentFromUrlCreated` which contains `documentId` to be used with other "document" events, like `DocumentClosed`, `UserReactionChanged`, etc.
 
 ```dart
 // the app sends this event after accessing at least title,
@@ -380,16 +343,16 @@ class DocumentClosed extends ClientEvent {
 ```
 
 
-### DocumentFeedbackChanged
+### UserReactionChanged
 
 Event created when the user swipes the document card or clicks a button to indicate that the document is `positive`, `negative` or `neutral`.
 
 ```dart
-class DocumentFeedbackChanged extends ClientEvent {
+class UserReactionChanged extends ClientEvent {
   final DocumentId documentId;
-  final DocumentFeedback feedback;
+  final UserReaction reaction;
 
-  const DocumentFeedbackChanged(this.documentId, this.feedback);
+  const UserReactionChanged(this.documentId, this.reaction);
 }
 ```
 
@@ -444,7 +407,7 @@ class ContentCategoriesAccepted extends ClientEvent {
 
 ### ClientEventSucceeded
 
-Event created to inform the client that a particular "fire and forget" event, like ie. `DocumentFeedbackChanged`, was successfuly processed by the engine.
+Event created to inform the client that a particular "fire and forget" event, like ie. `UserReactionChanged`, was successfuly processed by the engine.
 
 ```dart
 class ClientEventSucceeded extends EngineEvent {
@@ -456,7 +419,7 @@ class ClientEventSucceeded extends EngineEvent {
 
 ### EngineExceptionRaised
 
-Event created by the engine for multitude of generic reasons, also as a "failure" event in response to "fire and forget" events, like ie. `DocumentFeedbackChanged`.
+Event created by the engine for multitude of generic reasons, also as a "failure" event in response to "fire and forget" events, like ie. `UserReactionChanged`.
 
 ```dart
 enum EngineExceptionReason {

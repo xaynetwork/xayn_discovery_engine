@@ -32,8 +32,7 @@ class Document with _$Document {
     required DocumentId documentId,
     required NewsResource resource,
     required UserReaction userReaction,
-    required int nonPersonalizedRank,
-    required int personalizedRank,
+    required int batchIndex,
     required bool isActive,
   }) = _Document;
 
