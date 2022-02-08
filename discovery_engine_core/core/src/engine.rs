@@ -63,7 +63,7 @@ pub enum Error {
 
 #[allow(dead_code)]
 /// Feed market.
-struct Market {
+pub struct Market {
     country_code: String,
     lang_code: String,
 }
@@ -73,7 +73,7 @@ struct Market {
 pub struct Config {
     api_key: String,
     api_base_url: String,
-    markets: Vec<Market>,
+    markets: RwLock<Vec<Market>>,
     smbert_vocab: String,
     smbert_model: String,
     kpe_vocab: String,
@@ -188,6 +188,12 @@ where
         let state_data = State { engine, ranker };
 
         bincode::serialize(&state_data).map_err(|err| Error::Serialization(err.into()))
+    }
+
+    /// Updates the markets configuration.
+    pub async fn set_markets(&mut self, markets: Vec<Market>) {
+        let mut mkts = self.config.markets.write().await;
+        *mkts = markets;
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
