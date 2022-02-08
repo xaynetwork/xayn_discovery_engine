@@ -62,25 +62,10 @@ impl Data {
 
     /// Retains only the newest documents, given how many to keep.
     pub(crate) fn retain_newest(&mut self, keep: usize) {
-        if self.documents.is_empty() {
-            return;
+        let len = self.documents.len();
+        if len > keep {
+            self.documents.drain(..len - keep);
         }
-        if keep == 0 {
-            self.documents.clear();
-            return;
-        }
-        let keep = keep.min(self.documents.len()) - 1;
-
-        let mut documents = self
-            .documents
-            .iter()
-            .map(|document| document.resource.date_published)
-            .collect::<Vec<_>>();
-        documents.sort_unstable();
-        let threshold = documents.into_iter().nth_back(keep).unwrap(/* documents is not empty */);
-
-        self.documents
-            .retain(|document| document.resource.date_published >= threshold);
     }
 }
 
