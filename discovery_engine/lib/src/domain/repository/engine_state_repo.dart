@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,7 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const documentBox = 'document';
-const changedDocumentIdBox = 'changed_document';
-const activeDocumentDataBox = 'active_document';
-const engineStateBox = 'engine_state';
+import 'dart:typed_data' show Uint8List;
+
+/// Repository interface for serialized engine state.
+abstract class EngineStateRepository {
+  /// Fetch the current state of the engine.
+  Future<Uint8List?> load();
+
+  /// Persist the state of the engine.
+  Future<void> save(Uint8List bytes);
+
+  /// Clear the repository.
+  Future<void> reset();
+}
