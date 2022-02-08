@@ -14,7 +14,7 @@
 
 //! FFI functions for handling documents.
 
-use core::document::{Document, Embedding};
+use core::document::{Document, Embedding, NewsResource};
 use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
@@ -41,61 +41,6 @@ pub unsafe extern "C" fn document_place_of_stack_id(place: *mut Document) -> *mu
     unsafe { addr_of_mut!((*place).stack_id.0) }
 }
 
-/// Returns a pointer to the `rank` field of a document.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn document_place_of_rank(place: *mut Document) -> *mut usize {
-    unsafe { addr_of_mut!((*place).rank) }
-}
-
-/// Returns a pointer to the `title` field of a document.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn document_place_of_title(place: *mut Document) -> *mut String {
-    unsafe { addr_of_mut!((*place).title) }
-}
-
-/// Returns a pointer to the `snipped` field of a document.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn document_place_of_snipped(place: *mut Document) -> *mut String {
-    unsafe { addr_of_mut!((*place).snippet) }
-}
-
-/// Returns a pointer to the `url` field of a document.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn document_place_of_url(place: *mut Document) -> *mut String {
-    unsafe { addr_of_mut!((*place).url) }
-}
-
-/// Returns a pointer to the `domain` field of a document.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn document_place_of_domain(place: *mut Document) -> *mut String {
-    unsafe { addr_of_mut!((*place).domain) }
-}
-
 /// Returns a pointer to the `smbert_embedding` field of a document.
 ///
 /// # Safety
@@ -108,6 +53,20 @@ pub unsafe extern "C" fn document_place_of_smbert_embedding(
 ) -> *mut Embedding {
     unsafe { addr_of_mut!((*place).smbert_embedding) }
 }
+
+/// Returns a pointer to the `resource` field of a document.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`Document`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn document_place_of_resource(
+    place: *mut Document,
+) -> *mut NewsResource {
+    unsafe { addr_of_mut!((*place).resource) }
+}
+
 
 /// Alloc an uninitialized `Box<Document>`, mainly used for testing.
 #[no_mangle]

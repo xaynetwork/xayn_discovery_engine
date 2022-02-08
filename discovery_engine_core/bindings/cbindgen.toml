@@ -12,6 +12,7 @@ typedef struct RustDocument RustDocument;
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
 typedef struct RustNaiveDateTime RustNaiveDateTime;
+typedef struct RustNewsResource RustNewsResource;
 typedef struct RustTimeSpent RustTimeSpent;
 typedef struct RustUrl RustUrl;
 typedef struct RustUserReacted RustUserReacted;
@@ -29,6 +30,7 @@ include = ["xayn-discovery-engine-core"]
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
 "NaiveDateTime" = "RustNaiveDateTime"
+"NewsResource" = "RustNewsResource"
 "Option_Url" = "RustOptionUrl"
 "String" = "RustString"
 "TimeSpent" = "RustTimeSpent"
