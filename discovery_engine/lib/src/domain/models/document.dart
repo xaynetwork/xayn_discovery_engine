@@ -15,7 +15,7 @@
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:json_annotation/json_annotation.dart'
-    show JsonSerializable, JsonValue, $enumDecode;
+    show $enumDecode, JsonEnum, JsonSerializable, JsonValue;
 import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
@@ -73,6 +73,7 @@ class Document {
 /// [UserReaction] indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
 @HiveType(typeId: userReactionTypeId)
+@JsonEnum(alwaysCreate: true)
 enum UserReaction {
   @JsonValue(RustUserReaction.Neutral)
   @HiveField(RustUserReaction.Neutral)
@@ -89,12 +90,4 @@ extension UserReactionIntConversion on UserReaction {
   int toIntRepr() => _$UserReactionEnumMap[this]!;
   static UserReaction fromIntRepr(int intRepr) =>
       $enumDecode(_$UserReactionEnumMap, intRepr);
-}
-
-// Without this `_$DocumentFeedbackEnumMap` is not generated.
-@JsonSerializable()
-class _ForceGenerationOfUserReactionMapping {
-  final DocumentFeedback feedback;
-
-  _ForceGenerationOfUserReactionMapping(this.feedback);
 }
