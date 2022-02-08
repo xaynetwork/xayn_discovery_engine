@@ -35,7 +35,6 @@ pub trait Ops {
     /// tailored to the user's interests.
     async fn new_items<'a>(
         &self,
-        count: usize,
         key_phrases: &[KeyPhrase],
         ranker: &'a (dyn Ranker + Sync),
     ) -> Result<Vec<Document>, GenericError>;
@@ -62,7 +61,6 @@ pub(crate) mod tests {
 
             async fn new_items<'a>(
                 &self,
-                count: usize,
                 key_phrases: &[KeyPhrase],
                 ranker: R<'a>,
             ) -> Result<Vec<Document>, GenericError>;
