@@ -14,7 +14,8 @@
 
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
-import 'package:json_annotation/json_annotation.dart' show JsonValue;
+import 'package:json_annotation/json_annotation.dart'
+    show JsonSerializable, JsonValue, $enumDecode;
 import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
@@ -22,6 +23,8 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show documentTypeId, userReactionTypeId;
+import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
+    show RustUserReaction;
 
 part 'document.g.dart';
 
@@ -71,13 +74,27 @@ class Document {
 /// essentially if the user "liked" or "disliked" the document.
 @HiveType(typeId: userReactionTypeId)
 enum UserReaction {
-  @JsonValue(0)
-  @HiveField(0)
+  @JsonValue(RustUserReaction.Neutral)
+  @HiveField(RustUserReaction.Neutral)
   neutral,
-  @JsonValue(1)
-  @HiveField(1)
+  @JsonValue(RustUserReaction.Positive)
+  @HiveField(RustUserReaction.Positive)
   positive,
-  @JsonValue(2)
-  @HiveField(2)
+  @JsonValue(RustUserReaction.Negative)
+  @HiveField(RustUserReaction.Negative)
   negative,
+}
+
+extension UserReactionIntConversion on UserReaction {
+  int toIntRepr() => _$UserReactionEnumMap[this]!;
+  static UserReaction fromIntRepr(int intRepr) =>
+      $enumDecode(_$UserReactionEnumMap, intRepr);
+}
+
+// Without this `_$DocumentFeedbackEnumMap` is not generated.
+@JsonSerializable()
+class _ForceGenerationOfUserReactionMapping {
+  final DocumentFeedback feedback;
+
+  _ForceGenerationOfUserReactionMapping(this.feedback);
 }

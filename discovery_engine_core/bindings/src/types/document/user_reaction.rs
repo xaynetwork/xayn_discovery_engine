@@ -14,40 +14,7 @@
 
 //! FFI functions for handling [`UserReaction`] fields.
 
-use std::convert::TryFrom;
-
 use core::document::UserReaction;
-
-type IntRepr = u8;
-
-/// Initializes an [`UserReaction`] field at given place.
-///
-/// Returns `1` if it succeeded `0` other wise.
-///
-/// # Safety
-///
-/// It must be valid to write an [`UserReaction`] to given pointer.
-#[no_mangle]
-pub unsafe extern "C" fn init_user_reaction_at(place: *mut UserReaction, reaction: IntRepr) -> u8 {
-    if let Ok(reaction) = UserReaction::try_from(reaction) {
-        unsafe {
-            place.write(reaction);
-        }
-        1
-    } else {
-        0
-    }
-}
-
-/// Gets the int representation of an [`UserReaction`].
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`UserReaction`] instance.
-#[no_mangle]
-pub unsafe extern "C" fn get_user_reaction(reaction: *mut UserReaction) -> IntRepr {
-    unsafe { *reaction }.to_int_repr()
-}
 
 /// Alloc an uninitialized `Box<UserReaction>`, mainly used for testing.
 #[no_mangle]
@@ -63,44 +30,4 @@ pub extern "C" fn alloc_uninitialized_user_reaction() -> *mut UserReaction {
 #[no_mangle]
 pub unsafe extern "C" fn drop_user_reaction(reaction: *mut UserReaction) {
     unsafe { crate::types::boxed::drop(reaction) };
-}
-
-#[cfg(test)]
-mod tests {
-    use std::alloc::Layout;
-
-    use super::*;
-
-    #[test]
-    fn test_layout_is_correct() {
-        let enum_layout = Layout::new::<UserReaction>();
-        let u8_layout = Layout::new::<IntRepr>();
-        assert_eq!(enum_layout, u8_layout);
-    }
-
-    #[test]
-    fn test_reading_works() {
-        let place = &mut UserReaction::Positive;
-        let read = unsafe { get_user_reaction(place) };
-        assert_eq!(*place as IntRepr, read);
-    }
-
-    #[test]
-    fn test_writing_works() {
-        let reaction = UserReaction::Positive;
-        let place = &mut UserReaction::Negative;
-        unsafe {
-            assert_eq!(init_user_reaction_at(place, reaction as IntRepr), 1);
-        }
-        assert_eq!(*place, reaction);
-    }
-
-    #[test]
-    fn test_writing_bounds_checks_work() {
-        let place = &mut UserReaction::Negative;
-        unsafe {
-            assert_eq!(init_user_reaction_at(place, 100), 0);
-        }
-        assert_eq!(*place, UserReaction::default());
-    }
 }
