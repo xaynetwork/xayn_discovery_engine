@@ -20,5 +20,6 @@ pub mod duration;
 pub mod embedding;
 pub mod slice;
 pub mod string;
+pub mod url;
 pub mod uuid;
 pub mod vec;
