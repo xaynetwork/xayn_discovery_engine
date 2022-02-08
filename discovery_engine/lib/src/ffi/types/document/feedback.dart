@@ -15,17 +15,17 @@
 import 'dart:ffi' show Pointer, Uint8Pointer;
 
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback, DocumentFeedbackIntConversion;
+    show UserReaction, UserReactionIntConversion;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustUserReaction1;
 
-extension DocumentFeedbackFfi on DocumentFeedback {
+extension UserReactionFfi on UserReaction {
   void writeNative(final Pointer<RustUserReaction1> place) {
     place.value = toIntRepr();
   }
 
-  static DocumentFeedback readNative(
+  static UserReaction readNative(
     final Pointer<RustUserReaction1> place,
   ) =>
-      DocumentFeedbackIntConversion.fromIntRepr(place.value);
+      UserReactionIntConversion.fromIntRepr(place.value);
 }

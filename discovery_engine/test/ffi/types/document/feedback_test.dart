@@ -13,21 +13,21 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/api/api.dart' show DocumentFeedback;
+import 'package:xayn_discovery_engine/src/api/api.dart' show UserReaction;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/feedback.dart'
-    show DocumentFeedbackFfi;
+    show UserReactionFfi;
 
 void main() {
   test('reading written document feedback yields same result', () {
     for (final feedback in [
-      DocumentFeedback.neutral,
-      DocumentFeedback.positive,
-      DocumentFeedback.negative
+      UserReaction.neutral,
+      UserReaction.positive,
+      UserReaction.negative
     ]) {
       final place = ffi.alloc_uninitialized_user_reaction();
       feedback.writeNative(place);
-      final res = DocumentFeedbackFfi.readNative(place);
+      final res = UserReactionFfi.readNative(place);
       ffi.drop_user_reaction(place);
       expect(res, equals(feedback));
     }
