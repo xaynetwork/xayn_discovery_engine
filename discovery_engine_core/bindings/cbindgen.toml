@@ -6,7 +6,7 @@ include_version = true
 sys_includes = ["stdint.h"]
 no_includes = true
 
-header = """
+after_includes = """
 // Typedefs to make sure this "unknown" types are treated as opaque by ffigen.
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
