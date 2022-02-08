@@ -46,34 +46,6 @@ class Init extends ClientEvent {
 }
 ```
 
-### ResetEngine
-
-Event created when the app decides to reset the AI (start fresh).
-
-```dart
-class ResetEngine extends ClientEvent {
-  const ResetEngine();
-}
-```
-
-### PersonalizationChanged
-
-Events created when the user toggles the AI on/off.
-
-When the personalisation is OFF:
-- we are still reranking all the incoming results, but we don't use personal data to do it
-- we are preventing storing queries and documents in the history, and sending/processing document-related events (likes, dislikes, opened, closed)
-
-Every document gets a rank from the reranker only once. When we toggle we switch between the API rank and Engine rank.
-
-```dart
-class PersonalizationChanged extends ClientEvent {
-  final bool isOn;
-
-  const PersonalizationChanged(this.isOn);
-}
-```
-
 ### ConfigurationChanged
 
 Event created when the user changes market for the feed ie. in global settings or changes some parameters for search, like market or count (nb of items per page).
@@ -170,22 +142,13 @@ Event created when the user triggers a search query:
  - by selecting item provided by autosuggestion
  - by selecting item from history of past searches
  - by changing the search market
- - by changing the type of search
 
 ```dart
-enum SearchType {
-  web,
-  image,
-  video,
-  news,
-}
 
 class SearchRequested extends ClientEvent {
   final String term;
-  /// Search types => web, image, video, news, etc.
-  final List<SearchType> types;
 
-  const SearchRequested(this.term, this.types);
+  const SearchRequested(this.term);
 }
 
 class SearchRequestSucceeded extends EngineEvent {

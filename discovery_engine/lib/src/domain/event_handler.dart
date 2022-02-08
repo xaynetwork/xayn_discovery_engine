@@ -131,7 +131,7 @@ class EventHandler {
       } else if (clientEvent is DocumentClientEvent) {
         await _documentManager.handleDocumentClientEvent(clientEvent);
       } else if (clientEvent is SystemClientEvent) {
-        // TODO: we need to handle other system events (reset and config changed)
+        // TODO: we need to handle other system events (config changed)
       } else {
         response = const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,
