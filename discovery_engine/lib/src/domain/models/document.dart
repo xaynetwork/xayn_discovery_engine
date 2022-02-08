@@ -15,7 +15,7 @@
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:json_annotation/json_annotation.dart'
-    show $enumDecode, JsonEnum, JsonSerializable, JsonValue;
+    show $enumDecode, JsonEnum, JsonValue;
 import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
