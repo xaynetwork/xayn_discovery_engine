@@ -48,8 +48,7 @@ pub unsafe extern "C" fn init_user_reaction_at(place: *mut UserReaction, reactio
 /// The pointer must point to a valid [`UserReaction`] instance.
 #[no_mangle]
 pub unsafe extern "C" fn get_user_reaction(reaction: *mut UserReaction) -> IntRepr {
-    let reaction = unsafe { &*reaction };
-    match reaction {
+    match unsafe { &*reaction } {
         UserReaction::Neutral => 0,
         UserReaction::Positive => 1,
         UserReaction::Negative => 2,
