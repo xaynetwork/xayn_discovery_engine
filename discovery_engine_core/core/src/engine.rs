@@ -18,6 +18,11 @@ use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
+use xayn_ai::{
+    ranker::{AveragePooler, Builder},
+    KpeConfig,
+    SMBertConfig,
+};
 
 use crate::{
     document::{Document, TimeSpent, UserReacted},
@@ -109,7 +114,7 @@ where
     R: Ranker + Send + Sync,
 {
     /// Creates a new `Engine` from configuration.
-    pub fn from_config(config: Config, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
+    pub fn new(config: Config, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
         Self::from_stack_data(config, ranker, stack_data, stack_ops)
@@ -119,7 +124,7 @@ where
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    pub fn new(
+    pub fn from_state(
         state: &StackState,
         config: Config,
         ranker: R,
@@ -256,6 +261,50 @@ fn rank_stacks<'a>(
         Ok(())
     } else {
         Err(Error::Errors(errors))
+    }
+}
+
+impl Engine<xayn_ai::ranker::Ranker> {
+    /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
+    pub fn from_config(
+        config: Config,
+        stacks_ops: Vec<BoxedOps>,
+        state: Option<&[u8]>,
+    ) -> Result<Engine<impl Ranker>, Error> {
+        let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_token_size(52)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_accents(false)
+            .with_lowercase(true)
+            .with_pooling(AveragePooler);
+
+        let kpe_config = KpeConfig::from_files(
+            &config.kpe_vocab,
+            &config.kpe_model,
+            &config.kpe_cnn,
+            &config.kpe_classifier,
+        )
+        .map_err(|err| Error::Ranker(err.into()))?
+        .with_token_size(150)
+        .map_err(|err| Error::Ranker(err.into()))?
+        .with_accents(false)
+        .with_lowercase(false);
+
+        let builder = Builder::from(smbert_config, kpe_config);
+
+        if let Some(state) = state {
+            let state: State = bincode::deserialize(state).map_err(Error::Deserialization)?;
+            let ranker = builder
+                .with_serialized_state(&state.ranker.0)
+                .map_err(|err| Error::Ranker(err.into()))?
+                .build()
+                .map_err(|err| Error::Ranker(err.into()))?;
+            Engine::from_state(&state.engine, config, ranker, stacks_ops)
+        } else {
+            let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
+            Engine::new(config, ranker, stacks_ops)
+        }
     }
 }
 
