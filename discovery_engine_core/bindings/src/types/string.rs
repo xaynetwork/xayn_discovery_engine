@@ -14,40 +14,31 @@
 
 //! FFI functions for handling `String`
 
-use std::ptr;
+use std::{ptr, slice, str};
 
-/// Creates a rust `String` with given capacity at given memory address.
+/// Helper to create a `&str`.
 ///
 /// # Safety
 ///
-/// It must be valid to write a `String` instance to given pointer,
-/// the pointer is expected to point to uninitialized memory.
-#[no_mangle]
-pub unsafe extern "C" fn init_string_at(place: *mut String, capacity: usize) -> *mut u8 {
-    let mut s = String::with_capacity(capacity);
-    let data_ptr = s.as_mut_ptr();
+/// - The bytes `str_start..str_start+str_len` must be a sound rust string for the
+///   lifetime of `'a`.
+pub(super) unsafe fn str_from_raw_parts<'a>(str_start: *const u8, str_len: usize) -> &'a str {
     unsafe {
-        ptr::write(place, s);
+        str::from_utf8_unchecked(slice::from_raw_parts(str_start, str_len))
     }
-    data_ptr
 }
 
-/// Sets the length of the rust `String` at given memory address.
-///
-/// Use this after you wrote to the string's data buffer `len` bytes
-/// to make the newly written data available to rust.
+/// Creates a rust `String` from given `Box<str>`.
 ///
 /// # Safety
 ///
-/// - The pointer must point to a valid `String` instance.
-/// - `len <= capacity` must hold
-/// - all bytes up to the new len must be initialized
-/// - the string buffer from index `0` to `len` must contain
-///   a valid utf8 string after the len was set.
+/// - It must be valid to write a `String` instance to given pointer,
+///   the pointer is expected to point to uninitialized memory.
+/// - The bytes `str_start..str_start+str_len` must be a sound rust string.
 #[no_mangle]
-pub unsafe extern "C" fn set_string_len(string: *mut String, len: usize) {
+pub unsafe extern "C" fn init_string_at(place: *mut String, str_start: *mut u8, str_len: usize) {
     unsafe {
-        (*string).as_mut_vec().set_len(len);
+        ptr::write(place, String::from_raw_parts(str_start, str_len, str_len));
     }
 }
 
@@ -96,22 +87,19 @@ pub unsafe extern "C" fn drop_string(boxed: *mut String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{ptr, slice};
+    use std::slice;
 
     #[test]
     fn test_writing_string_works() {
         let string = "lzkljwejguojgheujkhgj";
-        let dest = &mut String::new();
+        let place = &mut String::new();
         unsafe {
-            let ptr = (dest as *mut String).cast();
-            let len = string.len();
-            let data_ptr = init_string_at(ptr, len);
-            assert!(dest.is_empty());
-            assert!(dest.capacity() >= len);
-            ptr::copy(string.as_ptr(), data_ptr, len);
-            set_string_len(ptr, len);
+            let boxed = string.to_owned().into_boxed_str();
+            let str_len = boxed.len();
+            let str_start = Box::into_raw(boxed).cast::<u8>();
+            init_string_at(place, str_start, str_len);
         }
-        assert_eq!(string, *dest);
+        assert_eq!(string, *place);
     }
 
     #[test]
