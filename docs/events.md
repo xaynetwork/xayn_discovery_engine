@@ -305,7 +305,7 @@ Same as `DocumentStatusChanged` with `DocumentStatus.opened` but for pages in th
 - opened as a direct url, by typing it in the search field
 - navigated to inside of the webview, after clicking on a link
 
-The engine responds to that event with `DocumentFromUrlCreated` which contains `documentId` to be used with other "document" events, like `DocumentClosed`, `DocumentFeedbackChanged`, etc.
+The engine responds to that event with `DocumentFromUrlCreated` which contains `documentId` to be used with other "document" events, like `DocumentClosed`, `UserReactionChanged`, etc.
 
 ```dart
 // the app sends this event after accessing at least title,
@@ -343,16 +343,16 @@ class DocumentClosed extends ClientEvent {
 ```
 
 
-### DocumentFeedbackChanged
+### UserReactionChanged
 
 Event created when the user swipes the document card or clicks a button to indicate that the document is `positive`, `negative` or `neutral`.
 
 ```dart
-class DocumentFeedbackChanged extends ClientEvent {
+class UserReactionChanged extends ClientEvent {
   final DocumentId documentId;
-  final DocumentFeedback feedback;
+  final UserReaction reaction;
 
-  const DocumentFeedbackChanged(this.documentId, this.feedback);
+  const UserReactionChanged(this.documentId, this.reaction);
 }
 ```
 
@@ -407,7 +407,7 @@ class ContentCategoriesAccepted extends ClientEvent {
 
 ### ClientEventSucceeded
 
-Event created to inform the client that a particular "fire and forget" event, like ie. `DocumentFeedbackChanged`, was successfuly processed by the engine.
+Event created to inform the client that a particular "fire and forget" event, like ie. `UserReactionChanged`, was successfuly processed by the engine.
 
 ```dart
 class ClientEventSucceeded extends EngineEvent {
@@ -419,7 +419,7 @@ class ClientEventSucceeded extends EngineEvent {
 
 ### EngineExceptionRaised
 
-Event created by the engine for multitude of generic reasons, also as a "failure" event in response to "fire and forget" events, like ie. `DocumentFeedbackChanged`.
+Event created by the engine for multitude of generic reasons, also as a "failure" event in response to "fire and forget" events, like ie. `UserReactionChanged`.
 
 ```dart
 enum EngineExceptionReason {

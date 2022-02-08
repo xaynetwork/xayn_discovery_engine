@@ -31,12 +31,12 @@ class Document {
   // only needs to know derived state:
   //  - if document is relevant or irrelevant
   //  - if document was opened
-  final DocumentFeedback _feedback;
+  final UserReaction _reaction;
   final DocumentStatus _status;
 
-  bool get isRelevant => _feedback => DocumentFeedback.positive;
-  bool get isNotRelevant => _feedback == DocumentFeedback.negative;
-  bool get wasOpened => _status == DocumentStatus.opened;
+  bool get isRelevant => _reaction => UserReaction.positive;
+  bool get isNotRelevant => _reaction == UserReaction.negative;
+  bool get wasOpened => _reaction == UserReaction.opened;
 
   final int batchIndex;
 
@@ -45,21 +45,21 @@ class Document {
     required this.queryId,
     required this.resource,
     required this.batchIndex,
-    DocumentFeedback feedback = DocumentFeedback.neutral,
+    UserReaction reaction = UserReaction.neutral,
     DocumentStatus status = DocumentStatus.missed,
-  }) : _feedback = feedback,
+  }) : _reaction = reaction,
        _status = status;
 }
 ```
 
 ## Attributes of a Document
 
-### Document feedback
+### User reaction
 
 Indicates if the user "liked" or "disliked" the document.
 
 ```dart
-enum DocumentFeedback {
+enum UserReaction {
   positive,
   neutral,
   negative,
