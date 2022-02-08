@@ -31,29 +31,27 @@ import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi, StackIdFfi;
 
-//FIXME user reacted isn't yet in models/ so we define it here for now
-// instead of having an extension here
-class UserReacted with EquatableMixin {
+class UserReactedFfi with EquatableMixin {
   final DocumentId id;
   final StackId stackId;
-  final String snipped;
+  final String snippet;
   final Float32List smbertEmbedding;
   //FIXME naming is out of sync
   final DocumentFeedback feedback;
 
-  UserReacted({
+  UserReactedFfi({
     required this.id,
     required this.stackId,
-    required this.snipped,
+    required this.snippet,
     required this.smbertEmbedding,
     required this.feedback,
   });
 
-  factory UserReacted.readFrom(final Pointer<RustUserReacted> place) {
-    return UserReacted(
+  factory UserReactedFfi.readFrom(final Pointer<RustUserReacted> place) {
+    return UserReactedFfi(
       id: DocumentIdFfi.readNative(ffi.user_reacted_place_of_id(place)),
       stackId: StackIdFfi.readNative(ffi.user_reacted_place_of_stack_id(place)),
-      snipped: StringFfi.readNative(ffi.user_reacted_place_of_snipped(place)),
+      snippet: StringFfi.readNative(ffi.user_reacted_place_of_snippet(place)),
       smbertEmbedding: EmbeddingFfi.readNative(
         ffi.user_reacted_place_of_smbert_embedding(place),
       ),
@@ -66,7 +64,7 @@ class UserReacted with EquatableMixin {
   void writeTo(final Pointer<RustUserReacted> place) {
     id.writeNative(ffi.user_reacted_place_of_id(place));
     stackId.writeNative(ffi.user_reacted_place_of_stack_id(place));
-    snipped.writeNative(ffi.user_reacted_place_of_snipped(place));
+    snippet.writeNative(ffi.user_reacted_place_of_snippet(place));
     smbertEmbedding
         .writeNative(ffi.user_reacted_place_of_smbert_embedding(place));
     feedback.writeNative(ffi.user_reacted_place_of_reaction(place));
@@ -76,7 +74,7 @@ class UserReacted with EquatableMixin {
   List<Object?> get props => [
         id,
         stackId,
-        snipped,
+        snippet,
         smbertEmbedding,
         feedback,
       ];

@@ -20,20 +20,20 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
-    show UserReacted;
+    show UserReactedFfi;
 
 void main() {
   test('reading written user reacted instance yields same result', () {
-    final document = UserReacted(
+    final document = UserReactedFfi(
       id: DocumentId(),
       stackId: StackId(),
-      snipped: 'Cloning bought back the dodo.',
+      snippet: 'Cloning brought back the dodo.',
       smbertEmbedding: Float32List.fromList([.9, .1]),
       feedback: DocumentFeedback.negative,
     );
     final place = ffi.alloc_uninitialized_user_reacted();
     document.writeTo(place);
-    final res = UserReacted.readFrom(place);
+    final res = UserReactedFfi.readFrom(place);
     ffi.drop_user_reacted(place);
     expect(res, equals(document));
   });

@@ -62,8 +62,9 @@ pub type BoxedOps = Box<dyn Ops + Send + Sync>;
 ///
 /// `Id` is used to connect [`Ops`](ops::Ops) with the corresponding data of a stack.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, From, Display)]
+#[repr(transparent)]
 #[cfg_attr(test, derive(Default))]
-pub struct Id(pub Uuid);
+pub struct Id(Uuid);
 
 #[derive(Derivative)]
 #[derivative(Debug)]

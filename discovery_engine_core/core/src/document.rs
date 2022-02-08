@@ -47,8 +47,9 @@ pub enum Error {
 
 /// Unique identifier of the [`Document`].
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
+#[repr(transparent)]
 #[cfg_attr(test, derive(Default))]
-pub struct Id(pub Uuid);
+pub struct Id(Uuid);
 
 impl Id {
     /// Creates a [`Id`] from a 128bit value in big-endian order.
@@ -60,6 +61,12 @@ impl Id {
 impl From<Uuid> for Id {
     fn from(uuid: Uuid) -> Self {
         Self(uuid)
+    }
+}
+
+impl From<Id> for Uuid {
+    fn from(id: Id) -> Self {
+        id.0
     }
 }
 

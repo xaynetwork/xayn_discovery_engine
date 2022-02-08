@@ -27,7 +27,7 @@ use uuid::Uuid;
 /// might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn user_reacted_place_of_id(place: *mut UserReacted) -> *mut Uuid {
-    unsafe { addr_of_mut!((*place).id.0) }
+    unsafe { addr_of_mut!((*place).id) }.cast::<Uuid>()
 }
 
 /// Returns a pointer to the `stack_id` field of an [`UserReacted`].
@@ -38,17 +38,17 @@ pub unsafe extern "C" fn user_reacted_place_of_id(place: *mut UserReacted) -> *m
 /// might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn user_reacted_place_of_stack_id(place: *mut UserReacted) -> *mut Uuid {
-    unsafe { addr_of_mut!((*place).stack_id.0) }
+    unsafe { addr_of_mut!((*place).stack_id) }.cast::<Uuid>()
 }
 
-/// Returns a pointer to the `snipped` field of an [`UserReacted`].
+/// Returns a pointer to the `snippet` field of an [`UserReacted`].
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`UserReacted`] memory object, it
 /// might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn user_reacted_place_of_snipped(place: *mut UserReacted) -> *mut String {
+pub unsafe extern "C" fn user_reacted_place_of_snippet(place: *mut UserReacted) -> *mut String {
     unsafe { addr_of_mut!((*place).snippet) }
 }
 
@@ -92,4 +92,21 @@ pub extern "C" fn alloc_uninitialized_user_reacted() -> *mut UserReacted {
 #[no_mangle]
 pub unsafe extern "C" fn drop_user_reacted(reacted: *mut UserReacted) {
     unsafe { crate::types::boxed::drop(reacted) };
+}
+
+#[cfg(test)]
+mod tests {
+    use core::{document, stack};
+    use std::alloc::Layout;
+
+    use uuid::Uuid;
+
+    #[test]
+    fn test_ids_have_same_layout() {
+        let uuid_layout = Layout::new::<Uuid>();
+        let document_id_layout = Layout::new::<document::Id>();
+        assert_eq!(document_id_layout, uuid_layout);
+        let stack_id_layout = Layout::new::<stack::Id>();
+        assert_eq!(stack_id_layout, uuid_layout);
+    }
 }
