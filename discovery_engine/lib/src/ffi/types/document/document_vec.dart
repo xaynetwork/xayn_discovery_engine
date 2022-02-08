@@ -20,23 +20,13 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart';
 
 extension DocumentSliceFfi on List<Document> {
-  /// Allocates a slice of documents containing all document of this list.
-  ///
-  /// We expect the length of this list to be passed in.
-  ///
-  //Note: The len arguments makes sure the len you use with the slice and
-  //      the len you create it with are the same, alternatively returning
-  //      a `Pair` or custom type could be done.
-  Pointer<RustDocument> createSlice(final int len) {
-    if (len != length) {
-      throw ArgumentError.value(len, 'len', 'len must match length');
-    }
-    final slice = ffi.alloc_uninitialized_document_slice(len);
-    var nextElement = slice;
-    for (final document in this) {
+  /// Allocates a slice of documents containing all documents of this list.
+  Pointer<RustDocument> createSlice() {
+    final slice = ffi.alloc_uninitialized_document_slice(length);
+    fold<Pointer<RustDocument>>(slice, (nextElement, document) {
       document.writeTo(nextElement);
-      nextElement = ffi.next_document(nextElement);
-    }
+      return ffi.next_document(nextElement);
+    });
     return slice;
   }
 
@@ -45,15 +35,15 @@ extension DocumentSliceFfi on List<Document> {
     final int len,
   ) {
     final out = <Document>[];
-    for (var c = 0, next = slice;
-        c < len;
-        c++, next = ffi.next_document(next)) {
-      out.add(Document.readFrom(next));
-    }
+    Iterable<int>.generate(len).fold<Pointer<RustDocument>>(slice,
+        (nextElement, _) {
+      out.add(Document.readFrom(nextElement));
+      return ffi.next_document(nextElement);
+    });
     return out;
   }
 
-  /// Consumes a `Box<Vec<Document>>` returned form rust.
+  /// Consumes a `Box<Vec<Document>>` returned from rust.
   ///
   /// The additional indirection is necessary due to dart
   /// not handling custom non-boxed, non-primitive return
