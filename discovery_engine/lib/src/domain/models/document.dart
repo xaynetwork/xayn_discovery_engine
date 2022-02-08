@@ -51,8 +51,8 @@ class Document {
   Document({
     required this.stackId,
     required this.resource,
-    this.userReaction = UserReaction.neutral,
     required this.batchIndex,
+    this.userReaction = UserReaction.neutral,
     this.isActive = true,
   })  : documentId = DocumentId(),
         timestamp = DateTime.now().toUtc();
