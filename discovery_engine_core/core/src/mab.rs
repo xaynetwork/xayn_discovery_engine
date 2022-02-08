@@ -55,6 +55,9 @@ pub(crate) trait Bucket<T> {
 
     /// Removes the next best element from this bucket and returns it, or `None` if it is empty.
     fn pop(&mut self) -> Option<T>;
+
+    /// Retains only the newest documents, given how many to keep.
+    fn retain_newest(&mut self, keep: usize);
 }
 
 impl<B, T> Bucket<T> for &mut B
@@ -75,6 +78,10 @@ where
 
     fn pop(&mut self) -> Option<T> {
         (**self).pop()
+    }
+
+    fn retain_newest(&mut self, keep: usize) {
+        (**self).retain_newest(keep);
     }
 }
 
@@ -178,6 +185,13 @@ mod tests {
 
         fn pop(&mut self) -> Option<u32> {
             self.docs.pop()
+        }
+
+        fn retain_newest(&mut self, keep: usize) {
+            let len = self.docs.len();
+            if len > keep {
+                self.docs.drain(..len - keep);
+            }
         }
     }
 

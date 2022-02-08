@@ -144,12 +144,6 @@ impl Stack {
 
         Ok(())
     }
-
-    /// Retains only the newest documents, given how many to keep.
-    #[allow(dead_code)]
-    pub(crate) fn retain_newest(&mut self, keep: usize) {
-        self.data.retain_newest(keep);
-    }
 }
 
 impl Bucket<Document> for Stack {
@@ -167,6 +161,10 @@ impl Bucket<Document> for Stack {
 
     fn pop(&mut self) -> Option<Document> {
         self.data.documents.pop()
+    }
+
+    fn retain_newest(&mut self, keep: usize) {
+        self.data.retain_newest(keep);
     }
 }
 
