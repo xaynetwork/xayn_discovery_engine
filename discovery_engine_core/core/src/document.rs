@@ -24,6 +24,8 @@ use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
@@ -149,18 +151,40 @@ impl TryFrom<Article> for NewsResource {
 
 /// Indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
-#[derive(Clone, Copy, Debug, Derivative, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Derivative, PartialEq, Serialize_repr, Deserialize_repr)]
 #[derivative(Default)]
+#[repr(u8)]
 pub enum UserReaction {
     /// No reaction from the user.
     #[derivative(Default)]
-    Neutral,
+    Neutral = 0,
 
     /// The user is interested.
-    Positive,
+    Positive = 1,
 
     /// The user is not interested.
-    Negative,
+    Negative = 2,
+}
+
+impl UserReaction {
+    /// Converts this enum to it's int representation.
+    pub fn to_int_repr(self) -> u8 {
+        self as _
+    }
+}
+
+impl TryFrom<u8> for UserReaction {
+    type Error = UnsupportedUserReaction;
+
+    fn try_from(reaction: u8) -> Result<Self, Self::Error> {
+        serde_json::from_value(json!(reaction)).map_err(|_| UnsupportedUserReaction { reaction })
+    }
+}
+
+#[derive(Debug, DisplayDoc, Error)]
+/// Received an unsupported user reaction, int repr: {reaction}
+pub struct UnsupportedUserReaction {
+    reaction: u8,
 }
 
 /// Log the time that has been spent on the document.

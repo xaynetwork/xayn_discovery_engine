@@ -2844,6 +2844,8 @@ dependencies = [
  "rand 0.8.4",
  "rand_distr",
  "serde",
+ "serde_json",
+ "serde_repr",
  "thiserror",
  "tokio",
  "url",

@@ -14,31 +14,29 @@
 
 //! FFI functions for handling [`UserReaction`] fields.
 
+use std::convert::TryFrom;
+
 use core::document::UserReaction;
 
 type IntRepr = u8;
 
 /// Initializes an [`UserReaction`] field at given place.
 ///
+/// Returns `1` if it succeeded `0` other wise.
+///
 /// # Safety
 ///
 /// It must be valid to write an [`UserReaction`] to given pointer.
 #[no_mangle]
 pub unsafe extern "C" fn init_user_reaction_at(place: *mut UserReaction, reaction: IntRepr) -> u8 {
-    let mut ok = true;
-    let reaction = match reaction {
-        0 => UserReaction::Neutral,
-        1 => UserReaction::Positive,
-        2 => UserReaction::Negative,
-        _ => {
-            ok = false;
-            UserReaction::default()
+    if let Ok(reaction) = UserReaction::try_from(reaction) {
+        unsafe {
+            place.write(reaction);
         }
-    };
-    unsafe {
-        place.write(reaction);
+        1
+    } else {
+        0
     }
-    ok as u8
 }
 
 /// Gets the int representation of an [`UserReaction`].
@@ -48,11 +46,7 @@ pub unsafe extern "C" fn init_user_reaction_at(place: *mut UserReaction, reactio
 /// The pointer must point to a valid [`UserReaction`] instance.
 #[no_mangle]
 pub unsafe extern "C" fn get_user_reaction(reaction: *mut UserReaction) -> IntRepr {
-    match unsafe { &*reaction } {
-        UserReaction::Neutral => 0,
-        UserReaction::Positive => 1,
-        UserReaction::Negative => 2,
-    }
+    unsafe { *reaction }.to_int_repr()
 }
 
 /// Alloc an uninitialized `Box<UserReaction>`, mainly used for testing.
