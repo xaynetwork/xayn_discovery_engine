@@ -163,8 +163,8 @@ impl Bucket<Document> for Stack {
         self.data.documents.pop()
     }
 
-    fn retain_newest(&mut self, keep: usize) {
-        self.data.retain_newest(keep);
+    fn retain_top(&mut self, keep: usize) {
+        self.data.retain_top(keep);
     }
 }
 
