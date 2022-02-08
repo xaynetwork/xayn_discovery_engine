@@ -23,6 +23,7 @@ include = ["xayn-discovery-engine-core"]
 # Renamings to avoid name conflicts/confusion in dart.
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
+"Option_Url" = "RustOptionUrl"
 "String" = "RustString"
 "Url" = "RustUrl"
 "UserReacted" = "RustUserReacted"

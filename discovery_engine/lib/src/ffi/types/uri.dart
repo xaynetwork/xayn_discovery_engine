@@ -14,7 +14,8 @@
 
 import 'dart:ffi' show Pointer;
 
-import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart' show RustUrl;
+import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
+    show RustUrl, RustOptionUrl;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show BoxedStr;
 
@@ -35,5 +36,22 @@ extension UriFfi on Uri {
     ).readNative();
 
     return Uri.parse(string);
+  }
+
+  static void writeNativeOption(Uri? self, Pointer<RustOptionUrl> place) {
+    if (self == null) {
+      ffi.inti_none_url_at(place);
+    } else {
+      self.writeNative(ffi.init_some_url_at(place));
+    }
+  }
+
+  static Uri? readNativeOption(Pointer<RustOptionUrl> optUrl) {
+    final url = ffi.get_option_url_some(optUrl);
+    if (url.address == 0) {
+      return null;
+    } else {
+      UriFfi.readNative(url);
+    }
   }
 }

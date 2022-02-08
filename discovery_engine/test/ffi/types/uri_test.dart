@@ -23,6 +23,23 @@ void main() {
     uri.writeNative(place);
     final res = UriFfi.readNative(place);
     ffi.drop_url(place);
+    expect(uri, equals(res));
+  });
+
+  test('reading written Option::Some uri works', () {
+    final uri = Uri.parse('https://foo.example/bar');
+    final place = ffi.alloc_uninitialized_option_url();
+    UriFfi.writeNativeOption(uri, place);
+    final res = UriFfi.readNativeOption(place);
+    ffi.drop_option_url(place);
     expect(res, equals(uri));
+  });
+
+  test('reading written Option::None uri works', () {
+    final place = ffi.alloc_uninitialized_option_url();
+    UriFfi.writeNativeOption(null, place);
+    final res = UriFfi.readNativeOption(place);
+    ffi.drop_option_url(place);
+    expect(res, isNull);
   });
 }

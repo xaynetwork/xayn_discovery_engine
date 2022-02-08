@@ -54,5 +54,8 @@ class BoxedStr {
     ffi.drop_bytes(this.start, this.len);
   }
 
-  String readNative() => utf8.decode(start.asTypedList(len));
+  String readNative() {
+    final data = start.asTypedList(len);
+    return utf8.decode(data);
+  }
 }
