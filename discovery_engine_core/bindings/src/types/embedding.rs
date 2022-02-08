@@ -60,7 +60,7 @@ pub unsafe extern "C" fn get_embedding_buffer(embedding: *const Embedding) -> *c
 /// # Aborts
 ///
 /// Aborts if the embedding is not "contiguous and in standard order".
-//Note: Wether this is or isn't the case should (for our use case) be always
+//Note: Whether this is or isn't the case should (for our use case) be always
 // the same independent of input data. Hence this should be caught by
 // tests. If that isn't the case anymore it should be considered to
 // change this interface, e.g. to support reading a buffer with strides.
