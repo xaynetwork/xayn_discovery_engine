@@ -12,13 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Modules containing FFI glue for various types.
+//! FFI functions for handling types from the document module.
 
-mod boxed;
-pub mod document;
-pub mod duration;
-pub mod embedding;
-pub mod slice;
-pub mod string;
-pub mod uuid;
-pub mod vec;
+mod user_reaction;
+
+pub use user_reaction::*;

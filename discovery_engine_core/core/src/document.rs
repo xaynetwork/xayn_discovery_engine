@@ -24,6 +24,7 @@ use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
@@ -149,18 +150,19 @@ impl TryFrom<Article> for NewsResource {
 
 /// Indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
-#[derive(Clone, Copy, Debug, Derivative, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Derivative, PartialEq, Serialize_repr, Deserialize_repr)]
 #[derivative(Default)]
+#[repr(u8)]
 pub enum UserReaction {
     /// No reaction from the user.
     #[derivative(Default)]
-    Neutral,
+    Neutral = 0,
 
     /// The user is interested.
-    Positive,
+    Positive = 1,
 
     /// The user is not interested.
-    Negative,
+    Negative = 2,
 }
 
 /// Log the time that has been spent on the document.

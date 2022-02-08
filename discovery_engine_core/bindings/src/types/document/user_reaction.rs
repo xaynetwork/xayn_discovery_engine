@@ -12,13 +12,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Modules containing FFI glue for various types.
+//! FFI functions for handling [`UserReaction`] fields.
 
-mod boxed;
-pub mod document;
-pub mod duration;
-pub mod embedding;
-pub mod slice;
-pub mod string;
-pub mod uuid;
-pub mod vec;
+use core::document::UserReaction;
+
+/// Alloc an uninitialized `Box<UserReaction>`, mainly used for testing.
+#[no_mangle]
+pub extern "C" fn alloc_uninitialized_user_reaction() -> *mut UserReaction {
+    crate::types::boxed::alloc_uninitialized()
+}
+
+/// Drops a `Box<UserReaction>`, mainly used for testing.
+///
+/// # Safety
+///
+/// The pointer must represent a valid `Box<UserReaction>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_user_reaction(reaction: *mut UserReaction) {
+    unsafe { crate::types::boxed::drop(reaction) };
+}

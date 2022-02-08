@@ -12,13 +12,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Modules containing FFI glue for various types.
+import 'dart:ffi' show Pointer, Uint8Pointer;
 
-mod boxed;
-pub mod document;
-pub mod duration;
-pub mod embedding;
-pub mod slice;
-pub mod string;
-pub mod uuid;
-pub mod vec;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show UserReaction, UserReactionIntConversion;
+import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
+    show RustUserReaction1;
+
+extension UserReactionFfi on UserReaction {
+  void writeNative(final Pointer<RustUserReaction1> place) {
+    place.value = toIntRepr();
+  }
+
+  static UserReaction readNative(
+    final Pointer<RustUserReaction1> place,
+  ) =>
+      UserReactionIntConversion.fromIntRepr(place.value);
+}

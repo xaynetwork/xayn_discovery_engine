@@ -118,6 +118,7 @@ jobs:
         uses: ./.github/actions/setup-job
         with:
           dart: true
+          rust: true
 
       - name: Install dartdoc
         working-directory: ${{ env.DART_WORKSPACE }}

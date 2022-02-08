@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   dev-ci:
-    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@main
+    uses: xaynetwork/xayn_discovery_engine/.github/workflows/ci_reusable_wf.yml@TY-2351-3.1-ffi-user-reaction
 
   ci-ok:
     name: ci-ok
