@@ -61,17 +61,6 @@ Future<void> main() async {
         expect(_box.values.first, equals(Uint8List.fromList([5, 6, 7, 8])));
       });
 
-      test('when we override data it will be updated in the box', () async {
-        await _box.put(
-          HiveEngineStateRepository.stateKey,
-          Uint8List.fromList([1, 2, 3, 4]),
-        );
-
-        await _repo.save(Uint8List.fromList([5, 6, 7, 8]));
-
-        expect(_box.values.first, equals(Uint8List.fromList([5, 6, 7, 8])));
-      });
-
       test(
           'when we call "save" multiple time it will always override the state '
           'so only one entry will exist in the box', () async {
@@ -81,19 +70,6 @@ Future<void> main() async {
 
         expect(_box.values.first, equals(Uint8List.fromList([0, 1, 0, 1])));
         expect(_box.values.length, equals(1));
-      });
-    });
-
-    group('"reset" method', () {
-      test('when we reset there will be no data in the box', () async {
-        await _box.put(
-          HiveEngineStateRepository.stateKey,
-          Uint8List.fromList([1, 2, 3, 4]),
-        );
-
-        await _repo.reset();
-
-        expect(_box.isEmpty, isTrue);
       });
     });
   });

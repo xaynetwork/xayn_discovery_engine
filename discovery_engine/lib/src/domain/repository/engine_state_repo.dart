@@ -21,7 +21,4 @@ abstract class EngineStateRepository {
 
   /// Persist the state of the engine.
   Future<void> save(Uint8List bytes);
-
-  /// Clear the repository.
-  Future<void> reset();
 }
