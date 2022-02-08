@@ -23,7 +23,7 @@ import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentAdapter, Document, DocumentFeedback;
+    show DocumentAdapter, Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -95,22 +95,22 @@ Future<void> main() async {
 
       // reset test data
       doc1.isActive = true;
-      doc1.feedback = DocumentFeedback.neutral;
+      doc1.userReaction = UserReaction.neutral;
       doc2.isActive = false;
-      doc2.feedback = DocumentFeedback.neutral;
+      doc2.userReaction = UserReaction.neutral;
       data.viewTime.clear();
     });
 
-    test('update absent document feedback', () async {
+    test('update absent document user reaction', () async {
       expect(
-        () => mgr.updateDocumentFeedback(id3, DocumentFeedback.positive),
+        () => mgr.updateUserReaction(id3, UserReaction.positive),
         throwsArgumentError,
       );
     });
 
-    test('update inactive document feedback', () async {
+    test('update inactive document user reaction', () async {
       expect(
-        () => mgr.updateDocumentFeedback(id2, DocumentFeedback.positive),
+        () => mgr.updateUserReaction(id2, UserReaction.positive),
         throwsArgumentError,
       );
     });
@@ -122,18 +122,18 @@ Future<void> main() async {
       await activeRepo.removeByIds({id1});
 
       expect(
-        () => mgr.updateDocumentFeedback(id1, DocumentFeedback.positive),
+        () => mgr.updateUserReaction(id1, UserReaction.positive),
         throwsStateError,
       );
     });
 
-    test('update active document feedback', () async {
-      const newFeedback = DocumentFeedback.positive;
-      await mgr.updateDocumentFeedback(id1, newFeedback);
+    test('update active document user reaction', () async {
+      const newReaction = UserReaction.positive;
+      await mgr.updateUserReaction(id1, newReaction);
       expect(engine.getCallCount('userReacted'), equals(1));
       expect(
         docBox.values,
-        unorderedEquals(<Document>[doc1..feedback = newFeedback, doc2]),
+        unorderedEquals(<Document>[doc1..userReaction = newReaction, doc2]),
       );
       // other repos unchanged
       expect(activeBox, hasLength(1));

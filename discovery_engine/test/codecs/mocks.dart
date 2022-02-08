@@ -19,11 +19,11 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         Configuration,
         ConfigurationChanged,
         Document,
-        DocumentFeedback,
-        DocumentFeedbackChanged,
+        UserReaction,
+        DocumentViewMode,
+        UserReactionChanged,
         DocumentId,
         DocumentTimeSpent,
-        DocumentViewMode,
         EngineEvent,
         EngineExceptionRaised,
         EngineExceptionReason,
@@ -56,8 +56,7 @@ class BadClientEvent implements ClientEvent {
         nextFeedBatchRequested,
     required TResult Function(FeedDocumentsClosed value) feedDocumentsClosed,
     required TResult Function(DocumentTimeSpent value) documentTimeSpent,
-    required TResult Function(DocumentFeedbackChanged value)
-        documentFeedbackChanged,
+    required TResult Function(UserReactionChanged value) userReactionChanged,
   }) {
     throw UnimplementedError();
   }
@@ -71,7 +70,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
     TResult Function(DocumentTimeSpent value)? documentTimeSpent,
-    TResult Function(DocumentFeedbackChanged value)? documentFeedbackChanged,
+    TResult Function(UserReactionChanged value)? userReactionChanged,
   }) {
     throw UnimplementedError();
   }
@@ -86,7 +85,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
     TResult Function(DocumentTimeSpent value)? documentTimeSpent,
-    TResult Function(DocumentFeedbackChanged value)? documentFeedbackChanged,
+    TResult Function(UserReactionChanged value)? userReactionChanged,
   }) {
     throw UnimplementedError();
   }
@@ -106,8 +105,8 @@ class BadClientEvent implements ClientEvent {
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
     TResult Function(DocumentId documentId, DocumentViewMode mode, int seconds)?
         documentTimeSpent,
-    TResult Function(DocumentId documentId, DocumentFeedback feedback)?
-        documentFeedbackChanged,
+    TResult Function(DocumentId documentId, UserReaction userReaction)?
+        userReactionChanged,
   }) {
     throw UnimplementedError();
   }
@@ -135,8 +134,8 @@ class BadClientEvent implements ClientEvent {
       int seconds,
     )
         documentTimeSpent,
-    required TResult Function(DocumentId documentId, DocumentFeedback feedback)
-        documentFeedbackChanged,
+    required TResult Function(DocumentId documentId, UserReaction reaction)
+        userReactionChanged,
   }) {
     throw UnimplementedError();
   }
@@ -159,8 +158,8 @@ class BadClientEvent implements ClientEvent {
       int seconds,
     )?
         documentTimeSpent,
-    TResult Function(DocumentId documentId, DocumentFeedback feedback)?
-        documentFeedbackChanged,
+    TResult Function(DocumentId documentId, UserReaction reaction)?
+        userReactionChanged,
   }) {
     throw UnimplementedError();
   }

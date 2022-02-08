@@ -15,15 +15,16 @@
 import 'dart:isolate' show ReceivePort, SendPort;
 
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/discovery_engine.dart';
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
         DocumentId,
-        DocumentFeedback,
+        UserReaction,
         FeedRequested,
         FeedRequestSucceeded,
         ClientEventSucceeded,
-        DocumentFeedbackChanged,
+        UserReactionChanged,
         EngineEvent,
         EngineExceptionReason;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
@@ -63,9 +64,9 @@ void main() {
       expect(message_1[kPayloadKey], equals({'type': 'feedRequested'}));
 
       final documentId = DocumentId();
-      final event_2 = ClientEvent.documentFeedbackChanged(
+      final event_2 = ClientEvent.userReactionChanged(
         documentId,
-        DocumentFeedback.positive,
+        UserReaction.positive,
       );
       final request_2 = OneshotRequest(channel.sender, event_2);
       final message_2 = converter.convert(request_2) as Map;
@@ -75,8 +76,8 @@ void main() {
         message_2[kPayloadKey],
         equals({
           'documentId': documentId.toJson(),
-          'feedback': 1,
-          'type': 'documentFeedbackChanged',
+          'userReaction': 1,
+          'type': 'userReactionChanged',
         }),
       );
     });
@@ -119,18 +120,18 @@ void main() {
         kSenderKey: port,
         kPayloadKey: {
           'documentId': documentId.toJson(),
-          'feedback': 1,
-          'type': 'documentFeedbackChanged',
+          'userReaction': 1,
+          'type': 'userReactionChanged',
         }
       };
 
       final req_2 = converter.convert(event_2);
       // ignore: non_constant_identifier_names
-      final req_2_payload = req_2.payload as DocumentFeedbackChanged;
+      final req_2_payload = req_2.payload as UserReactionChanged;
 
-      expect(req_2.payload, isA<DocumentFeedbackChanged>());
+      expect(req_2.payload, isA<UserReactionChanged>());
       expect(req_2_payload.documentId, documentId);
-      expect(req_2_payload.feedback, DocumentFeedback.positive);
+      expect(req_2_payload.userReaction, UserReaction.positive);
       expect(req_2.sender, isA<Sender<SendingPort>>());
       expect(req_2.sender.platformPort, isA<SendPort>());
       expect(req_2.sender.platformPort, port);

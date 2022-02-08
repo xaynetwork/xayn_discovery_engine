@@ -19,7 +19,7 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentFeedback;
+    show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -97,7 +97,7 @@ class MockEngine implements Engine {
     DocumentId docId, {
     required Uint8List smbertEmbedding,
     required Duration seconds,
-    required DocumentFeedback reaction,
+    required UserReaction reaction,
   }) {
     _incrementCount('timeLogged');
   }
@@ -108,7 +108,7 @@ class MockEngine implements Engine {
     required StackId stackId,
     required String snippet,
     required Uint8List smbertEmbedding,
-    required DocumentFeedback reaction,
+    required UserReaction reaction,
   }) {
     _incrementCount('userReacted');
   }

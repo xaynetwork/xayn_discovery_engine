@@ -17,7 +17,7 @@ import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback;
+    show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -40,24 +40,24 @@ class DocumentManager {
   /// Fails if the event [evt] does not have a handler implemented.
   Future<void> handleDocumentClientEvent(DocumentClientEvent evt) =>
       evt.maybeWhen(
-        documentFeedbackChanged: (id, fdbk) => updateDocumentFeedback(id, fdbk),
+        userReactionChanged: (id, reaction) => updateUserReaction(id, reaction),
         documentTimeSpent: (id, mode, sec) =>
             addActiveDocumentTime(id, mode, sec),
         orElse: throw UnimplementedError('handler not implemented for $evt'),
       );
 
-  /// Update feedback for the given document.
+  /// Update user reaction for the given document.
   ///
   /// Fails if [id] does not identify an active document.
-  Future<void> updateDocumentFeedback(
+  Future<void> updateUserReaction(
     DocumentId id,
-    DocumentFeedback feedback,
+    UserReaction userReaction,
   ) async {
     final doc = await _documentRepo.fetchById(id);
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
     }
-    await _documentRepo.update(doc..feedback = feedback);
+    await _documentRepo.update(doc..userReaction = userReaction);
     final smbertEmbedding = await _activeRepo.smbertEmbeddingById(id);
     if (smbertEmbedding == null) {
       throw StateError('id $id does not have active data attached');
@@ -70,7 +70,7 @@ class DocumentManager {
       stackId: doc.stackId,
       snippet: snippet,
       smbertEmbedding: smbertEmbedding,
-      reaction: feedback,
+      reaction: userReaction,
     );
   }
 
@@ -106,7 +106,7 @@ class DocumentManager {
       id,
       smbertEmbedding: activeData.smbertEmbedding,
       seconds: sumDuration,
-      reaction: doc.feedback,
+      reaction: doc.userReaction,
     );
   }
 }

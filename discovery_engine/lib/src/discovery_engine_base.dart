@@ -21,7 +21,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ClientEventSucceeded,
         AssetsStatusEngineEvent,
         Configuration,
-        DocumentFeedback,
+        UserReaction,
         DocumentId,
         DocumentViewMode,
         EngineEvent,
@@ -255,23 +255,23 @@ class DiscoveryEngine {
     });
   }
 
-  /// Changes the feedback of a [Document].
+  /// Changes the user reaction to a [Document].
   ///
-  /// [DocumentFeedback] variants are defined as:
-  /// - [DocumentFeedback.positive] indicates that the [Document] was **liked**
-  /// - [DocumentFeedback.negative] indicates that the [Document] was **diliked**
-  /// - [DocumentFeedback.neutral] as a default **neutral** state of the [Document].
+  /// [UserReaction] variants are defined as:
+  /// - [UserReaction.positive] indicates that the [Document] was **liked**
+  /// - [UserReaction.negative] indicates that the [Document] was **diliked**
+  /// - [UserReaction.neutral] as a default **neutral** state of the [Document].
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> changeDocumentFeedback({
+  Future<EngineEvent> changeUserReaction({
     required DocumentId documentId,
-    required DocumentFeedback feedback,
+    required UserReaction userReaction,
   }) {
     return _trySend(() async {
-      final event = ClientEvent.documentFeedbackChanged(documentId, feedback);
+      final event = ClientEvent.userReactionChanged(documentId, userReaction);
       final response = await _manager.send(event);
 
       return response.mapEvent(

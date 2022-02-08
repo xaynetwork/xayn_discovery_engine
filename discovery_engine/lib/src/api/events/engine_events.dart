@@ -116,14 +116,14 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.fetchingAssetsFinished() = FetchingAssetsFinished;
 
   /// Event created to inform the client that a particular "fire and forget"
-  /// event, like DocumentFeedbackChanged, was successfuly processed
+  /// event, like UserReactionChanged, was successfuly processed
   /// by the engine.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.clientEventSucceeded() = ClientEventSucceeded;
 
   /// Event created by the engine for a multitude of generic reasons, also
   /// as a "failure" event in response to "fire and forget" events, like
-  /// DocumentFeedbackChanged.
+  /// UserReactionChanged.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.engineExceptionRaised(
     EngineExceptionReason reason,

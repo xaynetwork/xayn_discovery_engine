@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         EngineEvent,
         EngineExceptionRaised,
         EngineExceptionReason,
-        DocumentFeedback;
+        UserReaction;
 
 import '../logging.dart' show setupLogging;
 import 'utils/utils.dart'
@@ -32,16 +32,16 @@ import 'utils/utils.dart'
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine changeDocumentFeedback', () {
+  group('DiscoveryEngine changeUserReaction', () {
     test(
         'if worker responds with "ClientEventSucceeded" event it should pass it'
         'as a response of the Discovery Engine', () async {
       final engine = await createEngineWithEntryPoint(withSuccessResponse);
 
       expect(
-        engine.changeDocumentFeedback(
+        engine.changeUserReaction(
           documentId: DocumentId(),
-          feedback: DocumentFeedback.positive,
+          userReaction: UserReaction.positive,
         ),
         completion(isA<ClientEventSucceeded>()),
       );
@@ -51,9 +51,9 @@ void main() {
         'if worker responds with "EngineExceptionRaised" event it should pass it'
         'as a response of the Discovery Engine', () async {
       final engine = await createEngineWithEntryPoint(withErrorResponse);
-      final response = await engine.changeDocumentFeedback(
+      final response = await engine.changeUserReaction(
         documentId: DocumentId(),
-        feedback: DocumentFeedback.positive,
+        userReaction: UserReaction.positive,
       );
 
       expect(response, isA<EngineExceptionRaised>());
@@ -68,9 +68,9 @@ void main() {
         'catch it and respond with "EngineExceptionRaised" event '
         'with "wrongEventInResponse" reason', () async {
       final engine = await createEngineWithEntryPoint(withWrongEventResponse);
-      final response = await engine.changeDocumentFeedback(
+      final response = await engine.changeUserReaction(
         documentId: DocumentId(),
-        feedback: DocumentFeedback.positive,
+        userReaction: UserReaction.positive,
       );
 
       expect(response, isA<EngineExceptionRaised>());
@@ -84,13 +84,12 @@ void main() {
 
 void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
-      documentFeedbackChangedResponse: const EngineEvent.engineExceptionRaised(
+      userReactionChangedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
       ),
     );
 
 void withWrongEventResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
-      documentFeedbackChangedResponse:
-          const EngineEvent.nextFeedBatchAvailable(),
+      userReactionChangedResponse: const EngineEvent.nextFeedBatchAvailable(),
     );
