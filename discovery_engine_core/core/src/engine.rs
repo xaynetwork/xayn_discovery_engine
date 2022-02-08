@@ -68,18 +68,36 @@ pub struct Market {
     lang_code: String,
 }
 
-/// Discovery Engine configuration settings.
-#[allow(dead_code)]
-pub struct Config {
+/// Configuration settings to initialize Discovery Engine with a [`xayn_ai::ranker::Ranker`].
+pub struct InitConfig {
     api_key: String,
     api_base_url: String,
-    markets: RwLock<Vec<Market>>,
+    markets: Vec<Market>,
     smbert_vocab: String,
     smbert_model: String,
     kpe_vocab: String,
     kpe_model: String,
     kpe_cnn: String,
     kpe_classifier: String,
+}
+
+/// Discovery Engine endpoint settings.
+pub struct EndpointConfig {
+    #[allow(dead_code)]
+    api_key: String,
+    #[allow(dead_code)]
+    api_base_url: String,
+    markets: RwLock<Vec<Market>>,
+}
+
+impl From<InitConfig> for EndpointConfig {
+    fn from(config: InitConfig) -> Self {
+        Self {
+            api_key: config.api_key,
+            api_base_url: config.api_base_url,
+            markets: RwLock::new(config.markets),
+        }
+    }
 }
 
 /// Temporary config to allow for configurations within the core without a mirroring outside impl.
@@ -102,8 +120,7 @@ impl Default for CoreConfig {
 
 /// Discovery Engine.
 pub struct Engine<R> {
-    #[allow(dead_code)]
-    config: Config,
+    config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
     ranker: R,
@@ -113,8 +130,8 @@ impl<R> Engine<R>
 where
     R: Ranker + Send + Sync,
 {
-    /// Creates a new `Engine` from configuration.
-    pub fn new(config: Config, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
+    /// Creates a new `Engine`.
+    pub fn new(config: EndpointConfig, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
         Self::from_stack_data(config, ranker, stack_data, stack_ops)
@@ -126,7 +143,7 @@ where
     /// Data related to missing operations will be dropped.
     pub fn from_state(
         state: &StackState,
-        config: Config,
+        config: EndpointConfig,
         ranker: R,
         stack_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
@@ -142,7 +159,7 @@ where
     }
 
     fn from_stack_data(
-        config: Config,
+        config: EndpointConfig,
         ranker: R,
         mut stack_data: impl FnMut(StackId) -> StackData,
         stack_ops: Vec<BoxedOps>,
@@ -192,8 +209,7 @@ where
 
     /// Updates the markets configuration.
     pub async fn set_markets(&mut self, markets: Vec<Market>) {
-        let mut mkts = self.config.markets.write().await;
-        *mkts = markets;
+        *self.config.markets.write().await = markets;
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
@@ -273,7 +289,7 @@ fn rank_stacks<'a>(
 impl Engine<xayn_ai::ranker::Ranker> {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
     pub fn from_config(
-        config: Config,
+        config: InitConfig,
         stacks_ops: Vec<BoxedOps>,
         state: Option<&[u8]>,
     ) -> Result<Engine<impl Ranker>, Error> {
@@ -306,10 +322,10 @@ impl Engine<xayn_ai::ranker::Ranker> {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Engine::from_state(&state.engine, config, ranker, stacks_ops)
+            Engine::from_state(&state.engine, config.into(), ranker, stacks_ops)
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Engine::new(config, ranker, stacks_ops)
+            Engine::new(config.into(), ranker, stacks_ops)
         }
     }
 }
