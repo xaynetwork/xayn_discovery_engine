@@ -22,6 +22,12 @@ void main() {
   runApp(const MyApp());
 }
 
+enum EngineState {
+  notReady,
+  initializing,
+  ready,
+}
+
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -30,8 +36,14 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  double progress = .0;
+  EngineState engineState = EngineState.notReady;
+
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initEngine() async {
+    if (engineState != EngineState.notReady) return;
+    setState(() => engineState = EngineState.initializing);
+
     // provide initial configuration for the engine
     final appDir = await getApplicationDocumentsDirectory();
     final manifest = await FlutterManifestReader().read();
@@ -53,7 +65,14 @@ class _MyAppState extends State<MyApp> {
       // This will spawn a Worker inside an Isolate (or WebWorker), instantiate
       // all the modules and binaries and establish communication channels
       print('Starting the Discovery Engine...');
-      engine = await DiscoveryEngine.init(configuration: config);
+      engine = await DiscoveryEngine.init(
+        configuration: config,
+        onAssetsProgress: (event) => event.whenOrNull(
+          fetchingAssetsProgressed: (percentage) =>
+              setState(() => progress = percentage),
+        ),
+      );
+      setState(() => engineState = EngineState.ready);
       print('Engine initialized successfuly.');
     } on EngineInitException catch (e) {
       // message what went wrong
@@ -65,13 +84,10 @@ class _MyAppState extends State<MyApp> {
       print(e);
     }
 
-    if (engine == null) return;
-
-    // set up a listener if you want to consume events from `Stream<EngineEvent>`,
-    engine.engineEvents.listen((event) {
-      print('\n[Event stream listener]: new event received!');
-      print(event);
-    });
+    if (engine == null) {
+      setState(() => engineState = EngineState.notReady);
+      return;
+    }
 
     // you can also use `async await` style for request/response
     final requestFeedResponse = await engine.requestFeed();
@@ -91,10 +107,18 @@ class _MyAppState extends State<MyApp> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ElevatedButton(
-                onPressed: initEngine,
-                child: const Text('Init engine'),
-              ),
+              if (engineState == EngineState.initializing)
+                Text('Fetching assets: ${progress.toStringAsPrecision(2)}%'),
+              if (engineState == EngineState.ready)
+                const Text('Engine initialized'),
+              if (engineState != EngineState.ready)
+                ElevatedButton(
+                  onPressed:
+                      engineState == EngineState.notReady ? initEngine : null,
+                  child: engineState == EngineState.notReady
+                      ? const Text('Init engine')
+                      : const Text('Initializing...'),
+                ),
             ],
           ),
         ),
