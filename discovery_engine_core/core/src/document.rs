@@ -165,12 +165,6 @@ pub enum UserReaction {
     Negative = 2,
 }
 
-#[derive(Debug, DisplayDoc, Error)]
-/// Received an unsupported user reaction, int repr: {reaction}
-pub struct UnsupportedUserReaction {
-    reaction: u8,
-}
-
 /// Log the time that has been spent on the document.
 pub struct TimeSpent {
     /// Id of the document.
