@@ -44,10 +44,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         ClientEventSucceeded,
         EngineExceptionRaised,
         EngineExceptionReason;
-export 'package:xayn_discovery_engine/src/api/models/document.dart'
-    show Document;
-export 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
-    show Configuration;
+export 'package:xayn_discovery_engine/src/api/models/document.dart';
+export 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
 export 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
 export 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
