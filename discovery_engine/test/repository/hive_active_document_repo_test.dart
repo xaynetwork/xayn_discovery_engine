@@ -14,7 +14,7 @@
 
 import 'dart:typed_data' show Uint8List;
 
-import 'package:hive/hive.dart' show Hive;
+import 'package:hive/hive.dart' show Box, Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
@@ -32,16 +32,23 @@ import '../logging.dart' show setupLogging;
 Future<void> main() async {
   setupLogging();
 
-  final box = await Hive.openBox<ActiveDocumentData>(
-    activeDocumentDataBox,
-    bytes: Uint8List(0),
-  );
-  final repo = HiveActiveDocumentDataRepository();
-
   group('ActiveDocumentDataRepository', () {
+    late Box<ActiveDocumentData> box;
+    late HiveActiveDocumentDataRepository repo;
     final data = ActiveDocumentData(Uint8List(0));
     final id1 = DocumentId();
     final id2 = DocumentId();
+
+    setUpAll(() async {
+      box = await Hive.openBox<ActiveDocumentData>(
+        activeDocumentDataBox,
+        bytes: Uint8List(0),
+      );
+    });
+
+    setUp(() {
+      repo = HiveActiveDocumentDataRepository();
+    });
 
     tearDown(() async {
       await box.clear();

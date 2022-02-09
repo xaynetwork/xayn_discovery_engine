@@ -24,31 +24,35 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_
 
 Future<void> main() async {
   group('HiveEngineStateRepository', () {
-    late Box<Uint8List> _box;
-    final _repo = HiveEngineStateRepository();
+    late Box<Uint8List> box;
+    late HiveEngineStateRepository repo;
 
     setUpAll(() async {
-      _box = await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
+      box = await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
+    });
+
+    setUp(() async {
+      repo = HiveEngineStateRepository();
     });
 
     tearDown(() async {
-      await _box.clear();
+      await box.clear();
     });
 
     group('"load" method', () {
       test('when the box is empty it will return "null"', () async {
-        final state = await _repo.load();
+        final state = await repo.load();
 
         expect(state, isNull);
       });
 
       test('when the box has some data it will return that data', () async {
-        await _box.put(
+        await box.put(
           HiveEngineStateRepository.stateKey,
           Uint8List.fromList([1, 2, 3, 4]),
         );
 
-        final state = await _repo.load();
+        final state = await repo.load();
 
         expect(state, equals(Uint8List.fromList([1, 2, 3, 4])));
       });
@@ -56,20 +60,20 @@ Future<void> main() async {
 
     group('"save" method', () {
       test('when we save some data it will be present in the box', () async {
-        await _repo.save(Uint8List.fromList([5, 6, 7, 8]));
+        await repo.save(Uint8List.fromList([5, 6, 7, 8]));
 
-        expect(_box.values.first, equals(Uint8List.fromList([5, 6, 7, 8])));
+        expect(box.values.first, equals(Uint8List.fromList([5, 6, 7, 8])));
       });
 
       test(
           'when we call "save" multiple time it will always override the state '
           'so only one entry will exist in the box', () async {
-        await _repo.save(Uint8List.fromList([1, 2, 3, 4]));
-        await _repo.save(Uint8List.fromList([5, 6, 7, 8]));
-        await _repo.save(Uint8List.fromList([0, 1, 0, 1]));
+        await repo.save(Uint8List.fromList([1, 2, 3, 4]));
+        await repo.save(Uint8List.fromList([5, 6, 7, 8]));
+        await repo.save(Uint8List.fromList([0, 1, 0, 1]));
 
-        expect(_box.values.first, equals(Uint8List.fromList([0, 1, 0, 1])));
-        expect(_box.values.length, equals(1));
+        expect(box.values.first, equals(Uint8List.fromList([0, 1, 0, 1])));
+        expect(box.values.length, equals(1));
       });
     });
   });
