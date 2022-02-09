@@ -21,7 +21,9 @@ runs:
 
     - name: Install just
       uses: extractions/setup-just@aa5d15c144db4585980a44ebfdd2cf337c4f14cb #v1.4.0
-      with:
+     env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     with:
         just-version: ${{ env.JUST_VERSION }}
 
     - name: Install dart
@@ -33,14 +35,14 @@ runs:
 
     - name: Install flutter
       uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
-      if: inputs.flutter
+      if: inputs.flutter != 'false'
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
         cache: true
 
     - name: Setup flutter dependencies
       shell: bash
-      if: inputs.flutter
+      if: inputs.flutter != 'false'
       run: |
         just flutter-deps
 

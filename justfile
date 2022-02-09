@@ -51,7 +51,7 @@ install-async-bindgen *args:
     fi
 
 # Get/Update/Fetch/Install all dependencies
-deps: dart-deps rust-deps install-async-bindgen
+deps: flutter-deps dart-deps rust-deps install-async-bindgen
 
 # Formats dart (checks only on CI)
 dart-fmt:

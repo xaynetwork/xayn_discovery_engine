@@ -10,7 +10,6 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_VERSION: '2.8.1'
   DART_WORKSPACE: ${{ github.workspace }}/discovery_engine
   FLUTTER_WORKSPACE: ${{ github.workspace }}/discovery_engine_flutter
 
