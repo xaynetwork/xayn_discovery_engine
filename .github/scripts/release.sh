@@ -79,8 +79,8 @@ git add -A
 
 # As we double commit and include the hash we
 # can no longer easy detect when we do not need to push...
-git commit --message "This commit is a complete release.
-The next commit need to set the dependencies references."
+git commit --message "This commit is NOT a complete release.
+The next commit MUST set the dependencies references."
 
 # change deps to the commit we just did
 sed -i s/change_me_to_commit_ref/$(git rev-parse HEAD)/ ./discovery_engine_flutter/pubspec.yaml

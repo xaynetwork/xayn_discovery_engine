@@ -47,4 +47,4 @@ jobs:
 
       - name: Copy Repository
         shell: bash
-        run: .github/scripts/release.sh --do-push "${{ steps.current_branch.output.branch }}"
+        run: .github/scripts/release.sh --do-push
