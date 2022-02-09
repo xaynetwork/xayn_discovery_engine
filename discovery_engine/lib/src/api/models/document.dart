@@ -33,7 +33,6 @@ class Document with _$Document {
     required NewsResource resource,
     required UserReaction userReaction,
     required int batchIndex,
-    required bool isActive,
   }) = _Document;
 
   /// Converts json Map to [Document].

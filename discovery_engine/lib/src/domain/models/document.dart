@@ -65,7 +65,6 @@ class Document {
         resource: resource,
         userReaction: userReaction,
         batchIndex: batchIndex,
-        isActive: isActive,
       );
 }
 
