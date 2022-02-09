@@ -17,24 +17,29 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/date_time.dart'
     show NaiveDateTimeFfi;
 
+void readWriteTest(DateTime dateTime) {
+  final place = ffi.alloc_uninitialized_naive_date_time();
+  dateTime.writeNative(place);
+  final res = NaiveDateTimeFfi.readNative(place);
+  ffi.drop_naive_date_time(place);
+  expect(res, equals(dateTime));
+}
+
 void main() {
   test('reading written naive date time yields same result', () {
-    final time = DateTime.now();
-    final place = ffi.alloc_uninitialized_naive_date_time();
-    time.writeNative(place);
-    final res = NaiveDateTimeFfi.readNative(place);
-    ffi.drop_naive_date_time(place);
-    expect(res, equals(time));
+    readWriteTest(DateTime.now());
   });
 
   test('reading written absurd large naive date time yields same result', () {
     // At some point larger then this it will fail.
-    const HUGE_TIME_WE_STILL_SUPPORT = 200000 * 365 * 24 * 60 * 60 * 1000000;
-    final time = DateTime.fromMicrosecondsSinceEpoch(HUGE_TIME_WE_STILL_SUPPORT);
-    final place = ffi.alloc_uninitialized_naive_date_time();
-    time.writeNative(place);
-    final res = NaiveDateTimeFfi.readNative(place);
-    ffi.drop_naive_date_time(place);
-    expect(res, equals(time));
+    const hugeTimeWeStillSupport = 200000 * 365 * 24 * 60 * 60 * 1000000;
+    final dateTime =
+        DateTime.fromMicrosecondsSinceEpoch(hugeTimeWeStillSupport);
+    readWriteTest(dateTime);
+  });
+
+  test('reading written pre-epoch time yields same result', () {
+    final dateTime = DateTime.parse('0500-06-21 18:17:12');
+    readWriteTest(dateTime);
   });
 }

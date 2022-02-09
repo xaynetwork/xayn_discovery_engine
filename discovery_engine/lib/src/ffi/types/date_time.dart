@@ -25,7 +25,11 @@ extension NaiveDateTimeFfi on DateTime {
     final microSecondsSinceNaiveEpoch =
         microsecondsSinceEpoch + timeZoneOffset.inMicroseconds;
     if (ffi.init_naive_date_time_at(place, microSecondsSinceNaiveEpoch) != 1) {
-      throw ArgumentError.value(this, 'dateTime', 'Can not convert this dart DateTime to rust',);
+      throw ArgumentError.value(
+        this,
+        'dateTime',
+        'Can not convert this dart DateTime to rust',
+      );
     }
   }
 

@@ -33,13 +33,13 @@ pub unsafe extern "C" fn init_naive_date_time_at(
     micros_since_naive_epoch: i64,
 ) -> u8 {
     let seconds = micros_since_naive_epoch / MICROS_PER_SECOND;
-    let nanos = (micros_since_naive_epoch % MICROS_PER_SECOND) * NANOS_PER_MICRO;
-    if let Some(date_time) = NaiveDateTime::from_timestamp_opt(seconds, nanos as u32) {
-        unsafe { place.write(date_time) }
+    let nanos = (micros_since_naive_epoch.abs() % MICROS_PER_SECOND) * NANOS_PER_MICRO;
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let nanos = nanos as u32;
+    NaiveDateTime::from_timestamp_opt(seconds, nanos).map_or(0, |date_time| {
+        unsafe { place.write(date_time) };
         1
-    } else {
-        0
-    }
+    })
 }
 
 /// Returns the number of micro seconds since since midnight on January 1, 1970.
@@ -51,11 +51,13 @@ pub unsafe extern "C" fn init_naive_date_time_at(
 ///
 /// The pointer must point to a sound initialized `NaiveDateTime` instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_naive_date_time_micros_since_epoch(naive_date_time: *mut NaiveDateTime) -> i64 {
+pub unsafe extern "C" fn get_naive_date_time_micros_since_epoch(
+    naive_date_time: *mut NaiveDateTime,
+) -> i64 {
     let naive_date_time = unsafe { &*naive_date_time };
     let sub_micros = naive_date_time.timestamp_subsec_micros();
     let seconds = naive_date_time.timestamp();
-    seconds * MICROS_PER_SECOND + sub_micros as i64
+    seconds * MICROS_PER_SECOND + i64::from(sub_micros)
 }
 
 /// Alloc an uninitialized `Box<NaiveDateTime>`, mainly used for testing.

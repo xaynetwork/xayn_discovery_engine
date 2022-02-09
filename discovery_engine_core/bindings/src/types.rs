@@ -15,8 +15,8 @@
 //! Modules containing FFI glue for various types.
 
 mod boxed;
-pub mod document;
 pub mod date_time;
+pub mod document;
 pub mod duration;
 pub mod embedding;
 pub mod option;
