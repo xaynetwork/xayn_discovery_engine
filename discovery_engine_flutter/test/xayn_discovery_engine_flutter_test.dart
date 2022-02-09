@@ -11,5 +11,12 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import 'package:flutter_test/flutter_test.dart';
 
-void main() {}
+void main() {
+  // The `flutter test` command fails if there are no tests, so we have a
+  // dummy test here for now.
+  test('always true', () {
+    expect(true, isTrue);
+  });
+}

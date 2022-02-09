@@ -4,6 +4,9 @@ inputs:
   dart:
     description: 'Setup dart'
     default: false
+  flutter:
+    description: 'Setup flutter'
+    default: false
   rust:
     description: 'Setup rust'
     default: false
@@ -19,13 +22,27 @@ runs:
     - name: Install just
       uses: extractions/setup-just@aa5d15c144db4585980a44ebfdd2cf337c4f14cb #v1.4.0
       with:
-        just-version: '0.10.5'
+        just-version: ${{ env.JUST_VERSION }}
 
     - name: Install dart
       uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
-      if: inputs.dart
+      # Flutter already installs a dart SDK, so we never need to install both
+      if: ${{ inputs.dart != 'false' && inputs.flutter != 'true' }}
       with:
         sdk: ${{ env.DART_VERSION }}
+
+    - name: Install flutter
+      uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
+      if: inputs.flutter
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        cache: true
+
+    - name: Setup flutter dependencies
+      shell: bash
+      if: inputs.flutter
+      run: |
+        just flutter-deps
 
     - name: Install rust toolchain
       working-directory: ${{ env.RUST_WORKSPACE }}
@@ -52,12 +69,12 @@ runs:
       shell: bash
       if: inputs.deps
       run: |
-        if [[ "${{ inputs.dart }}" == "true" && "${{ inputs.rust }}" != "false" ]]; then
+        if [[ "${{ inputs.dart }}" == "true" || "${{ inputs.flutter }}" == "true" ]] && [[ "${{ inputs.rust }}" == "true" ]]; then
           # ffigen dep, not handled by `just deps` as it's OS specific.
           sudo apt-get install libclang-10-dev
           just deps
-        elif [ "${{ inputs.dart }}" = "true" ]; then
+        elif [ "${{ inputs.dart }}" == "true" ]; then
           just dart-deps
-        elif [ "${{ inputs.rust }}" != "false" ]; then
+        elif [ "${{ inputs.rust }}" == "true" ]; then
           just rust-deps
         fi

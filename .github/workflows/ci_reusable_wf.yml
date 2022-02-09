@@ -17,6 +17,7 @@ jobs:
     outputs:
       dart: ${{ steps.filter.outputs.dart }}
       rust: ${{ steps.filter.outputs.rust }}
+      flutter: ${{ steps.filter.outputs.flutter }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -37,6 +38,11 @@ jobs:
               - '.github/workflows/ci*'
               - '.github/actions/setup-job/*'
               - '.github/actions/install-cargo-sort/*'
+              - 'justfile'
+            flutter:
+              - 'discovery_engine_flutter/**'
+              - '.github/workflows/ci*'
+              - '.github/actions/setup-job/*'
               - 'justfile'
 
   # DART CI
@@ -144,6 +150,62 @@ jobs:
             exit 1
           fi
 
+  # Flutter CI
+  flutter-analyze:
+    name: flutter-analyze
+    needs: selection
+    if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
+    runs-on: ubuntu-20.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the CI
+        uses: ./.github/actions/setup-job
+        with:
+          flutter: true
+          rust: true
+
+      - name: Analyze code
+        run: just flutter-check
+
+  flutter-test:
+    name: flutter-test
+    needs: selection
+    if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
+    runs-on: ubuntu-20.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the CI
+        uses: ./.github/actions/setup-job
+        with:
+          flutter: true
+          rust: true
+
+      - name: Run tests
+        run: just flutter-test
+
+  flutter-ok:
+    name: flutter-ok
+    if: ${{always()}}
+    needs: 
+      - flutter-test
+      - flutter-analyze
+    runs-on: ubuntu-20.04
+    steps:
+      - run: |
+          if ( ${{needs.flutter-test.result == 'success'}} && ${{needs.flutter-analyze.result == 'success'}} )
+          then
+            exit 0
+          else
+            exit 1
+          fi
+    
+
   # RUST CI
   cargo-format:
     needs: selection
@@ -229,7 +291,7 @@ jobs:
 
   run-ok:
     name: run-ok
-    needs: [selection, dart-ok, cargo-ok]
+    needs: [selection, dart-ok, cargo-ok, flutter-ok]
     if: ${{always()}}
     outputs:
       run-result:  ${{ steps.run-check.outputs.run-result }}
@@ -239,9 +301,10 @@ jobs:
       - name: Run Check
         id: run-check
         run: |
-          if (( (${{needs.selection.outputs.rust != 'true'}} || ${{needs.cargo-ok.result == 'success'}}) && (${{needs.selection.outputs.dart != 'true'}} || ${{needs.dart-ok.result == 'success'}}) ) ||
-          (${{needs.selection.outputs.dart == 'true'}} && ${{needs.dart-ok.result == 'success'}} && ${{needs.selection.outputs.rust != 'true'}}))
-          then
+          if (  ( ${{needs.selection.outputs.rust == 'false'}} || ${{needs.cargo-ok.result == 'success'}} ) &&
+                ( ${{needs.selection.outputs.dart == 'false'}} || ${{needs.dart-ok.result == 'success'}} ) &&
+                ( ${{needs.selection.outputs.flutter == 'false'}} || ${{needs.flutter-ok.result == 'success'}} )
+          ); then
             echo "::set-output name=run-result::$(echo 'success')"
             exit 0
           else
