@@ -14,45 +14,11 @@
 
 //! FFI functions for handling `Option<T>`
 
-use std::{ptr, mem::MaybeUninit, hint::unreachable_unchecked};
-
-/// Writes `Some(MaybeUninit::uninit())` to given place.
-///
-/// # Safety
-///
-/// - It must be valid to write a `Option<T>` instance to given pointer,
-///   the pointer is expected to point to uninitialized memory.
-/// - Before using the option the value must be initialized using the returned pointer.
-///   (except if `T` is valid without initialization, e.g. `MaybeUninit`).
-pub(super) unsafe fn init_some_at<T>(place: *mut Option<T>) -> *mut T{
-    let place = place.cast::<Option<MaybeUninit<T>>>();
-    unsafe {
-        ptr::write(place, Some(MaybeUninit::uninit()));
-    }
-    //SAFE as ptr is `Option<MaybeUninit<T>>`
-    match unsafe { &mut *place } {
-        Some(uninit) => uninit.as_mut_ptr(),
-        None => unsafe { unreachable_unchecked() },
-    }
-}
-
-/// Writes `None` to given place.
-///
-/// # Safety
-///
-/// - It must be valid to write a `Option<T>` instance to given pointer,
-///   the pointer is expected to point to uninitialized memory.
-pub(super) unsafe fn init_none_at<T>(place: *mut Option<T>) {
-    unsafe {
-        ptr::write(place, None);
-    }
-}
+use std::ptr;
 
 /// Returns a pointer to the value in the `Some` variant.
 ///
 /// **Returns nullptr if the `Option<T>` is `None`.**
-///
-/// This function MUST NOT be used to init a partially initialized option.
 ///
 /// # Safety
 ///

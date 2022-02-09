@@ -12,14 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show Pointer;
+import 'dart:ffi' show Pointer, Uint8;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustUrl, RustOptionUrl;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show BoxedStr;
 
+
 extension UriFfi on Uri {
+
   void writeNative(Pointer<RustUrl> place) {
     final str = BoxedStr.create(toString());
     final ok = ffi.init_url_at(place, str.start, str.len);
@@ -42,7 +44,12 @@ extension UriFfi on Uri {
     if (self == null) {
       ffi.inti_none_url_at(place);
     } else {
-      self.writeNative(ffi.init_some_url_at(place));
+      final str = BoxedStr.create(self.toString());
+      final ok = ffi.init_some_url_at(place, str.start, str.len);
+      str.free();
+      if (ok != 1) {
+        throw ArgumentError('dart Uri incompatible with rust Url');
+      }
     }
   }
 
@@ -51,7 +58,7 @@ extension UriFfi on Uri {
     if (url.address == 0) {
       return null;
     } else {
-      UriFfi.readNative(url);
+      return UriFfi.readNative(url);
     }
   }
 }
