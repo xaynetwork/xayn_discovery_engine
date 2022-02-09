@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show Pointer, Uint8;
+import 'dart:ffi' show Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustUrl, RustOptionUrl;
