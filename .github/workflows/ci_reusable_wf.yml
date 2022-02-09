@@ -58,6 +58,8 @@ jobs:
 
       - name: Setup the dart CI.
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           dart: true
           deps: false
@@ -77,6 +79,8 @@ jobs:
 
       - name: Setup the rust/dart CI.
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           dart: true
           rust: true
@@ -103,6 +107,8 @@ jobs:
 
       - name: Setup the rust/dart CI.
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           dart: true
           rust: true
@@ -122,6 +128,8 @@ jobs:
 
       - name: Setup the dart CI.
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           dart: true
           rust: true
@@ -164,6 +172,8 @@ jobs:
 
       - name: Setup the CI
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           flutter: true
           rust: true
@@ -183,6 +193,8 @@ jobs:
 
       - name: Setup the CI
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           flutter: true
           rust: true
@@ -218,6 +230,8 @@ jobs:
 
       - name: Setup the CI.
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           rust: nightly
           deps: false
@@ -238,6 +252,8 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           rust: true
 
@@ -255,6 +271,8 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           rust: true
 
@@ -272,6 +290,8 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
         with:
           rust: true
 
