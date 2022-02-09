@@ -164,10 +164,6 @@ impl Bucket<Document> for Stack {
         self.data.beta
     }
 
-    fn len(&self) -> usize {
-        self.len()
-    }
-
     fn is_empty(&self) -> bool {
         self.is_empty()
     }

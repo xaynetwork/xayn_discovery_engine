@@ -188,7 +188,7 @@ where
             stacks,
             ranker,
         };
-        engine.update_stacks(0).await?;
+        engine.update_stacks(usize::MAX).await?;
 
         Ok(engine)
     }
