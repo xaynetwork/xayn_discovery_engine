@@ -2824,6 +2824,7 @@ dependencies = [
  "cbindgen",
  "heck 0.4.0",
  "ndarray",
+ "url",
  "uuid",
  "xayn-discovery-engine-core",
 ]
