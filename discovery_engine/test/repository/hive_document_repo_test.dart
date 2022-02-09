@@ -14,7 +14,7 @@
 
 import 'dart:typed_data' show Uint8List;
 
-import 'package:hive/hive.dart' show Hive;
+import 'package:hive/hive.dart' show Box, Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
@@ -31,10 +31,9 @@ import '../logging.dart' show setupLogging;
 Future<void> main() async {
   setupLogging();
 
-  final box = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
-  final repo = HiveDocumentRepository();
-
   group('DocumentRepository', () {
+    late Box<Document> box;
+    late HiveDocumentRepository repo;
     final stackId = StackId();
     final doc1 = Document(
       stackId: stackId,
@@ -46,6 +45,14 @@ Future<void> main() async {
       batchIndex: 1,
       resource: mockNewsResource,
     );
+
+    setUpAll(() async {
+      box = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
+    });
+
+    setUp(() async {
+      repo = HiveDocumentRepository();
+    });
 
     tearDown(() async {
       await box.clear();

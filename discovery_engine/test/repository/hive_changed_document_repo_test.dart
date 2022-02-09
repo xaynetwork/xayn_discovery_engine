@@ -14,7 +14,7 @@
 
 import 'dart:typed_data' show Uint8List;
 
-import 'package:hive/hive.dart' show Hive;
+import 'package:hive/hive.dart' show Box, Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
@@ -28,13 +28,22 @@ import '../logging.dart' show setupLogging;
 Future<void> main() async {
   setupLogging();
 
-  final box =
-      await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
-  final repo = HiveChangedDocumentRepository();
-
   group('ChangedDocumentRepository', () {
+    late Box<Uint8List> box;
+    late HiveChangedDocumentRepository repo;
     final id1 = DocumentId();
     final id2 = DocumentId();
+
+    setUpAll(() async {
+      box = await Hive.openBox<Uint8List>(
+        changedDocumentIdBox,
+        bytes: Uint8List(0),
+      );
+    });
+
+    setUp(() {
+      repo = HiveChangedDocumentRepository();
+    });
 
     tearDown(() async {
       await box.clear();

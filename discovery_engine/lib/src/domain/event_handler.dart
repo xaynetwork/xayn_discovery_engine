@@ -49,18 +49,26 @@ import 'package:xayn_discovery_engine/src/domain/repository/changed_document_rep
     show ChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
+    show EngineStateRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider, createManifestReader;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart'
     show HttpAssetFetcher;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show activeDocumentDataBox, changedDocumentIdBox, documentBox;
+    show
+        activeDocumentDataBox,
+        changedDocumentIdBox,
+        documentBox,
+        engineStateBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
     show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
+    show HiveEngineStateRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
     show DurationAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_unique_id_adapter.dart'
@@ -78,6 +86,7 @@ class EventHandler {
   late final DocumentRepository _documentRepository;
   late final ActiveDocumentDataRepository _activeDataRepository;
   late final ChangedDocumentRepository _changedDocumentRepository;
+  late final EngineStateRepository _engineStateRepository;
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
 
@@ -157,9 +166,15 @@ class EventHandler {
     _documentRepository = HiveDocumentRepository();
     _activeDataRepository = HiveActiveDocumentDataRepository();
     _changedDocumentRepository = HiveChangedDocumentRepository();
+    _engineStateRepository = HiveEngineStateRepository();
 
     // fetch AI assets
     await _fetchAssets(config);
+
+    // load the engine serialized state
+    // TODO: pass the state to the engine
+    // ignore: unused_local_variable
+    final engineState = await _engineStateRepository.load();
 
     // init the engine
     // TODO: replace with real engine and pass in setup data
@@ -212,6 +227,7 @@ class EventHandler {
     await _openDbBox<Document>(documentBox);
     await _openDbBox<ActiveDocumentData>(activeDocumentDataBox);
     await _openDbBox<Uint8List>(changedDocumentIdBox);
+    await _openDbBox<Uint8List>(engineStateBox);
   }
 
   /// Tries to open a box persisted on disk. In case of failure opens it in memory.
