@@ -15,7 +15,7 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/api.dart' show UserReaction;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/document/feedback.dart'
+import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
     show UserReactionFfi;
 
 void main() {

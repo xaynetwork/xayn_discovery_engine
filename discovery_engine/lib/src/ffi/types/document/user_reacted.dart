@@ -17,14 +17,14 @@ import 'dart:typed_data' show Float32List;
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentFeedback;
+    show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustUserReacted;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/document/feedback.dart'
-    show DocumentFeedbackFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
+    show UserReactionFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
     show EmbeddingFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
@@ -36,15 +36,14 @@ class UserReactedFfi with EquatableMixin {
   final StackId stackId;
   final String snippet;
   final Float32List smbertEmbedding;
-  //FIXME naming is out of sync
-  final DocumentFeedback feedback;
+  final UserReaction reaction;
 
   UserReactedFfi({
     required this.id,
     required this.stackId,
     required this.snippet,
     required this.smbertEmbedding,
-    required this.feedback,
+    required this.reaction,
   });
 
   factory UserReactedFfi.readFrom(final Pointer<RustUserReacted> place) {
@@ -55,7 +54,7 @@ class UserReactedFfi with EquatableMixin {
       smbertEmbedding: EmbeddingFfi.readNative(
         ffi.user_reacted_place_of_smbert_embedding(place),
       ),
-      feedback: DocumentFeedbackFfi.readNative(
+      reaction: UserReactionFfi.readNative(
         ffi.user_reacted_place_of_reaction(place),
       ),
     );
@@ -67,7 +66,7 @@ class UserReactedFfi with EquatableMixin {
     snippet.writeNative(ffi.user_reacted_place_of_snippet(place));
     smbertEmbedding
         .writeNative(ffi.user_reacted_place_of_smbert_embedding(place));
-    feedback.writeNative(ffi.user_reacted_place_of_reaction(place));
+    reaction.writeNative(ffi.user_reacted_place_of_reaction(place));
   }
 
   @override
@@ -76,6 +75,6 @@ class UserReactedFfi with EquatableMixin {
         stackId,
         snippet,
         smbertEmbedding,
-        feedback,
+        reaction,
       ];
 }

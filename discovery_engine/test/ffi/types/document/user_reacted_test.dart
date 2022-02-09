@@ -29,7 +29,7 @@ void main() {
       stackId: StackId(),
       snippet: 'Cloning brought back the dodo.',
       smbertEmbedding: Float32List.fromList([.9, .1]),
-      feedback: DocumentFeedback.negative,
+      reaction: UserReaction.negative,
     );
     final place = ffi.alloc_uninitialized_user_reacted();
     document.writeTo(place);
