@@ -1,5 +1,6 @@
 # We import environment variables from .env
 set dotenv-load := true
+set shell := ["bash", "-uc"]
 
 # If CI is set and add rust flags
 export RUSTFLAGS := if env_var_or_default("CI", "false") == "true" {
@@ -26,6 +27,15 @@ dart-deps:
     cd example
     dart pub get
 
+# Gets/updates flutter project deps
+flutter-deps:
+    #!/usr/bin/env sh
+    set -eux
+    cd "$FLUTTER_WORKSPACE";
+    flutter pub get
+    cd example
+    flutter pub get
+
 # Fetches rust dependencies
 rust-deps:
     cd "$RUST_WORKSPACE"; \
@@ -33,10 +43,12 @@ rust-deps:
 
 # Installs the async-bindgen CLI tool (--force can be passed in)
 install-async-bindgen *args:
-    cargo install \
-        --git https://github.com/xaynetwork/xayn_async_bindgen.git \
-        {{args}} \
-        async-bindgen-gen-dart
+    if [[ "{{args}}" =~ "--force" || ! -f "cargo-installs/bin/async-bindgen-gen-dart" ]]; then \
+        cargo install \
+            --git https://github.com/xaynetwork/xayn_async_bindgen.git \
+            {{args}} \
+            async-bindgen-gen-dart; \
+    fi
 
 # Get/Update/Fetch/Install all dependencies
 deps: dart-deps rust-deps install-async-bindgen
@@ -44,6 +56,8 @@ deps: dart-deps rust-deps install-async-bindgen
 # Formats dart (checks only on CI)
 dart-fmt:
     cd "$DART_WORKSPACE"; \
+    dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
+    cd "$FLUTTER_WORKSPACE"; \
     dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
 
 # Formats rust (checks only on CI)
@@ -61,6 +75,14 @@ fmt: rust-fmt dart-fmt
 dart-check: dart-build
     cd "$DART_WORKSPACE"; \
     dart analyze {{ if env_var_or_default("CI", "false") == "true" { "--fatal-infos" } else { "" } }}
+
+flutter-check: dart-build flutter-deps
+    cd "$FLUTTER_WORKSPACE"; \
+    dart analyze {{ if env_var_or_default("CI", "false") == "true" { "--fatal-infos" } else { "" } }}
+
+flutter-test: dart-build flutter-deps
+    cd "$FLUTTER_WORKSPACE"; \
+    flutter test
 
 # async-bindgen generates extern C functions which
 # cbindgen needs to process, but cbindgen can't see them
@@ -81,7 +103,7 @@ rust-check: _codegen-order-workaround
     cargo clippy --all-targets --locked #TODO DENY WARNINGS ON CI
 
 # Checks rust and dart code, fails if there are any issues on CI
-check: rust-check dart-check
+check: rust-check dart-check flutter-check
 
 # Checks if dart documentation can be build without issues
 dart-check-doc: dart-build
@@ -152,7 +174,7 @@ rust-test: _codegen-order-workaround
     cargo test --doc --quiet --locked
 
 # Tests dart and rust
-test: rust-test dart-test
+test: rust-test dart-test flutter-test
 
 # Cleans up all generated files
 clean-gen-files:
