@@ -86,16 +86,15 @@ pub struct Config {
 struct CoreConfig {
     /// The number of selected top key phrases while updating the stacks.
     select_top: usize,
-    /// The number of newest documents per stack to keep while filtering the stacks.
-    #[allow(dead_code)]
-    keep_newest: usize,
+    /// The number of top documents per stack to keep while filtering the stacks.
+    keep_top: usize,
 }
 
 impl Default for CoreConfig {
     fn default() -> Self {
         Self {
             select_top: 3,
-            keep_newest: 20,
+            keep_top: 20,
         }
     }
 }
@@ -230,6 +229,8 @@ where
                 Ok(documents) => {
                     if let Err(error) = stack.update(&documents, &mut self.ranker) {
                         errors.push(Error::StackOpFailed(error));
+                    } else {
+                        stack.data.retain_top(self.core_config.keep_top);
                     }
                 }
                 Err(error) => errors.push(error.into()),

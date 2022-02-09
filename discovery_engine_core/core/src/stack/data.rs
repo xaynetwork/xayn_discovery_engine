@@ -59,6 +59,14 @@ impl Data {
             documents,
         })
     }
+
+    /// Retains only the top documents, given how many to keep.
+    pub(crate) fn retain_top(&mut self, keep: usize) {
+        let len = self.documents.len();
+        if len > keep {
+            self.documents.drain(..len - keep);
+        }
+    }
 }
 
 #[cfg(test)]
