@@ -18,10 +18,7 @@ use std::ptr;
 
 use url::Url;
 
-use super::{
-    option::get_option_some,
-    string::str_from_raw_parts,
-};
+use super::{option::get_option_some, string::str_from_raw_parts};
 
 /// Creates a rust `Url` based on given parsing given `&str` at given place.
 ///
@@ -31,10 +28,10 @@ use super::{
 ///
 /// - It must be valid to write a `Url` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
-/// - The bytes `str_start..str_start+str_len` must be a sound rust `str`.
+/// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust `str`.
 #[no_mangle]
-pub unsafe extern "C" fn init_url_at(place: *mut Url, str_start: *const u8, str_len: usize) -> u8 {
-    if let Ok(url) = unsafe { parse_url_from_parts(str_start, str_len) } {
+pub unsafe extern "C" fn init_url_at(place: *mut Url, str_ptr: *const u8, str_len: usize) -> u8 {
+    if let Ok(url) = unsafe { parse_url_from_parts(str_ptr, str_len) } {
         unsafe {
             ptr::write(place, url);
         }
@@ -52,14 +49,14 @@ pub unsafe extern "C" fn init_url_at(place: *mut Url, str_start: *const u8, str_
 ///
 /// - It must be valid to write a `Url` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
-/// - The bytes `str_start..str_start+str_len` must be a sound rust `str`.
+/// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust `str`.
 #[no_mangle]
 pub unsafe extern "C" fn init_some_url_at(
     place: *mut Option<Url>,
-    str_start: *const u8,
+    str_ptr: *const u8,
     str_len: usize,
 ) -> u8 {
-    if let Ok(url) = unsafe { parse_url_from_parts(str_start, str_len) } {
+    if let Ok(url) = unsafe { parse_url_from_parts(str_ptr, str_len) } {
         unsafe {
             ptr::write(place, Some(url));
         }
@@ -73,9 +70,9 @@ pub unsafe extern "C" fn init_some_url_at(
 ///
 /// # Safety
 ///
-/// - The bytes `str_start..str_start+str_len` must be a sound rust `str`.
-unsafe fn parse_url_from_parts(str_start: *const u8, str_len: usize) -> Result<Url, url::ParseError>{
-    Url::parse(unsafe { str_from_raw_parts(str_start, str_len) })
+/// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust `str`.
+unsafe fn parse_url_from_parts(str_ptr: *const u8, str_len: usize) -> Result<Url, url::ParseError> {
+    Url::parse(unsafe { str_from_raw_parts(str_ptr, str_len) })
 }
 
 /// Creates a `None` variant of `Option<Url>` at given place.
@@ -102,7 +99,7 @@ pub unsafe extern "C" fn get_url_buffer(url: *const Url) -> *const u8 {
     unsafe { &*url }.as_str().as_ptr()
 }
 
-/// Returns teh length of the `str` buffer in an `Url` instance.
+/// Returns the length of the `str` buffer in an `Url` instance.
 ///
 /// # Safety
 ///
@@ -134,10 +131,10 @@ pub extern "C" fn alloc_uninitialized_url() -> *mut Url {
 ///
 /// # Safety
 ///
-/// The pointer must represent an initialized `Box<Uuid>`.
+/// The pointer must represent an initialized `Box<Url>`.
 #[no_mangle]
-pub unsafe extern "C" fn drop_url(uuid: *mut Url) {
-    unsafe { super::boxed::drop(uuid) }
+pub unsafe extern "C" fn drop_url(url: *mut Url) {
+    unsafe { super::boxed::drop(url) }
 }
 
 /// Alloc an uninitialized `Box<Option<Url>>`, mainly used for testing.

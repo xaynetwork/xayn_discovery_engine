@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 extension StringFfi on String {
   void writeNative(final Pointer<RustString> place) {
     final str = BoxedStr.create(this);
-    ffi.init_string_at(place, str.start, str.len);
+    ffi.init_string_at(place, str.ptr, str.len);
   }
 
   static String readNative(
@@ -35,27 +35,27 @@ extension StringFfi on String {
 }
 
 class BoxedStr {
-  final Pointer<Uint8> start;
+  final Pointer<Uint8> ptr;
   final int len;
 
-  BoxedStr.fromRawParts(this.start, this.len);
+  BoxedStr.fromRawParts(this.ptr, this.len);
 
   /// Creates a `Box<str>` based on given dart string.
   factory BoxedStr.create(String string) {
     final utf8Bytes = utf8.encode(string);
     final len = utf8Bytes.length;
-    final start = ffi.alloc_uninitialized_bytes(len);
-    start.asTypedList(len).setAll(0, utf8Bytes);
-    return BoxedStr.fromRawParts(start, len);
+    final ptr = ffi.alloc_uninitialized_bytes(len);
+    ptr.asTypedList(len).setAll(0, utf8Bytes);
+    return BoxedStr.fromRawParts(ptr, len);
   }
 
   /// Call to free allocated memory if not moved to dart.
   void free() {
-    ffi.drop_bytes(this.start, this.len);
+    ffi.drop_bytes(ptr, len);
   }
 
   String readNative() {
-    final data = start.asTypedList(len);
+    final data = ptr.asTypedList(len);
     return utf8.decode(data);
   }
 }

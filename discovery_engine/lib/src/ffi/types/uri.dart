@@ -19,12 +19,10 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show BoxedStr;
 
-
 extension UriFfi on Uri {
-
   void writeNative(Pointer<RustUrl> place) {
     final str = BoxedStr.create(toString());
-    final ok = ffi.init_url_at(place, str.start, str.len);
+    final ok = ffi.init_url_at(place, str.ptr, str.len);
     str.free();
     if (ok != 1) {
       throw ArgumentError('dart Uri incompatible with rust Url');
@@ -45,7 +43,7 @@ extension UriFfi on Uri {
       ffi.inti_none_url_at(place);
     } else {
       final str = BoxedStr.create(self.toString());
-      final ok = ffi.init_some_url_at(place, str.start, str.len);
+      final ok = ffi.init_some_url_at(place, str.ptr, str.len);
       str.free();
       if (ok != 1) {
         throw ArgumentError('dart Uri incompatible with rust Url');

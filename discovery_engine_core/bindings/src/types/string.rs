@@ -20,12 +20,10 @@ use std::{ptr, slice, str};
 ///
 /// # Safety
 ///
-/// - The bytes `str_start..str_start+str_len` must be a sound rust string for the
+/// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust string for the
 ///   lifetime of `'a`.
-pub(super) unsafe fn str_from_raw_parts<'a>(str_start: *const u8, str_len: usize) -> &'a str {
-    unsafe {
-        str::from_utf8_unchecked(slice::from_raw_parts(str_start, str_len))
-    }
+pub(super) unsafe fn str_from_raw_parts<'a>(str_ptr: *const u8, str_len: usize) -> &'a str {
+    unsafe { str::from_utf8_unchecked(slice::from_raw_parts(str_ptr, str_len)) }
 }
 
 /// Creates a rust `String` from given `Box<str>`.
@@ -34,11 +32,11 @@ pub(super) unsafe fn str_from_raw_parts<'a>(str_start: *const u8, str_len: usize
 ///
 /// - It must be valid to write a `String` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
-/// - The bytes `str_start..str_start+str_len` must be a sound rust string.
+/// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust string.
 #[no_mangle]
-pub unsafe extern "C" fn init_string_at(place: *mut String, str_start: *mut u8, str_len: usize) {
+pub unsafe extern "C" fn init_string_at(place: *mut String, str_ptr: *mut u8, str_len: usize) {
     unsafe {
-        ptr::write(place, String::from_raw_parts(str_start, str_len, str_len));
+        ptr::write(place, String::from_raw_parts(str_ptr, str_len, str_len));
     }
 }
 
@@ -96,8 +94,8 @@ mod tests {
         unsafe {
             let boxed = string.to_owned().into_boxed_str();
             let str_len = boxed.len();
-            let str_start = Box::into_raw(boxed).cast::<u8>();
-            init_string_at(place, str_start, str_len);
+            let str_ptr = Box::into_raw(boxed).cast::<u8>();
+            init_string_at(place, str_ptr, str_len);
         }
         assert_eq!(string, *place);
     }
