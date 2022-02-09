@@ -4,13 +4,6 @@ on:
     branches-ignore:
       - 'main'
       - '_bors*'
-    paths:
-      - '.github/workflows/ci*'
-      - '.github/actions/**'
-      - 'discovery_engine/**'
-      - 'discovery_engine_core/**'
-      - 'discovery_engine_flutter/**'
-      - 'justfile'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
