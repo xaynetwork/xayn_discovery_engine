@@ -10,6 +10,7 @@ after_includes = """
 // Typedefs to make sure this "unknown" types are treated as opaque by ffigen.
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
+typedef struct RustNaiveDateTime RustNaiveDateTime;
 typedef struct RustTimeSpent RustTimeSpent;
 typedef struct RustUrl RustUrl;
 typedef struct RustUserReacted RustUserReacted;
@@ -24,6 +25,7 @@ include = ["xayn-discovery-engine-core"]
 # Renamings to avoid name conflicts/confusion in dart.
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
+"NaiveDateTime" = "RustNaiveDateTime"
 "Option_Url" = "RustOptionUrl"
 "String" = "RustString"
 "TimeSpent" = "RustTimeSpent"
