@@ -229,11 +229,12 @@ where
                 Ok(documents) => {
                     if let Err(error) = stack.update(&documents, &mut self.ranker) {
                         errors.push(Error::StackOpFailed(error));
+                    } else {
+                        stack.data.retain_top(self.core_config.keep_top);
                     }
                 }
                 Err(error) => errors.push(error.into()),
             }
-            stack.data.retain_top(self.core_config.keep_top);
         }
 
         if errors.is_empty() {

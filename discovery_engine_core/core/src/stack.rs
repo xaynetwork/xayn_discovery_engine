@@ -162,10 +162,6 @@ impl Bucket<Document> for Stack {
     fn pop(&mut self) -> Option<Document> {
         self.data.documents.pop()
     }
-
-    fn retain_top(&mut self, keep: usize) {
-        self.data.retain_top(keep);
-    }
 }
 
 #[cfg(test)]
