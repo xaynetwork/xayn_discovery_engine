@@ -72,11 +72,19 @@ runs:
       if: inputs.deps
       run: |
         if [[ "${{ inputs.dart }}" == "true" || "${{ inputs.flutter }}" == "true" ]] && [[ "${{ inputs.rust }}" == "true" ]]; then
-          # ffigen dep, not handled by `just deps` as it's OS specific.
+          # ffigen dep, not handled by `just` as it's OS specific.
           sudo apt-get install libclang-10-dev
-          just deps
-        elif [ "${{ inputs.dart }}" == "true" ]; then
-          just dart-deps
-        elif [ "${{ inputs.rust }}" == "true" ]; then
+        fi
+
+        if [ "${{ inputs.rust }}" == "true" ]; then
           just rust-deps
         fi
+
+        if [ "${{ inputs.dart }}" == "true" ]; then
+          just dart-deps
+        fi
+
+        if [ "${{ inputs.flutter }}" == "true" ]; then
+          just flutter-deps
+        fi
+
