@@ -13,3 +13,4 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 export 'package:xayn_discovery_engine/discovery_engine.dart';
+export 'package:xayn_discovery_engine_flutter/src/assets/manifest_reader.dart';

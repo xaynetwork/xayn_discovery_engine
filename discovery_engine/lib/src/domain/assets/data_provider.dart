@@ -12,12 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
-    show AssetFetcher;
-import 'package:xayn_discovery_engine/src/domain/assets/asset_reporter.dart'
-    show AssetReporter;
-import 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
-    show ManifestReader;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show AssetFetcher, AssetReporter, Manifest;
 
 /// Data that is required to initialize [`XaynAi`].
 abstract class SetupData {
@@ -33,9 +29,8 @@ abstract class SetupData {
 abstract class DataProvider {
   AssetFetcher get assetFetcher;
   AssetReporter get assetReporter;
-  ManifestReader get manifestReader;
 
-  Future<SetupData> getSetupData() {
+  Future<SetupData> getSetupData(Manifest manifest) {
     throw UnsupportedError('Unsupported platform.');
   }
 

@@ -11,12 +11,84 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xayn_discovery_engine_flutter/discovery_engine.dart';
+import 'utils/local_asset_server.dart';
 
 void main() {
-  // The `flutter test` command fails if there are no tests, so we have a
-  // dummy test here for now.
-  test('always true', () {
-    expect(true, isTrue);
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('DiscoveryEngine init', () {
+    const port = 8080;
+    late LocalAssetServer server;
+    final outputPath = '${Directory.current.path}/test/tmp';
+
+    setUpAll(() async {
+      server = await LocalAssetServer.start(
+        port: port,
+        mockDataPath: '/test/utils/assets',
+      );
+    });
+
+    tearDown(() {
+      final dir = Directory(outputPath);
+      if (dir.existsSync()) {
+        dir.deleteSync(recursive: true);
+      }
+    });
+
+    tearDownAll(() {
+      server.close();
+    });
+
+    test(
+        'when calling "FlutterManifestReader" read method it will return '
+        'a Manifest successfully', () async {
+      expect(
+        FlutterManifestReader().read(),
+        completion(isA<Manifest>()),
+      );
+    });
+
+    test(
+        'when calling DiscoveryEngine "init" method with a proper configuration '
+        'it will initialize the engine and return it\'s instance', () async {
+      final assets = [
+        'smbertVocab',
+        'smbertModel',
+        'kpeVocab',
+        'kpeModel',
+        'kpeCnn',
+        'kpeClassifier',
+      ]
+          .map(
+            (id) => {
+              'id': id,
+              'url_suffix': 'dummy-asset',
+              'checksum':
+                  'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
+              'fragments': <Map<String, String>>[],
+            },
+          )
+          .toList();
+
+      final manifest = Manifest.fromJson({'assets': assets});
+      final config = Configuration(
+        apiKey: '**********',
+        apiBaseUrl: 'https://example-api.dev',
+        assetsUrl: 'http://localhost:$port',
+        maxItemsPerFeedBatch: 50,
+        applicationDirectoryPath: outputPath,
+        feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+        manifest: manifest,
+      );
+
+      expect(
+        DiscoveryEngine.init(configuration: config),
+        completion(isA<DiscoveryEngine>()),
+      );
+    });
   });
 }

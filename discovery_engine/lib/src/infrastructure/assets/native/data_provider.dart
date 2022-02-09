@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         AssetFetcher,
         AssetReporter,
         DataProvider,
-        ManifestReader,
+        Manifest,
         SetupData;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
@@ -33,14 +33,11 @@ class NativeDataProvider extends DataProvider {
   final AssetFetcher assetFetcher;
   @override
   final AssetReporter assetReporter;
-  @override
-  final ManifestReader manifestReader;
   final String storageDirectoryPath;
 
   NativeDataProvider(
     this.assetFetcher,
     this.assetReporter,
-    this.manifestReader,
     this.storageDirectoryPath,
   );
 
@@ -48,10 +45,8 @@ class NativeDataProvider extends DataProvider {
       DataProvider.joinPaths([storageDirectoryPath, _baseAssetsPath]);
 
   @override
-  Future<SetupData> getSetupData() async {
+  Future<SetupData> getSetupData(Manifest manifest) async {
     final paths = <AssetType, String>{};
-    final manifest = await manifestReader.read();
-
     assetReporter.fetchingStarted(manifest);
 
     for (final asset in manifest.assets) {
@@ -139,12 +134,6 @@ class NativeSetupData extends SetupData {
 DataProvider createDataProvider(
   final AssetFetcher assetFetcher,
   final AssetReporter assetReporter,
-  final ManifestReader manifestReader,
   final String storageDirectoryPath,
 ) =>
-    NativeDataProvider(
-      assetFetcher,
-      assetReporter,
-      manifestReader,
-      storageDirectoryPath,
-    );
+    NativeDataProvider(assetFetcher, assetReporter, storageDirectoryPath);

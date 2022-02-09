@@ -16,7 +16,7 @@ import 'dart:io' show Directory, File;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
-    show AssetReporter, ManifestReader;
+    show AssetReporter, Manifest;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
@@ -33,13 +33,13 @@ void main() {
 
   group('DataProvider', () {
     group('getSetupData', () {
-      const port = 8081;
+      const port = 8080;
       const assetUrl = 'http://localhost:$port';
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
       final baseAssetPath = '$outputPath/assets';
       final dummyAssetPath = '$baseAssetPath/dummy-asset';
       final assetFetcher = HttpAssetFetcherWithCounter(assetUrl);
-      final manifestReader = MockManifestReader(goodJson);
+      final manifest = Manifest.fromJson(goodJson);
 
       late LocalAssetServer server;
       late AssetReporter assetReporter;
@@ -69,12 +69,11 @@ void main() {
         final dataProvider = createDataProvider(
           assetFetcher,
           assetReporter,
-          manifestReader,
           outputPath,
         );
 
         final setupData =
-            (await dataProvider.getSetupData()) as NativeSetupData;
+            (await dataProvider.getSetupData(manifest)) as NativeSetupData;
 
         expect(File(dummyAssetPath).existsSync(), isTrue);
         expect(setupData.smbertVocab, equals(dummyAssetPath));
@@ -92,12 +91,10 @@ void main() {
         final dataProvider = createDataProvider(
           assetFetcher,
           assetReporter,
-          manifestReader,
           outputPath,
         );
-        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
-
-        await dataProvider.getSetupData();
+        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
+        await dataProvider.getSetupData(manifest);
 
         expect(assetFetcher.callCount, equals(0));
       });
@@ -110,12 +107,12 @@ void main() {
         final dataProvider = createDataProvider(
           assetFetcher,
           assetReporter,
-          manifestReader,
           outputPath,
         );
-        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
+        final manifest = await manifestReader.read();
+        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
 
-        await dataProvider.getSetupData();
+        await dataProvider.getSetupData(manifest);
 
         expect(assetFetcher.callCount, equals(8));
       });
@@ -125,7 +122,7 @@ void main() {
           'the fetcher is able to retry the request', () async {
         server.setRequestFailCount(1);
 
-        await _prepareOutputFiles(assetFetcher, manifestReader, baseAssetPath);
+        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
 
         expect(server.callCount.values, equals([1]));
         expect(File(dummyAssetPath).existsSync(), isTrue);
@@ -136,11 +133,9 @@ void main() {
 
 Future<void> _prepareOutputFiles(
   HttpAssetFetcherWithCounter assetFetcher,
-  ManifestReader manifestReader,
+  Manifest manifest,
   String basePath,
 ) async {
-  final manifest = await manifestReader.read();
-
   for (final asset in manifest.assets) {
     final bytes = await assetFetcher.fetchAsset(asset);
     final filePath = '$basePath/${asset.urlSuffix}';

@@ -15,12 +15,17 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
-import 'dart:async';
-
+import 'package:path_provider/path_provider.dart';
 import 'package:xayn_discovery_engine_flutter/discovery_engine.dart';
 
 void main() {
   runApp(const MyApp());
+}
+
+enum EngineState {
+  notReady,
+  initializing,
+  ready,
 }
 
 class MyApp extends StatefulWidget {
@@ -31,19 +36,28 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  double progress = .0;
+  EngineState engineState = EngineState.notReady;
+
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initEngine() async {
+    if (engineState != EngineState.notReady) return;
+    setState(() => engineState = EngineState.initializing);
+
     // provide initial configuration for the engine
+    final appDir = await getApplicationDocumentsDirectory();
+    final manifest = await FlutterManifestReader().read();
     final config = Configuration(
       apiKey: '**********',
       apiBaseUrl: 'https://example-api.dev',
-      assetsUrl: '<replace with a working URL to assets server>',
+      assetsUrl: 'https://ai-assets.xaynet.dev',
       maxItemsPerFeedBatch: 50,
-      applicationDirectoryPath: './',
+      applicationDirectoryPath: appDir.path,
       feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+      manifest: manifest,
     );
 
-    late DiscoveryEngine engine;
+    late DiscoveryEngine? engine;
 
     try {
       // Initialise the engine.
@@ -51,7 +65,14 @@ class _MyAppState extends State<MyApp> {
       // This will spawn a Worker inside an Isolate (or WebWorker), instantiate
       // all the modules and binaries and establish communication channels
       print('Starting the Discovery Engine...');
-      engine = await DiscoveryEngine.init(configuration: config);
+      engine = await DiscoveryEngine.init(
+        configuration: config,
+        onAssetsProgress: (event) => event.whenOrNull(
+          fetchingAssetsProgressed: (percentage) =>
+              setState(() => progress = percentage),
+        ),
+      );
+      setState(() => engineState = EngineState.ready);
       print('Engine initialized successfuly.');
     } on EngineInitException catch (e) {
       // message what went wrong
@@ -63,11 +84,10 @@ class _MyAppState extends State<MyApp> {
       print(e);
     }
 
-    // set up a listener if you want to consume events from `Stream<EngineEvent>`,
-    engine.engineEvents.listen((event) {
-      print('\n[Event stream listener]: new event received!');
-      print(event);
-    });
+    if (engine == null) {
+      setState(() => engineState = EngineState.notReady);
+      return;
+    }
 
     // you can also use `async await` style for request/response
     final requestFeedResponse = await engine.requestFeed();
@@ -87,10 +107,18 @@ class _MyAppState extends State<MyApp> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ElevatedButton(
-                onPressed: initEngine,
-                child: const Text('Init engine'),
-              ),
+              if (engineState == EngineState.initializing)
+                Text('Fetching assets: ${progress.toStringAsPrecision(2)}%'),
+              if (engineState == EngineState.ready)
+                const Text('Engine initialized'),
+              if (engineState != EngineState.ready)
+                ElevatedButton(
+                  onPressed:
+                      engineState == EngineState.notReady ? initEngine : null,
+                  child: engineState == EngineState.notReady
+                      ? const Text('Init engine')
+                      : const Text('Initializing...'),
+                ),
             ],
           ),
         ),

@@ -14,6 +14,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart';
+import 'package:xayn_discovery_engine/src/domain/assets/asset.dart';
 
 part 'configuration.freezed.dart';
 
@@ -30,6 +31,7 @@ class Configuration with _$Configuration {
     required int maxItemsPerFeedBatch,
     required String applicationDirectoryPath,
     required FeedMarkets feedMarkets,
+    required Manifest manifest,
   }) = _Configuration;
 
   factory Configuration.fromJson(Map<String, Object?> json) =>
