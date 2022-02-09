@@ -106,6 +106,8 @@ struct CoreConfig {
     select_top: usize,
     /// The number of top documents per stack to keep while filtering the stacks.
     keep_top: usize,
+    /// The lower bound of documents per stack at which new items are requested.
+    request_new: usize,
 }
 
 impl Default for CoreConfig {
@@ -113,6 +115,7 @@ impl Default for CoreConfig {
         Self {
             select_top: 3,
             keep_top: 20,
+            request_new: 3,
         }
     }
 }
@@ -130,17 +133,21 @@ where
     R: Ranker + Send + Sync,
 {
     /// Creates a new `Engine`.
-    pub fn new(config: EndpointConfig, ranker: R, stack_ops: Vec<BoxedOps>) -> Result<Self, Error> {
+    pub async fn new(
+        config: EndpointConfig,
+        ranker: R,
+        stack_ops: Vec<BoxedOps>,
+    ) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
-        Self::from_stack_data(config, ranker, stack_data, stack_ops)
+        Self::from_stack_data(config, ranker, stack_data, stack_ops).await
     }
 
     /// Creates a new `Engine` from serialized state and stack operations.
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    pub fn from_state(
+    pub async fn from_state(
         state: &StackState,
         config: EndpointConfig,
         ranker: R,
@@ -154,13 +161,13 @@ where
             .map_err(Error::Deserialization)?;
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
-        Self::from_stack_data(config, ranker, stack_data, stack_ops)
+        Self::from_stack_data(config, ranker, stack_data, stack_ops).await
     }
 
-    fn from_stack_data(
+    async fn from_stack_data(
         config: EndpointConfig,
         ranker: R,
-        mut stack_data: impl FnMut(StackId) -> StackData,
+        mut stack_data: impl FnMut(StackId) -> StackData + Send,
         stack_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
         let stacks = stack_ops
@@ -175,12 +182,15 @@ where
             .map_err(Error::InvalidStack)?;
         let core_config = CoreConfig::default();
 
-        Ok(Self {
+        let mut engine = Self {
             config,
             core_config,
             stacks,
             ranker,
-        })
+        };
+        engine.update_stacks(usize::MAX).await?;
+
+        Ok(engine)
     }
 
     /// Serializes the state of the `Engine` and `Ranker` state.
@@ -212,10 +222,15 @@ where
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
-    pub async fn get_feed_documents(&self, max_documents: usize) -> Result<Vec<Document>, Error> {
-        SelectionIter::new(BetaSampler, self.stacks.write().await.values_mut())
-            .select(max_documents)
-            .map_err(Into::into)
+    pub async fn get_feed_documents(
+        &mut self,
+        max_documents: usize,
+    ) -> Result<Vec<Document>, Error> {
+        let documents = SelectionIter::new(BetaSampler, self.stacks.write().await.values_mut())
+            .select(max_documents)?;
+        self.update_stacks(self.core_config.request_new).await?;
+
+        Ok(documents)
     }
 
     /// Process the feedback about the user spending some time on a document.
@@ -239,23 +254,26 @@ where
     }
 
     /// Updates the stacks with data related to the top key phrases of the current data.
-    #[allow(dead_code)]
-    async fn update_stacks(&mut self) -> Result<(), Error> {
+    ///
+    /// Requires a threshold below which new items will be requested for a stack.
+    async fn update_stacks(&mut self, request_new: usize) -> Result<(), Error> {
         let key_phrases = &self
             .ranker
             .select_top_key_phrases(self.core_config.select_top);
 
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
-            match stack.ops.new_items(key_phrases, &self.ranker).await {
-                Ok(documents) => {
-                    if let Err(error) = stack.update(&documents, &mut self.ranker) {
-                        errors.push(Error::StackOpFailed(error));
-                    } else {
-                        stack.data.retain_top(self.core_config.keep_top);
+            if stack.len() <= request_new {
+                match stack.ops.new_items(key_phrases, &self.ranker).await {
+                    Ok(documents) => {
+                        if let Err(error) = stack.update(&documents, &mut self.ranker) {
+                            errors.push(Error::StackOpFailed(error));
+                        } else {
+                            stack.data.retain_top(self.core_config.keep_top);
+                        }
                     }
+                    Err(error) => errors.push(error.into()),
                 }
-                Err(error) => errors.push(error.into()),
             }
         }
 
@@ -289,7 +307,7 @@ fn rank_stacks<'a>(
 
 impl Engine<xayn_ai::ranker::Ranker> {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
-    pub fn from_config(
+    pub async fn from_config(
         config: InitConfig,
         stacks_ops: Vec<BoxedOps>,
         state: Option<&[u8]>,
@@ -323,10 +341,10 @@ impl Engine<xayn_ai::ranker::Ranker> {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Engine::from_state(&state.engine, config.into(), ranker, stacks_ops)
+            Engine::from_state(&state.engine, config.into(), ranker, stacks_ops).await
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Engine::new(config.into(), ranker, stacks_ops)
+            Engine::new(config.into(), ranker, stacks_ops).await
         }
     }
 }
