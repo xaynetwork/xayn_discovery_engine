@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use uuid::Uuid;
+
 use xayn_ai::{
     ranker::{Embedding, KeyPhrase},
     DocumentId,
@@ -59,7 +61,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
         self.log_user_reaction(
             reaction.reaction.into(),
             &reaction.snippet,
-            &reaction.smbert,
+            &reaction.smbert_embedding,
         );
         Ok(())
     }
@@ -85,7 +87,7 @@ impl xayn_ai::ranker::Document for Document {
 
 impl From<Id> for DocumentId {
     fn from(id: Id) -> Self {
-        Self(id.0)
+        Self(Uuid::from(id))
     }
 }
 
