@@ -219,6 +219,18 @@ _dry-run-release: clean deps dart-build
 dry-run-release:
      @CI=true {{just_executable()}} _dry-run-release
 
+compile-android target:
+    # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
+    cd "$RUST_WORKSPACE"; \
+        cargo ndk -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build --release
+
+compile-android-local:
+    #!/usr/bin/env sh
+    set -eu
+    for TARGET in $ANDROID_TARGETS; do
+        {{just_executable()}} compile-android $TARGET
+    done
+
 alias d := dart-test
 alias r := rust-test
 alias t := test
