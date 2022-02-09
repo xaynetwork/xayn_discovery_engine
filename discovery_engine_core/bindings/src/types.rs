@@ -16,6 +16,7 @@
 
 mod boxed;
 pub mod document;
+pub mod date_time;
 pub mod duration;
 pub mod embedding;
 pub mod option;
