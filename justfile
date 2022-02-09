@@ -37,7 +37,7 @@ flutter-deps:
     flutter pub get
 
 # Fetches rust dependencies
-rust-deps:
+rust-deps: install-async-bindgen
     cd "$RUST_WORKSPACE"; \
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
