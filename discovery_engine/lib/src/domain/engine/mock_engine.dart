@@ -14,25 +14,32 @@
 
 import 'dart:typed_data' show Uint8List;
 
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show SetupData;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
+import 'package:xayn_discovery_engine/src/domain/engine/engine_config.dart'
+    show EngineConfig;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 
-class MockEngine implements Engine {
+class MockEngine extends Engine {
   final Map<String, int> callCounter = {};
   late Document doc0;
   late Document doc1;
   late ActiveDocumentData active0;
   late ActiveDocumentData active1;
 
-  MockEngine() {
+  MockEngine({EngineConfig? config, Uint8List? state})
+      : super(config ?? MockEngineConfig(), state ?? Uint8List(0)) {
     final resource = NewsResource.fromJson(const <String, Object>{
       'title': 'Example',
       'sourceUrl': 'domain.com',
@@ -118,4 +125,29 @@ class MockEngine implements Engine {
   }) {
     _incrementCount('userReacted');
   }
+}
+
+class MockEngineConfig extends EngineConfig {
+  MockEngineConfig()
+      : super(
+          apiBaseUrl: '',
+          apiKey: '',
+          feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+          setupData: MockSetupData(),
+        );
+}
+
+class MockSetupData extends SetupData {
+  @override
+  Object get kpeClassifier => '';
+  @override
+  Object get kpeCnn => '';
+  @override
+  Object get kpeModel => '';
+  @override
+  Object get kpeVocab => '';
+  @override
+  Object get smbertModel => '';
+  @override
+  Object get smbertVocab => '';
 }

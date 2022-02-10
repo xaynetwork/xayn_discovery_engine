@@ -14,6 +14,8 @@
 
 import 'dart:typed_data' show Uint8List;
 
+import 'package:xayn_discovery_engine/src/domain/engine/engine_config.dart'
+    show EngineConfig;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -23,6 +25,9 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
+  /// NOTE: this is to enforce subclasses to have these parameters during instantiation
+  Engine(EngineConfig config, Uint8List state);
+
   /// Serializes the state of the [Engine] state.
   Uint8List serialize();
 

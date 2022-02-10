@@ -31,6 +31,8 @@ import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
+import 'package:xayn_discovery_engine/src/domain/engine/engine_config.dart'
+    show EngineConfig;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
@@ -169,16 +171,22 @@ class EventHandler {
     _engineStateRepository = HiveEngineStateRepository();
 
     // fetch AI assets
-    await _fetchAssets(config);
+    final setupData = await _fetchAssets(config);
 
     // load the engine serialized state
-    // TODO: pass the state to the engine
-    // ignore: unused_local_variable
     final engineState = await _engineStateRepository.load();
 
     // init the engine
     // TODO: replace with real engine and pass in setup data
-    final engine = MockEngine();
+    final engine = MockEngine(
+      config: EngineConfig(
+        apiBaseUrl: config.apiBaseUrl,
+        apiKey: config.apiKey,
+        feedMarkets: config.feedMarkets,
+        setupData: setupData,
+      ),
+      state: engineState ?? Uint8List(0),
+    );
 
     // init managers
     _documentManager = DocumentManager(
