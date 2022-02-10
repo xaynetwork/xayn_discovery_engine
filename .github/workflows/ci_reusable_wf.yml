@@ -26,24 +26,18 @@ jobs:
         id: filter
         with:
           filters: |
-            dart:
-              - 'discovery_engine/**'
-              - 'discovery_engine_core/**'
-              - 'discovery_engine_flutter/**'
-              - '.github/workflows/ci*'
-              - '.github/actions/setup-job/*'
-              - 'justfile'
-            rust:
+            rust: &rust
               - 'discovery_engine_core/**'
               - '.github/workflows/ci*'
               - '.github/actions/setup-job/*'
               - '.github/actions/install-cargo-sort/*'
               - 'justfile'
+            dart: &dart
+              - 'discovery_engine/**'
             flutter:
+              - *rust
+              - *dart
               - 'discovery_engine_flutter/**'
-              - '.github/workflows/ci*'
-              - '.github/actions/setup-job/*'
-              - 'justfile'
 
   # DART CI
   dart-format:

@@ -9,10 +9,6 @@ on:
 permissions:
   contents: read
 
-env:
-  DART_WORKSPACE: ${{ github.workspace }}/discovery_engine
-  FLUTTER_WORKSPACE: ${{ github.workspace }}/discovery_engine_flutter
-
 jobs:
   release:
     name: release
