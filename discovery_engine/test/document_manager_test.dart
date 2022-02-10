@@ -58,7 +58,8 @@ Future<void> main() async {
   );
   final changedBox =
       await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
-  await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
+  final stateBox =
+      await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
   final docRepo = HiveDocumentRepository();
@@ -100,6 +101,7 @@ Future<void> main() async {
       await docBox.clear();
       await activeBox.clear();
       await changedBox.clear();
+      await stateBox.clear();
 
       // reset test data
       doc1.isActive = true;
@@ -143,6 +145,9 @@ Future<void> main() async {
         docBox.values,
         unorderedEquals(<Document>[doc1..userReaction = newReaction, doc2]),
       );
+      // serialize should be called and state saved
+      expect(engine.getCallCount('serialize'), equals(1));
+      expect(stateBox.isNotEmpty, isTrue);
       // other repos unchanged
       expect(activeBox, hasLength(1));
       expect(await activeRepo.fetchById(id1), equals(data));
@@ -191,6 +196,11 @@ Future<void> main() async {
       await mgr.addActiveDocumentTime(id1, mode, 5);
 
       expect(activeBox, hasLength(1));
+
+      // serialize should be called and state saved
+      expect(engine.getCallCount('serialize'), equals(1));
+      expect(stateBox.isNotEmpty, isTrue);
+
       var dataUpdated = await activeRepo.fetchById(id1);
       expect(dataUpdated, isNotNull);
       expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
@@ -204,6 +214,7 @@ Future<void> main() async {
       await mgr.addActiveDocumentTime(id1, mode, 3);
 
       expect(activeBox, hasLength(1));
+      expect(engine.getCallCount('serialize'), equals(2));
       dataUpdated = await activeRepo.fetchById(id1);
       expect(dataUpdated, isNotNull);
       expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));

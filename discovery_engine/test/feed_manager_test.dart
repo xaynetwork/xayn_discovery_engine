@@ -58,7 +58,8 @@ Future<void> main() async {
   );
   final changedBox =
       await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
-  await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
+  final stateBox =
+      await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
   const maxBatch = 5;
@@ -112,6 +113,7 @@ Future<void> main() async {
       await docBox.clear();
       await activeBox.clear();
       await changedBox.clear();
+      await stateBox.clear();
     });
 
     test('deactivate documents', () async {
@@ -152,6 +154,10 @@ Future<void> main() async {
       expect(activeBox, hasLength(3));
       expect(activeBox.values, contains(engine.active0));
       expect(activeBox.values, contains(engine.active1));
+
+      // serialize should be called and state saved
+      expect(engine.getCallCount('serialize'), equals(1));
+      expect(stateBox.isNotEmpty, isTrue);
     });
 
     test('restore feed', () async {

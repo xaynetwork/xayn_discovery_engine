@@ -80,7 +80,10 @@ class MockEngine implements Engine {
   }
 
   @override
-  Uint8List serialize() => Uint8List(0);
+  Uint8List serialize() {
+    _incrementCount('serialize');
+    return Uint8List(0);
+  }
 
   @override
   Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments) {
