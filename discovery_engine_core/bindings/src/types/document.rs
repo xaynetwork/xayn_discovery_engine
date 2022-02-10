@@ -14,8 +14,10 @@
 
 //! FFI functions for handling types from the document module.
 
+mod time_spent;
 mod user_reacted;
 mod user_reaction;
 
+pub use time_spent::*;
 pub use user_reacted::*;
 pub use user_reaction::*;

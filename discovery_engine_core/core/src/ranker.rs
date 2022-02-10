@@ -51,8 +51,8 @@ impl Ranker for xayn_ai::ranker::Ranker {
     fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError> {
         self.log_document_view_time(
             time_spent.reaction.into(),
-            &time_spent.smbert,
-            time_spent.seconds,
+            &time_spent.smbert_embedding,
+            time_spent.time,
         );
         Ok(())
     }
