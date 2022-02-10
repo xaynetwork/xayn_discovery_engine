@@ -42,7 +42,6 @@ jobs:
 
   # DART CI
   dart-format:
-    name: dart-format
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
@@ -63,7 +62,6 @@ jobs:
         run: just dart-fmt
 
   dart-analyze:
-    name: dart-analyze
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
@@ -84,7 +82,6 @@ jobs:
         run: just dart-check
 
   dart-test:
-    name: dart-test
     needs: [selection, cargo-test]
     if: ${{ always()}}
     runs-on: ubuntu-20.04
@@ -112,7 +109,6 @@ jobs:
         run: just dart-test
 
   dart-doc:
-    name: dart-doc
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
@@ -137,7 +133,6 @@ jobs:
         run: just dart-check-doc
 
   dart-ok:
-    name: dart-ok
     needs:
       - selection
       - dart-format
@@ -159,7 +154,6 @@ jobs:
 
   # Flutter CI
   flutter-analyze:
-    name: flutter-analyze
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
     runs-on: ubuntu-20.04
@@ -180,7 +174,6 @@ jobs:
         run: just flutter-check
 
   flutter-test:
-    name: flutter-test
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
     runs-on: ubuntu-20.04
@@ -201,9 +194,8 @@ jobs:
         run: just flutter-test
 
   flutter-ok:
-    name: flutter-ok
     if: ${{always()}}
-    needs: 
+    needs:
       - flutter-test
       - flutter-analyze
     runs-on: ubuntu-20.04
@@ -309,7 +301,6 @@ jobs:
       - run: exit 0
 
   run-ok:
-    name: run-ok
     needs: [selection, dart-ok, cargo-ok, flutter-ok]
     if: ${{always()}}
     outputs:
