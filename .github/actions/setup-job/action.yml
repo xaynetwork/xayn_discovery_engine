@@ -3,16 +3,23 @@ description: 'Setup dart and/or rust CI job'
 inputs:
   dart:
     description: 'Setup dart'
-    default: false
+    default: "false"
+    required: false
   flutter:
     description: 'Setup flutter'
-    default: false
+    default: "false"
+    required: false
   rust:
     description: 'Setup rust'
-    default: false
+    default: "false"
+    required: false
+  rust-target:
+    description: 'Install additional rust target'
+    required: false
   deps:
     description: 'Fetch/Install dependencies'
-    default: true
+    default: "true"
+    required: false
   github_token:
     description: 'The github token used for the `just` action to avoid exceeding API rate limits'
     required: true
@@ -64,6 +71,12 @@ runs:
           echo "rust input must be set to `true` or `nightly`" >&2
           exit 1
         fi
+
+    - name: Install rust target
+      working-directory: ${{ env.RUST_WORKSPACE }}
+      if: inputs.rust-target != ''
+      shell: bash
+      run: rustup target add ${{ inputs.rust-target }}
 
     - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
       if: inputs.rust != 'false'

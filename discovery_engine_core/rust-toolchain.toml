@@ -1,3 +1,4 @@
 [toolchain]
 channel = "1.55.0"
 profile = "default"
+targets = ["aarch64-apple-ios", "x86_64-apple-ios"]
