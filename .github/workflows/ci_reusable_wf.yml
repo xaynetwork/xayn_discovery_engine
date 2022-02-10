@@ -33,7 +33,7 @@ jobs:
               - '.github/actions/install-cargo-sort/*'
               - 'justfile'
             dart: &dart
-              - *dart
+              - *rust
               - 'discovery_engine/**'
             flutter:
               - *rust
