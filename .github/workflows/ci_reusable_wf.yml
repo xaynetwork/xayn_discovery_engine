@@ -33,6 +33,7 @@ jobs:
               - '.github/actions/install-cargo-sort/*'
               - 'justfile'
             dart: &dart
+              - *dart
               - 'discovery_engine/**'
             flutter:
               - *rust
@@ -138,6 +139,7 @@ jobs:
   dart-ok:
     name: dart-ok
     needs:
+      - selection
       - dart-format
       - dart-analyze
       - dart-test
@@ -146,7 +148,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: |
-          if(${{needs.dart-format.result == 'success'}} && ${{needs.dart-analyze.result == 'success'}} && ${{needs.dart-test.result == 'success'}} && ${{needs.dart-doc.result == 'success'}})
+          if(${{ needs.selection.outputs.dart == 'false' ||
+             (${{needs.dart-format.result == 'success'}} && ${{needs.dart-analyze.result == 'success'}} &&
+              ${{needs.dart-test.result == 'success'}} && ${{needs.dart-doc.result == 'success'}}))
           then
             exit 0
           else
