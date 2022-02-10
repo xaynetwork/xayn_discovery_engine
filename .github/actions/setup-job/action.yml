@@ -71,12 +71,12 @@ runs:
       shell: bash
       if: inputs.deps
       run: |
-        if [[ "${{ inputs.dart }}" == "true" || "${{ inputs.flutter }}" == "true" ]] && [[ "${{ inputs.rust }}" != "false" ]]; then
+        if [[ "${{ inputs.dart }}" != "false" || "${{ inputs.flutter }}" != "false" ]] && [[ "${{ inputs.rust }}" != "false" ]]; then
           # ffigen dep, not handled by `just` as it's OS specific.
           sudo apt-get install libclang-10-dev
         fi
 
-        if [ "${{ inputs.rust }}" == "true" ]; then
+        if [ "${{ inputs.rust }}" != "false" ]; then
           just rust-deps
         fi
 
