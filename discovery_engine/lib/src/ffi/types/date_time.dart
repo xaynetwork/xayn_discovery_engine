@@ -22,15 +22,10 @@ extension NaiveDateTimeFfi on DateTime {
   void writeNative(Pointer<RustNaiveDateTime> place) {
     // micro seconds since since since midnight on
     // January 1, 1970 ignoring time zone.
-    final microSecondsSinceNaiveEpoch =
-        microsecondsSinceEpoch + timeZoneOffset.inMicroseconds;
-    if (ffi.init_naive_date_time_at(place, microSecondsSinceNaiveEpoch) != 1) {
-      throw ArgumentError.value(
-        this,
-        'dateTime',
-        'Can not convert this dart DateTime to rust',
-      );
-    }
+    ffi.init_naive_date_time_at(
+      place,
+      microsecondsSinceEpoch + timeZoneOffset.inMicroseconds,
+    );
   }
 
   static DateTime readNative(Pointer<RustNaiveDateTime> naiveDateTime) {
