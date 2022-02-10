@@ -236,6 +236,16 @@ compile-ios target:
     cd "$RUST_WORKSPACE"; \
     cargo build --target {{target}} -p xayn-discovery-engine-bindings --release
 
+# Compiles the bindings for iphoneos (aarch64) and iphonesimulator (x86_64)
+# and copies the binaries to the flutter project
+compile-ios-local:
+    #!/usr/bin/env sh
+    set -eu
+    for TARGET in $IOS_TARGETS; do
+        {{just_executable()}} compile-ios $TARGET
+        cp "$RUST_WORKSPACE/target/$TARGET/release/libxayn_discovery_engine_bindings.a" "$FLUTTER_WORKSPACE/ios/libxayn_discovery_engine_bindings_${TARGET}.a"
+    done
+
 alias d := dart-test
 alias r := rust-test
 alias t := test
