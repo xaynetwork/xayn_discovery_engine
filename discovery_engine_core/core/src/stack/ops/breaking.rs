@@ -39,8 +39,8 @@ impl Ops for BreakingNews {
         todo!();
     }
 
-    fn configure(&mut self, config: EndpointConfig) {
-        let _prev_mkts = self.markets.replace(config.markets);
+    fn configure(&mut self, config: &EndpointConfig) {
+        self.markets.replace(Arc::clone(&config.markets));
     }
 
     async fn new_items<'a>(

@@ -38,7 +38,7 @@ pub trait Ops {
     fn id(&self) -> Id;
 
     /// Configure the operations from endpoint settings.
-    fn configure(&mut self, config: EndpointConfig);
+    fn configure(&mut self, config: &EndpointConfig);
 
     /// Returns new items that could be added to the stack.
     ///
@@ -70,7 +70,7 @@ pub(crate) mod tests {
         impl Ops for Ops {
             fn id(&self) -> Id;
 
-            fn configure(&mut self, config: EndpointConfig);
+            fn configure(&mut self, config: &EndpointConfig);
 
             async fn new_items<'a>(
                 &self,

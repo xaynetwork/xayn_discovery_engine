@@ -82,7 +82,6 @@ pub struct InitConfig {
 }
 
 /// Discovery Engine endpoint settings.
-#[derive(Clone)]
 pub struct EndpointConfig {
     #[allow(dead_code)]
     api_key: String,
@@ -176,7 +175,7 @@ where
             .map(|mut ops| {
                 let id = ops.id();
                 let data = stack_data(id);
-                ops.configure(config.clone());
+                ops.configure(&config);
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
             .collect::<Result<_, _>>()
