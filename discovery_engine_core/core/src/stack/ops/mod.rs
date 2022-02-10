@@ -12,6 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+mod breaking;
+mod personalized;
+
 use async_trait::async_trait;
 
 use crate::{
@@ -35,7 +38,7 @@ pub trait Ops {
     fn id(&self) -> Id;
 
     /// Configure the operations from endpoint settings.
-    fn configure(&self, config: EndpointConfig);
+    fn configure(&mut self, config: EndpointConfig);
 
     /// Returns new items that could be added to the stack.
     ///
@@ -67,7 +70,7 @@ pub(crate) mod tests {
         impl Ops for Ops {
             fn id(&self) -> Id;
 
-            fn configure(&self, config: EndpointConfig);
+            fn configure(&mut self, config: EndpointConfig);
 
             async fn new_items<'a>(
                 &self,

@@ -88,7 +88,7 @@ pub struct EndpointConfig {
     api_key: String,
     #[allow(dead_code)]
     api_base_url: String,
-    markets: Arc<RwLock<Vec<Market>>>,
+    pub(crate) markets: Arc<RwLock<Vec<Market>>>,
 }
 
 impl From<InitConfig> for EndpointConfig {
@@ -173,7 +173,7 @@ where
     ) -> Result<Self, Error> {
         let stacks = stack_ops
             .into_iter()
-            .map(|ops| {
+            .map(|mut ops| {
                 let id = ops.id();
                 let data = stack_data(id);
                 ops.configure(config.clone());
