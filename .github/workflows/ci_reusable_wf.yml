@@ -209,13 +209,13 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: |
-          if ( ${{needs.flutter-test.result == 'success'}} && ${{needs.flutter-analyze.result == 'success'}} )
+          if(${{ needs.selection.outputs.flutter == 'false'}} ||
+             (${{needs.flutter-test.result == 'success'}} && ${{needs.flutter-analyze.result == 'success'}}))
           then
             exit 0
           else
             exit 1
           fi
-    
 
   # RUST CI
   cargo-format:
