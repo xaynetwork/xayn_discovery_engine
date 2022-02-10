@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! FFI functions for handling date time fields.
+
 use std::convert::TryFrom;
 
 use chrono::{naive::MAX_DATETIME, NaiveDateTime};
@@ -29,7 +30,7 @@ const MIN_MICRO_SECONDS: i64 = -8_334_632_851_200_000_000;
 ///
 /// Returns `1` if it succeeded `0` else wise.
 ///
-/// A a time above the max or below the min supported
+/// A time above the max or below the min supported
 /// date time will be clamped to the max/min time.
 ///
 /// # Safety
@@ -53,7 +54,7 @@ pub unsafe extern "C" fn init_naive_date_time_at(
     }
 }
 
-/// Returns the number of micro seconds since since midnight on January 1, 1970.
+/// Returns the number of micro seconds since midnight on January 1, 1970.
 ///
 /// More specifically it's the number of micro seconds since `1970-01-01T00:00:00Z` assuming
 /// the naive date time to be in UTC.
