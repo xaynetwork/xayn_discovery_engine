@@ -26,14 +26,22 @@ import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
+    show EngineStateRepository;
 
 /// Business logic concerning the management of documents.
 class DocumentManager {
   final Engine _engine;
   final DocumentRepository _documentRepo;
   final ActiveDocumentDataRepository _activeRepo;
+  final EngineStateRepository _engineStateRepo;
 
-  DocumentManager(this._engine, this._documentRepo, this._activeRepo);
+  DocumentManager(
+    this._engine,
+    this._documentRepo,
+    this._activeRepo,
+    this._engineStateRepo,
+  );
 
   /// Handle the given document client event.
   ///
@@ -72,6 +80,7 @@ class DocumentManager {
       smbertEmbedding: smbertEmbedding,
       reaction: userReaction,
     );
+    await _engineStateRepo.save(_engine.serialize());
   }
 
   /// Add additional viewing time for the given active document.
@@ -108,5 +117,6 @@ class DocumentManager {
       seconds: sumDuration,
       reaction: doc.userReaction,
     );
+    await _engineStateRepo.save(_engine.serialize());
   }
 }
