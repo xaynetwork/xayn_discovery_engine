@@ -148,7 +148,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: |
-          if(${{ needs.selection.outputs.dart == 'false' ||
+          if(${{ needs.selection.outputs.dart == 'false'}} ||
              (${{needs.dart-format.result == 'success'}} && ${{needs.dart-analyze.result == 'success'}} &&
               ${{needs.dart-test.result == 'success'}} && ${{needs.dart-doc.result == 'success'}}))
           then
