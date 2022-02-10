@@ -29,13 +29,19 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show documentBox, activeDocumentDataBox, changedDocumentIdBox;
+    show
+        documentBox,
+        activeDocumentDataBox,
+        changedDocumentIdBox,
+        engineStateBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
     show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
+    show HiveEngineStateRepository;
 
 import 'discovery_engine/utils/utils.dart';
 import 'logging.dart' show setupLogging;
@@ -52,14 +58,23 @@ Future<void> main() async {
   );
   final changedBox =
       await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
+  await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
   const maxBatch = 5;
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
+  final engineStateRepo = HiveEngineStateRepository();
 
-  final mgr = FeedManager(engine, maxBatch, docRepo, activeRepo, changedRepo);
+  final mgr = FeedManager(
+    engine,
+    maxBatch,
+    docRepo,
+    activeRepo,
+    changedRepo,
+    engineStateRepo,
+  );
 
   group('FeedManager', () {
     late ActiveDocumentData data;

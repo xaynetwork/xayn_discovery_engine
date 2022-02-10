@@ -26,6 +26,8 @@ import 'package:xayn_discovery_engine/src/domain/repository/changed_document_rep
     show ChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
+    show EngineStateRepository;
 
 /// Business logic concerning the management of the feed.
 class FeedManager {
@@ -34,6 +36,7 @@ class FeedManager {
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
   final ChangedDocumentRepository _changedRepo;
+  final EngineStateRepository _engineStateRepo;
 
   FeedManager(
     this._engine,
@@ -41,6 +44,7 @@ class FeedManager {
     this._docRepo,
     this._activeRepo,
     this._changedRepo,
+    this._engineStateRepo,
   );
 
   /// Handle the given feed client event.
@@ -76,6 +80,7 @@ class FeedManager {
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
     final feedDocs = _engine.getFeedDocuments(_maxDocs);
+    await _engineStateRepo.save(_engine.serialize());
 
     await _docRepo.updateMany(feedDocs.keys);
     for (final feedDoc in feedDocs.entries) {

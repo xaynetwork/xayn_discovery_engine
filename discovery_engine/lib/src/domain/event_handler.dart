@@ -185,6 +185,7 @@ class EventHandler {
       engine,
       _documentRepository,
       _activeDataRepository,
+      _engineStateRepository,
     );
     _feedManager = FeedManager(
       engine,
@@ -192,6 +193,7 @@ class EventHandler {
       _documentRepository,
       _activeDataRepository,
       _changedDocumentRepository,
+      _engineStateRepository,
     );
 
     return engine;
