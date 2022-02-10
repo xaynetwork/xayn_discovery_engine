@@ -37,7 +37,7 @@ flutter-deps:
     flutter pub get
 
 # Fetches rust dependencies
-rust-deps:
+rust-deps: install-async-bindgen
     cd "$RUST_WORKSPACE"; \
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
@@ -51,7 +51,7 @@ install-async-bindgen *args:
     fi
 
 # Get/Update/Fetch/Install all dependencies
-deps: dart-deps rust-deps install-async-bindgen
+deps: flutter-deps dart-deps rust-deps install-async-bindgen
 
 # Formats dart (checks only on CI)
 dart-fmt:

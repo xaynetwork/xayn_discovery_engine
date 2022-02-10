@@ -26,28 +26,22 @@ jobs:
         id: filter
         with:
           filters: |
-            dart:
-              - 'discovery_engine/**'
-              - 'discovery_engine_core/**'
-              - 'discovery_engine_flutter/**'
-              - '.github/workflows/ci*'
-              - '.github/actions/setup-job/*'
-              - 'justfile'
-            rust:
+            rust: &rust
               - 'discovery_engine_core/**'
               - '.github/workflows/ci*'
               - '.github/actions/setup-job/*'
               - '.github/actions/install-cargo-sort/*'
               - 'justfile'
+            dart: &dart
+              - *rust
+              - 'discovery_engine/**'
             flutter:
+              - *rust
+              - *dart
               - 'discovery_engine_flutter/**'
-              - '.github/workflows/ci*'
-              - '.github/actions/setup-job/*'
-              - 'justfile'
 
   # DART CI
   dart-format:
-    name: dart-format
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
@@ -61,12 +55,12 @@ jobs:
         with:
           dart: true
           deps: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check formatting
         run: just dart-fmt
 
   dart-analyze:
-    name: dart-analyze
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
@@ -80,12 +74,12 @@ jobs:
         with:
           dart: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Analyze code
         run: just dart-check
 
   dart-test:
-    name: dart-test
     needs: [selection, cargo-test]
     if: ${{ always()}}
     runs-on: ubuntu-20.04
@@ -106,12 +100,12 @@ jobs:
         with:
           dart: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: just dart-test
 
   dart-doc:
-    name: dart-doc
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
@@ -125,6 +119,7 @@ jobs:
         with:
           dart: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dartdoc
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -134,8 +129,8 @@ jobs:
         run: just dart-check-doc
 
   dart-ok:
-    name: dart-ok
     needs:
+      - selection
       - dart-format
       - dart-analyze
       - dart-test
@@ -144,7 +139,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: |
-          if(${{needs.dart-format.result == 'success'}} && ${{needs.dart-analyze.result == 'success'}} && ${{needs.dart-test.result == 'success'}} && ${{needs.dart-doc.result == 'success'}})
+          if(${{ needs.selection.outputs.dart == 'false'}} ||
+             (${{needs.dart-format.result == 'success'}} && ${{needs.dart-analyze.result == 'success'}} &&
+              ${{needs.dart-test.result == 'success'}} && ${{needs.dart-doc.result == 'success'}}))
           then
             exit 0
           else
@@ -153,7 +150,6 @@ jobs:
 
   # Flutter CI
   flutter-analyze:
-    name: flutter-analyze
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
     runs-on: ubuntu-20.04
@@ -167,12 +163,12 @@ jobs:
         with:
           flutter: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Analyze code
         run: just flutter-check
 
   flutter-test:
-    name: flutter-test
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
     runs-on: ubuntu-20.04
@@ -186,26 +182,26 @@ jobs:
         with:
           flutter: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: just flutter-test
 
   flutter-ok:
-    name: flutter-ok
     if: ${{always()}}
-    needs: 
+    needs:
       - flutter-test
       - flutter-analyze
     runs-on: ubuntu-20.04
     steps:
       - run: |
-          if ( ${{needs.flutter-test.result == 'success'}} && ${{needs.flutter-analyze.result == 'success'}} )
+          if(${{ needs.selection.outputs.flutter == 'false'}} ||
+             (${{needs.flutter-test.result == 'success'}} && ${{needs.flutter-analyze.result == 'success'}}))
           then
             exit 0
           else
             exit 1
           fi
-    
 
   # RUST CI
   cargo-format:
@@ -221,6 +217,7 @@ jobs:
         with:
           rust: nightly
           deps: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cargo-sort
         uses: ./.github/actions/install-cargo-sort
@@ -240,6 +237,7 @@ jobs:
         uses: ./.github/actions/setup-job
         with:
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: cargo clippy
         run: |
@@ -257,6 +255,7 @@ jobs:
         uses: ./.github/actions/setup-job
         with:
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: |
@@ -274,6 +273,7 @@ jobs:
         uses: ./.github/actions/setup-job
         with:
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: cargo doc
         run: |
@@ -291,7 +291,6 @@ jobs:
       - run: exit 0
 
   run-ok:
-    name: run-ok
     needs: [selection, dart-ok, cargo-ok, flutter-ok]
     if: ${{always()}}
     outputs:
