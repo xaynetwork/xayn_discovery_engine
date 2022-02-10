@@ -14,7 +14,7 @@
 
 //! FFI functions for handling `TimeSpent` structs.
 
-use core::document::{TimeSpent, Embedding, UserReaction};
+use core::document::{Embedding, TimeSpent, UserReaction};
 use std::{ptr::addr_of_mut, time::Duration};
 
 use uuid::Uuid;
@@ -37,7 +37,9 @@ pub unsafe extern "C" fn time_spent_place_of_id(place: *mut TimeSpent) -> *mut U
 /// The pointer must point to a valid [`TimeSpent`] memory object, it
 /// might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn time_spent_place_of_smbert_embedding(place: *mut TimeSpent) -> *mut Embedding {
+pub unsafe extern "C" fn time_spent_place_of_smbert_embedding(
+    place: *mut TimeSpent,
+) -> *mut Embedding {
     unsafe { addr_of_mut!((*place).smbert_embedding) }
 }
 

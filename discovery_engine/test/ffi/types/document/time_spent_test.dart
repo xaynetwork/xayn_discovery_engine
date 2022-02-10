@@ -17,7 +17,7 @@ import 'dart:typed_data' show Float32List;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, StackId;
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
