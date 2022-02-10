@@ -27,7 +27,7 @@ use uuid::Uuid;
 /// it might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn document_place_of_id(place: *mut Document) -> *mut Uuid {
-    unsafe { addr_of_mut!((*place).id.0) }
+    unsafe { addr_of_mut!((*place).id) }.cast::<Uuid>()
 }
 
 /// Returns a pointer to the `stack_id` field of a document.
@@ -38,7 +38,7 @@ pub unsafe extern "C" fn document_place_of_id(place: *mut Document) -> *mut Uuid
 /// it might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn document_place_of_stack_id(place: *mut Document) -> *mut Uuid {
-    unsafe { addr_of_mut!((*place).stack_id.0) }
+    unsafe { addr_of_mut!((*place).stack_id) }.cast::<Uuid>()
 }
 
 /// Returns a pointer to the `smbert_embedding` field of a document.

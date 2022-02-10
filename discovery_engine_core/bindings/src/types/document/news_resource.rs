@@ -1,6 +1,8 @@
 use core::document::NewsResource;
 use std::ptr::addr_of_mut;
 
+use url::Url;
+
 /// Returns a pointer to the `title` field of a news resource.
 ///
 /// # Safety
@@ -52,7 +54,7 @@ pub unsafe extern "C" fn news_resource_place_of_source_url(place: *mut NewsResou
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_date_published(place: *mut NewsResource) -> *mut DateTime {
+pub unsafe extern "C" fn news_resource_place_of_date_published(place: *mut NewsResource) -> *mut NaiveDateTime {
     unsafe { addr_of_mut!((*place).date_published) }
 }
 
@@ -118,7 +120,7 @@ pub unsafe extern "C" fn news_resource_place_of_language(place: *mut NewsResourc
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_(place: *mut NewsResource) -> *mut String {
+pub unsafe extern "C" fn news_resource_place_of_topic(place: *mut NewsResource) -> *mut String {
     unsafe { addr_of_mut!((*place).topic) }
 }
 
