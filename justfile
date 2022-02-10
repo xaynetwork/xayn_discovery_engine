@@ -231,10 +231,10 @@ compile-android-local:
         {{just_executable()}} compile-android $TARGET
     done
 
-# Compiles the core lib for the given iOS target
-compile-ios target *args:
+# Compiles the bindings for the given iOS target
+compile-ios target:
     cd "$RUST_WORKSPACE"; \
-    cargo build --target {{target}} -p xayn-discovery-engine-core {{args}}
+    cargo build --target {{target}} -p xayn-discovery-engine-bindings --release
 
 alias d := dart-test
 alias r := rust-test
