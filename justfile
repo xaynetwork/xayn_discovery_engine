@@ -195,7 +195,7 @@ rust-clean:
 dart-clean:
     find "$DART_WORKSPACE" -type d -name .dart_tool -prune -exec rm -r '{}' \;
 
-# Remvoes all local cargo isntalls
+# Removes all local cargo installs
 clean-tools:
     -rm -r "$CARGO_INSTALL_ROOT"
 
@@ -230,6 +230,11 @@ compile-android-local:
     for TARGET in $ANDROID_TARGETS; do
         {{just_executable()}} compile-android $TARGET
     done
+
+# Compiles the core lib for the given iOS target
+compile-ios target *args:
+    cd "$RUST_WORKSPACE"; \
+    cargo build --target {{target}} -p xayn-discovery-engine-core {{args}}
 
 alias d := dart-test
 alias r := rust-test
