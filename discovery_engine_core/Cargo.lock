@@ -2775,6 +2775,7 @@ dependencies = [
  "async-bindgen",
  "async-bindgen-gen-dart",
  "cbindgen",
+ "chrono",
  "heck 0.4.0",
  "ndarray",
  "url",

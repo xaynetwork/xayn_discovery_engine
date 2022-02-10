@@ -6,6 +6,7 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 async-bindgen = "0.1.0"
+chrono = { version = "0.4.19", default-features = false }
 core = { package = "xayn-discovery-engine-core", path = "../core" }
 ndarray = "=0.15.3"
 url = "2.2.2"
