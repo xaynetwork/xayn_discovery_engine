@@ -12,79 +12,54 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show Pointer, Uint64Pointer;
+import 'dart:ffi' show Pointer;
 import 'dart:typed_data' show Float32List;
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustDocument;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/news_resource.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
     show EmbeddingFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi, StackIdFfi;
 
-//FIXME dart Document model and rust Document are not at all in sync
-//  once in sync we could use an extension block
-class Document with EquatableMixin {
+class DocumentFfi with EquatableMixin {
   final DocumentId id;
   final StackId stackId;
-  final int rank;
-  final String title;
-  final String snipped;
-  final String url;
-  final String domain;
   final Float32List smbertEmbedding;
+  final NewsResource resource;
 
-  Document({
+  DocumentFfi({
     required this.id,
     required this.stackId,
-    required this.rank,
-    required this.title,
-    required this.snipped,
-    required this.url,
-    required this.domain,
     required this.smbertEmbedding,
+    required this.resource,
   });
 
-  factory Document.readFrom(final Pointer<RustDocument> place) {
-    return Document(
+  factory DocumentFfi.readNative(final Pointer<RustDocument> place) {
+    return DocumentFfi(
       id: DocumentIdFfi.readNative(ffi.document_place_of_id(place)),
       stackId: StackIdFfi.readNative(ffi.document_place_of_stack_id(place)),
-      rank: ffi.document_place_of_rank(place).value,
-      title: StringFfi.readNative(ffi.document_place_of_title(place)),
-      snipped: StringFfi.readNative(ffi.document_place_of_snipped(place)),
-      url: StringFfi.readNative(ffi.document_place_of_url(place)),
-      domain: StringFfi.readNative(ffi.document_place_of_domain(place)),
       smbertEmbedding: EmbeddingFfi.readNative(
         ffi.document_place_of_smbert_embedding(place),
       ),
+      resource:
+          NewsResourceFfi.readNative(ffi.document_place_of_resource(place)),
     );
   }
 
-  void writeTo(final Pointer<RustDocument> place) {
+  void writeNative(final Pointer<RustDocument> place) {
     id.writeNative(ffi.document_place_of_id(place));
     stackId.writeNative(ffi.document_place_of_stack_id(place));
-    ffi.document_place_of_rank(place).value = rank;
-    title.writeNative(ffi.document_place_of_title(place));
-    snipped.writeNative(ffi.document_place_of_snipped(place));
-    url.writeNative(ffi.document_place_of_url(place));
-    domain.writeNative(ffi.document_place_of_domain(place));
     smbertEmbedding.writeNative(ffi.document_place_of_smbert_embedding(place));
+    resource.writeNative(ffi.document_place_of_resource(place));
   }
 
   @override
-  List<Object?> get props => [
-        id,
-        stackId,
-        rank,
-        title,
-        snipped,
-        url,
-        domain,
-        smbertEmbedding,
-      ];
+  List<Object?> get props => [id, stackId, smbertEmbedding, resource];
 }

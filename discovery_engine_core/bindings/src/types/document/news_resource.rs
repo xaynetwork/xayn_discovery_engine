@@ -1,6 +1,7 @@
 use core::document::NewsResource;
 use std::ptr::addr_of_mut;
 
+use chrono::NaiveDateTime;
 use url::Url;
 
 /// Returns a pointer to the `title` field of a news resource.
@@ -21,7 +22,7 @@ pub unsafe extern "C" fn news_resource_place_of_title(place: *mut NewsResource) 
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_snippet(place: *mut NewsResource) -> *mut String{
+pub unsafe extern "C" fn news_resource_place_of_snippet(place: *mut NewsResource) -> *mut String {
     unsafe { addr_of_mut!((*place).snippet) }
 }
 
@@ -54,7 +55,9 @@ pub unsafe extern "C" fn news_resource_place_of_source_url(place: *mut NewsResou
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_date_published(place: *mut NewsResource) -> *mut NaiveDateTime {
+pub unsafe extern "C" fn news_resource_place_of_date_published(
+    place: *mut NewsResource,
+) -> *mut NaiveDateTime {
     unsafe { addr_of_mut!((*place).date_published) }
 }
 
@@ -65,7 +68,9 @@ pub unsafe extern "C" fn news_resource_place_of_date_published(place: *mut NewsR
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_thumbnail(place: *mut NewsResource) -> *mut Option<Url>{
+pub unsafe extern "C" fn news_resource_place_of_thumbnail(
+    place: *mut NewsResource,
+) -> *mut Option<Url> {
     unsafe { addr_of_mut!((*place).thumbnail) }
 }
 
@@ -87,7 +92,9 @@ pub unsafe extern "C" fn news_resource_place_of_rank(place: *mut NewsResource) -
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_score(place: *mut NewsResource) -> *mut Option<f32> {
+pub unsafe extern "C" fn news_resource_place_of_score(
+    place: *mut NewsResource,
+) -> *mut Option<f32> {
     unsafe { addr_of_mut!((*place).score) }
 }
 
@@ -98,7 +105,7 @@ pub unsafe extern "C" fn news_resource_place_of_score(place: *mut NewsResource) 
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_country(place: *mut NewsResource) -> *mut String{
+pub unsafe extern "C" fn news_resource_place_of_country(place: *mut NewsResource) -> *mut String {
     unsafe { addr_of_mut!((*place).country) }
 }
 

@@ -15,6 +15,7 @@
 import 'dart:typed_data' show Float32List;
 
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -24,32 +25,48 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
 
 void main() {
   test('reading and writing a list of documents', () {
-    final documents = <Document>[
-      Document(
+    final documents = <DocumentFfi>[
+      DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
-        rank: 12,
-        title: 'Dodo Mania',
-        snipped: 'Cloning bought back the dodo.',
-        url: 'htts://foo.example/bar',
-        domain: 'foo.example',
         smbertEmbedding: Float32List.fromList([.9, .1]),
+        resource: NewsResource(
+          title: 'fun',
+          snippet: 'fun is fun',
+          url: Uri.parse('https://www.foobar.example/dodo'),
+          sourceUrl: Uri.parse('yyy://www.example'),
+          thumbnail: null,
+          datePublished: DateTime.now(),
+          rank: 12,
+          score: 32.625,
+          country: 'Germany',
+          language: 'German',
+          topic: 'FunFun',
+        ),
       ),
-      Document(
+      DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
-        rank: 1,
-        title: 'Foobar',
-        snipped: 'bar foo',
-        url: 'htts://dodo.example/bird',
-        domain: 'dodo.example',
-        smbertEmbedding: Float32List.fromList([.1]),
-      )
+        smbertEmbedding: Float32List.fromList([9, 1]),
+        resource: NewsResource(
+          title: 'bun',
+          snippet: 'foo bar',
+          url: Uri.parse('https://www.barfoot.example/dodo'),
+          sourceUrl: Uri.parse('yyy://fuu.example'),
+          thumbnail: Uri.parse('https://dodo.example/'),
+          datePublished: DateTime.now(),
+          rank: 12,
+          score: 2.125,
+          country: 'Germany',
+          language: 'German',
+          topic: 'FunFun',
+        ),
+      ),
     ];
     final len = documents.length;
-    final slice = documents.createSlice(len);
-    final res = DocumentSliceFfi.readSlice(slice, len);
-    ffi.drop_document_slice(slice, len);
+    final ptr = documents.createSlice();
+    final res = DocumentSliceFfi.readSlice(ptr, len);
+    ffi.drop_document_slice(ptr, len);
     expect(res, equals(documents));
   });
 }

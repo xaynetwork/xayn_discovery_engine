@@ -15,27 +15,37 @@
 import 'dart:typed_data' show Float32List;
 
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
-    show Document;
+    show DocumentFfi;
 
 void main() {
   test('reading and written a document', () {
-    final document = Document(
+    final document = DocumentFfi(
       id: DocumentId(),
       stackId: StackId(),
-      rank: 12,
-      title: 'Dodo Mania',
-      snipped: 'Cloning bought back the dodo.',
-      url: 'htts://foo.example/bar',
-      domain: 'foo.example',
       smbertEmbedding: Float32List.fromList([.9, .1]),
+      resource: NewsResource(
+        title: 'fun',
+        snippet: 'fun is fun',
+        url: Uri.parse('https://www.foobar.example/dodo'),
+        sourceUrl: Uri.parse('yyy://www.example/'),
+        thumbnail: null,
+        datePublished: DateTime.now(),
+        rank: 12,
+        score: 32.5,
+        country: 'Germany',
+        language: 'German',
+        topic: 'FunFun',
+      ),
     );
     final place = ffi.alloc_uninitialized_document();
-    document.writeTo(place);
-    final res = Document.readFrom(place);
+    document.writeNative(place);
+    final res = DocumentFfi.readNative(place);
     ffi.drop_document(place);
     expect(res, equals(document));
   });

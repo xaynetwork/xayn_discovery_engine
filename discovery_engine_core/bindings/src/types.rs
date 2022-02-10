@@ -20,6 +20,7 @@ pub mod document;
 pub mod duration;
 pub mod embedding;
 pub mod option;
+pub mod primitives;
 pub mod slice;
 pub mod string;
 pub mod url;

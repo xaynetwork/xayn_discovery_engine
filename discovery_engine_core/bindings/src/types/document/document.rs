@@ -61,12 +61,9 @@ pub unsafe extern "C" fn document_place_of_smbert_embedding(
 /// The pointer must point to a valid [`Document`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn document_place_of_resource(
-    place: *mut Document,
-) -> *mut NewsResource {
+pub unsafe extern "C" fn document_place_of_resource(place: *mut Document) -> *mut NewsResource {
     unsafe { addr_of_mut!((*place).resource) }
 }
-
 
 /// Alloc an uninitialized `Box<Document>`, mainly used for testing.
 #[no_mangle]

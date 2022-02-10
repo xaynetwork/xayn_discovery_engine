@@ -17,27 +17,28 @@ import 'dart:ffi' show Pointer;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustDocument, RustDocumentVec;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
+    show DocumentFfi;
 
-extension DocumentSliceFfi on List<Document> {
+extension DocumentSliceFfi on List<DocumentFfi> {
   /// Allocates a slice of documents containing all documents of this list.
   Pointer<RustDocument> createSlice() {
     final slice = ffi.alloc_uninitialized_document_slice(length);
     fold<Pointer<RustDocument>>(slice, (nextElement, document) {
-      document.writeTo(nextElement);
+      document.writeNative(nextElement);
       return ffi.next_document(nextElement);
     });
     return slice;
   }
 
-  static List<Document> readSlice(
-    final Pointer<RustDocument> slice,
+  static List<DocumentFfi> readSlice(
+    final Pointer<RustDocument> ptr,
     final int len,
   ) {
-    final out = <Document>[];
-    Iterable<int>.generate(len).fold<Pointer<RustDocument>>(slice,
+    final out = <DocumentFfi>[];
+    Iterable<int>.generate(len).fold<Pointer<RustDocument>>(ptr,
         (nextElement, _) {
-      out.add(Document.readFrom(nextElement));
+      out.add(DocumentFfi.readNative(nextElement));
       return ffi.next_document(nextElement);
     });
     return out;
@@ -48,7 +49,7 @@ extension DocumentSliceFfi on List<Document> {
   /// The additional indirection is necessary due to dart
   /// not handling custom non-boxed, non-primitive return
   /// types well.
-  static List<Document> consumeBoxedVector(
+  static List<DocumentFfi> consumeBoxedVector(
     Pointer<RustDocumentVec> boxedVec,
   ) {
     final len = ffi.get_document_vec_len(boxedVec);
