@@ -2787,6 +2787,7 @@ dependencies = [
  "chrono",
  "heck 0.4.0",
  "ndarray",
+ "tokio",
  "url",
  "uuid",
  "xayn-discovery-engine-core",

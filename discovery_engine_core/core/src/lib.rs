@@ -33,4 +33,4 @@ mod ranker;
 pub mod stack;
 mod utils;
 
-pub use crate::engine::{Engine, InitConfig, Market};
+pub use crate::engine::{Engine, Error, InitConfig, LockedEngine, Market};
