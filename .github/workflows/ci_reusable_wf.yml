@@ -52,11 +52,10 @@ jobs:
 
       - name: Setup the dart CI.
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           dart: true
           deps: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check formatting
         run: just dart-fmt
@@ -72,11 +71,10 @@ jobs:
 
       - name: Setup the rust/dart CI.
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           dart: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Analyze code
         run: just dart-check
@@ -99,11 +97,10 @@ jobs:
 
       - name: Setup the rust/dart CI.
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           dart: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: just dart-test
@@ -119,11 +116,10 @@ jobs:
 
       - name: Setup the dart CI.
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           dart: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dartdoc
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -164,11 +160,10 @@ jobs:
 
       - name: Setup the CI
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           flutter: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Analyze code
         run: just flutter-check
@@ -184,11 +179,10 @@ jobs:
 
       - name: Setup the CI
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           flutter: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: just flutter-test
@@ -220,11 +214,10 @@ jobs:
 
       - name: Setup the CI.
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           rust: nightly
           deps: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cargo-sort
         uses: ./.github/actions/install-cargo-sort
@@ -242,10 +235,9 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: cargo clippy
         run: |
@@ -261,10 +253,9 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: |
@@ -280,10 +271,9 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: cargo doc
         run: |

@@ -13,6 +13,9 @@ inputs:
   deps:
     description: 'Fetch/Install dependencies'
     default: true
+  github_token:
+    description: 'The github token used for the `just` action to avoid exceeding API rate limits'
+    required: true
 runs:
   using: "composite"
   steps:
@@ -22,7 +25,7 @@ runs:
     - name: Install just
       uses: extractions/setup-just@aa5d15c144db4585980a44ebfdd2cf337c4f14cb #v1.4.0
       env:
-        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
       with:
         just-version: ${{ env.JUST_VERSION }}
 
