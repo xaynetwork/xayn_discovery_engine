@@ -23,6 +23,9 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
+  /// Serializes the state of the [Engine] state.
+  Uint8List serialize();
+
   /// Retrieves at most [maxDocuments] feed documents.
   Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments);
 
