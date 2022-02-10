@@ -10,6 +10,7 @@ after_includes = """
 // Typedefs to make sure this "unknown" types are treated as opaque by ffigen.
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
+typedef struct RustTimeSpent RustTimeSpent;
 typedef struct RustUrl RustUrl;
 typedef struct RustUserReacted RustUserReacted;
 typedef struct RustUuid RustUuid;
@@ -25,6 +26,7 @@ include = ["xayn-discovery-engine-core"]
 "Embedding" = "RustEmbedding"
 "Option_Url" = "RustOptionUrl"
 "String" = "RustString"
+"TimeSpent" = "RustTimeSpent"
 "Url" = "RustUrl"
 "UserReacted" = "RustUserReacted"
 "UserReaction" = "RustUserReaction"
