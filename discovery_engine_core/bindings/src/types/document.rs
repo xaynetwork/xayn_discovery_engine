@@ -14,10 +14,17 @@
 
 //! FFI functions for handling types from the document module.
 
+#[allow(clippy::module_inception)]
+mod document;
+mod document_vec;
+mod news_resource;
 mod time_spent;
 mod user_reacted;
 mod user_reaction;
 
+pub use document::*;
+pub use document_vec::*;
+pub use news_resource::*;
 pub use time_spent::*;
 pub use user_reacted::*;
 pub use user_reaction::*;
