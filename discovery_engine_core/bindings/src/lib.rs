@@ -105,4 +105,20 @@ impl AsyncCore {
                 .map_err(|error| error.to_string()),
         )
     }
+
+    /// Processes user reaction.
+    pub async fn user_reacted(
+        engine: &core::LockedEngine,
+        reacted: &core::document::UserReacted,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .0
+                .lock()
+                .await
+                .user_reacted(reacted)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
 }
