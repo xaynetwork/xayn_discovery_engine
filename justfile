@@ -243,7 +243,7 @@ compile-ios-local:
     set -eu
     for TARGET in $IOS_TARGETS; do
         {{just_executable()}} compile-ios $TARGET
-        cp "$RUST_WORKSPACE/target/$TARGET/release/$IOS_LIB_BASE.a" "$FLUTTER_WORKSPACE/ios/$IOS_LIB_BASE_${TARGET}.a"
+        cp "$RUST_WORKSPACE/target/$TARGET/release/${IOS_LIB_BASE}.a" "$FLUTTER_WORKSPACE/ios/${IOS_LIB_BASE}_${TARGET}.a"
     done
 
 alias d := dart-test
