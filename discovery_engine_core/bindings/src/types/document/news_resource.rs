@@ -1,8 +1,23 @@
-use core::document::NewsResource;
+// Copyright 2022 Xayn AG
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, version 3.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use std::ptr::addr_of_mut;
 
 use chrono::NaiveDateTime;
 use url::Url;
+
+use core::document::NewsResource;
 
 /// Returns a pointer to the `title` field of a news resource.
 ///

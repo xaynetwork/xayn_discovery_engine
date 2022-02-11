@@ -14,10 +14,11 @@
 
 //! FFI functions for handling documents.
 
-use core::document::{Document, Embedding, NewsResource};
 use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
+
+use core::document::{Document, Embedding, NewsResource};
 
 /// Returns a pointer to the `id` field of a document.
 ///
