@@ -19,6 +19,8 @@ pub mod date_time;
 pub mod document;
 pub mod duration;
 pub mod embedding;
+pub mod market;
+pub mod market_vec;
 pub mod option;
 pub mod primitives;
 pub mod slice;

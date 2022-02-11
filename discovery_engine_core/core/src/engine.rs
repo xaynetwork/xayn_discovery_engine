@@ -64,21 +64,32 @@ pub enum Error {
 #[allow(dead_code)]
 /// Feed market.
 pub struct Market {
-    country_code: String,
-    lang_code: String,
+    /// Country code of the market.
+    pub country_code: String,
+    /// Language code of the market.
+    pub lang_code: String,
 }
 
 /// Configuration settings to initialize Discovery Engine with a [`xayn_ai::ranker::Ranker`].
 pub struct InitConfig {
-    api_key: String,
-    api_base_url: String,
-    markets: Vec<Market>,
-    smbert_vocab: String,
-    smbert_model: String,
-    kpe_vocab: String,
-    kpe_model: String,
-    kpe_cnn: String,
-    kpe_classifier: String,
+    /// Key for accessing the API
+    pub api_key: String,
+    /// API base url
+    pub api_base_url: String,
+    /// List of markets to use
+    pub markets: Vec<Market>,
+    /// S-mBert vocabulary path
+    pub smbert_vocab: String,
+    /// S-mBert model path
+    pub smbert_model: String,
+    /// KPE vocabulary path
+    pub kpe_vocab: String,
+    /// KPE model path
+    pub kpe_model: String,
+    /// KPE CNN model path
+    pub kpe_cnn: String,
+    /// KPR classifier path
+    pub kpe_classifier: String,
 }
 
 /// Discovery Engine endpoint settings.
