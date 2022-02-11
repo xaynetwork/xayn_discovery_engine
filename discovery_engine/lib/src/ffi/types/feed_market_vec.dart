@@ -20,39 +20,32 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
     show FeedMarketFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/list.dart';
+
+final _adapter = ListFfiAdapter<FeedMarket, RustMarket, RustMarketVec>(
+  alloc: ffi.alloc_uninitialized_market_slice,
+  next: ffi.next_market,
+  writeNative: (market, place) => market.writeNative(place),
+  readNative: FeedMarketFfi.readNative,
+  getVecLen: ffi.get_market_vec_len,
+  getVecBuffer: ffi.get_market_vec_buffer,
+  dropVec: ffi.drop_market_vec,
+);
 
 extension FeedMarketSliceFfi on List<FeedMarket> {
   /// Allocates a slice of markets containing all markets of this list.
-  Pointer<RustMarket> createSlice() {
-    final slice = ffi.alloc_uninitialized_market_slice(length);
-    fold<Pointer<RustMarket>>(slice, (nextElement, market) {
-      market.writeNative(nextElement);
-      return ffi.next_market(nextElement);
-    });
-    return slice;
-  }
+  Pointer<RustMarket> createSlice() => _adapter.createSlice(this);
 
+  /// Reads a `&[RustMarket]` returning a `List<FeedMarked>`.
   static List<FeedMarket> readSlice(
     final Pointer<RustMarket> ptr,
     final int len,
-  ) {
-    final out = <FeedMarket>[];
-    Iterable<int>.generate(len).fold<Pointer<RustMarket>>(ptr,
-        (nextElement, _) {
-      out.add(FeedMarketFfi.readNative(nextElement));
-      return ffi.next_market(nextElement);
-    });
-    return out;
-  }
+  ) =>
+      _adapter.readSlice(ptr, len);
 
   /// Consumes a `Box<Vec<Market>>` returned from rust.
   static List<FeedMarket> consumeBoxedVector(
     Pointer<RustMarketVec> boxedVec,
-  ) {
-    final len = ffi.get_market_vec_len(boxedVec);
-    final slice = ffi.get_market_vec_buffer(boxedVec);
-    final res = readSlice(slice, len);
-    ffi.drop_market_vec(boxedVec);
-    return res;
-  }
+  ) =>
+      _adapter.consumeBoxedVector(boxedVec);
 }
