@@ -1,0 +1,63 @@
+name: Build iOS library
+
+on:
+  workflow_call:
+    outputs:
+      base-name:
+        description: The base name of artifact directory (without the target suffix)
+        value: ${{ jobs.build-ios-libs.outputs.base-name }}
+
+jobs:
+  build-ios-matrix:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 # v1.0.2
+      - id: set-matrix
+        run: |
+          TARGETS=$(target_array=($IOS_TARGETS); jq --compact-output --null-input '$ARGS.positional' --args "${target_array[@]}")
+          echo "::set-output name=matrix::$(echo {\"target\":$TARGETS})"
+
+  build-ios-libs:
+    needs: build-ios-matrix
+    runs-on: macos-11
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.build-ios-matrix.outputs.matrix) }}
+    env:
+      BASE_NAME: ${{ github.job }}
+    outputs:
+      base-name: ${{ env.BASE_NAME }}
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the rust CI.
+        uses: ./.github/actions/setup-job
+        with:
+          rust: true
+          rust-target: ${{ matrix.target }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build iOS library ${{ matrix.target }}
+        run: just compile-ios ${{ matrix.target }}
+
+      - name: Prepare lib for upload
+        id: lib
+        run: |
+          BASE=${{ env.RUST_WORKSPACE }}/target/${{ matrix.target }}/release/${{ env.IOS_LIB_BASE }}
+          SRC=${BASE}.a
+          DEST=${BASE}_${{ matrix.target }}.a
+          mv $SRC $DEST
+          echo "::set-output name=path::$DEST"
+
+      - name: Upload library artifacts
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
+        with:
+          name: ${{ env.BASE_NAME }}-${{ matrix.target }}-${{ github.sha }}
+          retention-days: 1
+          if-no-files-found: error
+          path: ${{ steps.lib.outputs.path }}
