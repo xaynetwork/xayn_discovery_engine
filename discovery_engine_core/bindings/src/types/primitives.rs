@@ -20,7 +20,7 @@ use super::option::get_option_some;
 ///
 /// # Safety
 ///
-/// - It must be valid to write a `f32` instance to given pointer,
+/// - It must be valid to write an `Option<f32>` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
 #[no_mangle]
 pub unsafe extern "C" fn init_some_f32_at(place: *mut Option<f32>, value: f32) {
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn init_some_f32_at(place: *mut Option<f32>, value: f32) {
 ///
 /// # Safety
 ///
-/// - It must be valid to write a `f32` instance to given pointer,
+/// - It must be valid to write an `Option<f32>` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
 #[no_mangle]
 pub unsafe extern "C" fn init_none_f32_at(place: *mut Option<f32>) {

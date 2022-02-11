@@ -21,7 +21,7 @@ use crate::types::{
     vec::{get_vec_buffer, get_vec_len},
 };
 
-/// Alloc an uninitialized `Box<[Document]>`, i.e. a `Box<[MaybeUninit<Document>]>`.
+/// Alloc an uninitialized `Box<[Document]>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_document_slice(len: usize) -> *mut Document {
     alloc_uninitialized_slice(len)
@@ -29,12 +29,11 @@ pub extern "C" fn alloc_uninitialized_document_slice(len: usize) -> *mut Documen
 
 /// Given a pointer to a [`Document`] in a slice return the pointer to the next [`Document`].
 ///
-/// This also works for a `Box<[MaybeUninit<Document>]>`, i.e. a boxed slice with
-/// uninitialized documents.
+/// This also works for uninitialized document slices.
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid `RustDocument` memory object, it might
+/// The pointer must point to a valid `Document` memory object, it might
 /// be uninitialized. If it's the last object in an array the returned pointer
 /// must not be dereferenced.
 #[no_mangle]
@@ -52,31 +51,31 @@ pub unsafe extern "C" fn drop_document_slice(documents: *mut Document, len: usiz
     drop(unsafe { boxed_slice_from_raw_parts(documents, len) });
 }
 
-/// Returns the length of a `Box<Vec<T>>`.
+/// Returns the length of a `Box<Vec<Document>>`.
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid `Vec<T>` instance.
+/// The pointer must point to a valid `Vec<Document>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn get_document_vec_len(documents: *mut Vec<Document>) -> usize {
     unsafe { get_vec_len(documents) }
 }
 
-/// Returns the `*mut T` to the beginning of the buffer of a `Box<Vec<T>>`.
+/// Returns the `*mut Document` to the beginning of the buffer of a `Box<Vec<Document>>`.
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid `Vec<T>` instance.
+/// The pointer must point to a valid `Vec<Document>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn get_document_vec_buffer(documents: *mut Vec<Document>) -> *mut Document {
     unsafe { get_vec_buffer(documents) }
 }
 
-/// Drop a `Box<Vec<T>>`.
+/// Drop a `Box<Vec<Document>>`.
 ///
 /// # Safety
 ///
-/// The pointer must represent a valid `Box<Vec<T>>` instance.
+/// The pointer must represent a valid `Box<Vec<Document>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_document_vec(documents: *mut Vec<Document>) {
     unsafe {

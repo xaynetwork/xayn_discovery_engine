@@ -63,7 +63,7 @@ pub unsafe extern "C" fn news_resource_place_of_source_url(place: *mut NewsResou
     unsafe { addr_of_mut!((*place).source_url) }
 }
 
-/// Returns a pointer to the `date_publ` field of a news resource.
+/// Returns a pointer to the `date_published` field of a news resource.
 ///
 /// # Safety
 ///
