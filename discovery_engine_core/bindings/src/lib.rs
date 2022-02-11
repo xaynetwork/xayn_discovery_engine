@@ -43,4 +43,17 @@ impl AsyncCore {
                 .map_err(|error| error.to_string()),
         )
     }
+
+    /// Serializes the engine.
+    pub async fn serialize(engine: &core::LockedEngine) -> Box<Result<Vec<u8>, String>> {
+        Box::new(
+            engine
+                .0
+                .lock()
+                .await
+                .serialize()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
 }
