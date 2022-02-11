@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
@@ -87,7 +87,7 @@ pub struct EndpointConfig {
     api_key: String,
     #[allow(dead_code)]
     api_base_url: String,
-    markets: RwLock<Vec<Market>>,
+    pub(crate) markets: Arc<RwLock<Vec<Market>>>,
 }
 
 impl From<InitConfig> for EndpointConfig {
@@ -95,7 +95,7 @@ impl From<InitConfig> for EndpointConfig {
         Self {
             api_key: config.api_key,
             api_base_url: config.api_base_url,
-            markets: RwLock::new(config.markets),
+            markets: Arc::new(RwLock::new(config.markets)),
         }
     }
 }
@@ -172,9 +172,10 @@ where
     ) -> Result<Self, Error> {
         let stacks = stack_ops
             .into_iter()
-            .map(|ops| {
+            .map(|mut ops| {
                 let id = ops.id();
                 let data = stack_data(id);
+                ops.configure(&config);
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
             .collect::<Result<_, _>>()
