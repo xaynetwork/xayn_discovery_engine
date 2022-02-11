@@ -18,11 +18,11 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show Manifest, kAssetsPath;
 
-class FlutterAiAssetCopier {
+class FlutterBundleAssetCopier {
   final String bundleAssetsPath;
   final String appDir;
 
-  FlutterAiAssetCopier({
+  FlutterBundleAssetCopier({
     required this.appDir,
     required this.bundleAssetsPath,
   })  : assert(appDir.isNotEmpty),
