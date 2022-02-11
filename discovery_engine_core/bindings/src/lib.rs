@@ -73,4 +73,20 @@ impl AsyncCore {
                 .map_err(|error| error.to_string()),
         )
     }
+
+    /// Gets feed documents.
+    pub async fn get_feed_documents(
+        engine: &core::LockedEngine,
+        max_documents: u32,
+    ) -> Box<Result<Vec<core::document::Document>, String>> {
+        Box::new(
+            engine
+                .0
+                .lock()
+                .await
+                .get_feed_documents(max_documents as usize)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
 }
