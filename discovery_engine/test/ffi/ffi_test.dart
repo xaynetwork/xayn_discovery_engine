@@ -13,15 +13,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/discovery_engine.dart' show asyncCore;
 
 import '../logging.dart' show setupLogging;
 
 void main() {
   setupLogging();
 
-  test('calling async ffi functions works', () async {
-    final x = await asyncCore.add(10, 22);
-    expect(x, equals(32));
+  test('calling async ffi functions works', () {
+    // TODO
   });
 }
