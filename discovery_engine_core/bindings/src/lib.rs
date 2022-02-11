@@ -35,20 +35,12 @@ impl AsyncCore {
     pub async fn init_engine(
         config: Box<core::InitConfig>,
         state: Box<Option<Vec<u8>>>,
-        error: &mut String,
-    ) -> Box<Option<core::LockedEngine>> {
-        use core::{Engine, LockedEngine};
-        use tokio::sync::Mutex;
-
-        let engine = match Engine::from_config(*config, state.as_deref()).await {
-            Ok(engine) => Some(LockedEngine(Mutex::new(engine))),
-            Err(err) => {
-                error.clear();
-                error.push_str(&err.to_string());
-                None
-            }
-        };
-
-        Box::new(engine)
+    ) -> Box<Result<core::LockedEngine, String>> {
+        Box::new(
+            core::Engine::from_config(*config, state.as_deref())
+                .await
+                .map(|engine| core::LockedEngine(tokio::sync::Mutex::new(engine)))
+                .map_err(|error| error.to_string()),
+        )
     }
 }
