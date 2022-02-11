@@ -14,7 +14,7 @@ inputs:
     default: "false"
     required: false
   rust-target:
-    description: 'Install additional rust target'
+    description: 'Install an additional rust target'
     required: false
   deps:
     description: 'Fetch/Install dependencies'

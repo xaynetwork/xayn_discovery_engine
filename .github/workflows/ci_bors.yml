@@ -16,15 +16,18 @@ jobs:
   dev-ci:
     uses: ./.github/workflows/ci_reusable_wf.yml
 
+  build-ios-libs:
+    uses: ./.github/workflows/ci_build_ios.yml
+
   ci-ok:
-    needs: dev-ci
+    needs: [dev-ci, build-ios-libs]
     runs-on: ubuntu-20.04
     timeout-minutes: 5
+    if: always()
     steps:
       - name: CI OK Testing
         run: |
-          if ( ${{needs.dev-ci.outputs.wf-result == 'success'}} )
-          then
+          if [[ ${{ needs.dev-ci.outputs.wf-result }} == "success" && "${{ needs.build-ios-libs.result }}" == "success" ]]; then
             exit 0
           else
             exit 1

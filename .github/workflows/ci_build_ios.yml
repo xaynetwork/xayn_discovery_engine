@@ -3,9 +3,9 @@ name: Build iOS library
 on:
   workflow_call:
     outputs:
-      base-name:
+      artifact-dir-base:
         description: The base name of artifact directory (without the target suffix)
-        value: ${{ jobs.build-ios-libs.outputs.base-name }}
+        value: ${{ jobs.build-ios-libs.outputs.artifact-dir-base }}
 
 jobs:
   build-ios-matrix:
@@ -29,9 +29,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.build-ios-matrix.outputs.matrix) }}
     env:
-      BASE_NAME: ${{ github.job }}
+      ARTIFACT_DIR_BASE: ${{ github.job }}
     outputs:
-      base-name: ${{ env.BASE_NAME }}
+      artifact-dir-base: ${{ env.ARTIFACT_DIR_BASE }}
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
@@ -57,7 +57,7 @@ jobs:
       - name: Upload library artifacts
         uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
         with:
-          name: ${{ env.BASE_NAME }}-${{ matrix.target }}-${{ github.sha }}
+          name: ${{ env.ARTIFACT_DIR_BASE }}-${{ matrix.target }}-${{ github.sha }}
           retention-days: 1
           if-no-files-found: error
           path: ${{ steps.lib.outputs.path }}

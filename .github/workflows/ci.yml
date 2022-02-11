@@ -13,40 +13,18 @@ permissions:
   contents: read
 
 jobs:
-  # dev-ci:
-  #   uses: ./.github/workflows/ci_reusable_wf.yml
-
-  build-ios-libs:
-    uses: ./.github/workflows/build_ios.yml
-
-  download:
-    runs-on: ubuntu-20.04
-    needs: build-ios-libs
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
-      - uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 # v1.0.2
-
-      - name: Download artifacts
-        uses: actions/download-artifact@f023be2c48cc18debc3bacd34cb396e0295e2869 # v2.1.0
-        with:
-          path: ${{ runner.temp }}/artifacts/
-
-      - working-directory: ${{ runner.temp }}/artifacts
-        run: |
-          cp -R ${{ needs.build-ios-libs.outputs.base-name }}-*/* ${{ github.workspace }}/${{ env.FLUTTER_WORKSPACE }}/ios
-          ls -la ${{ github.workspace }}/${{ env.FLUTTER_WORKSPACE }}/ios
+  dev-ci:
+    uses: ./.github/workflows/ci_reusable_wf.yml
 
   ci-ok:
-    name: ci-ok
-    needs: build-ios-libs
+    needs: dev-ci
     runs-on: ubuntu-20.04
     timeout-minutes: 5
-    if: always()
     steps:
       - name: CI OK Testing
         run: |
-          if [[ "${{ needs.build-ios-libs.result }}" == "success" ]]; then
+          if ( ${{needs.dev-ci.outputs.wf-result == 'success'}} )
+          then
             exit 0
           else
             exit 1
