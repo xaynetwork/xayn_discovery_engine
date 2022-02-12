@@ -70,15 +70,3 @@ pub unsafe extern "C" fn get_market_vec_len(markets: *mut Vec<Market>) -> usize 
 pub unsafe extern "C" fn get_market_vec_buffer(markets: *mut Vec<Market>) -> *mut Market {
     unsafe { get_vec_buffer(markets) }
 }
-
-/// Drop a `Box<Vec<T>>`.
-///
-/// # Safety
-///
-/// The pointer must represent a valid `Box<Vec<T>>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn drop_market_vec(markets: *mut Vec<Market>) {
-    unsafe {
-        crate::types::boxed::drop(markets);
-    }
-}

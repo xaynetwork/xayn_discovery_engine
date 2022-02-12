@@ -21,7 +21,6 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
   final T Function(Pointer<RT>) readNative;
   final int Function(Pointer<RVT>) getVecLen;
   final Pointer<RT> Function(Pointer<RVT>) getVecBuffer;
-  final void Function(Pointer<RVT>) dropVec;
 
   ListFfiAdapter({
     required this.alloc,
@@ -30,7 +29,6 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
     required this.readNative,
     required this.getVecLen,
     required this.getVecBuffer,
-    required this.dropVec,
   });
 
   /// Allocates a slice of markets containing all markets of this list.
@@ -56,17 +54,12 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
     return out;
   }
 
-  /// Consumes a `Box<Vec<T>>` returned from rust.
-  ///
-  /// A `Box<Vec<T>>` is the simplest way to return
-  /// a list of `T` instances form rust to dart.
-  List<T> consumeBoxedVector(
-    Pointer<RVT> boxedVec,
+  /// Reads a rust-`&Vec<T>` returning a dart-`List<T>`.
+  List<T> readVec(
+    final Pointer<RVT> vec,
   ) {
-    final len = getVecLen(boxedVec);
-    final slice = getVecBuffer(boxedVec);
-    final res = readSlice(slice, len);
-    dropVec(boxedVec);
-    return res;
+    final len = getVecLen(vec);
+    final slice = getVecBuffer(vec);
+    return readSlice(slice, len);
   }
 }

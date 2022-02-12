@@ -28,7 +28,6 @@ final _adapter = ListFfiAdapter<DocumentFfi, RustDocument, RustDocumentVec>(
   readNative: (place) => DocumentFfi.readNative(place),
   getVecLen: ffi.get_document_vec_len,
   getVecBuffer: ffi.get_document_vec_buffer,
-  dropVec: ffi.drop_document_vec,
 );
 
 extension DocumentSliceFfi on List<DocumentFfi> {
@@ -41,6 +40,12 @@ extension DocumentSliceFfi on List<DocumentFfi> {
   ) =>
       _adapter.readSlice(ptr, len);
 
+  /// Reads a rust-`&Vec<RustMarketVec>` returning a dart-`List<FeedMarket>`.
+  static List<DocumentFfi> readVec(
+    final Pointer<RustDocumentVec> vec,
+  ) =>
+      _adapter.readVec(vec);
+
   /// Consumes a `Box<Vec<Document>>` returned from rust.
   ///
   /// The additional indirection is necessary due to dart
@@ -48,6 +53,9 @@ extension DocumentSliceFfi on List<DocumentFfi> {
   /// types well.
   static List<DocumentFfi> consumeBoxedVector(
     Pointer<RustDocumentVec> boxedVec,
-  ) =>
-      _adapter.consumeBoxedVector(boxedVec);
+  ) {
+    final res = readVec(boxedVec);
+    ffi.drop_document_vec(boxedVec);
+    return res;
+  }
 }

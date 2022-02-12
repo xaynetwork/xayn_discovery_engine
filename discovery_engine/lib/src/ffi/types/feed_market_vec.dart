@@ -29,7 +29,6 @@ final _adapter = ListFfiAdapter<FeedMarket, RustMarket, RustMarketVec>(
   readNative: FeedMarketFfi.readNative,
   getVecLen: ffi.get_market_vec_len,
   getVecBuffer: ffi.get_market_vec_buffer,
-  dropVec: ffi.drop_market_vec,
 );
 
 extension FeedMarketSliceFfi on List<FeedMarket> {
@@ -43,9 +42,9 @@ extension FeedMarketSliceFfi on List<FeedMarket> {
   ) =>
       _adapter.readSlice(ptr, len);
 
-  /// Consumes a `Box<Vec<Market>>` returned from rust.
-  static List<FeedMarket> consumeBoxedVector(
-    Pointer<RustMarketVec> boxedVec,
+  /// Reads a rust-`&Vec<RustMarketVec>` returning a dart-`List<FeedMarket>`.
+  static List<FeedMarket> readVec(
+    final Pointer<RustMarketVec> vec,
   ) =>
-      _adapter.consumeBoxedVector(boxedVec);
+      _adapter.readVec(vec);
 }
