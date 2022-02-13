@@ -21,6 +21,28 @@ use crate::types::{
     vec::{get_vec_buffer, get_vec_len},
 };
 
+/// Initializes a `Vec<Market>` at given place.
+///
+/// This moves the passed in slice into the vector,
+/// i.e. `slice_ptr, len` map to `Box<[Market]>`.
+///
+/// # Safety
+///
+/// - It must be valid to write an `Option<f32>` instance to given pointer,
+///   the pointer is expected to point to uninitialized memory.
+/// - It must be valid to construct a `Box<[Market]>` from given `slice_ptr`
+///   and `len`.
+#[no_mangle]
+pub unsafe extern "C" fn init_market_vec_at(
+    place: *mut Vec<Market>,
+    slice_ptr: *mut Market,
+    len: usize,
+) {
+    unsafe {
+        place.write(Vec::from(boxed_slice_from_raw_parts(slice_ptr, len)));
+    }
+}
+
 /// Alloc an uninitialized `Box<[Market]>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_market_slice(len: usize) -> *mut Market {

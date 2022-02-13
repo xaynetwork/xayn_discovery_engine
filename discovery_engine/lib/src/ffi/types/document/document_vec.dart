@@ -28,6 +28,7 @@ final _adapter = ListFfiAdapter<DocumentFfi, RustDocument, RustDocumentVec>(
   readNative: (place) => DocumentFfi.readNative(place),
   getVecLen: ffi.get_document_vec_len,
   getVecBuffer: ffi.get_document_vec_buffer,
+  writeNativeVec: ffi.init_document_vec_at,
 );
 
 extension DocumentSliceFfi on List<DocumentFfi> {
@@ -39,6 +40,12 @@ extension DocumentSliceFfi on List<DocumentFfi> {
     final int len,
   ) =>
       _adapter.readSlice(ptr, len);
+
+  /// Writes a rust-`Vec<Document>` to given place.
+  void writeVec(
+    final Pointer<RustDocumentVec> place,
+  ) =>
+      _adapter.writeVec(this, place);
 
   /// Reads a rust-`&Vec<RustMarketVec>` returning a dart-`List<FeedMarket>`.
   static List<DocumentFfi> readVec(

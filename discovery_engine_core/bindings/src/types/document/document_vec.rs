@@ -21,6 +21,28 @@ use crate::types::{
     vec::{get_vec_buffer, get_vec_len},
 };
 
+/// Initializes a `Vec<Document>` at given place.
+///
+/// This moves the passed in slice into the vector,
+/// i.e. `slice_ptr, len` map to `Box<[Document]>`.
+///
+/// # Safety
+///
+/// - It must be valid to write an `Option<f32>` instance to given pointer,
+///   the pointer is expected to point to uninitialized memory.
+/// - It must be valid to construct a `Box<[Document]>` from given `slice_ptr`
+///   and `len`.
+#[no_mangle]
+pub unsafe extern "C" fn init_document_vec_at(
+    place: *mut Vec<Document>,
+    slice_ptr: *mut Document,
+    len: usize,
+) {
+    unsafe {
+        place.write(Vec::from(boxed_slice_from_raw_parts(slice_ptr, len)));
+    }
+}
+
 /// Alloc an uninitialized `Box<[Document]>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_document_slice(len: usize) -> *mut Document {

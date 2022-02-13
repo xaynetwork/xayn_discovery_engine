@@ -29,6 +29,7 @@ final _adapter = ListFfiAdapter<FeedMarket, RustMarket, RustMarketVec>(
   readNative: FeedMarketFfi.readNative,
   getVecLen: ffi.get_market_vec_len,
   getVecBuffer: ffi.get_market_vec_buffer,
+  writeNativeVec: ffi.init_market_vec_at,
 );
 
 extension FeedMarketSliceFfi on List<FeedMarket> {
@@ -41,6 +42,12 @@ extension FeedMarketSliceFfi on List<FeedMarket> {
     final int len,
   ) =>
       _adapter.readSlice(ptr, len);
+
+  /// Writes a rust-`Vec<Market>` to given place.
+  void writeVec(
+    final Pointer<RustMarketVec> place,
+  ) =>
+      _adapter.writeVec(this, place);
 
   /// Reads a rust-`&Vec<RustMarketVec>` returning a dart-`List<FeedMarket>`.
   static List<FeedMarket> readVec(

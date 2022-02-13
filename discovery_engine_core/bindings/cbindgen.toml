@@ -11,6 +11,7 @@ after_includes = """
 typedef struct RustDocument RustDocument;
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
+typedef struct RustInitConfig RustInitConfig;
 typedef struct RustMarket RustMarket;
 typedef struct RustNaiveDateTime RustNaiveDateTime;
 typedef struct RustNewsResource RustNewsResource;
@@ -30,9 +31,10 @@ include = ["xayn-discovery-engine-core"]
 "Vec_Document" = "RustDocumentVec"
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
-"Market" = "RustMarket"
+"InitConfig" = "RustInitConfig"
 "NaiveDateTime" = "RustNaiveDateTime"
 "NewsResource" = "RustNewsResource"
+"Market" = "RustMarket"
 "Option_f32" = "RustOptionF32"
 "Option_Url" = "RustOptionUrl"
 "String" = "RustString"

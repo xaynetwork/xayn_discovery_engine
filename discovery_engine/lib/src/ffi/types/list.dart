@@ -21,6 +21,7 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
   final T Function(Pointer<RT>) readNative;
   final int Function(Pointer<RVT>) getVecLen;
   final Pointer<RT> Function(Pointer<RVT>) getVecBuffer;
+  final void Function(Pointer<RVT>, Pointer<RT>, int) writeNativeVec;
 
   ListFfiAdapter({
     required this.alloc,
@@ -29,6 +30,7 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
     required this.readNative,
     required this.getVecLen,
     required this.getVecBuffer,
+    required this.writeNativeVec,
   });
 
   /// Allocates a slice of markets containing all markets of this list.
@@ -52,6 +54,15 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
       return next(nextElement);
     });
     return out;
+  }
+
+  /// Writes a `Vec<T>` to given place.
+  void writeVec(
+    final List<T> list,
+    final Pointer<RVT> place,
+  ) {
+    final slice = createSlice(list);
+    writeNativeVec(place, slice, list.length);
   }
 
   /// Reads a rust-`&Vec<T>` returning a dart-`List<T>`.
