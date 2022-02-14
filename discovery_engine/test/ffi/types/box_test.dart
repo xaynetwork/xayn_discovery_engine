@@ -14,7 +14,7 @@ void main() {
     expect(box.ref, equals(dangling));
     expect(box.mut, equals(dangling));
   });
-  
+
   test('move moves the ownership', () {
     final box = Boxed(dangling, (_) {
       throw AssertionError('free is not supposed to be called here');
@@ -24,12 +24,18 @@ void main() {
     expect(box.mut, equals(dangling));
     expect(box.move(), equals(dangling));
     expect(box.moved, isTrue);
-    expect(() {
-      box.ref;
-    }, throwsStateError,);
-    expect(() {
-      box.mut;
-    }, throwsStateError,);
+    expect(
+      () {
+        box.ref;
+      },
+      throwsStateError,
+    );
+    expect(
+      () {
+        box.mut;
+      },
+      throwsStateError,
+    );
   });
 
   test('free calls free and moves ownership', () {

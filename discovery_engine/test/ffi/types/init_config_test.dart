@@ -13,8 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart';
-import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
 
@@ -34,10 +34,9 @@ void main() {
       kpeCnn: 'abc',
       kpeClassifier: 'magic',
     );
-    final place = ffi.alloc_uninitialized_init_config();
-    config.writeNative(place);
-    final res = InitConfigFfi.readNative(place);
-    ffi.drop_init_config(place);
+    final boxed = config.allocNative();
+    final res = InitConfigFfi.readNative(boxed.ref);
+    boxed.free();
     expect(res, equals(config));
   });
 }

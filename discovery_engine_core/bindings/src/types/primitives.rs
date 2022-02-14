@@ -14,7 +14,12 @@
 
 //! Modules containing FFI glue for handling primitives (expect `str`/`slice`).
 
-use super::{option::get_option_some, slice::{boxed_slice_from_raw_parts, alloc_uninitialized_slice}, vec::{alloc_vec, get_vec_len, get_vec_buffer}, boxed};
+use super::{
+    boxed,
+    option::get_option_some,
+    slice::{alloc_uninitialized_slice, boxed_slice_from_raw_parts},
+    vec::{alloc_vec, get_vec_buffer, get_vec_len},
+};
 
 /// Initializes a rust `Option<f32>` to `Some(value)`.
 ///
@@ -53,7 +58,6 @@ pub unsafe extern "C" fn init_none_f32_at(place: *mut Option<f32>) {
 pub unsafe extern "C" fn get_option_f32_some(option: *const Option<f32>) -> *const f32 {
     unsafe { get_option_some(option) }
 }
-
 
 /// Allocates an uninitialized array of floats.
 #[no_mangle]
@@ -98,6 +102,10 @@ pub unsafe extern "C" fn alloc_vec_u8(slice_ptr: *mut u8, slice_len: usize) -> *
 }
 
 /// Drops a `Box<Vec<u8>>`.
+///
+/// # Safety
+///
+/// The pointer must represent a `Box<Vec<u8>>`.
 #[no_mangle]
 pub unsafe extern "C" fn drop_vec_u8(ptr: *mut Vec<u8>) {
     unsafe { boxed::drop(ptr) }
