@@ -18,7 +18,7 @@ use std::ptr::addr_of_mut;
 
 use core::{InitConfig, Market};
 
-/// Returns a pointer to the `api_key` field of a document.
+/// Returns a pointer to the `api_key` field of a configuration.
 ///
 /// # Safety
 ///
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn init_config_place_of_api_key(place: *mut InitConfig) ->
     unsafe { addr_of_mut!((*place).api_key) }
 }
 
-/// Returns a pointer to the `api_base_url` field of a document.
+/// Returns a pointer to the `api_base_url` field of a configuration.
 ///
 /// # Safety
 ///
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn init_config_place_of_api_base_url(place: *mut InitConfi
     unsafe { addr_of_mut!((*place).api_base_url) }
 }
 
-/// Returns a pointer to the `markets` field of a document.
+/// Returns a pointer to the `markets` field of a configuration.
 ///
 /// # Safety
 ///
@@ -51,7 +51,7 @@ pub unsafe extern "C" fn init_config_place_of_markets(place: *mut InitConfig) ->
     unsafe { addr_of_mut!((*place).markets) }
 }
 
-/// Returns a pointer to the `smbert_vocab` field of a document.
+/// Returns a pointer to the `smbert_vocab` field of a configuration.
 ///
 /// # Safety
 ///
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn init_config_place_of_smbert_vocab(place: *mut InitConfi
     unsafe { addr_of_mut!((*place).smbert_vocab) }
 }
 
-/// Returns a pointer to the `smbert_model` field of a document.
+/// Returns a pointer to the `smbert_model` field of a configuration.
 ///
 /// # Safety
 ///
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn init_config_place_of_smbert_model(place: *mut InitConfi
     unsafe { addr_of_mut!((*place).smbert_model) }
 }
 
-/// Returns a pointer to the `kpe_vocab` field of a document.
+/// Returns a pointer to the `kpe_vocab` field of a configuration.
 ///
 /// # Safety
 ///
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn init_config_place_of_kpe_vocab(place: *mut InitConfig) 
     unsafe { addr_of_mut!((*place).kpe_vocab) }
 }
 
-/// Returns a pointer to the `kpe_model` field of a document.
+/// Returns a pointer to the `kpe_model` field of a configuration.
 ///
 /// # Safety
 ///
@@ -95,7 +95,7 @@ pub unsafe extern "C" fn init_config_place_of_kpe_model(place: *mut InitConfig) 
     unsafe { addr_of_mut!((*place).kpe_model) }
 }
 
-/// Returns a pointer to the `kpe_cnn` field of a document.
+/// Returns a pointer to the `kpe_cnn` field of a configuration.
 ///
 /// # Safety
 ///
@@ -106,7 +106,7 @@ pub unsafe extern "C" fn init_config_place_of_kpe_cnn(place: *mut InitConfig) ->
     unsafe { addr_of_mut!((*place).kpe_cnn) }
 }
 
-/// Returns a pointer to the `kpe_classifier` field of a document.
+/// Returns a pointer to the `kpe_classifier` field of a configuration.
 ///
 /// # Safety
 ///

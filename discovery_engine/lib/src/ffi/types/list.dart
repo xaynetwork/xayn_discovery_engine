@@ -35,7 +35,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
     required this.writeNativeVec,
   });
 
-  /// Allocates a slice of `T` containing all items of this list.
+  /// Allocates a slice of `RustType` containing all items of this list.
   Pointer<RustType> createSlice(List<Type> list) {
     final slice = alloc(list.length);
     list.fold<Pointer<RustType>>(slice, (nextElement, market) {
@@ -45,7 +45,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
     return slice;
   }
 
-  /// Reads a rust-`&[T]` returning a dart-`List<T>`.
+  /// Reads a rust-`&[RustType]` returning a dart-`List<Type>`.
   List<Type> readSlice(
     final Pointer<RustType> ptr,
     final int len,
@@ -58,7 +58,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
     return out;
   }
 
-  /// Writes a `Vec<T>` to given place.
+  /// Writes a `Vec<RustType>` to given place.
   void writeVec(
     final List<Type> list,
     final Pointer<RustVecType> place,
@@ -67,7 +67,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
     writeNativeVec(place, slice, list.length);
   }
 
-  /// Reads a rust-`&Vec<T>` returning a dart-`List<T>`.
+  /// Reads a rust-`&Vec<RustType>` returning a dart-`List<Type>`.
   List<Type> readVec(
     final Pointer<RustVecType> vec,
   ) {

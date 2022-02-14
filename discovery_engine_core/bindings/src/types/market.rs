@@ -18,7 +18,7 @@ use std::ptr::addr_of_mut;
 
 use core::Market;
 
-/// Returns a pointer to the `country_code` field of an [`Market`].
+/// Returns a pointer to the `country_code` field of a [`Market`].
 ///
 /// # Safety
 ///
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn market_place_of_country_code(place: *mut Market) -> *mu
     unsafe { addr_of_mut!((*place).country_code) }
 }
 
-/// Returns a pointer to the `lang_code` field of an [`Market`].
+/// Returns a pointer to the `lang_code` field of a [`Market`].
 ///
 /// # Safety
 ///

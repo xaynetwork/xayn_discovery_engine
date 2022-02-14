@@ -43,13 +43,13 @@ extension FeedMarketSliceFfi on List<FeedMarket> {
   ) =>
       _adapter.readSlice(ptr, len);
 
-  /// Writes a rust-`Vec<Market>` to given place.
+  /// Writes a rust-`Vec<RustMarket>` to given place.
   void writeVec(
     final Pointer<RustMarketVec> place,
   ) =>
       _adapter.writeVec(this, place);
 
-  /// Reads a rust-`&Vec<RustMarketVec>` returning a dart-`List<FeedMarket>`.
+  /// Reads a rust-`&Vec<RustMarket>` returning a dart-`List<FeedMarket>`.
   static List<FeedMarket> readVec(
     final Pointer<RustMarketVec> vec,
   ) =>

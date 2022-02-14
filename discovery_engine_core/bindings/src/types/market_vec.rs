@@ -55,7 +55,7 @@ pub extern "C" fn alloc_uninitialized_market_slice(len: usize) -> *mut Market {
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid `RustMarket` memory object, it might
+/// The pointer must point to a valid `Market` memory object, it might
 /// be uninitialized. If it's the last object in an array the returned pointer
 /// must not be dereferenced.
 #[no_mangle]
@@ -73,21 +73,21 @@ pub unsafe extern "C" fn drop_market_slice(markets: *mut Market, len: usize) {
     drop(unsafe { boxed_slice_from_raw_parts(markets, len) });
 }
 
-/// Returns the length of a `Box<Vec<T>>`.
+/// Returns the length of a `Box<Vec<Market>>`.
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid `Vec<T>` instance.
+/// The pointer must point to a valid `Vec<Market>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn get_market_vec_len(markets: *mut Vec<Market>) -> usize {
     unsafe { get_vec_len(markets) }
 }
 
-/// Returns the `*mut T` to the beginning of the buffer of a `Box<Vec<T>>`.
+/// Returns the `*mut Market` to the beginning of the buffer of a `Box<Vec<Market>>`.
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid `Vec<T>` instance.
+/// The pointer must point to a valid `Vec<Market>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn get_market_vec_buffer(markets: *mut Vec<Market>) -> *mut Market {
     unsafe { get_vec_buffer(markets) }

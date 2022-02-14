@@ -41,13 +41,13 @@ extension DocumentSliceFfi on List<DocumentFfi> {
   ) =>
       _adapter.readSlice(ptr, len);
 
-  /// Writes a rust-`Vec<Document>` to given place.
+  /// Writes a rust-`Vec<RustDocument>` to given place.
   void writeVec(
     final Pointer<RustDocumentVec> place,
   ) =>
       _adapter.writeVec(this, place);
 
-  /// Reads a rust-`&Vec<RustMarketVec>` returning a dart-`List<FeedMarket>`.
+  /// Reads a rust-`&Vec<RustDocument>` returning a dart-`List<Document>`.
   static List<DocumentFfi> readVec(
     final Pointer<RustDocumentVec> vec,
   ) =>

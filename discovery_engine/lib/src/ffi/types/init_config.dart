@@ -14,9 +14,12 @@
 
 import 'dart:ffi' show Pointer;
 
-import 'package:equatable/equatable.dart';
-import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart';
+import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:meta/meta.dart' show visibleForTesting;
+import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
+    show Configuration;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustInitConfig;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -89,7 +92,7 @@ class InitConfigFfi with EquatableMixin {
     kpeClassifier.writeNative(ffi.init_config_place_of_kpe_classifier(place));
   }
 
-  // used for testing only
+  @visibleForTesting
   static InitConfigFfi readNative(Pointer<RustInitConfig> config) {
     return InitConfigFfi.fromParts(
       apiKey: StringFfi.readNative(ffi.init_config_place_of_api_key(config)),

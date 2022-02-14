@@ -86,7 +86,7 @@ pub struct InitConfig {
     pub kpe_vocab: String,
     /// KPE model path
     pub kpe_model: String,
-    /// KPE CNN model path
+    /// KPE CNN path
     pub kpe_cnn: String,
     /// KPR classifier path
     pub kpe_classifier: String,
