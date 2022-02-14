@@ -8,26 +8,12 @@ on:
         value: ${{ jobs.build-ios-libs.outputs.artifact-dir-base }}
 
 jobs:
-  build-ios-matrix:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 5
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
-      - uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 # v1.0.2
-      - id: set-matrix
-        run: |
-          TARGETS=$(target_array=($IOS_TARGETS); jq --compact-output --null-input '$ARGS.positional' --args "${target_array[@]}")
-          echo "::set-output name=matrix::$(echo {\"target\":$TARGETS})"
-
   build-ios-libs:
-    needs: build-ios-matrix
     runs-on: macos-11
     timeout-minutes: 35
     strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.build-ios-matrix.outputs.matrix) }}
+      matrix:
+        target: ["aarch64-apple-ios", "x86_64-apple-ios"]
     env:
       ARTIFACT_DIR_BASE: ${{ github.job }}
     outputs:
@@ -35,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Setup the rust CI.
+      - name: Setup the rust CI
         uses: ./.github/actions/setup-job
         with:
           rust: true
