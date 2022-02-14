@@ -378,9 +378,9 @@ impl Engine<xayn_ai::ranker::Ranker> {
     }
 }
 
-/// Locked discovery engine.
+/// A shared discovery engine with a lock.
 #[allow(clippy::module_name_repetitions)]
-pub struct LockedEngine(pub Mutex<Engine<xayn_ai::ranker::Ranker>>);
+pub struct SharedEngine(pub Mutex<Engine<xayn_ai::ranker::Ranker>>);
 
 /// A wrapper around a dynamic error type, similar to `anyhow::Error`,
 /// but without the need to declare `anyhow` as a dependency.

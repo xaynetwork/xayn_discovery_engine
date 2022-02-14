@@ -34,18 +34,18 @@ impl AsyncCore {
     /// Initializes the engine.
     pub async fn initialize(
         config: Box<core::InitConfig>,
-        state: &Option<Vec<u8>>,
-    ) -> Box<Result<core::LockedEngine, String>> {
+        state: Option<&Vec<u8>>,
+    ) -> Box<Result<core::SharedEngine, String>> {
         Box::new(
-            core::Engine::from_config(*config, state.as_deref())
+            core::Engine::from_config(*config, state.map(Vec::as_slice))
                 .await
-                .map(|engine| core::LockedEngine(tokio::sync::Mutex::new(engine)))
+                .map(|engine| core::SharedEngine(tokio::sync::Mutex::new(engine)))
                 .map_err(|error| error.to_string()),
         )
     }
 
     /// Serializes the engine.
-    pub async fn serialize(engine: &core::LockedEngine) -> Box<Result<Vec<u8>, String>> {
+    pub async fn serialize(engine: &core::SharedEngine) -> Box<Result<Vec<u8>, String>> {
         Box::new(
             engine
                 .0
@@ -60,7 +60,7 @@ impl AsyncCore {
     /// Sets the markets.
     #[allow(clippy::box_vec)]
     pub async fn set_markets(
-        engine: &core::LockedEngine,
+        engine: &core::SharedEngine,
         markets: Box<Vec<core::Market>>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -76,7 +76,7 @@ impl AsyncCore {
 
     /// Gets feed documents.
     pub async fn get_feed_documents(
-        engine: &core::LockedEngine,
+        engine: &core::SharedEngine,
         max_documents: u32,
     ) -> Box<Result<Vec<core::document::Document>, String>> {
         Box::new(
@@ -92,7 +92,7 @@ impl AsyncCore {
 
     /// Processes time spent.
     pub async fn time_spent(
-        engine: &core::LockedEngine,
+        engine: &core::SharedEngine,
         time_spent: &core::document::TimeSpent,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -108,7 +108,7 @@ impl AsyncCore {
 
     /// Processes user reaction.
     pub async fn user_reacted(
-        engine: &core::LockedEngine,
+        engine: &core::SharedEngine,
         reacted: &core::document::UserReacted,
     ) -> Box<Result<(), String>> {
         Box::new(
