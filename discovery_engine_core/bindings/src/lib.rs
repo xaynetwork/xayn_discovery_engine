@@ -56,4 +56,21 @@ impl AsyncCore {
                 .map_err(|error| error.to_string()),
         )
     }
+
+    /// Sets the markets.
+    #[allow(clippy::box_vec)]
+    pub async fn set_markets(
+        engine: &core::LockedEngine,
+        markets: Box<Vec<core::Market>>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .0
+                .lock()
+                .await
+                .set_markets(*markets)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
 }

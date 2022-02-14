@@ -18,4 +18,5 @@
 //! proc-macro generated code on stable.
 
 #[rustfmt::skip]
+#[allow(clippy::box_vec)]
 pub mod async_core;
