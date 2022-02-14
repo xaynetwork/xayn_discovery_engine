@@ -16,7 +16,7 @@ import 'dart:io' show Directory, File;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show Manifest, kAssetsPath;
+    show Manifest, kAssetsPath, logger;
 
 class FlutterBundleAssetCopier {
   final String bundleAssetsPath;
@@ -37,12 +37,18 @@ class FlutterBundleAssetCopier {
 
       if (fileRef.existsSync()) continue;
 
-      final bytes = await rootBundle.load('$bundleAssetsPath/$urlSuffix');
-      await Directory(fileRef.parent.path).create(recursive: true);
-      await fileRef.writeAsBytes(bytes.buffer.asUint8List(
-        bytes.offsetInBytes,
-        bytes.lengthInBytes,
-      ));
+      try {
+        final bytes = await rootBundle.load('$bundleAssetsPath/$urlSuffix');
+        await Directory(fileRef.parent.path).create(recursive: true);
+        await fileRef.writeAsBytes(bytes.buffer.asUint8List(
+          bytes.offsetInBytes,
+          bytes.lengthInBytes,
+        ));
+      } catch (e, s) {
+        final message =
+            'Coould not copy the asset "$urlSuffix" to the path: ${fileRef.path}';
+        logger.e(message, e, s);
+      }
     }
   }
 }
