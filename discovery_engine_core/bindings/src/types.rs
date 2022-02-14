@@ -24,6 +24,7 @@ pub mod market;
 pub mod market_vec;
 pub mod option;
 pub mod primitives;
+pub mod result;
 pub mod slice;
 pub mod string;
 pub mod url;

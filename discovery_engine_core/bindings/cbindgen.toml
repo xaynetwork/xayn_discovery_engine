@@ -19,7 +19,6 @@ typedef struct RustTimeSpent RustTimeSpent;
 typedef struct RustUrl RustUrl;
 typedef struct RustUserReacted RustUserReacted;
 typedef struct RustUuid RustUuid;
-typedef struct RustVecU8 RustVecU8;
 """
 
 [parse]
@@ -39,6 +38,9 @@ include = ["xayn-discovery-engine-core"]
 "Market" = "RustMarket"
 "Option_f32" = "RustOptionF32"
 "Option_Url" = "RustOptionUrl"
+"Result_String" = "RustResultVoidString"
+"Result_Vec_Document_____String" = "RustResultVecDocumentString"
+"Result_Vec_u8_____String" = "RustResultVecU8String"
 "String" = "RustString"
 "TimeSpent" = "RustTimeSpent"
 "Url" = "RustUrl"
