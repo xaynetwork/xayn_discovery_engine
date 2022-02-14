@@ -218,8 +218,15 @@ where
     }
 
     /// Updates the markets configuration.
-    pub async fn set_markets(&mut self, markets: Vec<Market>) {
+    ///
+    /// Also resets and updates all stacks.
+    pub async fn set_markets(&mut self, markets: Vec<Market>) -> Result<(), Error> {
         *self.config.markets.write().await = markets;
+
+        for stack in self.stacks.write().await.values_mut() {
+            stack.data = StackData::default();
+        }
+        self.update_stacks(self.core_config.request_new).await
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
