@@ -15,13 +15,11 @@
 //! Modules containing FFI glue for `Vec<T>`.
 
 /// Get length of a `Box<Vec<T>>`.
-#[allow(dead_code)]
 pub(super) unsafe fn get_vec_len<T>(vec: *mut Vec<T>) -> usize {
     unsafe { &*vec }.len()
 }
 
 /// Get a pointer to the beginning of a `Box<Vec<T>>`'s buffer.
-#[allow(dead_code)]
 pub(super) unsafe fn get_vec_buffer<T>(vec: *mut Vec<T>) -> *mut T {
     unsafe { &mut *vec }.as_mut_ptr()
 }
