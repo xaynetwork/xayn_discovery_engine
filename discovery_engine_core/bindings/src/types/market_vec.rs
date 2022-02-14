@@ -28,7 +28,7 @@ use crate::types::{
 ///
 /// # Safety
 ///
-/// - It must be valid to write an `Option<f32>` instance to given pointer,
+/// - It must be valid to write an `Option<Vec<Market>>` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
 /// - It must be valid to construct a `Box<[Market]>` from given `slice_ptr`
 ///   and `len`.

@@ -14,14 +14,16 @@
 
 import 'dart:ffi' show NativeType, Pointer;
 
-class ListFfiAdapter<Type, RustType extends NativeType, RustVecType extends NativeType> {
+class ListFfiAdapter<Type, RustType extends NativeType,
+    RustVecType extends NativeType> {
   final Pointer<RustType> Function(int) alloc;
   final Pointer<RustType> Function(Pointer<RustType>) next;
   final void Function(Type, Pointer<RustType>) writeNative;
   final Type Function(Pointer<RustType>) readNative;
   final int Function(Pointer<RustVecType>) getVecLen;
   final Pointer<RustType> Function(Pointer<RustVecType>) getVecBuffer;
-  final void Function(Pointer<RustVecType>, Pointer<RustType>, int) writeNativeVec;
+  final void Function(Pointer<RustVecType>, Pointer<RustType>, int)
+      writeNativeVec;
 
   ListFfiAdapter({
     required this.alloc,
@@ -33,7 +35,7 @@ class ListFfiAdapter<Type, RustType extends NativeType, RustVecType extends Nati
     required this.writeNativeVec,
   });
 
-  /// Allocates a slice of markets containing all markets of this list.
+  /// Allocates a slice of `T` containing all items of this list.
   Pointer<RustType> createSlice(List<Type> list) {
     final slice = alloc(list.length);
     list.fold<Pointer<RustType>>(slice, (nextElement, market) {

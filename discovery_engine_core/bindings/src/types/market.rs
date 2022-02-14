@@ -14,8 +14,9 @@
 
 //! FFI functions for handling [`Market`] instances.
 
-use core::Market;
 use std::ptr::addr_of_mut;
+
+use core::Market;
 
 /// Returns a pointer to the `country_code` field of an [`Market`].
 ///
