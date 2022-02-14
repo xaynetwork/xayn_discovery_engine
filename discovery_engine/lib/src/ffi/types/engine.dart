@@ -56,4 +56,16 @@ class BoxedEngine {
 
     return BoxedEngine._(engine);
   }
+
+  Future<List<int>> serialize() async {
+    final result = await asyncCore.serialize(_ptr);
+    // TODO: impl RustResultVecU8 getters
+    final bytes = ffi.get_result_bytes_vec_ok(result);
+    if (bytes == null) {
+      throw Exception('${ffi.get_result_bytes_vec_err(result)}');
+    }
+
+    // TODO: add Uint8List handling to ListFfiAdapter
+    return bytes.readVec();
+  }
 }
