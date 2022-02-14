@@ -14,14 +14,14 @@
 
 import 'dart:ffi' show NativeType, Pointer;
 
-class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
-  final Pointer<RT> Function(int) alloc;
-  final Pointer<RT> Function(Pointer<RT>) next;
-  final void Function(T, Pointer<RT>) writeNative;
-  final T Function(Pointer<RT>) readNative;
-  final int Function(Pointer<RVT>) getVecLen;
-  final Pointer<RT> Function(Pointer<RVT>) getVecBuffer;
-  final void Function(Pointer<RVT>, Pointer<RT>, int) writeNativeVec;
+class ListFfiAdapter<Type, RustType extends NativeType, RustVecType extends NativeType> {
+  final Pointer<RustType> Function(int) alloc;
+  final Pointer<RustType> Function(Pointer<RustType>) next;
+  final void Function(Type, Pointer<RustType>) writeNative;
+  final Type Function(Pointer<RustType>) readNative;
+  final int Function(Pointer<RustVecType>) getVecLen;
+  final Pointer<RustType> Function(Pointer<RustVecType>) getVecBuffer;
+  final void Function(Pointer<RustVecType>, Pointer<RustType>, int) writeNativeVec;
 
   ListFfiAdapter({
     required this.alloc,
@@ -34,9 +34,9 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
   });
 
   /// Allocates a slice of markets containing all markets of this list.
-  Pointer<RT> createSlice(List<T> list) {
+  Pointer<RustType> createSlice(List<Type> list) {
     final slice = alloc(list.length);
-    list.fold<Pointer<RT>>(slice, (nextElement, market) {
+    list.fold<Pointer<RustType>>(slice, (nextElement, market) {
       writeNative(market, nextElement);
       return next(nextElement);
     });
@@ -44,12 +44,12 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
   }
 
   /// Reads a rust-`&[T]` returning a dart-`List<T>`.
-  List<T> readSlice(
-    final Pointer<RT> ptr,
+  List<Type> readSlice(
+    final Pointer<RustType> ptr,
     final int len,
   ) {
-    final out = <T>[];
-    Iterable<int>.generate(len).fold<Pointer<RT>>(ptr, (nextElement, _) {
+    final out = <Type>[];
+    Iterable<int>.generate(len).fold<Pointer<RustType>>(ptr, (nextElement, _) {
       out.add(readNative(nextElement));
       return next(nextElement);
     });
@@ -58,16 +58,16 @@ class ListFfiAdapter<T, RT extends NativeType, RVT extends NativeType> {
 
   /// Writes a `Vec<T>` to given place.
   void writeVec(
-    final List<T> list,
-    final Pointer<RVT> place,
+    final List<Type> list,
+    final Pointer<RustVecType> place,
   ) {
     final slice = createSlice(list);
     writeNativeVec(place, slice, list.length);
   }
 
   /// Reads a rust-`&Vec<T>` returning a dart-`List<T>`.
-  List<T> readVec(
-    final Pointer<RVT> vec,
+  List<Type> readVec(
+    final Pointer<RustVecType> vec,
   ) {
     final len = getVecLen(vec);
     final slice = getVecBuffer(vec);
