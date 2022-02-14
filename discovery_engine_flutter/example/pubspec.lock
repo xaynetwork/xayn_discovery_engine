@@ -339,7 +339,7 @@ packages:
       name: win32
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.3.10"
+    version: "2.3.6"
   xayn_discovery_engine:
     dependency: "direct overridden"
     description:
@@ -362,5 +362,5 @@ packages:
     source: hosted
     version: "0.2.0"
 sdks:
-  dart: ">=2.15.0 <3.0.0"
+  dart: ">=2.14.4 <3.0.0"
   flutter: ">=2.5.0"

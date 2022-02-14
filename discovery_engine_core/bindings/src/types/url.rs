@@ -80,7 +80,7 @@ unsafe fn parse_url_from_parts(str_ptr: *const u8, str_len: usize) -> Result<Url
 ///
 /// # Safety
 ///
-/// - It must be valid to write a `Option<Url>` instance to given pointer,
+/// - It must be valid to write an `Option<Url>` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
 #[no_mangle]
 pub unsafe extern "C" fn inti_none_url_at(place: *mut Option<Url>) {

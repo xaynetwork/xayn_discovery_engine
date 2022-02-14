@@ -17,24 +17,23 @@ import 'dart:typed_data' show Float32List;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, StackId;
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
-    show UserReactedFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
+    show TimeSpentFfi;
 
 void main() {
   test('reading written user reacted instance yields same result', () {
-    final document = UserReactedFfi(
+    final timeSpent = TimeSpentFfi(
       id: DocumentId(),
-      stackId: StackId(),
-      snippet: 'Cloning brought back the dodo.',
       smbertEmbedding: Float32List.fromList([.9, .1]),
+      time: const Duration(days: 2),
       reaction: UserReaction.negative,
     );
-    final place = ffi.alloc_uninitialized_user_reacted();
-    document.writeTo(place);
-    final res = UserReactedFfi.readFrom(place);
-    ffi.drop_user_reacted(place);
-    expect(res, equals(document));
+    final place = ffi.alloc_uninitialized_time_spend();
+    timeSpent.writeTo(place);
+    final res = TimeSpentFfi.readFrom(place);
+    ffi.drop_time_spent(place);
+    expect(res, equals(timeSpent));
   });
 }

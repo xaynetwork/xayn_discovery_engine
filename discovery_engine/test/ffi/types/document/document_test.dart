@@ -15,26 +15,38 @@
 import 'dart:typed_data' show Float32List;
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/models/document.dart';
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
-    show UserReactedFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
+    show DocumentFfi;
 
 void main() {
-  test('reading written user reacted instance yields same result', () {
-    final document = UserReactedFfi(
+  test('reading and written a document', () {
+    final document = DocumentFfi(
       id: DocumentId(),
       stackId: StackId(),
-      snippet: 'Cloning brought back the dodo.',
       smbertEmbedding: Float32List.fromList([.9, .1]),
-      reaction: UserReaction.negative,
+      resource: NewsResource(
+        title: 'fun',
+        snippet: 'fun is fun',
+        url: Uri.parse('https://www.foobar.example/dodo'),
+        sourceUrl: Uri.parse('yyy://www.example/'),
+        thumbnail: null,
+        datePublished: DateTime.now(),
+        rank: 12,
+        score: 32.5,
+        country: 'Germany',
+        language: 'German',
+        topic: 'FunFun',
+      ),
     );
-    final place = ffi.alloc_uninitialized_user_reacted();
-    document.writeTo(place);
-    final res = UserReactedFfi.readFrom(place);
-    ffi.drop_user_reacted(place);
+    final place = ffi.alloc_uninitialized_document();
+    document.writeNative(place);
+    final res = DocumentFfi.readNative(place);
+    ffi.drop_document(place);
     expect(res, equals(document));
   });
 }

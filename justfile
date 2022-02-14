@@ -37,7 +37,7 @@ flutter-deps:
     flutter pub get
 
 # Fetches rust dependencies
-rust-deps:
+rust-deps: install-async-bindgen
     cd "$RUST_WORKSPACE"; \
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
@@ -51,7 +51,7 @@ install-async-bindgen *args:
     fi
 
 # Get/Update/Fetch/Install all dependencies
-deps: dart-deps rust-deps install-async-bindgen
+deps: flutter-deps dart-deps rust-deps install-async-bindgen
 
 # Formats dart (checks only on CI)
 dart-fmt:
@@ -195,7 +195,7 @@ rust-clean:
 dart-clean:
     find "$DART_WORKSPACE" -type d -name .dart_tool -prune -exec rm -r '{}' \;
 
-# Remvoes all local cargo isntalls
+# Removes all local cargo installs
 clean-tools:
     -rm -r "$CARGO_INSTALL_ROOT"
 
@@ -218,6 +218,33 @@ _dry-run-release: clean deps dart-build
 
 dry-run-release:
      @CI=true {{just_executable()}} _dry-run-release
+
+compile-android target:
+    # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
+    cd "$RUST_WORKSPACE"; \
+        cargo ndk -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build --release
+
+compile-android-local:
+    #!/usr/bin/env sh
+    set -eu
+    for TARGET in $ANDROID_TARGETS; do
+        {{just_executable()}} compile-android $TARGET
+    done
+
+# Compiles the bindings for the given iOS target
+compile-ios target:
+    cd "$RUST_WORKSPACE"; \
+    cargo build --target {{target}} -p xayn-discovery-engine-bindings --release
+
+# Compiles the bindings for iphoneos (aarch64) and iphonesimulator (x86_64)
+# and copies the binaries to the flutter project
+compile-ios-local:
+    #!/usr/bin/env sh
+    set -eu
+    for TARGET in $IOS_TARGETS; do
+        {{just_executable()}} compile-ios $TARGET
+        cp "$RUST_WORKSPACE/target/$TARGET/release/libxayn_discovery_engine_bindings.a" "$FLUTTER_WORKSPACE/ios/libxayn_discovery_engine_bindings_${TARGET}.a"
+    done
 
 alias d := dart-test
 alias r := rust-test

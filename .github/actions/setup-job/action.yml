@@ -13,6 +13,9 @@ inputs:
   deps:
     description: 'Fetch/Install dependencies'
     default: true
+  github_token:
+    description: 'The github token used for the `just` action to avoid exceeding API rate limits'
+    required: true
 runs:
   using: "composite"
   steps:
@@ -21,6 +24,8 @@ runs:
 
     - name: Install just
       uses: extractions/setup-just@aa5d15c144db4585980a44ebfdd2cf337c4f14cb #v1.4.0
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
       with:
         just-version: ${{ env.JUST_VERSION }}
 
@@ -33,14 +38,14 @@ runs:
 
     - name: Install flutter
       uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
-      if: inputs.flutter
+      if: inputs.flutter != 'false'
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
         cache: true
 
     - name: Setup flutter dependencies
       shell: bash
-      if: inputs.flutter
+      if: inputs.flutter != 'false'
       run: |
         just flutter-deps
 
@@ -69,12 +74,20 @@ runs:
       shell: bash
       if: inputs.deps
       run: |
-        if [[ "${{ inputs.dart }}" == "true" || "${{ inputs.flutter }}" == "true" ]] && [[ "${{ inputs.rust }}" == "true" ]]; then
-          # ffigen dep, not handled by `just deps` as it's OS specific.
+        if [[ "${{ inputs.dart }}" != "false" || "${{ inputs.flutter }}" != "false" ]] && [[ "${{ inputs.rust }}" != "false" ]]; then
+          # ffigen dep, not handled by `just` as it's OS specific.
           sudo apt-get install libclang-10-dev
-          just deps
-        elif [ "${{ inputs.dart }}" == "true" ]; then
-          just dart-deps
-        elif [ "${{ inputs.rust }}" == "true" ]; then
+        fi
+
+        if [ "${{ inputs.rust }}" != "false" ]; then
           just rust-deps
         fi
+
+        if [ "${{ inputs.dart }}" == "true" ]; then
+          just dart-deps
+        fi
+
+        if [ "${{ inputs.flutter }}" == "true" ]; then
+          just flutter-deps
+        fi
+
