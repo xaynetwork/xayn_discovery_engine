@@ -30,7 +30,6 @@ include = ["xayn-discovery-engine-core"]
 "NewsResource" = "RustNewsResource"
 "Option_f32" = "RustOptionF32"
 "Option_Url" = "RustOptionUrl"
-"Option_Vec_u8" = "RustOptionVecU8"
 "Result_SharedEngine__String" = "RustResultSharedEngineString"
 "Result_String" = "RustResultVoidString"
 "Result_Vec_Document_____String" = "RustResultVecDocumentString"

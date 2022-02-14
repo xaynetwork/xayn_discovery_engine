@@ -32,12 +32,13 @@ pub mod types;
 #[async_bindgen::api]
 impl AsyncCore {
     /// Initializes the engine.
+    #[allow(clippy::box_vec)]
     pub async fn initialize(
         config: Box<core::InitConfig>,
-        state: Option<&Vec<u8>>,
+        state: Option<Box<Vec<u8>>>,
     ) -> Box<Result<core::SharedEngine, String>> {
         Box::new(
-            core::Engine::from_config(*config, state.map(Vec::as_slice))
+            core::Engine::from_config(*config, state.as_deref().map(Vec::as_slice))
                 .await
                 .map(|engine| core::SharedEngine(tokio::sync::Mutex::new(engine)))
                 .map_err(|error| error.to_string()),
