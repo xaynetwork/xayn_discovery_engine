@@ -18,7 +18,6 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
-import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
 
@@ -31,10 +30,9 @@ void main() {
       smbertEmbedding: Float32List.fromList([.9, .1]),
       reaction: UserReaction.negative,
     );
-    final place = ffi.alloc_uninitialized_user_reacted();
-    document.writeTo(place);
-    final res = UserReactedFfi.readFrom(place);
-    ffi.drop_user_reacted(place);
+    final boxed = document.allocNative();
+    final res = UserReactedFfi.readNative(boxed.ref);
+    boxed.free();
     expect(res, equals(document));
   });
 }

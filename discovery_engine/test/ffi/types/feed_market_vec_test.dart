@@ -14,7 +14,6 @@
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/api.dart';
-import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
 
@@ -30,9 +29,9 @@ void main() {
         langCode: 'ED',
       )
     ];
-    final ptr = market.createSlice();
-    final res = FeedMarketSliceFfi.readSlice(ptr, market.length);
-    ffi.drop_market_slice(ptr, market.length);
+    final boxed = market.allocVec();
+    final res = FeedMarketSliceFfi.readVec(boxed.ref);
+    boxed.free();
     expect(market, equals(res));
   });
 }
