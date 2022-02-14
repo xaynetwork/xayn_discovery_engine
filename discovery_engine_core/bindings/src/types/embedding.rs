@@ -94,7 +94,7 @@ mod tests {
 
     use ndarray::arr1;
 
-    use crate::types::slice::alloc_uninitialized_f32_slice;
+    use crate::types::primitives::alloc_uninitialized_f32_slice;
 
     use super::*;
 

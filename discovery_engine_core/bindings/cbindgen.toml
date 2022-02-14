@@ -19,6 +19,7 @@ typedef struct RustTimeSpent RustTimeSpent;
 typedef struct RustUrl RustUrl;
 typedef struct RustUserReacted RustUserReacted;
 typedef struct RustUuid RustUuid;
+typedef struct RustVecU8 RustVecU8;
 """
 
 [parse]
@@ -29,6 +30,7 @@ include = ["xayn-discovery-engine-core"]
 # Renamings to avoid name conflicts/confusion in dart.
 "Document" = "RustDocument"
 "Vec_Document" = "RustDocumentVec"
+"Vec_u8" = "RustVecU8"
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
 "InitConfig" = "RustInitConfig"
