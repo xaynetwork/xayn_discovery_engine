@@ -89,4 +89,20 @@ impl AsyncCore {
                 .map_err(|error| error.to_string()),
         )
     }
+
+    /// Processes time spent.
+    pub async fn time_spent(
+        engine: &core::LockedEngine,
+        time_spent: &core::document::TimeSpent,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .0
+                .lock()
+                .await
+                .time_spent(time_spent)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
 }
