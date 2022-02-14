@@ -16,6 +16,8 @@ import 'dart:ffi' show nullptr, Pointer;
 
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
@@ -62,10 +64,27 @@ class BoxedEngine {
     // TODO: impl RustResultVecU8 getters
     final bytes = ffi.get_result_bytes_vec_ok(result);
     if (bytes == null) {
+      // TODO: free RustString error
       throw Exception('${ffi.get_result_bytes_vec_err(result)}');
     }
 
     // TODO: add Uint8List handling to ListFfiAdapter
     return bytes.readVec();
+  }
+
+  Future<void> setMarkets(List<FeedMarket> markets) async {
+    // TODO: impl alloc_uninit for RustVecMarket and impl ListFfiAdapter
+    final marketsPtr = ffi.alloc_uninitialized_market_vec(markets.length);
+    markets.writeVec(marketsPtr);
+
+    final result = await asyncCore.setMarkets(_ptr, marketsPtr);
+    // TODO: impl RustResultVoid getters
+    final error = ffi.get_result_void_err(result);
+    if (error != null) {
+      // TODO: free RustString error
+      throw Exception('$error');
+    }
+
+    return;
   }
 }
