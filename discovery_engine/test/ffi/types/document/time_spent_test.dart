@@ -31,8 +31,8 @@ void main() {
       reaction: UserReaction.negative,
     );
     final place = ffi.alloc_uninitialized_time_spend();
-    timeSpent.writeTo(place);
-    final res = TimeSpentFfi.readFrom(place);
+    timeSpent.writeNative(place);
+    final res = TimeSpentFfi.readNative(place);
     ffi.drop_time_spent(place);
     expect(res, equals(timeSpent));
   });

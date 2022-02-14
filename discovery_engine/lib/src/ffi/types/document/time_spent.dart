@@ -21,6 +21,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustTimeSpent;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
     show UserReactionFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/duration.dart'
@@ -43,7 +44,7 @@ class TimeSpentFfi with EquatableMixin {
     required this.reaction,
   });
 
-  factory TimeSpentFfi.readFrom(final Pointer<RustTimeSpent> place) {
+  factory TimeSpentFfi.readNative(final Pointer<RustTimeSpent> place) {
     return TimeSpentFfi(
       id: DocumentIdFfi.readNative(ffi.time_spent_place_of_id(place)),
       smbertEmbedding: EmbeddingFfi.readNative(
@@ -56,7 +57,13 @@ class TimeSpentFfi with EquatableMixin {
     );
   }
 
-  void writeTo(final Pointer<RustTimeSpent> place) {
+  Boxed<RustTimeSpent> allocNative() {
+    final place = ffi.alloc_uninitialized_time_spend();
+    writeNative(place);
+    return Boxed(place, ffi.drop_time_spent);
+  }
+
+  void writeNative(final Pointer<RustTimeSpent> place) {
     id.writeNative(ffi.time_spent_place_of_id(place));
     smbertEmbedding
         .writeNative(ffi.time_spent_place_of_smbert_embedding(place));
