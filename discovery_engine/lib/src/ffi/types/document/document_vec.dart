@@ -19,30 +19,39 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
     show DocumentFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/list.dart';
+
+final _adapter = ListFfiAdapter<DocumentFfi, RustDocument, RustDocumentVec>(
+  alloc: ffi.alloc_uninitialized_document_slice,
+  next: ffi.next_document,
+  writeNative: (document, place) => document.writeNative(place),
+  readNative: (place) => DocumentFfi.readNative(place),
+  getVecLen: ffi.get_document_vec_len,
+  getVecBuffer: ffi.get_document_vec_buffer,
+  writeNativeVec: ffi.init_document_vec_at,
+);
 
 extension DocumentSliceFfi on List<DocumentFfi> {
   /// Allocates a slice of documents containing all documents of this list.
-  Pointer<RustDocument> createSlice() {
-    final slice = ffi.alloc_uninitialized_document_slice(length);
-    fold<Pointer<RustDocument>>(slice, (nextElement, document) {
-      document.writeNative(nextElement);
-      return ffi.next_document(nextElement);
-    });
-    return slice;
-  }
+  Pointer<RustDocument> createSlice() => _adapter.createSlice(this);
 
   static List<DocumentFfi> readSlice(
     final Pointer<RustDocument> ptr,
     final int len,
-  ) {
-    final out = <DocumentFfi>[];
-    Iterable<int>.generate(len).fold<Pointer<RustDocument>>(ptr,
-        (nextElement, _) {
-      out.add(DocumentFfi.readNative(nextElement));
-      return ffi.next_document(nextElement);
-    });
-    return out;
-  }
+  ) =>
+      _adapter.readSlice(ptr, len);
+
+  /// Writes a rust-`Vec<RustDocument>` to given place.
+  void writeVec(
+    final Pointer<RustDocumentVec> place,
+  ) =>
+      _adapter.writeVec(this, place);
+
+  /// Reads a rust-`&Vec<RustDocument>` returning a dart-`List<Document>`.
+  static List<DocumentFfi> readVec(
+    final Pointer<RustDocumentVec> vec,
+  ) =>
+      _adapter.readVec(vec);
 
   /// Consumes a `Box<Vec<Document>>` returned from rust.
   ///
@@ -52,9 +61,7 @@ extension DocumentSliceFfi on List<DocumentFfi> {
   static List<DocumentFfi> consumeBoxedVector(
     Pointer<RustDocumentVec> boxedVec,
   ) {
-    final len = ffi.get_document_vec_len(boxedVec);
-    final slice = ffi.get_document_vec_buffer(boxedVec);
-    final res = readSlice(slice, len);
+    final res = readVec(boxedVec);
     ffi.drop_document_vec(boxedVec);
     return res;
   }
