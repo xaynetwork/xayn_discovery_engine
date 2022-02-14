@@ -13,20 +13,27 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io' show Directory, File;
+import 'dart:typed_data' show ByteData;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show Manifest, kAssetsPath, logger;
 
+/// A signature for a function loading the assets from bundle.
+typedef AssetLoader = Future<ByteData> Function(String key);
+
 class FlutterBundleAssetCopier {
   final String bundleAssetsPath;
   final String appDir;
+  final AssetLoader _loadAsset;
 
   FlutterBundleAssetCopier({
     required this.appDir,
     required this.bundleAssetsPath,
+    AssetLoader? loadAsset,
   })  : assert(appDir.isNotEmpty),
-        assert(bundleAssetsPath.isNotEmpty);
+        assert(bundleAssetsPath.isNotEmpty),
+        _loadAsset = loadAsset ?? rootBundle.load;
 
   Future<void> copyAssets(Manifest manifest) async {
     final storageDirPath = '$appDir/$kAssetsPath';
@@ -38,7 +45,7 @@ class FlutterBundleAssetCopier {
       if (fileRef.existsSync()) continue;
 
       try {
-        final bytes = await rootBundle.load('$bundleAssetsPath/$urlSuffix');
+        final bytes = await _loadAsset('$bundleAssetsPath/$urlSuffix');
         await Directory(fileRef.parent.path).create(recursive: true);
         await fileRef.writeAsBytes(bytes.buffer.asUint8List(
           bytes.offsetInBytes,
