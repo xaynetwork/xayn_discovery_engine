@@ -24,6 +24,10 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustResultEngine, RustEngine, RustVecU8;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart'
     show asyncCore, ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
+    show DocumentFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
+    show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
 
@@ -68,8 +72,8 @@ class BoxedEngine {
       throw Exception('${ffi.get_result_bytes_vec_err(result)}');
     }
 
-    // TODO: add Uint8List handling to ListFfiAdapter
-    return bytes.readVec();
+    // TODO: impl ByteSliceFfi for List<int>/Uint8List
+    return ByteSliceFfi.consumeBoxedVector(bytes);
   }
 
   Future<void> setMarkets(List<FeedMarket> markets) async {
@@ -86,5 +90,17 @@ class BoxedEngine {
     }
 
     return;
+  }
+
+  Future<List<DocumentFfi>> getFeedDocuments(int maxDocuments) async {
+    final result = await asyncCore.getFeedDocuments(_ptr, maxDocuments);
+    // TODO: impl RustResultVecDocument getters
+    final documents = ffi.get_result_document_vec_ok(result);
+    if (documents == null) {
+      // TODO: free RustString error
+      throw Exception('${ffi.get_result_document_vec_err(result)}');
+    }
+
+    return DocumentSliceFfi.consumeBoxedVector(documents);
   }
 }
