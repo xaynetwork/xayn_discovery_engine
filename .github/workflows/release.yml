@@ -23,6 +23,7 @@ jobs:
   release:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
+    needs: build-ios-libs
     steps:
       - name: Install SSH key
         uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0 # v2.3.1
@@ -38,6 +39,15 @@ jobs:
         with:
           dart: true
           rust: true
+
+      - name: Download artifacts
+        id: artifacts
+        uses: actions/download-artifact@f023be2c48cc18debc3bacd34cb396e0295e2869 # v2.1.0
+        with:
+          path: ${{ runner.temp }}/artifacts/
+
+      - working-directory: ${{ steps.artifacts.outputs.download-path }}
+        run: cp -R ${{ needs.build-ios-libs.outputs.artifact-dir-base }}-*/* ${{ github.workspace }}/${{ env.FLUTTER_WORKSPACE }}/ios
 
       - name: Generate Files
         shell: bash
