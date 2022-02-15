@@ -17,7 +17,7 @@ use std::{collections::HashMap, sync::Arc};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use xayn_ai::{
     ranker::{AveragePooler, Builder},
     KpeConfig,
@@ -31,6 +31,7 @@ use crate::{
     stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
 };
 
+/// Potential engine errors.
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// Failed to serialize internal state of the engine: {0}.
@@ -326,11 +327,7 @@ fn rank_stacks<'a>(
 
 impl Engine<xayn_ai::ranker::Ranker> {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
-    pub async fn from_config(
-        config: InitConfig,
-        stacks_ops: Vec<BoxedOps>,
-        state: Option<&[u8]>,
-    ) -> Result<Engine<impl Ranker>, Error> {
+    pub async fn from_config(config: InitConfig, state: Option<&[u8]>) -> Result<Self, Error> {
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(52)
@@ -351,6 +348,9 @@ impl Engine<xayn_ai::ranker::Ranker> {
         .with_accents(false)
         .with_lowercase(false);
 
+        // TODO: replace with vec![boxed_breaking_news, boxed_personalized_news] once #130 is merged
+        let stack_ops = vec![];
+
         let builder = Builder::from(smbert_config, kpe_config);
 
         if let Some(state) = state {
@@ -360,13 +360,17 @@ impl Engine<xayn_ai::ranker::Ranker> {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Engine::from_state(&state.engine, config.into(), ranker, stacks_ops).await
+            Engine::from_state(&state.engine, config.into(), ranker, stack_ops).await
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Engine::new(config.into(), ranker, stacks_ops).await
+            Engine::new(config.into(), ranker, stack_ops).await
         }
     }
 }
+
+/// Locked discovery engine.
+#[allow(clippy::module_name_repetitions)]
+pub struct LockedEngine(pub Mutex<Engine<xayn_ai::ranker::Ranker>>);
 
 /// A wrapper around a dynamic error type, similar to `anyhow::Error`,
 /// but without the need to declare `anyhow` as a dependency.

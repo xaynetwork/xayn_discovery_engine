@@ -31,8 +31,24 @@ pub mod types;
 
 #[async_bindgen::api]
 impl AsyncCore {
-    /// Adds two bytes.
-    pub async fn add(x: u8, y: u8) -> u8 {
-        x + y
+    /// Initializes the engine.
+    pub async fn init_engine(
+        config: Box<core::InitConfig>,
+        state: Box<Option<Vec<u8>>>,
+        error: &mut String,
+    ) -> Box<Option<core::LockedEngine>> {
+        use core::{Engine, LockedEngine};
+        use tokio::sync::Mutex;
+
+        let engine = match Engine::from_config(*config, state.as_deref()).await {
+            Ok(engine) => Some(LockedEngine(Mutex::new(engine))),
+            Err(err) => {
+                error.clear();
+                error.push_str(&err.to_string());
+                None
+            }
+        };
+
+        Box::new(engine)
     }
 }
