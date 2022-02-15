@@ -21,6 +21,8 @@ use crate::types::{
     vec::{get_vec_buffer, get_vec_len},
 };
 
+use super::boxed::{self, alloc_uninitialized};
+
 /// Initializes a `Vec<Market>` at given place.
 ///
 /// This moves the passed in slice into the vector,
@@ -49,6 +51,34 @@ pub extern "C" fn alloc_uninitialized_market_slice(len: usize) -> *mut Market {
     alloc_uninitialized_slice(len)
 }
 
+/// Drop a `Box<[Market]>`.
+///
+/// # Safety
+///
+/// The pointer must represent a valid `Box<[Market]>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_market_slice(markets: *mut Market, len: usize) {
+    drop(unsafe { boxed_slice_from_raw_parts(markets, len) });
+}
+
+/// Alloc an uninitialized `Box<Vec<Market>>`.
+#[no_mangle]
+pub extern "C" fn alloc_uninitialized_market_vec() -> *mut Vec<Market> {
+    alloc_uninitialized()
+}
+
+/// Drop a `Box<Vec<Market>>`.
+///
+/// # Safety
+///
+/// The pointer must represent a valid `Box<Vec<Market>>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_market_vec(markets: *mut Vec<Market>) {
+    unsafe {
+        boxed::drop(markets);
+    }
+}
+
 /// Given a pointer to a [`Market`] in a slice return the pointer to the next [`Market`].
 ///
 /// This also works if the slice is uninitialized.
@@ -61,16 +91,6 @@ pub extern "C" fn alloc_uninitialized_market_slice(len: usize) -> *mut Market {
 #[no_mangle]
 pub unsafe extern "C" fn next_market(place: *mut Market) -> *mut Market {
     unsafe { next_element(place) }
-}
-
-/// Drop a `Box<[Market]>`.
-///
-/// # Safety
-///
-/// The pointer must represent a valid `Box<[Market]>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn drop_market_slice(markets: *mut Market, len: usize) {
-    drop(unsafe { boxed_slice_from_raw_parts(markets, len) });
 }
 
 /// Returns the length of a `Box<Vec<Market>>`.

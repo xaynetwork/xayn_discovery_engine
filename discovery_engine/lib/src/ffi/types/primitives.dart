@@ -12,11 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show FloatPointer, Pointer;
+import 'dart:ffi' show FloatPointer, Pointer, Uint8Pointer;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustOptionF32;
+    show RustOptionF32, RustVecU8;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 
 class PrimitivesFfi {
   static void writeNativeOptionF32(
@@ -37,5 +39,20 @@ class PrimitivesFfi {
     } else {
       return ptr.value;
     }
+  }
+}
+
+extension Uint8ListFfi on Uint8List {
+  Boxed<RustVecU8> allocNative() {
+    final ptr = ffi.alloc_uninitialized_bytes(length);
+    ptr.asTypedList(length).setAll(0, this);
+    final vec = ffi.alloc_vec_u8(ptr, length);
+    return Boxed(vec, ffi.drop_vec_u8);
+  }
+
+  static Uint8List readNative(Pointer<RustVecU8> vec) {
+    final len = ffi.get_vec_u8_len(vec);
+    final buffer = ffi.get_vec_u8_buffer(vec);
+    return Uint8List.fromList(buffer.asTypedList(len));
   }
 }

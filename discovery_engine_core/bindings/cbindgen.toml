@@ -29,6 +29,7 @@ include = ["xayn-discovery-engine-core"]
 # Renamings to avoid name conflicts/confusion in dart.
 "Document" = "RustDocument"
 "Vec_Document" = "RustDocumentVec"
+"Vec_u8" = "RustVecU8"
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
 "InitConfig" = "RustInitConfig"
@@ -37,6 +38,9 @@ include = ["xayn-discovery-engine-core"]
 "Market" = "RustMarket"
 "Option_f32" = "RustOptionF32"
 "Option_Url" = "RustOptionUrl"
+"Result_String" = "RustResultVoidString"
+"Result_Vec_Document_____String" = "RustResultVecDocumentString"
+"Result_Vec_u8_____String" = "RustResultVecU8String"
 "String" = "RustString"
 "TimeSpent" = "RustTimeSpent"
 "Url" = "RustUrl"

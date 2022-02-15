@@ -100,7 +100,7 @@ _codegen-order-workaround:
 # Checks rust code, fails on warnings on CI
 rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
-    cargo clippy --all-targets --locked #TODO DENY WARNINGS ON CI
+    cargo clippy --all-targets --locked
 
 # Checks rust and dart code, fails if there are any issues on CI
 check: rust-check dart-check flutter-check

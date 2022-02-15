@@ -18,6 +18,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart' show FeedMarket;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustMarket, RustMarketVec;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
     show FeedMarketFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/list.dart';
@@ -42,6 +43,12 @@ extension FeedMarketSliceFfi on List<FeedMarket> {
     final int len,
   ) =>
       _adapter.readSlice(ptr, len);
+
+  Boxed<RustMarketVec> allocVec() {
+    final place = ffi.alloc_uninitialized_market_vec();
+    writeVec(place);
+    return Boxed(place, ffi.drop_market_vec);
+  }
 
   /// Writes a rust-`Vec<RustMarket>` to given place.
   void writeVec(

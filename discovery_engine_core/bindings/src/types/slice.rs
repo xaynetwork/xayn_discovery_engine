@@ -42,35 +42,3 @@ pub(super) unsafe fn boxed_slice_from_raw_parts<T>(ptr: *mut T, len: usize) -> B
 pub(super) unsafe fn next_element<T>(element: *mut T) -> *mut T {
     unsafe { element.offset(1) }
 }
-
-/// Allocates an uninitialized array of floats.
-#[no_mangle]
-pub extern "C" fn alloc_uninitialized_f32_slice(len: usize) -> *mut f32 {
-    alloc_uninitialized_slice(len)
-}
-
-/// Drops a `Box<[f32]>`.
-///
-/// # Safety
-///
-/// The pointer must represent a valid `Box<[f32]>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn drop_f32_slice(ptr: *mut f32, len: usize) {
-    drop(unsafe { boxed_slice_from_raw_parts(ptr, len) });
-}
-
-/// Allocates an uninitialized array of bytes.
-#[no_mangle]
-pub extern "C" fn alloc_uninitialized_bytes(len: usize) -> *mut u8 {
-    alloc_uninitialized_slice(len)
-}
-
-/// Drops a `Box<[u8]>`.
-///
-/// # Safety
-///
-/// The pointer must represent a valid `Box<[u8]>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn drop_bytes(ptr: *mut u8, len: usize) {
-    drop(unsafe { boxed_slice_from_raw_parts(ptr, len) });
-}

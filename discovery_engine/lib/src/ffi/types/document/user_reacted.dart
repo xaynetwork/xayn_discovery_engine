@@ -23,6 +23,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustUserReacted;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
     show UserReactionFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
@@ -46,7 +47,7 @@ class UserReactedFfi with EquatableMixin {
     required this.reaction,
   });
 
-  factory UserReactedFfi.readFrom(final Pointer<RustUserReacted> place) {
+  factory UserReactedFfi.readNative(final Pointer<RustUserReacted> place) {
     return UserReactedFfi(
       id: DocumentIdFfi.readNative(ffi.user_reacted_place_of_id(place)),
       stackId: StackIdFfi.readNative(ffi.user_reacted_place_of_stack_id(place)),
@@ -60,7 +61,13 @@ class UserReactedFfi with EquatableMixin {
     );
   }
 
-  void writeTo(final Pointer<RustUserReacted> place) {
+  Boxed<RustUserReacted> allocNative() {
+    final place = ffi.alloc_uninitialized_user_reacted();
+    writeNative(place);
+    return Boxed(place, ffi.drop_user_reacted);
+  }
+
+  void writeNative(final Pointer<RustUserReacted> place) {
     id.writeNative(ffi.user_reacted_place_of_id(place));
     stackId.writeNative(ffi.user_reacted_place_of_stack_id(place));
     snippet.writeNative(ffi.user_reacted_place_of_snippet(place));

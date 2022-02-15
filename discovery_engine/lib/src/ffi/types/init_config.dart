@@ -23,10 +23,12 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustInitConfig;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
-import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart';
+import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
+    show NativeSetupData;
 
 class InitConfigFfi with EquatableMixin {
   final String apiKey;
@@ -79,6 +81,13 @@ class InitConfigFfi with EquatableMixin {
     required this.kpeCnn,
     required this.kpeClassifier,
   });
+
+  /// Allocates a `Box<RustInitConfig>` initialized based on this instance.
+  Boxed<RustInitConfig> allocNative() {
+    final place = ffi.alloc_uninitialized_init_config();
+    writeNative(place);
+    return Boxed(place, ffi.drop_init_config);
+  }
 
   void writeNative(Pointer<RustInitConfig> place) {
     apiKey.writeNative(ffi.init_config_place_of_api_key(place));

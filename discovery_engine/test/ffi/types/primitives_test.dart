@@ -12,21 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Modules containing FFI glue for various types.
+import 'dart:typed_data' show Uint8List;
 
-mod boxed;
-pub mod date_time;
-pub mod document;
-pub mod duration;
-pub mod embedding;
-pub mod init_config;
-pub mod market;
-pub mod market_vec;
-pub mod option;
-pub mod primitives;
-pub mod result;
-pub mod slice;
-pub mod string;
-pub mod url;
-pub mod uuid;
-pub mod vec;
+import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
+    show Uint8ListFfi;
+
+void main() {
+  test('reading written bytes', () {
+    final bytes = Uint8List.fromList([1, 4, 3, 2]);
+    final nativeBytes = bytes.allocNative();
+    final res = Uint8ListFfi.readNative(nativeBytes.ref);
+    nativeBytes.free();
+    expect(res, equals(bytes));
+  });
+}
