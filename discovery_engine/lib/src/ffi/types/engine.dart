@@ -39,6 +39,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 
 class BoxedEngine {
   final Pointer<RustEngine> _ptr;
@@ -65,8 +66,9 @@ class BoxedEngine {
     // TODO: impl RustResultEngine getters
     final engine = ffi.get_result_engine_ok(result);
     if (engine == null) {
-      // TODO: free RustString error
-      throw Exception('${ffi.get_result_engine_err(result)}');
+      final error = ffi.get_result_engine_err(result);
+      final errorMsg = StringFfi.consumeNative(error);
+      throw Exception(errorMsg);
     }
 
     return BoxedEngine._(engine);
@@ -77,8 +79,9 @@ class BoxedEngine {
     // TODO: impl RustResultVecU8 getters
     final bytes = ffi.get_result_bytes_vec_ok(result);
     if (bytes == null) {
-      // TODO: free RustString error
-      throw Exception('${ffi.get_result_bytes_vec_err(result)}');
+      final error = ffi.get_result_bytes_vec_err(result);
+      final errorMsg = StringFfi.consumeNative(error);
+      throw Exception(errorMsg);
     }
 
     // TODO: impl ByteSliceFfi for List<int>/Uint8List
@@ -94,8 +97,8 @@ class BoxedEngine {
     // TODO: impl RustResultVoid getters
     final error = ffi.get_result_void_err(result);
     if (error != null) {
-      // TODO: free RustString error
-      throw Exception('$error');
+      final errorMsg = StringFfi.consumeNative(error);
+      throw Exception(errorMsg);
     }
 
     return;
@@ -106,8 +109,9 @@ class BoxedEngine {
     // TODO: impl RustResultVecDocument getters
     final documents = ffi.get_result_document_vec_ok(result);
     if (documents == null) {
-      // TODO: free RustString error
-      throw Exception('${ffi.get_result_document_vec_err(result)}');
+      final error = ffi.get_result_document_vec_err(result);
+      final errorMsg = StringFfi.consumeNative(error);
+      throw Exception(errorMsg);
     }
 
     return DocumentSliceFfi.consumeBoxedVector(documents);
@@ -131,8 +135,8 @@ class BoxedEngine {
     // TODO: impl RustResultVoid getters
     final error = ffi.get_result_void_err(result);
     if (error != null) {
-      // TODO: free RustString error
-      throw Exception('$error');
+      final errorMsg = StringFfi.consumeNative(error);
+      throw Exception(errorMsg);
     }
 
     return;
@@ -158,8 +162,8 @@ class BoxedEngine {
     // TODO: impl RustResultVoid getters
     final error = ffi.get_result_void_err(result);
     if (error != null) {
-      // TODO: free RustString error
-      throw Exception('$error');
+      final errorMsg = StringFfi.consumeNative(error);
+      throw Exception(errorMsg);
     }
 
     return;
