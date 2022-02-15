@@ -57,11 +57,11 @@ class DiscoveryEngine {
   DiscoveryEngine._(this._boxedResult, this._sharedEngine);
 
   /// Initializes the engine.
-  Future<DiscoveryEngine> initialize(
+  static Future<DiscoveryEngine> initialize(
     final Configuration config,
-    final NativeSetupData setupData,
+    final NativeSetupData setupData, [
     final Uint8List? state,
-  ) async {
+  ]) async {
     final boxedConfig = InitConfigFfi(config, setupData).allocNative();
     final boxedState = state?.allocNative();
 

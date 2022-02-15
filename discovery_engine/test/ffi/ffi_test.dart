@@ -12,14 +12,54 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:test/test.dart';
+import 'package:test/test.dart'
+    show allOf, expect, predicate, test, throwsA, throwsException;
+
+import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
+    show Manifest;
+import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
+    show Configuration;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
+import 'package:xayn_discovery_engine/src/ffi/types/engine.dart'
+    show DiscoveryEngine;
+import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
+    show NativeSetupData;
 
 import '../logging.dart' show setupLogging;
 
 void main() {
   setupLogging();
 
-  test('calling async ffi functions works', () {
-    // TODO
+  test('calling async ffi functions works', () async {
+    final config = Configuration(
+      apiKey: '',
+      apiBaseUrl: '',
+      assetsUrl: '',
+      maxItemsPerFeedBatch: 0,
+      applicationDirectoryPath: '',
+      feedMarkets: {const FeedMarket(countryCode: '', langCode: '')},
+      manifest: Manifest([]),
+    );
+    final setupData = NativeSetupData(
+      smbertVocab: '',
+      smbertModel: '',
+      kpeVocab: '',
+      kpeModel: '',
+      kpeCnn: '',
+      kpeClassifier: '',
+    );
+    expect(
+      DiscoveryEngine.initialize(config, setupData),
+      allOf(
+        throwsException,
+        throwsA(
+          predicate(
+            (exception) =>
+                exception.toString().contains('Error while using the ranker'),
+          ),
+        ),
+      ),
+    );
   });
 }
