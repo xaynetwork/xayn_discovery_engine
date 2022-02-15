@@ -13,11 +13,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:ffi' show nullptr, Pointer;
+import 'dart:typed_data' show Float32List;
 
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
@@ -28,6 +33,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
     show DocumentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
+    show TimeSpentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
 
@@ -102,5 +109,30 @@ class BoxedEngine {
     }
 
     return DocumentSliceFfi.consumeBoxedVector(documents);
+  }
+
+  Future<void> timeSpent(
+    DocumentId id,
+    Float32List smbertEmbedding,
+    Duration time,
+    UserReaction reaction,
+  ) async {
+    final timeSpentPtr = ffi.alloc_uninitialized_time_spend();
+    TimeSpentFfi(
+      id: id,
+      smbertEmbedding: smbertEmbedding,
+      time: time,
+      reaction: reaction,
+    ).writeTo(timeSpentPtr);
+
+    final result = await asyncCore.timeSpent(_ptr, timeSpentPtr);
+    // TODO: impl RustResultVoid getters
+    final error = ffi.get_result_void_err(result);
+    if (error != null) {
+      // TODO: free RustString error
+      throw Exception('$error');
+    }
+
+    return;
   }
 }
