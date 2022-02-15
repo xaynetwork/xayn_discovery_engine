@@ -18,6 +18,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
+    show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -115,12 +117,12 @@ class DocumentManager {
     final sumDuration = activeData.viewTime.values
         .reduce((aggregate, duration) => aggregate + duration);
 
-    _engine.timeLogged(
-      id,
+    _engine.timeLogged(TimeSpent(
+      id: id,
       smbertEmbedding: activeData.smbertEmbedding,
-      seconds: sumDuration,
+      time: sumDuration,
       reaction: doc.userReaction,
-    );
+    ));
     await _engineStateRepo.save(_engine.serialize());
   }
 }

@@ -22,6 +22,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
+import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
+    show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -101,12 +103,7 @@ class MockEngine implements Engine {
   }
 
   @override
-  void timeLogged(
-    DocumentId docId, {
-    required Uint8List smbertEmbedding,
-    required Duration seconds,
-    required UserReaction reaction,
-  }) {
+  void timeLogged(TimeSpent timeSpen) {
     _incrementCount('timeLogged');
   }
 
