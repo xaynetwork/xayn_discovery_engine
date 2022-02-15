@@ -35,25 +35,25 @@
     },
     {
       "id": "kpeVocab",
-      "url_suffix": "kpe_v0000/vocab.txt",
+      "url_suffix": "kpe_v0001/vocab.txt",
       "checksum": "eeaa9875b23b04b4c54ef759d03db9d1ba1554838f8fb26c5d96fa551df93d02",
       "fragments": []
     },
     {
       "id": "kpeModel",
-      "url_suffix": "kpe_v0000/bert-quantized.onnx",
-      "checksum": "99ba51c5d674206aa3a464b9cb44fd5072fb9df98bce7167f44d005e5bd6cf66",
+      "url_suffix": "kpe_v0001/bert-quantized.onnx",
+      "checksum": "5498acfbe477b6605f03473a166c19e04b1e4dea3f4e289ad3fd831d91ad3f19",
       "fragments": []
     },
     {
       "id": "kpeCnn",
-      "url_suffix": "kpe_v0000/cnn.binparams",
+      "url_suffix": "kpe_v0001/cnn.binparams",
       "checksum": "ef2c1aa1feb371aa0b06e11cd74bea226933443566a73acc06654166a14dabe5",
       "fragments": []
     },
     {
       "id": "kpeClassifier",
-      "url_suffix": "kpe_v0000/classifier.binparams",
+      "url_suffix": "kpe_v0001/classifier.binparams",
       "checksum": "64506261afe164ac950be5ed8e0a3b703c5077488d1fadcc71dde6639ea8806d",
       "fragments": []
     }
