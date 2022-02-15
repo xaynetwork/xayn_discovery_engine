@@ -14,6 +14,7 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use derive_more::{AsRef, From};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -333,7 +334,10 @@ fn rank_stacks<'a>(
     }
 }
 
-impl Engine<xayn_ai::ranker::Ranker> {
+/// A discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
+type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
+
+impl XaynAiEngine {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
     pub async fn from_config(config: InitConfig, state: Option<&[u8]>) -> Result<Self, Error> {
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
@@ -370,17 +374,18 @@ impl Engine<xayn_ai::ranker::Ranker> {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Engine::from_state(&state.engine, config.into(), ranker, stack_ops).await
+            Self::from_state(&state.engine, config.into(), ranker, stack_ops).await
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Engine::new(config.into(), ranker, stack_ops).await
+            Self::new(config.into(), ranker, stack_ops).await
         }
     }
 }
 
 /// A shared discovery engine with a lock.
 #[allow(clippy::module_name_repetitions)]
-pub struct SharedEngine(pub Mutex<Engine<xayn_ai::ranker::Ranker>>);
+#[derive(AsRef, From)]
+pub struct SharedEngine(Mutex<XaynAiEngine>);
 
 /// A wrapper around a dynamic error type, similar to `anyhow::Error`,
 /// but without the need to declare `anyhow` as a dependency.

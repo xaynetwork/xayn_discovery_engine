@@ -40,7 +40,7 @@ impl AsyncCore {
         Box::new(
             core::Engine::from_config(*config, state.as_deref().map(Vec::as_slice))
                 .await
-                .map(|engine| core::SharedEngine(tokio::sync::Mutex::new(engine)))
+                .map(|engine| tokio::sync::Mutex::new(engine).into())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -49,7 +49,7 @@ impl AsyncCore {
     pub async fn serialize(engine: &core::SharedEngine) -> Box<Result<Vec<u8>, String>> {
         Box::new(
             engine
-                .0
+                .as_ref()
                 .lock()
                 .await
                 .serialize()
@@ -66,7 +66,7 @@ impl AsyncCore {
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
-                .0
+                .as_ref()
                 .lock()
                 .await
                 .set_markets(*markets)
@@ -78,14 +78,14 @@ impl AsyncCore {
     /// Gets feed documents.
     pub async fn get_feed_documents(
         engine: &core::SharedEngine,
-        max_documents: u32,
+        max_documents: usize,
     ) -> Box<Result<Vec<core::document::Document>, String>> {
         Box::new(
             engine
-                .0
+                .as_ref()
                 .lock()
                 .await
-                .get_feed_documents(max_documents as usize)
+                .get_feed_documents(max_documents)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -98,7 +98,7 @@ impl AsyncCore {
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
-                .0
+                .as_ref()
                 .lock()
                 .await
                 .time_spent(time_spent.as_ref())
@@ -114,7 +114,7 @@ impl AsyncCore {
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
-                .0
+                .as_ref()
                 .lock()
                 .await
                 .user_reacted(reacted.as_ref())
