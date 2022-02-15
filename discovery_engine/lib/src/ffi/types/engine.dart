@@ -24,7 +24,7 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustEngine, RustResultSharedEngineString;
+    show RustResultSharedEngineString, RustSharedEngine;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart'
     show asyncCore, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
@@ -52,7 +52,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_prov
 /// A handle to the discovery engine.
 class DiscoveryEngine {
   final Boxed<RustResultSharedEngineString> _boxedResult;
-  Pointer<RustEngine> _sharedEngine;
+  Pointer<RustSharedEngine> _sharedEngine;
 
   DiscoveryEngine._(this._boxedResult, this._sharedEngine);
 
@@ -72,7 +72,7 @@ class DiscoveryEngine {
       ),
       ffi.drop_result_shared_engine_string,
     );
-    final Pointer<RustEngine> sharedEngine;
+    final Pointer<RustSharedEngine> sharedEngine;
     try {
       sharedEngine = resultSharedEngineStringFfiAdapter.readNative(
         boxedResult.mut,
@@ -177,6 +177,9 @@ class DiscoveryEngine {
   }
 
   /// Drops the engine.
+  ///
+  /// # Safety
+  /// Must only be called after all other futures of the engine have been completed.
   void free() {
     _sharedEngine = nullptr;
     _boxedResult.free();

@@ -15,7 +15,7 @@
 import 'dart:ffi' show NativeType, Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustEngine;
+    show RustSharedEngine;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
@@ -89,6 +89,6 @@ final resultVecDocumentStringFfiAdapter = ResultFfiAdapter(
 final resultSharedEngineStringFfiAdapter = ResultFfiAdapter(
   getOk: ffi.get_result_shared_engine_string_ok,
   getErr: ffi.get_result_shared_engine_string_err,
-  readNativeOk: (final Pointer<RustEngine> sharedEngine) => sharedEngine,
+  readNativeOk: (final Pointer<RustSharedEngine> sharedEngine) => sharedEngine,
   readNativeErr: StringFfi.readNative,
 );
