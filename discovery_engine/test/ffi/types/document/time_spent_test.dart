@@ -15,7 +15,10 @@
 import 'dart:typed_data' show Float32List;
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/models/document.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
+    show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -24,7 +27,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
 
 void main() {
   test('reading written user reacted instance yields same result', () {
-    final timeSpent = TimeSpentFfi(
+    final timeSpent = TimeSpent(
       id: DocumentId(),
       smbertEmbedding: Float32List.fromList([.9, .1]),
       time: const Duration(days: 2),

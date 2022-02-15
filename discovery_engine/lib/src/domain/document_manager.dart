@@ -119,10 +119,11 @@ class DocumentManager {
 
     _engine.timeLogged(TimeSpent(
       id: id,
-      smbertEmbedding: activeData.smbertEmbedding,
+      smbertEmbedding: activeData.smbertEmbedding.buffer.asFloat32List(),
       time: sumDuration,
       reaction: doc.userReaction,
-    ));
+    ),);
+
     await _engineStateRepo.save(_engine.serialize());
   }
 }
