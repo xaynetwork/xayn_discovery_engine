@@ -32,13 +32,6 @@ extension StringFfi on String {
         ffi.get_string_buffer(place),
         ffi.get_string_len(place),
       ).readNative();
-
-  /// Consumes a rust-native `Box<String>`.
-  static String consumeNative(final Pointer<RustString> place) {
-    final string = readNative(place);
-    ffi.drop_string(place);
-    return string;
-  }
 }
 
 class BoxedStr {
