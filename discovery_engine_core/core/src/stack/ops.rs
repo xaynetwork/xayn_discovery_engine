@@ -16,11 +16,11 @@ pub(crate) mod breaking;
 pub(crate) mod personalized;
 
 use async_trait::async_trait;
+use xayn_discovery_engine_providers::Article;
 
 use crate::{
     document::Document,
     engine::{EndpointConfig, GenericError},
-    ranker::Ranker,
     stack::Id,
 };
 use xayn_ai::ranker::KeyPhrase;
@@ -44,11 +44,14 @@ pub trait Ops {
     ///
     /// Personalized key phrases can be optionally used to return items
     /// tailored to the user's interests.
-    async fn new_items<'a>(
+    async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Document>, GenericError>;
+
+    /// Filter `articles` based on `current` documents.
+    fn filter_articles(
         &self,
-        key_phrases: &[KeyPhrase],
-        ranker: &'a (dyn Ranker + Sync),
-    ) -> Result<Vec<Document>, GenericError>;
+        current: &[Document],
+        articles: Vec<Article>,
+    ) -> Result<Vec<Article>, GenericError>;
 
     /// Merge current and new items.
     fn merge(&self, current: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
@@ -60,9 +63,6 @@ pub(crate) mod tests {
 
     use super::*;
 
-    // mocking introduces an additional distinct lifetime without the alias
-    pub(crate) type R<'a> = &'a (dyn Ranker + Sync);
-
     mock! {
         pub(crate) Ops {}
 
@@ -72,11 +72,16 @@ pub(crate) mod tests {
 
             fn configure(&mut self, config: &EndpointConfig);
 
-            async fn new_items<'a>(
+            async fn new_items(
                 &self,
                 key_phrases: &[KeyPhrase],
-                ranker: R<'a>,
             ) -> Result<Vec<Document>, GenericError>;
+
+            fn filter_articles(
+                &self,
+                current: &[Document],
+                articles: Vec<Article>,
+            ) -> Result<Vec<Article>, GenericError>;
 
             fn merge(
                 &self,

@@ -17,11 +17,11 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use xayn_ai::ranker::KeyPhrase;
+use xayn_discovery_engine_providers::Article;
 
 use crate::{
     document::Document,
     engine::{EndpointConfig, GenericError, Market},
-    ranker::Ranker,
     stack::Id,
 };
 
@@ -44,11 +44,15 @@ impl Ops for BreakingNews {
         self.markets.replace(Arc::clone(&config.markets));
     }
 
-    async fn new_items<'a>(
+    async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Document>, GenericError> {
+        todo!();
+    }
+
+    fn filter_articles(
         &self,
-        _key_phrases: &[KeyPhrase],
-        _ranker: &'a (dyn Ranker + Sync),
-    ) -> Result<Vec<Document>, GenericError> {
+        _current: &[Document],
+        _articles: Vec<Article>,
+    ) -> Result<Vec<Article>, GenericError> {
         todo!();
     }
 

@@ -292,7 +292,7 @@ where
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
             if stack.len() <= request_new {
-                match stack.ops.new_items(key_phrases, &self.ranker).await {
+                match stack.ops.new_items(key_phrases).await {
                     Ok(documents) => {
                         if let Err(error) = stack.update(&documents, &mut self.ranker) {
                             errors.push(Error::StackOpFailed(error));
