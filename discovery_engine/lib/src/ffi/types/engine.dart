@@ -50,14 +50,14 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_prov
     show NativeSetupData;
 
 /// A handle to the discovery engine.
-class DiscoveryEngine {
+class DiscoveryEngineFfi {
   final Boxed<RustResultSharedEngineString> _boxedResult;
   Pointer<RustSharedEngine> _sharedEngine;
 
-  DiscoveryEngine._(this._boxedResult, this._sharedEngine);
+  DiscoveryEngineFfi._(final this._boxedResult, final this._sharedEngine);
 
   /// Initializes the engine.
-  static Future<DiscoveryEngine> initialize(
+  static Future<DiscoveryEngineFfi> initialize(
     final Configuration config,
     final NativeSetupData setupData, [
     final Uint8List? state,
@@ -83,7 +83,7 @@ class DiscoveryEngine {
       rethrow;
     }
 
-    return DiscoveryEngine._(boxedResult, sharedEngine);
+    return DiscoveryEngineFfi._(boxedResult, sharedEngine);
   }
 
   /// Serializes the engine.

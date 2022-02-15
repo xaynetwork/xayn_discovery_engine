@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
 import 'package:xayn_discovery_engine/src/ffi/types/engine.dart'
-    show DiscoveryEngine;
+    show DiscoveryEngineFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
@@ -50,7 +50,7 @@ void main() {
       kpeClassifier: '',
     );
     expect(
-      DiscoveryEngine.initialize(config, setupData),
+      DiscoveryEngineFfi.initialize(config, setupData),
       allOf(
         throwsException,
         throwsA(
