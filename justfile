@@ -232,19 +232,29 @@ compile-android-local:
     done
 
 # Compiles the bindings for the given iOS target
-compile-ios target: _codegen-order-workaround
+_compile-ios target:
     cd "$RUST_WORKSPACE"; \
-    cargo build --target {{target}} -p xayn-discovery-engine-bindings --release
+    cargo build --target {{target}} -p xayn-discovery-engine-bindings --release --locked
 
 # Compiles the bindings for iphoneos (aarch64) and iphonesimulator (x86_64)
 # and copies the binaries to the flutter project
-compile-ios-local:
+compile-ios-local: _codegen-order-workaround
     #!/usr/bin/env sh
     set -eu
     for TARGET in $IOS_TARGETS; do
-        {{just_executable()}} compile-ios $TARGET
+        {{just_executable()}} _compile-ios $TARGET
         cp "$RUST_WORKSPACE/target/$TARGET/release/${IOS_LIB_BASE}.a" "$FLUTTER_WORKSPACE/ios/${IOS_LIB_BASE}_${TARGET}.a"
     done
+
+compile-ios-ci target prod_flag="\"\"": _codegen-order-workaround
+    #!/usr/bin/env sh
+    set -eu
+    if [[ {{prod_flag}} == "--prod" ]]; then
+        RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-ios {{target}}
+        strip -S -x -r "$RUST_WORKSPACE/target/{{target}}/release/${IOS_LIB_BASE}.a"
+    else
+        {{just_executable()}} _compile-ios {{target}}
+    fi
 
 alias d := dart-test
 alias r := rust-test
