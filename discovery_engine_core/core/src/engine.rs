@@ -93,7 +93,7 @@ pub struct InitConfig {
 }
 
 /// Discovery Engine endpoint settings.
-pub struct EndpointConfig {
+struct EndpointConfig {
     #[allow(dead_code)]
     api_key: String,
     #[allow(dead_code)]
@@ -144,7 +144,7 @@ where
     R: Ranker + Send + Sync,
 {
     /// Creates a new `Engine`.
-    pub async fn new(
+    async fn new(
         config: EndpointConfig,
         ranker: R,
         stack_ops: Vec<BoxedOps>,
@@ -158,7 +158,7 @@ where
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    pub async fn from_state(
+    async fn from_state(
         state: &StackState,
         config: EndpointConfig,
         ranker: R,
@@ -373,7 +373,7 @@ impl Engine<xayn_ai::ranker::Ranker> {
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
 #[derive(Serialize, Deserialize)]
-pub struct StackState(Vec<u8>);
+struct StackState(Vec<u8>);
 
 #[derive(Serialize, Deserialize)]
 struct RankerState(Vec<u8>);
