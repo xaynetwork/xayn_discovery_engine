@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:ffi' show nullptr, Pointer;
-import 'dart:typed_data' show Float32List;
+import 'dart:typed_data' show Float32List, Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
@@ -23,156 +23,162 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
-import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
-    show NativeSetupData;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustResultEngine, RustEngine, RustVecU8;
+    show RustEngine, RustResultSharedEngineString;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart'
     show asyncCore, ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
     show DocumentFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
-    show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
+    show FeedMarketSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
+    show Uint8ListFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
+    show
+        resultSharedEngineStringFfiAdapter,
+        resultVecDocumentStringFfiAdapter,
+        resultVecU8StringFfiAdapter,
+        resultVoidStringFfiAdapter;
+import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
+    show NativeSetupData;
 
 /// A handle to the discovery engine.
-class BoxedEngine {
-  final Pointer<RustEngine> _ptr;
+class DiscoveryEngine {
+  final Boxed<RustResultSharedEngineString> _boxedResult;
+  Pointer<RustEngine> _sharedEngine;
 
-  BoxedEngine._(this._ptr);
+  DiscoveryEngine._(this._boxedResult, this._sharedEngine);
 
   /// Initializes the engine.
-  Future<BoxedEngine> initialize(
-    Configuration config,
-    NativeSetupData setupData,
-    // TODO: add Uint8List handling to ListFfiAdapter
-    List<int>? state,
+  Future<DiscoveryEngine> initialize(
+    final Configuration config,
+    final NativeSetupData setupData,
+    final Uint8List? state,
   ) async {
-    final configPtr = ffi.alloc_uninitialized_init_config();
-    InitConfigFfi(config, setupData).writeNative(configPtr);
+    final boxedConfig = InitConfigFfi(config, setupData).allocNative();
+    final boxedState = state?.allocNative();
 
-    final statePtr = nullptr;
-    if (state != null) {
-      // TODO: impl alloc_uninit for RustVecU8 and impl ListFfiAdapter
-      statePtr = ffi.alloc_uninitialized_bytes_vec(state.length);
-      state.writeVec(statePtr);
+    final boxedResult = Boxed(
+      await asyncCore.initialize(
+        boxedConfig.move(),
+        boxedState?.move() ?? nullptr,
+      ),
+      ffi.drop_result_shared_engine_string,
+    );
+    final Pointer<RustEngine> sharedEngine;
+    try {
+      sharedEngine = resultSharedEngineStringFfiAdapter.readNative(
+        boxedResult.mut,
+        mapErr: (error) => Exception(error),
+      );
+    } catch (_) {
+      boxedResult.free();
+      rethrow;
     }
 
-    final result = await asyncCore.initialize(configPlace, statePlace);
-    // TODO: impl RustResultEngine getters
-    final engine = ffi.get_result_engine_ok(result);
-    if (engine == null) {
-      final error = ffi.get_result_engine_err(result);
-      final errorMsg = StringFfi.consumeNative(error);
-      throw Exception(errorMsg);
-    }
-
-    return BoxedEngine._(engine);
+    return DiscoveryEngine._(boxedResult, sharedEngine);
   }
 
   /// Serializes the engine.
-  Future<List<int>> serialize() async {
-    final result = await asyncCore.serialize(_ptr);
-    // TODO: impl RustResultVecU8 getters
-    final bytes = ffi.get_result_bytes_vec_ok(result);
-    if (bytes == null) {
-      final error = ffi.get_result_bytes_vec_err(result);
-      final errorMsg = StringFfi.consumeNative(error);
-      throw Exception(errorMsg);
-    }
+  Future<Uint8List> serialize() async {
+    final boxedResult = Boxed(
+      await asyncCore.serialize(_sharedEngine),
+      ffi.drop_result_vec_u8_string,
+    );
 
-    // TODO: impl ByteSliceFfi for List<int>/Uint8List
-    return ByteSliceFfi.consumeBoxedVector(bytes);
+    return resultVecU8StringFfiAdapter.consumeNative(
+      boxedResult,
+      mapErr: (error) => Exception(error),
+    );
   }
 
   /// Sets the markets.
-  Future<void> setMarkets(List<FeedMarket> markets) async {
-    // TODO: impl alloc_uninit for RustVecMarket and impl ListFfiAdapter
-    final marketsPtr = ffi.alloc_uninitialized_market_vec(markets.length);
-    markets.writeVec(marketsPtr);
+  Future<void> setMarkets(final List<FeedMarket> markets) async {
+    final boxedMarkets = markets.allocVec();
+    final boxedResult = Boxed(
+      await asyncCore.setMarkets(_sharedEngine, boxedMarkets.move()),
+      ffi.drop_result_void_string,
+    );
 
-    final result = await asyncCore.setMarkets(_ptr, marketsPtr);
-    // TODO: impl RustResultVoid getters
-    final error = ffi.get_result_void_err(result);
-    if (error != null) {
-      final errorMsg = StringFfi.consumeNative(error);
-      throw Exception(errorMsg);
-    }
-
-    return;
+    return resultVoidStringFfiAdapter.consumeNative(
+      boxedResult,
+      mapErr: (error) => Exception(error),
+    );
   }
 
   /// Gets feed documents.
-  Future<List<DocumentFfi>> getFeedDocuments(int maxDocuments) async {
-    final result = await asyncCore.getFeedDocuments(_ptr, maxDocuments);
-    // TODO: impl RustResultVecDocument getters
-    final documents = ffi.get_result_document_vec_ok(result);
-    if (documents == null) {
-      final error = ffi.get_result_document_vec_err(result);
-      final errorMsg = StringFfi.consumeNative(error);
-      throw Exception(errorMsg);
-    }
+  Future<List<DocumentFfi>> getFeedDocuments(final int maxDocuments) async {
+    final boxedResult = Boxed(
+      await asyncCore.getFeedDocuments(_sharedEngine, maxDocuments),
+      ffi.drop_result_vec_document_string,
+    );
 
-    return DocumentSliceFfi.consumeBoxedVector(documents);
+    return resultVecDocumentStringFfiAdapter.consumeNative(
+      boxedResult,
+      mapErr: (error) => Exception(error),
+    );
   }
 
   /// Processes time spent.
   Future<void> timeSpent(
-    DocumentId id,
-    Float32List smbertEmbedding,
-    Duration time,
-    UserReaction reaction,
+    final DocumentId id,
+    final Float32List smbertEmbedding,
+    final Duration time,
+    final UserReaction reaction,
   ) async {
-    final timeSpentPtr = ffi.alloc_uninitialized_time_spend();
-    TimeSpentFfi(
+    final boxedTimeSpent = TimeSpentFfi(
       id: id,
       smbertEmbedding: smbertEmbedding,
       time: time,
       reaction: reaction,
-    ).writeTo(timeSpentPtr);
+    ).allocNative();
+    final boxedResult = Boxed(
+      await asyncCore.timeSpent(_sharedEngine, boxedTimeSpent.move()),
+      ffi.drop_result_void_string,
+    );
 
-    final result = await asyncCore.timeSpent(_ptr, timeSpentPtr);
-    // TODO: impl RustResultVoid getters
-    final error = ffi.get_result_void_err(result);
-    if (error != null) {
-      final errorMsg = StringFfi.consumeNative(error);
-      throw Exception(errorMsg);
-    }
-
-    return;
+    return resultVoidStringFfiAdapter.consumeNative(
+      boxedResult,
+      mapErr: (error) => Exception(error),
+    );
   }
 
   /// Processes user reaction.
   Future<void> userReacted(
-    DocumentId id,
-    StackId stackId,
-    String snippet,
-    Float32List smbertEmbedding,
-    UserReaction reaction,
+    final DocumentId id,
+    final StackId stackId,
+    final String snippet,
+    final Float32List smbertEmbedding,
+    final UserReaction reaction,
   ) async {
-    final userReactedPtr = ffi.alloc_uninitialized_user_reacted();
-    UserReactedFfi(
+    final boxedUserReacted = UserReactedFfi(
       id: id,
       stackId: stackId,
       snippet: snippet,
       smbertEmbedding: smbertEmbedding,
       reaction: reaction,
-    ).writeTo(userReactedPtr);
+    ).allocNative();
+    final boxedResult = Boxed(
+      await asyncCore.userReacted(_sharedEngine, boxedUserReacted.move()),
+      ffi.drop_result_void_string,
+    );
 
-    final result = await asyncCore.userReacted(_ptr, userReactedPtr);
-    // TODO: impl RustResultVoid getters
-    final error = ffi.get_result_void_err(result);
-    if (error != null) {
-      final errorMsg = StringFfi.consumeNative(error);
-      throw Exception(errorMsg);
-    }
+    return resultVoidStringFfiAdapter.consumeNative(
+      boxedResult,
+      mapErr: (error) => Exception(error),
+    );
+  }
 
-    return;
+  /// Drops the engine.
+  void free() {
+    _sharedEngine = nullptr;
+    _boxedResult.free();
   }
 }
