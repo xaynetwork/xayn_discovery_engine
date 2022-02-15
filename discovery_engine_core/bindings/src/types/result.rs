@@ -20,7 +20,7 @@ use core::document::Document;
 
 use super::boxed;
 
-/// Returns a pointer to the `Result::Ok` value or a nullptr.
+/// Returns a pointer to the `Result::Ok` success value or a nullptr.
 ///
 /// # Safety
 ///
@@ -32,7 +32,7 @@ pub(super) unsafe fn get_result_ok<O, E>(res: *mut Result<O, E>) -> *mut O {
     }
 }
 
-/// Returns a pointer to the `Result::Err` value or a nullptr.
+/// Returns a pointer to the `Result::Err` error value or a nullptr.
 ///
 /// # Safety
 ///
@@ -44,7 +44,7 @@ pub(super) unsafe fn get_result_err<O, E>(res: *mut Result<O, E>) -> *mut E {
     }
 }
 
-/// Returns a pointer to the `Result::Ok` value or a nullptr.
+/// Returns a pointer to the `Vec<u8>` success value or a nullptr.
 ///
 /// # Safety
 ///
@@ -56,7 +56,7 @@ pub unsafe extern "C" fn get_result_vec_u8_string_ok(
     unsafe { get_result_ok(res) }
 }
 
-/// Returns a pointer to the `Result::Err` value or a nullptr.
+/// Returns a pointer to the `String` error value or a nullptr.
 ///
 /// # Safety
 ///
@@ -74,11 +74,11 @@ pub unsafe extern "C" fn get_result_vec_u8_string_err(
 ///
 /// The pointer must represent a valid `Box<Result<Vec<u8>, String>` instance.
 #[no_mangle]
-pub unsafe extern "C" fn drop_result_vec_u8_string(res: *mut Box<Result<Vec<u8>, String>>) {
+pub unsafe extern "C" fn drop_result_vec_u8_string(res: *mut Result<Vec<u8>, String>) {
     unsafe { boxed::drop(res) }
 }
 
-/// Returns a pointer to the `Result::Ok` value or a nullptr.
+/// Returns a pointer to the `Vec<Document>` success value or a nullptr.
 ///
 /// # Safety
 ///
@@ -90,7 +90,7 @@ pub unsafe extern "C" fn get_result_vec_document_string_ok(
     unsafe { get_result_ok(res) }
 }
 
-/// Returns a pointer to the `Result::Err` value or a nullptr.
+/// Returns a pointer to the `String` error value or a nullptr.
 ///
 /// # Safety
 ///
@@ -102,17 +102,17 @@ pub unsafe extern "C" fn get_result_vec_document_string_err(
     unsafe { get_result_err(res) }
 }
 
-/// Drops a `Result<Vec<Document>, String>`.
+/// Drops a `Box<Result<Vec<Document>, String>>`.
 ///
 /// # Safety
 ///
-/// The pointer must represent a valid `Result<Vec<Document>, String>` instance.
+/// The pointer must represent a valid `Box<Result<Vec<Document>, String>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_result_vec_document_string(res: *mut Result<Vec<Document>, String>) {
     unsafe { boxed::drop(res) }
 }
 
-/// Returns a pointer to the `Result::Ok` value or a nullptr.
+/// Returns a pointer to the `()` success value or a nullptr.
 ///
 /// # Safety
 ///
@@ -122,7 +122,7 @@ pub unsafe extern "C" fn get_result_void_string_ok(res: *mut Result<(), String>)
     unsafe { get_result_ok(res) }
 }
 
-/// Returns a pointer to the `Result::Err` value or a nullptr.
+/// Returns a pointer to the `String` error value or a nullptr.
 ///
 /// # Safety
 ///
@@ -132,11 +132,11 @@ pub unsafe extern "C" fn get_result_void_string_err(res: *mut Result<(), String>
     unsafe { get_result_err(res) }
 }
 
-/// Drops a `Result<(), String>`.
+/// Drops a `Box<Result<(), String>>`.
 ///
 /// # Safety
 ///
-/// The pointer must represent a valid `Result<(), String>` instance.
+/// The pointer must represent a valid `Box<Result<(), String>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_result_void_string(res: *mut Result<(), String>) {
     unsafe { boxed::drop(res) }
