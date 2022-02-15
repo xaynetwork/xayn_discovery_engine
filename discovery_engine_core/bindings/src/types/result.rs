@@ -16,7 +16,7 @@
 
 use std::ptr;
 
-use core::document::Document;
+use core::{document::Document, SharedEngine};
 
 use super::boxed;
 
@@ -139,5 +139,39 @@ pub unsafe extern "C" fn get_result_void_string_err(res: *mut Result<(), String>
 /// The pointer must represent a valid `Box<Result<(), String>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_result_void_string(res: *mut Result<(), String>) {
+    unsafe { boxed::drop(res) }
+}
+
+/// Returns a pointer to the `SharedEngine` success value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must point to a sound `Result<SharedEngine, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_result_shared_engine_string_ok(
+    res: *mut Result<SharedEngine, String>,
+) -> *mut SharedEngine {
+    unsafe { get_result_ok(res) }
+}
+
+/// Returns a pointer to the `String` error value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must point to a sound `Result<SharedEngine>, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_result_shared_engine_string_err(
+    res: *mut Result<SharedEngine, String>,
+) -> *mut String {
+    unsafe { get_result_err(res) }
+}
+
+/// Drops a `Box<Result<SharedEngine, String>>`.
+///
+/// # Safety
+///
+/// The pointer must represent a valid `Box<Result<SharedEngine, String>>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_result_shared_engine_string(res: *mut Result<SharedEngine, String>) {
     unsafe { boxed::drop(res) }
 }
