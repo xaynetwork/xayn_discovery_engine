@@ -67,12 +67,10 @@ class DocumentFfi with EquatableMixin {
     resource.writeNative(ffi.document_place_of_resource(place));
   }
 
-  Document toDocument({required int batchIndex}) {
-    return Document(
-      documentId: id,
-      stackId: stackId,
-      resource: resource,
-      batchIndex: batchIndex,
-    );
-  }
+  Document toDocument({required int batchIndex}) => Document(
+        documentId: id,
+        stackId: stackId,
+        resource: resource,
+        batchIndex: batchIndex,
+      );
 }
