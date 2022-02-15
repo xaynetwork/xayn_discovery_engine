@@ -29,7 +29,8 @@ use super::Ops;
 
 /// Stack operations customized for personalized news items.
 // NOTE mock implementation for now
-struct PersonalizedNews {
+#[derive(Default)]
+pub(crate) struct PersonalizedNews {
     markets: Option<Arc<RwLock<Vec<Market>>>>,
 }
 

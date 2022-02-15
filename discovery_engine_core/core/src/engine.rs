@@ -28,7 +28,15 @@ use crate::{
     document::{Document, TimeSpent, UserReacted},
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
-    stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
+    stack::{
+        self,
+        BoxedOps,
+        BreakingNews,
+        Data as StackData,
+        Id as StackId,
+        PersonalizedNews,
+        Stack,
+    },
 };
 
 /// Potential engine errors.
@@ -94,7 +102,7 @@ pub struct InitConfig {
 }
 
 /// Discovery Engine endpoint settings.
-struct EndpointConfig {
+pub struct EndpointConfig {
     #[allow(dead_code)]
     api_key: String,
     #[allow(dead_code)]
@@ -348,8 +356,10 @@ impl Engine<xayn_ai::ranker::Ranker> {
         .with_accents(false)
         .with_lowercase(false);
 
-        // TODO: replace with vec![boxed_breaking_news, boxed_personalized_news] once #130 is merged
-        let stack_ops = vec![];
+        let stack_ops = vec![
+            Box::new(BreakingNews::default()) as BoxedOps,
+            Box::new(PersonalizedNews::default()) as BoxedOps,
+        ];
 
         let builder = Builder::from(smbert_config, kpe_config);
 

@@ -31,8 +31,11 @@ use crate::{
 mod data;
 mod ops;
 
-pub(crate) use data::Data;
-pub use ops::Ops;
+pub use self::ops::Ops;
+pub(crate) use self::{
+    data::Data,
+    ops::{breaking::BreakingNews, personalized::PersonalizedNews},
+};
 
 /// Errors that could occur while manipulating a stack.
 #[derive(Error, Debug, DisplayDoc)]
