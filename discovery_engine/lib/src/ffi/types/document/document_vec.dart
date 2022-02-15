@@ -69,10 +69,8 @@ extension DocumentSliceFfi on List<DocumentFfi> {
     return res;
   }
 
-  List<Document> toDocumentList() {
-    return asMap()
-        .entries
-        .map((e) => e.value.toDocument(batchIndex: e.key))
-        .toList();
-  }
+  List<Document> toDocumentList() => asMap()
+      .entries
+      .map((e) => e.value.toDocument(batchIndex: e.key))
+      .toList();
 }
