@@ -55,9 +55,10 @@ class Document {
     required this.stackId,
     required this.resource,
     required this.batchIndex,
+    DocumentId? documentId,
     this.userReaction = UserReaction.neutral,
     this.isActive = true,
-  })  : documentId = DocumentId(),
+  })  : documentId = documentId ?? DocumentId(),
         timestamp = DateTime.now().toUtc();
 
   api.Document toApiDocument() => api.Document(
