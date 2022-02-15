@@ -41,11 +41,13 @@ import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 
+/// A handle to the discovery engine.
 class BoxedEngine {
   final Pointer<RustEngine> _ptr;
 
   BoxedEngine._(this._ptr);
 
+  /// Initializes the engine.
   Future<BoxedEngine> initialize(
     Configuration config,
     NativeSetupData setupData,
@@ -74,6 +76,7 @@ class BoxedEngine {
     return BoxedEngine._(engine);
   }
 
+  /// Serializes the engine.
   Future<List<int>> serialize() async {
     final result = await asyncCore.serialize(_ptr);
     // TODO: impl RustResultVecU8 getters
@@ -88,6 +91,7 @@ class BoxedEngine {
     return ByteSliceFfi.consumeBoxedVector(bytes);
   }
 
+  /// Sets the markets.
   Future<void> setMarkets(List<FeedMarket> markets) async {
     // TODO: impl alloc_uninit for RustVecMarket and impl ListFfiAdapter
     final marketsPtr = ffi.alloc_uninitialized_market_vec(markets.length);
@@ -104,6 +108,7 @@ class BoxedEngine {
     return;
   }
 
+  /// Gets feed documents.
   Future<List<DocumentFfi>> getFeedDocuments(int maxDocuments) async {
     final result = await asyncCore.getFeedDocuments(_ptr, maxDocuments);
     // TODO: impl RustResultVecDocument getters
@@ -117,6 +122,7 @@ class BoxedEngine {
     return DocumentSliceFfi.consumeBoxedVector(documents);
   }
 
+  /// Processes time spent.
   Future<void> timeSpent(
     DocumentId id,
     Float32List smbertEmbedding,
@@ -142,6 +148,7 @@ class BoxedEngine {
     return;
   }
 
+  /// Processes user reaction.
   Future<void> userReacted(
     DocumentId id,
     StackId stackId,
