@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show NativeType, Pointer;
+import 'dart:ffi' show NativeType, nullptr, Pointer;
 
 class Boxed<RT extends NativeType> {
   Pointer<RT> _ptr;
@@ -24,7 +24,7 @@ class Boxed<RT extends NativeType> {
   Boxed(this._ptr, this._free);
 
   /// True if `free` or `move` was called.
-  bool get moved => _ptr.address == 0;
+  bool get moved => _ptr == nullptr;
 
   /// Returns the equivalent of an `&mut RT`.
   ///
@@ -70,7 +70,7 @@ class Boxed<RT extends NativeType> {
       throw StateError('the pointer is no longer valid, either freed or moved');
     }
     final res = _ptr;
-    _ptr = Pointer.fromAddress(0);
+    _ptr = nullptr;
     return res;
   }
 }
