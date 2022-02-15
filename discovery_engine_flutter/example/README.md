@@ -29,6 +29,10 @@ $ flutter pub get
 # switch to `example` dir
 $ cd example
 
+# download AI assets to include them in the app bundle
+$ chmod +x download_assets.sh
+$ ./download_assets.sh
+
 # run the example, this executes the code in bin/example.dart
 $ flutter run
 ```
