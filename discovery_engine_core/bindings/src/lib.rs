@@ -34,7 +34,7 @@ impl AsyncCore {
     /// Initializes the engine.
     pub async fn init_engine(
         config: Box<core::InitConfig>,
-        state: Box<Option<Vec<u8>>>,
+        state: &Option<Vec<u8>>,
     ) -> Box<Result<core::LockedEngine, String>> {
         Box::new(
             core::Engine::from_config(*config, state.as_deref())
