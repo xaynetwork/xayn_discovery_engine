@@ -16,13 +16,17 @@ import 'dart:ffi' show Pointer;
 import 'dart:typed_data' show Float32List;
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
-import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustDocument;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/document/news_resource.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/document/news_resource.dart'
+    show NewsResourceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
     show EmbeddingFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
@@ -40,6 +44,9 @@ class DocumentFfi with EquatableMixin {
     required this.smbertEmbedding,
     required this.resource,
   });
+
+  @override
+  List<Object?> get props => [id, stackId, smbertEmbedding, resource];
 
   factory DocumentFfi.readNative(final Pointer<RustDocument> place) {
     return DocumentFfi(
@@ -60,6 +67,12 @@ class DocumentFfi with EquatableMixin {
     resource.writeNative(ffi.document_place_of_resource(place));
   }
 
-  @override
-  List<Object?> get props => [id, stackId, smbertEmbedding, resource];
+  Document toDocument({required int batchIndex}) {
+    return Document(
+      documentId: id,
+      stackId: stackId,
+      resource: resource,
+      batchIndex: batchIndex,
+    );
+  }
 }

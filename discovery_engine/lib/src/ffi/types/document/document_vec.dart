@@ -14,12 +14,15 @@
 
 import 'dart:ffi' show Pointer;
 
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustDocument, RustDocumentVec;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
     show DocumentFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/list.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/list.dart'
+    show ListFfiAdapter;
 
 final _adapter = ListFfiAdapter<DocumentFfi, RustDocument, RustDocumentVec>(
   alloc: ffi.alloc_uninitialized_document_slice,
@@ -64,5 +67,12 @@ extension DocumentSliceFfi on List<DocumentFfi> {
     final res = readVec(boxedVec);
     ffi.drop_document_vec(boxedVec);
     return res;
+  }
+
+  List<Document> toDocumentList() {
+    return asMap()
+        .entries
+        .map((e) => e.value.toDocument(batchIndex: e.key))
+        .toList();
   }
 }
