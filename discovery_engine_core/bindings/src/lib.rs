@@ -32,7 +32,7 @@ pub mod types;
 #[async_bindgen::api]
 impl AsyncCore {
     /// Initializes the engine.
-    pub async fn init_engine(
+    pub async fn initialize(
         config: Box<core::InitConfig>,
         state: &Option<Vec<u8>>,
     ) -> Box<Result<core::LockedEngine, String>> {
