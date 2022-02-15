@@ -47,5 +47,11 @@ app.*.map.json
 
 # Assets related
 /assets/*
-# exception to the rule
-!/assets/.gitkeep
+/assets/kpe_v0000/*
+/assets/smbert_v0000/*
+
+# Keep the filder structure for assets
+!/assets/kpe_v0000
+!/assets/kpe_v0000/.gitkeep
+!/assets/smbert_v0000
+!/assets/smbert_v0000/.gitkeep
