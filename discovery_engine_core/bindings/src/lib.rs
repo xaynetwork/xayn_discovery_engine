@@ -94,14 +94,14 @@ impl AsyncCore {
     /// Processes time spent.
     pub async fn time_spent(
         engine: &core::SharedEngine,
-        time_spent: &core::document::TimeSpent,
+        time_spent: Box<core::document::TimeSpent>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .0
                 .lock()
                 .await
-                .time_spent(time_spent)
+                .time_spent(time_spent.as_ref())
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -110,14 +110,14 @@ impl AsyncCore {
     /// Processes user reaction.
     pub async fn user_reacted(
         engine: &core::SharedEngine,
-        reacted: &core::document::UserReacted,
+        reacted: Box<core::document::UserReacted>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .0
                 .lock()
                 .await
-                .user_reacted(reacted)
+                .user_reacted(reacted.as_ref())
                 .await
                 .map_err(|error| error.to_string()),
         )
