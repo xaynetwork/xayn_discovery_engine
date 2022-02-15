@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
@@ -35,6 +35,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
+    show UserReactedFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
 
@@ -126,6 +128,33 @@ class BoxedEngine {
     ).writeTo(timeSpentPtr);
 
     final result = await asyncCore.timeSpent(_ptr, timeSpentPtr);
+    // TODO: impl RustResultVoid getters
+    final error = ffi.get_result_void_err(result);
+    if (error != null) {
+      // TODO: free RustString error
+      throw Exception('$error');
+    }
+
+    return;
+  }
+
+  Future<void> userReacted(
+    DocumentId id,
+    StackId stackId,
+    String snippet,
+    Float32List smbertEmbedding,
+    UserReaction reaction,
+  ) async {
+    final userReactedPtr = ffi.alloc_uninitialized_user_reacted();
+    UserReactedFfi(
+      id: id,
+      stackId: stackId,
+      snippet: snippet,
+      smbertEmbedding: smbertEmbedding,
+      reaction: reaction,
+    ).writeTo(userReactedPtr);
+
+    final result = await asyncCore.userReacted(_ptr, userReactedPtr);
     // TODO: impl RustResultVoid getters
     final error = ffi.get_result_void_err(result);
     if (error != null) {
