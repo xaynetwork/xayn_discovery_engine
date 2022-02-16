@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,15 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
-library discovery_engine;
+//! FFI functions for handling engine instances.
 
-export 'package:xayn_discovery_engine/src/api/api.dart';
-export 'package:xayn_discovery_engine/src/discovery_engine_base.dart';
-export 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
-    show Manifest;
-export 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
-    show createManifestReader;
-export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart';
+use derive_more::{AsRef, From};
+use tokio::sync::Mutex;
+
+use xayn_discovery_engine_core::Engine;
+
+/// A shared discovery engine with a lock.
+#[derive(AsRef, From)]
+pub struct SharedEngine(Mutex<Engine>);

@@ -33,4 +33,4 @@ mod ranker;
 pub mod stack;
 mod utils;
 
-pub use crate::engine::{Engine, Error, InitConfig, Market, SharedEngine};
+pub use crate::engine::{Error, InitConfig, Market, XaynAiEngine as Engine};

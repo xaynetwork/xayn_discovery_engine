@@ -14,7 +14,7 @@
 
 //! FFI functions for handling [`UserReaction`] fields.
 
-use core::document::UserReaction;
+use xayn_discovery_engine_core::document::UserReaction;
 
 /// Alloc an uninitialized `Box<UserReaction>`, mainly used for testing.
 #[no_mangle]

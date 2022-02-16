@@ -16,7 +16,7 @@
 
 use std::ptr::addr_of_mut;
 
-use core::{InitConfig, Market};
+use xayn_discovery_engine_core::{InitConfig, Market};
 
 /// Returns a pointer to the `api_key` field of a configuration.
 ///

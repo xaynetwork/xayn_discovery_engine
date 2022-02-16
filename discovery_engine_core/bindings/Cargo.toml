@@ -7,11 +7,12 @@ license = "AGPL-3.0-only"
 [dependencies]
 async-bindgen = "0.1.0"
 chrono = { version = "0.4.19", default-features = false }
-core = { package = "xayn-discovery-engine-core", path = "../core" }
+derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
 ndarray = "=0.15.3"
 tokio = { version = "1.16.1", default-features = false, features = ["sync"] }
 url = "2.2.2"
 uuid = "0.8.2"
+xayn-discovery-engine-core = { path = "../core" }
 
 [dev-dependencies]
 async-bindgen-gen-dart = "0.1.0"

@@ -14,11 +14,10 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use derive_more::{AsRef, From};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use xayn_ai::{
     ranker::{AveragePooler, Builder},
     KpeConfig,
@@ -40,7 +39,7 @@ use crate::{
     },
 };
 
-/// Potential engine errors.
+/// Discovery engine errors.
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// Failed to serialize internal state of the engine: {0}.
@@ -335,7 +334,8 @@ fn rank_stacks<'a>(
 }
 
 /// A discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
-type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
+#[allow(clippy::module_name_repetitions)]
+pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
 
 impl XaynAiEngine {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
@@ -381,11 +381,6 @@ impl XaynAiEngine {
         }
     }
 }
-
-/// A shared discovery engine with a lock.
-#[allow(clippy::module_name_repetitions)]
-#[derive(AsRef, From)]
-pub struct SharedEngine(Mutex<XaynAiEngine>);
 
 /// A wrapper around a dynamic error type, similar to `anyhow::Error`,
 /// but without the need to declare `anyhow` as a dependency.

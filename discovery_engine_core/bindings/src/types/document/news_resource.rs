@@ -17,7 +17,7 @@ use std::ptr::addr_of_mut;
 use chrono::NaiveDateTime;
 use url::Url;
 
-use core::document::NewsResource;
+use xayn_discovery_engine_core::document::NewsResource;
 
 /// Returns a pointer to the `title` field of a news resource.
 ///

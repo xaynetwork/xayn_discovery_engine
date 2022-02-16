@@ -16,9 +16,9 @@
 
 use std::ptr;
 
-use core::{document::Document, SharedEngine};
+use xayn_discovery_engine_core::document::Document;
 
-use super::boxed;
+use super::{boxed, engine::SharedEngine};
 
 /// Returns a pointer to the `Result::Ok` success value or a nullptr.
 ///

@@ -15,7 +15,8 @@
 import 'dart:ffi' show DynamicLibrary;
 import 'dart:io' show Platform;
 
-import 'package:xayn_discovery_engine/src/ffi/genesis.ext.dart' show AsyncCore;
+import 'package:xayn_discovery_engine/src/ffi/genesis.ext.dart'
+    show XaynDiscoveryEngineAsyncFfi;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show XaynDiscoveryEngineBindingsFfi;
 
@@ -36,4 +37,4 @@ DynamicLibrary _open() {
 
 /// The handle to the C-FFI of the Rust library.
 final ffi = XaynDiscoveryEngineBindingsFfi(_open());
-final asyncCore = AsyncCore(ffi);
+final asyncFfi = XaynDiscoveryEngineAsyncFfi(ffi);

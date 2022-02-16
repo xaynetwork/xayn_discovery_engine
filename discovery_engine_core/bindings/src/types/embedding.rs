@@ -14,12 +14,12 @@
 
 //! FFI functions for handling embeddings.
 
-use core::document::Embedding;
 use std::process::abort;
 
 use ndarray::Array;
 
 use crate::types::slice::boxed_slice_from_raw_parts;
+use xayn_discovery_engine_core::document::Embedding;
 
 /// Creates a rust `Embedding` with given capacity at given memory address.
 ///

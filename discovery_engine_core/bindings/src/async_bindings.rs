@@ -19,4 +19,4 @@
 
 #[rustfmt::skip]
 #[allow(clippy::box_vec)]
-pub mod async_core;
+pub mod xayn_discovery_engine_async_ffi;
