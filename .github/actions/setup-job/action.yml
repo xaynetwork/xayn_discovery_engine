@@ -18,6 +18,7 @@ inputs:
     required: false
   android:
     description: 'Install tooling for cross-compiling for Android'
+    default: "false"
     required: false
 
   deps:
