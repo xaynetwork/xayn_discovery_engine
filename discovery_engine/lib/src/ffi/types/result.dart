@@ -30,39 +30,47 @@ class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
   final Pointer<RustErr> Function(Pointer<RustResult>) getErr;
   final Ok Function(Pointer<RustOk>) readNativeOk;
   final Err Function(Pointer<RustErr>) readNativeErr;
+  final Never Function(Err) throwErr;
+  final void Function(Pointer<RustResult>) freeResult;
 
   ResultFfiAdapter({
     required this.getOk,
     required this.getErr,
     required this.readNativeOk,
     required this.readNativeErr,
+    required this.throwErr,
+    required this.freeResult,
   });
 
-  Ok readNative(
-    Pointer<RustResult> result, {
-    required Exception Function(Err) mapErr,
-  }) {
+  /// Reads the result and returns the success value or throws in case of an error value.
+  Ok readNative(Pointer<RustResult> result) {
     final ok = getOk(result);
     if (ok.address != 0) {
       return readNativeOk(ok);
     }
     final err = getErr(result);
     if (err.address != 0) {
-      throw mapErr(readNativeErr(err));
+      throwErr(readNativeErr(err));
     }
     throw AssertionError('result should be either Ok or Err');
   }
 
-  Ok consumeNative(
-    Boxed<RustResult> result, {
-    required Exception Function(Err) mapErr,
-  }) {
+  /// Consumes the result and returns the success value or throws in case of an error value.
+  ///
+  /// # Safety
+  /// Must only be called on owned pointers.
+  Ok consumeNative(Pointer<RustResult> result) {
+    final boxedResult = Boxed(result, freeResult);
     try {
-      return readNative(result.ref, mapErr: mapErr);
+      return readNative(boxedResult.ref);
     } finally {
-      result.free();
+      boxedResult.free();
     }
   }
+}
+
+Never _throwStringErr(final String error) {
+  throw Exception(error);
 }
 
 final resultVoidStringFfiAdapter = ResultFfiAdapter(
@@ -70,6 +78,8 @@ final resultVoidStringFfiAdapter = ResultFfiAdapter(
   getErr: ffi.get_result_void_string_err,
   readNativeOk: (_) {},
   readNativeErr: StringFfi.readNative,
+  throwErr: _throwStringErr,
+  freeResult: ffi.drop_result_void_string,
 );
 
 final resultVecU8StringFfiAdapter = ResultFfiAdapter(
@@ -77,6 +87,8 @@ final resultVecU8StringFfiAdapter = ResultFfiAdapter(
   getErr: ffi.get_result_vec_u8_string_err,
   readNativeOk: Uint8ListFfi.readNative,
   readNativeErr: StringFfi.readNative,
+  throwErr: _throwStringErr,
+  freeResult: ffi.drop_result_vec_u8_string,
 );
 
 final resultVecDocumentStringFfiAdapter = ResultFfiAdapter(
@@ -84,6 +96,8 @@ final resultVecDocumentStringFfiAdapter = ResultFfiAdapter(
   getErr: ffi.get_result_vec_document_string_err,
   readNativeOk: DocumentSliceFfi.readVec,
   readNativeErr: StringFfi.readNative,
+  throwErr: _throwStringErr,
+  freeResult: ffi.drop_result_vec_document_string,
 );
 
 final resultSharedEngineStringFfiAdapter = ResultFfiAdapter(
@@ -91,4 +105,6 @@ final resultSharedEngineStringFfiAdapter = ResultFfiAdapter(
   getErr: ffi.get_result_shared_engine_string_err,
   readNativeOk: (final Pointer<RustSharedEngine> sharedEngine) => sharedEngine,
   readNativeErr: StringFfi.readNative,
+  throwErr: _throwStringErr,
+  freeResult: ffi.drop_result_shared_engine_string,
 );

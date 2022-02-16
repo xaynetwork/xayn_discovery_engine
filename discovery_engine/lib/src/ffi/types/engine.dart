@@ -75,10 +75,8 @@ class DiscoveryEngineFfi {
     );
     final Pointer<RustSharedEngine> sharedEngine;
     try {
-      sharedEngine = resultSharedEngineStringFfiAdapter.readNative(
-        boxedResult.mut,
-        mapErr: (error) => Exception(error),
-      );
+      sharedEngine =
+          resultSharedEngineStringFfiAdapter.readNative(boxedResult.mut);
     } catch (_) {
       boxedResult.free();
       rethrow;
@@ -89,74 +87,47 @@ class DiscoveryEngineFfi {
 
   /// Serializes the engine.
   Future<Uint8List> serialize() async {
-    final boxedResult = Boxed(
-      await asyncFfi.serialize(_sharedEngine),
-      ffi.drop_result_vec_u8_string,
-    );
+    final result = await asyncFfi.serialize(_sharedEngine);
 
-    return resultVecU8StringFfiAdapter.consumeNative(
-      boxedResult,
-      mapErr: (error) => Exception(error),
-    );
+    return resultVecU8StringFfiAdapter.consumeNative(result);
   }
 
   /// Sets the markets.
   Future<void> setMarkets(final List<FeedMarket> markets) async {
     final boxedMarkets = markets.allocVec();
-    final boxedResult = Boxed(
-      await asyncFfi.setMarkets(_sharedEngine, boxedMarkets.move()),
-      ffi.drop_result_void_string,
-    );
+    final result =
+        await asyncFfi.setMarkets(_sharedEngine, boxedMarkets.move());
 
-    return resultVoidStringFfiAdapter.consumeNative(
-      boxedResult,
-      mapErr: (error) => Exception(error),
-    );
+    return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
   /// Gets feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     final int maxDocuments,
   ) async {
-    final boxedResult = Boxed(
-      await asyncFfi.getFeedDocuments(_sharedEngine, maxDocuments),
-      ffi.drop_result_vec_document_string,
-    );
+    final result = await asyncFfi.getFeedDocuments(_sharedEngine, maxDocuments);
 
     return resultVecDocumentStringFfiAdapter
-        .consumeNative(
-          boxedResult,
-          mapErr: (error) => Exception(error),
-        )
+        .consumeNative(result)
         .toDocumentListWithActiveData();
   }
 
   /// Processes time spent.
   Future<void> timeSpent(final TimeSpent timeSpent) async {
     final boxedTimeSpent = timeSpent.allocNative();
-    final boxedResult = Boxed(
-      await asyncFfi.timeSpent(_sharedEngine, boxedTimeSpent.move()),
-      ffi.drop_result_void_string,
-    );
+    final result =
+        await asyncFfi.timeSpent(_sharedEngine, boxedTimeSpent.move());
 
-    return resultVoidStringFfiAdapter.consumeNative(
-      boxedResult,
-      mapErr: (error) => Exception(error),
-    );
+    return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
   /// Processes user reaction.
   Future<void> userReacted(final UserReacted userReacted) async {
     final boxedUserReacted = userReacted.allocNative();
-    final boxedResult = Boxed(
-      await asyncFfi.userReacted(_sharedEngine, boxedUserReacted.move()),
-      ffi.drop_result_void_string,
-    );
+    final result =
+        await asyncFfi.userReacted(_sharedEngine, boxedUserReacted.move());
 
-    return resultVoidStringFfiAdapter.consumeNative(
-      boxedResult,
-      mapErr: (error) => Exception(error),
-    );
+    return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
   /// Drops the engine.
