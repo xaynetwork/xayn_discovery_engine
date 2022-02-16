@@ -29,7 +29,7 @@ class ActiveDocumentData with EquatableMixin {
   /// S-mBert Embedding
   ///
   /// Is a Float32List cast to a Uint8List.
-  //FIXME: Create Embedding class with custom type adaper
+  //FIXME: Create Embedding class with custom type adapter
   @HiveField(0)
   final Uint8List smbertEmbedding;
   @HiveField(1)
