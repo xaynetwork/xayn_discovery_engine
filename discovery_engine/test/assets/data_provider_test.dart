@@ -36,8 +36,7 @@ void main() {
       const port = 8080;
       const assetUrl = 'http://localhost:$port';
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
-      final baseAssetPath = '$outputPath/assets';
-      final dummyAssetPath = '$baseAssetPath/dummy-asset';
+      final dummyAssetPath = '$outputPath/dummy-asset';
       final assetFetcher = HttpAssetFetcherWithCounter(assetUrl);
       final manifest = Manifest.fromJson(goodJson);
 
@@ -93,7 +92,7 @@ void main() {
           assetReporter,
           outputPath,
         );
-        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
+        await _prepareOutputFiles(assetFetcher, manifest, outputPath);
         await dataProvider.getSetupData(manifest);
 
         expect(assetFetcher.callCount, equals(0));
@@ -110,7 +109,7 @@ void main() {
           outputPath,
         );
         final manifest = await manifestReader.read();
-        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
+        await _prepareOutputFiles(assetFetcher, manifest, outputPath);
 
         await dataProvider.getSetupData(manifest);
 
@@ -122,7 +121,7 @@ void main() {
           'the fetcher is able to retry the request', () async {
         server.setRequestFailCount(1);
 
-        await _prepareOutputFiles(assetFetcher, manifest, baseAssetPath);
+        await _prepareOutputFiles(assetFetcher, manifest, outputPath);
 
         expect(server.callCount.values, equals([1]));
         expect(File(dummyAssetPath).existsSync(), isTrue);

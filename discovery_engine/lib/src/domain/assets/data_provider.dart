@@ -15,6 +15,10 @@
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show AssetFetcher, AssetReporter, Manifest;
 
+const _kEnginePath = 'engine';
+const kAssetsPath = '$_kEnginePath/assets';
+const kDatabasePath = '$_kEnginePath/database';
+
 /// Data that is required to initialize [`XaynAi`].
 abstract class SetupData {
   Object get smbertVocab;

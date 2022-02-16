@@ -26,8 +26,6 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         SetupData;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
-const _baseAssetsPath = 'assets';
-
 class NativeDataProvider extends DataProvider {
   @override
   final AssetFetcher assetFetcher;
@@ -40,9 +38,6 @@ class NativeDataProvider extends DataProvider {
     this.assetReporter,
     this.storageDirectoryPath,
   );
-
-  String get baseDirectoryPath =>
-      DataProvider.joinPaths([storageDirectoryPath, _baseAssetsPath]);
 
   @override
   Future<SetupData> getSetupData(Manifest manifest) async {
@@ -72,7 +67,7 @@ class NativeDataProvider extends DataProvider {
     logger.i('DataProvider: get asset data for asset id: ${asset.id}');
 
     final filePath =
-        DataProvider.joinPaths([baseDirectoryPath, asset.urlSuffix]);
+        DataProvider.joinPaths([storageDirectoryPath, asset.urlSuffix]);
     final assetFile = File(filePath);
     final diskDirPath = assetFile.parent.path;
     await Directory(diskDirPath).create(recursive: true);

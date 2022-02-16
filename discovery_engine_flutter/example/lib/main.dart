@@ -47,6 +47,12 @@ class _MyAppState extends State<MyApp> {
     // provide initial configuration for the engine
     final appDir = await getApplicationDocumentsDirectory();
     final manifest = await FlutterManifestReader().read();
+    final copier = FlutterBundleAssetCopier(
+      appDir: appDir.path,
+      bundleAssetsPath: 'assets/ai_assets',
+    );
+    await copier.copyAssets(manifest);
+
     final config = Configuration(
       apiKey: '**********',
       apiBaseUrl: 'https://example-api.dev',

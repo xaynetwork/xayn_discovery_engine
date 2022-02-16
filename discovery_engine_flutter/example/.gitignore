@@ -44,3 +44,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Assets related
+/assets/**/*
+
+# Keep the folder structure for assets
+!/assets/kpe_v0001
+!/assets/kpe_v0001/.gitkeep
+!/assets/smbert_v0000
+!/assets/smbert_v0000/.gitkeep

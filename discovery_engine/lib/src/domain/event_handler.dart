@@ -26,7 +26,12 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         Init,
         SystemClientEvent;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
-    show AssetFetcherException, AssetReporter, SetupData;
+    show
+        AssetFetcherException,
+        AssetReporter,
+        SetupData,
+        kAssetsPath,
+        kDatabasePath;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -76,9 +81,6 @@ import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uniq
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_adapter.dart'
     show UriAdapter;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
-
-const kEnginePath = 'engine';
-const kDatabasePath = 'database';
 
 class EventHandler {
   Future<Engine>? _engineFuture;
@@ -201,7 +203,7 @@ class EventHandler {
 
   Future<SetupData> _fetchAssets(Configuration config) async {
     final appDir = config.applicationDirectoryPath;
-    final storageDirPath = '$appDir/$kEnginePath';
+    final storageDirPath = '$appDir/$kAssetsPath';
     final assetFetcher = HttpAssetFetcher(config.assetsUrl);
     final dataProvider = createDataProvider(
       assetFetcher,
@@ -212,7 +214,7 @@ class EventHandler {
   }
 
   Future<void> _initDatabase(String appDir) async {
-    Hive.init('$appDir/$kEnginePath/$kDatabasePath');
+    Hive.init('$appDir/$kDatabasePath');
     // register hive adapters
     Hive.registerAdapter(DocumentAdapter());
     Hive.registerAdapter(UserReactionAdapter());

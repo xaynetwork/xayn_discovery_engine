@@ -14,3 +14,4 @@
 
 export 'package:xayn_discovery_engine/discovery_engine.dart';
 export 'package:xayn_discovery_engine_flutter/src/assets/manifest_reader.dart';
+export 'package:xayn_discovery_engine_flutter/src/assets/asset_copier.dart';
