@@ -117,12 +117,14 @@ class DocumentManager {
     final sumDuration = activeData.viewTime.values
         .reduce((aggregate, duration) => aggregate + duration);
 
-    _engine.timeLogged(TimeSpent(
-      id: id,
-      smbertEmbedding: activeData.smbertEmbedding.buffer.asFloat32List(),
-      time: sumDuration,
-      reaction: doc.userReaction,
-    ),);
+    _engine.timeLogged(
+      TimeSpent(
+        id: id,
+        smbertEmbedding: activeData.smbertEmbedding.buffer.asFloat32List(),
+        time: sumDuration,
+        reaction: doc.userReaction,
+      ),
+    );
 
     await _engineStateRepo.save(_engine.serialize());
   }
