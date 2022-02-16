@@ -81,7 +81,7 @@ class DocumentManager {
       snippet: snippet,
       smbertEmbedding: smbertEmbedding.buffer.asFloat32List(),
       reaction: userReaction,
-    ));
+    ),);
     await _engineStateRepo.save(_engine.serialize());
   }
 
