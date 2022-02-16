@@ -56,6 +56,12 @@ pub enum Error {
         /// [`StackId`](Id) of the the current stack.
         stack_id: Id,
     },
+
+    /// Failed to get new items: {0}.
+    New(#[source] GenericError),
+
+    /// Failed to filter: {0}.
+    Filter(#[source] GenericError),
 }
 
 /// Convenience type that boxes an [`ops::Ops`] and adds [`Send`] and [`Sync`].
@@ -86,7 +92,6 @@ impl Stack {
     }
 
     /// [`Id`] of this `Stack`.
-    #[allow(dead_code)]
     pub(crate) fn id(&self) -> Id {
         self.ops.id()
     }
@@ -155,6 +160,17 @@ impl Stack {
 
     pub(crate) fn is_empty(&self) -> bool {
         self.data.documents.is_empty()
+    }
+
+    /// Returns a filtered list of new articles.
+    pub(crate) async fn filter_new_articles(
+        &self,
+        key_phrases: &[xayn_ai::ranker::KeyPhrase],
+    ) -> Result<Vec<xayn_discovery_engine_providers::Article>, Error> {
+        let articles = self.ops.new_items(key_phrases).await.map_err(Error::New)?;
+        self.ops
+            .filter_articles(&self.data.documents, articles)
+            .map_err(Error::Filter)
     }
 }
 

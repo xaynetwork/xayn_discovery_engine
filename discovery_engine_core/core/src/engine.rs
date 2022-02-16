@@ -57,11 +57,8 @@ pub enum Error {
     /// Invalid stack id: {0}.
     InvalidStackId(StackId),
 
-    /// An operation on a stack failed with a stack error: {0}.
+    /// An operation on a stack failed: {0}.
     StackOpFailed(#[source] stack::Error),
-
-    /// An operation on a stack failed with a generic error: {0}.
-    StackOpGen(#[source] GenericError),
 
     /// Error while selecting the documents to return: {0}.
     Selection(#[from] mab::Error),
@@ -298,8 +295,8 @@ where
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
             if stack.len() <= request_new {
-                let articles = stack.ops.new_items(key_phrases).await;
-                match articles.map_err(Error::StackOpGen).and_then(|articles| {
+                let articles = stack.filter_new_articles(key_phrases).await;
+                match articles.map_err(Error::StackOpFailed).and_then(|articles| {
                     let id = stack.id();
                     articles
                         .into_iter()
