@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show nullptr, Pointer;
+import 'dart:ffi' show nullptr;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -26,8 +26,8 @@ import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustResultSharedEngineString, RustSharedEngine;
-import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
+    show RustSharedEngine;
+import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
@@ -52,10 +52,9 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_prov
 
 /// A handle to the discovery engine.
 class DiscoveryEngineFfi {
-  final Boxed<RustResultSharedEngineString> _boxedResult;
-  Pointer<RustSharedEngine> _sharedEngine;
+  final Boxed<RustSharedEngine> _engine;
 
-  DiscoveryEngineFfi._(final this._boxedResult, final this._sharedEngine);
+  const DiscoveryEngineFfi._(final this._engine);
 
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(
@@ -66,28 +65,18 @@ class DiscoveryEngineFfi {
     final boxedConfig = InitConfigFfi(config, setupData).allocNative();
     final boxedState = state?.allocNative();
 
-    final boxedResult = Boxed(
-      await asyncFfi.initialize(
-        boxedConfig.move(),
-        boxedState?.move() ?? nullptr,
-      ),
-      ffi.drop_result_shared_engine_string,
+    final result = await asyncFfi.initialize(
+      boxedConfig.move(),
+      boxedState?.move() ?? nullptr,
     );
-    final Pointer<RustSharedEngine> sharedEngine;
-    try {
-      sharedEngine =
-          resultSharedEngineStringFfiAdapter.readNative(boxedResult.mut);
-    } catch (_) {
-      boxedResult.free();
-      rethrow;
-    }
+    final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
 
-    return DiscoveryEngineFfi._(boxedResult, sharedEngine);
+    return DiscoveryEngineFfi._(boxedEngine);
   }
 
   /// Serializes the engine.
   Future<Uint8List> serialize() async {
-    final result = await asyncFfi.serialize(_sharedEngine);
+    final result = await asyncFfi.serialize(_engine.ref);
 
     return resultVecU8StringFfiAdapter.consumeNative(result);
   }
@@ -95,8 +84,7 @@ class DiscoveryEngineFfi {
   /// Sets the markets.
   Future<void> setMarkets(final List<FeedMarket> markets) async {
     final boxedMarkets = markets.allocVec();
-    final result =
-        await asyncFfi.setMarkets(_sharedEngine, boxedMarkets.move());
+    final result = await asyncFfi.setMarkets(_engine.ref, boxedMarkets.move());
 
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
@@ -105,7 +93,7 @@ class DiscoveryEngineFfi {
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     final int maxDocuments,
   ) async {
-    final result = await asyncFfi.getFeedDocuments(_sharedEngine, maxDocuments);
+    final result = await asyncFfi.getFeedDocuments(_engine.ref, maxDocuments);
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
@@ -115,8 +103,7 @@ class DiscoveryEngineFfi {
   /// Processes time spent.
   Future<void> timeSpent(final TimeSpent timeSpent) async {
     final boxedTimeSpent = timeSpent.allocNative();
-    final result =
-        await asyncFfi.timeSpent(_sharedEngine, boxedTimeSpent.move());
+    final result = await asyncFfi.timeSpent(_engine.ref, boxedTimeSpent.move());
 
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
@@ -125,7 +112,7 @@ class DiscoveryEngineFfi {
   Future<void> userReacted(final UserReacted userReacted) async {
     final boxedUserReacted = userReacted.allocNative();
     final result =
-        await asyncFfi.userReacted(_sharedEngine, boxedUserReacted.move());
+        await asyncFfi.userReacted(_engine.ref, boxedUserReacted.move());
 
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
@@ -135,7 +122,6 @@ class DiscoveryEngineFfi {
   /// # Safety
   /// Must only be called after all other futures of the engine have been completed.
   void free() {
-    _sharedEngine = nullptr;
-    _boxedResult.free();
+    _engine.free();
   }
 }
