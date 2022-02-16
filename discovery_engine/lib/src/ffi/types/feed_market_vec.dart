@@ -16,14 +16,14 @@ import 'dart:ffi' show Pointer;
 
 import 'package:xayn_discovery_engine/discovery_engine.dart' show FeedMarket;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustMarket, RustMarketVec;
+    show RustMarket, RustVecMarket;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
     show FeedMarketFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/list.dart';
 
-final _adapter = ListFfiAdapter<FeedMarket, RustMarket, RustMarketVec>(
+final _adapter = ListFfiAdapter<FeedMarket, RustMarket, RustVecMarket>(
   alloc: ffi.alloc_uninitialized_market_slice,
   next: ffi.next_market,
   writeNative: (market, place) => market.writeNative(place),
@@ -44,7 +44,7 @@ extension FeedMarketSliceFfi on List<FeedMarket> {
   ) =>
       _adapter.readSlice(ptr, len);
 
-  Boxed<RustMarketVec> allocVec() {
+  Boxed<RustVecMarket> allocVec() {
     final place = ffi.alloc_uninitialized_market_vec();
     writeVec(place);
     return Boxed(place, ffi.drop_market_vec);
@@ -52,13 +52,13 @@ extension FeedMarketSliceFfi on List<FeedMarket> {
 
   /// Writes a rust-`Vec<RustMarket>` to given place.
   void writeVec(
-    final Pointer<RustMarketVec> place,
+    final Pointer<RustVecMarket> place,
   ) =>
       _adapter.writeVec(this, place);
 
   /// Reads a rust-`&Vec<RustMarket>` returning a dart-`List<FeedMarket>`.
   static List<FeedMarket> readVec(
-    final Pointer<RustMarketVec> vec,
+    final Pointer<RustVecMarket> vec,
   ) =>
       _adapter.readVec(vec);
 }

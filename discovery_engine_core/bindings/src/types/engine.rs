@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,14 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:test/test.dart';
+//! FFI functions for handling engine instances.
 
-import '../logging.dart' show setupLogging;
+use derive_more::{AsRef, From};
+use tokio::sync::Mutex;
 
-void main() {
-  setupLogging();
+use xayn_discovery_engine_core::XaynAiEngine;
 
-  test('calling async ffi functions works', () {
-    // TODO
-  });
-}
+/// A shared discovery engine with a lock.
+#[derive(AsRef, From)]
+pub struct SharedEngine(Mutex<XaynAiEngine>);

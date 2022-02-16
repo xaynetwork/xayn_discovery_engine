@@ -8,16 +8,10 @@ no_includes = true
 
 after_includes = """
 // Typedefs to make sure this "unknown" types are treated as opaque by ffigen.
-typedef struct RustDocument RustDocument;
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
-typedef struct RustInitConfig RustInitConfig;
-typedef struct RustMarket RustMarket;
 typedef struct RustNaiveDateTime RustNaiveDateTime;
-typedef struct RustNewsResource RustNewsResource;
-typedef struct RustTimeSpent RustTimeSpent;
 typedef struct RustUrl RustUrl;
-typedef struct RustUserReacted RustUserReacted;
 typedef struct RustUuid RustUuid;
 """
 
@@ -28,23 +22,25 @@ include = ["xayn-discovery-engine-core"]
 [export.rename]
 # Renamings to avoid name conflicts/confusion in dart.
 "Document" = "RustDocument"
-"Vec_Document" = "RustDocumentVec"
-"Vec_u8" = "RustVecU8"
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
 "InitConfig" = "RustInitConfig"
+"Market" = "RustMarket"
 "NaiveDateTime" = "RustNaiveDateTime"
 "NewsResource" = "RustNewsResource"
-"Market" = "RustMarket"
 "Option_f32" = "RustOptionF32"
 "Option_Url" = "RustOptionUrl"
+"Result_SharedEngine__String" = "RustResultSharedEngineString"
 "Result_String" = "RustResultVoidString"
 "Result_Vec_Document_____String" = "RustResultVecDocumentString"
 "Result_Vec_u8_____String" = "RustResultVecU8String"
+"SharedEngine" = "RustSharedEngine"
 "String" = "RustString"
 "TimeSpent" = "RustTimeSpent"
 "Url" = "RustUrl"
 "UserReacted" = "RustUserReacted"
 "UserReaction" = "RustUserReaction"
 "Uuid" = "RustUuid"
-"Vec_Market" = "RustMarketVec"
+"Vec_Document" = "RustVecDocument"
+"Vec_Market" = "RustVecMarket"
+"Vec_u8" = "RustVecU8"

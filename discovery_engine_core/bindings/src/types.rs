@@ -19,6 +19,7 @@ pub mod date_time;
 pub mod document;
 pub mod duration;
 pub mod embedding;
+pub mod engine;
 pub mod init_config;
 pub mod market;
 pub mod market_vec;

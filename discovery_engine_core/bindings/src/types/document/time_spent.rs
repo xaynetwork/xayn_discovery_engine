@@ -14,10 +14,11 @@
 
 //! FFI functions for handling `TimeSpent` structs.
 
-use core::document::{Embedding, TimeSpent, UserReaction};
 use std::{ptr::addr_of_mut, time::Duration};
 
 use uuid::Uuid;
+
+use xayn_discovery_engine_core::document::{Embedding, TimeSpent, UserReaction};
 
 /// Returns a pointer to the `id` field of a [`TimeSpent`] memory object.
 ///

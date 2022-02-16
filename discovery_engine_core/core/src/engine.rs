@@ -28,9 +28,18 @@ use crate::{
     document::{Document, TimeSpent, UserReacted},
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
-    stack::{self, BoxedOps, Data as StackData, Id as StackId, Stack},
+    stack::{
+        self,
+        BoxedOps,
+        BreakingNews,
+        Data as StackData,
+        Id as StackId,
+        PersonalizedNews,
+        Stack,
+    },
 };
 
+/// Discovery engine errors.
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// Failed to serialize internal state of the engine: {0}.
@@ -144,7 +153,7 @@ where
     R: Ranker + Send + Sync,
 {
     /// Creates a new `Engine`.
-    pub async fn new(
+    async fn new(
         config: EndpointConfig,
         ranker: R,
         stack_ops: Vec<BoxedOps>,
@@ -158,7 +167,7 @@ where
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    pub async fn from_state(
+    async fn from_state(
         state: &StackState,
         config: EndpointConfig,
         ranker: R,
@@ -324,13 +333,13 @@ fn rank_stacks<'a>(
     }
 }
 
-impl Engine<xayn_ai::ranker::Ranker> {
+/// A discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
+#[allow(clippy::module_name_repetitions)]
+pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
+
+impl XaynAiEngine {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
-    pub async fn from_config(
-        config: InitConfig,
-        stacks_ops: Vec<BoxedOps>,
-        state: Option<&[u8]>,
-    ) -> Result<Engine<impl Ranker>, Error> {
+    pub async fn from_config(config: InitConfig, state: Option<&[u8]>) -> Result<Self, Error> {
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(52)
@@ -351,6 +360,11 @@ impl Engine<xayn_ai::ranker::Ranker> {
         .with_accents(false)
         .with_lowercase(false);
 
+        let stack_ops = vec![
+            Box::new(BreakingNews::default()) as BoxedOps,
+            Box::new(PersonalizedNews::default()) as BoxedOps,
+        ];
+
         let builder = Builder::from(smbert_config, kpe_config);
 
         if let Some(state) = state {
@@ -360,10 +374,10 @@ impl Engine<xayn_ai::ranker::Ranker> {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Engine::from_state(&state.engine, config.into(), ranker, stacks_ops).await
+            Self::from_state(&state.engine, config.into(), ranker, stack_ops).await
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Engine::new(config.into(), ranker, stacks_ops).await
+            Self::new(config.into(), ranker, stack_ops).await
         }
     }
 }
@@ -373,7 +387,7 @@ impl Engine<xayn_ai::ranker::Ranker> {
 pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
 #[derive(Serialize, Deserialize)]
-pub struct StackState(Vec<u8>);
+struct StackState(Vec<u8>);
 
 #[derive(Serialize, Deserialize)]
 struct RankerState(Vec<u8>);

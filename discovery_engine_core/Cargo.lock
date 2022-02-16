@@ -57,7 +57,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#bde325e484a762e9a3f4b3c2652aef3a5e83d8da"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#fe195d99954c691c5e606ebbb3c77d371ba0e65b"
 dependencies = [
  "async-bindgen-derive",
  "once_cell",
@@ -70,7 +70,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-derive"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#bde325e484a762e9a3f4b3c2652aef3a5e83d8da"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#fe195d99954c691c5e606ebbb3c77d371ba0e65b"
 dependencies = [
  "heck 0.4.0",
  "once_cell",
@@ -82,7 +82,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-gen-dart"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#bde325e484a762e9a3f4b3c2652aef3a5e83d8da"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#fe195d99954c691c5e606ebbb3c77d371ba0e65b"
 dependencies = [
  "anyhow",
  "handlebars",
@@ -2785,8 +2785,10 @@ dependencies = [
  "async-bindgen-gen-dart",
  "cbindgen",
  "chrono",
+ "derive_more",
  "heck 0.4.0",
  "ndarray",
+ "tokio",
  "url",
  "uuid",
  "xayn-discovery-engine-core",

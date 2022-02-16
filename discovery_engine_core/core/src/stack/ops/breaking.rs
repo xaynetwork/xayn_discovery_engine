@@ -29,7 +29,8 @@ use super::Ops;
 
 /// Stack operations customized for breaking news items.
 // NOTE mock implementation for now
-struct BreakingNews {
+#[derive(Default)]
+pub(crate) struct BreakingNews {
     markets: Option<Arc<RwLock<Vec<Market>>>>,
 }
 

@@ -17,14 +17,14 @@ import 'dart:ffi' show Pointer;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustDocument, RustDocumentVec;
+    show RustDocument, RustVecDocument;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
     show DocumentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/list.dart'
     show ListFfiAdapter;
 
-final _adapter = ListFfiAdapter<DocumentFfi, RustDocument, RustDocumentVec>(
+final _adapter = ListFfiAdapter<DocumentFfi, RustDocument, RustVecDocument>(
   alloc: ffi.alloc_uninitialized_document_slice,
   next: ffi.next_document,
   writeNative: (document, place) => document.writeNative(place),
@@ -46,13 +46,13 @@ extension DocumentSliceFfi on List<DocumentFfi> {
 
   /// Writes a rust-`Vec<RustDocument>` to given place.
   void writeVec(
-    final Pointer<RustDocumentVec> place,
+    final Pointer<RustVecDocument> place,
   ) =>
       _adapter.writeVec(this, place);
 
   /// Reads a rust-`&Vec<RustDocument>` returning a dart-`List<Document>`.
   static List<DocumentFfi> readVec(
-    final Pointer<RustDocumentVec> vec,
+    final Pointer<RustVecDocument> vec,
   ) =>
       _adapter.readVec(vec);
 
@@ -62,7 +62,7 @@ extension DocumentSliceFfi on List<DocumentFfi> {
   /// not handling custom non-boxed, non-primitive return
   /// types well.
   static List<DocumentFfi> consumeBoxedVector(
-    Pointer<RustDocumentVec> boxedVec,
+    Pointer<RustVecDocument> boxedVec,
   ) {
     final res = readVec(boxedVec);
     ffi.drop_document_vec(boxedVec);

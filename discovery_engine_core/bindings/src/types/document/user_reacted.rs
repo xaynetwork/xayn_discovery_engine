@@ -14,10 +14,11 @@
 
 //! FFI functions for handling [`UserReacted`] instances.
 
-use core::document::{Embedding, UserReacted, UserReaction};
 use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
+
+use xayn_discovery_engine_core::document::{Embedding, UserReacted, UserReaction};
 
 /// Returns a pointer to the `id` field of an [`UserReacted`].
 ///
@@ -96,10 +97,11 @@ pub unsafe extern "C" fn drop_user_reacted(reacted: *mut UserReacted) {
 
 #[cfg(test)]
 mod tests {
-    use core::{document, stack};
     use std::alloc::Layout;
 
     use uuid::Uuid;
+
+    use xayn_discovery_engine_core::{document, stack};
 
     #[test]
     fn test_ids_have_same_layout() {

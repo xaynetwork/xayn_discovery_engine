@@ -18,7 +18,7 @@ use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
 
-use core::document::{Document, Embedding, NewsResource};
+use xayn_discovery_engine_core::document::{Document, Embedding, NewsResource};
 
 /// Returns a pointer to the `id` field of a document.
 ///
