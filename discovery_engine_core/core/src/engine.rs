@@ -25,7 +25,7 @@ use xayn_ai::{
 };
 
 use crate::{
-    document::{document_from_article, Document, TimeSpent, UserReacted},
+    document::{self, document_from_article, Document, TimeSpent, UserReacted},
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{
@@ -57,14 +57,20 @@ pub enum Error {
     /// Invalid stack id: {0}.
     InvalidStackId(StackId),
 
-    /// An operation on a stack failed: {0}.
+    /// An operation on a stack failed with a stack error: {0}.
     StackOpFailed(#[source] stack::Error),
+
+    /// An operation on a stack failed with a generic error: {0}.
+    StackOpGen(#[source] GenericError),
 
     /// Error while selecting the documents to return: {0}.
     Selection(#[from] mab::Error),
 
     /// Error while using the ranker.
     Ranker(#[from] GenericError),
+
+    /// Error while creating document: {0}.
+    Document(#[source] document::Error),
 
     /// A list of errors that could occur during some operation.
     Errors(Vec<Error>),
@@ -292,13 +298,16 @@ where
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
             if stack.len() <= request_new {
-                match stack.ops.new_items(key_phrases).await.and_then(|articles| {
+                let articles = stack.ops.new_items(key_phrases).await;
+                match articles.map_err(Error::StackOpGen).and_then(|articles| {
                     let id = stack.id();
                     articles
                         .into_iter()
                         .map(|article| {
-                            let embedding = self.ranker.compute_smbert(article.title.as_str())?;
-                            document_from_article(article, id, embedding).map_err(Into::into)
+                            let title = article.title.as_str();
+                            let embedding =
+                                self.ranker.compute_smbert(title).map_err(Error::Ranker)?;
+                            document_from_article(article, id, embedding).map_err(Error::Document)
                         })
                         .collect::<Result<Vec<_>, _>>()
                 }) {
@@ -309,7 +318,7 @@ where
                             stack.data.retain_top(self.core_config.keep_top);
                         }
                     }
-                    Err(error) => errors.push(error.into()),
+                    Err(error) => errors.push(error),
                 }
             }
         }
