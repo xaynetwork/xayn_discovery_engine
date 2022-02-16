@@ -12,8 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:test/test.dart'
-    show allOf, expect, predicate, test, throwsA, throwsException;
+import 'package:test/test.dart';
 
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Manifest;
