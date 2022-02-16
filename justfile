@@ -219,7 +219,7 @@ _dry-run-release: clean deps dart-build
 dry-run-release:
      @CI=true {{just_executable()}} _dry-run-release
 
-compile-android target:
+compile-android target: _codegen-order-workaround
     # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
     cd "$RUST_WORKSPACE"; \
         cargo ndk -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build --release
