@@ -20,6 +20,7 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
+use xayn_discovery_engine_providers::Article;
 
 use crate::{
     document::{Document, Id as DocumentId, UserReaction},
@@ -162,12 +163,16 @@ impl Stack {
         self.data.documents.is_empty()
     }
 
-    /// Returns a filtered list of new articles.
-    pub(crate) async fn filter_new_articles(
+    /// Returns a list of new articles.
+    pub(crate) async fn new_items(
         &self,
         key_phrases: &[xayn_ai::ranker::KeyPhrase],
-    ) -> Result<Vec<xayn_discovery_engine_providers::Article>, Error> {
-        let articles = self.ops.new_items(key_phrases).await.map_err(Error::New)?;
+    ) -> Result<Vec<Article>, Error> {
+        self.ops.new_items(key_phrases).await.map_err(Error::New)
+    }
+
+    /// Filters a list of articles
+    pub(crate) fn filter_articles(&self, articles: Vec<Article>) -> Result<Vec<Article>, Error> {
         self.ops
             .filter_articles(&self.data.documents, articles)
             .map_err(Error::Filter)

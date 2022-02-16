@@ -295,7 +295,11 @@ where
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
             if stack.len() <= request_new {
-                let articles = stack.filter_new_articles(key_phrases).await;
+                let articles = stack
+                    .new_items(key_phrases)
+                    .await
+                    .and_then(|articles| stack.filter_articles(articles));
+
                 match articles.map_err(Error::StackOpFailed).and_then(|articles| {
                     let id = stack.id();
                     articles
