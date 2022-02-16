@@ -46,11 +46,9 @@ app.*.map.json
 /android/app/release
 
 # Assets related
-/assets/*
-/assets/kpe_v0001/*
-/assets/smbert_v0000/*
+/assets/**/*
 
-# Keep the filder structure for assets
+# Keep the folder structure for assets
 !/assets/kpe_v0001
 !/assets/kpe_v0001/.gitkeep
 !/assets/smbert_v0000

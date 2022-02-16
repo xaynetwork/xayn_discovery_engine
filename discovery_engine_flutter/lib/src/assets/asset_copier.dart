@@ -23,20 +23,22 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
 typedef AssetLoader = Future<ByteData> Function(String key);
 
 class FlutterBundleAssetCopier {
-  final String bundleAssetsPath;
-  final String appDir;
+  final String _bundleAssetsPath;
+  final String _appDir;
   final AssetLoader _loadAsset;
 
   FlutterBundleAssetCopier({
-    required this.appDir,
-    required this.bundleAssetsPath,
+    required String appDir,
+    required String bundleAssetsPath,
     AssetLoader? loadAsset,
   })  : assert(appDir.isNotEmpty),
         assert(bundleAssetsPath.isNotEmpty),
+        _appDir = appDir,
+        _bundleAssetsPath = bundleAssetsPath,
         _loadAsset = loadAsset ?? rootBundle.load;
 
   Future<void> copyAssets(Manifest manifest) async {
-    final storageDirPath = '$appDir/$kAssetsPath';
+    final storageDirPath = '$_appDir/$kAssetsPath';
 
     for (final asset in manifest.assets) {
       final urlSuffix = asset.urlSuffix;
@@ -45,7 +47,7 @@ class FlutterBundleAssetCopier {
       if (fileRef.existsSync()) continue;
 
       try {
-        final bytes = await _loadAsset('$bundleAssetsPath/$urlSuffix');
+        final bytes = await _loadAsset('$_bundleAssetsPath/$urlSuffix');
         await Directory(fileRef.parent.path).create(recursive: true);
         await fileRef.writeAsBytes(bytes.buffer.asUint8List(
           bytes.offsetInBytes,
@@ -53,7 +55,7 @@ class FlutterBundleAssetCopier {
         ));
       } catch (e, s) {
         final message =
-            'Coould not copy the asset "$urlSuffix" to the path: ${fileRef.path}';
+            'Couldn\'t copy the asset "$urlSuffix" to the path: ${fileRef.path}';
         logger.e(message, e, s);
       }
     }
