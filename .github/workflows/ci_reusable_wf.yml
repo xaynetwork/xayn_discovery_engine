@@ -83,7 +83,7 @@ jobs:
     needs: [selection, cargo-test]
     if: ${{ always()}}
     runs-on: ubuntu-20.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check cargo-test
         run: |

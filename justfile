@@ -74,11 +74,11 @@ fmt: rust-fmt dart-fmt
 # Checks dart code, fails on info on CI
 dart-check: dart-build
     cd "$DART_WORKSPACE"; \
-    dart analyze {{ if env_var_or_default("CI", "false") == "true" { "--fatal-infos" } else { "" } }}
+    dart analyze --fatal-infos
 
 flutter-check: dart-build flutter-deps
     cd "$FLUTTER_WORKSPACE"; \
-    dart analyze {{ if env_var_or_default("CI", "false") == "true" { "--fatal-infos" } else { "" } }}
+    dart analyze --fatal-infos
 
 flutter-test: dart-build flutter-deps
     cd "$FLUTTER_WORKSPACE"; \
