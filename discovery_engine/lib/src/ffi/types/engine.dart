@@ -22,11 +22,12 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, StackId;
+    show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
+    show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustResultSharedEngineString, RustSharedEngine;
-import 'package:xayn_discovery_engine/src/ffi/load_lib.dart'
-    show asyncCore, ffi;
+import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
     show DocumentFfi;
@@ -66,7 +67,7 @@ class DiscoveryEngineFfi {
     final boxedState = state?.allocNative();
 
     final boxedResult = Boxed(
-      await asyncCore.initialize(
+      await asyncFfi.initialize(
         boxedConfig.move(),
         boxedState?.move() ?? nullptr,
       ),
@@ -89,7 +90,7 @@ class DiscoveryEngineFfi {
   /// Serializes the engine.
   Future<Uint8List> serialize() async {
     final boxedResult = Boxed(
-      await asyncCore.serialize(_sharedEngine),
+      await asyncFfi.serialize(_sharedEngine),
       ffi.drop_result_vec_u8_string,
     );
 
@@ -103,7 +104,7 @@ class DiscoveryEngineFfi {
   Future<void> setMarkets(final List<FeedMarket> markets) async {
     final boxedMarkets = markets.allocVec();
     final boxedResult = Boxed(
-      await asyncCore.setMarkets(_sharedEngine, boxedMarkets.move()),
+      await asyncFfi.setMarkets(_sharedEngine, boxedMarkets.move()),
       ffi.drop_result_void_string,
     );
 
@@ -116,7 +117,7 @@ class DiscoveryEngineFfi {
   /// Gets feed documents.
   Future<List<DocumentFfi>> getFeedDocuments(final int maxDocuments) async {
     final boxedResult = Boxed(
-      await asyncCore.getFeedDocuments(_sharedEngine, maxDocuments),
+      await asyncFfi.getFeedDocuments(_sharedEngine, maxDocuments),
       ffi.drop_result_vec_document_string,
     );
 
@@ -140,7 +141,7 @@ class DiscoveryEngineFfi {
       reaction: reaction,
     ).allocNative();
     final boxedResult = Boxed(
-      await asyncCore.timeSpent(_sharedEngine, boxedTimeSpent.move()),
+      await asyncFfi.timeSpent(_sharedEngine, boxedTimeSpent.move()),
       ffi.drop_result_void_string,
     );
 
@@ -151,22 +152,10 @@ class DiscoveryEngineFfi {
   }
 
   /// Processes user reaction.
-  Future<void> userReacted(
-    final DocumentId id,
-    final StackId stackId,
-    final String snippet,
-    final Float32List smbertEmbedding,
-    final UserReaction reaction,
-  ) async {
-    final boxedUserReacted = UserReactedFfi(
-      id: id,
-      stackId: stackId,
-      snippet: snippet,
-      smbertEmbedding: smbertEmbedding,
-      reaction: reaction,
-    ).allocNative();
+  Future<void> userReacted(final UserReacted userReacted) async {
+    final boxedUserReacted = userReacted.allocNative();
     final boxedResult = Boxed(
-      await asyncCore.userReacted(_sharedEngine, boxedUserReacted.move()),
+      await asyncFfi.userReacted(_sharedEngine, boxedUserReacted.move()),
       ffi.drop_result_void_string,
     );
 
