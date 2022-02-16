@@ -78,7 +78,7 @@ void main() {
 
   test('conversion to documents works', () {
     final ffiDocuments = arbitraryDocumentFfi();
-    final documents = ffiDocuments.toDocumentListWithData();
+    final documents = ffiDocuments.toDocumentListWithActiveData();
 
     expect(documents[0].document.documentId, equals(ffiDocuments[0].id));
     expect(documents[0].document.stackId, equals(ffiDocuments[0].stackId));

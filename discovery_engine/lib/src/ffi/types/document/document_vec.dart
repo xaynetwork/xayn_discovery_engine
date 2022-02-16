@@ -69,7 +69,7 @@ extension DocumentSliceFfi on List<DocumentFfi> {
     return res;
   }
 
-  List<DocumentWithActiveData> toDocumentListWithData() => asMap()
+  List<DocumentWithActiveData> toDocumentListWithActiveData() => asMap()
       .entries
       .map(
         (e) => DocumentWithActiveData(
