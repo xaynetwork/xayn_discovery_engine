@@ -44,7 +44,7 @@ impl Ops for BreakingNews {
         self.markets.replace(Arc::clone(&config.markets));
     }
 
-    async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Document>, GenericError> {
+    async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
         todo!();
     }
 

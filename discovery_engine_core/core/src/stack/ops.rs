@@ -44,7 +44,7 @@ pub trait Ops {
     ///
     /// Personalized key phrases can be optionally used to return items
     /// tailored to the user's interests.
-    async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Document>, GenericError>;
+    async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError>;
 
     /// Filter `articles` based on `current` documents.
     fn filter_articles(
@@ -75,7 +75,7 @@ pub(crate) mod tests {
             async fn new_items(
                 &self,
                 key_phrases: &[KeyPhrase],
-            ) -> Result<Vec<Document>, GenericError>;
+            ) -> Result<Vec<Article>, GenericError>;
 
             fn filter_articles(
                 &self,
