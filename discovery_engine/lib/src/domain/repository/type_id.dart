@@ -21,3 +21,4 @@ const newsResourceTypeId = 5;
 const uriTypeId = 6;
 const durationTypeId = 7;
 const stackIdTypeId = 8;
+const embeddingAdapter = 9;

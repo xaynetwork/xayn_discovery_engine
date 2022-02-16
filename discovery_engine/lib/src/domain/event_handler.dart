@@ -41,6 +41,8 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, UserReactionAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show EmbeddingAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -222,6 +224,7 @@ class EventHandler {
     Hive.registerAdapter(StackIdAdapter());
     Hive.registerAdapter(DurationAdapter());
     Hive.registerAdapter(UriAdapter());
+    Hive.registerAdapter(EmbeddingAdapter());
 
     // open boxes
     await _openDbBox<Document>(documentBox);

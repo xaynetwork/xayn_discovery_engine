@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List;
-
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 
@@ -25,7 +25,7 @@ class UserReacted with EquatableMixin {
   final DocumentId id;
   final StackId stackId;
   final String snippet;
-  final Float32List smbertEmbedding;
+  final Embedding smbertEmbedding;
   final UserReaction reaction;
 
   UserReacted({

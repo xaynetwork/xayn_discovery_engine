@@ -15,7 +15,10 @@
 import 'dart:typed_data' show Float32List;
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/models/document.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -29,7 +32,7 @@ void main() {
       id: DocumentId(),
       stackId: StackId(),
       snippet: 'Cloning brought back the dodo.',
-      smbertEmbedding: Float32List.fromList([.9, .1]),
+      smbertEmbedding: Embedding(Float32List.fromList([.9, .1])),
       reaction: UserReaction.negative,
     );
     final boxed = document.allocNative();

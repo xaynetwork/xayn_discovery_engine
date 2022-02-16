@@ -12,12 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
+import 'dart:typed_data' show Float32List, Uint8List;
 
 import 'package:hive/hive.dart' show Box, Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -35,7 +37,7 @@ Future<void> main() async {
   group('ActiveDocumentDataRepository', () {
     late Box<ActiveDocumentData> box;
     late HiveActiveDocumentDataRepository repo;
-    final data = ActiveDocumentData(Uint8List(0));
+    final data = ActiveDocumentData(Embedding(Float32List(0)));
     final id1 = DocumentId();
     final id2 = DocumentId();
 
@@ -88,7 +90,7 @@ Future<void> main() async {
       });
 
       test('smbert embedding of updated existing', () async {
-        final embUpdated = Uint8List(1);
+        final embUpdated = Embedding(Float32List.fromList([9.25]));
         await repo.update(id1, ActiveDocumentData(embUpdated));
         expect(box, hasLength(1));
         expect(await repo.smbertEmbeddingById(id1), equals(embUpdated));

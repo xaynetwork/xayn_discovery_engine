@@ -12,12 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:hive/hive.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
@@ -38,12 +38,8 @@ class DocumentWithActiveData with EquatableMixin {
 /// Additional data pertaining to active documents.
 @HiveType(typeId: activeDocumentDataTypeId)
 class ActiveDocumentData with EquatableMixin {
-  /// S-mBert Embedding
-  ///
-  /// Is a Float32List cast to a Uint8List.
-  //FIXME: Create Embedding class with custom type adapter
   @HiveField(0)
-  final Uint8List smbertEmbedding;
+  final Embedding smbertEmbedding;
   @HiveField(1)
   final Map<DocumentViewMode, Duration> viewTime;
 

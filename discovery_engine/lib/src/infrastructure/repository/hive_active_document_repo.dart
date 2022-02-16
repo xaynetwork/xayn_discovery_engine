@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
 import 'package:hive/hive.dart' show Hive, Box;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -34,7 +34,7 @@ class HiveActiveDocumentDataRepository implements ActiveDocumentDataRepository {
       box.get(id.toString());
 
   @override
-  Future<Uint8List?> smbertEmbeddingById(DocumentId id) async =>
+  Future<Embedding?> smbertEmbeddingById(DocumentId id) async =>
       box.get(id.toString())?.smbertEmbedding;
 
   @override
