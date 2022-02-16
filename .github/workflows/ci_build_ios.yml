@@ -38,7 +38,7 @@ jobs:
           ARTIFACT_DIR_BASE=${{ github.job }}
           if ${{ inputs.production }}; then
             just compile-ios-ci ${{ matrix.target }} --prod
-            ARTIFACT_DIR_BASE+="production"
+            ARTIFACT_DIR_BASE+="-production"
           else
             just compile-ios-ci ${{ matrix.target }}
           fi

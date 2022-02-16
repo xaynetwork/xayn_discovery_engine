@@ -2,6 +2,12 @@ name: Build Android library
 
 on:
   workflow_call:
+    inputs:
+      production:
+        description: Builds android libraries for production release (with additional optimizations)
+        default: false
+        required: false
+        type: boolean
     outputs:
       artifact-dir-base:
         description: The base name of artifact directory (without the target suffix)
@@ -19,10 +25,8 @@ jobs:
           "x86_64-linux-android",
           "i686-linux-android",
         ]
-    env:
-      ARTIFACT_DIR_BASE: ${{ github.job }}
     outputs:
-      artifact-dir-base: ${{ env.ARTIFACT_DIR_BASE }}
+      artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
@@ -35,13 +39,21 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Android library
+        id: build
         run: |
-          just compile-android "${{ matrix.target }}"
+          ARTIFACT_DIR_BASE=${{ github.job }}
+          if ${{ inputs.production }}; then
+            just compile-android-ci "${{ matrix.target }}" --prod
+            ARTIFACT_DIR_BASE+="-production"
+          else
+            just compile-android-ci "${{ matrix.target }}"
+          fi
+          echo "::set-output name=artifact-dir-base::$ARTIFACT_DIR_BASE"
 
       - name: Upload library artifacts
         uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
         with:
-          name: ${{ env.ARTIFACT_DIR_BASE }}-${{ matrix.target }}-${{ github.sha }}
+          name: ${{ steps.build.outputs.artifact-dir-base }}-${{ matrix.target }}-${{ github.sha }}
           retention-days: 1
           if-no-files-found: error
           path: ${{ env.FLUTTER_WORKSPACE }}/android/src/main/jniLibs
