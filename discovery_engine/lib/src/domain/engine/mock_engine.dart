@@ -103,7 +103,7 @@ class MockEngine implements Engine {
   }
 
   @override
-  void timeLogged(TimeSpent timeSpen) {
+  void timeLogged(TimeSpent timeSpent) {
     _incrementCount('timeLogged');
   }
 
