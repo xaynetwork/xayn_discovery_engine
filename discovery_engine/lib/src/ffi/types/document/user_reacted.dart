@@ -13,13 +13,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:ffi' show Pointer;
-import 'dart:typed_data' show Float32List;
 
-import 'package:equatable/equatable.dart' show EquatableMixin;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, StackId;
+import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
+    show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustUserReacted;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -32,23 +28,9 @@ import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi, StackIdFfi;
 
-class UserReactedFfi with EquatableMixin {
-  final DocumentId id;
-  final StackId stackId;
-  final String snippet;
-  final Float32List smbertEmbedding;
-  final UserReaction reaction;
-
-  UserReactedFfi({
-    required this.id,
-    required this.stackId,
-    required this.snippet,
-    required this.smbertEmbedding,
-    required this.reaction,
-  });
-
-  factory UserReactedFfi.readNative(final Pointer<RustUserReacted> place) {
-    return UserReactedFfi(
+extension UserReactedFfi on UserReacted {
+  static UserReacted readNative(final Pointer<RustUserReacted> place) {
+    return UserReacted(
       id: DocumentIdFfi.readNative(ffi.user_reacted_place_of_id(place)),
       stackId: StackIdFfi.readNative(ffi.user_reacted_place_of_stack_id(place)),
       snippet: StringFfi.readNative(ffi.user_reacted_place_of_snippet(place)),
@@ -75,13 +57,4 @@ class UserReactedFfi with EquatableMixin {
         .writeNative(ffi.user_reacted_place_of_smbert_embedding(place));
     reaction.writeNative(ffi.user_reacted_place_of_reaction(place));
   }
-
-  @override
-  List<Object?> get props => [
-        id,
-        stackId,
-        snippet,
-        smbertEmbedding,
-        reaction,
-      ];
 }

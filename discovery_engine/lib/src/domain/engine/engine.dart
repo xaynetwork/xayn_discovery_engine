@@ -19,7 +19,9 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, StackId;
+    show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
+    show UserReacted;
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
@@ -38,11 +40,5 @@ abstract class Engine {
   });
 
   /// Process the user's reaction to a document.
-  void userReacted(
-    DocumentId docId, {
-    required StackId stackId,
-    required String snippet,
-    required Uint8List smbertEmbedding,
-    required UserReaction reaction,
-  });
+  void userReacted(UserReacted userReacted);
 }

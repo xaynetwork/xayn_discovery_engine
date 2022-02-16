@@ -20,6 +20,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
+    show UserReacted;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -74,11 +76,13 @@ class DocumentManager {
         ? doc.resource.snippet
         : doc.resource.title;
     _engine.userReacted(
-      id,
-      stackId: doc.stackId,
-      snippet: snippet,
-      smbertEmbedding: smbertEmbedding,
-      reaction: userReaction,
+      UserReacted(
+        id: id,
+        stackId: doc.stackId,
+        snippet: snippet,
+        smbertEmbedding: smbertEmbedding.buffer.asFloat32List(),
+        reaction: userReaction,
+      ),
     );
     await _engineStateRepo.save(_engine.serialize());
   }

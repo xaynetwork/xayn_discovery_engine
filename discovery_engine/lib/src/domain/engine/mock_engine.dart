@@ -24,6 +24,8 @@ import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
+import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
+    show UserReacted;
 
 class MockEngine implements Engine {
   final Map<String, int> callCounter = {};
@@ -109,13 +111,7 @@ class MockEngine implements Engine {
   }
 
   @override
-  void userReacted(
-    DocumentId docId, {
-    required StackId stackId,
-    required String snippet,
-    required Uint8List smbertEmbedding,
-    required UserReaction reaction,
-  }) {
+  void userReacted(UserReacted userReacted) {
     _incrementCount('userReacted');
   }
 }
