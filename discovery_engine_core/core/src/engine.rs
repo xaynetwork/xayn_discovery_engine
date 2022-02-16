@@ -25,7 +25,7 @@ use xayn_ai::{
 };
 
 use crate::{
-    document::{self, document_from_article, Document, TimeSpent, UserReacted},
+    document::{document_from_article, Document, TimeSpent, UserReacted},
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{
@@ -65,9 +65,6 @@ pub enum Error {
 
     /// Error while using the ranker.
     Ranker(#[from] GenericError),
-
-    /// Document-related error.
-    Document(#[from] document::Error),
 
     /// A list of errors that could occur during some operation.
     Errors(Vec<Error>),
@@ -296,33 +293,23 @@ where
         for stack in self.stacks.write().await.values_mut() {
             if stack.len() <= request_new {
                 match stack.ops.new_items(key_phrases).await.and_then(|articles| {
+                    let id = stack.id();
                     articles
                         .into_iter()
                         .map(|article| {
-                            self.ranker
-                                .compute_smbert(article.title.as_str())
-                                .map(|embedding| (article, embedding))
+                            let embedding = self.ranker.compute_smbert(article.title.as_str())?;
+                            document_from_article(article, id, embedding).map_err(Into::into)
                         })
                         .collect::<Result<Vec<_>, _>>()
                 }) {
-                    Err(gen_err) => errors.push(gen_err.into()),
-                    Ok(art_embs) => {
-                        let id = stack.id();
-                        match art_embs
-                            .into_iter()
-                            .map(|(art, emb)| document_from_article(art, id, emb))
-                            .collect::<Result<Vec<_>, _>>()
-                        {
-                            Ok(documents) => {
-                                if let Err(error) = stack.update(&documents, &mut self.ranker) {
-                                    errors.push(Error::StackOpFailed(error));
-                                } else {
-                                    stack.data.retain_top(self.core_config.keep_top);
-                                }
-                            }
-                            Err(error) => errors.push(error.into()),
+                    Ok(documents) => {
+                        if let Err(error) = stack.update(&documents, &mut self.ranker) {
+                            errors.push(Error::StackOpFailed(error));
+                        } else {
+                            stack.data.retain_top(self.core_config.keep_top);
                         }
                     }
+                    Err(error) => errors.push(error.into()),
                 }
             }
         }
