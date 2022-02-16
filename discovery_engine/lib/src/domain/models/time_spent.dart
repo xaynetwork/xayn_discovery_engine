@@ -1,4 +1,4 @@
-// Copyright 2022 Xayn AG
+// Copyright 2021 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -14,29 +14,26 @@
 
 import 'dart:typed_data' show Float32List;
 
-import 'package:test/test.dart';
+import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
-    show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
-import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
-    show TimeSpentFfi;
 
-void main() {
-  test('reading written user reacted instance yields same result', () {
-    final timeSpent = TimeSpent(
-      id: DocumentId(),
-      smbertEmbedding: Float32List.fromList([.9, .1]),
-      time: const Duration(days: 2),
-      reaction: UserReaction.negative,
-    );
-    final place = ffi.alloc_uninitialized_time_spend();
-    timeSpent.writeNative(place);
-    final res = TimeSpentFfi.readNative(place);
-    ffi.drop_time_spent(place);
-    expect(res, equals(timeSpent));
+/// TimeSpent event with metadata as passed to the engine.
+class TimeSpent with EquatableMixin {
+  final DocumentId id;
+  final Float32List smbertEmbedding;
+  final Duration time;
+  final UserReaction reaction;
+
+  const TimeSpent({
+    required this.id,
+    required this.smbertEmbedding,
+    required this.time,
+    required this.reaction,
   });
+
+  @override
+  List<Object?> get props => [id, smbertEmbedding, time, reaction];
 }

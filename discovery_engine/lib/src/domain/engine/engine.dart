@@ -17,9 +17,9 @@ import 'dart:typed_data' show Uint8List;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show Document;
+import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
+    show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
@@ -32,12 +32,7 @@ abstract class Engine {
   Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments);
 
   /// Process the feedback about the user spending some time on a document.
-  void timeLogged(
-    DocumentId docId, {
-    required Uint8List smbertEmbedding,
-    required Duration seconds,
-    required UserReaction reaction,
-  });
+  void timeLogged(TimeSpent timeSpent);
 
   /// Process the user's reaction to a document.
   void userReacted(UserReacted userReacted);

@@ -13,11 +13,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:ffi' show Pointer;
-import 'dart:typed_data' show Float32List;
 
-import 'package:equatable/equatable.dart' show EquatableMixin;
-import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show DocumentId, UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
+    show TimeSpent;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustTimeSpent;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -31,21 +29,9 @@ import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi;
 
-class TimeSpentFfi with EquatableMixin {
-  final DocumentId id;
-  final Float32List smbertEmbedding;
-  final Duration time;
-  final UserReaction reaction;
-
-  TimeSpentFfi({
-    required this.id,
-    required this.smbertEmbedding,
-    required this.time,
-    required this.reaction,
-  });
-
-  factory TimeSpentFfi.readNative(final Pointer<RustTimeSpent> place) {
-    return TimeSpentFfi(
+extension TimeSpentFfi on TimeSpent {
+  static TimeSpent readNative(final Pointer<RustTimeSpent> place) {
+    return TimeSpent(
       id: DocumentIdFfi.readNative(ffi.time_spent_place_of_id(place)),
       smbertEmbedding: EmbeddingFfi.readNative(
         ffi.time_spent_place_of_smbert_embedding(place),
@@ -70,12 +56,4 @@ class TimeSpentFfi with EquatableMixin {
     time.writeNative(ffi.time_spent_place_of_time(place));
     reaction.writeNative(ffi.time_spent_place_of_reaction(place));
   }
-
-  @override
-  List<Object?> get props => [
-        id,
-        smbertEmbedding,
-        time,
-        reaction,
-      ];
 }
