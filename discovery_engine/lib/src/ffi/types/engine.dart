@@ -13,16 +13,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:ffi' show nullptr, Pointer;
-import 'dart:typed_data' show Float32List, Uint8List;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
+    show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
@@ -128,18 +126,8 @@ class DiscoveryEngineFfi {
   }
 
   /// Processes time spent.
-  Future<void> timeSpent(
-    final DocumentId id,
-    final Float32List smbertEmbedding,
-    final Duration time,
-    final UserReaction reaction,
-  ) async {
-    final boxedTimeSpent = TimeSpentFfi(
-      id: id,
-      smbertEmbedding: smbertEmbedding,
-      time: time,
-      reaction: reaction,
-    ).allocNative();
+  Future<void> timeSpent(final TimeSpent timeSpent) async {
+    final boxedTimeSpent = timeSpent.allocNative();
     final boxedResult = Boxed(
       await asyncFfi.timeSpent(_sharedEngine, boxedTimeSpent.move()),
       ffi.drop_result_void_string,
