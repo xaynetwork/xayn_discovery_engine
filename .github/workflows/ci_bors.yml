@@ -19,15 +19,22 @@ jobs:
   build-ios-libs:
     uses: ./.github/workflows/ci_build_ios.yml
 
+  build-android-libs:
+    uses: ./.github/workflows/ci_build_android.yml
+
   ci-ok:
-    needs: [dev-ci, build-ios-libs]
+    needs: [dev-ci, build-ios-libs, build-android-libs]
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     if: always()
     steps:
       - name: CI OK Testing
         run: |
-          if [[ ${{ needs.dev-ci.outputs.wf-result }} == "success" && "${{ needs.build-ios-libs.result }}" == "success" ]]; then
+          if [[
+            "${{ needs.dev-ci.outputs.wf-result }}" == "success" &&
+            "${{ needs.build-ios-libs.result }}" == "success" &&
+            "${{ needs.build-android-libs.result }}" == "success"
+          ]]; then
             exit 0
           else
             exit 1

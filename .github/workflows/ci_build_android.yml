@@ -1,0 +1,47 @@
+name: Build Android library
+
+on:
+  workflow_call:
+    outputs:
+      artifact-dir-base:
+        description: The base name of artifact directory (without the target suffix)
+        value: ${{ jobs.build-android-libs.outputs.artifact-dir-base }}
+
+jobs:
+  build-android-libs:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 35
+    strategy:
+      matrix:
+        target: [
+          "aarch64-linux-android",
+          "armv7-linux-androideabi",
+          "x86_64-linux-android",
+          "i686-linux-android",
+        ]
+    env:
+      ARTIFACT_DIR_BASE: ${{ github.job }}
+    outputs:
+      artifact-dir-base: ${{ env.ARTIFACT_DIR_BASE }}
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the rust CI.
+        uses: ./.github/actions/setup-job
+        with:
+          rust: true
+          android: true
+          rust-target: ${{ matrix.target }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Android library
+        run: |
+          just compile-android "${{ matrix.target }}"
+
+      - name: Upload library artifacts
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
+        with:
+          name: ${{ env.ARTIFACT_DIR_BASE }}-${{ matrix.target }}-${{ github.sha }}
+          retention-days: 1
+          if-no-files-found: error
+          path: ${{ env.FLUTTER_WORKSPACE }}/android/src/main/jniLibs

@@ -16,6 +16,10 @@ inputs:
   rust-target:
     description: 'Install an additional rust target'
     required: false
+  android:
+    description: 'Install tooling for cross-compiling for Android'
+    required: false
+
   deps:
     description: 'Fetch/Install dependencies'
     default: "true"
@@ -49,6 +53,13 @@ runs:
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
         cache: true
+
+    - name: Install cargo-ndk
+      shell: bash
+      if: inputs.android != 'false'
+      run: |
+        echo "${{ github.workspace }}/cargo-installs/bin" >> $GITHUB_PATH
+        cargo install --git https://github.com/xaynetwork/cargo-ndk.git cargo-ndk
 
     - name: Setup flutter dependencies
       shell: bash
