@@ -75,13 +75,15 @@ class DocumentManager {
     final snippet = doc.resource.snippet.isNotEmpty
         ? doc.resource.snippet
         : doc.resource.title;
-    _engine.userReacted(UserReacted(
-      id: id,
-      stackId: doc.stackId,
-      snippet: snippet,
-      smbertEmbedding: smbertEmbedding.buffer.asFloat32List(),
-      reaction: userReaction,
-    ),);
+    _engine.userReacted(
+      UserReacted(
+        id: id,
+        stackId: doc.stackId,
+        snippet: snippet,
+        smbertEmbedding: smbertEmbedding.buffer.asFloat32List(),
+        reaction: userReaction,
+      ),
+    );
     await _engineStateRepo.save(_engine.serialize());
   }
 
