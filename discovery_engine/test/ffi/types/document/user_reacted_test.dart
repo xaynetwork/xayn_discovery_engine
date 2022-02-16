@@ -18,12 +18,14 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
+import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
+    show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
 
 void main() {
   test('reading written user reacted instance yields same result', () {
-    final document = UserReactedFfi(
+    final document = UserReacted(
       id: DocumentId(),
       stackId: StackId(),
       snippet: 'Cloning brought back the dodo.',
