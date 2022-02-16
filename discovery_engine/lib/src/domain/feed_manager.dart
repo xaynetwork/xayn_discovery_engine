@@ -82,13 +82,15 @@ class FeedManager {
     final feedDocs = _engine.getFeedDocuments(_maxDocs);
     await _engineStateRepo.save(_engine.serialize());
 
-    await _docRepo.updateMany(feedDocs.keys);
-    for (final feedDoc in feedDocs.entries) {
-      final id = feedDoc.key.documentId;
-      await _activeRepo.update(id, feedDoc.value);
+    await _docRepo.updateMany(feedDocs.map((e) => e.document));
+    for (final docWithData in feedDocs) {
+      final id = docWithData.document.documentId;
+      await _activeRepo.update(id, docWithData.data);
     }
 
-    final docs = feedDocs.keys.map((doc) => doc.toApiDocument()).toList();
+    final docs = feedDocs
+        .map((docWithData) => docWithData.document.toApiDocument())
+        .toList();
     return EngineEvent.nextFeedBatchRequestSucceeded(docs);
   }
 

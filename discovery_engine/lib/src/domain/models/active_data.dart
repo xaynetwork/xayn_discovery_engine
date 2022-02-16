@@ -16,12 +16,24 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:hive/hive.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show activeDocumentDataTypeId;
 
 part 'active_data.g.dart';
+
+class DocumentWithActiveData with EquatableMixin {
+  final Document document;
+  final ActiveDocumentData data;
+
+  DocumentWithActiveData(this.document, this.data);
+
+  @override
+  List<Object?> get props => [document, data];
+}
 
 /// Additional data pertaining to active documents.
 @HiveType(typeId: activeDocumentDataTypeId)

@@ -14,8 +14,8 @@
 
 import 'dart:ffi' show Pointer;
 
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document;
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
+    show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustDocument, RustVecDocument;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -69,8 +69,13 @@ extension DocumentSliceFfi on List<DocumentFfi> {
     return res;
   }
 
-  List<Document> toDocumentList() => asMap()
+  List<DocumentWithActiveData> toDocumentListWithData() => asMap()
       .entries
-      .map((e) => e.value.toDocument(batchIndex: e.key))
+      .map(
+        (e) => DocumentWithActiveData(
+          e.value.toDocument(batchIndex: e.key),
+          e.value.toActiveDocumentData(),
+        ),
+      )
       .toList();
 }
