@@ -25,9 +25,7 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
     show DocumentFfi;
 
-void main() {
-  test('reading and written a document', () {
-    final document = DocumentFfi(
+DocumentFfi arbitraryDocumentFfi() => DocumentFfi(
       id: DocumentId(),
       stackId: StackId(),
       smbertEmbedding: Float32List.fromList([.9, .1]),
@@ -45,6 +43,10 @@ void main() {
         topic: 'FunFun',
       ),
     );
+
+void main() {
+  test('reading and written a document', () {
+    final document = arbitraryDocumentFfi();
     final place = ffi.alloc_uninitialized_document();
     document.writeNative(place);
     final res = DocumentFfi.readNative(place);
@@ -53,24 +55,7 @@ void main() {
   });
 
   test('conversion to Document works', () {
-    final ffiDocument = DocumentFfi(
-      id: DocumentId(),
-      stackId: StackId(),
-      smbertEmbedding: Float32List.fromList([.9, .1]),
-      resource: NewsResource(
-        title: 'fun',
-        snippet: 'fun is fun',
-        url: Uri.parse('https://www.foobar.example/dodo'),
-        sourceUrl: Uri.parse('yyy://www.example/'),
-        thumbnail: null,
-        datePublished: DateTime.now(),
-        rank: 12,
-        score: 32.5,
-        country: 'Germany',
-        language: 'German',
-        topic: 'FunFun',
-      ),
-    );
+    final ffiDocument = arbitraryDocumentFfi();
     final document = ffiDocument.toDocument(batchIndex: 12);
     expect(document.documentId, equals(ffiDocument.id));
     expect(document.stackId, equals(ffiDocument.stackId));
@@ -78,5 +63,15 @@ void main() {
     expect(document.batchIndex, equals(12));
     expect(document.userReaction, equals(UserReaction.neutral));
     expect(document.isActive, isTrue);
+  });
+
+  test('conversion to ActiveDocumentData works', () {
+    final ffiDocument = arbitraryDocumentFfi();
+    final data = ffiDocument.toActiveDocumentData();
+    expect(
+      data.smbertEmbedding,
+      equals(ffiDocument.smbertEmbedding.buffer.asUint8List()),
+    );
+    expect(data.viewTime, isEmpty);
   });
 }

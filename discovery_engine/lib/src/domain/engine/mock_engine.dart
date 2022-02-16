@@ -17,7 +17,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
-    show ActiveDocumentData;
+    show ActiveDocumentData, DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
@@ -90,15 +90,18 @@ class MockEngine implements Engine {
   }
 
   @override
-  Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments) {
+  List<DocumentWithActiveData> getFeedDocuments(int maxDocuments) {
     _incrementCount('getFeedDocuments');
 
     if (maxDocuments < 1) {
-      return {};
+      return [];
     } else if (maxDocuments == 1) {
-      return {doc0: active0};
+      return [DocumentWithActiveData(doc0, active0)];
     } else {
-      return {doc0: active0, doc1: active1};
+      return [
+        DocumentWithActiveData(doc0, active0),
+        DocumentWithActiveData(doc1, active1)
+      ];
     }
   }
 

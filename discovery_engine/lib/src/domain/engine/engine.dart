@@ -15,9 +15,7 @@
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
-    show ActiveDocumentData;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document;
+    show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -29,7 +27,7 @@ abstract class Engine {
   Uint8List serialize();
 
   /// Retrieves at most [maxDocuments] feed documents.
-  Map<Document, ActiveDocumentData> getFeedDocuments(int maxDocuments);
+  List<DocumentWithActiveData> getFeedDocuments(int maxDocuments);
 
   /// Process the feedback about the user spending some time on a document.
   void timeLogged(TimeSpent timeSpent);

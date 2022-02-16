@@ -27,9 +27,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
 
-void main() {
-  test('reading and writing a list of documents', () {
-    final documents = <DocumentFfi>[
+List<DocumentFfi> arbitraryDocumentFfi() => [
       DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
@@ -67,6 +65,10 @@ void main() {
         ),
       ),
     ];
+
+void main() {
+  test('reading and writing a list of documents', () {
+    final documents = arbitraryDocumentFfi();
     final len = documents.length;
     final ptr = documents.createSlice();
     final res = DocumentSliceFfi.readSlice(ptr, len);
@@ -75,59 +77,30 @@ void main() {
   });
 
   test('conversion to documents works', () {
-    final ffiDocuments = <DocumentFfi>[
-      DocumentFfi(
-        id: DocumentId(),
-        stackId: StackId(),
-        smbertEmbedding: Float32List.fromList([.9, .1]),
-        resource: NewsResource(
-          title: 'fun',
-          snippet: 'fun is fun',
-          url: Uri.parse('https://www.foobar.example/dodo'),
-          sourceUrl: Uri.parse('yyy://www.example'),
-          thumbnail: null,
-          datePublished: DateTime.now(),
-          rank: 12,
-          score: 32.625,
-          country: 'Germany',
-          language: 'German',
-          topic: 'FunFun',
-        ),
-      ),
-      DocumentFfi(
-        id: DocumentId(),
-        stackId: StackId(),
-        smbertEmbedding: Float32List.fromList([9, 1]),
-        resource: NewsResource(
-          title: 'bun',
-          snippet: 'foo bar',
-          url: Uri.parse('https://www.barfoot.example/dodo'),
-          sourceUrl: Uri.parse('yyy://fuu.example'),
-          thumbnail: Uri.parse('https://dodo.example/'),
-          datePublished: DateTime.now(),
-          rank: 12,
-          score: 2.125,
-          country: 'Germany',
-          language: 'German',
-          topic: 'FunFun',
-        ),
-      ),
-    ];
-    final documents = ffiDocuments.toDocumentList();
+    final ffiDocuments = arbitraryDocumentFfi();
+    final documents = ffiDocuments.toDocumentListWithActiveData();
 
-    expect(documents[0].documentId, equals(ffiDocuments[0].id));
-    expect(documents[0].stackId, equals(ffiDocuments[0].stackId));
-    expect(documents[0].resource, equals(ffiDocuments[0].resource));
-    expect(documents[0].batchIndex, equals(0));
-    expect(documents[0].userReaction, equals(UserReaction.neutral));
-    expect(documents[0].isActive, isTrue);
+    expect(documents[0].document.documentId, equals(ffiDocuments[0].id));
+    expect(documents[0].document.stackId, equals(ffiDocuments[0].stackId));
+    expect(documents[0].document.resource, equals(ffiDocuments[0].resource));
+    expect(documents[0].document.batchIndex, equals(0));
+    expect(documents[0].document.userReaction, equals(UserReaction.neutral));
+    expect(documents[0].document.isActive, isTrue);
+    expect(
+      documents[0].data.smbertEmbedding,
+      ffiDocuments[0].smbertEmbedding.buffer.asUint8List(),
+    );
 
-    expect(documents[1].documentId, equals(ffiDocuments[1].id));
-    expect(documents[1].stackId, equals(ffiDocuments[1].stackId));
-    expect(documents[1].resource, equals(ffiDocuments[1].resource));
-    expect(documents[1].batchIndex, equals(1));
-    expect(documents[1].userReaction, equals(UserReaction.neutral));
-    expect(documents[1].isActive, isTrue);
+    expect(documents[1].document.documentId, equals(ffiDocuments[1].id));
+    expect(documents[1].document.stackId, equals(ffiDocuments[1].stackId));
+    expect(documents[1].document.resource, equals(ffiDocuments[1].resource));
+    expect(documents[1].document.batchIndex, equals(1));
+    expect(documents[1].document.userReaction, equals(UserReaction.neutral));
+    expect(documents[1].document.isActive, isTrue);
+    expect(
+      documents[1].data.smbertEmbedding,
+      ffiDocuments[1].smbertEmbedding.buffer.asUint8List(),
+    );
 
     expect(documents.length, equals(2));
   });

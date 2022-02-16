@@ -16,6 +16,8 @@ import 'dart:ffi' show Pointer;
 import 'dart:typed_data' show Float32List;
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
+    show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
@@ -73,4 +75,7 @@ class DocumentFfi with EquatableMixin {
         resource: resource,
         batchIndex: batchIndex,
       );
+
+  ActiveDocumentData toActiveDocumentData() =>
+      ActiveDocumentData(smbertEmbedding.buffer.asUint8List());
 }
