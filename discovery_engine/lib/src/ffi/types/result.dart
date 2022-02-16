@@ -91,8 +91,11 @@ class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
   }
 }
 
-Never _moveUnsupported<RustType extends NativeType>(Pointer<RustType> _) {
-  throw UnsupportedError('get the value or consume the whole result');
+Never _throwUnsupported<RustType extends NativeType>(Pointer<RustType> _) {
+  throw UnsupportedError(
+    'moving the value is unsupported for this result: '
+    'read the value or consume the whole result instead',
+  );
 }
 
 Never _throwStringErr(final String error) {
@@ -102,39 +105,39 @@ Never _throwStringErr(final String error) {
 final resultVoidStringFfiAdapter = ResultFfiAdapter(
   getOk: ffi.get_result_void_string_ok,
   getErr: ffi.get_result_void_string_err,
-  moveOk: _moveUnsupported,
-  moveErr: _moveUnsupported,
+  moveOk: _throwUnsupported,
+  moveErr: _throwUnsupported,
   readNativeOk: (_) {},
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
-  freeOk: _moveUnsupported,
-  freeErr: _moveUnsupported,
+  freeOk: _throwUnsupported,
+  freeErr: _throwUnsupported,
   freeResult: ffi.drop_result_void_string,
 );
 
 final resultVecU8StringFfiAdapter = ResultFfiAdapter(
   getOk: ffi.get_result_vec_u8_string_ok,
   getErr: ffi.get_result_vec_u8_string_err,
-  moveOk: _moveUnsupported,
-  moveErr: _moveUnsupported,
+  moveOk: _throwUnsupported,
+  moveErr: _throwUnsupported,
   readNativeOk: Uint8ListFfi.readNative,
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
-  freeOk: _moveUnsupported,
-  freeErr: _moveUnsupported,
+  freeOk: _throwUnsupported,
+  freeErr: _throwUnsupported,
   freeResult: ffi.drop_result_vec_u8_string,
 );
 
 final resultVecDocumentStringFfiAdapter = ResultFfiAdapter(
   getOk: ffi.get_result_vec_document_string_ok,
   getErr: ffi.get_result_vec_document_string_err,
-  moveOk: _moveUnsupported,
-  moveErr: _moveUnsupported,
+  moveOk: _throwUnsupported,
+  moveErr: _throwUnsupported,
   readNativeOk: DocumentSliceFfi.readVec,
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
-  freeOk: _moveUnsupported,
-  freeErr: _moveUnsupported,
+  freeOk: _throwUnsupported,
+  freeErr: _throwUnsupported,
   freeResult: ffi.drop_result_vec_document_string,
 );
 
