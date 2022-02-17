@@ -15,6 +15,8 @@
 import 'dart:ffi' show nullptr, Pointer;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
+    show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -27,8 +29,8 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustResultSharedEngineString, RustSharedEngine;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
-import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
-    show DocumentFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
+    show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
@@ -113,16 +115,20 @@ class DiscoveryEngineFfi {
   }
 
   /// Gets feed documents.
-  Future<List<DocumentFfi>> getFeedDocuments(final int maxDocuments) async {
+  Future<List<DocumentWithActiveData>> getFeedDocuments(
+    final int maxDocuments,
+  ) async {
     final boxedResult = Boxed(
       await asyncFfi.getFeedDocuments(_sharedEngine, maxDocuments),
       ffi.drop_result_vec_document_string,
     );
 
-    return resultVecDocumentStringFfiAdapter.consumeNative(
-      boxedResult,
-      mapErr: (error) => Exception(error),
-    );
+    return resultVecDocumentStringFfiAdapter
+        .consumeNative(
+          boxedResult,
+          mapErr: (error) => Exception(error),
+        )
+        .toDocumentListWithActiveData();
   }
 
   /// Processes time spent.
