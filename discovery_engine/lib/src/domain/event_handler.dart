@@ -168,9 +168,9 @@ class EventHandler {
           EngineExceptionReason.wrongEventRequested,
         );
       }
-    } catch (e) {
+    } catch (e, s) {
       // log the error
-      logger.e(e);
+      logger.e('Handling ClientEvent by one of the managers failed', e, s);
 
       response = const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,

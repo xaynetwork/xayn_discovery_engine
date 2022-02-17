@@ -110,14 +110,14 @@ class DiscoveryEngine {
       }
 
       return DiscoveryEngine._(manager);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      const message =
+          'Something went wrong during Discovery Engine initialization';
+      logger.e(message, error, stackTrace);
       // rethrow exception thrown by issue with configuration
       if (error is EngineInitException) rethrow;
       // throw for the client to catch
-      throw EngineInitException(
-        'Something went wrong during Discovery Engine initialization',
-        error,
-      );
+      throw EngineInitException(message, error);
     }
   }
 
@@ -275,19 +275,20 @@ class DiscoveryEngine {
     try {
       // we need to await the result otherwise catch won't work
       return await fn();
-    } catch (e) {
+    } catch (error, stackTrace) {
       var reason = EngineExceptionReason.genericError;
 
-      if (e is ConverterException) {
+      if (error is ConverterException) {
         reason = EngineExceptionReason.converterException;
-      } else if (e is ResponseTimeoutException) {
+      } else if (error is ResponseTimeoutException) {
         reason = EngineExceptionReason.responseTimeout;
-      } else if (e is ManagerDisposedException) {
+      } else if (error is ManagerDisposedException) {
         reason = EngineExceptionReason.engineDisposed;
       }
 
+      const message = 'Something went wrong when trying to send a ClientEvent';
       // log the error
-      logger.e(e);
+      logger.e(message, error, stackTrace);
 
       // into [EngineExceptionRaised] event with a specific reason
       return EngineEvent.engineExceptionRaised(reason);
