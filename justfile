@@ -234,7 +234,7 @@ compile-android-local: _codegen-order-workaround
     done
 
 compile-android-ci target prod_flag="\"\"": _codegen-order-workaround
-    #!/usr/bin/env sh
+    #!/usr/bin/env bash
     set -eu
     if [[ {{prod_flag}} == "--prod" ]]; then
         RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-android {{target}}
@@ -258,7 +258,7 @@ compile-ios-local: _codegen-order-workaround
     done
 
 compile-ios-ci target prod_flag="\"\"": _codegen-order-workaround
-    #!/usr/bin/env sh
+    #!/usr/bin/env bash
     set -eu
     if [[ {{prod_flag}} == "--prod" ]]; then
         RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-ios {{target}}
