@@ -26,15 +26,29 @@ import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 
 abstract class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
     RustOk extends NativeType, RustErr extends NativeType> {
-  late final Pointer<RustOk> Function(Pointer<RustResult>) _getOk;
-  late final Pointer<RustErr> Function(Pointer<RustResult>) _getErr;
-  late final Ok Function(Pointer<RustOk>) _readNativeOk;
-  late final Err Function(Pointer<RustErr>) _readNativeErr;
-  late final Never Function(Err) _throwErr;
-  late final void Function(Pointer<RustResult>) _freeResult;
+  final Pointer<RustOk> Function(Pointer<RustResult>) _getOk;
+  final Pointer<RustErr> Function(Pointer<RustResult>) _getErr;
+  final Ok Function(Pointer<RustOk>) _readNativeOk;
+  final Err Function(Pointer<RustErr>) _readNativeErr;
+  final Never Function(Err) _throwErr;
+  final void Function(Pointer<RustResult>) _freeResult;
+
+  ResultFfiAdapter({
+    required final Pointer<RustOk> Function(Pointer<RustResult>) getOk,
+    required final Pointer<RustErr> Function(Pointer<RustResult>) getErr,
+    required final Ok Function(Pointer<RustOk>) readNativeOk,
+    required final Err Function(Pointer<RustErr>) readNativeErr,
+    required final Never Function(Err) throwErr,
+    required final void Function(Pointer<RustResult>) freeResult,
+  })  : _getOk = getOk,
+        _getErr = getErr,
+        _readNativeOk = readNativeOk,
+        _readNativeErr = readNativeErr,
+        _throwErr = throwErr,
+        _freeResult = freeResult;
 
   /// Reads the result and returns the success value or throws in case of an error value.
-  Ok readNative(Pointer<RustResult> result) {
+  Ok readNative(final Pointer<RustResult> result) {
     final ok = _getOk(result);
     if (ok != nullptr) {
       return _readNativeOk(ok);
@@ -50,7 +64,7 @@ abstract class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
   ///
   /// # Safety
   /// Must only be called on owned pointers and not more than once.
-  void freeNative(Pointer<RustResult> result) {
+  void freeNative(final Pointer<RustResult> result) {
     _freeResult(result);
   }
 }
@@ -63,7 +77,7 @@ mixin ConsumeResultFfiMixin<Ok, Err, RustResult extends NativeType,
   /// # Safety
   ///
   /// Must only be called on owned pointers and not more than once.
-  Ok consumeNative(Pointer<RustResult> result) {
+  Ok consumeNative(final Pointer<RustResult> result) {
     try {
       return readNative(result);
     } finally {
@@ -75,15 +89,15 @@ mixin ConsumeResultFfiMixin<Ok, Err, RustResult extends NativeType,
 mixin MoveResultFfiMixin<Ok, Err, RustResult extends NativeType,
         RustOk extends NativeType, RustErr extends NativeType>
     on ResultFfiAdapter<Ok, Err, RustResult, RustOk, RustErr> {
-  late final Pointer<RustOk> Function(Pointer<RustResult>) _moveOk;
-  late final void Function(Pointer<RustOk>) _freeOk;
+  Pointer<RustOk> Function(Pointer<RustResult>) get _moveOk;
+  void Function(Pointer<RustOk>) get _freeOk;
 
   /// Consumes the result and moves the success value or throws in case of an error value.
   ///
   /// # Safety
   ///
   /// Must only be called on owned pointers and not more than once.
-  Boxed<RustOk> moveNative(Pointer<RustResult> result) {
+  Boxed<RustOk> moveNative(final Pointer<RustResult> result) {
     try {
       readNative(result);
     } catch (_) {
@@ -106,20 +120,25 @@ class ConsumeResultFfiAdapter<Ok, Err, RustResult extends NativeType,
     required final Err Function(Pointer<RustErr>) readNativeErr,
     required final Never Function(Err) throwErr,
     required final void Function(Pointer<RustResult>) freeResult,
-  }) {
-    _getOk = getOk;
-    _getErr = getErr;
-    _readNativeOk = readNativeOk;
-    _readNativeErr = readNativeErr;
-    _throwErr = throwErr;
-    _freeResult = freeResult;
-  }
+  }) : super(
+          getOk: getOk,
+          getErr: getErr,
+          readNativeOk: readNativeOk,
+          readNativeErr: readNativeErr,
+          throwErr: throwErr,
+          freeResult: freeResult,
+        );
 }
 
 class MoveResultFfiAdapter<Ok, Err, RustResult extends NativeType,
         RustOk extends NativeType, RustErr extends NativeType>
     extends ResultFfiAdapter<Ok, Err, RustResult, RustOk, RustErr>
     with MoveResultFfiMixin<Ok, Err, RustResult, RustOk, RustErr> {
+  @override
+  final Pointer<RustOk> Function(Pointer<RustResult>) _moveOk;
+  @override
+  final void Function(Pointer<RustOk>) _freeOk;
+
   MoveResultFfiAdapter({
     required final Pointer<RustOk> Function(Pointer<RustResult>) getOk,
     required final Pointer<RustErr> Function(Pointer<RustResult>) getErr,
@@ -129,16 +148,16 @@ class MoveResultFfiAdapter<Ok, Err, RustResult extends NativeType,
     required final Never Function(Err) throwErr,
     required final void Function(Pointer<RustOk>) freeOk,
     required final void Function(Pointer<RustResult>) freeResult,
-  }) {
-    _getOk = getOk;
-    _getErr = getErr;
-    _moveOk = moveOk;
-    _readNativeOk = readNativeOk;
-    _readNativeErr = readNativeErr;
-    _throwErr = throwErr;
-    _freeOk = freeOk;
-    _freeResult = freeResult;
-  }
+  })  : _moveOk = moveOk,
+        _freeOk = freeOk,
+        super(
+          getOk: getOk,
+          getErr: getErr,
+          readNativeOk: readNativeOk,
+          readNativeErr: readNativeErr,
+          throwErr: throwErr,
+          freeResult: freeResult,
+        );
 }
 
 Never _throwStringErr(final String error) {
