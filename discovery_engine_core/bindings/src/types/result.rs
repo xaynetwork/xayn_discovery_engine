@@ -56,18 +56,6 @@ unsafe fn move_result_ok<O, E>(res: *mut Result<O, E>) -> *mut O {
     }
 }
 
-/// Returns a pointer to the moved `Result::Err` error value or a nullptr.
-///
-/// # Safety
-///
-/// - The pointer must represent a valid `Box<Result<O, E>>` instance.
-unsafe fn move_result_err<O, E>(res: *mut Result<O, E>) -> *mut E {
-    match *unsafe { Box::from_raw(res) } {
-        Ok(_) => ptr::null_mut(),
-        Err(err) => Box::into_raw(Box::new(err)),
-    }
-}
-
 /// Returns a pointer to the `Vec<u8>` success value or a nullptr.
 ///
 /// # Safety
@@ -210,16 +198,4 @@ pub unsafe extern "C" fn move_result_shared_engine_string_ok(
     res: *mut Result<SharedEngine, String>,
 ) -> *mut SharedEngine {
     unsafe { move_result_ok(res) }
-}
-
-/// Returns a pointer to the moved `String` error value or a nullptr.
-///
-/// # Safety
-///
-/// - The pointer must represent a valid `Box<Result<SharedEngine>, String>>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn move_result_shared_engine_string_err(
-    res: *mut Result<SharedEngine, String>,
-) -> *mut String {
-    unsafe { move_result_err(res) }
 }

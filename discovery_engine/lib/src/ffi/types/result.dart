@@ -29,24 +29,20 @@ class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
   final Pointer<RustOk> Function(Pointer<RustResult>) getOk;
   final Pointer<RustErr> Function(Pointer<RustResult>) getErr;
   final Pointer<RustOk> Function(Pointer<RustResult>) moveOk;
-  final Pointer<RustErr> Function(Pointer<RustResult>) moveErr;
   final Ok Function(Pointer<RustOk>) readNativeOk;
   final Err Function(Pointer<RustErr>) readNativeErr;
   final Never Function(Err) throwErr;
   final void Function(Pointer<RustOk>) freeOk;
-  final void Function(Pointer<RustErr>) freeErr;
   final void Function(Pointer<RustResult>) freeResult;
 
   ResultFfiAdapter({
     required this.getOk,
     required this.getErr,
     required this.moveOk,
-    required this.moveErr,
     required this.readNativeOk,
     required this.readNativeErr,
     required this.throwErr,
     required this.freeOk,
-    required this.freeErr,
     required this.freeResult,
   });
 
@@ -66,6 +62,7 @@ class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
   /// Consumes the result and returns the success value or throws in case of an error value.
   ///
   /// # Safety
+  ///
   /// Must only be called on owned pointers.
   Ok consumeNative(Pointer<RustResult> result) {
     try {
@@ -78,6 +75,7 @@ class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
   /// Consumes the result and moves the success value or throws in case of an error value.
   ///
   /// # Safety
+  ///
   /// Must only be called on owned pointers.
   Boxed<RustOk> moveNative(Pointer<RustResult> result) {
     try {
@@ -106,12 +104,10 @@ final resultVoidStringFfiAdapter = ResultFfiAdapter(
   getOk: ffi.get_result_void_string_ok,
   getErr: ffi.get_result_void_string_err,
   moveOk: _throwUnsupported,
-  moveErr: _throwUnsupported,
   readNativeOk: (_) {},
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
   freeOk: _throwUnsupported,
-  freeErr: _throwUnsupported,
   freeResult: ffi.drop_result_void_string,
 );
 
@@ -119,12 +115,10 @@ final resultVecU8StringFfiAdapter = ResultFfiAdapter(
   getOk: ffi.get_result_vec_u8_string_ok,
   getErr: ffi.get_result_vec_u8_string_err,
   moveOk: _throwUnsupported,
-  moveErr: _throwUnsupported,
   readNativeOk: Uint8ListFfi.readNative,
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
   freeOk: _throwUnsupported,
-  freeErr: _throwUnsupported,
   freeResult: ffi.drop_result_vec_u8_string,
 );
 
@@ -132,12 +126,10 @@ final resultVecDocumentStringFfiAdapter = ResultFfiAdapter(
   getOk: ffi.get_result_vec_document_string_ok,
   getErr: ffi.get_result_vec_document_string_err,
   moveOk: _throwUnsupported,
-  moveErr: _throwUnsupported,
   readNativeOk: DocumentSliceFfi.readVec,
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
   freeOk: _throwUnsupported,
-  freeErr: _throwUnsupported,
   freeResult: ffi.drop_result_vec_document_string,
 );
 
@@ -145,11 +137,9 @@ final resultSharedEngineStringFfiAdapter = ResultFfiAdapter(
   getOk: ffi.get_result_shared_engine_string_ok,
   getErr: ffi.get_result_shared_engine_string_err,
   moveOk: ffi.move_result_shared_engine_string_ok,
-  moveErr: ffi.move_result_shared_engine_string_err,
   readNativeOk: (final Pointer<RustSharedEngine> sharedEngine) => sharedEngine,
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
   freeOk: ffi.drop_shared_engine,
-  freeErr: ffi.drop_string,
   freeResult: ffi.drop_result_shared_engine_string,
 );
