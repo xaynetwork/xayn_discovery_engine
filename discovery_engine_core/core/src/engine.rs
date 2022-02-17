@@ -25,7 +25,7 @@ use xayn_ai::{
 };
 
 use crate::{
-    document::{Document, TimeSpent, UserReacted},
+    document::{self, document_from_article, Document, TimeSpent, UserReacted},
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{
@@ -65,6 +65,9 @@ pub enum Error {
 
     /// Error while using the ranker.
     Ranker(#[from] GenericError),
+
+    /// Error while creating document: {0}.
+    Document(#[source] document::Error),
 
     /// A list of errors that could occur during some operation.
     Errors(Vec<Error>),
@@ -292,7 +295,23 @@ where
         let mut errors = Vec::new();
         for stack in self.stacks.write().await.values_mut() {
             if stack.len() <= request_new {
-                match stack.ops.new_items(key_phrases, &self.ranker).await {
+                let articles = stack
+                    .new_items(key_phrases)
+                    .await
+                    .and_then(|articles| stack.filter_articles(articles));
+
+                match articles.map_err(Error::StackOpFailed).and_then(|articles| {
+                    let id = stack.id();
+                    articles
+                        .into_iter()
+                        .map(|article| {
+                            let title = article.title.as_str();
+                            let embedding =
+                                self.ranker.compute_smbert(title).map_err(Error::Ranker)?;
+                            document_from_article(article, id, embedding).map_err(Error::Document)
+                        })
+                        .collect::<Result<Vec<_>, _>>()
+                }) {
                     Ok(documents) => {
                         if let Err(error) = stack.update(&documents, &mut self.ranker) {
                             errors.push(Error::StackOpFailed(error));
@@ -300,7 +319,7 @@ where
                             stack.data.retain_top(self.core_config.keep_top);
                         }
                     }
-                    Err(error) => errors.push(error.into()),
+                    Err(error) => errors.push(error),
                 }
             }
         }

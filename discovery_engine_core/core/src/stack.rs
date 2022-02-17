@@ -20,6 +20,7 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
+use xayn_discovery_engine_providers::Article;
 
 use crate::{
     document::{Document, Id as DocumentId, UserReaction},
@@ -56,6 +57,12 @@ pub enum Error {
         /// [`StackId`](Id) of the the current stack.
         stack_id: Id,
     },
+
+    /// Failed to get new items: {0}.
+    New(#[source] GenericError),
+
+    /// Failed to filter: {0}.
+    Filter(#[source] GenericError),
 }
 
 /// Convenience type that boxes an [`ops::Ops`] and adds [`Send`] and [`Sync`].
@@ -86,7 +93,6 @@ impl Stack {
     }
 
     /// [`Id`] of this `Stack`.
-    #[allow(dead_code)]
     pub(crate) fn id(&self) -> Id {
         self.ops.id()
     }
@@ -156,6 +162,21 @@ impl Stack {
     pub(crate) fn is_empty(&self) -> bool {
         self.data.documents.is_empty()
     }
+
+    /// Returns a list of new articles.
+    pub(crate) async fn new_items(
+        &self,
+        key_phrases: &[xayn_ai::ranker::KeyPhrase],
+    ) -> Result<Vec<Article>, Error> {
+        self.ops.new_items(key_phrases).await.map_err(Error::New)
+    }
+
+    /// Filters a list of articles
+    pub(crate) fn filter_articles(&self, articles: Vec<Article>) -> Result<Vec<Article>, Error> {
+        self.ops
+            .filter_articles(&self.data.documents, articles)
+            .map_err(Error::Filter)
+    }
 }
 
 impl Bucket<Document> for Stack {
@@ -185,7 +206,7 @@ mod tests {
     // TODO use our own when exposed as a crate
     use float_cmp::approx_eq;
 
-    use crate::{document::Id as DocumentId, stack::ops::tests::MockOps};
+    use crate::{document::Id as DocumentId, stack::ops::MockOps};
 
     use super::*;
 

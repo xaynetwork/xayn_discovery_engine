@@ -16,19 +16,23 @@ pub(crate) mod breaking;
 pub(crate) mod personalized;
 
 use async_trait::async_trait;
+use xayn_discovery_engine_providers::Article;
 
 use crate::{
     document::Document,
     engine::{EndpointConfig, GenericError},
-    ranker::Ranker,
     stack::Id,
 };
 use xayn_ai::ranker::KeyPhrase;
+
+#[cfg(test)]
+use mockall::automock;
 
 /// Operations to customize the behaviour of a stack.
 ///
 /// Each stack can get and select new items using different sources
 /// or different strategies.
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait Ops {
     /// Get the id for this set of operations.
@@ -44,11 +48,14 @@ pub trait Ops {
     ///
     /// Personalized key phrases can be optionally used to return items
     /// tailored to the user's interests.
-    async fn new_items<'a>(
+    async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError>;
+
+    /// Filter `articles` based on `current` documents.
+    fn filter_articles(
         &self,
-        key_phrases: &[KeyPhrase],
-        ranker: &'a (dyn Ranker + Sync),
-    ) -> Result<Vec<Document>, GenericError>;
+        current: &[Document],
+        articles: Vec<Article>,
+    ) -> Result<Vec<Article>, GenericError>;
 
     /// Merge current and new items.
     fn merge(&self, current: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
@@ -56,35 +63,7 @@ pub trait Ops {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use mockall::mock;
-
     use super::*;
-
-    // mocking introduces an additional distinct lifetime without the alias
-    pub(crate) type R<'a> = &'a (dyn Ranker + Sync);
-
-    mock! {
-        pub(crate) Ops {}
-
-        #[async_trait]
-        impl Ops for Ops {
-            fn id(&self) -> Id;
-
-            fn configure(&mut self, config: &EndpointConfig);
-
-            async fn new_items<'a>(
-                &self,
-                key_phrases: &[KeyPhrase],
-                ranker: R<'a>,
-            ) -> Result<Vec<Document>, GenericError>;
-
-            fn merge(
-                &self,
-                current: &[Document],
-                new: &[Document],
-            ) -> Result<Vec<Document>, GenericError>;
-        }
-    }
 
     // check that Ops is object safe
     #[test]

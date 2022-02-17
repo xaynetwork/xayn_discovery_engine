@@ -208,7 +208,6 @@ pub struct UserReacted {
     pub reaction: UserReaction,
 }
 
-#[allow(dead_code)]
 pub(crate) fn document_from_article(
     article: Article,
     stack_id: StackId,

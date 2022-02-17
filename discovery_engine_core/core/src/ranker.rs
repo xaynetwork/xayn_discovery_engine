@@ -41,6 +41,9 @@ pub trait Ranker {
 
     /// Serializes the state of the `Ranker`.
     fn serialize(&self) -> Result<Vec<u8>, GenericError>;
+
+    /// Computes the S-mBert embedding of the given `sequence`.
+    fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError>;
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
@@ -72,6 +75,10 @@ impl Ranker for xayn_ai::ranker::Ranker {
 
     fn serialize(&self) -> Result<Vec<u8>, GenericError> {
         self.serialize().map_err(Into::into)
+    }
+
+    fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError> {
+        self.compute_smbert(sequence).map_err(Into::into)
     }
 }
 
