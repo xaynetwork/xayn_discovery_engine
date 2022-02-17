@@ -25,10 +25,14 @@ use crate::{
 };
 use xayn_ai::ranker::KeyPhrase;
 
+#[cfg(test)]
+use mockall::automock;
+
 /// Operations to customize the behaviour of a stack.
 ///
 /// Each stack can get and select new items using different sources
 /// or different strategies.
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait Ops {
     /// Get the id for this set of operations.
@@ -59,37 +63,7 @@ pub trait Ops {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use mockall::mock;
-
     use super::*;
-
-    mock! {
-        pub(crate) Ops {}
-
-        #[async_trait]
-        impl Ops for Ops {
-            fn id(&self) -> Id;
-
-            fn configure(&mut self, config: &EndpointConfig);
-
-            async fn new_items(
-                &self,
-                key_phrases: &[KeyPhrase],
-            ) -> Result<Vec<Article>, GenericError>;
-
-            fn filter_articles(
-                &self,
-                current: &[Document],
-                articles: Vec<Article>,
-            ) -> Result<Vec<Article>, GenericError>;
-
-            fn merge(
-                &self,
-                current: &[Document],
-                new: &[Document],
-            ) -> Result<Vec<Document>, GenericError>;
-        }
-    }
 
     // check that Ops is object safe
     #[test]
