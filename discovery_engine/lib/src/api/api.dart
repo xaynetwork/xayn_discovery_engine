@@ -41,6 +41,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         FetchingAssetsFinished,
         SystemEngineEvent,
         ClientEventSucceeded,
+        DocumentEngineEvent,
+        DocumentsUpdated,
         EngineExceptionRaised,
         EngineExceptionReason;
 export 'package:xayn_discovery_engine/src/api/models/document.dart';

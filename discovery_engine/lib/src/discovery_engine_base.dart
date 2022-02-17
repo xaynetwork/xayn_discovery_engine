@@ -307,6 +307,7 @@ extension _MapEvent on EngineEvent {
     bool? fetchingAssetsFinished,
     bool? clientEventSucceeded,
     bool? engineExceptionRaised,
+    bool? documentsUpdated,
   }) =>
       map(
         feedRequestSucceeded: _maybePassThrough(feedRequestSucceeded),
@@ -321,6 +322,7 @@ extension _MapEvent on EngineEvent {
         fetchingAssetsFinished: _maybePassThrough(fetchingAssetsFinished),
         clientEventSucceeded: _maybePassThrough(clientEventSucceeded),
         engineExceptionRaised: _maybePassThrough(engineExceptionRaised),
+        documentsUpdated: _maybePassThrough(documentsUpdated),
       );
 
   EngineEvent Function(EngineEvent) _maybePassThrough(bool? condition) {
