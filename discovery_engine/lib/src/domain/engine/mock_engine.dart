@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List, Uint8List;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
@@ -68,8 +68,8 @@ class MockEngine implements Engine {
       batchIndex: 1,
       resource: resource,
     );
-    active1 = ActiveDocumentData(Embedding(Float32List.fromList([0])));
-    active0 = ActiveDocumentData(Embedding(Float32List.fromList([1, 3])));
+    active1 = ActiveDocumentData(Embedding.fromList([0]));
+    active0 = ActiveDocumentData(Embedding.fromList([1, 3]));
   }
 
   void _incrementCount(String key) {

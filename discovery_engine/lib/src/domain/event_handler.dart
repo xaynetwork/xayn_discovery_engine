@@ -41,8 +41,6 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, UserReactionAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show EmbeddingAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -73,6 +71,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_
     show HiveEngineStateRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
     show DurationAdapter;
+import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_embedding_adapter.dart'
+    show EmbeddingAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_unique_id_adapter.dart'
     show DocumentIdAdapter, StackIdAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_adapter.dart'

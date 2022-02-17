@@ -90,7 +90,7 @@ Future<void> main() async {
       });
 
       test('smbert embedding of updated existing', () async {
-        final embUpdated = Embedding(Float32List.fromList([9.25]));
+        final embUpdated = Embedding.fromList([9.25]);
         await repo.update(id1, ActiveDocumentData(embUpdated));
         expect(box, hasLength(1));
         expect(await repo.smbertEmbeddingById(id1), equals(embUpdated));

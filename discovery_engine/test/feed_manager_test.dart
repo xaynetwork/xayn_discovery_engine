@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List, Uint8List;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart';
 import 'package:test/test.dart';
@@ -86,7 +86,7 @@ Future<void> main() async {
     final id = DocumentId();
 
     setUp(() async {
-      data = ActiveDocumentData(Embedding(Float32List.fromList([44])));
+      data = ActiveDocumentData(Embedding.fromList([44]));
       final stackId = StackId();
       doc2 = Document(
         stackId: stackId,

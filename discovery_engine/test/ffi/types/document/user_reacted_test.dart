@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List;
-
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
@@ -32,7 +30,7 @@ void main() {
       id: DocumentId(),
       stackId: StackId(),
       snippet: 'Cloning brought back the dodo.',
-      smbertEmbedding: Embedding(Float32List.fromList([.9, .1])),
+      smbertEmbedding: Embedding.fromList([.9, .1]),
       reaction: UserReaction.negative,
     );
     final boxed = document.allocNative();

@@ -12,21 +12,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List;
+import 'package:hive/hive.dart' show BinaryReader, BinaryWriter, TypeAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
+import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
+    show embeddingTypeId;
 
-import 'package:equatable/equatable.dart' show EquatableMixin;
-
-/// 1-Dimensional Embedding
-///
-/// Values are stored in native byte order in hive.
-class Embedding with EquatableMixin {
-  final Float32List values;
-
-  Embedding(this.values);
-
-  Embedding.fromList(List<double> values)
-      : values = Float32List.fromList(values);
+class EmbeddingAdapter extends TypeAdapter<Embedding> {
+  @override
+  int get typeId => embeddingTypeId;
 
   @override
-  List<Object?> get props => [values];
+  Embedding read(BinaryReader reader) =>
+      Embedding(reader.readByteList().buffer.asFloat32List());
+
+  @override
+  void write(BinaryWriter writer, Embedding obj) {
+    writer.writeByteList(obj.values.buffer.asUint8List());
+  }
 }

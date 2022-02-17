@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List;
-
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
@@ -33,7 +31,7 @@ List<DocumentFfi> arbitraryDocumentFfi() => [
       DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
-        smbertEmbedding: Embedding(Float32List.fromList([.9, .1])),
+        smbertEmbedding: Embedding.fromList([.9, .1]),
         resource: NewsResource(
           title: 'fun',
           snippet: 'fun is fun',
@@ -51,7 +49,7 @@ List<DocumentFfi> arbitraryDocumentFfi() => [
       DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
-        smbertEmbedding: Embedding(Float32List.fromList([9, 1])),
+        smbertEmbedding: Embedding.fromList([9, 1]),
         resource: NewsResource(
           title: 'bun',
           snippet: 'foo bar',

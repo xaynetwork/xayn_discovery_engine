@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:ffi' show Pointer, FloatPointer;
-import 'dart:typed_data' show Float32List;
 
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
@@ -36,6 +35,6 @@ extension EmbeddingFfi on Embedding {
   ) {
     final len = ffi.get_embedding_buffer_len(place);
     final data = ffi.get_embedding_buffer(place).asTypedList(len);
-    return Embedding(Float32List.fromList(data));
+    return Embedding.fromList(data);
   }
 }
