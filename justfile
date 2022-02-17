@@ -219,17 +219,28 @@ _dry-run-release: clean deps dart-build
 dry-run-release:
      @CI=true {{just_executable()}} _dry-run-release
 
-compile-android target: _codegen-order-workaround
+_compile-android target:
     # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
     cd "$RUST_WORKSPACE"; \
-        cargo ndk -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build --release
+        cargo ndk -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION \
+        -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build \
+        --release -p xayn-discovery-engine-bindings --locked
 
-compile-android-local:
+compile-android-local: _codegen-order-workaround
     #!/usr/bin/env sh
     set -eu
     for TARGET in $ANDROID_TARGETS; do
-        {{just_executable()}} compile-android $TARGET
+        {{just_executable()}} _compile-android $TARGET
     done
+
+compile-android-ci target prod_flag="\"\"": _codegen-order-workaround
+    #!/usr/bin/env sh
+    set -eu
+    if [[ {{prod_flag}} == "--prod" ]]; then
+        RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-android {{target}}
+    else
+        {{just_executable()}} _compile-android {{target}}
+    fi
 
 # Compiles the bindings for the given iOS target
 _compile-ios target:

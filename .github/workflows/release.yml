@@ -15,6 +15,11 @@ jobs:
     with:
       production: true
 
+  build-android-libs:
+    uses: ./.github/workflows/ci_build_android.yml
+    with:
+      production: true
+
   release:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
