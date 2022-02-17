@@ -14,6 +14,8 @@
 
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show DocumentClientEvent;
+import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart'
+    show ChangedDocumentsReporter;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -39,13 +41,15 @@ class DocumentManager {
   final DocumentRepository _documentRepo;
   final ActiveDocumentDataRepository _activeRepo;
   final EngineStateRepository _engineStateRepo;
+  final ChangedDocumentsReporter? _changedDocsReporter;
 
   DocumentManager(
     this._engine,
     this._documentRepo,
     this._activeRepo,
-    this._engineStateRepo,
-  );
+    this._engineStateRepo, [
+    this._changedDocsReporter,
+  ]);
 
   /// Handle the given document client event.
   ///
@@ -87,6 +91,8 @@ class DocumentManager {
       ),
     );
     await _engineStateRepo.save(await _engine.serialize());
+
+    _changedDocsReporter?.notifyChanged([doc]);
   }
 
   /// Add additional viewing time for the given active document.

@@ -13,10 +13,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:typed_data' show Uint8List;
+import 'package:async/async.dart' show StreamGroup;
 import 'package:hive/hive.dart' show Hive;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
-        AssetsStatusEngineEvent,
         ClientEvent,
         DocumentClientEvent,
         EngineEvent,
@@ -32,6 +32,8 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         SetupData,
         kAssetsPath,
         kDatabasePath;
+import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart'
+    show ChangedDocumentsReporter;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -91,6 +93,7 @@ import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 class EventHandler {
   Future<Engine>? _engineFuture;
   final AssetReporter _assetReporter;
+  final ChangedDocumentsReporter _changedDocumentsReporter;
   late final DocumentRepository _documentRepository;
   late final ActiveDocumentDataRepository _activeDataRepository;
   late final ChangedDocumentRepository _changedDocumentRepository;
@@ -98,9 +101,20 @@ class EventHandler {
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
 
-  EventHandler() : _assetReporter = AssetReporter();
+  EventHandler()
+      : _assetReporter = AssetReporter(),
+        _changedDocumentsReporter = ChangedDocumentsReporter();
 
-  Stream<AssetsStatusEngineEvent> get assetsProgress => _assetReporter.progress;
+  Stream<EngineEvent> get events => StreamGroup.mergeBroadcast([
+        _assetReporter.progress,
+        _changedDocumentsReporter.changedDocuments,
+      ]);
+
+  /// Performs clean-up. Closes all open database boxes and stream controllers.
+  Future<void> close() async {
+    await _changedDocumentsReporter.close();
+    await Hive.close();
+  }
 
   /// Decides what to do with incoming [ClientEvent] by passing it
   /// to a dedicated manager and returns the appropriate response in the form
@@ -186,6 +200,7 @@ class EventHandler {
       _documentRepository,
       _activeDataRepository,
       _engineStateRepository,
+      _changedDocumentsReporter,
     );
     _feedManager = FeedManager(
       engine,
