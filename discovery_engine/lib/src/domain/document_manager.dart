@@ -59,7 +59,8 @@ class DocumentManager {
         userReactionChanged: (id, reaction) => updateUserReaction(id, reaction),
         documentTimeSpent: (id, mode, sec) =>
             addActiveDocumentTime(id, mode, sec),
-        orElse: throw UnimplementedError('handler not implemented for $evt'),
+        orElse: () =>
+            throw UnimplementedError('handler not implemented for $evt'),
       );
 
   /// Update user reaction for the given document.

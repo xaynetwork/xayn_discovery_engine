@@ -55,7 +55,8 @@ class FeedManager {
         feedRequested: () => restoreFeed(),
         nextFeedBatchRequested: () => nextFeedBatch(),
         feedDocumentsClosed: (ids) => deactivateDocuments(ids),
-        orElse: throw UnimplementedError('handler not implemented for $event'),
+        orElse: () =>
+            throw UnimplementedError('handler not implemented for $event'),
       );
 
   /// Generates the feed of active documents, ordered by their global rank.
