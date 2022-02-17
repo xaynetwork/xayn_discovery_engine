@@ -8,6 +8,7 @@ environment:
   sdk: '>=2.14.2 <3.0.0'
 
 dependencies:
+  async: ^2.8.2
   crypto: ^3.0.1
   equatable: ^2.0.3
   freezed_annotation: ^1.1.0
