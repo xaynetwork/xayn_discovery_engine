@@ -82,7 +82,7 @@ class DocumentManager {
         id: id,
         stackId: doc.stackId,
         snippet: snippet,
-        smbertEmbedding: smbertEmbedding.buffer.asFloat32List(),
+        smbertEmbedding: smbertEmbedding,
         reaction: userReaction,
       ),
     );
@@ -120,7 +120,7 @@ class DocumentManager {
     _engine.timeLogged(
       TimeSpent(
         id: id,
-        smbertEmbedding: activeData.smbertEmbedding.buffer.asFloat32List(),
+        smbertEmbedding: activeData.smbertEmbedding,
         time: sumDuration,
         reaction: doc.userReaction,
       ),

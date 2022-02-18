@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,13 +12,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const documentTypeId = 0;
-const userReactionTypeId = 1;
-const activeDocumentDataTypeId = 2;
-const documentIdTypeId = 3;
-const documentViewModeTypeId = 4;
-const newsResourceTypeId = 5;
-const uriTypeId = 6;
-const durationTypeId = 7;
-const stackIdTypeId = 8;
-const embeddingTypeId = 9;
+import 'dart:typed_data' show Float32List;
+
+import 'package:equatable/equatable.dart' show EquatableMixin;
+
+/// 1-Dimensional Embedding
+///
+/// Values are stored in native byte order in hive.
+class Embedding with EquatableMixin {
+  final Float32List values;
+
+  Embedding(this.values);
+
+  Embedding.fromList(List<double> values)
+      : values = Float32List.fromList(values);
+
+  @override
+  List<Object?> get props => [values];
+}

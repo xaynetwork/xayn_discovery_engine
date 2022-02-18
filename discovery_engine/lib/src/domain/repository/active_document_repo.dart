@@ -12,10 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 
@@ -25,7 +25,7 @@ abstract class ActiveDocumentDataRepository {
   Future<ActiveDocumentData?> fetchById(DocumentId id);
 
   /// Fetch the SMBert embedding associated with the given document.
-  Future<Uint8List?> smbertEmbeddingById(DocumentId id);
+  Future<Embedding?> smbertEmbeddingById(DocumentId id);
 
   /// Update data associated with the given document.
   ///

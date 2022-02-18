@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,28 +12,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:equatable/equatable.dart' show EquatableMixin;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show UserReaction;
+import 'package:hive/hive.dart' show BinaryReader, BinaryWriter, TypeAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
+    show embeddingTypeId;
 
-/// TimeSpent event with metadata as passed to the engine.
-class TimeSpent with EquatableMixin {
-  final DocumentId id;
-  final Embedding smbertEmbedding;
-  final Duration time;
-  final UserReaction reaction;
-
-  const TimeSpent({
-    required this.id,
-    required this.smbertEmbedding,
-    required this.time,
-    required this.reaction,
-  });
+class EmbeddingAdapter extends TypeAdapter<Embedding> {
+  @override
+  int get typeId => embeddingTypeId;
 
   @override
-  List<Object?> get props => [id, smbertEmbedding, time, reaction];
+  Embedding read(BinaryReader reader) =>
+      Embedding(reader.readByteList().buffer.asFloat32List());
+
+  @override
+  void write(BinaryWriter writer, Embedding obj) {
+    writer.writeByteList(obj.values.buffer.asUint8List());
+  }
 }

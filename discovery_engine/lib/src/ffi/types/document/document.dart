@@ -13,13 +13,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:ffi' show Pointer;
-import 'dart:typed_data' show Float32List;
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -37,7 +38,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
 class DocumentFfi with EquatableMixin {
   final DocumentId id;
   final StackId stackId;
-  final Float32List smbertEmbedding;
+  final Embedding smbertEmbedding;
   final NewsResource resource;
 
   DocumentFfi({
@@ -77,5 +78,5 @@ class DocumentFfi with EquatableMixin {
       );
 
   ActiveDocumentData toActiveDocumentData() =>
-      ActiveDocumentData(smbertEmbedding.buffer.asUint8List());
+      ActiveDocumentData(smbertEmbedding);
 }

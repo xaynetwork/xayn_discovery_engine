@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List;
-
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -31,7 +31,7 @@ List<DocumentFfi> arbitraryDocumentFfi() => [
       DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
-        smbertEmbedding: Float32List.fromList([.9, .1]),
+        smbertEmbedding: Embedding.fromList([.9, .1]),
         resource: NewsResource(
           title: 'fun',
           snippet: 'fun is fun',
@@ -49,7 +49,7 @@ List<DocumentFfi> arbitraryDocumentFfi() => [
       DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
-        smbertEmbedding: Float32List.fromList([9, 1]),
+        smbertEmbedding: Embedding.fromList([9, 1]),
         resource: NewsResource(
           title: 'bun',
           snippet: 'foo bar',
@@ -88,7 +88,7 @@ void main() {
     expect(documents[0].document.isActive, isTrue);
     expect(
       documents[0].data.smbertEmbedding,
-      ffiDocuments[0].smbertEmbedding.buffer.asUint8List(),
+      ffiDocuments[0].smbertEmbedding,
     );
 
     expect(documents[1].document.documentId, equals(ffiDocuments[1].id));
@@ -99,7 +99,7 @@ void main() {
     expect(documents[1].document.isActive, isTrue);
     expect(
       documents[1].data.smbertEmbedding,
-      ffiDocuments[1].smbertEmbedding.buffer.asUint8List(),
+      ffiDocuments[1].smbertEmbedding,
     );
 
     expect(documents.length, equals(2));

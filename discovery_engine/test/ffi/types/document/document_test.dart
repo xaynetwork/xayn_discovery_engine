@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List;
-
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -28,7 +28,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
 DocumentFfi arbitraryDocumentFfi() => DocumentFfi(
       id: DocumentId(),
       stackId: StackId(),
-      smbertEmbedding: Float32List.fromList([.9, .1]),
+      smbertEmbedding: Embedding.fromList([0.9, 0.1]),
       resource: NewsResource(
         title: 'fun',
         snippet: 'fun is fun',
@@ -70,7 +70,7 @@ void main() {
     final data = ffiDocument.toActiveDocumentData();
     expect(
       data.smbertEmbedding,
-      equals(ffiDocument.smbertEmbedding.buffer.asUint8List()),
+      equals(ffiDocument.smbertEmbedding),
     );
     expect(data.viewTime, isEmpty);
   });

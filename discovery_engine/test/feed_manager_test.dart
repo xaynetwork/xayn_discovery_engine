@@ -26,6 +26,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -84,7 +86,7 @@ Future<void> main() async {
     final id = DocumentId();
 
     setUp(() async {
-      data = ActiveDocumentData(Uint8List(0));
+      data = ActiveDocumentData(Embedding.fromList([44]));
       final stackId = StackId();
       doc2 = Document(
         stackId: stackId,
