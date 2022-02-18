@@ -77,7 +77,7 @@ class DocumentManager {
     final snippet = doc.resource.snippet.isNotEmpty
         ? doc.resource.snippet
         : doc.resource.title;
-    _engine.userReacted(
+    await _engine.userReacted(
       UserReacted(
         id: id,
         stackId: doc.stackId,
@@ -86,7 +86,7 @@ class DocumentManager {
         reaction: userReaction,
       ),
     );
-    await _engineStateRepo.save(_engine.serialize());
+    await _engineStateRepo.save(await _engine.serialize());
   }
 
   /// Add additional viewing time for the given active document.
@@ -117,7 +117,7 @@ class DocumentManager {
     final sumDuration = activeData.viewTime.values
         .reduce((aggregate, duration) => aggregate + duration);
 
-    _engine.timeLogged(
+    await _engine.timeSpent(
       TimeSpent(
         id: id,
         smbertEmbedding: activeData.smbertEmbedding,
@@ -126,6 +126,6 @@ class DocumentManager {
       ),
     );
 
-    await _engineStateRepo.save(_engine.serialize());
+    await _engineStateRepo.save(await _engine.serialize());
   }
 }
