@@ -23,7 +23,7 @@ dependencies:
     git:
       url: https://github.com/xaynetwork/xayn_async_bindgen.git
       path: async_bindgen_dart_utils
-      ref: fe195d9
+      ref: fe195d99954c691c5e606ebbb3c77d371ba0e65b
 
 dev_dependencies:
   build_runner: ^2.1.7
