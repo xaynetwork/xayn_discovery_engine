@@ -22,6 +22,12 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
 
 /// Opens the platform dependent Rust library.
 DynamicLibrary _open() {
+  if (Platform.isAndroid) {
+    return DynamicLibrary.open('libxayn_discovery_engine_bindings.so');
+  }
+  if (Platform.isIOS) {
+    return DynamicLibrary.process();
+  }
   if (Platform.isLinux) {
     return DynamicLibrary.open(
       '../discovery_engine_core/target/debug/libxayn_discovery_engine_bindings.so',
