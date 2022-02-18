@@ -13,7 +13,7 @@ packages:
     description:
       path: async_bindgen_dart_utils
       ref: HEAD
-      resolved-ref: bde325e484a762e9a3f4b3c2652aef3a5e83d8da
+      resolved-ref: fe195d99954c691c5e606ebbb3c77d371ba0e65b
       url: "https://github.com/xaynetwork/xayn_async_bindgen.git"
     source: git
     version: "0.1.0"
@@ -117,14 +117,14 @@ packages:
       name: freezed_annotation
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.15.0"
+    version: "1.1.0"
   hive:
     dependency: transitive
     description:
       name: hive
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.0.4"
+    version: "2.0.5"
   http:
     dependency: transitive
     description:
@@ -152,7 +152,7 @@ packages:
       name: json_annotation
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "4.3.0"
+    version: "4.4.0"
   lints:
     dependency: transitive
     description:

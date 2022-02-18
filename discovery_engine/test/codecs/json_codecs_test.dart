@@ -61,7 +61,7 @@ void main() {
       final message_1 = converter.convert(request_1) as Map;
 
       expect(message_1[kSenderKey], isA<SendPort>());
-      expect(message_1[kPayloadKey], equals({'type': 'feedRequested'}));
+      expect(message_1[kPayloadKey], equals({'runtimeType': 'feedRequested'}));
 
       final documentId = DocumentId();
       final event_2 = ClientEvent.userReactionChanged(
@@ -77,7 +77,7 @@ void main() {
         equals({
           'documentId': documentId.toJson(),
           'userReaction': 1,
-          'type': 'userReactionChanged',
+          'runtimeType': 'userReactionChanged',
         }),
       );
     });
@@ -107,7 +107,7 @@ void main() {
       final documentId = DocumentId();
       final event_1 = {
         kSenderKey: port,
-        kPayloadKey: {'type': 'feedRequested'}
+        kPayloadKey: {'runtimeType': 'feedRequested'}
       };
       final req_1 = converter.convert(event_1);
 
@@ -121,7 +121,7 @@ void main() {
         kPayloadKey: {
           'documentId': documentId.toJson(),
           'userReaction': 1,
-          'type': 'userReactionChanged',
+          'runtimeType': 'userReactionChanged',
         }
       };
 
@@ -157,7 +157,7 @@ void main() {
 
       expect(
         message_1,
-        equals({'type': 'feedRequestSucceeded', 'items': <Object>[]}),
+        equals({'runtimeType': 'feedRequestSucceeded', 'items': <Object>[]}),
       );
 
       const event_2 = EngineEvent.engineExceptionRaised(
@@ -167,7 +167,7 @@ void main() {
 
       expect(
         message_2,
-        equals({'type': 'engineExceptionRaised', 'reason': 1}),
+        equals({'runtimeType': 'engineExceptionRaised', 'reason': 1}),
       );
     });
 
@@ -186,7 +186,7 @@ void main() {
         'when converting correctly structured JSON Maps with events it should '
         'convert them to proper "EngineEvent" types', () {
       final event_1 = {
-        'type': 'feedRequestSucceeded',
+        'runtimeType': 'feedRequestSucceeded',
         'items': <Object>[],
       };
       final req_1 = converter.convert(event_1) as FeedRequestSucceeded;
@@ -195,7 +195,7 @@ void main() {
       expect(req_1.items, isEmpty);
 
       final event_2 = {
-        'type': 'clientEventSucceeded',
+        'runtimeType': 'clientEventSucceeded',
       };
       final req_2 = converter.convert(event_2);
 
@@ -206,7 +206,7 @@ void main() {
         () {
       expect(
         // a JSON representation of a [ClientEvent], not an [EngineEvent]
-        () => converter.convert({'type': 'feedRequested'}),
+        () => converter.convert({'runtimeType': 'feedRequested'}),
         throwsConverterException,
       );
       expect(

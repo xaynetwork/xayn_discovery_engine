@@ -49,7 +49,7 @@ void main() {
 
       manager.send({
         kSenderKey: channel.sendPort,
-        kPayloadKey: {'type': 'feedRequested'}
+        kPayloadKey: {'runtimeType': 'feedRequested'}
       });
 
       final responseMsg = await channel.first as Object;
@@ -83,7 +83,7 @@ void main() {
         '"EngineExceptionRaised" event with "converterException" reason',
         () async {
       manager.send({
-        kPayloadKey: {'type': 'feedRequested'}
+        kPayloadKey: {'runtimeType': 'feedRequested'}
       });
 
       final responseMsg = await manager.messages.first;
@@ -129,7 +129,7 @@ void main() {
 
       manager.send({
         kSenderKey: channel.sendPort,
-        kPayloadKey: {'type': 'feedRequested'}
+        kPayloadKey: {'runtimeType': 'feedRequested'}
       });
 
       final responseMsg = await channel.first as Object;
