@@ -25,7 +25,7 @@ use super::{boxed, engine::SharedEngine};
 /// # Safety
 ///
 /// - The pointer must point to a sound `Result<O, E>` instance.
-pub(super) unsafe fn get_result_ok<O, E>(res: *mut Result<O, E>) -> *mut O {
+unsafe fn get_result_ok<O, E>(res: *mut Result<O, E>) -> *mut O {
     match unsafe { &mut *res } {
         Ok(value) => value,
         Err(_) => ptr::null_mut(),
@@ -37,10 +37,22 @@ pub(super) unsafe fn get_result_ok<O, E>(res: *mut Result<O, E>) -> *mut O {
 /// # Safety
 ///
 /// - The pointer must point to a sound `Result<O, E>` instance.
-pub(super) unsafe fn get_result_err<O, E>(res: *mut Result<O, E>) -> *mut E {
+unsafe fn get_result_err<O, E>(res: *mut Result<O, E>) -> *mut E {
     match unsafe { &mut *res } {
         Ok(_) => ptr::null_mut(),
         Err(err) => err,
+    }
+}
+
+/// Returns a pointer to the moved `Result::Ok` success value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must represent a valid `Box<Result<O, E>>` instance.
+unsafe fn move_result_ok<O, E>(res: *mut Result<O, E>) -> *mut O {
+    match *unsafe { Box::from_raw(res) } {
+        Ok(value) => Box::into_raw(Box::new(value)),
+        Err(_) => ptr::null_mut(),
     }
 }
 
@@ -72,7 +84,7 @@ pub unsafe extern "C" fn get_result_vec_u8_string_err(
 ///
 /// # Safety
 ///
-/// The pointer must represent a valid `Box<Result<Vec<u8>, String>` instance.
+/// - The pointer must represent a valid `Box<Result<Vec<u8>, String>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_result_vec_u8_string(res: *mut Result<Vec<u8>, String>) {
     unsafe { boxed::drop(res) }
@@ -106,7 +118,7 @@ pub unsafe extern "C" fn get_result_vec_document_string_err(
 ///
 /// # Safety
 ///
-/// The pointer must represent a valid `Box<Result<Vec<Document>, String>>` instance.
+/// - The pointer must represent a valid `Box<Result<Vec<Document>, String>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_result_vec_document_string(res: *mut Result<Vec<Document>, String>) {
     unsafe { boxed::drop(res) }
@@ -136,7 +148,7 @@ pub unsafe extern "C" fn get_result_void_string_err(res: *mut Result<(), String>
 ///
 /// # Safety
 ///
-/// The pointer must represent a valid `Box<Result<(), String>>` instance.
+/// - The pointer must represent a valid `Box<Result<(), String>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_result_void_string(res: *mut Result<(), String>) {
     unsafe { boxed::drop(res) }
@@ -170,8 +182,20 @@ pub unsafe extern "C" fn get_result_shared_engine_string_err(
 ///
 /// # Safety
 ///
-/// The pointer must represent a valid `Box<Result<SharedEngine, String>>` instance.
+/// - The pointer must represent a valid `Box<Result<SharedEngine, String>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_result_shared_engine_string(res: *mut Result<SharedEngine, String>) {
     unsafe { boxed::drop(res) }
+}
+
+/// Returns a pointer to the moved `SharedEngine` success value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must represent a valid `Box<Result<SharedEngine, String>>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn move_result_shared_engine_string_ok(
+    res: *mut Result<SharedEngine, String>,
+) -> *mut SharedEngine {
+    unsafe { move_result_ok(res) }
 }

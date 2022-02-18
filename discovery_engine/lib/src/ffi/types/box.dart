@@ -14,19 +14,19 @@
 
 import 'dart:ffi' show NativeType, nullptr, Pointer;
 
-class Boxed<RT extends NativeType> {
-  Pointer<RT> _ptr;
-  final void Function(Pointer<RT>) _free;
+class Boxed<RustType extends NativeType> {
+  Pointer<RustType> _ptr;
+  final void Function(Pointer<RustType>) _free;
 
   /// Creates a new wrapper instance.
   ///
-  /// Ptr must point to a non-dangling instance of `RT`.
+  /// Ptr must point to a non-dangling instance of `RustType`.
   Boxed(this._ptr, this._free);
 
   /// True if `free` or `move` was called.
   bool get moved => _ptr == nullptr;
 
-  /// Returns the equivalent of an `&mut RT`.
+  /// Returns the equivalent of an `&mut RustType`.
   ///
   /// While the returned pointer is used _anywhere_ you must not:
   ///
@@ -34,21 +34,21 @@ class Boxed<RT extends NativeType> {
   /// - call ref
   /// - call free
   /// - call move
-  Pointer<RT> get mut {
+  Pointer<RustType> get mut {
     if (moved) {
       throw StateError('the pointer is no longer valid, either freed or moved');
     }
     return _ptr;
   }
 
-  /// Returns the equivalent of an `&RT`.
+  /// Returns the equivalent of an `&RustType`.
   ///
   /// While the returned pointer is used _anywhere_ you must not:
   ///
   /// - call mut
   /// - call free
   /// - call move
-  Pointer<RT> get ref {
+  Pointer<RustType> get ref {
     if (moved) {
       throw StateError('the pointer is no longer valid, either freed or moved');
     }
@@ -65,7 +65,7 @@ class Boxed<RT extends NativeType> {
   }
 
   /// Moves the instance out of this wrapper.
-  Pointer<RT> move() {
+  Pointer<RustType> move() {
     if (moved) {
       throw StateError('the pointer is no longer valid, either freed or moved');
     }
