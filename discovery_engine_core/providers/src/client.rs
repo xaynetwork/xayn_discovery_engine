@@ -69,8 +69,8 @@ impl Client {
 
         let c = reqwest::Client::new();
         let response = c
-            .get(format!("{}/v2/search", self.url))
-            .header("x-api-key", &self.token)
+            .get(format!("{}/_sn", self.url))
+            .header("Authorization", format!("Bearer {}", &self.token))
             .query(&query)
             .send()
             .await
@@ -100,8 +100,8 @@ impl Client {
 
         let c = reqwest::Client::new();
         let response = c
-            .get(format!("{}/v2/latest_headlines", self.url))
-            .header("x-api-key", &self.token)
+            .get(format!("{}/_lh", self.url))
+            .header("Authorization", format!("Bearer {}", &self.token))
             .query(&query)
             .send()
             .await
@@ -149,13 +149,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/climate-change.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v2/search"))
+            .and(path("/_sn"))
             .and(query_param("q", "\"Climate change\""))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "AU"))
             .and(query_param("page_size", "2"))
-            .and(header("x-api-key", "test-token"))
+            .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -192,13 +192,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/msft-vs-aapl.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v2/search"))
+            .and(path("/_sn"))
             .and(query_param("q", "\"Bill Gates\" OR \"Tim Cook\""))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
             .and(query_param("countries", "DE"))
             .and(query_param("page_size", "2"))
-            .and(header("x-api-key", "test-token"))
+            .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -239,11 +239,11 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v2/latest_headlines"))
+            .and(path("/_lh"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))
-            .and(header("x-api-key", "test-token"))
+            .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)

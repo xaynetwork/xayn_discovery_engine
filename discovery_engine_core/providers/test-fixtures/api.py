@@ -5,10 +5,10 @@ import json
 import os
 
 headers = {
-    "x-api-key": os.environ['NEWSCATCHER_API_KEY'],
+    "Authorization": "Bearer " + os.environ['API_GATEWAY_TOKEN'],
 }
 
-url = "https://api.newscatcherapi.com/v2/search"
+url = "https://api-gw.xaynet.dev/_sn"
 
 queries = {
     "climate-change": {"q":'"Climate change"',"sort_by":"relevancy", "page_size": "2", "lang": "en", "countries": "AU"},
