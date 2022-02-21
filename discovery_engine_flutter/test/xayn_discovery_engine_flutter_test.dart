@@ -76,8 +76,8 @@ void main() {
 
       final manifest = Manifest.fromJson({'assets': assets});
       final config = Configuration(
-        apiKey: '**********',
-        apiBaseUrl: 'https://example-api.dev',
+        apiKey: 'use-mock-engine',
+        apiBaseUrl: 'https://use-mock-engine.test',
         assetsUrl: 'http://localhost:$port',
         maxItemsPerFeedBatch: 50,
         applicationDirectoryPath: outputPath,

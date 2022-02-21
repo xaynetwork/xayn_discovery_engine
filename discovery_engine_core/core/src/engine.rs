@@ -63,7 +63,7 @@ pub enum Error {
     /// Error while selecting the documents to return: {0}.
     Selection(#[from] mab::Error),
 
-    /// Error while using the ranker.
+    /// Error while using the ranker: {0}
     Ranker(#[from] GenericError),
 
     /// Error while creating document: {0}.

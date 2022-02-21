@@ -15,6 +15,8 @@
 import 'dart:ffi' show nullptr;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
+    show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
@@ -51,7 +53,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_prov
     show NativeSetupData;
 
 /// A handle to the discovery engine.
-class DiscoveryEngineFfi {
+class DiscoveryEngineFfi implements Engine {
   final Boxed<RustSharedEngine> _engine;
 
   const DiscoveryEngineFfi._(final this._engine);
@@ -75,6 +77,7 @@ class DiscoveryEngineFfi {
   }
 
   /// Serializes the engine.
+  @override
   Future<Uint8List> serialize() async {
     final result = await asyncFfi.serialize(_engine.ref);
 
@@ -90,6 +93,7 @@ class DiscoveryEngineFfi {
   }
 
   /// Gets feed documents.
+  @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     final int maxDocuments,
   ) async {
@@ -101,6 +105,7 @@ class DiscoveryEngineFfi {
   }
 
   /// Processes time spent.
+  @override
   Future<void> timeSpent(final TimeSpent timeSpent) async {
     final boxedTimeSpent = timeSpent.allocNative();
     final result = await asyncFfi.timeSpent(_engine.ref, boxedTimeSpent.move());
@@ -109,6 +114,7 @@ class DiscoveryEngineFfi {
   }
 
   /// Processes user reaction.
+  @override
   Future<void> userReacted(final UserReacted userReacted) async {
     final boxedUserReacted = userReacted.allocNative();
     final result =

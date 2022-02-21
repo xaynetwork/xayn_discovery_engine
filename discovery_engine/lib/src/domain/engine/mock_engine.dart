@@ -86,13 +86,15 @@ class MockEngine implements Engine {
   }
 
   @override
-  Uint8List serialize() {
+  Future<Uint8List> serialize() async {
     _incrementCount('serialize');
     return Uint8List(0);
   }
 
   @override
-  List<DocumentWithActiveData> getFeedDocuments(int maxDocuments) {
+  Future<List<DocumentWithActiveData>> getFeedDocuments(
+    int maxDocuments,
+  ) async {
     _incrementCount('getFeedDocuments');
 
     if (maxDocuments < 1) {
@@ -108,12 +110,12 @@ class MockEngine implements Engine {
   }
 
   @override
-  void timeLogged(TimeSpent timeSpent) {
+  Future<void> timeSpent(TimeSpent timeSpent) async {
     _incrementCount('timeLogged');
   }
 
   @override
-  void userReacted(UserReacted userReacted) {
+  Future<void> userReacted(UserReacted userReacted) async {
     _incrementCount('userReacted');
   }
 }

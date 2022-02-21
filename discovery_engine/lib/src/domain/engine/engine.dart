@@ -24,14 +24,14 @@ import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
 /// Interface to Discovery Engine core.
 abstract class Engine {
   /// Serializes the state of the [Engine] state.
-  Uint8List serialize();
+  Future<Uint8List> serialize();
 
   /// Retrieves at most [maxDocuments] feed documents.
-  List<DocumentWithActiveData> getFeedDocuments(int maxDocuments);
+  Future<List<DocumentWithActiveData>> getFeedDocuments(int maxDocuments);
 
   /// Process the feedback about the user spending some time on a document.
-  void timeLogged(TimeSpent timeSpent);
+  Future<void> timeSpent(TimeSpent timeSpent);
 
   /// Process the user's reaction to a document.
-  void userReacted(UserReacted userReacted);
+  Future<void> userReacted(UserReacted userReacted);
 }

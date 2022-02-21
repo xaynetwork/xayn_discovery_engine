@@ -56,10 +56,14 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
     show EngineStateRepository;
+import 'package:xayn_discovery_engine/src/ffi/types/engine.dart'
+    show DiscoveryEngineFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart'
     show HttpAssetFetcher;
+import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
+    show NativeSetupData;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show
         activeDocumentDataBox,
@@ -111,8 +115,8 @@ class EventHandler {
         _engineFuture = _initEngine(clientEvent.configuration);
         await _engineFuture;
         return const EngineEvent.clientEventSucceeded();
-      } catch (e) {
-        logger.e(e);
+      } catch (e, st) {
+        logger.e('failed to initialize the engine', e, st);
         _engineFuture = null;
         final reason = e is AssetFetcherException
             ? EngineExceptionReason.failedToGetAssets
@@ -172,17 +176,9 @@ class EventHandler {
     _changedDocumentRepository = HiveChangedDocumentRepository();
     _engineStateRepository = HiveEngineStateRepository();
 
-    // fetch AI assets
-    await _fetchAssets(config);
-
-    // load the engine serialized state
-    // TODO: pass the state to the engine
-    // ignore: unused_local_variable
+    final setupData = await _fetchAssets(config);
     final engineState = await _engineStateRepository.load();
-
-    // init the engine
-    // TODO: replace with real engine and pass in setup data
-    final engine = MockEngine();
+    final engine = await initializeEngine(config, setupData, engineState);
 
     // init managers
     _documentManager = DocumentManager(
@@ -201,6 +197,23 @@ class EventHandler {
     );
 
     return engine;
+  }
+
+  Future<Engine> initializeEngine(
+    Configuration config,
+    SetupData setupData,
+    Uint8List? engineState,
+  ) async {
+    if (config.apiKey == 'use-mock-engine' &&
+        config.apiBaseUrl == 'https://use-mock-engine.test') {
+      return MockEngine();
+    }
+    //Note: In the future we will use conditional imports or similar
+    //      to select between the Native and Web engine.
+    if (setupData is! NativeSetupData) {
+      throw AssertionError('currently only native setup is implemented');
+    }
+    return DiscoveryEngineFfi.initialize(config, setupData, engineState);
   }
 
   Future<SetupData> _fetchAssets(Configuration config) async {
