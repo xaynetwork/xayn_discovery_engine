@@ -113,8 +113,8 @@ pub struct NewsResource {
     /// Publishing date.
     pub date_published: NaiveDateTime,
 
-    /// Thumbnail of the image attached to the news.
-    pub thumbnail: Option<Url>,
+    /// Image attached to the news.
+    pub image: Option<Url>,
 
     /// The rank of the domain of the source,
     pub rank: usize,
@@ -143,7 +143,7 @@ impl TryFrom<Article> for NewsResource {
             date_published: article.published_date,
             url: Url::parse(&article.link)?,
             source_url: Url::parse(&article.clean_url)?,
-            thumbnail: (!media.is_empty())
+            image: (!media.is_empty())
                 .then(|| Url::parse(&media))
                 .transpose()?,
             rank: article.rank,
@@ -237,7 +237,7 @@ mod tests {
                 snippet: String::default(),
                 url: example_url(),
                 source_url: example_url(),
-                thumbnail: None,
+                image: None,
                 date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
                 score: None,
                 rank: 0,
@@ -279,7 +279,7 @@ mod tests {
         assert_eq!(article.excerpt, resource.snippet);
         assert_eq!(article.link, resource.url.to_string());
         assert_eq!(article.clean_url, resource.source_url.to_string());
-        assert_eq!(article.media, resource.thumbnail.unwrap().to_string());
+        assert_eq!(article.media, resource.image.unwrap().to_string());
         assert_eq!(article.country, resource.country);
         assert_eq!(article.language, resource.language);
         assert_eq!(article.score, resource.score);
@@ -307,7 +307,7 @@ mod tests {
         };
 
         let res: NewsResource = article.try_into().unwrap();
-        assert_none!(res.thumbnail);
+        assert_none!(res.image);
     }
 
     #[test]
