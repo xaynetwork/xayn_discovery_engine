@@ -13,9 +13,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/models/history.dart';
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
-import 'package:xayn_discovery_engine/src/ffi/types/history.dart';
+import 'package:xayn_discovery_engine/src/domain/models/history.dart'
+    show HistoricDocument;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
+import 'package:xayn_discovery_engine/src/ffi/types/history.dart'
+    show HistoricDocumentFfi;
 
 void main() {
   test('reading written HistoricDocument works', () {

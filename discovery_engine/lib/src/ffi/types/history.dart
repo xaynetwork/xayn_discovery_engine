@@ -6,7 +6,7 @@ import 'package:xayn_discovery_engine/src/domain/models/history.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustHistoricDocument;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/box.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uri.dart' show UriFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
