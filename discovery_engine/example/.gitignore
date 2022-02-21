@@ -6,4 +6,4 @@
 build/
 
 # Omit download dir for example's assets
-engine/
+engine_data/

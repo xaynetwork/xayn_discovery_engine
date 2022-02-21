@@ -15,7 +15,7 @@
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show AssetFetcher, AssetReporter, Manifest;
 
-const _kEnginePath = 'engine';
+const _kEnginePath = 'engine_data';
 const kAssetsPath = '$_kEnginePath/assets';
 const kDatabasePath = '$_kEnginePath/database';
 
