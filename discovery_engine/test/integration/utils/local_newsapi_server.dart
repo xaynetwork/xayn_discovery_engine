@@ -15,7 +15,7 @@
 import 'dart:io'
     show Directory, File, HttpRequest, HttpServer, HttpStatus, InternetAddress;
 
-const kMockDataPath = '/test/discovery_engine/utils/data/';
+const kMockDataPath = '/test/integration/utils/data/';
 
 class LocalNewsApiServer {
   final HttpServer _server;
