@@ -29,7 +29,7 @@ Future<void> runExample() async {
     manifest: manifest,
   );
 
-  late DiscoveryEngine? engine;
+  DiscoveryEngine? engine;
 
   try {
     // Initialise the engine.
