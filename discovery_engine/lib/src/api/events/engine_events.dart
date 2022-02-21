@@ -35,6 +35,11 @@ abstract class SystemEngineEvent {}
 /// AI assets fetching process.
 abstract class AssetsStatusEngineEvent {}
 
+/// Abstract class implemented by events like [DocumentsUpdated].
+///
+/// Used to group events related to [Document] changes.
+abstract class DocumentEngineEvent implements EngineEvent {}
+
 enum FeedFailureReason {
   @JsonValue(0)
   notAuthorised,
@@ -128,6 +133,13 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.engineExceptionRaised(
     EngineExceptionReason reason,
   ) = EngineExceptionRaised;
+
+  /// Event created as a successful response to some client events which are
+  /// updating a [Document] (currently only "UserReactionChanged").
+  /// Passes back to the client a list of changed [Document] entities.
+  @Implements<DocumentEngineEvent>()
+  const factory EngineEvent.documentsUpdated(List<Document> items) =
+      DocumentsUpdated;
 
   /// Converts json Map to [EngineEvent].
   factory EngineEvent.fromJson(Map<String, Object?> json) =>

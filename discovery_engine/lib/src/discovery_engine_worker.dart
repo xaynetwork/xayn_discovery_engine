@@ -35,9 +35,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   Converter<EngineEvent, Object> get responseConverter => _responseConverter;
 
   DiscoveryEngineWorker(Object message) : super(message) {
-    _handler.assetsProgress.listen((event) {
-      send(event as EngineEvent);
-    });
+    _handler.events.listen((event) => send(event));
   }
 
   Sender? _getSenderFromMessageOrNull(Object? incomingMessage) {
@@ -77,6 +75,12 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
     final clientEvent = request.payload;
     final response = await _handler.handleMessage(clientEvent);
     send(response, request.sender);
+  }
+
+  @override
+  Future<void> dispose() async {
+    await super.dispose();
+    await _handler.close();
   }
 }
 

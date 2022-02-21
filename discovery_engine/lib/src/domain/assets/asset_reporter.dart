@@ -16,7 +16,7 @@ import 'dart:async' show StreamController;
 
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
-        AssetsStatusEngineEvent,
+        EngineEvent,
         FetchingAssetsFinished,
         FetchingAssetsProgressed,
         FetchingAssetsStarted;
@@ -26,8 +26,8 @@ import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
 class AssetReporter {
   int _totalNbOfAssets = 0;
   final Set<String> _fetchedUrls = {};
-  final _statusCtrl = StreamController<AssetsStatusEngineEvent>.broadcast();
-  Stream<AssetsStatusEngineEvent> get progress => _statusCtrl.stream;
+  final _statusCtrl = StreamController<EngineEvent>.broadcast();
+  Stream<EngineEvent> get progress => _statusCtrl.stream;
 
   void fetchingStarted(Manifest manifest) {
     _totalNbOfAssets = manifest.assets.fold<int>(

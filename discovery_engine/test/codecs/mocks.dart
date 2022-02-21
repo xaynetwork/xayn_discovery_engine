@@ -19,11 +19,10 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         Configuration,
         ConfigurationChanged,
         Document,
-        UserReaction,
-        DocumentViewMode,
-        UserReactionChanged,
         DocumentId,
         DocumentTimeSpent,
+        DocumentViewMode,
+        DocumentsUpdated,
         EngineEvent,
         EngineExceptionRaised,
         EngineExceptionReason,
@@ -40,7 +39,9 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded,
-        NextFeedBatchRequested;
+        NextFeedBatchRequested,
+        UserReaction,
+        UserReactionChanged;
 
 class BadClientEvent implements ClientEvent {
   const BadClientEvent();
@@ -180,6 +181,7 @@ class BadEngineEvent implements EngineEvent {
     required TResult Function(ClientEventSucceeded value) clientEventSucceeded,
     required TResult Function(EngineExceptionRaised value)
         engineExceptionRaised,
+    required TResult Function(DocumentsUpdated value) documentsUpdated,
   }) {
     throw UnimplementedError();
   }
@@ -198,6 +200,7 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(FetchingAssetsFinished value)? fetchingAssetsFinished,
     TResult Function(ClientEventSucceeded value)? clientEventSucceeded,
     TResult Function(EngineExceptionRaised value)? engineExceptionRaised,
+    TResult Function(DocumentsUpdated value)? documentsUpdated,
   }) {
     throw UnimplementedError();
   }
@@ -217,6 +220,7 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(FetchingAssetsFinished value)? fetchingAssetsFinished,
     TResult Function(ClientEventSucceeded value)? clientEventSucceeded,
     TResult Function(EngineExceptionRaised value)? engineExceptionRaised,
+    TResult Function(DocumentsUpdated value)? documentsUpdated,
   }) {
     throw UnimplementedError();
   }
@@ -234,6 +238,7 @@ class BadEngineEvent implements EngineEvent {
     TResult Function()? fetchingAssetsFinished,
     TResult Function()? clientEventSucceeded,
     TResult Function(EngineExceptionReason reason)? engineExceptionRaised,
+    TResult Function(List<Document> items)? documentsUpdated,
   }) {
     throw UnimplementedError();
   }
@@ -258,6 +263,7 @@ class BadEngineEvent implements EngineEvent {
     required TResult Function() clientEventSucceeded,
     required TResult Function(EngineExceptionReason reason)
         engineExceptionRaised,
+    required TResult Function(List<Document> items) documentsUpdated,
   }) {
     throw UnimplementedError();
   }
@@ -274,6 +280,7 @@ class BadEngineEvent implements EngineEvent {
     TResult Function()? fetchingAssetsFinished,
     TResult Function()? clientEventSucceeded,
     TResult Function(EngineExceptionReason reason)? engineExceptionRaised,
+    TResult Function(List<Document> items)? documentsUpdated,
   }) {
     throw UnimplementedError();
   }

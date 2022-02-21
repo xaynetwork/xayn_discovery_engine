@@ -16,6 +16,9 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
+import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart'
+    show ChangedDocumentsReporter;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
@@ -69,8 +72,6 @@ Future<void> main() async {
   final changedRepo = HiveChangedDocumentRepository();
   final engineStateRepo = HiveEngineStateRepository();
 
-  final mgr = DocumentManager(engine, docRepo, activeRepo, engineStateRepo);
-
   group('DocumentManager', () {
     final data = ActiveDocumentData(Embedding.fromList([4, 1]));
     final stackId = StackId();
@@ -90,7 +91,19 @@ Future<void> main() async {
     final id2 = doc2.documentId;
     final id3 = DocumentId();
 
+    late ChangedDocumentsReporter changedDocsReporter;
+    late DocumentManager mgr;
+
     setUp(() async {
+      changedDocsReporter = ChangedDocumentsReporter();
+      mgr = DocumentManager(
+        engine,
+        docRepo,
+        activeRepo,
+        engineStateRepo,
+        changedDocsReporter,
+      );
+
       // doc1 is active & changed, doc2 is neither
       await docRepo.updateMany([doc1, doc2]);
       await activeRepo.update(id1, data);
@@ -100,6 +113,8 @@ Future<void> main() async {
     });
 
     tearDown(() async {
+      await changedDocsReporter.close();
+
       await docBox.clear();
       await activeBox.clear();
       await changedBox.clear();
@@ -118,6 +133,8 @@ Future<void> main() async {
         () => mgr.updateUserReaction(id3, UserReaction.positive),
         throwsArgumentError,
       );
+      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
+      await changedDocsReporter.close();
     });
 
     test('update inactive document user reaction', () async {
@@ -125,6 +142,8 @@ Future<void> main() async {
         () => mgr.updateUserReaction(id2, UserReaction.positive),
         throwsArgumentError,
       );
+      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
+      await changedDocsReporter.close();
     });
 
     test(
@@ -137,11 +156,21 @@ Future<void> main() async {
         () => mgr.updateUserReaction(id1, UserReaction.positive),
         throwsStateError,
       );
+      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
+      await changedDocsReporter.close();
     });
 
     test('update active document user reaction', () async {
       const newReaction = UserReaction.positive;
+      final updatedDoc = (doc1..userReaction = newReaction).toApiDocument();
+
+      expect(
+        changedDocsReporter.changedDocuments,
+        emits(equals(DocumentsUpdated([updatedDoc]))),
+      );
+
       await mgr.updateUserReaction(id1, newReaction);
+
       expect(engine.getCallCount('userReacted'), equals(1));
       expect(
         docBox.values,
