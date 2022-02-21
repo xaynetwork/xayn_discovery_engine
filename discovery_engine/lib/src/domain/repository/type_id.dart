@@ -22,3 +22,5 @@ const uriTypeId = 6;
 const durationTypeId = 7;
 const stackIdTypeId = 8;
 const embeddingTypeId = 9;
+const feedMarketTypeId = 10;
+const searchTypeId = 11;

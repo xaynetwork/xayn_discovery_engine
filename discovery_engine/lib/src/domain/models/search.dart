@@ -15,25 +15,23 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart';
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show feedMarketTypeId;
+    show searchTypeId;
 
-part 'feed_market.freezed.dart';
-part 'feed_market.g.dart';
+part 'search.freezed.dart';
+part 'search.g.dart';
 
-typedef FeedMarkets = Set<FeedMarket>;
-
+/// [Search] is representing attributes of a performed search query.
 @freezed
-class FeedMarket with _$FeedMarket {
-  @HiveType(typeId: feedMarketTypeId)
-  const factory FeedMarket({
-    /// Country code as per ISO 3166-1 alpha-2 definition.
-    @HiveField(0) required String countryCode,
+class Search with _$Search {
+  @HiveType(typeId: searchTypeId)
+  const factory Search({
+    @HiveField(0) required String queryTerm,
+    @HiveField(1) required int requestedPageNb,
+    @HiveField(2) required int pageSize,
+    @HiveField(3) required FeedMarket market,
+  }) = _Search;
 
-    /// Language code as per ISO ISO 639-1 definition.
-    @HiveField(1) required String langCode,
-  }) = _FeedMarket;
-
-  factory FeedMarket.fromJson(Map<String, Object?> json) =>
-      _$FeedMarketFromJson(json);
+  factory Search.fromJson(Map<String, Object?> json) => _$SearchFromJson(json);
 }
