@@ -4,3 +4,6 @@
 
 # Conventional directory for build output.
 build/
+
+# Omit download dir for example's assets
+engine/

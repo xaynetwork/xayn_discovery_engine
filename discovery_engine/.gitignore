@@ -10,9 +10,6 @@ build/
 # https://dart.dev/guides/libraries/private-files#pubspeclock.
 pubspec.lock
 
-# Omit download dir for example's assets
-engine/
-
 # Omit generated files
 # DELETE_AFTER_THIS_IN_RELEASE
 *.g.dart
