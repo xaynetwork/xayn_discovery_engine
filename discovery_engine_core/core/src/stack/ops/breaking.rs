@@ -17,11 +17,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::Article;
+
+use xayn_discovery_engine_providers::{Article, Market};
 
 use crate::{
     document::Document,
-    engine::{EndpointConfig, GenericError, Market},
+    engine::{EndpointConfig, GenericError},
     stack::Id,
 };
 

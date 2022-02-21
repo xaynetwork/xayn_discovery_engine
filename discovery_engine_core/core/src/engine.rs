@@ -24,6 +24,8 @@ use xayn_ai::{
     SMBertConfig,
 };
 
+use xayn_discovery_engine_providers::Market;
+
 use crate::{
     document::{self, document_from_article, Document, TimeSpent, UserReacted},
     mab::{self, BetaSampler, SelectionIter},
@@ -71,15 +73,6 @@ pub enum Error {
 
     /// A list of errors that could occur during some operation.
     Errors(Vec<Error>),
-}
-
-#[allow(dead_code)]
-/// Feed market.
-pub struct Market {
-    /// Country code of the market.
-    pub country_code: String,
-    /// Language code of the market.
-    pub lang_code: String,
 }
 
 /// Configuration settings to initialize Discovery Engine with a [`xayn_ai::ranker::Ranker`].
