@@ -18,9 +18,11 @@ import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustHistoricDocument;
+    show RustHistoricDocument, RustVecHistoricDocument;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
+import 'package:xayn_discovery_engine/src/ffi/types/list.dart'
+    show ListFfiAdapter;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uri.dart' show UriFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
@@ -50,5 +52,32 @@ extension HistoricDocumentFfi on HistoricDocument {
           StringFfi.readNative(ffi.historic_document_place_of_snippet(doc)),
       title: StringFfi.readNative(ffi.historic_document_place_of_title(doc)),
     );
+  }
+}
+
+final _listFfiAdapter = ListFfiAdapter(
+  alloc: ffi.alloc_uninitialized_historic_document_slice,
+  next: ffi.next_historic_document,
+  writeNative: (doc, place) => doc.writeNative(place),
+  readNative: HistoricDocumentFfi.readNative,
+  getVecLen: ffi.get_historic_document_vec_len,
+  getVecBuffer: ffi.get_historic_document_vec_buffer,
+  writeNativeVec: ffi.init_historic_document_vec_at,
+);
+
+extension HistoricDocumentSliceFfi on List<HistoricDocument> {
+  Boxed<RustVecHistoricDocument> allocNative() {
+    final place = ffi.alloc_uninitialized_historic_document_vec();
+    _listFfiAdapter.writeVec(this, place);
+    return Boxed(place, ffi.drop_historic_document_vec);
+  }
+
+  @visibleForTesting
+  static List<HistoricDocument> consumeNative(
+    Boxed<RustVecHistoricDocument> boxed,
+  ) {
+    final res = _listFfiAdapter.readVec(boxed.ref);
+    boxed.free();
+    return res;
   }
 }
