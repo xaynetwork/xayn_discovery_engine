@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! FFI functions for handling slices and vectors of [`HistoricDocuments`].
+//! FFI functions for handling slices and vectors of [`HistoricDocument`]s.
 
 use xayn_discovery_engine_core::document::HistoricDocument;
 
