@@ -17,11 +17,16 @@
 /// More dartdocs go here.
 library discovery_engine;
 
+import 'package:logger/logger.dart' show Logger;
+import 'package:xayn_discovery_engine/src/logger.dart' show initLogger, logger;
+
 export 'package:xayn_discovery_engine/src/api/api.dart';
 export 'package:xayn_discovery_engine/src/discovery_engine_base.dart';
 export 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show Manifest, kAssetsPath;
 export 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createManifestReader;
-export 'package:xayn_discovery_engine/src/logger.dart';
 export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart';
+
+void discoveryEngineInitLogger(Logger logger) => initLogger(logger);
+Logger get discoveryEngineLogger => logger;
