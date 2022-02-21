@@ -133,7 +133,7 @@ Future<void> main() async {
         () => mgr.updateUserReaction(id3, UserReaction.positive),
         throwsArgumentError,
       );
-      expect(changedDocsReporter.changedDocuments, emitsDone);
+      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
       await changedDocsReporter.close();
     });
 
@@ -142,7 +142,7 @@ Future<void> main() async {
         () => mgr.updateUserReaction(id2, UserReaction.positive),
         throwsArgumentError,
       );
-      expect(changedDocsReporter.changedDocuments, emitsDone);
+      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
       await changedDocsReporter.close();
     });
 
@@ -156,7 +156,7 @@ Future<void> main() async {
         () => mgr.updateUserReaction(id1, UserReaction.positive),
         throwsStateError,
       );
-      expect(changedDocsReporter.changedDocuments, emitsDone);
+      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
       await changedDocsReporter.close();
     });
 
