@@ -34,6 +34,8 @@ use super::Ops;
 // NOTE mock implementation for now
 #[derive(Default)]
 pub(crate) struct BreakingNews {
+    token: String,
+    url: String,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
 }
 
@@ -44,34 +46,15 @@ impl Ops for BreakingNews {
     }
 
     fn configure(&mut self, config: &EndpointConfig) {
+        self.token.clone_from(&config.api_key);
+        self.url.clone_from(&config.api_base_url);
         self.markets.replace(Arc::clone(&config.markets));
     }
 
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_possible_truncation)]
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
-        let n = 10;
-        let articles = (0..n).fold(Vec::with_capacity(n), |mut articles, i| {
-            articles.push(
-            Article {
-                id: i.to_string(),
-                title: format!("B Document Title {}", i),
-                score: if i % 2 == 0 {Some(i as f32) } else {None},
-                rank: i,
-                source_domain: "xayn.com".to_string(),
-                excerpt: format!("Content of the news {}", i),
-                link: "https://xayn.com/".into(),
-                media: "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/614349038d7d72d1576ae3f4_plant.svg".into(),
-                topic: Topic::Unrecognized,
-                country: "DE".to_string(),
-                language: "de".to_string(),
-                published_date: NaiveDate::from_ymd(2022, 2, (i + 1) as u32).and_hms(9, 10, 11),
-            });
-
-            articles
-        });
-
-        Ok(articles)
+        todo!()
     }
 
     fn filter_articles(

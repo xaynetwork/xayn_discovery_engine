@@ -34,6 +34,8 @@ use super::Ops;
 // NOTE mock implementation for now
 #[derive(Default)]
 pub(crate) struct PersonalizedNews {
+    token: String,
+    url: String,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
 }
 
@@ -44,6 +46,8 @@ impl Ops for PersonalizedNews {
     }
 
     fn configure(&mut self, config: &EndpointConfig) {
+        self.token.clone_from(&config.api_key);
+        self.url.clone_from(&config.api_base_url);
         self.markets.replace(Arc::clone(&config.markets));
     }
 
