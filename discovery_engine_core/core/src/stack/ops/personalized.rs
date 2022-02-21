@@ -21,7 +21,7 @@ use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{Article, Client, Filter, Market, NewsQuery};
 
 use crate::{
-    document::Document,
+    document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::Id,
 };
@@ -82,7 +82,8 @@ impl Ops for PersonalizedNews {
 
     fn filter_articles(
         &self,
-        _current: &[Document],
+        _history: &[HistoricDocument],
+        _stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
         Ok(articles)

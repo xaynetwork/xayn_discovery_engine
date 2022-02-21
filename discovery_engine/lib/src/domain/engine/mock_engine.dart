@@ -22,6 +22,10 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/models/history.dart'
+    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
@@ -91,7 +95,16 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<void> setMarkets(
+    List<HistoricDocument> history,
+    List<FeedMarket> markets,
+  ) async {
+    _incrementCount('setMarket');
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
+    List<HistoricDocument> history,
     int maxDocuments,
   ) async {
     _incrementCount('getFeedDocuments');

@@ -33,7 +33,7 @@ use xayn_discovery_engine_core::Engine;
 
 #[async_bindgen::api(
     use xayn_discovery_engine_core::{
-        document::{Document, TimeSpent, UserReacted},
+        document::{Document, HistoricDocument, TimeSpent, UserReacted},
         InitConfig,
         Market,
     };
@@ -46,9 +46,10 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn initialize(
         config: Box<InitConfig>,
         state: Option<Box<Vec<u8>>>,
+        history: Box<Vec<HistoricDocument>>,
     ) -> Box<Result<SharedEngine, String>> {
         Box::new(
-            Engine::from_config(*config, state.as_deref().map(Vec::as_slice))
+            Engine::from_config(*config, state.as_deref().map(Vec::as_slice), &history)
                 .await
                 .map(|engine| tokio::sync::Mutex::new(engine).into())
                 .map_err(|error| error.to_string()),
@@ -73,21 +74,24 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn set_markets(
         engine: &SharedEngine,
         markets: Box<Vec<Market>>,
+        history: Box<Vec<HistoricDocument>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .set_markets(*markets)
+                .set_markets(&history, *markets)
                 .await
                 .map_err(|error| error.to_string()),
         )
     }
 
     /// Gets feed documents.
+    #[allow(clippy::box_vec)]
     pub async fn get_feed_documents(
         engine: &SharedEngine,
+        history: Box<Vec<HistoricDocument>>,
         max_documents: usize,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
@@ -95,7 +99,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .get_feed_documents(max_documents)
+                .get_feed_documents(&history, max_documents)
                 .await
                 .map_err(|error| error.to_string()),
         )

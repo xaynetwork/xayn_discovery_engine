@@ -23,6 +23,8 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/models/history.dart'
+    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -39,6 +41,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/history.dart'
+    show HistoricDocumentVecFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
@@ -59,19 +63,17 @@ class DiscoveryEngineFfi implements Engine {
   const DiscoveryEngineFfi._(final this._engine);
 
   /// Initializes the engine.
-  static Future<DiscoveryEngineFfi> initialize(
-    final Configuration config,
-    final NativeSetupData setupData, {
-    final String? aiConfig,
-    final Uint8List? state,
+  static Future<DiscoveryEngineFfi> initialize({
+    required final Configuration config,
+    required final NativeSetupData setupData,
+    required final List<HistoricDocument> history,
+    required final String? aiConfig,
+    required final Uint8List? state,
   }) async {
-    final boxedConfig =
-        InitConfigFfi(config, setupData, aiConfig: aiConfig).allocNative();
-    final boxedState = state?.allocNative();
-
     final result = await asyncFfi.initialize(
-      boxedConfig.move(),
-      boxedState?.move() ?? nullptr,
+      InitConfigFfi(config, setupData, aiConfig: aiConfig).allocNative().move(),
+      state?.allocNative().move() ?? nullptr,
+      history.allocNative().move(),
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
 
@@ -87,9 +89,16 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   /// Sets the markets.
-  Future<void> setMarkets(final List<FeedMarket> markets) async {
-    final boxedMarkets = markets.allocVec();
-    final result = await asyncFfi.setMarkets(_engine.ref, boxedMarkets.move());
+  @override
+  Future<void> setMarkets(
+    final List<HistoricDocument> history,
+    final List<FeedMarket> markets,
+  ) async {
+    final result = await asyncFfi.setMarkets(
+      _engine.ref,
+      markets.allocVec().move(),
+      history.allocNative().move(),
+    );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
@@ -97,9 +106,14 @@ class DiscoveryEngineFfi implements Engine {
   /// Gets feed documents.
   @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
+    final List<HistoricDocument> history,
     final int maxDocuments,
   ) async {
-    final result = await asyncFfi.getFeedDocuments(_engine.ref, maxDocuments);
+    final result = await asyncFfi.getFeedDocuments(
+      _engine.ref,
+      history.allocNative().move(),
+      maxDocuments,
+    );
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)

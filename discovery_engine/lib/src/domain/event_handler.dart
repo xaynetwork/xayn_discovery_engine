@@ -48,6 +48,8 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, UserReactionAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/history.dart'
+    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -203,10 +205,12 @@ class EventHandler {
     final setupData = await _fetchAssets(config);
     final engineState = await _engineStateRepository.load();
     final engine = await initializeEngine(
-      config,
-      setupData,
+      config: config,
+      setupData: setupData,
       aiConfig: aiConfig,
       engineState: engineState,
+      //TODO get actual history
+      history: [],
     );
 
     // init managers
@@ -229,11 +233,12 @@ class EventHandler {
     return engine;
   }
 
-  Future<Engine> initializeEngine(
-    Configuration config,
-    SetupData setupData, {
-    String? aiConfig,
-    Uint8List? engineState,
+  Future<Engine> initializeEngine({
+    required final Configuration config,
+    required final SetupData setupData,
+    required final List<HistoricDocument> history,
+    required final String? aiConfig,
+    required final Uint8List? engineState,
   }) async {
     if (config.apiKey == 'use-mock-engine' &&
         config.apiBaseUrl == 'https://use-mock-engine.test') {
@@ -245,10 +250,11 @@ class EventHandler {
       throw AssertionError('currently only native setup is implemented');
     }
     return DiscoveryEngineFfi.initialize(
-      config,
-      setupData,
-      aiConfig: aiConfig,
+      config: config,
+      setupData: setupData,
+      history: history,
       state: engineState,
+      aiConfig: aiConfig,
     );
   }
 

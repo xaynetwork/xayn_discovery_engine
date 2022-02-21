@@ -80,7 +80,8 @@ class FeedManager {
 
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
-    final feedDocs = await _engine.getFeedDocuments(_maxDocs);
+    // TODO get actual hisotry
+    final feedDocs = await _engine.getFeedDocuments([], _maxDocs);
     await _engineStateRepo.save(await _engine.serialize());
 
     await _docRepo.updateMany(feedDocs.map((e) => e.document));

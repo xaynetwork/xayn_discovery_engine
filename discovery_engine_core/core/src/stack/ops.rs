@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use xayn_discovery_engine_providers::Article;
 
 use crate::{
-    document::Document,
+    document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::Id,
 };
@@ -53,6 +53,7 @@ pub trait Ops {
     /// Filter `articles` based on `stack` documents.
     fn filter_articles(
         &self,
+        history: &[HistoricDocument],
         stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError>;

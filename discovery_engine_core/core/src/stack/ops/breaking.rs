@@ -21,7 +21,7 @@ use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{Article, Client, HeadlinesQuery, Market};
 
 use crate::{
-    document::Document,
+    document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::Id,
 };
@@ -73,14 +73,15 @@ impl Ops for BreakingNews {
 
     fn filter_articles(
         &self,
-        _current: &[Document],
+        _history: &[HistoricDocument],
+        _stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
         Ok(articles)
     }
 
-    fn merge(&self, current: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
-        let mut res: Vec<_> = current.into();
+    fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
+        let mut res: Vec<_> = stack.into();
         res.extend_from_slice(new);
         Ok(res)
     }

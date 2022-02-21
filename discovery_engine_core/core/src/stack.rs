@@ -23,7 +23,7 @@ use uuid::Uuid;
 use xayn_discovery_engine_providers::Article;
 
 use crate::{
-    document::{Document, Id as DocumentId, UserReaction},
+    document::{Document, HistoricDocument, Id as DocumentId, UserReaction},
     engine::GenericError,
     mab::Bucket,
     ranker::Ranker,
@@ -172,9 +172,13 @@ impl Stack {
     }
 
     /// Filters a list of articles
-    pub(crate) fn filter_articles(&self, articles: Vec<Article>) -> Result<Vec<Article>, Error> {
+    pub(crate) fn filter_articles(
+        &self,
+        history: &[HistoricDocument],
+        articles: Vec<Article>,
+    ) -> Result<Vec<Article>, Error> {
         self.ops
-            .filter_articles(&self.data.documents, articles)
+            .filter_articles(history, &self.data.documents, articles)
             .map_err(Error::Filter)
     }
 }

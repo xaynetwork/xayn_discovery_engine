@@ -49,7 +49,13 @@ void main() {
       kpeClassifier: '',
     );
     expect(
-      DiscoveryEngineFfi.initialize(config, setupData),
+      DiscoveryEngineFfi.initialize(
+        config: config,
+        setupData: setupData,
+        history: [],
+        state: null,
+        aiConfig: null,
+      ),
       allOf(
         throwsException,
         throwsA(

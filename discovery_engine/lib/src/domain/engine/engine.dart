@@ -16,6 +16,10 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/models/history.dart'
+    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -26,8 +30,17 @@ abstract class Engine {
   /// Serializes the state of the [Engine] state.
   Future<Uint8List> serialize();
 
+  /// Changes the currently supported markets.
+  Future<void> setMarkets(
+    List<HistoricDocument> history,
+    List<FeedMarket> markets,
+  );
+
   /// Retrieves at most [maxDocuments] feed documents.
-  Future<List<DocumentWithActiveData>> getFeedDocuments(int maxDocuments);
+  Future<List<DocumentWithActiveData>> getFeedDocuments(
+    List<HistoricDocument> history,
+    int maxDocuments,
+  );
 
   /// Process the feedback about the user spending some time on a document.
   Future<void> timeSpent(TimeSpent timeSpent);
