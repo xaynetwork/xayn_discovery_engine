@@ -50,15 +50,15 @@ pub trait Ops {
     /// tailored to the user's interests.
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError>;
 
-    /// Filter `articles` based on `current` documents.
+    /// Filter `articles` based on `stack` documents.
     fn filter_articles(
         &self,
-        current: &[Document],
+        stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError>;
 
     /// Merge current and new items.
-    fn merge(&self, current: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
+    fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
 }
 
 #[cfg(test)]

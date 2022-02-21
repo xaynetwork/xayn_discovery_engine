@@ -24,6 +24,7 @@ include = ["xayn-discovery-engine-core"]
 "Document" = "RustDocument"
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
+"HistoricDocument" = "RustHistoricDocument"
 "InitConfig" = "RustInitConfig"
 "Market" = "RustMarket"
 "NaiveDateTime" = "RustNaiveDateTime"

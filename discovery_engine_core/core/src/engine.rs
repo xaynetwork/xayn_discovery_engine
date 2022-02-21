@@ -353,7 +353,6 @@ fn rank_stacks<'a>(
 }
 
 /// A discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
-#[allow(clippy::module_name_repetitions)]
 pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
 
 impl XaynAiEngine {
