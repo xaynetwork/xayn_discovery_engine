@@ -57,7 +57,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#fe195d99954c691c5e606ebbb3c77d371ba0e65b"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#a299c69aacb1f017c0f062a83203b5f6225c462f"
 dependencies = [
  "async-bindgen-derive",
  "once_cell",
@@ -70,7 +70,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-derive"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#fe195d99954c691c5e606ebbb3c77d371ba0e65b"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#a299c69aacb1f017c0f062a83203b5f6225c462f"
 dependencies = [
  "heck 0.4.0",
  "once_cell",
@@ -82,7 +82,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-gen-dart"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#fe195d99954c691c5e606ebbb3c77d371ba0e65b"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#a299c69aacb1f017c0f062a83203b5f6225c462f"
 dependencies = [
  "anyhow",
  "handlebars",
@@ -263,9 +263,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.72"
+version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22a9137b95ea06864e018375b72adfb7db6e6f68cfc8df5a04d00288050485ee"
+checksum = "2fff2a6927b3bb87f9595d67196a70493f627687a71d87a0d692242c33f58c11"
 
 [[package]]
 name = "cexpr"
@@ -1211,9 +1211,9 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.7.14"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8067b404fe97c70829f082dec8bcf4f71225d7eaea1d8645349cb76fa06205cc"
+checksum = "ba272f85fa0b41fc91872be579b3bbe0f56b792aa361a380eb669469f68dafb2"
 dependencies = [
  "libc",
  "log",
@@ -2198,9 +2198,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.16.1"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c27a64b625de6d309e8c57716ba93021dccf1b3b5c97edd6d3dd2d2135afc0a"
+checksum = "2af73ac49756f3f7c01172e34a23e5d0216f6c32333757c2c61feb2bbff5a5ee"
 dependencies = [
  "bytes",
  "libc",
@@ -2208,6 +2208,7 @@ dependencies = [
  "mio",
  "num_cpus",
  "pin-project-lite",
+ "socket2",
  "tokio-macros",
  "winapi",
 ]
@@ -2757,7 +2758,7 @@ dependencies = [
 [[package]]
 name = "xayn-dart-api-dl"
 version = "0.3.0+2.0.0"
-source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#4726d75f35513a80eb8df753b54099254cf0dc7d"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#bf1423f2eaf5b3c1914b8a0a6696ebbff7872f73"
 dependencies = [
  "displaydoc",
  "once_cell",
@@ -2769,7 +2770,7 @@ dependencies = [
 [[package]]
 name = "xayn-dart-api-dl-sys"
 version = "0.3.0+2.0.0"
-source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#4726d75f35513a80eb8df753b54099254cf0dc7d"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#bf1423f2eaf5b3c1914b8a0a6696ebbff7872f73"
 dependencies = [
  "bindgen",
  "cc",
