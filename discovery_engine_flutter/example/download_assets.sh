@@ -24,7 +24,7 @@ download()
   ARCHIVE_NAME="$ARCHIVE_BASENAME.tgz"
   URL="http://s3-de-central.profitbricks.com/xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
 
-  curl "$URL" -o "$DATA_DIR/$ARCHIVE_NAME"
+  curl "$URL" -o "$DATA_DIR/$ARCHIVE_NAME" -C -
 
   cd "$DATA_DIR"
   tar -zxf "$ARCHIVE_NAME"

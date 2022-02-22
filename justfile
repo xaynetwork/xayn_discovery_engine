@@ -161,7 +161,7 @@ rust-build: _codegen-order-workaround
 build: rust-build dart-build
 
 # Tests dart (builds all necessary parts)
-dart-test: rust-build dart-build
+dart-test: rust-build dart-build download_assets
     cd "$DART_WORKSPACE"; \
     dart test
 
@@ -274,6 +274,10 @@ flutter-run: dart-build
 flutter-build target *args: dart-build
     cd "$FLUTTER_WORKSPACE/example" && \
         flutter build {{target}} {{args}}
+
+download_assets:
+    cd "$FLUTTER_WORKSPACE/example"; \
+    ./download_assets.sh
 
 alias d := dart-test
 alias r := rust-test
