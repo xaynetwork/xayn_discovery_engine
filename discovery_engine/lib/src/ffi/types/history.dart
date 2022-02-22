@@ -65,7 +65,7 @@ final _listFfiAdapter = ListFfiAdapter(
   writeNativeVec: ffi.init_historic_document_vec_at,
 );
 
-extension HistoricDocumentSliceFfi on List<HistoricDocument> {
+extension HistoricDocumentVecFfi on List<HistoricDocument> {
   Boxed<RustVecHistoricDocument> allocNative() {
     final place = ffi.alloc_uninitialized_historic_document_vec();
     _listFfiAdapter.writeVec(this, place);

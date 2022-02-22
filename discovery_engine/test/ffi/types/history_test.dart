@@ -18,7 +18,7 @@ import 'package:xayn_discovery_engine/src/domain/models/history.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/ffi/types/history.dart'
-    show HistoricDocumentFfi, HistoricDocumentSliceFfi;
+    show HistoricDocumentFfi, HistoricDocumentVecFfi;
 
 void main() {
   test('reading written HistoricDocument works', () {
@@ -51,7 +51,7 @@ void main() {
     ];
 
     final boxed = docs.allocNative();
-    final res = HistoricDocumentSliceFfi.consumeNative(boxed);
+    final res = HistoricDocumentVecFfi.consumeNative(boxed);
     expect(res, equals(docs));
   });
 }
