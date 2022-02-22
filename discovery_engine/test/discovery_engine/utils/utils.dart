@@ -77,8 +77,8 @@ void withSuccessResponse(Object initialMessage) =>
 
 final mockConfig = Configuration(
   apiKey: '**********',
-  apiBaseUrl: 'https://example-api.dev',
-  assetsUrl: 'https://ai-assets.dev',
+  apiBaseUrl: 'https://api.example.com',
+  assetsUrl: 'https://ai-assets.example.com',
   maxItemsPerFeedBatch: 50,
   applicationDirectoryPath: './',
   feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
@@ -88,10 +88,10 @@ final mockConfig = Configuration(
 final mockNewsResource = NewsResource(
   title: 'Example',
   snippet: 'snippet',
-  url: Uri.parse('https://domain.com'),
-  sourceUrl: Uri.parse('domain.com'),
+  url: Uri.parse('https://example.com'),
+  sourceDomain: 'example.com',
   datePublished: DateTime.utc(2022, 01, 01),
-  image: Uri.parse('http://thumbnail.domain.com'),
+  image: Uri.parse('http://thumbnail.example.com'),
   rank: 10,
   score: 0.1,
   country: 'EN',

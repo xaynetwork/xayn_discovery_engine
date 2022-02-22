@@ -41,14 +41,13 @@ class MockEngine implements Engine {
   MockEngine() {
     final resource = NewsResource.fromJson(const <String, Object>{
       'title': 'Example',
-      'sourceUrl': 'domain.com',
+      'sourceDomain': 'example.com',
       'snippet': 'snippet',
-      'url': 'http://domain.com/news',
-      'source_url': 'http://domain.com',
+      'url': 'http://exmaple.com/news',
       'datePublished': '1980-01-01T00:00:00.000000',
       'provider': <String, String>{
         'name': 'domain',
-        'thumbnail': 'http://thumbnail.domain.com',
+        'thumbnail': 'http://thumbnail.example.com',
       },
       'rank': 10,
       'score': 0.1,
