@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
 
 use xayn_discovery_engine_providers::{Article, Market};
@@ -38,7 +39,7 @@ pub(crate) struct PersonalizedNews {
 #[async_trait]
 impl Ops for PersonalizedNews {
     fn id(&self) -> Id {
-        todo!();
+        Id(Uuid::parse_str("7861796e-0d0a-4a82-8054-193220aa63c6").unwrap(/* valid uuid */))
     }
 
     fn configure(&mut self, config: &EndpointConfig) {
@@ -46,22 +47,20 @@ impl Ops for PersonalizedNews {
     }
 
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
-        todo!();
+        Ok(vec![])
     }
 
     fn filter_articles(
         &self,
         _current: &[Document],
-        _articles: Vec<Article>,
+        articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        todo!();
+        Ok(articles)
     }
 
-    fn merge(
-        &self,
-        _current: &[Document],
-        _new: &[Document],
-    ) -> Result<Vec<Document>, GenericError> {
-        todo!();
+    fn merge(&self, current: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
+        let mut res: Vec<_> = current.into();
+        res.extend_from_slice(new);
+        Ok(res)
     }
 }
