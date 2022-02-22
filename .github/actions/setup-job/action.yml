@@ -50,7 +50,7 @@ runs:
 
     - name: Install flutter
       uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
-      if: {{ inputs.flutter != 'false' || inputs.dart != 'false' }}
+      if: ${{ inputs.dart != 'false' || inputs.flutter != 'false' }}
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
         cache: true
