@@ -35,6 +35,7 @@ pub enum Error {
 }
 
 /// Client that can provide documents.
+#[derive(Default)]
 pub struct Client {
     token: String,
     url: String,

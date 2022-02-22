@@ -32,8 +32,7 @@ use super::Ops;
 /// Stack operations customized for personalized news items.
 #[derive(Default)]
 pub(crate) struct PersonalizedNews {
-    token: String,
-    url: String,
+    client: Client,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
 }
 
@@ -44,14 +43,12 @@ impl Ops for PersonalizedNews {
     }
 
     fn configure(&mut self, config: &EndpointConfig) {
-        self.token.clone_from(&config.api_key);
-        self.url.clone_from(&config.api_base_url);
+        self.client = Client::new(config.api_key.clone(), config.api_base_url.clone());
         self.markets.replace(Arc::clone(&config.markets));
     }
 
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
         Ok(if let Some(markets) = self.markets.as_ref() {
-            let client = Client::new(self.token.clone(), self.url.clone());
             let mut articles = Vec::new();
             let page_size = Some(20); // TODO pass through config later
             let filter = key_phrases.iter().fold(Filter::default(), |filter, kp| {
@@ -63,7 +60,7 @@ impl Ops for PersonalizedNews {
                     filter: filter.clone(),
                     page_size,
                 };
-                articles.extend(client.news(&query).await?);
+                articles.extend(self.client.news(&query).await?);
             }
             articles
         } else {
