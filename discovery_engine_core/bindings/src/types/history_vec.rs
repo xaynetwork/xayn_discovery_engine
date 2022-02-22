@@ -33,7 +33,7 @@ use super::boxed::alloc_uninitialized;
 /// - It must be valid to write a `Vec<HistoricDocument>` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
 /// - It must be valid to construct a `Box<[HistoricDocument]>` from given `slice_ptr`
-///   and `len`.
+///   and `slice_len`.
 #[no_mangle]
 pub unsafe extern "C" fn init_historic_document_vec_at(
     place: *mut Vec<HistoricDocument>,
