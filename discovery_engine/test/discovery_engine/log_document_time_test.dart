@@ -89,6 +89,7 @@ void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
       documentTimeLoggedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
+        null,
       ),
     );
 

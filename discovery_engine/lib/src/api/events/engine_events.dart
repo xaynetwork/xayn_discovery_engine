@@ -132,6 +132,7 @@ class EngineEvent with _$EngineEvent {
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.engineExceptionRaised(
     EngineExceptionReason reason,
+    String? message,
   ) = EngineExceptionRaised;
 
   /// Event created as a successful response to some client events which are

@@ -291,7 +291,7 @@ class DiscoveryEngine {
       logger.e(message, error, stackTrace);
 
       // into [EngineExceptionRaised] event with a specific reason
-      return EngineEvent.engineExceptionRaised(reason);
+      return EngineEvent.engineExceptionRaised(reason, error.toString());
     }
   }
 }
@@ -337,5 +337,6 @@ extension _MapEvent on EngineEvent {
   EngineEvent _orElse(EngineEvent _event) =>
       const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.wrongEventInResponse,
+        null,
       );
 }

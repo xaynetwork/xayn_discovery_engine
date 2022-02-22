@@ -64,5 +64,6 @@ void withWrongEventResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
       initResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
+        null,
       ),
     );

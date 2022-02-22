@@ -162,12 +162,17 @@ void main() {
 
       const event_2 = EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
+        null,
       );
       final message_2 = converter.convert(event_2);
 
       expect(
         message_2,
-        equals({'runtimeType': 'engineExceptionRaised', 'reason': 1}),
+        equals({
+          'runtimeType': 'engineExceptionRaised',
+          'reason': 1,
+          'message': null,
+        }),
       );
     });
 

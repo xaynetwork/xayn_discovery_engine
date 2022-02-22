@@ -64,7 +64,8 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
     }
     // Add other types here
 
-    final errorEvent = EngineEvent.engineExceptionRaised(reason);
+    final errorEvent =
+        EngineEvent.engineExceptionRaised(reason, error.toString());
     final sender = _getSenderFromMessageOrNull(incomingMessage);
     // send an error event using main channel or Sender if available
     send(errorEvent, sender);
