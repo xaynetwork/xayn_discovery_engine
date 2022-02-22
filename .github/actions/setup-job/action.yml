@@ -100,8 +100,11 @@ runs:
       if: inputs.deps
       run: |
         if [[ "${{ inputs.dart }}" != "false" || "${{ inputs.flutter }}" != "false" ]] && [[ "${{ inputs.rust }}" != "false" ]]; then
-          # ffigen dep, not handled by `just` as it's OS specific.
-          sudo apt-get install libclang-10-dev
+          # Don't try to run this on macOS, where apt-get doesn't exist
+          if [ ${{ runner.os }} == "Linux" ]; then
+            # ffigen dep, not handled by `just` as it's OS specific.
+            sudo apt-get install libclang-10-dev
+          fi
         fi
 
         if [ "${{ inputs.rust }}" != "false" ]; then

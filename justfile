@@ -267,6 +267,14 @@ compile-ios-ci target prod_flag="\"\"": _codegen-order-workaround
         {{just_executable()}} _compile-ios {{target}}
     fi
 
+flutter-run: dart-build
+    cd "$FLUTTER_WORKSPACE/example" && \
+        flutter run
+
+flutter-build target *args: dart-build
+    cd "$FLUTTER_WORKSPACE/example" && \
+        flutter build {{target}} {{args}}
+
 alias d := dart-test
 alias r := rust-test
 alias t := test

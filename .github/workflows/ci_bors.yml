@@ -22,8 +22,14 @@ jobs:
   build-android-libs:
     uses: ./.github/workflows/ci_build_android.yml
 
+  build-flutter-example:
+    needs: build-ios-libs
+    uses: ./.github/workflows/ci_flutter_example.yml
+    with:
+      artifact-dir-base-ios: ${{ needs.build-ios-libs.outputs.artifact-dir-base }}
+
   ci-ok:
-    needs: [dev-ci, build-ios-libs, build-android-libs]
+    needs: [dev-ci, build-ios-libs, build-android-libs, build-flutter-example]
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     if: always()
@@ -33,7 +39,8 @@ jobs:
           if [[
             "${{ needs.dev-ci.outputs.wf-result }}" == "success" &&
             "${{ needs.build-ios-libs.result }}" == "success" &&
-            "${{ needs.build-android-libs.result }}" == "success"
+            "${{ needs.build-android-libs.result }}" == "success" &&
+            "${{ needs.build-flutter-example.result }}" == "success"
           ]]; then
             exit 0
           else
