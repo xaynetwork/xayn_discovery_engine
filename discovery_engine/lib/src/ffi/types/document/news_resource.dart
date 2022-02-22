@@ -32,8 +32,8 @@ extension NewsResourceFfi on NewsResource {
     url.writeNative(ffi.news_resource_place_of_url(place));
     sourceUrl.writeNative(ffi.news_resource_place_of_source_url(place));
     UriFfi.writeNativeOption(
-      thumbnail,
-      ffi.news_resource_place_of_thumbnail(place),
+      image,
+      ffi.news_resource_place_of_image(place),
     );
     datePublished.writeNative(ffi.news_resource_place_of_date_published(place));
     ffi.news_resource_place_of_rank(place).value = rank;
@@ -54,8 +54,8 @@ extension NewsResourceFfi on NewsResource {
       url: UriFfi.readNative(ffi.news_resource_place_of_url(resource)),
       sourceUrl:
           UriFfi.readNative(ffi.news_resource_place_of_source_url(resource)),
-      thumbnail: UriFfi.readNativeOption(
-        ffi.news_resource_place_of_thumbnail(resource),
+      image: UriFfi.readNativeOption(
+        ffi.news_resource_place_of_image(resource),
       ),
       datePublished: NaiveDateTimeFfi.readNative(
         ffi.news_resource_place_of_date_published(resource),

@@ -91,7 +91,7 @@ final mockNewsResource = NewsResource(
   url: Uri.parse('https://domain.com'),
   sourceUrl: Uri.parse('domain.com'),
   datePublished: DateTime.utc(2022, 01, 01),
-  thumbnail: Uri.parse('http://thumbnail.domain.com'),
+  image: Uri.parse('http://thumbnail.domain.com'),
   rank: 10,
   score: 0.1,
   country: 'EN',

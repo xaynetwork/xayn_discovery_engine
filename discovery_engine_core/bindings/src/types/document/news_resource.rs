@@ -76,17 +76,17 @@ pub unsafe extern "C" fn news_resource_place_of_date_published(
     unsafe { addr_of_mut!((*place).date_published) }
 }
 
-/// Returns a pointer to the `thumbnail` field of a news resource.
+/// Returns a pointer to the `image` field of a news resource.
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_thumbnail(
+pub unsafe extern "C" fn news_resource_place_of_image(
     place: *mut NewsResource,
 ) -> *mut Option<Url> {
-    unsafe { addr_of_mut!((*place).thumbnail) }
+    unsafe { addr_of_mut!((*place).image) }
 }
 
 /// Returns a pointer to the `rank` field of a news resource.
