@@ -21,6 +21,7 @@ pub mod duration;
 pub mod embedding;
 pub mod engine;
 pub mod history;
+pub mod history_vec;
 pub mod init_config;
 pub mod market;
 pub mod market_vec;

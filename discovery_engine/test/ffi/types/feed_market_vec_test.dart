@@ -13,7 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/api/api.dart';
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
 

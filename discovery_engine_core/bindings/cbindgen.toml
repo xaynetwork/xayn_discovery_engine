@@ -43,5 +43,6 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "UserReaction" = "RustUserReaction"
 "Uuid" = "RustUuid"
 "Vec_Document" = "RustVecDocument"
+"Vec_HistoricDocument" = "RustVecHistoricDocument"
 "Vec_Market" = "RustVecMarket"
 "Vec_u8" = "RustVecU8"
