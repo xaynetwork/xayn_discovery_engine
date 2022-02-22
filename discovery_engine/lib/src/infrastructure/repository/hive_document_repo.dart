@@ -23,7 +23,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox;
 
 /// Hive repository implementation of [DocumentRepository].
-class HiveDocumentRepository implements DocumentRepository {
+class HiveDocumentRepository extends DocumentRepository {
   Box<Document> get box => Hive.box<Document>(documentBox);
 
   @override

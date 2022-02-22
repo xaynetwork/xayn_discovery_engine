@@ -204,13 +204,13 @@ class EventHandler {
 
     final setupData = await _fetchAssets(config);
     final engineState = await _engineStateRepository.load();
+    final history = await _documentRepository.fetchHistory();
     final engine = await initializeEngine(
       config: config,
       setupData: setupData,
       aiConfig: aiConfig,
       engineState: engineState,
-      //TODO get actual history
-      history: [],
+      history: history,
     );
 
     // init managers

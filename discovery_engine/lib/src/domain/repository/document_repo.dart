@@ -14,6 +14,8 @@
 
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
+import 'package:xayn_discovery_engine/src/domain/models/history.dart'
+    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 
@@ -29,6 +31,12 @@ abstract class DocumentRepository {
 
   /// Fetch all documents.
   Future<List<Document>> fetchAll();
+
+  /// Fetches the history.
+  Future<List<HistoricDocument>> fetchHistory() async {
+    final docs = await fetchAll();
+    return docs.map((doc) => HistoricDocument.fromDocument(doc)).toList();
+  }
 
   /// Update with the given document.
   Future<void> update(Document doc);
