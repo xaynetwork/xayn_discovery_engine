@@ -50,9 +50,10 @@ pub struct NewsQuery {
 
 /// Parameters determining which headlines to fetch
 pub struct HeadlinesQuery {
-    market: Market,
+    /// Market of headlines.
+    pub market: Market,
     /// How many articles to return (per page).
-    page_size: Option<usize>,
+    pub page_size: Option<usize>,
 }
 
 impl Client {

@@ -19,8 +19,7 @@ use chrono::NaiveDate;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-
-use xayn_discovery_engine_providers::{Article, Market, Topic};
+use xayn_discovery_engine_providers::{Article, Client, HeadlinesQuery, Market};
 
 use crate::{
     document::Document,
@@ -48,13 +47,28 @@ impl Ops for BreakingNews {
     fn configure(&mut self, config: &EndpointConfig) {
         self.token.clone_from(&config.api_key);
         self.url.clone_from(&config.api_base_url);
-        self.markets.replace(Arc::clone(&config.markets));
+        self.markets
+            .replace(Arc::new(tokio::sync::RwLock::new(vec![]))); // FIXME
     }
 
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_possible_truncation)]
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
-        todo!()
+        let articles = if let Some(markets) = self.markets.as_ref() {
+            let markets = markets.read().await.clone();
+            let client = Client::new(self.token.clone(), self.url.clone());
+            let mut nested_articles = Vec::new();
+            for market in markets {
+                let page_size = None; // FIXME
+                let query = HeadlinesQuery { market, page_size };
+                nested_articles.push(client.headlines(&query).await?);
+            }
+            nested_articles.into_iter().flatten().collect()
+        } else {
+            vec![]
+        };
+
+        Ok(articles)
     }
 
     fn filter_articles(
