@@ -221,6 +221,19 @@ pub(crate) fn document_from_article(
     })
 }
 
+/// Represents a [`Document`] in the document history.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoricDocument {
+    /// See  [`Document::id`].
+    pub id: Id,
+    /// See [`NewsResource::url`].
+    pub url: Url,
+    /// See [`NewsResource::snippet`].
+    pub snippet: String,
+    /// See [`NewsResource::title`].
+    pub title: String,
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
