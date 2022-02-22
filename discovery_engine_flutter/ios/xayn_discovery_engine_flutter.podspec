@@ -20,7 +20,7 @@ Xayn Discovery Engine flutter plugin project.
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 arm64',
     # Forces loading the binaries
     'OTHER_LDFLAGS' =>
     ' -force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_x86_64-apple-ios.a"'\
