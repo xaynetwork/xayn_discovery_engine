@@ -12,8 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:equatable/equatable.dart';
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
+import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 
 /// A compact representation of a `Document` in the document history.
 class HistoricDocument with EquatableMixin {

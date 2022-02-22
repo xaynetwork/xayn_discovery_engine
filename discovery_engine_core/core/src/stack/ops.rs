@@ -57,7 +57,7 @@ pub trait Ops {
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError>;
 
-    /// Merge current and new items.
+    /// Merge stacked and new items.
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
 }
 
