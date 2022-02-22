@@ -13,11 +13,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:xayn_discovery_engine/src/domain/assets/asset.dart';
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart';
+import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
+    show Manifest;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket, FeedMarkets;
 
 part 'configuration.freezed.dart';
-
 part 'configuration.g.dart';
 
 /// Class that holds data needed for the initialisation of the discovery engine.

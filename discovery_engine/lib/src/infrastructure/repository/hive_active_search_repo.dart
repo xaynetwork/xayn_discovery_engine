@@ -13,21 +13,21 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:hive/hive.dart' show Hive, Box;
-import 'package:xayn_discovery_engine/src/domain/models/search.dart'
-    show Search;
-import 'package:xayn_discovery_engine/src/domain/repository/search_repo.dart'
-    show SearchRepository;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch;
+import 'package:xayn_discovery_engine/src/domain/repository/active_search_repo.dart'
+    show ActiveSearchRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show searchBox;
 
-/// Hive repository implementation of [SearchRepository].
-class HiveSearchRepository implements SearchRepository {
+/// Hive repository implementation of [ActiveSearchRepository].
+class HiveActiveSearchRepository implements ActiveSearchRepository {
   static const stateKey = 0;
 
-  Box<Search> get box => Hive.box<Search>(searchBox);
+  Box<ActiveSearch> get box => Hive.box<ActiveSearch>(searchBox);
 
   @override
-  Future<Search?> getCurrent() async => box.get(stateKey);
+  Future<ActiveSearch?> getCurrent() async => box.get(stateKey);
 
   @override
   Future<void> clear() async {
@@ -35,5 +35,5 @@ class HiveSearchRepository implements SearchRepository {
   }
 
   @override
-  Future<void> save(Search data) => box.put(stateKey, data);
+  Future<void> save(ActiveSearch data) => box.put(stateKey, data);
 }

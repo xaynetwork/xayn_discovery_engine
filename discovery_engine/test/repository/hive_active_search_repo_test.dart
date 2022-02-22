@@ -16,20 +16,21 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Box, Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/discovery_engine.dart';
-import 'package:xayn_discovery_engine/src/domain/models/search.dart'
-    show Search;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show searchBox;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_search_repo.dart'
-    show HiveSearchRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
+    show HiveActiveSearchRepository;
 
 Future<void> main() async {
-  group('HiveSearchRepository', () {
-    late Box<Search> box;
-    late HiveSearchRepository repo;
+  group('HiveActiveSearchRepository', () {
+    late Box<ActiveSearch> box;
+    late HiveActiveSearchRepository repo;
 
-    const search = Search(
+    const search = ActiveSearch(
       queryTerm: 'example search query',
       requestedPageNb: 1,
       pageSize: 10,
@@ -37,11 +38,11 @@ Future<void> main() async {
     );
 
     setUpAll(() async {
-      box = await Hive.openBox<Search>(searchBox, bytes: Uint8List(0));
+      box = await Hive.openBox<ActiveSearch>(searchBox, bytes: Uint8List(0));
     });
 
     setUp(() async {
-      repo = HiveSearchRepository();
+      repo = HiveActiveSearchRepository();
     });
 
     tearDown(() async {
@@ -56,7 +57,7 @@ Future<void> main() async {
       });
 
       test('when the box has some data it will return that data', () async {
-        await box.put(HiveSearchRepository.stateKey, search);
+        await box.put(HiveActiveSearchRepository.stateKey, search);
 
         final state = await repo.getCurrent();
 

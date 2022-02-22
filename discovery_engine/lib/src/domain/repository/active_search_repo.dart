@@ -12,16 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/src/domain/models/search.dart'
-    show Search;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch;
 
-/// Repository interface for currently performed [Search].
-abstract class SearchRepository {
+/// Repository interface for currently performed [ActiveSearch].
+abstract class ActiveSearchRepository {
   /// Get current search.
-  Future<Search?> getCurrent();
+  Future<ActiveSearch?> getCurrent();
 
   /// Update current search.
-  Future<void> save(Search data);
+  Future<void> save(ActiveSearch data);
 
   /// Remove current search.
   Future<void> clear();
