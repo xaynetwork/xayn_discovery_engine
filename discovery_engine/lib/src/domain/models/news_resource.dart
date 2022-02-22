@@ -30,7 +30,7 @@ class NewsResource with _$NewsResource {
     @HiveField(0) required String title,
     @HiveField(1) required String snippet,
     @HiveField(2) required Uri url,
-    @HiveField(3) required Uri sourceUrl,
+    @HiveField(3) required String sourceDomain,
     @HiveField(4) required Uri? image,
     @HiveField(5) required DateTime datePublished,
     @HiveField(6) required int rank,

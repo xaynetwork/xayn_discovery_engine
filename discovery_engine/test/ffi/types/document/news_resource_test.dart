@@ -25,7 +25,7 @@ void main() {
       title: 'fun',
       snippet: 'fun is fun',
       url: Uri.parse('https://www.foobar.example/dodo'),
-      sourceUrl: Uri.parse('yyy://www.example/'),
+      sourceDomain: 'www.example',
       image: null,
       datePublished: DateTime.now(),
       rank: 12,

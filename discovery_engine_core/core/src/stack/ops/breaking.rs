@@ -58,7 +58,7 @@ impl Ops for BreakingNews {
                 title: format!("B Document Title {}", i),
                 score: if i % 2 == 0 {Some(i as f32) } else {None},
                 rank: i,
-                clean_url: "xayn.com".to_string(),
+                source_domain: "xayn.com".to_string(),
                 excerpt: format!("Content of the news {}", i),
                 link: "https://xayn.com/".into(),
                 media: "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/614349038d7d72d1576ae3f4_plant.svg".into(),

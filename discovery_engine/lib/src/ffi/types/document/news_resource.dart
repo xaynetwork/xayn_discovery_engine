@@ -30,7 +30,7 @@ extension NewsResourceFfi on NewsResource {
     title.writeNative(ffi.news_resource_place_of_title(place));
     snippet.writeNative(ffi.news_resource_place_of_snippet(place));
     url.writeNative(ffi.news_resource_place_of_url(place));
-    sourceUrl.writeNative(ffi.news_resource_place_of_source_url(place));
+    sourceDomain.writeNative(ffi.news_resource_place_of_source_domain(place));
     UriFfi.writeNativeOption(
       image,
       ffi.news_resource_place_of_image(place),
@@ -52,8 +52,9 @@ extension NewsResourceFfi on NewsResource {
       snippet:
           StringFfi.readNative(ffi.news_resource_place_of_snippet(resource)),
       url: UriFfi.readNative(ffi.news_resource_place_of_url(resource)),
-      sourceUrl:
-          UriFfi.readNative(ffi.news_resource_place_of_source_url(resource)),
+      sourceDomain: StringFfi.readNative(
+        ffi.news_resource_place_of_source_domain(resource),
+      ),
       image: UriFfi.readNativeOption(
         ffi.news_resource_place_of_image(resource),
       ),

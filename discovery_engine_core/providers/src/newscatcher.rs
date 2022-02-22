@@ -58,8 +58,9 @@ pub struct Article {
     /// The page rank of the source website.
     pub rank: usize,
 
-    /// The URL of the article's source.
-    pub clean_url: String,
+    /// The domain of the article's source, e.g. `xayn.com`. Not a valid URL.
+    #[serde(rename(deserialize = "clean_url"))]
+    pub source_domain: String,
 
     /// Short summary of the article provided by the publisher.
     pub excerpt: String,
