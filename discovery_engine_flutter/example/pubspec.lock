@@ -12,7 +12,7 @@ packages:
     dependency: transitive
     description:
       path: async_bindgen_dart_utils
-      ref: HEAD
+      ref: fe195d99954c691c5e606ebbb3c77d371ba0e65b
       resolved-ref: fe195d99954c691c5e606ebbb3c77d371ba0e65b
       url: "https://github.com/xaynetwork/xayn_async_bindgen.git"
     source: git
