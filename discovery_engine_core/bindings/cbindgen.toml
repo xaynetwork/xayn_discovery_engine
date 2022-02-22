@@ -17,7 +17,7 @@ typedef struct RustUuid RustUuid;
 
 [parse]
 parse_deps = true
-include = ["xayn-discovery-engine-core"]
+include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 
 [export.rename]
 # Renamings to avoid name conflicts/confusion in dart.

@@ -41,9 +41,9 @@ impl Filter {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Market {
     /// Country code as defined in ISO 3166-1 alpha-2.
-    pub country: String,
-    /// Country code as defined in ISO 639-1 — 2 letter code, e.g. 'de' or 'en'
-    pub language: String,
+    pub country_code: String,
+    /// Language code as defined in ISO 639-1 — 2 letter code, e.g. 'de' or 'en'
+    pub lang_code: String,
 }
 
 #[cfg(test)]

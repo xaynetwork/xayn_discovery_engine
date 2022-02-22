@@ -26,6 +26,8 @@
 #![warn(missing_docs, unreachable_pub)]
 #![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
 
+pub use xayn_discovery_engine_providers::Market;
+
 pub mod document;
 mod engine;
 mod mab;
@@ -33,4 +35,4 @@ mod ranker;
 pub mod stack;
 mod utils;
 
-pub use crate::engine::{Engine, Error, InitConfig, Market, XaynAiEngine};
+pub use crate::engine::{Engine, Error, InitConfig, XaynAiEngine};

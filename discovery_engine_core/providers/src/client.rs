@@ -84,8 +84,8 @@ impl Client {
     }
 
     fn build_news_query(query: &mut HashMap<String, String>, params: &NewsQuery) {
-        query.insert("lang".to_string(), params.market.language.clone());
-        query.insert("countries".to_string(), params.market.country.clone());
+        query.insert("lang".to_string(), params.market.lang_code.clone());
+        query.insert("countries".to_string(), params.market.country_code.clone());
         query.insert(
             "page_size".to_string(),
             params.page_size.unwrap_or(100).to_string(),
@@ -115,8 +115,8 @@ impl Client {
     }
 
     fn build_headlines_query(query: &mut HashMap<String, String>, params: &HeadlinesQuery) {
-        query.insert("lang".to_string(), params.market.language.clone());
-        query.insert("countries".to_string(), params.market.country.clone());
+        query.insert("lang".to_string(), params.market.lang_code.clone());
+        query.insert("countries".to_string(), params.market.country_code.clone());
         query.insert(
             "page_size".to_string(),
             params.page_size.unwrap_or(100).to_string(),
@@ -165,8 +165,8 @@ mod tests {
 
         let params = NewsQuery {
             market: Market {
-                language: "en".to_string(),
-                country: "AU".to_string(),
+                lang_code: "en".to_string(),
+                country_code: "AU".to_string(),
             },
             filter,
             page_size: Some(2),
@@ -210,8 +210,8 @@ mod tests {
 
         let params = NewsQuery {
             market: Market {
-                language: "de".to_string(),
-                country: "DE".to_string(),
+                lang_code: "de".to_string(),
+                country_code: "DE".to_string(),
             },
             filter,
             page_size: Some(2),
@@ -251,8 +251,8 @@ mod tests {
 
         let params = HeadlinesQuery {
             market: Market {
-                language: "en".to_string(),
-                country: "US".to_string(),
+                lang_code: "en".to_string(),
+                country_code: "US".to_string(),
             },
             page_size: Some(2),
         };
