@@ -23,8 +23,8 @@ Xayn Discovery Engine flutter plugin project.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     # Forces loading the binaries
     'OTHER_LDFLAGS' =>
-    '-force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_x86_64-apple-ios.a"'\
-    '-force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_aarch64-apple-ios.a"'
+    ' -force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_x86_64-apple-ios.a"'\
+    ' -force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_aarch64-apple-ios.a"'
   }
   s.swift_version = '5.0'
 end
