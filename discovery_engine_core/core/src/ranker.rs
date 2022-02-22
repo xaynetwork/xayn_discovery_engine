@@ -90,6 +90,14 @@ impl xayn_ai::ranker::Document for Document {
     fn smbert_embedding(&self) -> &Embedding {
         &self.smbert_embedding
     }
+
+    fn score(&self) -> Option<f32> {
+        self.resource.score
+    }
+
+    fn rank(&self) -> usize {
+        self.resource.rank
+    }
 }
 
 impl From<Id> for DocumentId {
