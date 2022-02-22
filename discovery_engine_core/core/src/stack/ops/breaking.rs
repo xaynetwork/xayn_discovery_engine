@@ -30,7 +30,6 @@ use crate::{
 use super::Ops;
 
 /// Stack operations customized for breaking news items.
-// NOTE mock implementation for now
 #[derive(Default)]
 pub(crate) struct BreakingNews {
     token: String,
@@ -47,8 +46,7 @@ impl Ops for BreakingNews {
     fn configure(&mut self, config: &EndpointConfig) {
         self.token.clone_from(&config.api_key);
         self.url.clone_from(&config.api_base_url);
-        self.markets
-            .replace(Arc::new(tokio::sync::RwLock::new(vec![]))); // FIXME
+        self.markets.replace(Arc::clone(&config.markets));
     }
 
     #[allow(clippy::cast_precision_loss)]
@@ -57,8 +55,8 @@ impl Ops for BreakingNews {
         Ok(if let Some(markets) = self.markets.as_ref() {
             let client = Client::new(self.token.clone(), self.url.clone());
             let mut articles = Vec::new();
+            let page_size = Some(20); // TODO pass through config later
             for market in markets.read().await.clone() {
-                let page_size = None; // FIXME
                 let query = HeadlinesQuery { market, page_size };
                 articles.extend(client.headlines(&query).await?);
             }

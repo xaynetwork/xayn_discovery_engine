@@ -30,7 +30,6 @@ use crate::{
 use super::Ops;
 
 /// Stack operations customized for personalized news items.
-// NOTE mock implementation for now
 #[derive(Default)]
 pub(crate) struct PersonalizedNews {
     token: String,
@@ -47,22 +46,21 @@ impl Ops for PersonalizedNews {
     fn configure(&mut self, config: &EndpointConfig) {
         self.token.clone_from(&config.api_key);
         self.url.clone_from(&config.api_base_url);
-        self.markets
-            .replace(Arc::new(tokio::sync::RwLock::new(vec![]))); // FIXME
+        self.markets.replace(Arc::clone(&config.markets));
     }
 
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
         Ok(if let Some(markets) = self.markets.as_ref() {
             let client = Client::new(self.token.clone(), self.url.clone());
             let mut articles = Vec::new();
+            let page_size = Some(20); // TODO pass through config later
+            let filter = key_phrases.iter().fold(Filter::default(), |filter, kp| {
+                filter.add_keyword(kp.words())
+            });
             for market in markets.read().await.clone() {
-                let page_size = None; // FIXME
-                let filter = key_phrases.iter().fold(Filter::default(), |filter, kp| {
-                    filter.add_keyword(kp.words())
-                });
                 let query = NewsQuery {
                     market,
-                    filter,
+                    filter: filter.clone(),
                     page_size,
                 };
                 articles.extend(client.news(&query).await?);
