@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,8 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const documentBox = 'document';
-const changedDocumentIdBox = 'changed_document';
-const activeDocumentDataBox = 'active_document';
-const engineStateBox = 'engine_state';
-const searchBox = 'search';
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch;
+
+/// Repository interface for currently performed [ActiveSearch].
+abstract class ActiveSearchRepository {
+  /// Get current search.
+  Future<ActiveSearch?> getCurrent();
+
+  /// Update current search.
+  Future<void> save(ActiveSearch data);
+
+  /// Remove current search.
+  Future<void> clear();
+}
