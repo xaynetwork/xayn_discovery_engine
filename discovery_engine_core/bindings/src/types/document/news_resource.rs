@@ -59,8 +59,10 @@ pub unsafe extern "C" fn news_resource_place_of_url(place: *mut NewsResource) ->
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_source_url(place: *mut NewsResource) -> *mut Url {
-    unsafe { addr_of_mut!((*place).source_url) }
+pub unsafe extern "C" fn news_resource_place_of_source_url(
+    place: *mut NewsResource,
+) -> *mut String {
+    unsafe { addr_of_mut!((*place).source_domain) }
 }
 
 /// Returns a pointer to the `date_published` field of a news resource.

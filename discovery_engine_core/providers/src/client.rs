@@ -266,7 +266,7 @@ mod tests {
             title: "Jerusalem blanketed in white after rare snowfall".to_string(),
             score: None,
             rank: 6510,
-            clean_url: "xayn.com".to_string(),
+            source_domain: "xayn.com".to_string(),
             excerpt: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
             link: "https://xayn.com".to_string(),
             media: "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/6179684043a88260009773cd_hero-phone.png".to_string(),
