@@ -54,21 +54,18 @@ impl Ops for BreakingNews {
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_possible_truncation)]
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
-        let articles = if let Some(markets) = self.markets.as_ref() {
-            let markets = markets.read().await.clone();
+        Ok(if let Some(markets) = self.markets.as_ref() {
             let client = Client::new(self.token.clone(), self.url.clone());
-            let mut nested_articles = Vec::new();
-            for market in markets {
+            let mut articles = Vec::new();
+            for market in markets.read().await.clone() {
                 let page_size = None; // FIXME
                 let query = HeadlinesQuery { market, page_size };
-                nested_articles.push(client.headlines(&query).await?);
+                articles.extend(client.headlines(&query).await?);
             }
-            nested_articles.into_iter().flatten().collect()
+            articles
         } else {
             vec![]
-        };
-
-        Ok(articles)
+        })
     }
 
     fn filter_articles(

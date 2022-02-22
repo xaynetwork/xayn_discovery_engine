@@ -19,8 +19,7 @@ use chrono::NaiveDate;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-
-use xayn_discovery_engine_providers::{Article, Market, Topic};
+use xayn_discovery_engine_providers::{Article, Client, Filter, Market, NewsQuery};
 
 use crate::{
     document::Document,
@@ -48,34 +47,30 @@ impl Ops for PersonalizedNews {
     fn configure(&mut self, config: &EndpointConfig) {
         self.token.clone_from(&config.api_key);
         self.url.clone_from(&config.api_base_url);
-        self.markets.replace(Arc::clone(&config.markets));
+        self.markets
+            .replace(Arc::new(tokio::sync::RwLock::new(vec![]))); // FIXME
     }
 
-    #[allow(clippy::cast_precision_loss)]
-    #[allow(clippy::cast_possible_truncation)]
-    async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
-        let n = 10;
-        let articles = (0..n).fold(Vec::with_capacity(n), |mut articles, i| {
-            articles.push(
-            Article {
-                id: i.to_string(),
-                title: format!("P Document Title {}", i),
-                score: if i % 2 == 0 {Some(i as f32) } else {None},
-                rank: i,
-                source_domain: "xayn.com".to_string(),
-                excerpt: format!("Content of the news {}", i),
-                link: "https://xayn.com/".into(),
-                media: "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/614349038d7d72d1576ae3f4_plant.svg".into(),
-                topic: Topic::Unrecognized,
-                country: "DE".to_string(),
-                language: "de".to_string(),
-                published_date: NaiveDate::from_ymd(2022, 2, (i + 1) as u32).and_hms(9, 10, 11),
-            });
-
+    async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
+        Ok(if let Some(markets) = self.markets.as_ref() {
+            let client = Client::new(self.token.clone(), self.url.clone());
+            let mut articles = Vec::new();
+            for market in markets.read().await.clone() {
+                let page_size = None; // FIXME
+                let filter = key_phrases.iter().fold(Filter::default(), |filter, kp| {
+                    filter.add_keyword(kp.words())
+                });
+                let query = NewsQuery {
+                    market,
+                    filter,
+                    page_size,
+                };
+                articles.extend(client.news(&query).await?);
+            }
             articles
-        });
-
-        Ok(articles)
+        } else {
+            vec![]
+        })
     }
 
     fn filter_articles(
