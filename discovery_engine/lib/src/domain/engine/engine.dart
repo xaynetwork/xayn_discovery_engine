@@ -14,8 +14,13 @@
 
 import 'dart:typed_data' show Uint8List;
 
+import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
+    show SetupData;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
+import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
+    show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
@@ -47,4 +52,26 @@ abstract class Engine {
 
   /// Process the user's reaction to a document.
   Future<void> userReacted(UserReacted userReacted);
+}
+
+/// Passed to a `Engine` implementors constructor for initializating the engine.
+class EngineInitializer with EquatableMixin {
+  final Configuration config;
+  final SetupData setupData;
+  final Uint8List? state;
+  final List<HistoricDocument> history;
+
+  /// An opaque encoded configuration for the AI in the ranker.
+  final String? aiConfig;
+
+  EngineInitializer({
+    required this.config,
+    required this.setupData,
+    required this.state,
+    required this.history,
+    required this.aiConfig,
+  });
+
+  @override
+  List<Object?> get props => [config, setupData, state, history];
 }

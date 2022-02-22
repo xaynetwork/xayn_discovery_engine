@@ -16,11 +16,9 @@ import 'dart:ffi' show nullptr;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
-    show Engine;
+    show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
-import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
-    show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
@@ -63,20 +61,27 @@ class DiscoveryEngineFfi implements Engine {
   const DiscoveryEngineFfi._(final this._engine);
 
   /// Initializes the engine.
-  static Future<DiscoveryEngineFfi> initialize({
-    required final Configuration config,
-    required final NativeSetupData setupData,
-    required final List<HistoricDocument> history,
-    required final String? aiConfig,
-    required final Uint8List? state,
-  }) async {
+  static Future<DiscoveryEngineFfi> initialize(
+    EngineInitializer initializer,
+  ) async {
+    final setupData = initializer.setupData;
+    if (setupData is! NativeSetupData) {
+      throw ArgumentError.value(
+        setupData,
+        'setupData',
+        'must be NativeSetupData',
+      );
+    }
     final result = await asyncFfi.initialize(
-      InitConfigFfi(config, setupData, aiConfig: aiConfig).allocNative().move(),
-      state?.allocNative().move() ?? nullptr,
-      history.allocNative().move(),
+      InitConfigFfi(
+        initializer.config,
+        setupData,
+        aiConfig: initializer.aiConfig,
+      ).allocNative().move(),
+      initializer.state?.allocNative().move() ?? nullptr,
+      initializer.history.allocNative().move(),
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
-
     return DiscoveryEngineFfi._(boxedEngine);
   }
 

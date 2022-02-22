@@ -15,7 +15,7 @@
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
-    show Engine;
+    show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData, DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -36,13 +36,18 @@ import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
 class MockEngine implements Engine {
+  late EngineInitializer initializer;
   final Map<String, int> callCounter = {};
   late Document doc0;
   late Document doc1;
   late ActiveDocumentData active0;
   late ActiveDocumentData active1;
 
-  MockEngine() {
+  MockEngine([EngineInitializer? initializer]) {
+    if (initializer != null) {
+      this.initializer = initializer;
+    }
+
     final resource = NewsResource.fromJson(const <String, Object>{
       'title': 'Example',
       'sourceDomain': 'example.com',

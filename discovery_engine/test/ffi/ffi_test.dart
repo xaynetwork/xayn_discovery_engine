@@ -16,6 +16,8 @@ import 'package:test/test.dart';
 
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Manifest;
+import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
+    show EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -50,11 +52,13 @@ void main() {
     );
     expect(
       DiscoveryEngineFfi.initialize(
-        config: config,
-        setupData: setupData,
-        history: [],
-        state: null,
-        aiConfig: null,
+        EngineInitializer(
+          config: config,
+          setupData: setupData,
+          state: null,
+          history: [],
+          aiConfig: null,
+        ),
       ),
       allOf(
         throwsException,
