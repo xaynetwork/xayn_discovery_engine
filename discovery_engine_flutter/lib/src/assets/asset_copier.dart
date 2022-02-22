@@ -17,7 +17,7 @@ import 'dart:typed_data' show ByteData;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show Manifest, kAssetsPath, logger;
+    show Manifest, kAssetsPath, discoveryEngineLogger;
 
 /// A signature for a function loading the assets from bundle.
 typedef AssetLoader = Future<ByteData> Function(String key);
@@ -56,7 +56,7 @@ class FlutterBundleAssetCopier {
       } catch (e, s) {
         final message =
             'Couldn\'t copy the asset "$urlSuffix" to the path: ${fileRef.path}';
-        logger.e(message, e, s);
+        discoveryEngineLogger.e(message, e, s);
       }
     }
   }
