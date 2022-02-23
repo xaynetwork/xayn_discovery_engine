@@ -14,7 +14,7 @@
 
 //! Client to get new documents.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 
 use displaydoc::Display as DisplayDoc;
 use thiserror::Error;
@@ -60,6 +60,8 @@ pub struct HeadlinesQuery {
 }
 
 impl Client {
+    const TIMEOUT: Duration = Duration::from_secs(15);
+
     /// Create a client.
     pub fn new(token: String, url: String) -> Self {
         Self { token, url }
@@ -74,6 +76,7 @@ impl Client {
         let c = reqwest::Client::new();
         let response = c
             .get(format!("{}/_sn", self.url))
+            .timeout(Self::TIMEOUT)
             .bearer_auth(&self.token)
             .query(&query)
             .send()
@@ -105,6 +108,7 @@ impl Client {
         let c = reqwest::Client::new();
         let response = c
             .get(format!("{}/_lh", self.url))
+            .timeout(Self::TIMEOUT)
             .bearer_auth(&self.token)
             .query(&query)
             .send()
@@ -136,9 +140,7 @@ mod tests {
     use crate::newscatcher::Topic;
     use wiremock::{
         matchers::{header, method, path, query_param},
-        Mock,
-        MockServer,
-        ResponseTemplate,
+        Mock, MockServer, ResponseTemplate,
     };
 
     #[tokio::test]
