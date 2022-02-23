@@ -52,7 +52,7 @@ impl Ops for BreakingNews {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
-            let page_size = Some(20); // TODO pass through config later
+            let page_size = self.page_size;
 
             for market in markets.read().await.clone() {
                 let query = HeadlinesQuery { market, page_size };

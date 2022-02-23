@@ -111,6 +111,7 @@ pub struct EndpointConfig {
     pub(crate) api_key: String,
     /// Base URL for API.
     pub(crate) api_base_url: String,
+    /// Page size setting for API.
     pub(crate) api_page_size: usize,
     /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,

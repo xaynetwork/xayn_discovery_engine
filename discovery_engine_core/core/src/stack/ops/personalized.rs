@@ -55,7 +55,6 @@ impl Ops for PersonalizedNews {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
-            let page_size = Some(20); // TODO pass through config later
             let filter = key_phrases.iter().fold(Filter::default(), |filter, kp| {
                 filter.add_keyword(kp.words())
             });
@@ -64,7 +63,7 @@ impl Ops for PersonalizedNews {
                 let query = NewsQuery {
                     market,
                     filter: filter.clone(),
-                    page_size,
+                    page_size: self.page_size,
                 };
                 match self.client.news(&query).await {
                     Ok(batch) => articles.extend(batch),
