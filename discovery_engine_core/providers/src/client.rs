@@ -14,7 +14,7 @@
 
 //! Client to get new documents.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use displaydoc::Display as DisplayDoc;
 use thiserror::Error;
@@ -67,7 +67,7 @@ impl Client {
 
     /// Retrieve news from the remote API
     pub async fn news(&self, params: &NewsQuery) -> Result<Vec<Article>, Error> {
-        let mut query: HashMap<String, String> = HashMap::new();
+        let mut query: BTreeMap<String, String> = BTreeMap::new();
         query.insert("sort_by".into(), "relevancy".into());
         Self::build_news_query(&mut query, params);
 
@@ -87,7 +87,7 @@ impl Client {
         Ok(result)
     }
 
-    fn build_news_query(query: &mut HashMap<String, String>, params: &NewsQuery) {
+    fn build_news_query(query: &mut BTreeMap<String, String>, params: &NewsQuery) {
         query.insert("lang".to_string(), params.market.lang_code.clone());
         query.insert("countries".to_string(), params.market.country_code.clone());
         query.insert(
@@ -99,7 +99,7 @@ impl Client {
 
     /// Retrieve headlines from the remote API
     pub async fn headlines(&self, params: &HeadlinesQuery) -> Result<Vec<Article>, Error> {
-        let mut query: HashMap<String, String> = HashMap::new();
+        let mut query: BTreeMap<String, String> = BTreeMap::new();
         Self::build_headlines_query(&mut query, params);
 
         let c = reqwest::Client::new();
@@ -118,7 +118,7 @@ impl Client {
         Ok(result)
     }
 
-    fn build_headlines_query(query: &mut HashMap<String, String>, params: &HeadlinesQuery) {
+    fn build_headlines_query(query: &mut BTreeMap<String, String>, params: &HeadlinesQuery) {
         query.insert("lang".to_string(), params.market.lang_code.clone());
         query.insert("countries".to_string(), params.market.country_code.clone());
         query.insert(
