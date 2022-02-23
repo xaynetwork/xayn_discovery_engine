@@ -140,7 +140,9 @@ mod tests {
     use crate::newscatcher::Topic;
     use wiremock::{
         matchers::{header, method, path, query_param},
-        Mock, MockServer, ResponseTemplate,
+        Mock,
+        MockServer,
+        ResponseTemplate,
     };
 
     #[tokio::test]
