@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, usize};
 
 use displaydoc::Display;
 use figment::{
@@ -85,7 +85,9 @@ pub struct InitConfig {
     pub api_key: String,
     /// API base url.
     pub api_base_url: String,
-    /// List of markets to use.
+    /// API response page size.
+    pub api_page_size: usize,
+    /// List of markets to use
     pub markets: Vec<Market>,
     /// S-mBert vocabulary path.
     pub smbert_vocab: String,
@@ -109,6 +111,7 @@ pub struct EndpointConfig {
     pub(crate) api_key: String,
     /// Base URL for API.
     pub(crate) api_base_url: String,
+    pub(crate) api_page_size: usize,
     /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
 }
@@ -118,6 +121,7 @@ impl From<InitConfig> for EndpointConfig {
         Self {
             api_key: config.api_key,
             api_base_url: config.api_base_url,
+            api_page_size: config.api_page_size,
             markets: Arc::new(RwLock::new(config.markets)),
         }
     }

@@ -33,6 +33,7 @@ use super::Ops;
 pub(crate) struct BreakingNews {
     client: Client,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
+    page_size: Option<usize>,
 }
 
 #[async_trait]
@@ -44,6 +45,7 @@ impl Ops for BreakingNews {
     fn configure(&mut self, config: &EndpointConfig) {
         self.client = Client::new(config.api_key.clone(), config.api_base_url.clone());
         self.markets.replace(Arc::clone(&config.markets));
+        self.page_size.replace(config.api_page_size);
     }
 
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
