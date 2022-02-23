@@ -50,6 +50,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, UserReactionAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
+    show DocumentViewModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
@@ -253,6 +255,7 @@ class EventHandler {
     // register hive adapters
     Hive.registerAdapter(DocumentAdapter());
     Hive.registerAdapter(UserReactionAdapter());
+    Hive.registerAdapter(DocumentViewModeAdapter());
     Hive.registerAdapter(ActiveDocumentDataAdapter());
     Hive.registerAdapter(NewsResourceAdapter());
     Hive.registerAdapter(DocumentIdAdapter());
