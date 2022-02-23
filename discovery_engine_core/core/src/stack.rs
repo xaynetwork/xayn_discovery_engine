@@ -30,6 +30,7 @@ use crate::{
 };
 
 mod data;
+mod filters;
 mod ops;
 
 pub use self::ops::Ops;

@@ -23,7 +23,10 @@ use xayn_discovery_engine_providers::{Article, Client, Filter, Market, NewsQuery
 use crate::{
     document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
-    stack::Id,
+    stack::{
+        filters::{ArticleFilter, CommonFilter},
+        Id,
+    },
 };
 
 use super::Ops;
@@ -84,10 +87,10 @@ impl Ops for PersonalizedNews {
     fn filter_articles(
         &self,
         _history: &[HistoricDocument],
-        _stack: &[Document],
+        stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        Ok(articles)
+        CommonFilter::apply(stack, articles)
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
