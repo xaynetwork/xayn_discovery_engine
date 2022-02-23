@@ -54,7 +54,7 @@ abstract class Engine {
   Future<void> userReacted(UserReacted userReacted);
 }
 
-/// Passed to a `Engine` implementors constructor for initializating the engine.
+/// Passed to constructors/initializers of `Engine` implementing classe.
 class EngineInitializer with EquatableMixin {
   final Configuration config;
   final SetupData setupData;
