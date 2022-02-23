@@ -135,7 +135,7 @@ class EventHandler {
         final reason = e is AssetFetcherException
             ? EngineExceptionReason.failedToGetAssets
             : EngineExceptionReason.genericError;
-        return EngineExceptionRaised(reason);
+        return EngineExceptionRaised(reason, message: '$e', stackTrace: '$st');
       }
     }
 
@@ -147,9 +147,12 @@ class EventHandler {
 
     try {
       await _engineFuture;
-    } catch (_) {
-      return const EngineEvent.engineExceptionRaised(
+    } catch (e, st) {
+      logger.e('failed to handle event.', e, st);
+      return EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
+        message: '$e',
+        stackTrace: '$st',
       );
     }
 
@@ -168,12 +171,14 @@ class EventHandler {
           EngineExceptionReason.wrongEventRequested,
         );
       }
-    } catch (e, s) {
+    } catch (e, st) {
       // log the error
-      logger.e('Handling ClientEvent by one of the managers failed', e, s);
+      logger.e('Handling ClientEvent by one of the managers failed', e, st);
 
-      response = const EngineEvent.engineExceptionRaised(
+      response = EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
+        message: '$e',
+        stackTrace: '$st',
       );
     }
 

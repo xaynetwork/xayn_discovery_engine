@@ -167,7 +167,12 @@ void main() {
 
       expect(
         message_2,
-        equals({'runtimeType': 'engineExceptionRaised', 'reason': 1}),
+        equals({
+          'runtimeType': 'engineExceptionRaised',
+          'reason': 1,
+          'message': null,
+          'stackTrace': null,
+        }),
       );
     });
 

@@ -34,7 +34,7 @@ class MockWorker extends Worker<Object, Object> {
   MockWorker(Object initialMessage) : super(initialMessage);
 
   @override
-  void onError(Object error, {Object? incomingMessage}) {
+  void onError(Object error, StackTrace stackTrace, {Object? incomingMessage}) {
     send('$error');
   }
 

@@ -56,7 +56,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   }
 
   @override
-  void onError(Object error, {Object? incomingMessage}) {
+  void onError(Object error, StackTrace stackTrace, {Object? incomingMessage}) {
     var reason = EngineExceptionReason.genericError;
 
     if (error is ConverterException) {
@@ -64,7 +64,11 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
     }
     // Add other types here
 
-    final errorEvent = EngineEvent.engineExceptionRaised(reason);
+    final errorEvent = EngineEvent.engineExceptionRaised(
+      reason,
+      message: '$error',
+      stackTrace: '$stackTrace',
+    );
     final sender = _getSenderFromMessageOrNull(incomingMessage);
     // send an error event using main channel or Sender if available
     send(errorEvent, sender);

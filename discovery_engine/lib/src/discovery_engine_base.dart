@@ -291,7 +291,11 @@ class DiscoveryEngine {
       logger.e(message, error, stackTrace);
 
       // into [EngineExceptionRaised] event with a specific reason
-      return EngineEvent.engineExceptionRaised(reason);
+      return EngineEvent.engineExceptionRaised(
+        reason,
+        message: '$error',
+        stackTrace: '$stackTrace',
+      );
     }
   }
 }

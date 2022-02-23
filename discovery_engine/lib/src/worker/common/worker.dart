@@ -98,7 +98,8 @@ abstract class Worker<Request extends Object, Response extends Object> {
   /// Called with the error object upon any errors from [PlatformWorker]
   /// messages stream.
   void onError(
-    Object error, {
+    Object error,
+    StackTrace stackTrace, {
     Object? incomingMessage,
   });
 
@@ -110,8 +111,8 @@ abstract class Worker<Request extends Object, Response extends Object> {
       // otherwise it might "swallow" exceptions and send
       // some generic errors to the manager errors stream
       await onMessage(request);
-    } catch (e) {
-      onError(e, incomingMessage: message);
+    } catch (e, st) {
+      onError(e, st, incomingMessage: message);
     }
   }
 

@@ -237,7 +237,12 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(double percentage)? fetchingAssetsProgressed,
     TResult Function()? fetchingAssetsFinished,
     TResult Function()? clientEventSucceeded,
-    TResult Function(EngineExceptionReason reason)? engineExceptionRaised,
+    TResult Function(
+      EngineExceptionReason reason,
+      String? message,
+      String? stackTrace,
+    )?
+        engineExceptionRaised,
     TResult Function(List<Document> items)? documentsUpdated,
   }) {
     throw UnimplementedError();
@@ -261,7 +266,11 @@ class BadEngineEvent implements EngineEvent {
     required TResult Function(double percentage) fetchingAssetsProgressed,
     required TResult Function() fetchingAssetsFinished,
     required TResult Function() clientEventSucceeded,
-    required TResult Function(EngineExceptionReason reason)
+    required TResult Function(
+      EngineExceptionReason reason,
+      String? message,
+      String? stackTrace,
+    )
         engineExceptionRaised,
     required TResult Function(List<Document> items) documentsUpdated,
   }) {
@@ -279,7 +288,12 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(double percentage)? fetchingAssetsProgressed,
     TResult Function()? fetchingAssetsFinished,
     TResult Function()? clientEventSucceeded,
-    TResult Function(EngineExceptionReason reason)? engineExceptionRaised,
+    TResult Function(
+      EngineExceptionReason reason,
+      String? message,
+      String? stackTrace,
+    )?
+        engineExceptionRaised,
     TResult Function(List<Document> items)? documentsUpdated,
   }) {
     throw UnimplementedError();

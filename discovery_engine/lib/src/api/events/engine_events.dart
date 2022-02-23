@@ -131,8 +131,10 @@ class EngineEvent with _$EngineEvent {
   /// UserReactionChanged.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.engineExceptionRaised(
-    EngineExceptionReason reason,
-  ) = EngineExceptionRaised;
+    EngineExceptionReason reason, {
+    String? message,
+    String? stackTrace,
+  }) = EngineExceptionRaised;
 
   /// Event created as a successful response to some client events which are
   /// updating a [Document] (currently only "UserReactionChanged").

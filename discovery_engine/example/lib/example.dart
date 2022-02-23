@@ -83,8 +83,10 @@ Future<void> runExample() async {
     feedRequestFailed: (reason) {
       print('\nrequest failed because of: $reason');
     },
-    engineExceptionRaised: (reason) {
-      print('\nthere was an engine failure caused by $reason');
+    engineExceptionRaised: (reason, message, stackTrace) {
+      print(
+        '\nthere was an engine failure caused by $reason.\n$message\n$stackTrace',
+      );
     },
   );
 
