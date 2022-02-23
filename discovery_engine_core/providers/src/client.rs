@@ -74,7 +74,7 @@ impl Client {
         let c = reqwest::Client::new();
         let response = c
             .get(format!("{}/_sn", self.url))
-            .header("Authorization", format!("Bearer {}", &self.token))
+            .bearer_auth(&self.token)
             .query(&query)
             .send()
             .await
@@ -105,7 +105,7 @@ impl Client {
         let c = reqwest::Client::new();
         let response = c
             .get(format!("{}/_lh", self.url))
-            .header("Authorization", format!("Bearer {}", &self.token))
+            .bearer_auth(&self.token)
             .query(&query)
             .send()
             .await
