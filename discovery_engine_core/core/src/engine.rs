@@ -77,32 +77,33 @@ pub enum Error {
 
 /// Configuration settings to initialize Discovery Engine with a [`xayn_ai::ranker::Ranker`].
 pub struct InitConfig {
-    /// Key for accessing the API
+    /// Key for accessing the API.
     pub api_key: String,
-    /// API base url
+    /// API base url.
     pub api_base_url: String,
-    /// List of markets to use
+    /// List of markets to use.
     pub markets: Vec<Market>,
-    /// S-mBert vocabulary path
+    /// S-mBert vocabulary path.
     pub smbert_vocab: String,
-    /// S-mBert model path
+    /// S-mBert model path.
     pub smbert_model: String,
-    /// KPE vocabulary path
+    /// KPE vocabulary path.
     pub kpe_vocab: String,
-    /// KPE model path
+    /// KPE model path.
     pub kpe_model: String,
-    /// KPE CNN path
+    /// KPE CNN path.
     pub kpe_cnn: String,
-    /// KPR classifier path
+    /// KPR classifier path.
     pub kpe_classifier: String,
 }
 
 /// Discovery Engine endpoint settings.
 pub struct EndpointConfig {
-    #[allow(dead_code)]
-    api_key: String,
-    #[allow(dead_code)]
-    api_base_url: String,
+    /// Key for accessing API.
+    pub(crate) api_key: String,
+    /// Base URL for API.
+    pub(crate) api_base_url: String,
+    /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
 }
 

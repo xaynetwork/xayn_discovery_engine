@@ -15,12 +15,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-
-use xayn_discovery_engine_providers::{Article, Market, Topic};
+use xayn_discovery_engine_providers::{Article, Client, Filter, Market, NewsQuery};
 
 use crate::{
     document::Document,
@@ -31,9 +29,9 @@ use crate::{
 use super::Ops;
 
 /// Stack operations customized for personalized news items.
-// NOTE mock implementation for now
 #[derive(Default)]
 pub(crate) struct PersonalizedNews {
+    client: Client,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
 }
 
@@ -44,34 +42,38 @@ impl Ops for PersonalizedNews {
     }
 
     fn configure(&mut self, config: &EndpointConfig) {
+        self.client = Client::new(config.api_key.clone(), config.api_base_url.clone());
         self.markets.replace(Arc::clone(&config.markets));
     }
 
-    #[allow(clippy::cast_precision_loss)]
-    #[allow(clippy::cast_possible_truncation)]
-    async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
-        let n = 10;
-        let articles = (0..n).fold(Vec::with_capacity(n), |mut articles, i| {
-            articles.push(
-            Article {
-                id: i.to_string(),
-                title: format!("P Document Title {}", i),
-                score: if i % 2 == 0 {Some(i as f32) } else {None},
-                rank: i,
-                source_domain: "xayn.com".to_string(),
-                excerpt: format!("Content of the news {}", i),
-                link: "https://xayn.com/".into(),
-                media: "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/614349038d7d72d1576ae3f4_plant.svg".into(),
-                topic: Topic::Unrecognized,
-                country: "DE".to_string(),
-                language: "de".to_string(),
-                published_date: NaiveDate::from_ymd(2022, 2, (i + 1) as u32).and_hms(9, 10, 11),
+    async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
+        if let Some(markets) = self.markets.as_ref() {
+            let mut articles = Vec::new();
+            let mut errors = Vec::new();
+            let page_size = Some(20); // TODO pass through config later
+            let filter = key_phrases.iter().fold(Filter::default(), |filter, kp| {
+                filter.add_keyword(kp.words())
             });
 
-            articles
-        });
-
-        Ok(articles)
+            for market in markets.read().await.clone() {
+                let query = NewsQuery {
+                    market,
+                    filter: filter.clone(),
+                    page_size,
+                };
+                match self.client.news(&query).await {
+                    Ok(batch) => articles.extend(batch),
+                    Err(err) => errors.push(err),
+                }
+            }
+            if articles.is_empty() && !errors.is_empty() {
+                Err(errors.pop().unwrap(/* nonempty errors */).into())
+            } else {
+                Ok(articles)
+            }
+        } else {
+            Ok(vec![])
+        }
     }
 
     fn filter_articles(
