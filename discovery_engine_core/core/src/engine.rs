@@ -12,14 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use config::{Config, File, FileFormat};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use xayn_ai::{
-    ranker::{AveragePooler, Builder},
+    ranker::{AveragePooler, Builder, Config as RankerConfig},
     KpeConfig,
     SMBertConfig,
 };
@@ -352,9 +353,37 @@ pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
 impl XaynAiEngine {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
     pub async fn from_config(config: InitConfig, state: Option<&[u8]>) -> Result<Self, Error> {
+        let ai_config = Config::builder()
+            .set_default("coi_shift_factor", 0.1)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .set_default("coi_threshold", 0.67)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .set_default("coi_min_positive_cois", 2)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .set_default("coi_min_negative_cois", 2)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .set_default("kpe_horizon", 30)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .set_default("kpe_gamma", 0.9)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .set_default("kpe_penalty", vec![1., 0.75, 0.66])
+            .map_err(|err| Error::Ranker(err.into()))?
+            .set_default("kpe_token_size", 150)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .set_default("smbert_token_size", 52)
+            .map_err(|err| Error::Ranker(err.into()))?
+            // TODO: add json string to InitConfig
+            .add_source(File::from_str("", FileFormat::Json))
+            .build()
+            .map_err(|err| Error::Ranker(err.into()))?;
+
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
-            .with_token_size(52)
+            .with_token_size(
+                ai_config
+                    .get::<usize>("smbert_token_size")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
             .map_err(|err| Error::Ranker(err.into()))?
             .with_accents(false)
             .with_lowercase(true)
@@ -367,17 +396,66 @@ impl XaynAiEngine {
             &config.kpe_classifier,
         )
         .map_err(|err| Error::Ranker(err.into()))?
-        .with_token_size(150)
+        .with_token_size(
+            ai_config
+                .get::<usize>("kpe_token_size")
+                .map_err(|err| Error::Ranker(err.into()))?,
+        )
         .map_err(|err| Error::Ranker(err.into()))?
         .with_accents(false)
         .with_lowercase(false);
+
+        let ranker_config = RankerConfig::default()
+            .with_shift_factor(
+                ai_config
+                    .get::<f32>("coi_shift_factor")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_threshold(
+                ai_config
+                    .get::<f32>("coi_threshold")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_horizon(Duration::from_secs({
+                const SECONDS_PER_DAY: u64 = 60 * 60 * 24;
+                let days = ai_config
+                    .get::<u64>("kpe_horizon")
+                    .map_err(|err| Error::Ranker(err.into()))?;
+                SECONDS_PER_DAY * days
+            }))
+            .with_gamma(
+                ai_config
+                    .get::<f32>("kpe_gamma")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_penalty(
+                &ai_config
+                    .get::<Vec<f32>>("kpe_penalty")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_min_positive_cois(
+                ai_config
+                    .get::<usize>("coi_min_positive_cois")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_min_negative_cois(
+                ai_config
+                    .get::<usize>("coi_min_negative_cois")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
+            .map_err(|err| Error::Ranker(err.into()))?;
+
+        let builder = Builder::from(smbert_config, kpe_config).with_ranker_config(ranker_config);
 
         let stack_ops = vec![
             Box::new(BreakingNews::default()) as BoxedOps,
             Box::new(PersonalizedNews::default()) as BoxedOps,
         ];
-
-        let builder = Builder::from(smbert_config, kpe_config);
 
         if let Some(state) = state {
             let state: State = bincode::deserialize(state).map_err(Error::Deserialization)?;
