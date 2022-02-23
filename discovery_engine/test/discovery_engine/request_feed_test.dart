@@ -103,7 +103,6 @@ void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
       feedRequestedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
-        null,
       ),
     );
 

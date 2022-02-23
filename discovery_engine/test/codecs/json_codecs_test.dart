@@ -162,7 +162,6 @@ void main() {
 
       const event_2 = EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
-        null,
       );
       final message_2 = converter.convert(event_2);
 
@@ -172,6 +171,7 @@ void main() {
           'runtimeType': 'engineExceptionRaised',
           'reason': 1,
           'message': null,
+          'stackTrace': null,
         }),
       );
     });

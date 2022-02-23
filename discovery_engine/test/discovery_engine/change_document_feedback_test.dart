@@ -86,7 +86,6 @@ void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
       userReactionChangedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
-        null,
       ),
     );
 

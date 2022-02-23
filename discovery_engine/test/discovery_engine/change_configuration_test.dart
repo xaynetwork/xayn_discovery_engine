@@ -100,7 +100,6 @@ void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
       configurationChangedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
-        null,
       ),
     );
 

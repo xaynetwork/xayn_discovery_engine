@@ -76,7 +76,6 @@ void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
       feedDocumentsClosedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
-        null,
       ),
     );
 

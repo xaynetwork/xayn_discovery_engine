@@ -104,7 +104,6 @@ void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
       nextFeedBatchRequestedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
-        null,
       ),
     );
 
