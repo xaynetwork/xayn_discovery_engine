@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;

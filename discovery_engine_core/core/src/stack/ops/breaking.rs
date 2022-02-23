@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
@@ -47,8 +46,6 @@ impl Ops for BreakingNews {
         self.markets.replace(Arc::clone(&config.markets));
     }
 
-    #[allow(clippy::cast_precision_loss)]
-    #[allow(clippy::cast_possible_truncation)]
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
