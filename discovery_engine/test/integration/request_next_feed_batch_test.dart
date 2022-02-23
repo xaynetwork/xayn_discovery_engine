@@ -16,7 +16,11 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show DiscoveryEngine;
+    show
+        DiscoveryEngine,
+        FeedFailureReason,
+        NextFeedBatchRequestFailed,
+        NextFeedBatchRequestSucceeded;
 
 import '../logging.dart' show setupLogging;
 import 'utils/create_config.dart'
@@ -26,7 +30,7 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine init', () {
+  group('DiscoveryEngine requestNextFeedBatch', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
 
@@ -39,24 +43,41 @@ void main() {
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
 
-    test('init engine with ai models', () async {
+    test('requestNextFeedBatch should return the next feed batch', () async {
       server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
 
-      expect(engine, isA<DiscoveryEngine>());
+      final nextBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      expect(
+        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
+        isNotEmpty,
+      );
     });
 
-    test('news api request error should not raise an engine exception',
+    test(
+        'if news api request fails, requestNextFeedBatch should return the'
+        'NextFeedBatchRequestFailed event with the reason stacksOpsError',
         () async {
       server = await LocalNewsApiServer.start();
-      server.replyWithError = true;
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
 
-      expect(engine, isA<DiscoveryEngine>());
+      server.replyWithError = true;
+
+      final nextBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextBatchResponse, isA<NextFeedBatchRequestFailed>());
+      expect(
+        (nextBatchResponse as NextFeedBatchRequestFailed).reason,
+        equals(FeedFailureReason.stacksOpsError),
+      );
+      expect(
+        nextBatchResponse.errors,
+        contains('kind: Status(404)'),
+      );
     });
   });
 }

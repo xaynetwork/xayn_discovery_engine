@@ -10,9 +10,6 @@ build/
 # https://dart.dev/guides/libraries/private-files#pubspeclock.
 pubspec.lock
 
-# Directory created for integration tests
-test/integration/data
-
 # Omit generated files
 # DELETE_AFTER_THIS_IN_RELEASE
 *.g.dart
