@@ -71,7 +71,7 @@ pub enum Error {
     /// Error while creating document: {0}.
     Document(#[source] document::Error),
 
-    /// A list of errors that could occur during some operation.
+    /// List of errors/warnings. {0:?}
     Errors(Vec<Error>),
 }
 
