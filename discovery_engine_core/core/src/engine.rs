@@ -352,6 +352,7 @@ pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
 
 impl XaynAiEngine {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
+    #[allow(clippy::too_many_lines)] // TODO: TY-2447
     pub async fn from_config(config: InitConfig, state: Option<&[u8]>) -> Result<Self, Error> {
         let ai_config = Config::builder()
             .set_default("coi_shift_factor", 0.1)
