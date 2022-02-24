@@ -15,11 +15,13 @@
 import 'dart:ffi' show Pointer, Uint8Pointer;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:uuid/uuid.dart' show Uuid;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustUuid;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show BoxedStr;
 
 extension DocumentIdFfi on DocumentId {
   void writeNative(final Pointer<RustUuid> place) {
@@ -41,33 +43,55 @@ extension StackIdFfi on StackId {
   }
 }
 
-void _writeUuid(final Pointer<RustUuid> uuidPlace, final Uint8List id) {
-  if (id.length != 16) {
-    throw ArgumentError('uuid must have exactly 16 bytes');
+void _writeUuid(final Pointer<RustUuid> place, final Uint8List id) {
+  final str = BoxedStr.create(Uuid.unparse(id));
+  try {
+    final ok = ffi.init_uuid_from_string_at(place, str.ptr, str.len);
+    if (ok != 1) {
+      throw ArgumentError("can't parse uuid");
+    }
+  } finally {
+    str.free();
   }
-  ffi.init_uuid_at(
-    uuidPlace,
-    id[0],
-    id[1],
-    id[2],
-    id[3],
-    id[4],
-    id[5],
-    id[6],
-    id[7],
-    id[8],
-    id[9],
-    id[10],
-    id[11],
-    id[12],
-    id[13],
-    id[14],
-    id[15],
-  );
 }
 
-Uint8List _readUuid(final Pointer<RustUuid> uuidPlace) {
-  final beginOfData = ffi.get_uuid_bytes(uuidPlace);
-  final view = beginOfData.asTypedList(16);
-  return Uint8List.fromList(view);
+Uint8List _readUuid(final Pointer<RustUuid> uuid) {
+  final strPtr = ffi.get_uuid_as_string36(uuid);
+  final boxed = BoxedStr.fromRawParts(strPtr, 36);
+  try {
+    return Uuid.parseAsByteList(boxed.readNative());
+  } finally {
+    boxed.free();
+  }
 }
+
+// void _writeUuid(final Pointer<RustUuid> uuidPlace, final Uint8List id) {
+//   if (id.length != 16) {
+//     throw ArgumentError('uuid must have exactly 16 bytes');
+//   }
+//   ffi.init_uuid_at(
+//     uuidPlace,
+//     id[0],
+//     id[1],
+//     id[2],
+//     id[3],
+//     id[4],
+//     id[5],
+//     id[6],
+//     id[7],
+//     id[8],
+//     id[9],
+//     id[10],
+//     id[11],
+//     id[12],
+//     id[13],
+//     id[14],
+//     id[15],
+//   );
+// }
+
+// Uint8List _readUuid(final Pointer<RustUuid> uuidPlace) {
+//   final beginOfData = ffi.get_uuid_bytes(uuidPlace);
+//   final view = beginOfData.asTypedList(16);
+//   return Uint8List.fromList(view);
+// }
