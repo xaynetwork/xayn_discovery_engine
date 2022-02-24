@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, sync::Arc, usize};
+use std::{collections::HashMap, sync::Arc};
 
 use displaydoc::Display;
 use figment::{
@@ -85,7 +85,7 @@ pub struct InitConfig {
     pub api_key: String,
     /// API base url.
     pub api_base_url: String,
-    /// List of markets to use
+    /// List of markets to use.
     pub markets: Vec<Market>,
     /// S-mBert vocabulary path.
     pub smbert_vocab: String,
