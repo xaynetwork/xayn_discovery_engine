@@ -28,9 +28,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.55"
+version = "1.0.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "159bb86af3a200e19a068f4224eae4c8bb2d0fa054c7e5d1cacd5cef95e684cd"
+checksum = "7a99269dff3bc004caa411f38845c20303f1e393ca2bd6581576fa3a7f59577d"
 
 [[package]]
 name = "anymap2"
@@ -1016,7 +1016,7 @@ dependencies = [
 [[package]]
 name = "kpe"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1039,7 +1039,7 @@ dependencies = [
 [[package]]
 name = "layer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "bincode",
  "displaydoc",
@@ -1870,7 +1870,7 @@ dependencies = [
 [[package]]
 name = "rubert"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1885,7 +1885,7 @@ dependencies = [
 [[package]]
 name = "rubert-tokenizer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "displaydoc",
  "num-traits",
@@ -2753,7 +2753,7 @@ dependencies = [
 [[package]]
 name = "xayn-ai"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "anyhow",
  "bincode",

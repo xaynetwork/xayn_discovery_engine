@@ -372,8 +372,8 @@ impl XaynAiEngine {
             .map_err(|err| Error::Ranker(err.into()))?
             .set_default("smbert_token_size", 52)
             .map_err(|err| Error::Ranker(err.into()))?
-            // TODO: add json string to InitConfig
-            .add_source(File::from_str("", FileFormat::Json))
+            // TODO: add json-encoded string to InitConfig
+            .add_source(File::from_str(r#"{}"#, FileFormat::Json))
             .build()
             .map_err(|err| Error::Ranker(err.into()))?;
 
