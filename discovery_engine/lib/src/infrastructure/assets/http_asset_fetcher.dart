@@ -30,9 +30,6 @@ class HttpAssetFetcher extends AssetFetcher {
   @override
   Future<Uint8List> fetchFragment(String urlSuffix) async {
     final url = DataProvider.joinPaths([_baseUrl, urlSuffix]);
-
-    logger.i('AssetFetcher fetchFragment: $url');
-
     final client = RetryClient(
       http.Client(),
       retries: 2,
