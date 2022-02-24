@@ -28,9 +28,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.55"
+version = "1.0.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "159bb86af3a200e19a068f4224eae4c8bb2d0fa054c7e5d1cacd5cef95e684cd"
+checksum = "7a99269dff3bc004caa411f38845c20303f1e393ca2bd6581576fa3a7f59577d"
 
 [[package]]
 name = "anymap2"
@@ -113,6 +113,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "atomic"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b88d82667eca772c4aa12f0f1348b3ae643424c8876448f3f7bd5787032e234c"
+dependencies = [
+ "autocfg",
 ]
 
 [[package]]
@@ -549,6 +558,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3fcf0cee53519c866c09b5de1f6c56ff9d647101f81c1964fa632e148896cdf"
 dependencies = [
  "instant",
+]
+
+[[package]]
+name = "figment"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "790b4292c72618abbab50f787a477014fe15634f96291de45672ce46afe122df"
+dependencies = [
+ "atomic",
+ "serde",
+ "serde_json",
+ "uncased",
+ "version_check",
 ]
 
 [[package]]
@@ -1002,7 +1024,7 @@ dependencies = [
 [[package]]
 name = "kpe"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1025,7 +1047,7 @@ dependencies = [
 [[package]]
 name = "layer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "bincode",
  "displaydoc",
@@ -1850,7 +1872,7 @@ dependencies = [
 [[package]]
 name = "rubert"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1865,7 +1887,7 @@ dependencies = [
 [[package]]
 name = "rubert-tokenizer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "displaydoc",
  "num-traits",
@@ -2427,6 +2449,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56dee185309b50d1f11bfedef0fe6d036842e3fb77413abef29f8f8d1c5d4c1c"
 
 [[package]]
+name = "uncased"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5baeed7327e25054889b9bd4f975f32e5f4c5d434042d59ab6cd4142c0a76ed0"
+dependencies = [
+ "version_check",
+]
+
+[[package]]
 name = "unicode-bidi"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2733,7 +2764,7 @@ dependencies = [
 [[package]]
 name = "xayn-ai"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#06a290651f98c13dcd2ccc18b1a65ca7e1329074"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2806,6 +2837,7 @@ dependencies = [
  "derivative",
  "derive_more",
  "displaydoc",
+ "figment",
  "float-cmp",
  "mockall",
  "rand 0.8.5",

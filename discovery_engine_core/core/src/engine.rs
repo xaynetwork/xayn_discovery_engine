@@ -15,15 +15,19 @@
 use std::{collections::HashMap, sync::Arc};
 
 use displaydoc::Display;
+use figment::{
+    providers::{Format, Json, Serialized},
+    Figment,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
+
 use xayn_ai::{
-    ranker::{AveragePooler, Builder},
+    ranker::{AveragePooler, Builder, CoiSystemConfig},
     KpeConfig,
     SMBertConfig,
 };
-
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -354,9 +358,16 @@ pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
 impl XaynAiEngine {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
     pub async fn from_config(config: InitConfig, state: Option<&[u8]>) -> Result<Self, Error> {
+        // TODO: TY-2449
+        let ai_config = ai_config_from_json("{}");
+
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
-            .with_token_size(52)
+            .with_token_size(
+                ai_config
+                    .extract_inner("smbert.token_size")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
             .map_err(|err| Error::Ranker(err.into()))?
             .with_accents(false)
             .with_lowercase(true)
@@ -369,17 +380,26 @@ impl XaynAiEngine {
             &config.kpe_classifier,
         )
         .map_err(|err| Error::Ranker(err.into()))?
-        .with_token_size(150)
+        .with_token_size(
+            ai_config
+                .extract_inner("kpe.token_size")
+                .map_err(|err| Error::Ranker(err.into()))?,
+        )
         .map_err(|err| Error::Ranker(err.into()))?
         .with_accents(false)
         .with_lowercase(false);
+
+        let coi_system_config = ai_config
+            .extract()
+            .map_err(|err| Error::Ranker(err.into()))?;
+
+        let builder =
+            Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
         let stack_ops = vec![
             Box::new(BreakingNews::default()) as BoxedOps,
             Box::new(PersonalizedNews::default()) as BoxedOps,
         ];
-
-        let builder = Builder::from(smbert_config, kpe_config);
 
         if let Some(state) = state {
             let state: State = bincode::deserialize(state).map_err(Error::Deserialization)?;
@@ -394,6 +414,14 @@ impl XaynAiEngine {
             Self::new(config.into(), ranker, stack_ops).await
         }
     }
+}
+
+fn ai_config_from_json(json: &str) -> Figment {
+    Figment::new()
+        .merge(Serialized::defaults(CoiSystemConfig::default()))
+        .merge(Serialized::default("kpe.token_size", 150))
+        .merge(Serialized::default("smbert.token_size", 52))
+        .merge(Json::string(json))
 }
 
 /// A wrapper around a dynamic error type, similar to `anyhow::Error`,
@@ -412,4 +440,51 @@ struct State {
     engine: StackState,
     /// The serialized ranker state.
     ranker: RankerState,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use super::*;
+
+    #[test]
+    fn test_ai_config_from_json_default() -> Result<(), Box<dyn Error>> {
+        let ai_config = ai_config_from_json("{}");
+        assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
+        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 52);
+        assert_eq!(
+            ai_config.extract::<CoiSystemConfig>()?,
+            CoiSystemConfig::default(),
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_ai_config_from_json_modified() -> Result<(), Box<dyn Error>> {
+        let ai_config = ai_config_from_json(
+            r#"{
+                "coi": {
+                    "threshold": 0.42
+                },
+                "kpe": {
+                    "penalty": [0.99, 0.66, 0.33]
+                },
+                "smbert": {
+                    "token_size": 42,
+                    "foo": "bar"
+                },
+                "baz": 0
+            }"#,
+        );
+        assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
+        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 42);
+        assert_eq!(
+            ai_config.extract::<CoiSystemConfig>()?,
+            CoiSystemConfig::default()
+                .with_threshold(0.42)?
+                .with_penalty(&[0.99, 0.66, 0.33])?,
+        );
+        Ok(())
+    }
 }
