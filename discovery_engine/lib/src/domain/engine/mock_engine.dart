@@ -103,8 +103,8 @@ class MockEngine implements Engine {
 
   @override
   Future<void> setMarkets(
-    List<HistoricDocument> history,
-    FeedMarkets markets,
+    final List<HistoricDocument> history,
+    final FeedMarkets markets,
   ) async {
     _incrementCount('setMarket');
   }

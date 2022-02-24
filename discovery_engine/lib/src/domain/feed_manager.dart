@@ -54,7 +54,7 @@ class FeedManager {
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleFeedClientEvent(FeedClientEvent event) =>
       event.maybeWhen(
-        configurationChanged: (feedMarkets, maxItemsPerFeedBatch) =>
+        configurationChanged: (final feedMarkets, final maxItemsPerFeedBatch) =>
             changeConfiguration(feedMarkets, maxItemsPerFeedBatch),
         feedRequested: () => restoreFeed(),
         nextFeedBatchRequested: () => nextFeedBatch(),
@@ -65,8 +65,8 @@ class FeedManager {
 
   /// Changes the configuration of the feed.
   Future<EngineEvent> changeConfiguration(
-    FeedMarkets? feedMarkets,
-    int? maxItemsPerFeedBatch,
+    final FeedMarkets? feedMarkets,
+    final int? maxItemsPerFeedBatch,
   ) async {
     if (feedMarkets != null) {
       final history = await _docRepo.fetchHistory();
