@@ -26,10 +26,16 @@ use super::string::str_from_raw_parts;
 ///
 /// It must be sound to `ptr::write` a `Uuid` to place.
 #[no_mangle]
-pub unsafe extern "C" fn init_uuid_from_string_at(place: *mut Uuid, str_ptr: *const u8, str_len: usize) -> u8 {
+pub unsafe extern "C" fn init_uuid_from_string_at(
+    place: *mut Uuid,
+    str_ptr: *const u8,
+    str_len: usize,
+) -> u8 {
     let s = unsafe { str_from_raw_parts(str_ptr, str_len) };
     if let Ok(uuid) = Uuid::parse_str(s) {
-        unsafe { place.write(uuid); }
+        unsafe {
+            place.write(uuid);
+        }
         1
     } else {
         0

@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show Pointer, Uint8Pointer;
+import 'dart:ffi' show Pointer;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:uuid/uuid.dart' show Uuid;
