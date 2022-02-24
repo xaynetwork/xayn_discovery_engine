@@ -206,7 +206,9 @@ where
             stacks,
             ranker,
         };
-        engine.update_stacks(usize::MAX).await?;
+
+        // we don't want to fail initialization if there are network problems
+        drop(engine.update_stacks(usize::MAX).await);
 
         Ok(engine)
     }
