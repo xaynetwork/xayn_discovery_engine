@@ -32,7 +32,7 @@ Future<void> runExample() async {
   DiscoveryEngine? engine;
 
   try {
-    // Initialise the engine.
+    // Initialize the engine.
     //
     // This will spawn a Worker inside an Isolate (or WebWorker), instantiate
     // all the modules and binaries and establish communication channels

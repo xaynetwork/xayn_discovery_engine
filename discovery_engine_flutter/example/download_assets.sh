@@ -24,14 +24,18 @@ download()
   ARCHIVE_NAME="$ARCHIVE_BASENAME.tgz"
   URL="http://s3-de-central.profitbricks.com/xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
 
-  curl "$URL" -o "$DATA_DIR/$ARCHIVE_NAME"
+  if [  -f "$DATA_DIR/$ARCHIVE_NAME" ]; then
+    echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
+  else
+    curl "$URL" -o "$DATA_DIR/$ARCHIVE_NAME" -C -
 
-  cd "$DATA_DIR"
-  tar -zxf "$ARCHIVE_NAME"
+    cd "$DATA_DIR"
+    tar -zxf "$ARCHIVE_NAME"
 
-  # check content
-  cd "$ARCHIVE_BASENAME"
-  shasum -c "$CHECKSUM_FILE"
+    # check content
+    cd "$ARCHIVE_BASENAME"
+    shasum -c "$CHECKSUM_FILE"
+  fi
 }
 
 download smbert v0000

@@ -161,7 +161,7 @@ rust-build: _codegen-order-workaround
 build: rust-build dart-build
 
 # Tests dart (builds all necessary parts)
-dart-test: rust-build dart-build
+dart-test: rust-build dart-build download_assets
     cd "$DART_WORKSPACE"; \
     dart test
 
@@ -199,11 +199,15 @@ dart-clean:
 clean-tools:
     -rm -r "$CARGO_INSTALL_ROOT"
 
+# Removes all asset data
+remove-assets:
+    find $FLUTTER_EXAMPLE_WORKSPACE/assets/*_v* -type f ! -name .gitkeep -exec rm '{}' \;
+
 # Removes all local cached dependencies and generated files
 clean: clean-gen-files rust-clean dart-clean
 
 # Runs clean and removes local installed tools
-clean-fully: clean clean-tools
+clean-fully: clean clean-tools remove-assets
 
 # Workaround to set env variable CI for all job dependencies
 _pre-push: deps clean-gen-files fmt check test
@@ -268,12 +272,16 @@ compile-ios-ci target prod_flag="\"\"": _codegen-order-workaround
     fi
 
 flutter-run: dart-build
-    cd "$FLUTTER_WORKSPACE/example" && \
+    cd "$FLUTTER_EXAMPLE_WORKSPACE" && \
         flutter run
 
 flutter-build target *args: dart-build
-    cd "$FLUTTER_WORKSPACE/example" && \
+    cd "$FLUTTER_EXAMPLE_WORKSPACE" && \
         flutter build {{target}} {{args}}
+
+download_assets:
+    cd "$FLUTTER_EXAMPLE_WORKSPACE"; \
+    ./download_assets.sh
 
 alias d := dart-test
 alias r := rust-test
