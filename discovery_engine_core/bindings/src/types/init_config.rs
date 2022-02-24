@@ -119,6 +119,19 @@ pub unsafe extern "C" fn init_config_place_of_kpe_classifier(
     unsafe { addr_of_mut!((*place).kpe_classifier) }
 }
 
+/// Returns a pointer to the `ai_config` field of a configuration.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`InitConfig`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_config_place_of_ai_config(
+    place: *mut InitConfig,
+) -> *mut Option<String> {
+    unsafe { addr_of_mut!((*place).ai_config) }
+}
+
 /// Alloc an uninitialized `Box<InitConfig>`, mainly used for testing.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_init_config() -> *mut InitConfig {
