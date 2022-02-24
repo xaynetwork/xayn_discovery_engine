@@ -98,9 +98,9 @@ class EngineEvent with _$EngineEvent {
   /// how to react, e.g. display user friendly messages, repeat request, etc.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchRequestFailed(
-    FeedFailureReason reason,
+    FeedFailureReason reason, {
     String? errors,
-  ) = NextFeedBatchRequestFailed;
+  }) = NextFeedBatchRequestFailed;
 
   /// Event created by the engine possibly after doing some background queries,
   /// to let the app know that there is new content available for the discovery
