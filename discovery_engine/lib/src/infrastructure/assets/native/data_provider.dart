@@ -24,7 +24,6 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         DataProvider,
         Manifest,
         SetupData;
-import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 class NativeDataProvider extends DataProvider {
   @override
@@ -64,8 +63,6 @@ class NativeDataProvider extends DataProvider {
   /// Returns the path to the data, if the data is not on disk yet
   /// it will be copied from the bundle to the disk.
   Future<String> _getData(Asset asset) async {
-    logger.i('DataProvider: get asset data for asset id: ${asset.id}');
-
     final filePath =
         DataProvider.joinPaths([storageDirectoryPath, asset.urlSuffix]);
     final assetFile = File(filePath);
@@ -90,8 +87,6 @@ class NativeDataProvider extends DataProvider {
       );
       await assetFile.writeAsBytes(bytes, flush: true);
     }
-
-    logger.i('DataProvider: asset saved under path:\n${assetFile.path}');
 
     return assetFile.path;
   }
