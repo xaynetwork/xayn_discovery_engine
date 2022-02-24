@@ -86,6 +86,12 @@ class NativeDataProvider extends DataProvider {
         onFetched: assetReporter.assetFetched,
       );
       await assetFile.writeAsBytes(bytes, flush: true);
+    } else if (asset.fragments.isEmpty) {
+      assetReporter.assetFetched(asset.urlSuffix);
+    } else {
+      for (final fragment in asset.fragments) {
+        assetReporter.assetFetched(fragment.urlSuffix);
+      }
     }
 
     return assetFile.path;
