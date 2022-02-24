@@ -29,29 +29,34 @@
 pub mod async_bindings;
 pub mod types;
 
-#[async_bindgen::api]
+use xayn_discovery_engine_core::Engine;
+
+#[async_bindgen::api(
+    use xayn_discovery_engine_core::{
+        document::{Document, TimeSpent, UserReacted},
+        InitConfig,
+        Market,
+    };
+
+    use crate::types::engine::SharedEngine;
+)]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
     #[allow(clippy::box_vec)]
     pub async fn initialize(
-        config: Box<xayn_discovery_engine_core::InitConfig>,
+        config: Box<InitConfig>,
         state: Option<Box<Vec<u8>>>,
-    ) -> Box<Result<crate::types::engine::SharedEngine, String>> {
+    ) -> Box<Result<SharedEngine, String>> {
         Box::new(
-            xayn_discovery_engine_core::Engine::from_config(
-                *config,
-                state.as_deref().map(Vec::as_slice),
-            )
-            .await
-            .map(|engine| tokio::sync::Mutex::new(engine).into())
-            .map_err(|error| error.to_string()),
+            Engine::from_config(*config, state.as_deref().map(Vec::as_slice))
+                .await
+                .map(|engine| tokio::sync::Mutex::new(engine).into())
+                .map_err(|error| error.to_string()),
         )
     }
 
     /// Serializes the engine.
-    pub async fn serialize(
-        engine: &crate::types::engine::SharedEngine,
-    ) -> Box<Result<Vec<u8>, String>> {
+    pub async fn serialize(engine: &SharedEngine) -> Box<Result<Vec<u8>, String>> {
         Box::new(
             engine
                 .as_ref()
@@ -66,8 +71,8 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Sets the markets.
     #[allow(clippy::box_vec)]
     pub async fn set_markets(
-        engine: &crate::types::engine::SharedEngine,
-        markets: Box<Vec<xayn_discovery_engine_core::Market>>,
+        engine: &SharedEngine,
+        markets: Box<Vec<Market>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
@@ -82,9 +87,9 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Gets feed documents.
     pub async fn get_feed_documents(
-        engine: &crate::types::engine::SharedEngine,
+        engine: &SharedEngine,
         max_documents: usize,
-    ) -> Box<Result<Vec<xayn_discovery_engine_core::document::Document>, String>> {
+    ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
@@ -98,8 +103,8 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Processes time spent.
     pub async fn time_spent(
-        engine: &crate::types::engine::SharedEngine,
-        time_spent: Box<xayn_discovery_engine_core::document::TimeSpent>,
+        engine: &SharedEngine,
+        time_spent: Box<TimeSpent>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
@@ -114,8 +119,8 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Processes user reaction.
     pub async fn user_reacted(
-        engine: &crate::types::engine::SharedEngine,
-        reacted: Box<xayn_discovery_engine_core::document::UserReacted>,
+        engine: &SharedEngine,
+        reacted: Box<UserReacted>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
