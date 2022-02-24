@@ -84,9 +84,10 @@ void main() {
         feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
         manifest: manifest,
       );
+      const String? aiConfig = null;
 
       expect(
-        DiscoveryEngine.init(configuration: config),
+        DiscoveryEngine.init(configuration: config, aiConfig: aiConfig),
         completion(isA<DiscoveryEngine>()),
       );
     });

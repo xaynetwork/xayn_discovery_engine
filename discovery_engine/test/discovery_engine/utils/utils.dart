@@ -70,7 +70,11 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
 }
 
 Future<DiscoveryEngine> createEngineWithEntryPoint(Object entryPoint) =>
-    DiscoveryEngine.init(configuration: mockConfig, entryPoint: entryPoint);
+    DiscoveryEngine.init(
+      configuration: mockConfig,
+      aiConfig: mockAiConfig,
+      entryPoint: entryPoint,
+    );
 
 void withSuccessResponse(Object initialMessage) =>
     MockDiscoveryEngineWorker(initialMessage);
@@ -84,6 +88,8 @@ final mockConfig = Configuration(
   feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
   manifest: Manifest.fromJson(goodJson),
 );
+
+const String? mockAiConfig = null;
 
 final mockNewsResource = NewsResource(
   title: 'Example',

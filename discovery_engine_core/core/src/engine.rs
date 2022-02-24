@@ -360,8 +360,7 @@ pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
 impl XaynAiEngine {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
     pub async fn from_config(config: InitConfig, state: Option<&[u8]>) -> Result<Self, Error> {
-        // TODO: TY-2449
-        let ai_config = ai_config_from_json("{}");
+        let ai_config = ai_config_from_json(config.ai_config.as_deref().unwrap_or("{}"));
 
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?

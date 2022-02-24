@@ -28,6 +28,7 @@ Future<void> runExample() async {
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
     manifest: manifest,
   );
+  const String? aiConfig = null;
 
   DiscoveryEngine? engine;
 
@@ -39,6 +40,7 @@ Future<void> runExample() async {
     print('Starting the Discovery Engine...');
     engine = await DiscoveryEngine.init(
       configuration: config,
+      aiConfig: aiConfig,
       onAssetsProgress: (event) => event.whenOrNull(
         fetchingAssetsStarted: () => print('Fetching Assets Started'),
         fetchingAssetsProgressed: (percentage) =>

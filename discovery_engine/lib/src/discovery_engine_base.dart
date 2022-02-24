@@ -83,6 +83,7 @@ class DiscoveryEngine {
   /// ```
   static Future<DiscoveryEngine> init({
     required Configuration configuration,
+    String? aiConfig,
     void Function(EngineEvent event)? onAssetsProgress,
     Object? entryPoint,
   }) async {
@@ -97,7 +98,7 @@ class DiscoveryEngine {
             .listen(onAssetsProgress);
       }
 
-      final initEvent = ClientEvent.init(configuration);
+      final initEvent = ClientEvent.init(configuration, aiConfig: aiConfig);
       final response = await manager.send(initEvent, timeout: null);
       await subscription?.cancel();
 

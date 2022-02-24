@@ -59,9 +59,9 @@ class InitConfigFfi with EquatableMixin {
 
   factory InitConfigFfi(
     Configuration configuration,
-    NativeSetupData setupData, [
+    NativeSetupData setupData, {
     String? aiConfig,
-  ]) =>
+  }) =>
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,

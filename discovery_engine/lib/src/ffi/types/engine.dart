@@ -61,10 +61,12 @@ class DiscoveryEngineFfi implements Engine {
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(
     final Configuration config,
-    final NativeSetupData setupData, [
+    final NativeSetupData setupData, {
+    final String? aiConfig,
     final Uint8List? state,
-  ]) async {
-    final boxedConfig = InitConfigFfi(config, setupData).allocNative();
+  }) async {
+    final boxedConfig =
+        InitConfigFfi(config, setupData, aiConfig: aiConfig).allocNative();
     final boxedState = state?.allocNative();
 
     final result = await asyncFfi.initialize(
