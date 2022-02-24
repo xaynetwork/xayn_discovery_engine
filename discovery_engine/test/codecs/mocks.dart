@@ -90,7 +90,7 @@ class BadClientEvent implements ClientEvent {
   @override
   TResult maybeWhen<TResult extends Object?>({
     required TResult Function() orElse,
-    TResult Function(Configuration configuration)? init,
+    TResult Function(Configuration configuration, String? aiConfig)? init,
     TResult Function(
       FeedMarkets? feedMarkets,
       int? maxItemsPerFeedBatch,
@@ -114,7 +114,8 @@ class BadClientEvent implements ClientEvent {
 
   @override
   TResult when<TResult extends Object?>({
-    required TResult Function(Configuration configuration) init,
+    required TResult Function(Configuration configuration, String? aiConfig)
+        init,
     required TResult Function(
       FeedMarkets? feedMarkets,
       int? maxItemsPerFeedBatch,
@@ -137,7 +138,7 @@ class BadClientEvent implements ClientEvent {
 
   @override
   TResult? whenOrNull<TResult extends Object?>({
-    TResult Function(Configuration configuration)? init,
+    TResult Function(Configuration configuration, String? aiConfig)? init,
     TResult Function(
       FeedMarkets? feedMarkets,
       int? maxItemsPerFeedBatch,

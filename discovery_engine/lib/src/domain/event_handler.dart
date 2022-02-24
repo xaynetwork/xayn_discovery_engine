@@ -128,7 +128,10 @@ class EventHandler {
   Future<EngineEvent> handleMessage(ClientEvent clientEvent) async {
     if (clientEvent is Init) {
       try {
-        _engineFuture = _initEngine(clientEvent.configuration);
+        _engineFuture = _initEngine(
+          clientEvent.configuration,
+          aiConfig: clientEvent.aiConfig,
+        );
         await _engineFuture;
         return const EngineEvent.clientEventSucceeded();
       } catch (e, st) {
@@ -187,7 +190,7 @@ class EventHandler {
     return response;
   }
 
-  Future<Engine> _initEngine(Configuration config) async {
+  Future<Engine> _initEngine(Configuration config, {String? aiConfig}) async {
     // init hive
     await _initDatabase(config.applicationDirectoryPath);
 
@@ -199,7 +202,12 @@ class EventHandler {
 
     final setupData = await _fetchAssets(config);
     final engineState = await _engineStateRepository.load();
-    final engine = await initializeEngine(config, setupData, engineState);
+    final engine = await initializeEngine(
+      config,
+      setupData,
+      aiConfig: aiConfig,
+      engineState: engineState,
+    );
 
     // init managers
     _documentManager = DocumentManager(
@@ -223,9 +231,10 @@ class EventHandler {
 
   Future<Engine> initializeEngine(
     Configuration config,
-    SetupData setupData,
+    SetupData setupData, {
+    String? aiConfig,
     Uint8List? engineState,
-  ) async {
+  }) async {
     if (config.apiKey == 'use-mock-engine' &&
         config.apiBaseUrl == 'https://use-mock-engine.test') {
       return MockEngine();
@@ -235,7 +244,12 @@ class EventHandler {
     if (setupData is! NativeSetupData) {
       throw AssertionError('currently only native setup is implemented');
     }
-    return DiscoveryEngineFfi.initialize(config, setupData, engineState);
+    return DiscoveryEngineFfi.initialize(
+      config,
+      setupData,
+      aiConfig: aiConfig,
+      state: engineState,
+    );
   }
 
   Future<SetupData> _fetchAssets(Configuration config) async {

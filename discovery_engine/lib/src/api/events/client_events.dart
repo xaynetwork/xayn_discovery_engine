@@ -46,8 +46,9 @@ class ClientEvent with _$ClientEvent {
   /// (for performing background queries).
   @Implements<SystemClientEvent>()
   const factory ClientEvent.init(
-    Configuration configuration,
-  ) = Init;
+    Configuration configuration, {
+    String? aiConfig,
+  }) = Init;
 
   /// Event created when the user changes market or count (nb of items per page)
   /// for the feed ie. in global settings.
