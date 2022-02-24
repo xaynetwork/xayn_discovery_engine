@@ -15,7 +15,7 @@
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show EngineEvent, FeedFailureReason;
+    show EngineEvent, EngineExceptionReason, FeedFailureReason;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -70,7 +70,15 @@ class FeedManager {
   ) async {
     if (feedMarkets != null) {
       final history = await _docRepo.fetchHistory();
-      await _engine.setMarkets(history, feedMarkets);
+      try {
+        await _engine.setMarkets(history, feedMarkets);
+      } catch (e, st) {
+        return EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.genericError,
+          message: '$e',
+          stackTrace: '$st',
+        );
+      }
     }
     if (maxItemsPerFeedBatch != null) {
       _maxDocs = maxItemsPerFeedBatch;
