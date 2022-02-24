@@ -41,16 +41,16 @@ runs:
       with:
         just-version: ${{ env.JUST_VERSION }}
 
-    # - name: Install dart
-    #   uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
-    #   # Flutter already installs a dart SDK, so we never need to install both
-    #   if: ${{ inputs.dart != 'false' && inputs.flutter != 'true' }}
-    #   with:
-    #     sdk: ${{ env.DART_VERSION }}
+    - name: Install dart
+      uses: dart-lang/setup-dart@6a218f2413a3e78e9087f638a238f6b40893203d # v1.3
+      # Flutter already installs a dart SDK, so we never need to install both
+      if: ${{ inputs.dart != 'false' && inputs.flutter != 'true' }}
+      with:
+        sdk: ${{ env.DART_VERSION }}
 
     - name: Install flutter
       uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
-      if: ${{ inputs.dart != 'false' || inputs.flutter != 'false' }}
+      if: inputs.flutter != 'false'
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
         cache: true
