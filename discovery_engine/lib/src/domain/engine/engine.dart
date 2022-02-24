@@ -56,9 +56,16 @@ abstract class Engine {
 
 /// Passed to constructors/initializers of `Engine` implementing classe.
 class EngineInitializer with EquatableMixin {
+  /// The general configuration of the discovery engine.
   final Configuration config;
+
+  /// The data used to bootstrap it.
   final SetupData setupData;
+
+  /// The state to restore.
   final Uint8List? state;
+
+  /// The history to use for filtering initial results.
   final List<HistoricDocument> history;
 
   /// An opaque encoded configuration for the AI in the ranker.
