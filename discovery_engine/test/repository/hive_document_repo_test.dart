@@ -148,6 +148,22 @@ Future<void> main() async {
         expect(box, hasLength(2));
         expect(box.values, containsAll(<Document>[doc1, doc2]));
       });
+
+      test('remove documents by ids, keep rest', () async {
+        final doc3 = Document(
+          documentId: DocumentId(),
+          stackId: stackId,
+          batchIndex: 2,
+          resource: mockNewsResource,
+        );
+
+        await repo.updateMany([doc1, doc2, doc3]);
+        expect(box, hasLength(3));
+
+        await repo.removeByIds({doc1.documentId, doc3.documentId});
+        expect(box, hasLength(1));
+        expect(box.values, containsAll(<Document>[doc2]));
+      });
     });
   });
 }

@@ -48,8 +48,8 @@ class HiveDocumentRepository implements DocumentRepository {
       });
 
   @override
-  Future<void> removeByIds(Set<DocumentId> ids) {
-    // TODO: implement removeByIds
-    throw UnimplementedError();
+  Future<void> removeByIds(Set<DocumentId> ids) async {
+    final keys = ids.map((id) => id.toString());
+    await box.deleteAll(keys);
   }
 }
