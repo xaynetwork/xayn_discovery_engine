@@ -24,8 +24,8 @@ void main() {
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
       feedMarkets: [
-        const FeedMarket(countryCode: 'DE', langCode: 'DE'),
-        const FeedMarket(countryCode: 'US', langCode: 'EN'),
+        const FeedMarket(countryCode: 'DE', langCode: 'de'),
+        const FeedMarket(countryCode: 'US', langCode: 'en'),
       ],
       smbertVocab: 'foo/bar',
       smbertModel: 'bar/foot',
@@ -45,8 +45,8 @@ void main() {
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
       feedMarkets: [
-        const FeedMarket(countryCode: 'DE', langCode: 'DE'),
-        const FeedMarket(countryCode: 'US', langCode: 'EN'),
+        const FeedMarket(countryCode: 'DE', langCode: 'de'),
+        const FeedMarket(countryCode: 'US', langCode: 'en'),
       ],
       smbertVocab: 'foo/bar',
       smbertModel: 'bar/foot',
