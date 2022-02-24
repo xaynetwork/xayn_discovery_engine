@@ -29,7 +29,6 @@ void main() {
           feedMarkets: values,
           apiKey: '',
           apiBaseUrl: '',
-          apiPageSize: -1,
           assetsUrl: '',
           maxItemsPerFeedBatch: -1,
           applicationDirectoryPath: '',

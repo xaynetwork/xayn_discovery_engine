@@ -22,7 +22,6 @@ Future<void> runExample() async {
   final config = Configuration(
     apiKey: '**********',
     apiBaseUrl: 'https://example-api.dev',
-    apiPageSize: 20,
     assetsUrl: 'https://ai-assets.xaynet.dev',
     maxItemsPerFeedBatch: 50,
     applicationDirectoryPath: appDirPath,

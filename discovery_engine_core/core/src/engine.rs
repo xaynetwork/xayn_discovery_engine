@@ -85,8 +85,6 @@ pub struct InitConfig {
     pub api_key: String,
     /// API base url.
     pub api_base_url: String,
-    /// API response page size.
-    pub api_page_size: usize,
     /// List of markets to use
     pub markets: Vec<Market>,
     /// S-mBert vocabulary path.
@@ -112,7 +110,7 @@ pub struct EndpointConfig {
     /// Base URL for API.
     pub(crate) api_base_url: String,
     /// Page size setting for API.
-    pub(crate) api_page_size: usize,
+    pub(crate) page_size: usize,
     /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
 }
@@ -122,7 +120,7 @@ impl From<InitConfig> for EndpointConfig {
         Self {
             api_key: config.api_key,
             api_base_url: config.api_base_url,
-            api_page_size: config.api_page_size,
+            page_size: 20,
             markets: Arc::new(RwLock::new(config.markets)),
         }
     }

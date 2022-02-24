@@ -34,7 +34,6 @@ void main() {
     final config = Configuration(
       apiKey: '',
       apiBaseUrl: '',
-      apiPageSize: 0,
       assetsUrl: '',
       maxItemsPerFeedBatch: 0,
       applicationDirectoryPath: '',

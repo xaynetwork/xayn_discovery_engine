@@ -45,7 +45,7 @@ impl Ops for PersonalizedNews {
     fn configure(&mut self, config: &EndpointConfig) {
         self.client = Client::new(config.api_key.clone(), config.api_base_url.clone());
         self.markets.replace(Arc::clone(&config.markets));
-        self.page_size.replace(config.api_page_size);
+        self.page_size.replace(config.page_size);
     }
 
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {

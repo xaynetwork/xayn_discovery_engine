@@ -78,7 +78,6 @@ void withSuccessResponse(Object initialMessage) =>
 final mockConfig = Configuration(
   apiKey: '**********',
   apiBaseUrl: 'https://api.example.com',
-  apiPageSize: 20,
   assetsUrl: 'https://ai-assets.example.com',
   maxItemsPerFeedBatch: 50,
   applicationDirectoryPath: './',
