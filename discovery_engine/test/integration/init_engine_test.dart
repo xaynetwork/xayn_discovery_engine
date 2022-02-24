@@ -58,16 +58,27 @@ void main() {
         feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
         manifest: manifest,
       );
-
-      server = await LocalNewsApiServer.start(port);
     });
 
     tearDownAll(() async {
-      await server.close();
       await Directory(engineDataPath).delete(recursive: true);
     });
 
+    tearDown(() async {
+      await server.close();
+    });
+
     test('Init engine with ai models', () async {
+      server = await LocalNewsApiServer.start(port);
+      final engine = await DiscoveryEngine.init(configuration: config);
+
+      expect(engine, isA<DiscoveryEngine>());
+    });
+
+    test('news api request error should not raise an engine exception',
+        () async {
+      server = await LocalNewsApiServer.start(port);
+      server.replyWithError = true;
       final engine = await DiscoveryEngine.init(configuration: config);
 
       expect(engine, isA<DiscoveryEngine>());

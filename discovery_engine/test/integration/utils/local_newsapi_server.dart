@@ -19,6 +19,9 @@ const kMockDataPath = '/test/integration/utils/data/';
 
 class LocalNewsApiServer {
   final HttpServer _server;
+  bool _returnError = false;
+  String _snFile = 'climate-change.json';
+  String _lhFile = 'latest-headlines.json';
 
   LocalNewsApiServer._(this._server) {
     _handleRequests();
@@ -28,20 +31,39 @@ class LocalNewsApiServer {
     await for (final request in _server) {
       switch (request.uri.path) {
         case '/_sn':
-          await _replyWithMockedData(request, 'climate-change.json');
-          break;
         case '/_lh':
-          await _replyWithMockedData(request, 'latest-headlines.json');
+          await handleNewsAPIRequest(request);
           break;
         default:
-          request.response
-            ..statusCode = HttpStatus.notFound
-            ..write('Unsupported request: path ${request.uri.path} not found');
+          _replyWithError(request);
       }
 
       await request.response.close();
     }
   }
+
+  Future<void> handleNewsAPIRequest(HttpRequest request) async {
+    if (_returnError) {
+      _replyWithError(request);
+    } else {
+      switch (request.uri.path) {
+        case '/_sn':
+          await _replyWithData(request, _snFile);
+          break;
+        case '/_lh':
+          await _replyWithData(request, _lhFile);
+          break;
+        default:
+          _replyWithError(request);
+      }
+    }
+  }
+
+  set replyWithError(bool flag) => _returnError = flag;
+
+  set snFile(String filename) => _snFile = filename;
+
+  set lhFile(String filename) => _lhFile = filename;
 
   static Future<LocalNewsApiServer> start([int port = 9090]) async {
     final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
@@ -53,8 +75,14 @@ class LocalNewsApiServer {
   }
 }
 
-Future<void> _replyWithMockedData(HttpRequest request, String filename) async {
+Future<void> _replyWithData(HttpRequest request, String filename) async {
   final filePath = '${Directory.current.path}$kMockDataPath$filename';
   final file = File(filePath);
   await file.openRead().pipe(request.response);
+}
+
+void _replyWithError(HttpRequest request) {
+  request.response
+    ..statusCode = HttpStatus.notFound
+    ..write('Unsupported request: path ${request.uri.path} not found');
 }
