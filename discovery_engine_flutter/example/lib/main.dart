@@ -62,7 +62,6 @@ class _MyAppState extends State<MyApp> {
       feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
       manifest: manifest,
     );
-    const String? aiConfig = null;
 
     late DiscoveryEngine? engine;
 
@@ -74,7 +73,6 @@ class _MyAppState extends State<MyApp> {
       print('Starting the Discovery Engine...');
       engine = await DiscoveryEngine.init(
         configuration: config,
-        aiConfig: aiConfig,
         onAssetsProgress: (event) => event.whenOrNull(
           fetchingAssetsProgressed: (percentage) =>
               setState(() => progress = percentage),
