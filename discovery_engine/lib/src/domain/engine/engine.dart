@@ -54,7 +54,7 @@ abstract class Engine {
   Future<void> userReacted(UserReacted userReacted);
 }
 
-/// Passed to constructors/initializers of `Engine` implementing classe.
+/// Passed to constructors/initializers of `Engine` implementing classes.
 class EngineInitializer with EquatableMixin {
   /// The general configuration of the discovery engine.
   final Configuration config;

@@ -89,8 +89,8 @@ impl Ops for PersonalizedNews {
         Ok(articles)
     }
 
-    fn merge(&self, current: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
-        let mut res: Vec<_> = current.into();
+    fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
+        let mut res: Vec<_> = stack.into();
         res.extend_from_slice(new);
         Ok(res)
     }
