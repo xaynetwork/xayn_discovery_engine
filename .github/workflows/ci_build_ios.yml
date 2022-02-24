@@ -16,7 +16,7 @@ on:
 jobs:
   build-ios-libs:
     runs-on: macos-11
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       matrix:
         target: ["aarch64-apple-ios", "x86_64-apple-ios"]
