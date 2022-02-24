@@ -47,19 +47,32 @@ class Document {
   @HiveField(6)
   DateTime timestamp;
 
+  /// Indicates if this [Document] was returned in response to active search.
+  @HiveField(7)
+  bool isSearched;
+
   bool get isRelevant => userReaction == UserReaction.positive;
   bool get isNotRelevant => userReaction == UserReaction.negative;
   bool get isNeutral => userReaction == UserReaction.neutral;
+
+  /// Returns [NewsResource] snippet, or title if snippet is an empty String.
+  String get snippet =>
+      resource.snippet.isNotEmpty ? resource.snippet : resource.title;
 
   Document({
     required this.stackId,
     required this.resource,
     required this.batchIndex,
-    DocumentId? documentId,
+    required this.documentId,
     this.userReaction = UserReaction.neutral,
     this.isActive = true,
-  })  : documentId = documentId ?? DocumentId(),
-        timestamp = DateTime.now().toUtc();
+    this.isSearched = false,
+  }) : timestamp = DateTime.now().toUtc();
+
+  /// Register a [UserReaction]
+  void registerReaction(UserReaction reaction) {
+    userReaction = reaction;
+  }
 
   api.Document toApiDocument() => api.Document(
         documentId: documentId,

@@ -19,7 +19,7 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show StackId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -36,11 +36,13 @@ Future<void> main() async {
     late HiveDocumentRepository repo;
     final stackId = StackId();
     final doc1 = Document(
+      documentId: DocumentId(),
       stackId: stackId,
       batchIndex: 0,
       resource: mockNewsResource,
     );
     final doc2 = Document(
+      documentId: DocumentId(),
       stackId: stackId,
       batchIndex: 1,
       resource: mockNewsResource,

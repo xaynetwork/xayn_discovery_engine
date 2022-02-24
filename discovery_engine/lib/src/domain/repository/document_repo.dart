@@ -38,4 +38,7 @@ abstract class DocumentRepository {
   /// If [docs] contains multiple documents with the same id, the last
   /// occurrence with that id will overwrite previous occurrences.
   Future<void> updateMany(Iterable<Document> docs);
+
+  /// Remove documents by ids from the repository.
+  Future<void> removeByIds(Set<DocumentId> ids);
 }

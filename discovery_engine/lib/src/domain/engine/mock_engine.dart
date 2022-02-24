@@ -27,7 +27,7 @@ import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show StackId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
@@ -58,11 +58,13 @@ class MockEngine implements Engine {
     final stackId = StackId();
 
     doc0 = Document(
+      documentId: DocumentId(),
       stackId: stackId,
       batchIndex: 0,
       resource: resource,
     );
     doc1 = Document(
+      documentId: DocumentId(),
       stackId: stackId,
       batchIndex: 1,
       resource: resource,

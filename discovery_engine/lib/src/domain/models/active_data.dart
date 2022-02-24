@@ -45,6 +45,10 @@ class ActiveDocumentData with EquatableMixin {
 
   ActiveDocumentData(this.smbertEmbedding) : viewTime = {};
 
+  /// Returns sum of [Duration] from all the registered [DocumentViewMode] times.
+  Duration get sumDuration =>
+      viewTime.values.reduce((aggregate, duration) => aggregate + duration);
+
   /// Add a time interval to the running total for the given view mode.
   void addViewTime(DocumentViewMode mode, Duration time) {
     viewTime.update(mode, (total) => total + time, ifAbsent: () => time);
