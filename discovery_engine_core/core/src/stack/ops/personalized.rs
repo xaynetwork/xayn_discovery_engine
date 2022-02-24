@@ -47,6 +47,9 @@ impl Ops for PersonalizedNews {
     }
 
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
+        if key_phrases.is_empty() {
+            return Ok(vec![]);
+        }
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
