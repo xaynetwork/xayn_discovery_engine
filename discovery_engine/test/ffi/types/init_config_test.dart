@@ -19,13 +19,13 @@ import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
 
 void main() {
-  test('reading written init config ffi works', () {
+  test('reading written init config ffi without ai config works', () {
     final config = InitConfigFfi.fromParts(
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
       feedMarkets: [
-        const FeedMarket(countryCode: 'DE', langCode: 'DE'),
-        const FeedMarket(countryCode: 'US', langCode: 'EN'),
+        const FeedMarket(countryCode: 'DE', langCode: 'de'),
+        const FeedMarket(countryCode: 'US', langCode: 'en'),
       ],
       smbertVocab: 'foo/bar',
       smbertModel: 'bar/foot',
@@ -33,6 +33,28 @@ void main() {
       kpeModel: 'yo.lo',
       kpeCnn: 'abc',
       kpeClassifier: 'magic',
+    );
+    final boxed = config.allocNative();
+    final res = InitConfigFfi.readNative(boxed.ref);
+    boxed.free();
+    expect(res, equals(config));
+  });
+
+  test('reading written init config ffi with ai config works', () {
+    final config = InitConfigFfi.fromParts(
+      apiKey: 'hjlsdfhjfdhjk',
+      apiBaseUrl: 'https://foo.example/api/v1',
+      feedMarkets: [
+        const FeedMarket(countryCode: 'DE', langCode: 'de'),
+        const FeedMarket(countryCode: 'US', langCode: 'en'),
+      ],
+      smbertVocab: 'foo/bar',
+      smbertModel: 'bar/foot',
+      kpeVocab: 'do.do',
+      kpeModel: 'yo.lo',
+      kpeCnn: 'abc',
+      kpeClassifier: 'magic',
+      aiConfig: '{ "key": "value" }',
     );
     final boxed = config.allocNative();
     final res = InitConfigFfi.readNative(boxed.ref);

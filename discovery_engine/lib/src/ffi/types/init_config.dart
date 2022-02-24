@@ -26,7 +26,8 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
+    show OptionStringFfi, StringFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
@@ -40,6 +41,7 @@ class InitConfigFfi with EquatableMixin {
   final String kpeModel;
   final String kpeCnn;
   final String kpeClassifier;
+  final String? aiConfig;
 
   @override
   List<Object?> get props => [
@@ -52,12 +54,14 @@ class InitConfigFfi with EquatableMixin {
         kpeModel,
         kpeCnn,
         kpeClassifier,
+        aiConfig,
       ];
 
   factory InitConfigFfi(
     Configuration configuration,
-    NativeSetupData setupData,
-  ) =>
+    NativeSetupData setupData, [
+    String? aiConfig,
+  ]) =>
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
@@ -68,6 +72,7 @@ class InitConfigFfi with EquatableMixin {
         kpeModel: setupData.kpeModel,
         kpeCnn: setupData.kpeCnn,
         kpeClassifier: setupData.kpeClassifier,
+        aiConfig: aiConfig,
       );
 
   InitConfigFfi.fromParts({
@@ -80,6 +85,7 @@ class InitConfigFfi with EquatableMixin {
     required this.kpeModel,
     required this.kpeCnn,
     required this.kpeClassifier,
+    this.aiConfig,
   });
 
   /// Allocates a `Box<RustInitConfig>` initialized based on this instance.
@@ -99,6 +105,7 @@ class InitConfigFfi with EquatableMixin {
     kpeModel.writeNative(ffi.init_config_place_of_kpe_model(place));
     kpeCnn.writeNative(ffi.init_config_place_of_kpe_cnn(place));
     kpeClassifier.writeNative(ffi.init_config_place_of_kpe_classifier(place));
+    aiConfig.writeNative(ffi.init_config_place_of_ai_config(place));
   }
 
   @visibleForTesting
@@ -120,6 +127,9 @@ class InitConfigFfi with EquatableMixin {
       kpeCnn: StringFfi.readNative(ffi.init_config_place_of_kpe_cnn(config)),
       kpeClassifier:
           StringFfi.readNative(ffi.init_config_place_of_kpe_classifier(config)),
+      aiConfig: OptionStringFfi.readNative(
+        ffi.init_config_place_of_ai_config(config),
+      ),
     );
   }
 }

@@ -23,8 +23,8 @@ use std::ptr;
 /// # Safety
 ///
 /// - The pointer must point to a sound initialized `Option<T>`.
-pub(super) unsafe fn get_option_some<T>(opt_url: *const Option<T>) -> *const T {
-    match unsafe { &*opt_url } {
+pub(super) unsafe fn get_option_some<T>(opt: *const Option<T>) -> *const T {
+    match unsafe { &*opt } {
         Some(val) => val,
         None => ptr::null(),
     }

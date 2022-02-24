@@ -13,10 +13,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:convert' show utf8;
-import 'dart:ffi' show Pointer, Uint8, Uint8Pointer;
+import 'dart:ffi' show nullptr, Pointer, Uint8, Uint8Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustString;
+    show RustOptionString, RustString;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 
 extension StringFfi on String {
@@ -32,6 +32,26 @@ extension StringFfi on String {
         ffi.get_string_buffer(place),
         ffi.get_string_len(place),
       ).readNative();
+}
+
+extension OptionStringFfi on String? {
+  void writeNative(final Pointer<RustOptionString> place) {
+    if (this == null) {
+      ffi.init_option_string_none_at(place);
+    } else {
+      final str = BoxedStr.create(this!);
+      ffi.init_option_string_some_at(place, str.ptr, str.len);
+    }
+  }
+
+  static String? readNative(final Pointer<RustOptionString> place) {
+    final str = ffi.get_option_string_some(place);
+    if (str == nullptr) {
+      return null;
+    } else {
+      return StringFfi.readNative(str);
+    }
+  }
 }
 
 class BoxedStr {

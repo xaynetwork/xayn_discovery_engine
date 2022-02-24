@@ -16,6 +16,8 @@
 
 use std::{ptr, slice, str};
 
+use super::option::get_option_some;
+
 /// Helper to create a `&str`.
 ///
 /// # Safety
@@ -77,6 +79,72 @@ pub extern "C" fn alloc_uninitialized_string() -> *mut String {
 /// The pointer must represent a valid `Box<String>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_string(boxed: *mut String) {
+    use super::boxed::drop;
+
+    unsafe { drop(boxed) };
+}
+
+/// Creates a rust `Some` variant of `Option<String>` from given `Box<str>`.
+///
+/// # Safety
+///
+/// - It must be valid to write an `Option<String>` instance to given pointer,
+///   the pointer is expected to point to uninitialized memory.
+/// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust string.
+#[no_mangle]
+pub unsafe extern "C" fn init_option_string_some_at(
+    place: *mut Option<String>,
+    str_ptr: *mut u8,
+    str_len: usize,
+) {
+    unsafe {
+        ptr::write(
+            place,
+            Some(String::from_raw_parts(str_ptr, str_len, str_len)),
+        );
+    }
+}
+
+/// Creates a rust `None` variant of `Option<String>`.
+///
+/// # Safety
+///
+/// - It must be valid to write an `Option<String>` instance to given pointer,
+///   the pointer is expected to point to uninitialized memory.
+#[no_mangle]
+pub unsafe extern "C" fn init_option_string_none_at(place: *mut Option<String>) {
+    unsafe {
+        ptr::write(place, None);
+    }
+}
+
+/// Returns a pointer to the `String` value in the `Some` variant.
+///
+/// **Returns nullptr if the `Option<String>` is `None`.**
+///
+/// # Safety
+///
+/// - The pointer must point to a sound initialized `Option<String>`.
+#[no_mangle]
+pub unsafe extern "C" fn get_option_string_some(
+    opt_string: *const Option<String>,
+) -> *const String {
+    unsafe { get_option_some(opt_string) }
+}
+
+/// Alloc an uninitialized `Box<Option<String>>`, mainly used for testing.
+#[no_mangle]
+pub extern "C" fn alloc_uninitialized_option_string() -> *mut Option<String> {
+    super::boxed::alloc_uninitialized()
+}
+
+/// Drops a `Box<Option<String>>`, mainly used for testing.
+///
+/// # Safety
+///
+/// The pointer must represent a valid `Box<Option<String>>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_option_string(boxed: *mut Option<String>) {
     use super::boxed::drop;
 
     unsafe { drop(boxed) };

@@ -14,7 +14,8 @@
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
+    show OptionStringFfi, StringFfi;
 
 void main() {
   test('reading written empty string works', () {
@@ -33,5 +34,24 @@ void main() {
     final res = StringFfi.readNative(place);
     ffi.drop_string(place);
     expect(res, equals(string));
+  });
+
+  test('reading written some string yields same result', () {
+    // ignore: unnecessary_cast
+    const String? string = 'a&+KLA)&+fjw)&+f' as String?;
+    final place = ffi.alloc_uninitialized_option_string();
+    string.writeNative(place);
+    final res = OptionStringFfi.readNative(place);
+    ffi.drop_option_string(place);
+    expect(res, equals(string));
+  });
+
+  test('reading written none string yields same result', () {
+    const String? string = null;
+    final place = ffi.alloc_uninitialized_option_string();
+    string.writeNative(place);
+    final res = OptionStringFfi.readNative(place);
+    ffi.drop_option_string(place);
+    expect(res, isNull);
   });
 }

@@ -97,8 +97,10 @@ pub struct InitConfig {
     pub kpe_model: String,
     /// KPE CNN path.
     pub kpe_cnn: String,
-    /// KPR classifier path.
+    /// KPE classifier path.
     pub kpe_classifier: String,
+    /// AI config in JSON format.
+    pub ai_config: Option<String>,
 }
 
 /// Discovery Engine endpoint settings.

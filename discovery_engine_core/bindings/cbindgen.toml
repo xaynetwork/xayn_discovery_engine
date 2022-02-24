@@ -30,6 +30,7 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "NaiveDateTime" = "RustNaiveDateTime"
 "NewsResource" = "RustNewsResource"
 "Option_f32" = "RustOptionF32"
+"Option_String" = "RustOptionString"
 "Option_Url" = "RustOptionUrl"
 "Result_SharedEngine__String" = "RustResultSharedEngineString"
 "Result_String" = "RustResultVoidString"

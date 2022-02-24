@@ -27,7 +27,7 @@ void main() {
       ),
       FeedMarket(
         countryCode: 'DE',
-        langCode: 'ED',
+        langCode: 'de',
       )
     ];
     final boxed = market.allocVec();
