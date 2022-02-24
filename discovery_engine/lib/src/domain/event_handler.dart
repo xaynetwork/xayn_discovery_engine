@@ -23,8 +23,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         EngineExceptionRaised,
         EngineExceptionReason,
         FeedClientEvent,
-        Init,
-        SystemClientEvent;
+        Init;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show
         AssetFetcherException,
@@ -167,8 +166,6 @@ class EventHandler {
         response = await _feedManager.handleFeedClientEvent(clientEvent);
       } else if (clientEvent is DocumentClientEvent) {
         await _documentManager.handleDocumentClientEvent(clientEvent);
-      } else if (clientEvent is SystemClientEvent) {
-        // TODO: we need to handle other system events (config changed)
       } else {
         response = const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,

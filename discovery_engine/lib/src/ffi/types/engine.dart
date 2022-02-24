@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
+    show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
@@ -97,11 +97,11 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<void> setMarkets(
     final List<HistoricDocument> history,
-    final List<FeedMarket> markets,
+    final FeedMarkets markets,
   ) async {
     final result = await asyncFfi.setMarkets(
       _engine.ref,
-      markets.allocVec().move(),
+      markets.toList().allocVec().move(),
       history.allocNative().move(),
     );
 

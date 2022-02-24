@@ -52,7 +52,7 @@ class ClientEvent with _$ClientEvent {
 
   /// Event created when the user changes market or count (nb of items per page)
   /// for the feed ie. in global settings.
-  @Implements<SystemClientEvent>()
+  @Implements<FeedClientEvent>()
   @Assert('feedMarkets == null || feedMarkets.length>0')
   const factory ClientEvent.configurationChanged({
     FeedMarkets? feedMarkets,

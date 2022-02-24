@@ -18,6 +18,8 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show EngineEvent, FeedFailureReason;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -32,7 +34,7 @@ import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.da
 /// Business logic concerning the management of the feed.
 class FeedManager {
   final Engine _engine;
-  final int _maxDocs;
+  int _maxDocs;
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
   final ChangedDocumentRepository _changedRepo;
@@ -52,12 +54,30 @@ class FeedManager {
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleFeedClientEvent(FeedClientEvent event) =>
       event.maybeWhen(
+        configurationChanged: (feedMarkets, maxItemsPerFeedBatch) =>
+            changeConfiguration(feedMarkets, maxItemsPerFeedBatch),
         feedRequested: () => restoreFeed(),
         nextFeedBatchRequested: () => nextFeedBatch(),
         feedDocumentsClosed: (ids) => deactivateDocuments(ids),
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
+
+  /// Changes the configuration of the feed.
+  Future<EngineEvent> changeConfiguration(
+    FeedMarkets? feedMarkets,
+    int? maxItemsPerFeedBatch,
+  ) async {
+    if (feedMarkets != null) {
+      final history = await _docRepo.fetchHistory();
+      await _engine.setMarkets(history, feedMarkets);
+    }
+    if (maxItemsPerFeedBatch != null) {
+      _maxDocs = maxItemsPerFeedBatch;
+    }
+
+    return const EngineEvent.clientEventSucceeded();
+  }
 
   /// Generates the feed of active documents, ordered by their global rank.
   ///
