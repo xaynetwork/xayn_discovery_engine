@@ -15,13 +15,17 @@
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
-    show Engine;
+    show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData, DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/models/history.dart'
+    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
@@ -32,13 +36,18 @@ import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
 class MockEngine implements Engine {
+  late EngineInitializer initializer;
   final Map<String, int> callCounter = {};
   late Document doc0;
   late Document doc1;
   late ActiveDocumentData active0;
   late ActiveDocumentData active1;
 
-  MockEngine() {
+  MockEngine([EngineInitializer? initializer]) {
+    if (initializer != null) {
+      this.initializer = initializer;
+    }
+
     final resource = NewsResource.fromJson(const <String, Object>{
       'title': 'Example',
       'sourceDomain': 'example.com',
@@ -93,7 +102,16 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<void> setMarkets(
+    List<HistoricDocument> history,
+    List<FeedMarket> markets,
+  ) async {
+    _incrementCount('setMarket');
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
+    List<HistoricDocument> history,
     int maxDocuments,
   ) async {
     _incrementCount('getFeedDocuments');

@@ -13,6 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 
@@ -29,6 +31,12 @@ class HistoricDocument with EquatableMixin {
     required this.snippet,
     required this.title,
   });
+
+  HistoricDocument.fromDocument(final Document doc)
+      : id = doc.documentId,
+        url = doc.resource.url,
+        snippet = doc.resource.snippet,
+        title = doc.resource.title;
 
   @override
   List<Object?> get props => [id, url, snippet, title];

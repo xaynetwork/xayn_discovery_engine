@@ -37,7 +37,7 @@ import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
-    show Engine;
+    show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
@@ -66,8 +66,6 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart'
     show HttpAssetFetcher;
-import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
-    show NativeSetupData;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show
         activeDocumentDataBox,
@@ -202,11 +200,15 @@ class EventHandler {
 
     final setupData = await _fetchAssets(config);
     final engineState = await _engineStateRepository.load();
+    final history = await _documentRepository.fetchHistory();
     final engine = await initializeEngine(
-      config,
-      setupData,
-      aiConfig: aiConfig,
-      engineState: engineState,
+      EngineInitializer(
+        config: config,
+        setupData: setupData,
+        state: engineState,
+        history: history,
+        aiConfig: aiConfig,
+      ),
     );
 
     // init managers
@@ -229,27 +231,12 @@ class EventHandler {
     return engine;
   }
 
-  Future<Engine> initializeEngine(
-    Configuration config,
-    SetupData setupData, {
-    String? aiConfig,
-    Uint8List? engineState,
-  }) async {
-    if (config.apiKey == 'use-mock-engine' &&
-        config.apiBaseUrl == 'https://use-mock-engine.test') {
-      return MockEngine();
+  Future<Engine> initializeEngine(EngineInitializer initializer) async {
+    if (initializer.config.apiKey == 'use-mock-engine' &&
+        initializer.config.apiBaseUrl == 'https://use-mock-engine.test') {
+      return MockEngine(initializer);
     }
-    //Note: In the future we will use conditional imports or similar
-    //      to select between the Native and Web engine.
-    if (setupData is! NativeSetupData) {
-      throw AssertionError('currently only native setup is implemented');
-    }
-    return DiscoveryEngineFfi.initialize(
-      config,
-      setupData,
-      aiConfig: aiConfig,
-      state: engineState,
-    );
+    return DiscoveryEngineFfi.initialize(initializer);
   }
 
   Future<SetupData> _fetchAssets(Configuration config) async {

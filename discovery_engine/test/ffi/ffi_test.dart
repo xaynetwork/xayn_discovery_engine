@@ -16,6 +16,8 @@ import 'package:test/test.dart';
 
 import 'package:xayn_discovery_engine/src/domain/assets/asset.dart'
     show Manifest;
+import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
+    show EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -49,7 +51,15 @@ void main() {
       kpeClassifier: '',
     );
     expect(
-      DiscoveryEngineFfi.initialize(config, setupData),
+      DiscoveryEngineFfi.initialize(
+        EngineInitializer(
+          config: config,
+          setupData: setupData,
+          state: null,
+          history: [],
+          aiConfig: null,
+        ),
+      ),
       allOf(
         throwsException,
         throwsA(

@@ -31,7 +31,7 @@ use xayn_ai::{
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    document::{self, document_from_article, Document, TimeSpent, UserReacted},
+    document::{self, document_from_article, Document, HistoricDocument, TimeSpent, UserReacted},
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{
@@ -162,21 +162,23 @@ where
     async fn new(
         config: EndpointConfig,
         ranker: R,
+        history: &[HistoricDocument],
         stack_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
-        Self::from_stack_data(config, ranker, stack_data, stack_ops).await
+        Self::from_stack_data(config, ranker, history, stack_data, stack_ops).await
     }
 
     /// Creates a new `Engine` from serialized state and stack operations.
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    async fn from_state(
-        state: &StackState,
+    async fn from_state<'a>(
+        state: &'a StackState,
         config: EndpointConfig,
         ranker: R,
+        history: &'a [HistoricDocument],
         stack_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
         if stack_ops.is_empty() {
@@ -187,12 +189,13 @@ where
             .map_err(Error::Deserialization)?;
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
-        Self::from_stack_data(config, ranker, stack_data, stack_ops).await
+        Self::from_stack_data(config, ranker, history, stack_data, stack_ops).await
     }
 
     async fn from_stack_data(
         config: EndpointConfig,
         ranker: R,
+        history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
         stack_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
@@ -217,7 +220,7 @@ where
         };
 
         // we don't want to fail initialization if there are network problems
-        drop(engine.update_stacks(usize::MAX).await);
+        engine.update_stacks(history, usize::MAX).await.ok();
 
         Ok(engine)
     }
@@ -248,23 +251,30 @@ where
     /// Updates the markets configuration.
     ///
     /// Also resets and updates all stacks.
-    pub async fn set_markets(&mut self, markets: Vec<Market>) -> Result<(), Error> {
+    pub async fn set_markets(
+        &mut self,
+        history: &[HistoricDocument],
+        markets: Vec<Market>,
+    ) -> Result<(), Error> {
         *self.config.markets.write().await = markets;
 
         for stack in self.stacks.write().await.values_mut() {
             stack.data = StackData::default();
         }
-        self.update_stacks(self.core_config.request_new).await
+        self.update_stacks(history, self.core_config.request_new)
+            .await
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
     pub async fn get_feed_documents(
         &mut self,
+        history: &[HistoricDocument],
         max_documents: usize,
     ) -> Result<Vec<Document>, Error> {
         let documents = SelectionIter::new(BetaSampler, self.stacks.write().await.values_mut())
             .select(max_documents)?;
-        self.update_stacks(self.core_config.request_new).await?;
+        self.update_stacks(history, self.core_config.request_new)
+            .await?;
 
         Ok(documents)
     }
@@ -292,7 +302,11 @@ where
     /// Updates the stacks with data related to the top key phrases of the current data.
     ///
     /// Requires a threshold below which new items will be requested for a stack.
-    async fn update_stacks(&mut self, request_new: usize) -> Result<(), Error> {
+    async fn update_stacks(
+        &mut self,
+        history: &[HistoricDocument],
+        request_new: usize,
+    ) -> Result<(), Error> {
         let key_phrases = &self
             .ranker
             .select_top_key_phrases(self.core_config.select_top);
@@ -303,7 +317,7 @@ where
                 let articles = stack
                     .new_items(key_phrases)
                     .await
-                    .and_then(|articles| stack.filter_articles(articles));
+                    .and_then(|articles| stack.filter_articles(history, articles));
 
                 match articles.map_err(Error::StackOpFailed).and_then(|articles| {
                     let id = stack.id();
@@ -362,9 +376,12 @@ pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
 
 impl XaynAiEngine {
     /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
-    pub async fn from_config(config: InitConfig, state: Option<&[u8]>) -> Result<Self, Error> {
+    pub async fn from_config(
+        config: InitConfig,
+        state: Option<&[u8]>,
+        history: &[HistoricDocument],
+    ) -> Result<Self, Error> {
         let ai_config = ai_config_from_json(config.ai_config.as_deref().unwrap_or("{}"));
-
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(
@@ -412,10 +429,10 @@ impl XaynAiEngine {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Self::from_state(&state.engine, config.into(), ranker, stack_ops).await
+            Self::from_state(&state.engine, config.into(), ranker, history, stack_ops).await
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Self::new(config.into(), ranker, stack_ops).await
+            Self::new(config.into(), ranker, history, stack_ops).await
         }
     }
 }
