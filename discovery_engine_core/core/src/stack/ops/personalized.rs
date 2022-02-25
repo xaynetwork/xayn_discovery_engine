@@ -33,6 +33,7 @@ use super::Ops;
 pub(crate) struct PersonalizedNews {
     client: Client,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
+    page_size: Option<usize>,
 }
 
 #[async_trait]
@@ -44,6 +45,7 @@ impl Ops for PersonalizedNews {
     fn configure(&mut self, config: &EndpointConfig) {
         self.client = Client::new(config.api_key.clone(), config.api_base_url.clone());
         self.markets.replace(Arc::clone(&config.markets));
+        self.page_size.replace(config.page_size);
     }
 
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
@@ -53,7 +55,6 @@ impl Ops for PersonalizedNews {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
-            let page_size = Some(20); // TODO pass through config later
             let filter = key_phrases.iter().fold(Filter::default(), |filter, kp| {
                 filter.add_keyword(kp.words())
             });
@@ -62,7 +63,7 @@ impl Ops for PersonalizedNews {
                 let query = NewsQuery {
                     market,
                     filter: filter.clone(),
-                    page_size,
+                    page_size: self.page_size,
                 };
                 match self.client.news(&query).await {
                     Ok(batch) => articles.extend(batch),
