@@ -168,6 +168,7 @@ mod tests {
             .and(query_param("lang", "en"))
             .and(query_param("countries", "AU"))
             .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -183,6 +184,7 @@ mod tests {
             },
             filter,
             page_size: Some(2),
+            page: Some(1),
         };
 
         let docs = client.news(&params).await.unwrap();
@@ -228,6 +230,7 @@ mod tests {
             },
             filter,
             page_size: Some(2),
+            page: None,
         };
 
         let docs = client.news(&params).await.unwrap();
