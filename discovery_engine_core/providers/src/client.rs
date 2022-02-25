@@ -48,7 +48,7 @@ pub struct NewsQuery {
     /// News filter.
     pub filter: Filter,
     /// How many articles to return (per page).
-    pub page_size: Option<usize>,
+    pub page_size: usize,
     /// Page number.
     pub page: Option<usize>,
 }
@@ -58,7 +58,7 @@ pub struct HeadlinesQuery {
     /// Market of headlines.
     pub market: Market,
     /// How many articles to return (per page).
-    pub page_size: Option<usize>,
+    pub page_size: usize,
 }
 
 impl Client {
@@ -95,10 +95,7 @@ impl Client {
     fn build_news_query(query: &mut BTreeMap<String, String>, params: &NewsQuery) {
         query.insert("lang".to_string(), params.market.lang_code.clone());
         query.insert("countries".to_string(), params.market.country_code.clone());
-        query.insert(
-            "page_size".to_string(),
-            params.page_size.unwrap_or(100).to_string(),
-        );
+        query.insert("page_size".to_string(), params.page_size.to_string());
         query.insert("q".to_string(), params.filter.build());
         if let Some(page) = params.page {
             query.insert("page".to_string(), page.to_string());
@@ -130,10 +127,7 @@ impl Client {
     fn build_headlines_query(query: &mut BTreeMap<String, String>, params: &HeadlinesQuery) {
         query.insert("lang".to_string(), params.market.lang_code.clone());
         query.insert("countries".to_string(), params.market.country_code.clone());
-        query.insert(
-            "page_size".to_string(),
-            params.page_size.unwrap_or(100).to_string(),
-        );
+        query.insert("page_size".to_string(), params.page_size.to_string());
     }
 }
 
@@ -183,7 +177,7 @@ mod tests {
                 country_code: "AU".to_string(),
             },
             filter,
-            page_size: Some(2),
+            page_size: 2,
             page: Some(1),
         };
 
@@ -229,7 +223,7 @@ mod tests {
                 country_code: "DE".to_string(),
             },
             filter,
-            page_size: Some(2),
+            page_size: 2,
             page: None,
         };
 
@@ -270,7 +264,7 @@ mod tests {
                 lang_code: "en".to_string(),
                 country_code: "US".to_string(),
             },
-            page_size: Some(2),
+            page_size: 2,
         };
 
         let docs = client.headlines(&params).await.unwrap();
