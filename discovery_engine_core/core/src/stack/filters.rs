@@ -105,7 +105,7 @@ impl ArticleFilter for CommonFilter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::convert::TryInto;
 
     use crate::{
         document::{document_from_article, Document},
@@ -113,10 +113,41 @@ mod tests {
     };
     use xayn_discovery_engine_providers::Article;
 
+    use super::*;
+
+    #[test]
+    fn test_history_filter() {
+        let valid_articles = serde_json::from_str::<Vec<Article>>(include_str!(
+            "../../test-fixtures/articles-valid.json"
+        ))
+        .unwrap();
+        assert_eq!(valid_articles.len(), 4);
+
+        let history = valid_articles
+            .iter()
+            .take(2)
+            .cloned()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<HistoricDocument>, _>>()
+            .unwrap();
+
+        let filtered = CommonFilter::apply(&history, &[], valid_articles)
+            .unwrap()
+            .into_iter()
+            .map(|article| article.title)
+            .collect::<Vec<_>>();
+
+        assert_eq!(filtered, [
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
+            "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+        ]);
+    }
+
     #[test]
     fn test_duplicate_filter() {
         let valid_articles: Vec<Article> =
             serde_json::from_str(include_str!("../../test-fixtures/articles-valid.json")).unwrap();
+        assert_eq!(valid_articles.len(), 4);
 
         let documents = valid_articles.as_slice()[0..2]
             .iter()

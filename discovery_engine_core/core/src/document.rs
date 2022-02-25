@@ -283,6 +283,19 @@ mod tests {
         }
     }
 
+    impl TryFrom<Article> for HistoricDocument {
+        type Error = Error;
+
+        fn try_from(article: Article) -> Result<Self, Self::Error> {
+            Ok(Self {
+                id: Uuid::new_v4().into(),
+                url: Url::parse(&article.link)?,
+                snippet: article.excerpt,
+                title: article.title,
+            })
+        }
+    }
+
     #[test]
     fn test_news_resource_from_article() {
         let article = mock_article();
