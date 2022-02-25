@@ -16,7 +16,11 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show DiscoveryEngine;
+    show
+        DiscoveryEngine,
+        EngineExceptionRaised,
+        FeedRequestSucceeded,
+        NextFeedBatchRequestSucceeded;
 
 import '../logging.dart' show setupLogging;
 import 'utils/create_config.dart'
@@ -26,7 +30,7 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine init', () {
+  group('DiscoveryEngine requestFeed', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
 
@@ -39,24 +43,40 @@ void main() {
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
 
-    test('init engine with ai models', () async {
+    test(
+        'requestFeed should return the feed that has been requested before with'
+        ' requestNextFeedBatch', () async {
       server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
 
-      expect(engine, isA<DiscoveryEngine>());
+      final nextBatchResponse = await engine.requestNextFeedBatch();
+      final restoreFeedResponse = await engine.requestFeed();
+
+      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      expect(restoreFeedResponse, isA<FeedRequestSucceeded>());
+      expect(
+        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
+        equals((restoreFeedResponse as FeedRequestSucceeded).items),
+      );
     });
 
-    test('news api request error should not raise an engine exception',
-        () async {
+    test(
+        'if requestNextFeedBatch fails due to a news api request error, requestFeed'
+        ' should return an empty list', () async {
       server = await LocalNewsApiServer.start();
-      server.replyWithError = true;
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
 
-      expect(engine, isA<DiscoveryEngine>());
+      server.replyWithError = true;
+      final nextBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextBatchResponse, isA<EngineExceptionRaised>());
+      final restoreFeedResponse = await engine.requestFeed();
+
+      expect(restoreFeedResponse, isA<FeedRequestSucceeded>());
+      expect((restoreFeedResponse as FeedRequestSucceeded).items, isEmpty);
     });
   });
 }
