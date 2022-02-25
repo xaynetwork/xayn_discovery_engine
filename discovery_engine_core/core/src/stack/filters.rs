@@ -38,14 +38,24 @@ impl ArticleFilter for DuplicateFilter {
     }
 }
 
-struct MalformedImageUrlFilter;
+struct MalformedFilter;
 
-impl ArticleFilter for MalformedImageUrlFilter {
+impl MalformedFilter {
+    fn is_valid(article: &Article) -> bool {
+        !article.title.is_empty()
+            && !article.source_domain.is_empty()
+            && !article.excerpt.is_empty()
+            && Url::parse(&article.media).is_ok()
+            && Url::parse(&article.link).is_ok()
+    }
+}
+
+impl ArticleFilter for MalformedFilter {
     fn apply(
         _current: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        articles.retain(|article| Url::parse(&article.media).is_ok());
+        articles.retain(|article| MalformedFilter::is_valid(article));
         Ok(articles)
     }
 }
@@ -54,7 +64,7 @@ pub(crate) struct CommonFilter;
 impl ArticleFilter for CommonFilter {
     fn apply(current: &[Document], articles: Vec<Article>) -> Result<Vec<Article>, GenericError> {
         DuplicateFilter::apply(current, articles)
-            .and_then(|articles| MalformedImageUrlFilter::apply(current, articles))
+            .and_then(|articles| MalformedFilter::apply(current, articles))
     }
 }
 
@@ -115,5 +125,53 @@ mod tests {
             "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
         ]);
+    }
+
+    #[test]
+    fn test_filter_title() {
+        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
+            "../../test-fixtures/articles-invalid-title.json"
+        ))
+        .unwrap();
+        assert_eq!(malformed_articles.len(), 2);
+
+        let result = CommonFilter::apply(&[], malformed_articles).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_filter_link() {
+        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
+            "../../test-fixtures/articles-invalid-link.json"
+        ))
+        .unwrap();
+        assert_eq!(malformed_articles.len(), 3);
+
+        let result = CommonFilter::apply(&[], malformed_articles).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_filter_excerpt() {
+        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
+            "../../test-fixtures/articles-invalid-excerpt.json"
+        ))
+        .unwrap();
+        assert_eq!(malformed_articles.len(), 2);
+
+        let result = CommonFilter::apply(&[], malformed_articles).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_filter_clean_url() {
+        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
+            "../../test-fixtures/articles-invalid-clean-url.json"
+        ))
+        .unwrap();
+        assert_eq!(malformed_articles.len(), 2);
+
+        let result = CommonFilter::apply(&[], malformed_articles).unwrap();
+        assert!(result.is_empty());
     }
 }
