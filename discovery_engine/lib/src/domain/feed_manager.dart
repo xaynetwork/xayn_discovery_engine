@@ -80,11 +80,6 @@ class FeedManager {
             });
 
           final feed = sortedActives.map((doc) => doc.toApiDocument()).toList();
-
-          if (feed.isEmpty) {
-            const reason = FeedFailureReason.noNewsForMarket;
-            return const EngineEvent.feedRequestFailed(reason);
-          }
           return EngineEvent.feedRequestSucceeded(feed);
         },
       );
