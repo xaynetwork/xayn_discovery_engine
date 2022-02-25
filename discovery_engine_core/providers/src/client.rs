@@ -49,6 +49,8 @@ pub struct NewsQuery {
     pub filter: Filter,
     /// How many articles to return (per page).
     pub page_size: Option<usize>,
+    /// Page number.
+    pub page: Option<usize>,
 }
 
 /// Parameters determining which headlines to fetch
@@ -98,6 +100,9 @@ impl Client {
             params.page_size.unwrap_or(100).to_string(),
         );
         query.insert("q".to_string(), params.filter.build());
+        if let Some(page) = params.page {
+            query.insert("page".to_string(), page.to_string());
+        }
     }
 
     /// Retrieve headlines from the remote API
