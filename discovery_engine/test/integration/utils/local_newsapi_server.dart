@@ -45,6 +45,7 @@ class LocalNewsApiServer {
   Future<void> handleNewsAPIRequest(HttpRequest request) async {
     if (_returnError) {
       _replyWithError(request);
+      return;
     } else {
       switch (request.uri.path) {
         case '/_sn':
@@ -65,8 +66,10 @@ class LocalNewsApiServer {
 
   set lhFile(String filename) => _lhFile = filename;
 
-  static Future<LocalNewsApiServer> start([int port = 9090]) async {
-    final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
+  int get port => _server.port;
+
+  static Future<LocalNewsApiServer> start() async {
+    final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     return LocalNewsApiServer._(server);
   }
 
