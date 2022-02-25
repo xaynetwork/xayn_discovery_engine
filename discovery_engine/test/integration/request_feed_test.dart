@@ -45,7 +45,7 @@ void main() {
 
     test(
         'requestFeed should return the feed that has been requested before with'
-        'requestNextFeed', () async {
+        'requestNextFeedBatch', () async {
       server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
@@ -54,6 +54,7 @@ void main() {
       final nextBatchResponse = await engine.requestNextFeedBatch();
       final restoreFeedResponse = await engine.requestFeed();
 
+      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
       expect(restoreFeedResponse, isA<FeedRequestSucceeded>());
       expect(
         (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
@@ -62,7 +63,7 @@ void main() {
     });
 
     test(
-        'if requestNextFeed fails due to a news api request error, requestFeed'
+        'if requestNextFeedBatch fails due to a news api request error, requestFeed'
         'should return an empty list', () async {
       server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
