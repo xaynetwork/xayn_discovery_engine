@@ -80,7 +80,7 @@ class DocumentManager {
       throw StateError('id $id does not have active data attached');
     }
 
-    await _documentRepo.update(doc..registerReaction(userReaction));
+    await _documentRepo.update(doc..userReaction = userReaction);
     await _engine.userReacted(
       UserReacted(
         id: id,

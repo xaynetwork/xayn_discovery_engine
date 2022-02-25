@@ -69,11 +69,6 @@ class Document {
     this.isSearched = false,
   }) : timestamp = DateTime.now().toUtc();
 
-  /// Register a [UserReaction]
-  void registerReaction(UserReaction reaction) {
-    userReaction = reaction;
-  }
-
   api.Document toApiDocument() => api.Document(
         documentId: documentId,
         resource: resource,
