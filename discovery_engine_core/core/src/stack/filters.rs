@@ -28,10 +28,10 @@ impl ArticleFilter for DuplicateFilter {
         current: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        let mut urls = HashSet::new();
-        for doc in current {
-            urls.insert(doc.resource.url.as_str());
-        }
+        let urls = current
+            .iter()
+            .map(|doc| doc.resource.url.as_str())
+            .collect::<HashSet<_>>();
 
         articles.retain(|article| !urls.contains(&article.link.as_str()));
         Ok(articles)
