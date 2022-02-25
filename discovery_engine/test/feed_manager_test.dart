@@ -28,6 +28,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -188,6 +190,24 @@ Future<void> main() async {
       expect(feed[2].documentId, equals(engine.doc0.documentId));
       expect(feed[2].batchIndex, equals(0));
       // doc3 is excluded since it is inactive
+    });
+
+    test('change configuration feedMarkets', () async {
+      final markets = {
+        const FeedMarket(
+          countryCode: 'Country',
+          langCode: 'language',
+        )
+      };
+      final evt = await mgr.changeConfiguration(markets, null);
+      expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
+    });
+
+    test('change configuration maxItemsPerFeedBatch', () async {
+      final previous = mgr.maxItemsPerFeedBatch;
+      final evt = await mgr.changeConfiguration(null, previous + 1);
+      expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
+      expect(mgr.maxItemsPerFeedBatch, previous + 1);
     });
   });
 }

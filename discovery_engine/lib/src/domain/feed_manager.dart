@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
@@ -48,6 +49,9 @@ class FeedManager {
     this._changedRepo,
     this._engineStateRepo,
   );
+
+  @visibleForTesting
+  int get maxItemsPerFeedBatch => _maxDocs;
 
   /// Handle the given feed client event.
   ///
