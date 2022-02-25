@@ -58,14 +58,14 @@ impl Ops for PersonalizedNews {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
-            let filter = key_phrases.iter().fold(Filter::default(), |filter, kp| {
+            let filter = &key_phrases.iter().fold(Filter::default(), |filter, kp| {
                 filter.add_keyword(kp.words())
             });
 
-            for market in markets.read().await.clone() {
+            for market in markets.read().await.iter() {
                 let query = NewsQuery {
                     market,
-                    filter: filter.clone(),
+                    filter,
                     page_size: self.page_size,
                     page: None,
                 };

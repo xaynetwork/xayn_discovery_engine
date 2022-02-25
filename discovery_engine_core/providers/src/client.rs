@@ -42,11 +42,11 @@ pub struct Client {
 }
 
 /// Parameters determining which news to fetch
-pub struct NewsQuery {
+pub struct NewsQuery<'a> {
     /// Market of news.
-    pub market: Market,
+    pub market: &'a Market,
     /// News filter.
-    pub filter: Filter,
+    pub filter: &'a Filter,
     /// How many articles to return (per page).
     pub page_size: usize,
     /// Page number.
@@ -54,9 +54,9 @@ pub struct NewsQuery {
 }
 
 /// Parameters determining which headlines to fetch
-pub struct HeadlinesQuery {
+pub struct HeadlinesQuery<'a> {
     /// Market of headlines.
-    pub market: Market,
+    pub market: &'a Market,
     /// How many articles to return (per page).
     pub page_size: usize,
 }
@@ -70,7 +70,7 @@ impl Client {
     }
 
     /// Retrieve news from the remote API
-    pub async fn news(&self, params: &NewsQuery) -> Result<Vec<Article>, Error> {
+    pub async fn news(&self, params: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
         let mut query: BTreeMap<String, String> = BTreeMap::new();
         query.insert("sort_by".into(), "relevancy".into());
         Self::build_news_query(&mut query, params);
@@ -92,9 +92,12 @@ impl Client {
         Ok(result)
     }
 
-    fn build_news_query(query: &mut BTreeMap<String, String>, params: &NewsQuery) {
-        query.insert("lang".to_string(), params.market.lang_code.clone());
-        query.insert("countries".to_string(), params.market.country_code.clone());
+    fn build_news_query(query: &mut BTreeMap<String, String>, params: &NewsQuery<'_>) {
+        query.insert("lang".to_string(), params.market.lang_code.to_string());
+        query.insert(
+            "countries".to_string(),
+            params.market.country_code.to_string(),
+        );
         query.insert("page_size".to_string(), params.page_size.to_string());
         query.insert("q".to_string(), params.filter.build());
         if let Some(page) = params.page {
@@ -103,7 +106,7 @@ impl Client {
     }
 
     /// Retrieve headlines from the remote API
-    pub async fn headlines(&self, params: &HeadlinesQuery) -> Result<Vec<Article>, Error> {
+    pub async fn headlines(&self, params: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
         let mut query: BTreeMap<String, String> = BTreeMap::new();
         Self::build_headlines_query(&mut query, params);
 
@@ -124,9 +127,12 @@ impl Client {
         Ok(result)
     }
 
-    fn build_headlines_query(query: &mut BTreeMap<String, String>, params: &HeadlinesQuery) {
-        query.insert("lang".to_string(), params.market.lang_code.clone());
-        query.insert("countries".to_string(), params.market.country_code.clone());
+    fn build_headlines_query(query: &mut BTreeMap<String, String>, params: &HeadlinesQuery<'_>) {
+        query.insert("lang".to_string(), params.market.lang_code.to_string());
+        query.insert(
+            "countries".to_string(),
+            params.market.country_code.to_string(),
+        );
         query.insert("page_size".to_string(), params.page_size.to_string());
     }
 }
@@ -169,13 +175,14 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let filter = Filter::default().add_keyword("Climate change");
+        let market = &Market {
+            lang_code: "en".to_string(),
+            country_code: "AU".to_string(),
+        };
+        let filter = &Filter::default().add_keyword("Climate change");
 
         let params = NewsQuery {
-            market: Market {
-                lang_code: "en".to_string(),
-                country_code: "AU".to_string(),
-            },
+            market,
             filter,
             page_size: 2,
             page: Some(1),
@@ -213,15 +220,16 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let filter = Filter::default()
+        let market = &Market {
+            lang_code: "de".to_string(),
+            country_code: "DE".to_string(),
+        };
+        let filter = &Filter::default()
             .add_keyword("Bill Gates")
             .add_keyword("Tim Cook");
 
         let params = NewsQuery {
-            market: Market {
-                lang_code: "de".to_string(),
-                country_code: "DE".to_string(),
-            },
+            market,
             filter,
             page_size: 2,
             page: None,
@@ -260,7 +268,7 @@ mod tests {
             .await;
 
         let params = HeadlinesQuery {
-            market: Market {
+            market: &Market {
                 lang_code: "en".to_string(),
                 country_code: "US".to_string(),
             },

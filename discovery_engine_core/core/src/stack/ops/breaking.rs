@@ -56,7 +56,7 @@ impl Ops for BreakingNews {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
 
-            for market in markets.read().await.clone() {
+            for market in markets.read().await.iter() {
                 let query = HeadlinesQuery {
                     market,
                     page_size: self.page_size,
