@@ -74,25 +74,23 @@ class DocumentManager {
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
     }
-    await _documentRepo.update(doc..userReaction = userReaction);
+
     final smbertEmbedding = await _activeRepo.smbertEmbeddingById(id);
     if (smbertEmbedding == null) {
       throw StateError('id $id does not have active data attached');
     }
-    final snippet = doc.resource.snippet.isNotEmpty
-        ? doc.resource.snippet
-        : doc.resource.title;
+
+    await _documentRepo.update(doc..userReaction = userReaction);
     await _engine.userReacted(
       UserReacted(
         id: id,
         stackId: doc.stackId,
-        snippet: snippet,
+        snippet: doc.snippet,
         smbertEmbedding: smbertEmbedding,
         reaction: userReaction,
       ),
     );
     await _engineStateRepo.save(await _engine.serialize());
-
     _changedDocsReporter.notifyChanged([doc]);
   }
 
@@ -107,10 +105,12 @@ class DocumentManager {
     if (sec < 0) {
       throw RangeError.range(sec, 0, null);
     }
+
     final activeData = await _activeRepo.fetchById(id);
     if (activeData == null) {
       throw ArgumentError('id $id does not identify an active document');
     }
+
     final doc = await _documentRepo.fetchById(id);
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');
@@ -119,16 +119,13 @@ class DocumentManager {
     activeData.addViewTime(mode, Duration(seconds: sec));
     await _activeRepo.update(id, activeData);
 
-    // As we don't have a `DocumentViewMode` on the Rust side at the moment,
-    // we need to decide which value to use or to aggregate all view modes.
-    final sumDuration = activeData.viewTime.values
-        .reduce((aggregate, duration) => aggregate + duration);
-
     await _engine.timeSpent(
       TimeSpent(
         id: id,
         smbertEmbedding: activeData.smbertEmbedding,
-        time: sumDuration,
+        // As we don't have a `DocumentViewMode` on the Rust side at the moment,
+        // we are aggregating Duration from all view modes.
+        time: activeData.sumDuration,
         reaction: doc.userReaction,
       ),
     );

@@ -46,4 +46,10 @@ class HiveDocumentRepository implements DocumentRepository {
       box.putAll(<String, Document>{
         for (final doc in docs) doc.documentId.toString(): doc
       });
+
+  @override
+  Future<void> removeByIds(Set<DocumentId> ids) async {
+    final keys = ids.map((id) => id.toString());
+    await box.deleteAll(keys);
+  }
 }

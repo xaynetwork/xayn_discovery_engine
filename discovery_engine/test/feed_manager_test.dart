@@ -89,12 +89,14 @@ Future<void> main() async {
       data = ActiveDocumentData(Embedding.fromList([44]));
       final stackId = StackId();
       doc2 = Document(
+        documentId: DocumentId(),
         stackId: stackId,
         batchIndex: 2,
         resource: mockNewsResource,
         isActive: true,
       );
       doc3 = Document(
+        documentId: DocumentId(),
         stackId: stackId,
         batchIndex: 3,
         resource: mockNewsResource,

@@ -19,7 +19,7 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show StackId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show documentBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -36,11 +36,13 @@ Future<void> main() async {
     late HiveDocumentRepository repo;
     final stackId = StackId();
     final doc1 = Document(
+      documentId: DocumentId(),
       stackId: stackId,
       batchIndex: 0,
       resource: mockNewsResource,
     );
     final doc2 = Document(
+      documentId: DocumentId(),
       stackId: stackId,
       batchIndex: 1,
       resource: mockNewsResource,
@@ -145,6 +147,22 @@ Future<void> main() async {
 
         expect(box, hasLength(2));
         expect(box.values, containsAll(<Document>[doc1, doc2]));
+      });
+
+      test('remove documents by ids, keep rest', () async {
+        final doc3 = Document(
+          documentId: DocumentId(),
+          stackId: stackId,
+          batchIndex: 2,
+          resource: mockNewsResource,
+        );
+
+        await repo.updateMany([doc1, doc2, doc3]);
+        expect(box, hasLength(3));
+
+        await repo.removeByIds({doc1.documentId, doc3.documentId});
+        expect(box, hasLength(1));
+        expect(box.values, containsAll(<Document>[doc2]));
       });
     });
   });

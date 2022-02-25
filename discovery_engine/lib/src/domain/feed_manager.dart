@@ -15,7 +15,7 @@
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show EngineEvent;
+    show EngineEvent, FeedFailureReason;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -65,7 +65,13 @@ class FeedManager {
   Future<EngineEvent> restoreFeed() => _docRepo.fetchAll().then(
         (docs) {
           final sortedActives = docs
-            ..retainWhere((doc) => doc.isActive)
+            ..retainWhere(
+              (doc) =>
+                  // we only want active documents
+                  doc.isActive &&
+                  // we only want feed documents (isSearched == false)
+                  doc.isSearched == false,
+            )
             ..sort((doc1, doc2) {
               final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
               return timeOrd == 0
@@ -89,10 +95,15 @@ class FeedManager {
       await _activeRepo.update(id, docWithData.data);
     }
 
-    final docs = feedDocs
+    final feed = feedDocs
         .map((docWithData) => docWithData.document.toApiDocument())
         .toList();
-    return EngineEvent.nextFeedBatchRequestSucceeded(docs);
+
+    if (feed.isEmpty) {
+      const reason = FeedFailureReason.noNewsForMarket;
+      return const EngineEvent.nextFeedBatchRequestFailed(reason);
+    }
+    return EngineEvent.nextFeedBatchRequestSucceeded(feed);
   }
 
   /// Deactivate the given documents.
