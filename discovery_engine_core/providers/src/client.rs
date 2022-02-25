@@ -49,6 +49,8 @@ pub struct NewsQuery {
     pub filter: Filter,
     /// How many articles to return (per page).
     pub page_size: Option<usize>,
+    /// Page number.
+    pub page: Option<usize>,
 }
 
 /// Parameters determining which headlines to fetch
@@ -98,6 +100,9 @@ impl Client {
             params.page_size.unwrap_or(100).to_string(),
         );
         query.insert("q".to_string(), params.filter.build());
+        if let Some(page) = params.page {
+            query.insert("page".to_string(), page.to_string());
+        }
     }
 
     /// Retrieve headlines from the remote API
@@ -163,6 +168,7 @@ mod tests {
             .and(query_param("lang", "en"))
             .and(query_param("countries", "AU"))
             .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -178,6 +184,7 @@ mod tests {
             },
             filter,
             page_size: Some(2),
+            page: Some(1),
         };
 
         let docs = client.news(&params).await.unwrap();
@@ -223,6 +230,7 @@ mod tests {
             },
             filter,
             page_size: Some(2),
+            page: None,
         };
 
         let docs = client.news(&params).await.unwrap();

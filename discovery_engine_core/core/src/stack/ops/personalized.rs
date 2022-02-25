@@ -64,6 +64,7 @@ impl Ops for PersonalizedNews {
                     market,
                     filter: filter.clone(),
                     page_size: self.page_size,
+                    page: None,
                 };
                 match self.client.news(&query).await {
                     Ok(batch) => articles.extend(batch),
