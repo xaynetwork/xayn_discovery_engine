@@ -36,7 +36,7 @@ use super::Ops;
 pub(crate) struct BreakingNews {
     client: Client,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
-    page_size: Option<usize>,
+    page_size: usize,
 }
 
 #[async_trait]
@@ -48,17 +48,19 @@ impl Ops for BreakingNews {
     fn configure(&mut self, config: &EndpointConfig) {
         self.client = Client::new(config.api_key.clone(), config.api_base_url.clone());
         self.markets.replace(Arc::clone(&config.markets));
-        self.page_size.replace(config.page_size);
+        self.page_size = config.page_size;
     }
 
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
-            let page_size = self.page_size;
 
-            for market in markets.read().await.clone() {
-                let query = HeadlinesQuery { market, page_size };
+            for market in markets.read().await.iter() {
+                let query = HeadlinesQuery {
+                    market,
+                    page_size: self.page_size,
+                };
                 match self.client.headlines(&query).await {
                     Ok(batch) => articles.extend(batch),
                     Err(err) => errors.push(err),
