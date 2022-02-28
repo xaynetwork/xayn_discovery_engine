@@ -18,12 +18,14 @@ import 'package:crypto/crypto.dart' show sha256;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show
         Asset,
-        AssetType,
         AssetFetcher,
+        AssetFetcherException,
         AssetReporter,
+        AssetType,
         DataProvider,
         Manifest,
-        SetupData;
+        SetupData,
+        tmpFileExt;
 
 class NativeDataProvider extends DataProvider {
   @override
@@ -65,36 +67,55 @@ class NativeDataProvider extends DataProvider {
   Future<String> _getData(Asset asset) async {
     final filePath =
         DataProvider.joinPaths([storageDirectoryPath, asset.urlSuffix]);
-    final assetFile = File(filePath);
-    final diskDirPath = assetFile.parent.path;
-    await Directory(diskDirPath).create(recursive: true);
+    final assetFileRef = File(filePath);
+    await Directory(assetFileRef.parent.path).create(recursive: true);
 
-    // Only write the data on disk if the file does not exist or the checksum does not match.
-    // The last check is useful in case the app is closed before we can finish to write,
-    // and it can be also useful during development to test with different models.
-    var doesExist = assetFile.existsSync();
-
-    if (doesExist &&
-        !await _verifyChecksum(assetFile, asset.checksum.checksumAsHex)) {
-      await assetFile.delete();
-      doesExist = false;
-    }
-
-    if (!doesExist) {
-      final bytes = await assetFetcher.fetchAsset(
-        asset,
-        onFetched: assetReporter.assetFetched,
-      );
-      await assetFile.writeAsBytes(bytes, flush: true);
-    } else if (asset.fragments.isEmpty) {
-      assetReporter.assetFetched(asset.urlSuffix);
-    } else {
+    // if the file exists it means it was verified and has a proper checksum
+    if (assetFileRef.existsSync()) {
+      if (asset.fragments.isEmpty) {
+        assetReporter.assetFetched(asset.urlSuffix);
+      }
       for (final fragment in asset.fragments) {
         assetReporter.assetFetched(fragment.urlSuffix);
       }
+      return assetFileRef.path;
     }
 
-    return assetFile.path;
+    // if the file doesn't exist we try to look for the temp file copied from
+    // bundled assets, waiting for checksum verification
+    final tmpFileRef = File('$filePath.$tmpFileExt');
+    final doesTmpFileExist = tmpFileRef.existsSync();
+
+    if (doesTmpFileExist) {
+      if (await _verifyChecksum(tmpFileRef, asset.checksum.checksumAsHex)) {
+        // if we have a tmp file and it has a proper checksum we move it
+        // to proper destination path
+        await tmpFileRef.rename(filePath);
+        return assetFileRef.path;
+      } else {
+        // if the verification fails it's better to remove the tmp file to skip
+        // this step and start fetching from server faster
+        await tmpFileRef.delete();
+      }
+    }
+
+    // if we didn't found a tmp file or it's verification failed we try to fetch
+    // the asset from the server and write it to disk
+    final bytes = await assetFetcher.fetchAsset(
+      asset,
+      onFetched: assetReporter.assetFetched,
+    );
+    await assetFileRef.writeAsBytes(bytes, flush: true);
+
+    // we check if it has a proper checksum, if not we throw
+    if (!await _verifyChecksum(assetFileRef, asset.checksum.checksumAsHex)) {
+      await assetFileRef.delete();
+      throw AssetFetcherException(
+        'Asset: "${asset.urlSuffix}" failed checksum verification.',
+      );
+    }
+
+    return assetFileRef.path;
   }
 
   Future<bool> _verifyChecksum(File file, String checksum) async {

@@ -17,7 +17,7 @@ import 'dart:typed_data' show ByteData;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show Manifest, kAssetsPath, discoveryEngineLogger;
+    show Manifest, discoveryEngineLogger, kAssetsPath, tmpFileExt;
 
 /// A signature for a function loading the assets from bundle.
 typedef AssetLoader = Future<ByteData> Function(String key);
@@ -40,24 +40,29 @@ class FlutterBundleAssetCopier {
   Future<void> copyAssets(Manifest manifest) async {
     final storageDirPath = '$_appDir/$kAssetsPath';
 
-    for (final asset in manifest.assets) {
+    await Future.wait(manifest.assets.map((asset) async {
       final urlSuffix = asset.urlSuffix;
-      final fileRef = File('$storageDirPath/$urlSuffix');
+      final filePath = '$storageDirPath/$urlSuffix';
+      final fileRef = File(filePath);
 
-      if (fileRef.existsSync()) continue;
+      if (fileRef.existsSync()) return;
 
       try {
         final bytes = await _loadAsset('$_bundleAssetsPath/$urlSuffix');
         await Directory(fileRef.parent.path).create(recursive: true);
-        await fileRef.writeAsBytes(bytes.buffer.asUint8List(
-          bytes.offsetInBytes,
-          bytes.lengthInBytes,
-        ));
+        // copy the file from bundled assets to destination directory,
+        // but with a temp extension, for later checksum verification
+        await File('$filePath.$tmpFileExt').writeAsBytes(
+          bytes.buffer.asUint8List(
+            bytes.offsetInBytes,
+            bytes.lengthInBytes,
+          ),
+        );
       } catch (e, s) {
         final message =
             'Couldn\'t copy the asset "$urlSuffix" to the path: ${fileRef.path}';
         discoveryEngineLogger.e(message, e, s);
       }
-    }
+    }));
   }
 }
