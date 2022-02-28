@@ -211,7 +211,7 @@ mod tests {
     // TODO use our own when exposed as a crate
     use float_cmp::approx_eq;
 
-    use crate::{document::Id as DocumentId, stack::ops::MockOps};
+    use crate::stack::ops::MockOps;
 
     use super::*;
 
@@ -227,7 +227,7 @@ mod tests {
         };
 
         let doc_2 = Document {
-            id: DocumentId::from_u128(1),
+            id: Uuid::from_u128(1).into(),
             stack_id,
             ..Document::default()
         };
@@ -244,7 +244,7 @@ mod tests {
         F: Fn(&[Document]) -> Result<T, Error>,
     {
         let stack_id_ko = Uuid::from_u128(stack_id_ok.0.as_u128() + 1).into();
-        let doc_id_ko = DocumentId::from_u128(1);
+        let doc_id_ko = Uuid::from_u128(1).into();
 
         let doc_ok = Document {
             stack_id: stack_id_ok,
