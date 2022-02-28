@@ -27,8 +27,8 @@
 #![allow(clippy::must_use_candidate, clippy::module_name_repetitions)]
 
 pub mod async_bindings;
-pub mod types;
 mod tracing;
+pub mod types;
 
 use xayn_discovery_engine_core::Engine;
 
