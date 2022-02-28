@@ -34,9 +34,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.54"
+version = "1.0.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a99269dff3bc004caa411f38845c20303f1e393ca2bd6581576fa3a7f59577d"
+checksum = "159bb86af3a200e19a068f4224eae4c8bb2d0fa054c7e5d1cacd5cef95e684cd"
 
 [[package]]
 name = "anymap2"
@@ -1030,7 +1030,7 @@ dependencies = [
 [[package]]
 name = "kpe"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#54bebd6afe4eee66c4979a81a253e733bac0167c"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1053,7 +1053,7 @@ dependencies = [
 [[package]]
 name = "layer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#54bebd6afe4eee66c4979a81a253e733bac0167c"
 dependencies = [
  "bincode",
  "displaydoc",
@@ -1878,7 +1878,7 @@ dependencies = [
 [[package]]
 name = "rubert"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#54bebd6afe4eee66c4979a81a253e733bac0167c"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1893,7 +1893,7 @@ dependencies = [
 [[package]]
 name = "rubert-tokenizer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#54bebd6afe4eee66c4979a81a253e733bac0167c"
 dependencies = [
  "displaydoc",
  "num-traits",
@@ -2843,10 +2843,11 @@ dependencies = [
 [[package]]
 name = "xayn-ai"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#fbdd5417ee6d5ee4156a4e61a0fd004fc28f8d89"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#54bebd6afe4eee66c4979a81a253e733bac0167c"
 dependencies = [
  "anyhow",
  "bincode",
+ "chrono",
  "derivative",
  "derive_more",
  "displaydoc",
