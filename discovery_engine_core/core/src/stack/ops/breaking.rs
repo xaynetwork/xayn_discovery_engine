@@ -51,6 +51,10 @@ impl Ops for BreakingNews {
         self.page_size = config.page_size;
     }
 
+    fn needs_key_phrases(&self) -> bool {
+        false
+    }
+
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();

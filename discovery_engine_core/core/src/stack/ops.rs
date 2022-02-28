@@ -50,6 +50,9 @@ pub trait Ops {
     /// tailored to the user's interests.
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError>;
 
+    /// Returns if `[new_items]` needs the key phrases to work.
+    fn needs_key_phrases(&self) -> bool;
+
     /// Filter `articles` based on `stack` documents.
     fn filter_articles(
         &self,

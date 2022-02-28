@@ -51,6 +51,10 @@ impl Ops for PersonalizedNews {
         self.page_size = config.page_size;
     }
 
+    fn needs_key_phrases(&self) -> bool {
+        true
+    }
+
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
         if key_phrases.is_empty() {
             return Ok(vec![]);

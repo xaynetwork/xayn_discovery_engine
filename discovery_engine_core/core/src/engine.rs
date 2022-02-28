@@ -307,39 +307,48 @@ where
         history: &[HistoricDocument],
         request_new: usize,
     ) -> Result<(), Error> {
-        let key_phrases = &self
-            .ranker
-            .select_top_key_phrases(self.core_config.select_top);
+        let mut stacks = self.stacks.write().await;
+
+        let mut stacks: Vec<_> = stacks
+            .values_mut()
+            .filter(|stack| stack.len() <= request_new)
+            .collect();
+
+        let needs_key_phrases = stacks.iter().any(|stack| stack.ops.needs_key_phrases());
+
+        let key_phrases = if needs_key_phrases {
+            self.ranker
+                .select_top_key_phrases(self.core_config.select_top)
+        } else {
+            vec![]
+        };
 
         let mut errors = Vec::new();
-        for stack in self.stacks.write().await.values_mut() {
-            if stack.len() <= request_new {
-                let articles = stack
-                    .new_items(key_phrases)
-                    .await
-                    .and_then(|articles| stack.filter_articles(history, articles));
+        for stack in &mut stacks {
+            let articles = stack
+                .new_items(&key_phrases)
+                .await
+                .and_then(|articles| stack.filter_articles(history, articles));
 
-                match articles.map_err(Error::StackOpFailed).and_then(|articles| {
-                    let id = stack.id();
-                    articles
-                        .into_iter()
-                        .map(|article| {
-                            let title = article.title.as_str();
-                            let embedding =
-                                self.ranker.compute_smbert(title).map_err(Error::Ranker)?;
-                            document_from_article(article, id, embedding).map_err(Error::Document)
-                        })
-                        .collect::<Result<Vec<_>, _>>()
-                }) {
-                    Ok(documents) => {
-                        if let Err(error) = stack.update(&documents, &mut self.ranker) {
-                            errors.push(Error::StackOpFailed(error));
-                        } else {
-                            stack.data.retain_top(self.core_config.keep_top);
-                        }
+            match articles.map_err(Error::StackOpFailed).and_then(|articles| {
+                let id = stack.id();
+                articles
+                    .into_iter()
+                    .map(|article| {
+                        let title = article.title.as_str();
+                        let embedding = self.ranker.compute_smbert(title).map_err(Error::Ranker)?;
+                        document_from_article(article, id, embedding).map_err(Error::Document)
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            }) {
+                Ok(documents) => {
+                    if let Err(error) = stack.update(&documents, &mut self.ranker) {
+                        errors.push(Error::StackOpFailed(error));
+                    } else {
+                        stack.data.retain_top(self.core_config.keep_top);
                     }
-                    Err(error) => errors.push(error),
                 }
+                Err(error) => errors.push(error),
             }
         }
 
