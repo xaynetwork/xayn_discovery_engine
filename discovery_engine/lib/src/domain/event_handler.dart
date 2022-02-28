@@ -51,14 +51,6 @@ import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewModeAdapter;
-import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
-    show ActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
-    show ChangedDocumentRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
-    show DocumentRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
-    show EngineStateRepository;
 import 'package:xayn_discovery_engine/src/domain/system_manager.dart'
     show SystemManager;
 import 'package:xayn_discovery_engine/src/ffi/types/engine.dart'
@@ -98,19 +90,16 @@ class EventConfig {
 }
 
 class EventHandler {
-  Engine? _engine;
+  bool _isInitialized;
   final AssetReporter _assetReporter;
   final ChangedDocumentsReporter _changedDocumentsReporter;
-  late final DocumentRepository _documentRepository;
-  late final ActiveDocumentDataRepository _activeDataRepository;
-  late final ChangedDocumentRepository _changedDocumentRepository;
-  late final EngineStateRepository _engineStateRepository;
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
   late final SystemManager _systemManager;
 
   EventHandler()
-      : _assetReporter = AssetReporter(),
+      : _isInitialized = false,
+        _assetReporter = AssetReporter(),
         _changedDocumentsReporter = ChangedDocumentsReporter();
 
   Stream<EngineEvent> get events => StreamGroup.mergeBroadcast([
@@ -133,18 +122,17 @@ class EventHandler {
   /// previous events to finish processing.
   Future<EngineEvent> handleMessage(ClientEvent clientEvent) async {
     if (clientEvent is Init) {
-      if (_engine != null) {
+      if (_isInitialized) {
         return const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,
         );
       }
 
       try {
-        _engine = await _initEngine(
+        return await _initEngine(
           clientEvent.configuration,
           aiConfig: clientEvent.aiConfig,
         );
-        return const EngineEvent.clientEventSucceeded();
       } catch (e, st) {
         logger.e('failed to initialize the engine', e, st);
         final reason = e is AssetFetcherException
@@ -158,23 +146,22 @@ class EventHandler {
       }
     }
 
-    if (_engine == null) {
+    if (!_isInitialized) {
       return const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
       );
     }
 
-    EngineEvent response;
     try {
       if (clientEvent is FeedClientEvent) {
-        response = await _feedManager.handleFeedClientEvent(clientEvent);
+        return await _feedManager.handleFeedClientEvent(clientEvent);
       } else if (clientEvent is DocumentClientEvent) {
         await _documentManager.handleDocumentClientEvent(clientEvent);
-        response = const EngineEvent.clientEventSucceeded();
+        return const EngineEvent.clientEventSucceeded();
       } else if (clientEvent is SystemClientEvent) {
-        response = await _systemManager.handleSystemClientEvent(clientEvent);
+        return await _systemManager.handleSystemClientEvent(clientEvent);
       } else {
-        response = const EngineEvent.engineExceptionRaised(
+        return const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,
         );
       }
@@ -182,30 +169,31 @@ class EventHandler {
       // log the error
       logger.e('Handling ClientEvent by one of the managers failed', e, st);
 
-      response = EngineEvent.engineExceptionRaised(
+      return EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
         message: '$e',
         stackTrace: '$st',
       );
     }
-
-    return response;
   }
 
-  Future<Engine> _initEngine(Configuration config, {String? aiConfig}) async {
+  Future<EngineEvent> _initEngine(
+    Configuration config, {
+    String? aiConfig,
+  }) async {
     // init hive
     await _initDatabase(config.applicationDirectoryPath);
 
     // create repositories
-    _documentRepository = HiveDocumentRepository();
-    _activeDataRepository = HiveActiveDocumentDataRepository();
-    _changedDocumentRepository = HiveChangedDocumentRepository();
-    _engineStateRepository = HiveEngineStateRepository();
+    final documentRepository = HiveDocumentRepository();
+    final activeDataRepository = HiveActiveDocumentDataRepository();
+    final changedDocumentRepository = HiveChangedDocumentRepository();
+    final engineStateRepository = HiveEngineStateRepository();
 
     final setupData = await _fetchAssets(config);
-    final engineState = await _engineStateRepository.load();
-    final history = await _documentRepository.fetchHistory();
-    final engine = await initializeEngine(
+    final engineState = await engineStateRepository.load();
+    final history = await documentRepository.fetchHistory();
+    final engine = await _initializeEngine(
       EngineInitializer(
         config: config,
         setupData: setupData,
@@ -219,25 +207,27 @@ class EventHandler {
     final eventConfig = EventConfig(config.maxItemsPerFeedBatch);
     _documentManager = DocumentManager(
       engine,
-      _documentRepository,
-      _activeDataRepository,
-      _engineStateRepository,
+      documentRepository,
+      activeDataRepository,
+      engineStateRepository,
       _changedDocumentsReporter,
     );
     _feedManager = FeedManager(
       engine,
       eventConfig,
-      _documentRepository,
-      _activeDataRepository,
-      _changedDocumentRepository,
-      _engineStateRepository,
+      documentRepository,
+      activeDataRepository,
+      changedDocumentRepository,
+      engineStateRepository,
     );
-    _systemManager = SystemManager(engine, eventConfig, _documentRepository);
+    _systemManager = SystemManager(engine, eventConfig, documentRepository);
 
-    return engine;
+    _isInitialized = true;
+
+    return const EngineEvent.clientEventSucceeded();
   }
 
-  Future<Engine> initializeEngine(EngineInitializer initializer) async {
+  Future<Engine> _initializeEngine(EngineInitializer initializer) async {
     if (initializer.config.apiKey == 'use-mock-engine' &&
         initializer.config.apiBaseUrl == 'https://use-mock-engine.test') {
       return MockEngine(initializer);
