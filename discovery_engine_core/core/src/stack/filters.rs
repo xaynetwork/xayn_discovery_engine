@@ -30,35 +30,18 @@ pub(crate) trait ArticleFilter {
     ) -> Result<Vec<Article>, GenericError>;
 }
 
-struct HistoryFilter;
+struct DuplicateFilter;
 
-impl ArticleFilter for HistoryFilter {
+impl ArticleFilter for DuplicateFilter {
     fn apply(
         history: &[HistoricDocument],
-        _stack: &[Document],
+        stack: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
         let urls = history
             .iter()
             .map(|doc| doc.url.as_str())
-            .collect::<HashSet<_>>();
-
-        articles.retain(|article| !urls.contains(&article.link.as_str()));
-        Ok(articles)
-    }
-}
-
-struct DuplicateFilter;
-
-impl ArticleFilter for DuplicateFilter {
-    fn apply(
-        _history: &[HistoricDocument],
-        stack: &[Document],
-        mut articles: Vec<Article>,
-    ) -> Result<Vec<Article>, GenericError> {
-        let urls = stack
-            .iter()
-            .map(|doc| doc.resource.url.as_str())
+            .chain(stack.iter().map(|doc| doc.resource.url.as_str()))
             .collect::<HashSet<_>>();
 
         articles.retain(|article| !urls.contains(&article.link.as_str()));
@@ -97,8 +80,7 @@ impl ArticleFilter for CommonFilter {
         stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        HistoryFilter::apply(history, stack, articles)
-            .and_then(|articles| DuplicateFilter::apply(history, stack, articles))
+        DuplicateFilter::apply(history, stack, articles)
             .and_then(|articles| MalformedFilter::apply(history, stack, articles))
     }
 }
@@ -116,7 +98,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_history_filter() {
+    fn test_filter_duplicate_stack() {
+        let valid_articles: Vec<Article> =
+            serde_json::from_str(include_str!("../../test-fixtures/articles-valid.json")).unwrap();
+        assert_eq!(valid_articles.len(), 4);
+
+        let documents = valid_articles
+            .iter()
+            .take(2)
+            .map(|article| {
+                let doc = Document::default();
+                document_from_article(article.clone(), doc.stack_id, doc.smbert_embedding).unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        let filtered = CommonFilter::apply(&[], &documents, valid_articles)
+            .unwrap()
+            .into_iter()
+            .map(|article| article.title)
+            .collect::<Vec<_>>();
+
+        assert_eq!(filtered, [
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
+            "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+        ]);
+    }
+
+    #[test]
+    fn test_filter_duplicate_history() {
         let valid_articles = serde_json::from_str::<Vec<Article>>(include_str!(
             "../../test-fixtures/articles-valid.json"
         ))
@@ -144,30 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn test_duplicate_filter() {
-        let valid_articles: Vec<Article> =
-            serde_json::from_str(include_str!("../../test-fixtures/articles-valid.json")).unwrap();
-        assert_eq!(valid_articles.len(), 4);
-
-        let documents = valid_articles.as_slice()[0..2]
-            .iter()
-            .map(|article| {
-                let doc = Document::default();
-                document_from_article(article.clone(), doc.stack_id, doc.smbert_embedding).unwrap()
-            })
-            .collect::<Vec<_>>();
-
-        let result = CommonFilter::apply(&[], documents.as_slice(), valid_articles).unwrap();
-        let titles = result.iter().map(|a| &a.title).collect::<Vec<_>>();
-
-        assert_eq!(titles, [
-            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
-            "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
-        ]);
-    }
-
-    #[test]
-    fn test_malformed_media_filter() {
+    fn test_filter_media() {
         let documents: Vec<Document> = vec![];
         let valid_articles: Vec<Article> =
             serde_json::from_str(include_str!("../../test-fixtures/articles-valid.json")).unwrap();
