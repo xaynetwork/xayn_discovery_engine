@@ -86,11 +86,11 @@ impl Ops for PersonalizedNews {
 
     fn filter_articles(
         &self,
-        _history: &[HistoricDocument],
+        history: &[HistoricDocument],
         stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        CommonFilter::apply(stack, articles)
+        CommonFilter::apply(history, stack, articles)
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {

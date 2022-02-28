@@ -12,25 +12,36 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{document::Document, engine::GenericError};
 use std::collections::HashSet;
+
 use url::Url;
+
+use crate::{
+    document::{Document, HistoricDocument},
+    engine::GenericError,
+};
 use xayn_discovery_engine_providers::Article;
 
 pub(crate) trait ArticleFilter {
-    fn apply(current: &[Document], articles: Vec<Article>) -> Result<Vec<Article>, GenericError>;
+    fn apply(
+        history: &[HistoricDocument],
+        stack: &[Document],
+        articles: Vec<Article>,
+    ) -> Result<Vec<Article>, GenericError>;
 }
 
 struct DuplicateFilter;
 
 impl ArticleFilter for DuplicateFilter {
     fn apply(
-        current: &[Document],
+        history: &[HistoricDocument],
+        stack: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        let urls = current
+        let urls = history
             .iter()
-            .map(|doc| doc.resource.url.as_str())
+            .map(|doc| doc.url.as_str())
+            .chain(stack.iter().map(|doc| doc.resource.url.as_str()))
             .collect::<HashSet<_>>();
 
         articles.retain(|article| !urls.contains(&article.link.as_str()));
@@ -52,7 +63,8 @@ impl MalformedFilter {
 
 impl ArticleFilter for MalformedFilter {
     fn apply(
-        _current: &[Document],
+        _history: &[HistoricDocument],
+        _stack: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
         articles.retain(|article| MalformedFilter::is_valid(article));
@@ -61,16 +73,21 @@ impl ArticleFilter for MalformedFilter {
 }
 
 pub(crate) struct CommonFilter;
+
 impl ArticleFilter for CommonFilter {
-    fn apply(current: &[Document], articles: Vec<Article>) -> Result<Vec<Article>, GenericError> {
-        DuplicateFilter::apply(current, articles)
-            .and_then(|articles| MalformedFilter::apply(current, articles))
+    fn apply(
+        history: &[HistoricDocument],
+        stack: &[Document],
+        articles: Vec<Article>,
+    ) -> Result<Vec<Article>, GenericError> {
+        DuplicateFilter::apply(history, stack, articles)
+            .and_then(|articles| MalformedFilter::apply(history, stack, articles))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::convert::TryInto;
 
     use crate::{
         document::{document_from_article, Document},
@@ -78,30 +95,65 @@ mod tests {
     };
     use xayn_discovery_engine_providers::Article;
 
+    use super::*;
+
     #[test]
-    fn test_duplicate_filter() {
+    fn test_filter_duplicate_stack() {
         let valid_articles: Vec<Article> =
             serde_json::from_str(include_str!("../../test-fixtures/articles-valid.json")).unwrap();
+        assert_eq!(valid_articles.len(), 4);
 
-        let documents = valid_articles.as_slice()[0..2]
+        let documents = valid_articles
             .iter()
+            .take(2)
             .map(|article| {
                 let doc = Document::default();
                 document_from_article(article.clone(), doc.stack_id, doc.smbert_embedding).unwrap()
             })
             .collect::<Vec<_>>();
 
-        let result = CommonFilter::apply(documents.as_slice(), valid_articles).unwrap();
-        let titles = result.iter().map(|a| &a.title).collect::<Vec<_>>();
+        let filtered = CommonFilter::apply(&[], &documents, valid_articles)
+            .unwrap()
+            .into_iter()
+            .map(|article| article.title)
+            .collect::<Vec<_>>();
 
-        assert_eq!(titles, [
+        assert_eq!(filtered, [
             "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
         ]);
     }
 
     #[test]
-    fn test_malformed_media_filter() {
+    fn test_filter_duplicate_history() {
+        let valid_articles = serde_json::from_str::<Vec<Article>>(include_str!(
+            "../../test-fixtures/articles-valid.json"
+        ))
+        .unwrap();
+        assert_eq!(valid_articles.len(), 4);
+
+        let history = valid_articles
+            .iter()
+            .take(2)
+            .cloned()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<HistoricDocument>, _>>()
+            .unwrap();
+
+        let filtered = CommonFilter::apply(&history, &[], valid_articles)
+            .unwrap()
+            .into_iter()
+            .map(|article| article.title)
+            .collect::<Vec<_>>();
+
+        assert_eq!(filtered, [
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
+            "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+        ]);
+    }
+
+    #[test]
+    fn test_filter_media() {
         let documents: Vec<Document> = vec![];
         let valid_articles: Vec<Article> =
             serde_json::from_str(include_str!("../../test-fixtures/articles-valid.json")).unwrap();
@@ -116,7 +168,7 @@ mod tests {
             .chain(malformed_articles.iter().cloned())
             .collect();
 
-        let result = CommonFilter::apply(documents.as_slice(), input).unwrap();
+        let result = CommonFilter::apply(&[], documents.as_slice(), input).unwrap();
         let titles = result.iter().map(|a| &a.title).collect::<Vec<_>>();
 
         assert_eq!(titles.as_slice(), [
@@ -135,7 +187,7 @@ mod tests {
         .unwrap();
         assert_eq!(malformed_articles.len(), 2);
 
-        let result = CommonFilter::apply(&[], malformed_articles).unwrap();
+        let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
         assert!(result.is_empty());
     }
 
@@ -147,7 +199,7 @@ mod tests {
         .unwrap();
         assert_eq!(malformed_articles.len(), 3);
 
-        let result = CommonFilter::apply(&[], malformed_articles).unwrap();
+        let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
         assert!(result.is_empty());
     }
 
@@ -159,7 +211,7 @@ mod tests {
         .unwrap();
         assert_eq!(malformed_articles.len(), 2);
 
-        let result = CommonFilter::apply(&[], malformed_articles).unwrap();
+        let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
         assert!(result.is_empty());
     }
 
@@ -171,7 +223,7 @@ mod tests {
         .unwrap();
         assert_eq!(malformed_articles.len(), 2);
 
-        let result = CommonFilter::apply(&[], malformed_articles).unwrap();
+        let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
         assert!(result.is_empty());
     }
 }
