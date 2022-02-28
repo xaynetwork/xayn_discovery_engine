@@ -88,6 +88,7 @@ pub(crate) struct Stack {
 impl Stack {
     /// Create a new `Stack` with the given [`Data`] and customized [`Ops`].
     pub(crate) fn new(data: Data, ops: BoxedOps) -> Result<Self, Error> {
+        // TODO we could just indicate errors and filter
         Self::validate_documents_stack_id(&data.documents, ops.id())?;
 
         Ok(Self { data, ops })
@@ -104,6 +105,7 @@ impl Stack {
         new_documents: &[Document],
         ranker: &mut impl Ranker,
     ) -> Result<(), Error> {
+        // TODO we could just indicate errors and filter
         Self::validate_documents_stack_id(new_documents, self.ops.id())?;
 
         let mut items = self

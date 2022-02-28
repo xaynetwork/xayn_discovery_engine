@@ -51,6 +51,9 @@ pub trait Ops {
     async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError>;
 
     /// Filter `articles` based on `stack` documents.
+    // TODO as far as I can tell there is no reason for filter to be fallible
+    //      even if future implementations are, we probably want to just log/indicate
+    //      it as a side effect and continue on.
     fn filter_articles(
         &self,
         history: &[HistoricDocument],
@@ -59,6 +62,9 @@ pub trait Ops {
     ) -> Result<Vec<Article>, GenericError>;
 
     /// Merge stacked and new items.
+    // TODO as far as I can tell there is no reason for merge to be fallible
+    //      even if future implementations are, we probably want to just log/indicate
+    //      it as a side effect and continue on.
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
 }
 

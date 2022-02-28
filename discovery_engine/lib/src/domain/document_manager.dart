@@ -90,6 +90,9 @@ class DocumentManager {
         reaction: userReaction,
       ),
     );
+    //TODO do we want to try to save the engine state even if userReacted failes
+    //TODO If we can't save the engine state we might want to log report error,
+    //     but we still can continue with `notifyChanged()`
     await _engineStateRepo.save(await _engine.serialize());
     _changedDocsReporter.notifyChanged([doc]);
   }
@@ -100,6 +103,7 @@ class DocumentManager {
   Future<void> addActiveDocumentTime(
     DocumentId id,
     DocumentViewMode mode,
+    //TODO this should be `Duration time`
     int sec,
   ) async {
     if (sec < 0) {
@@ -130,6 +134,7 @@ class DocumentManager {
       ),
     );
 
+    //TODO do we want to try to save the engine state even if timeSpent failes
     await _engineStateRepo.save(await _engine.serialize());
   }
 }

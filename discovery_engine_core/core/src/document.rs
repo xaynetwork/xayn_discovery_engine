@@ -143,6 +143,7 @@ impl TryFrom<Article> for NewsResource {
             date_published: article.published_date,
             url: Url::parse(&article.link)?,
             source_domain: article.source_domain,
+            // TODO if ut's not an url, we can just skip it (default to None)
             image: (!media.is_empty())
                 .then(|| Url::parse(&media))
                 .transpose()?,

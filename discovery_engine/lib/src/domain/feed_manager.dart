@@ -88,6 +88,8 @@ class FeedManager {
   Future<EngineEvent> nextFeedBatch() async {
     final history = await _docRepo.fetchHistory();
     final feedDocs = await _engine.getFeedDocuments(history, _maxDocs);
+    // TODO do not fail if save fails (?)
+    // TODO even save if getFeedDocuments fails (?)
     await _engineStateRepo.save(await _engine.serialize());
 
     await _docRepo.updateMany(feedDocs.map((e) => e.document));

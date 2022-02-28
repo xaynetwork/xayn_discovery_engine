@@ -38,6 +38,8 @@ pub(crate) trait BetaSample {
 pub(crate) struct BetaSampler;
 
 impl BetaSample for BetaSampler {
+    // TODO we could consider making this non fallible by clamping alpha and beta,
+    //      (and probably log an error)
     fn sample(&self, alpha: f32, beta: f32) -> Result<f32, Error> {
         Ok(Beta::new(alpha, beta)?.sample(&mut rand::thread_rng()))
     }

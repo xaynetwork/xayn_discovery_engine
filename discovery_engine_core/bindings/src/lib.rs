@@ -42,6 +42,8 @@ use xayn_discovery_engine_core::Engine;
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
+    //TODO do we retry on failure, can we differentiate temporary and permanent failure?
+    //      do we even have temporary failure?
     #[allow(clippy::box_vec)]
     pub async fn initialize(
         config: Box<InitConfig>,

@@ -35,9 +35,13 @@ pub enum Error {
 }
 
 /// Client that can provide documents.
+// TODO the only reason `token`, `url` are `Default` is because we stringy typed them
+//      instead of `Client` being default the place where `Client` is used should use
+//      `Option<Client>` or better "configure" Ops when they are created
 #[derive(Default)]
 pub struct Client {
     token: String,
+    // TODO make it a Url type
     url: String,
 }
 
@@ -71,12 +75,18 @@ impl Client {
 
     /// Retrieve news from the remote API
     pub async fn news(&self, params: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
+        //TODO this code can be largely de-duplicate, also
+        //     `news`/`headlines` is specific to the caller.
+        //      I.e. something like `pub async fn fetch_articles(path, impl FnOnce(&mut Url)` could do
+        //          (and then add query parameters using Url::query_pairs_mut which also safes us the
+        //           `to_string()`, `into()` calls for many values)
         let mut query: BTreeMap<String, String> = BTreeMap::new();
         query.insert("sort_by".into(), "relevancy".into());
         Self::build_news_query(&mut query, params);
 
         let c = reqwest::Client::new();
         let response = c
+            //TODO use proper url path extension
             .get(format!("{}/_sn", self.url))
             .timeout(Self::TIMEOUT)
             .bearer_auth(&self.token)

@@ -32,6 +32,8 @@ use crate::{
 use super::Ops;
 
 /// Stack operations customized for breaking news items.
+//TODO configure on creation, only have `.configure` for reconfiguring, there is no
+//      semantic consistent default implementation as far as I can tell
 #[derive(Default)]
 pub(crate) struct BreakingNews {
     client: Client,
@@ -52,6 +54,7 @@ impl Ops for BreakingNews {
     }
 
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
+        // TODO there is a log of code duplication between this and the one in `personalized.rs`.
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
@@ -67,6 +70,7 @@ impl Ops for BreakingNews {
                 }
             }
             if articles.is_empty() && !errors.is_empty() {
+                // TODO we can return all errors, it's at most one per-market
                 Err(errors.pop().unwrap(/* nonempty errors */).into())
             } else {
                 Ok(articles)

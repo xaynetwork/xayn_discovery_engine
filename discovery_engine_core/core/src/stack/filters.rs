@@ -18,6 +18,7 @@ use url::Url;
 use xayn_discovery_engine_providers::Article;
 
 pub(crate) trait ArticleFilter {
+    //TODO like mentioned on StackOps we seem to have no use for making this fallible.
     fn apply(current: &[Document], articles: Vec<Article>) -> Result<Vec<Article>, GenericError>;
 }
 

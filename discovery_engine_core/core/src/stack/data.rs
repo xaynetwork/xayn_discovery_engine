@@ -43,7 +43,12 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    #[allow(dead_code)]
+    // TODO this is only used by tests, and many tests which use it test itself;
+    //      Also outside of tests the only place where we do create new `Data` always
+    //      uses default values. We also don't enforce this constraints when modifying
+    //      `alpha`, `beta` (currently we only add `1` so ok). Maybe remove `new`, add a
+    //      `modify_alpha/beta` function which clamps the values to `>0.0`??
+    #[cfg(test)]
     /// Create a `Data`.
     pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
         if alpha <= 0.0 {

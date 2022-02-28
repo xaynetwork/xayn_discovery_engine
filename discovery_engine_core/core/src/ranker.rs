@@ -28,6 +28,7 @@ use crate::{
 /// Provides a method for ranking a slice of [`Document`] items.
 pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
+    //TODO check exactly how/when ranking fails.
     fn rank(&mut self, items: &mut [Document]) -> Result<(), GenericError>;
 
     /// Logs the time a user spent on a document.
@@ -43,14 +44,22 @@ pub trait Ranker {
     fn serialize(&self) -> Result<Vec<u8>, GenericError>;
 
     /// Computes the S-mBert embedding of the given `sequence`.
+    //TODO check exactly how/when ranking fails.
     fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError>;
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
+    // TODO the ranking implementation we currently use can't fail as it will
+    //      fallback to sort by score on error. We could make `Ranker.rank` non
+    //      erroring for now, if we combine it with a few similar changes we can
+    //      remove most error cases in `update_stack`, especially if we indicate
+    //      but not return an error if fetching new documents fails, in which case
+    //      we could make it error less.
     fn rank(&mut self, items: &mut [Document]) -> Result<(), GenericError> {
         self.rank(items).map_err(Into::into)
     }
 
+    // TODO this can't fail, it should not return a result
     fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError> {
         self.log_document_view_time(
             time_spent.reaction.into(),
@@ -60,6 +69,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
         Ok(())
     }
 
+    // TODO this can't fail, it should not return a result
     fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError> {
         self.log_user_reaction(
             reaction.reaction.into(),

@@ -108,6 +108,7 @@ pub struct EndpointConfig {
     /// Key for accessing API.
     pub(crate) api_key: String,
     /// Base URL for API.
+    //TODO this need to be a valid Url, use type Url.
     pub(crate) api_base_url: String,
     /// Page size setting for API.
     pub(crate) page_size: usize,
@@ -185,6 +186,7 @@ where
             return Err(Error::NoStackOps);
         }
 
+        //TODO if failed indicate error but use Default HashMap
         let mut stack_data = bincode::deserialize::<HashMap<StackId, _>>(&state.0)
             .map_err(Error::Deserialization)?;
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
@@ -204,12 +206,15 @@ where
             .map(|mut ops| {
                 let id = ops.id();
                 let data = stack_data(id);
+                //TODO the config exist when creating the StackOp, so
+                //     we can move it into the constructor of the StackOps
                 ops.configure(&config);
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
             .collect::<Result<_, _>>()
             .map(RwLock::new)
             .map_err(Error::InvalidStack)?;
+        //TODO shouldn't this be part of `EndpointConfig` even if we always use default values there
         let core_config = CoreConfig::default();
 
         let mut engine = Self {
@@ -219,6 +224,10 @@ where
             ranker,
         };
 
+        //FIXME[post-GFL]: Once we have no longer a global FFI lock we can spawn this,
+        //                 instead of waiting it which should reduce upstart time.
+        //                 Through there might be additional aspects to consider like,
+        //                 debouncing update_stack calls.
         // we don't want to fail initialization if there are network problems
         engine.update_stacks(history, usize::MAX).await.ok();
 
@@ -233,10 +242,12 @@ where
             .map(|(id, stack)| (id, &stack.data))
             .collect::<HashMap<_, _>>();
 
+        // TODO If serialization fails, error but also pretend there is no state for engine.
         let engine = bincode::serialize(&stacks_data)
             .map(StackState)
             .map_err(|err| Error::Serialization(err.into()))?;
 
+        // TODO If serialization fails, error but also pretend there is no state for engine.
         let ranker = self
             .ranker
             .serialize()
@@ -245,6 +256,7 @@ where
 
         let state_data = State { engine, ranker };
 
+        // TODO If serialization fails, error but also pretend there is no state for engine.
         bincode::serialize(&state_data).map_err(|err| Error::Serialization(err.into()))
     }
 
@@ -261,6 +273,8 @@ where
         for stack in self.stacks.write().await.values_mut() {
             stack.data = StackData::default();
         }
+
+        //FIXME[post-GFL]: We could have a (debounced) `update_stacks` queue instead of a global lock
         self.update_stacks(history, self.core_config.request_new)
             .await
     }
@@ -273,6 +287,10 @@ where
     ) -> Result<Vec<Document>, Error> {
         let documents = SelectionIter::new(BetaSampler, self.stacks.write().await.values_mut())
             .select(max_documents)?;
+
+        // TODO even if this fails we still can return a valid list of documents for this call,
+        //      This also fit's in with the post global ffi lock idea of spawning update stacks.
+        //      Which should yield a more reactive UI experience.
         self.update_stacks(history, self.core_config.request_new)
             .await?;
 
@@ -325,6 +343,7 @@ where
                         .into_iter()
                         .map(|article| {
                             let title = article.title.as_str();
+                            // TODO we don't need to fail the whole stack just because computing one embedding fails
                             let embedding =
                                 self.ranker.compute_smbert(title).map_err(Error::Ranker)?;
                             document_from_article(article, id, embedding).map_err(Error::Document)
@@ -381,6 +400,7 @@ impl XaynAiEngine {
         state: Option<&[u8]>,
         history: &[HistoricDocument],
     ) -> Result<Self, Error> {
+        //TODO can't we return a typed config? Wait, wasn't ai_config supposed to be opaque to discovery_engine?
         let ai_config = ai_config_from_json(config.ai_config.as_deref().unwrap_or("{}"));
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
@@ -423,8 +443,11 @@ impl XaynAiEngine {
         ];
 
         if let Some(state) = state {
+            //TODO If deserializing state fails we want to indicate an error
+            //     but continue with as if there had been no state.
             let state: State = bincode::deserialize(state).map_err(Error::Deserialization)?;
             let ranker = builder
+                // TODO if fails retry with no state for this
                 .with_serialized_state(&state.ranker.0)
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
