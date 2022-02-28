@@ -31,12 +31,20 @@ fn init_tracing_once() {
         .with_max_level(LevelFilter::INFO)
         .finish();
 
+    #[cfg(target_os = "android")]
+    let init_platform_layer = || tracing_android::layer("xayn_discovery_engine").ok();
+
+    #[cfg(target_os = "ios")]
+    let init_platform_layer =
+        || tracing_oslog::OsLogger::new("com.xayn.discovery_engine", "default");
+
     cfg_if::cfg_if! {
-        if #[cfg(target_os = "android")] {
+        if #[cfg(any(target_os = "android", target_os = "ios"))] {
             use tracing_subscriber::layer::SubscriberExt;
-            let layer = tracing_android::layer("xayn_discovery_engine").ok();
+            let layer = init_platform_layer();
             subscriber.with(layer).init();
-        } else {
+        }
+        else {
             subscriber.init();
         }
     }
