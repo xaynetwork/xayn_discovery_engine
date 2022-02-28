@@ -3,6 +3,7 @@ members = [
     "bindings",
     "core",
     "providers",
+    "tooling",
 ]
 resolver = "2"
 

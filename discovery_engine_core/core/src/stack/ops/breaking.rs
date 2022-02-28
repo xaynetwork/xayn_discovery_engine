@@ -64,6 +64,7 @@ impl Ops for BreakingNews {
                 let query = HeadlinesQuery {
                     market,
                     page_size: self.page_size,
+                    page: 1,
                 };
                 match self.client.headlines(&query).await {
                     Ok(batch) => articles.extend(batch),
