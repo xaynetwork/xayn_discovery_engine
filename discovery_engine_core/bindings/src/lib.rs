@@ -28,6 +28,7 @@
 
 pub mod async_bindings;
 pub mod types;
+mod tracing;
 
 use xayn_discovery_engine_core::Engine;
 
@@ -48,6 +49,8 @@ impl XaynDiscoveryEngineAsyncFfi {
         state: Option<Box<Vec<u8>>>,
         history: Box<Vec<HistoricDocument>>,
     ) -> Box<Result<SharedEngine, String>> {
+        tracing::init_tracing();
+
         Box::new(
             Engine::from_config(*config, state.as_deref().map(Vec::as_slice), &history)
                 .await
