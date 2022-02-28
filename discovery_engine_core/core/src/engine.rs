@@ -19,7 +19,7 @@ use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -386,7 +386,6 @@ async fn update_stacks<'a>(
     let mut stacks: Vec<_> = stacks.filter(|stack| stack.len() <= request_new).collect();
 
     let needs_key_phrases = stacks.iter().any(|stack| stack.ops.needs_key_phrases());
-
     let key_phrases = if needs_key_phrases {
         ranker.select_top_key_phrases(select_top)
     } else {
@@ -395,28 +394,34 @@ async fn update_stacks<'a>(
 
     let mut errors = Vec::new();
     for stack in &mut stacks {
-        let articles = stack
+        let documents = stack
             .new_items(&key_phrases)
             .await
-            .and_then(|articles| stack.filter_articles(history, articles));
+            .and_then(|articles| {
+                let id = stack.id();
+                Ok(stack
+                    .filter_articles(history, articles)?
+                    .into_par_iter()
+                    .map(|article| {
+                        let title = article.title.as_str();
+                        let embedding = ranker.compute_smbert(title).map_err(Error::Ranker)?;
+                        document_from_article(article, id, embedding).map_err(Error::Document)
+                    })
+                    .partition_map::<Vec<_>, Vec<_>, _, _, _>(|result| match result {
+                        Ok(document) => Either::Left(document),
+                        Err(error) => Either::Right(error),
+                    }))
+            })
+            .map_err(Error::StackOpFailed);
 
-        match articles.map_err(Error::StackOpFailed).and_then(|articles| {
-            let id = stack.id();
-            articles
-                .into_par_iter()
-                .map(|article| {
-                    let title = article.title.as_str();
-                    let embedding = ranker.compute_smbert(title).map_err(Error::Ranker)?;
-                    document_from_article(article, id, embedding).map_err(Error::Document)
-                })
-                .collect::<Result<Vec<_>, _>>()
-        }) {
-            Ok(documents) => {
+        match documents {
+            Ok((documents, article_errors)) => {
                 if let Err(error) = stack.update(&documents, ranker) {
                     errors.push(Error::StackOpFailed(error));
                 } else {
                     stack.data.retain_top(keep_top);
                 }
+                errors.extend(article_errors);
             }
             Err(error) => errors.push(error),
         }
