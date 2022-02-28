@@ -52,9 +52,10 @@ pub enum Error {
 pub struct Id(Uuid);
 
 impl Id {
-    /// Creates a [`Id`] from a 128bit value in big-endian order.
-    pub fn from_u128(id: u128) -> Self {
-        Id(Uuid::from_u128(id))
+    // forbid inline to avoid miscompilation
+    #[inline(never)]
+    pub(crate) fn new() -> Self {
+        Self(Uuid::new_v4())
     }
 }
 
@@ -214,7 +215,7 @@ pub(crate) fn document_from_article(
     smbert_embedding: Embedding,
 ) -> Result<Document, Error> {
     Ok(Document {
-        id: Uuid::new_v4().into(),
+        id: Id::new(),
         stack_id,
         smbert_embedding,
         resource: article.try_into()?,
