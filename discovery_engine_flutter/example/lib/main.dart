@@ -41,8 +41,14 @@ class _MyAppState extends State<MyApp> {
   double progress = .0;
   EngineState engineState = EngineState.notReady;
 
+  @override
+  void initState() {
+    super.initState();
+    _initEngine();
+  }
+
   // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initEngine() async {
+  Future<void> _initEngine() async {
     if (engineState != EngineState.notReady) return;
     setState(() => engineState = EngineState.initializing);
 
@@ -92,13 +98,14 @@ class _MyAppState extends State<MyApp> {
 
     if (_engine == null) {
       setState(() => engineState = EngineState.initFailed);
+      return;
     }
-  }
 
-  Future<void> requestNews() async {
-    if (_engine == null) return;
+    final requestFeedResponse = await _engine!.requestFeed();
+    print('-- requestFeedResponse --');
+    print(requestFeedResponse);
+
     final nextBatchResponse = await _engine!.requestNextFeedBatch();
-
     print('-- nextBatchResponse --');
     print(nextBatchResponse);
   }
@@ -116,18 +123,8 @@ class _MyAppState extends State<MyApp> {
             children: [
               if (engineState == EngineState.initializing)
                 Text('Fetching assets: ${progress.toStringAsFixed(0)}%'),
-              if (engineState == EngineState.ready) ...[
+              if (engineState == EngineState.ready)
                 const Text('Engine initialized'),
-                ElevatedButton(
-                  onPressed: requestNews,
-                  child: const Text('Request News'),
-                ),
-              ],
-              if (engineState == EngineState.notReady)
-                ElevatedButton(
-                  onPressed: initEngine,
-                  child: const Text('Initialize engine'),
-                ),
               if (engineState == EngineState.initFailed)
                 const Text('Failure to initialize the engine'),
             ],
