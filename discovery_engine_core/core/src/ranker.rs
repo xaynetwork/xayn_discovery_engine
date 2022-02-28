@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use chrono::NaiveDateTime;
 use uuid::Uuid;
 
 use xayn_ai::{
@@ -91,12 +92,8 @@ impl xayn_ai::ranker::Document for Document {
         &self.smbert_embedding
     }
 
-    fn score(&self) -> Option<f32> {
-        self.resource.score
-    }
-
-    fn rank(&self) -> usize {
-        self.resource.rank
+    fn date_published(&self) -> NaiveDateTime {
+        self.resource.date_published
     }
 }
 
