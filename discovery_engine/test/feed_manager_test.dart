@@ -20,6 +20,8 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show ClientEventSucceeded;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
     show FeedManager;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -28,8 +30,6 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -66,7 +66,7 @@ Future<void> main() async {
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
-  const maxBatch = 5;
+  final config = EventConfig(5);
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
@@ -74,7 +74,7 @@ Future<void> main() async {
 
   final mgr = FeedManager(
     engine,
-    maxBatch,
+    config,
     docRepo,
     activeRepo,
     changedRepo,
@@ -190,24 +190,6 @@ Future<void> main() async {
       expect(feed[2].documentId, equals(engine.doc0.documentId));
       expect(feed[2].batchIndex, equals(0));
       // doc3 is excluded since it is inactive
-    });
-
-    test('change configuration feedMarkets', () async {
-      final markets = {
-        const FeedMarket(
-          countryCode: 'Country',
-          langCode: 'language',
-        )
-      };
-      final evt = await mgr.changeConfiguration(markets, null);
-      expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
-    });
-
-    test('change configuration maxItemsPerFeedBatch', () async {
-      final previous = mgr.maxItemsPerFeedBatch;
-      final evt = await mgr.changeConfiguration(null, previous + 1);
-      expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
-      expect(mgr.maxItemsPerFeedBatch, previous + 1);
     });
   });
 }

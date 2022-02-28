@@ -72,7 +72,7 @@ void main() {
         'with "wrongEventInResponse" reason', () async {
       final engine = await createEngineWithEntryPoint(withWrongEventResponse);
       final response =
-          await engine.changeConfiguration(maxItemsPerFeedBatch: 0);
+          await engine.changeConfiguration(maxItemsPerFeedBatch: 1);
 
       expect(response, isA<EngineExceptionRaised>());
       expect(
@@ -86,9 +86,20 @@ void main() {
     test(
       'GIVEN empty set of FeedMarket WHEN create ChangeConfiguration event THEN throw AssertError',
       () {
-        const values = <FeedMarket>{};
         expect(
-          () => ClientEvent.configurationChanged(feedMarkets: values),
+          () => ClientEvent.configurationChanged(
+            feedMarkets: const <FeedMarket>{},
+          ),
+          throwsA(isA<AssertionError>()),
+        );
+      },
+    );
+
+    test(
+      'GIVEN zero maxItemsPerBatch WHEN create ChangeConfiguration event THEN throw AssertError',
+      () {
+        expect(
+          () => ClientEvent.configurationChanged(maxItemsPerFeedBatch: 0),
           throwsA(isA<AssertionError>()),
         );
       },

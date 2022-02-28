@@ -12,15 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show EngineEvent, EngineExceptionReason, FeedFailureReason;
+    show EngineEvent, FeedFailureReason;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarkets;
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -35,7 +34,7 @@ import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.da
 /// Business logic concerning the management of the feed.
 class FeedManager {
   final Engine _engine;
-  int _maxDocs;
+  final EventConfig _config;
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
   final ChangedDocumentRepository _changedRepo;
@@ -43,53 +42,24 @@ class FeedManager {
 
   FeedManager(
     this._engine,
-    this._maxDocs,
+    this._config,
     this._docRepo,
     this._activeRepo,
     this._changedRepo,
     this._engineStateRepo,
   );
 
-  @visibleForTesting
-  int get maxItemsPerFeedBatch => _maxDocs;
-
   /// Handle the given feed client event.
   ///
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleFeedClientEvent(FeedClientEvent event) =>
       event.maybeWhen(
-        configurationChanged: (final feedMarkets, final maxItemsPerFeedBatch) =>
-            changeConfiguration(feedMarkets, maxItemsPerFeedBatch),
         feedRequested: () => restoreFeed(),
         nextFeedBatchRequested: () => nextFeedBatch(),
         feedDocumentsClosed: (ids) => deactivateDocuments(ids),
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
-
-  /// Changes the configuration of the feed.
-  Future<EngineEvent> changeConfiguration(
-    final FeedMarkets? feedMarkets,
-    final int? maxItemsPerFeedBatch,
-  ) async {
-    if (feedMarkets != null) {
-      final history = await _docRepo.fetchHistory();
-      try {
-        await _engine.setMarkets(history, feedMarkets);
-      } catch (e, st) {
-        return EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.genericError,
-          message: '$e',
-          stackTrace: '$st',
-        );
-      }
-    }
-    if (maxItemsPerFeedBatch != null) {
-      _maxDocs = maxItemsPerFeedBatch;
-    }
-
-    return const EngineEvent.clientEventSucceeded();
-  }
 
   /// Generates the feed of active documents, ordered by their global rank.
   ///
@@ -119,7 +89,7 @@ class FeedManager {
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
     final history = await _docRepo.fetchHistory();
-    final feedDocs = await _engine.getFeedDocuments(history, _maxDocs);
+    final feedDocs = await _engine.getFeedDocuments(history, _config.maxDocs);
     await _engineStateRepo.save(await _engine.serialize());
 
     await _docRepo.updateMany(feedDocs.map((e) => e.document));

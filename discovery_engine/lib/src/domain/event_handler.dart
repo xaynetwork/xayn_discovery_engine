@@ -20,10 +20,10 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ClientEvent,
         DocumentClientEvent,
         EngineEvent,
-        EngineExceptionRaised,
         EngineExceptionReason,
         FeedClientEvent,
-        Init;
+        Init,
+        SystemClientEvent;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show
         AssetFetcherException,
@@ -59,6 +59,8 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
     show EngineStateRepository;
+import 'package:xayn_discovery_engine/src/domain/system_manager.dart'
+    show SystemManager;
 import 'package:xayn_discovery_engine/src/ffi/types/engine.dart'
     show DiscoveryEngineFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
@@ -89,8 +91,14 @@ import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_
     show UriAdapter;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
+class EventConfig {
+  int maxDocs;
+
+  EventConfig(this.maxDocs) : assert(maxDocs > 0);
+}
+
 class EventHandler {
-  Future<Engine>? _engineFuture;
+  Engine? _engine;
   final AssetReporter _assetReporter;
   final ChangedDocumentsReporter _changedDocumentsReporter;
   late final DocumentRepository _documentRepository;
@@ -99,6 +107,7 @@ class EventHandler {
   late final EngineStateRepository _engineStateRepository;
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
+  late final SystemManager _systemManager;
 
   EventHandler()
       : _assetReporter = AssetReporter(),
@@ -124,48 +133,46 @@ class EventHandler {
   /// previous events to finish processing.
   Future<EngineEvent> handleMessage(ClientEvent clientEvent) async {
     if (clientEvent is Init) {
+      if (_engine != null) {
+        return const EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.wrongEventRequested,
+        );
+      }
+
       try {
-        _engineFuture = _initEngine(
+        _engine = await _initEngine(
           clientEvent.configuration,
           aiConfig: clientEvent.aiConfig,
         );
-        await _engineFuture;
         return const EngineEvent.clientEventSucceeded();
       } catch (e, st) {
         logger.e('failed to initialize the engine', e, st);
-        _engineFuture = null;
         final reason = e is AssetFetcherException
             ? EngineExceptionReason.failedToGetAssets
             : EngineExceptionReason.genericError;
-        return EngineExceptionRaised(reason, message: '$e', stackTrace: '$st');
+        return EngineEvent.engineExceptionRaised(
+          reason,
+          message: '$e',
+          stackTrace: '$st',
+        );
       }
     }
 
-    if (_engineFuture == null) {
+    if (_engine == null) {
       return const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
       );
     }
 
-    try {
-      await _engineFuture;
-    } catch (e, st) {
-      logger.e('failed to handle event.', e, st);
-      return EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.engineNotReady,
-        message: '$e',
-        stackTrace: '$st',
-      );
-    }
-
-    // prepare responses
-    EngineEvent response = const EngineEvent.clientEventSucceeded();
-
+    EngineEvent response;
     try {
       if (clientEvent is FeedClientEvent) {
         response = await _feedManager.handleFeedClientEvent(clientEvent);
       } else if (clientEvent is DocumentClientEvent) {
         await _documentManager.handleDocumentClientEvent(clientEvent);
+        response = const EngineEvent.clientEventSucceeded();
+      } else if (clientEvent is SystemClientEvent) {
+        response = await _systemManager.handleSystemClientEvent(clientEvent);
       } else {
         response = const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,
@@ -209,6 +216,7 @@ class EventHandler {
     );
 
     // init managers
+    final eventConfig = EventConfig(config.maxItemsPerFeedBatch);
     _documentManager = DocumentManager(
       engine,
       _documentRepository,
@@ -218,12 +226,13 @@ class EventHandler {
     );
     _feedManager = FeedManager(
       engine,
-      config.maxItemsPerFeedBatch,
+      eventConfig,
       _documentRepository,
       _activeDataRepository,
       _changedDocumentRepository,
       _engineStateRepository,
     );
+    _systemManager = SystemManager(engine, eventConfig, _documentRepository);
 
     return engine;
   }
