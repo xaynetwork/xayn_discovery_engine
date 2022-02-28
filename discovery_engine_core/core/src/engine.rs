@@ -394,36 +394,40 @@ async fn update_stacks<'a>(
 
     let mut errors = Vec::new();
     for stack in &mut stacks {
-        let documents = stack
-            .new_items(&key_phrases)
-            .await
-            .and_then(|articles| {
-                let id = stack.id();
-                Ok(stack
-                    .filter_articles(history, articles)?
-                    .into_par_iter()
-                    .map(|article| {
-                        let title = article.title.as_str();
-                        let embedding = ranker.compute_smbert(title).map_err(Error::Ranker)?;
-                        document_from_article(article, id, embedding).map_err(Error::Document)
-                    })
-                    .partition_map::<Vec<_>, Vec<_>, _, _, _>(|result| match result {
-                        Ok(document) => Either::Left(document),
-                        Err(error) => Either::Right(error),
-                    }))
-            })
-            .map_err(Error::StackOpFailed);
-
-        match documents {
-            Ok((documents, article_errors)) => {
-                if let Err(error) = stack.update(&documents, ranker) {
-                    errors.push(Error::StackOpFailed(error));
-                } else {
-                    stack.data.retain_top(keep_top);
-                }
-                errors.extend(article_errors);
+        let articles = match stack.new_items(&key_phrases).await {
+            Ok(articles) => articles,
+            Err(error) => {
+                errors.push(Error::StackOpFailed(error));
+                continue;
             }
-            Err(error) => errors.push(error),
+        };
+
+        let articles = match stack.filter_articles(history, articles) {
+            Ok(articles) => articles,
+            Err(error) => {
+                errors.push(Error::StackOpFailed(error));
+                continue;
+            }
+        };
+
+        let id = stack.id();
+        let (documents, error) = articles
+            .into_par_iter()
+            .map(|article| {
+                let title = article.title.as_str();
+                let embedding = ranker.compute_smbert(title).map_err(Error::Ranker)?;
+                document_from_article(article, id, embedding).map_err(Error::Document)
+            })
+            .partition_map::<Vec<_>, Vec<_>, _, _, _>(|result| match result {
+                Ok(document) => Either::Left(document),
+                Err(error) => Either::Right(error),
+            });
+        errors.extend(error);
+
+        if let Err(error) = stack.update(&documents, ranker) {
+            errors.push(Error::StackOpFailed(error));
+        } else {
+            stack.data.retain_top(keep_top);
         }
     }
 
