@@ -18,6 +18,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
 const _kEnginePath = 'engine_data';
 const kAssetsPath = '$_kEnginePath/assets';
 const kDatabasePath = '$_kEnginePath/database';
+const tmpFileExt = 'tmp';
 
 /// Data that is required to initialize [`XaynAi`].
 abstract class SetupData {

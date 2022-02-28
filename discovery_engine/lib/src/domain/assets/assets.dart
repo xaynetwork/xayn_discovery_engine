@@ -19,6 +19,6 @@ export 'package:xayn_discovery_engine/src/domain/assets/asset_fetcher.dart'
 export 'package:xayn_discovery_engine/src/domain/assets/asset_reporter.dart'
     show AssetReporter;
 export 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
-    show DataProvider, SetupData, kAssetsPath, kDatabasePath;
+    show DataProvider, SetupData, kAssetsPath, kDatabasePath, tmpFileExt;
 export 'package:xayn_discovery_engine/src/domain/assets/manifest_reader.dart'
     show ManifestReader;
