@@ -26,6 +26,7 @@ enum EngineState {
   notReady,
   initializing,
   ready,
+  initFailed,
 }
 
 class MyApp extends StatefulWidget {
@@ -36,6 +37,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  DiscoveryEngine? _engine;
   double progress = .0;
   EngineState engineState = EngineState.notReady;
 
@@ -49,7 +51,7 @@ class _MyAppState extends State<MyApp> {
     final manifest = await FlutterManifestReader().read();
     final copier = FlutterBundleAssetCopier(
       appDir: appDir.path,
-      bundleAssetsPath: 'assets/ai_assets',
+      bundleAssetsPath: 'assets',
     );
     await copier.copyAssets(manifest);
 
@@ -63,15 +65,13 @@ class _MyAppState extends State<MyApp> {
       manifest: manifest,
     );
 
-    late DiscoveryEngine? engine;
-
     try {
       // Initialise the engine.
       //
       // This will spawn a Worker inside an Isolate (or WebWorker), instantiate
       // all the modules and binaries and establish communication channels
       print('Starting the Discovery Engine...');
-      engine = await DiscoveryEngine.init(
+      _engine = await DiscoveryEngine.init(
         configuration: config,
         onAssetsProgress: (event) => event.whenOrNull(
           fetchingAssetsProgressed: (percentage) =>
@@ -90,16 +90,17 @@ class _MyAppState extends State<MyApp> {
       print(e);
     }
 
-    if (engine == null) {
-      setState(() => engineState = EngineState.notReady);
-      return;
+    if (_engine == null) {
+      setState(() => engineState = EngineState.initFailed);
     }
+  }
 
-    // you can also use `async await` style for request/response
-    final requestFeedResponse = await engine.requestFeed();
+  Future<void> requestNews() async {
+    if (_engine == null) return;
+    final nextBatchResponse = await _engine!.requestNextFeedBatch();
 
-    print('-- requestFeedResponse --');
-    print(requestFeedResponse);
+    print('-- nextBatchResponse --');
+    print(nextBatchResponse);
   }
 
   @override
@@ -114,17 +115,21 @@ class _MyAppState extends State<MyApp> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (engineState == EngineState.initializing)
-                Text('Fetching assets: ${progress.toStringAsPrecision(2)}%'),
-              if (engineState == EngineState.ready)
+                Text('Fetching assets: ${progress.toStringAsFixed(0)}%'),
+              if (engineState == EngineState.ready) ...[
                 const Text('Engine initialized'),
-              if (engineState != EngineState.ready)
                 ElevatedButton(
-                  onPressed:
-                      engineState == EngineState.notReady ? initEngine : null,
-                  child: engineState == EngineState.notReady
-                      ? const Text('Init engine')
-                      : const Text('Initializing...'),
+                  onPressed: requestNews,
+                  child: const Text('Request News'),
                 ),
+              ],
+              if (engineState == EngineState.notReady)
+                ElevatedButton(
+                  onPressed: initEngine,
+                  child: const Text('Initialize engine'),
+                ),
+              if (engineState == EngineState.initFailed)
+                const Text('Failure to initialize the engine'),
             ],
           ),
         ),
