@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show AssetFetcher, AssetReporter, Manifest;
 
@@ -21,13 +22,17 @@ const kDatabasePath = '$_kEnginePath/database';
 const tmpFileExt = 'tmp';
 
 /// Data that is required to initialize [`XaynAi`].
-abstract class SetupData {
+abstract class SetupData with EquatableMixin {
   Object get smbertVocab;
   Object get smbertModel;
   Object get kpeVocab;
   Object get kpeModel;
   Object get kpeCnn;
   Object get kpeClassifier;
+
+  @override
+  List<Object?> get props =>
+      [smbertVocab, smbertModel, kpeVocab, kpeModel, kpeCnn, kpeClassifier];
 }
 
 /// Reads the assets manifest and provides the [SetupData] to further use.
