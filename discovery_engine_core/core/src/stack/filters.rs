@@ -40,25 +40,21 @@ impl ArticleFilter for DuplicateFilter {
     ) -> Result<Vec<Article>, GenericError> {
         let mut urls = history
             .iter()
-            .map(|doc| Cow::Borrowed(doc.url.as_str()))
-            .chain(
-                stack
-                    .iter()
-                    .map(|doc| Cow::Borrowed(doc.resource.url.as_str())),
-            )
+            .map(|doc| Cow::from(doc.url.as_str()))
+            .chain(stack.iter().map(|doc| Cow::from(doc.resource.url.as_str())))
             .collect::<HashSet<_>>();
 
         let mut titles = history
             .iter()
-            .map(|doc| Cow::Borrowed(&doc.title))
-            .chain(stack.iter().map(|doc| Cow::Borrowed(&doc.resource.title)))
+            .map(|doc| Cow::from(&doc.title))
+            .chain(stack.iter().map(|doc| Cow::from(&doc.resource.title)))
             .collect::<HashSet<_>>();
 
         articles.retain(|article| {
-            let do_retain = !(urls.contains(&Cow::Borrowed(article.link.as_str()))
-                || titles.contains(&Cow::Borrowed(&article.title)));
-            urls.insert(Cow::Owned(article.link.to_string()));
-            titles.insert(Cow::Owned(article.title.clone()));
+            let do_retain = !(urls.contains(&Cow::from(article.link.as_str()))
+                || titles.contains(&Cow::from(&article.title)));
+            urls.insert(Cow::from(article.link.to_string()));
+            titles.insert(Cow::from(article.title.clone()));
             do_retain
         });
 
