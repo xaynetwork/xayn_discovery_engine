@@ -97,7 +97,7 @@ class RestoreFeedFailed extends EngineEvent {
 }
 ```
 
-### NewRestoreFeedRequested
+### NextFeedBatchRequested
 
 Event created when the app wants to requests new content for the discovery feed:
  - when reaching the end of the current list of items
@@ -106,21 +106,21 @@ Event created when the app wants to requests new content for the discovery feed:
  - as a follow up when changing the news market
 
 ```dart
-class NewRestoreFeedRequested extends ClientEvent {
-  const NewRestoreFeedRequested();
+class NextFeedBatchRequested extends ClientEvent {
+  const NextFeedBatchRequested();
 }
 
-class NewRestoreFeedSucceeded extends EngineEvent {
+class NextFeedBatchRequestSucceeded extends EngineEvent {
   final List<Document> items;
 
-  const NewRestoreFeedSucceeded(this.items);
+  const NextFeedBatchRequestSucceeded(this.items);
 }
 
-class NewRestoreFeedFailed extends EngineEvent {
-  /// combined enum for `NewRequestFailed` and `NewRestoreFeedFailed`
+class NextFeedBatchRequestFailed extends EngineEvent {
+  /// combined enum for `NewRequestFailed` and `NextFeedBatchRequestFailed`
   final FeedFailureReason reason;
   
-  const NewRestoreFeedFailed(this.reason);
+  const NextFeedBatchRequestFailed(this.reason);
 }
 ```
 
