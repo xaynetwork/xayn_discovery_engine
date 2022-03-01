@@ -32,6 +32,7 @@ void main() {
 
     setUp(() async {
       data = await setupTestEngineData();
+      server = await LocalNewsApiServer.start();
     });
 
     tearDown(() async {
@@ -40,7 +41,6 @@ void main() {
     });
 
     test('init engine with ai models', () async {
-      server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
@@ -50,7 +50,6 @@ void main() {
 
     test('news api request error should not raise an engine init exception',
         () async {
-      server = await LocalNewsApiServer.start();
       server.replyWithError = true;
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),

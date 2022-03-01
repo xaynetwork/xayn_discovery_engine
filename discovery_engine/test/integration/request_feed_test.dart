@@ -36,6 +36,7 @@ void main() {
 
     setUp(() async {
       data = await setupTestEngineData();
+      server = await LocalNewsApiServer.start();
     });
 
     tearDown(() async {
@@ -46,7 +47,6 @@ void main() {
     test(
         'restoreFeed should return the feed that has been requested before with'
         ' requestNextFeedBatch', () async {
-      server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
@@ -65,7 +65,6 @@ void main() {
     test(
         'if requestNextFeedBatch fails due to a news api request error, restoreFeed'
         ' should return an empty list', () async {
-      server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );

@@ -23,7 +23,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
 import '../logging.dart' show setupLogging;
 import 'utils/create_config.dart'
     show TestEngineData, createConfig, setupTestEngineData;
-import 'utils/db.dart' show saveEngineState;
+import 'utils/db.dart' show loadEngineState, saveEngineState;
 import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 
 void main() {
@@ -35,6 +35,7 @@ void main() {
 
     setUp(() async {
       data = await setupTestEngineData();
+      server = await LocalNewsApiServer.start();
     });
 
     tearDown(() async {
@@ -43,15 +44,16 @@ void main() {
     });
 
     test('init engine from a valid state', () async {
-      server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
 
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();
       expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
-
       await engine.dispose();
+
+      final state = await loadEngineState(data.applicationDirectoryPath);
+      expect(state, isNotNull);
 
       final restoredEngine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
@@ -62,7 +64,6 @@ void main() {
     test(
         'init the engine from an invalid state should raise an engine init'
         ' exception', () async {
-      server = await LocalNewsApiServer.start();
       await saveEngineState(data.applicationDirectoryPath, Uint8List(0));
 
       expect(

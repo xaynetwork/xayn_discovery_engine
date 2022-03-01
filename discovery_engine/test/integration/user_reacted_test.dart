@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-@Timeout(Duration(seconds: 60))
+@Timeout(Duration(seconds: 80))
 
 import 'dart:io';
 
@@ -43,6 +43,7 @@ void main() {
 
     setUp(() async {
       data = await setupTestEngineData();
+      server = await LocalNewsApiServer.start();
     });
 
     tearDown(() async {
@@ -51,10 +52,10 @@ void main() {
     });
 
     test('change the user reaction of a document', () async {
-      server = await LocalNewsApiServer.start();
       var engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
+
       // fetch some documents
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();
       expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
@@ -100,8 +101,6 @@ void main() {
     test(
         'if a document id is invalid, the engine should throw an'
         ' EngineExceptionRaised event', () async {
-      server = await LocalNewsApiServer.start();
-
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
       );
