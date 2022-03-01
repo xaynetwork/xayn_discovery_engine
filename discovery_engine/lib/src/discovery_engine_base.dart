@@ -174,7 +174,7 @@ class DiscoveryEngine {
 
   /// Requests next batch of news feed [Document]s.
   ///
-  /// Usualy used when reaching the end of the current list of items, in
+  /// Usually used when reaching the end of the current list of items, in
   /// response to [NextFeedBatchAvailable] event, or after some user action.
   ///
   /// In response it can return:

@@ -21,8 +21,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
         ClientEventSucceeded,
         DocumentId,
-        DocumentsUpdated,
-        EngineEvent,
+        DocumentViewMode,
         EngineExceptionRaised,
         EngineExceptionReason,
         NextFeedBatchRequestSucceeded,
@@ -37,7 +36,7 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine changeUserReaction', () {
+  group('DiscoveryEngine logDocumentTime', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
 
@@ -51,21 +50,14 @@ void main() {
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
 
-    test('change the user reaction of a document', () async {
+    test('log the view time of a document', () async {
       var engine = await initEngine(data, server.port);
 
       // fetch some documents
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();
       expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
 
-      // cache engine state before the request of the change user reaction
-      await engine.dispose();
-      final stateBeforeRequest =
-          await loadEngineState(data.applicationDirectoryPath);
-      expect(stateBeforeRequest, isNotNull);
-
-      // change the user reaction of the first document
-      engine = await initEngine(data, server.port);
+      // like a document in order to create a coi
       final doc =
           (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items.first;
       expect(
@@ -76,14 +68,29 @@ void main() {
         isA<ClientEventSucceeded>(),
       );
 
-      // check that the `DocumentsUpdated` event has been emitted
-      final docUpdatedReaction =
-          doc.copyWith(userReaction: UserReaction.positive);
-      await expectLater(
+      // cache engine state before the request of the document view time
+      await engine.dispose();
+      final stateBeforeRequest =
+          await loadEngineState(data.applicationDirectoryPath);
+      expect(stateBeforeRequest, isNotNull);
+
+      engine = await initEngine(data, server.port);
+      // check that the `ClientEventSucceeded` event will be emitted
+      expect(
         engine.engineEvents,
-        emitsInOrder(<EngineEvent>[
-          DocumentsUpdated([docUpdatedReaction]),
+        emitsInOrder(<Matcher>[
+          isA<ClientEventSucceeded>(),
         ]),
+      );
+
+      // log the view time of the first document (adds the time to the coi)
+      expect(
+        await engine.logDocumentTime(
+          documentId: doc.documentId,
+          mode: DocumentViewMode.story,
+          seconds: 10,
+        ),
+        isA<ClientEventSucceeded>(),
       );
 
       // check that the engine state has changed
@@ -99,14 +106,45 @@ void main() {
         ' EngineExceptionRaised event', () async {
       final engine = await initEngine(data, server.port);
 
-      final response = await engine.changeUserReaction(
+      final response = await engine.logDocumentTime(
         documentId: DocumentId(),
-        userReaction: UserReaction.positive,
+        mode: DocumentViewMode.story,
+        seconds: 1,
       );
 
       expect(response, isA<EngineExceptionRaised>());
       expect(
         (response as EngineExceptionRaised).reason,
+        EngineExceptionReason.genericError,
+      );
+      await engine.dispose();
+    });
+
+    test(
+        'if the view time is negative, the engine should throw an'
+        ' EngineExceptionRaised event', () async {
+      final engine = await initEngine(data, server.port);
+
+      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
+      final doc =
+          (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items.first;
+
+      final succeededResponse = await engine.logDocumentTime(
+        documentId: doc.documentId,
+        mode: DocumentViewMode.story,
+        seconds: 0,
+      );
+      expect(succeededResponse, isA<ClientEventSucceeded>());
+
+      final failedResponse = await engine.logDocumentTime(
+        documentId: doc.documentId,
+        mode: DocumentViewMode.story,
+        seconds: -1,
+      );
+
+      expect(failedResponse, isA<EngineExceptionRaised>());
+      expect(
+        (failedResponse as EngineExceptionRaised).reason,
         EngineExceptionReason.genericError,
       );
       await engine.dispose();
