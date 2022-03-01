@@ -78,16 +78,13 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine: &SharedEngine,
         markets: Box<Vec<Market>>,
         history: Box<Vec<HistoricDocument>>,
-    ) -> Box<Result<(), String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .set_markets(&history, *markets)
-                .await
-                .map_err(|error| error.to_string()),
-        )
+    ) {
+        engine
+            .as_ref()
+            .lock()
+            .await
+            .set_markets(&history, *markets)
+            .await;
     }
 
     /// Gets feed documents.

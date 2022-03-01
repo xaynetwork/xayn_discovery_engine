@@ -18,9 +18,10 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
         DiscoveryEngine,
-        EngineExceptionRaised,
-        RestoreFeedSucceeded,
-        NextFeedBatchRequestSucceeded;
+        FeedFailureReason,
+        NextFeedBatchRequestFailed,
+        NextFeedBatchRequestSucceeded,
+        RestoreFeedSucceeded;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -62,15 +63,28 @@ void main() {
     });
 
     test(
-        'if requestNextFeedBatch fails due to a news api request error, restoreFeed'
-        ' should return an empty list', () async {
+        'if requestNextFeedBatch traces a news api request error, then the'
+        ' depleted stacks have not been updated and subsequent calls should'
+        ' fail with FeedFailureReason.noNewsForMarket', () async {
+      server = await LocalNewsApiServer.start();
+      final engine = await DiscoveryEngine.init(
+        configuration: createConfig(data, server.port),
+      );
+
       server.replyWithError = true;
       final nextBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextBatchResponse, isA<EngineExceptionRaised>());
-      final restoreFeedResponse = await engine.restoreFeed();
+      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      expect(
+        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
+        isNotEmpty,
+      );
 
-      expect(restoreFeedResponse, isA<RestoreFeedSucceeded>());
-      expect((restoreFeedResponse as RestoreFeedSucceeded).items, isEmpty);
+      final subsequentBatchResponse = await engine.requestNextFeedBatch();
+      expect(subsequentBatchResponse, isA<NextFeedBatchRequestFailed>());
+      expect(
+        (subsequentBatchResponse as NextFeedBatchRequestFailed).reason,
+        equals(FeedFailureReason.noNewsForMarket),
+      );
     });
   });
 }

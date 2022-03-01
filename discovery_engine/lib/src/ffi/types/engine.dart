@@ -99,13 +99,11 @@ class DiscoveryEngineFfi implements Engine {
     final List<HistoricDocument> history,
     final FeedMarkets markets,
   ) async {
-    final result = await asyncFfi.setMarkets(
+    await asyncFfi.setMarkets(
       _engine.ref,
       markets.toList().allocVec().move(),
       history.allocNative().move(),
     );
-
-    return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
   /// Gets feed documents.
