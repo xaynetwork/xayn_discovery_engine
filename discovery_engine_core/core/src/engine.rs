@@ -120,7 +120,7 @@ impl From<InitConfig> for EndpointConfig {
         Self {
             api_key: config.api_key,
             api_base_url: config.api_base_url,
-            page_size: 20,
+            page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
         }
     }
