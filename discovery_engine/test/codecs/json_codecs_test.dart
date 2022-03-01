@@ -21,8 +21,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ClientEvent,
         DocumentId,
         UserReaction,
-        FeedRequested,
-        FeedRequestSucceeded,
+        RestoreFeedRequested,
+        RestoreFeedSucceeded,
         ClientEventSucceeded,
         UserReactionChanged,
         EngineEvent,
@@ -54,14 +54,17 @@ void main() {
     });
 
     test(
-        'when converting "FeedRequested" event, should contain a "SendPort" '
+        'when converting "RestoreFeedRequested" event, should contain a "SendPort" '
         'and a proper payload', () {
-      const event_1 = ClientEvent.feedRequested();
+      const event_1 = ClientEvent.restoreFeedRequested();
       final request_1 = OneshotRequest(channel.sender, event_1);
       final message_1 = converter.convert(request_1) as Map;
 
       expect(message_1[kSenderKey], isA<SendPort>());
-      expect(message_1[kPayloadKey], equals({'runtimeType': 'feedRequested'}));
+      expect(
+        message_1[kPayloadKey],
+        equals({'runtimeType': 'restoreFeedRequested'}),
+      );
 
       final documentId = DocumentId();
       final event_2 = ClientEvent.userReactionChanged(
@@ -107,11 +110,11 @@ void main() {
       final documentId = DocumentId();
       final event_1 = {
         kSenderKey: port,
-        kPayloadKey: {'runtimeType': 'feedRequested'}
+        kPayloadKey: {'runtimeType': 'restoreFeedRequested'}
       };
       final req_1 = converter.convert(event_1);
 
-      expect(req_1.payload, isA<FeedRequested>());
+      expect(req_1.payload, isA<RestoreFeedRequested>());
       expect(req_1.sender, isA<Sender<SendingPort>>());
       expect(req_1.sender.platformPort, isA<SendPort>());
       expect(req_1.sender.platformPort, port);
@@ -152,12 +155,12 @@ void main() {
     test(
         'when converting "EngineEvent" types it should convert them'
         'to correctly structured JSON Maps', () {
-      const event_1 = EngineEvent.feedRequestSucceeded([]);
+      const event_1 = EngineEvent.restoreFeedSucceeded([]);
       final message_1 = converter.convert(event_1);
 
       expect(
         message_1,
-        equals({'runtimeType': 'feedRequestSucceeded', 'items': <Object>[]}),
+        equals({'runtimeType': 'restoreFeedSucceeded', 'items': <Object>[]}),
       );
 
       const event_2 = EngineEvent.engineExceptionRaised(
@@ -191,12 +194,12 @@ void main() {
         'when converting correctly structured JSON Maps with events it should '
         'convert them to proper "EngineEvent" types', () {
       final event_1 = {
-        'runtimeType': 'feedRequestSucceeded',
+        'runtimeType': 'restoreFeedSucceeded',
         'items': <Object>[],
       };
-      final req_1 = converter.convert(event_1) as FeedRequestSucceeded;
+      final req_1 = converter.convert(event_1) as RestoreFeedSucceeded;
 
-      expect(req_1, isA<FeedRequestSucceeded>());
+      expect(req_1, isA<RestoreFeedSucceeded>());
       expect(req_1.items, isEmpty);
 
       final event_2 = {
@@ -211,7 +214,7 @@ void main() {
         () {
       expect(
         // a JSON representation of a [ClientEvent], not an [EngineEvent]
-        () => converter.convert({'runtimeType': 'feedRequested'}),
+        () => converter.convert({'runtimeType': 'restoreFeedRequested'}),
         throwsConverterException,
       );
       expect(

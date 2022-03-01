@@ -27,8 +27,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         EngineEvent,
         EngineExceptionReason,
         FeedMarkets,
-        FeedRequestFailed,
-        FeedRequestSucceeded,
+        RestoreFeedFailed,
+        RestoreFeedSucceeded,
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded;
@@ -150,19 +150,19 @@ class DiscoveryEngine {
   /// in the current session.
   ///
   /// In response it can return:
-  /// - [FeedRequestSucceeded] for successful response, containing a list of
+  /// - [RestoreFeedSucceeded] for successful response, containing a list of
   /// [Document] items
-  /// - [FeedRequestFailed] for failed response, with a reason for failure
+  /// - [RestoreFeedFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestFeed() async {
+  Future<EngineEvent> restoreFeed() async {
     return _trySend(() async {
-      const event = ClientEvent.feedRequested();
+      const event = ClientEvent.restoreFeedRequested();
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        feedRequestSucceeded: true,
-        feedRequestFailed: true,
+        restoreFeedSucceeded: true,
+        restoreFeedFailed: true,
         engineExceptionRaised: true,
       );
     });
@@ -303,8 +303,8 @@ class DiscoveryEngine {
 
 extension _MapEvent on EngineEvent {
   EngineEvent mapEvent({
-    bool? feedRequestSucceeded,
-    bool? feedRequestFailed,
+    bool? restoreFeedSucceeded,
+    bool? restoreFeedFailed,
     bool? nextFeedBatchRequestSucceeded,
     bool? nextFeedBatchRequestFailed,
     bool? nextFeedBatchAvailable,
@@ -316,8 +316,8 @@ extension _MapEvent on EngineEvent {
     bool? documentsUpdated,
   }) =>
       map(
-        feedRequestSucceeded: _maybePassThrough(feedRequestSucceeded),
-        feedRequestFailed: _maybePassThrough(feedRequestFailed),
+        restoreFeedSucceeded: _maybePassThrough(restoreFeedSucceeded),
+        restoreFeedFailed: _maybePassThrough(restoreFeedFailed),
         nextFeedBatchRequestSucceeded:
             _maybePassThrough(nextFeedBatchRequestSucceeded),
         nextFeedBatchRequestFailed:

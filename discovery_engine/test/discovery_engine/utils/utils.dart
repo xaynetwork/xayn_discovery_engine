@@ -32,7 +32,7 @@ typedef EntryPoint = void Function(SendPort sendPort);
 class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent initResponse;
   final EngineEvent configurationChangedResponse;
-  final EngineEvent feedRequestedResponse;
+  final EngineEvent restoreFeedRequestedResponse;
   final EngineEvent nextFeedBatchRequestedResponse;
   final EngineEvent feedDocumentsClosedResponse;
   final EngineEvent userReactionChangedResponse;
@@ -43,7 +43,8 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.initResponse = const EngineEvent.clientEventSucceeded(),
     this.configurationChangedResponse =
         const EngineEvent.clientEventSucceeded(),
-    this.feedRequestedResponse = const EngineEvent.feedRequestSucceeded([]),
+    this.restoreFeedRequestedResponse =
+        const EngineEvent.restoreFeedSucceeded([]),
     this.nextFeedBatchRequestedResponse =
         const EngineEvent.nextFeedBatchRequestSucceeded([]),
     this.feedDocumentsClosedResponse = const EngineEvent.clientEventSucceeded(),
@@ -56,7 +57,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     final response = request.payload.map<EngineEvent>(
       init: (_) => initResponse,
       configurationChanged: (_) => configurationChangedResponse,
-      feedRequested: (_) => feedRequestedResponse,
+      restoreFeedRequested: (_) => restoreFeedRequestedResponse,
       nextFeedBatchRequested: (_) => nextFeedBatchRequestedResponse,
       feedDocumentsClosed: (_) => feedDocumentsClosedResponse,
       userReactionChanged: (_) => userReactionChangedResponse,

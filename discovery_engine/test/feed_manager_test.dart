@@ -177,7 +177,7 @@ Future<void> main() async {
       expect(docBox, hasLength(4));
 
       final evt = await mgr.restoreFeed();
-      final feed = evt.whenOrNull(feedRequestSucceeded: (docs) => docs);
+      final feed = evt.whenOrNull(restoreFeedSucceeded: (docs) => docs);
 
       expect(feed, isNotNull);
       expect(feed, hasLength(3));

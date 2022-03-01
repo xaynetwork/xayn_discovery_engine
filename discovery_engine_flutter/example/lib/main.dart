@@ -101,9 +101,9 @@ class _MyAppState extends State<MyApp> {
       return;
     }
 
-    final requestFeedResponse = await _engine!.requestFeed();
-    print('-- requestFeedResponse --');
-    print(requestFeedResponse);
+    final restoreFeedResponse = await _engine!.restoreFeed();
+    print('-- restoreFeedResponse --');
+    print(restoreFeedResponse);
 
     final nextBatchResponse = await _engine!.requestNextFeedBatch();
     print('-- nextBatchResponse --');

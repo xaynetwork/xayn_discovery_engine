@@ -66,19 +66,19 @@ class ConfigurationChanged extends ClientEvent {
 }
 ```
 
-### FeedRequested
+### RestoreFeedRequested
 
 Event created when opening up discovery screen (upon initial start of the app or when we are returning to previously displayed discovery feed). When restoring previous feed it returns all the documents, that were still accessible to the user, so they weren't closed by the `FeedDocumentsClosed` event.
 
 ```dart
-class FeedRequested extends ClientEvent {
-  const FeedRequested();
+class RestoreFeedRequested extends ClientEvent {
+  const RestoreFeedRequested();
 }
 
-class FeedRequestSucceeded extends EngineEvent {
+class RestoreFeedSucceeded extends EngineEvent {
   final List<Document> items;
 
-  const FeedRequestSucceeded(this.items);
+  const RestoreFeedSucceeded(this.items);
 }
 
 enum FeedFailureReason {
@@ -87,17 +87,17 @@ enum FeedFailureReason {
   // etc.
 }
 
-class FeedRequestFailed extends EngineEvent {
+class RestoreFeedFailed extends EngineEvent {
   /// Error code that frontend can use to determine how to react,
   /// ie. display user friendly messages, repeat request, etc.
   /// It could also be dedicated classes/exceptions etc.
   final FeedFailureReason reason;
 
-  const FeedRequestFailed(this.reason);
+  const RestoreFeedFailed(this.reason);
 }
 ```
 
-### NewFeedRequested
+### NextFeedBatchRequested
 
 Event created when the app wants to requests new content for the discovery feed:
  - when reaching the end of the current list of items
@@ -106,27 +106,27 @@ Event created when the app wants to requests new content for the discovery feed:
  - as a follow up when changing the news market
 
 ```dart
-class NewFeedRequested extends ClientEvent {
-  const NewFeedRequested();
+class NextFeedBatchRequested extends ClientEvent {
+  const NextFeedBatchRequested();
 }
 
-class NewFeedRequestSucceeded extends EngineEvent {
+class NextFeedBatchRequestSucceeded extends EngineEvent {
   final List<Document> items;
 
-  const NewFeedRequestSucceeded(this.items);
+  const NextFeedBatchRequestSucceeded(this.items);
 }
 
-class NewFeedRequestFailed extends EngineEvent {
-  /// combined enum for `NewRequestFailed` and `NewFeedRequestFailed`
+class NextFeedBatchRequestFailed extends EngineEvent {
+  /// combined enum for `NewRequestFailed` and `NextFeedBatchRequestFailed`
   final FeedFailureReason reason;
   
-  const NewFeedRequestFailed(this.reason);
+  const NextFeedBatchRequestFailed(this.reason);
 }
 ```
 
 ### NewFeedAvailable
 
-Event created by the engine, possibly after doing some background queries to let the app know that there is new content available for the discovery feed. In response to that event the app may decide to show an indicator for the user that new content is ready or it might send `FeedRequested` event to ask for new documents.
+Event created by the engine, possibly after doing some background queries to let the app know that there is new content available for the discovery feed. In response to that event the app may decide to show an indicator for the user that new content is ready or it might send `RestoreFeedRequested` event to ask for new documents.
 
 ```dart
 class NewFeedAvailable extends EngineEvent {
