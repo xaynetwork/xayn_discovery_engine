@@ -29,9 +29,9 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         FeedDocumentsClosed,
         FeedFailureReason,
         FeedMarkets,
-        FeedRequestFailed,
-        FeedRequestSucceeded,
-        FeedRequested,
+        RestoreFeedFailed,
+        RestoreFeedSucceeded,
+        RestoreFeedRequested,
         FetchingAssetsFinished,
         FetchingAssetsProgressed,
         FetchingAssetsStarted,
@@ -50,7 +50,7 @@ class BadClientEvent implements ClientEvent {
   TResult map<TResult extends Object?>({
     required TResult Function(Init value) init,
     required TResult Function(ConfigurationChanged value) configurationChanged,
-    required TResult Function(FeedRequested value) feedRequested,
+    required TResult Function(RestoreFeedRequested value) restoreFeedRequested,
     required TResult Function(NextFeedBatchRequested value)
         nextFeedBatchRequested,
     required TResult Function(FeedDocumentsClosed value) feedDocumentsClosed,
@@ -64,7 +64,7 @@ class BadClientEvent implements ClientEvent {
   TResult? mapOrNull<TResult extends Object?>({
     TResult Function(Init value)? init,
     TResult Function(ConfigurationChanged value)? configurationChanged,
-    TResult Function(FeedRequested value)? feedRequested,
+    TResult Function(RestoreFeedRequested value)? restoreFeedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
     TResult Function(DocumentTimeSpent value)? documentTimeSpent,
@@ -78,7 +78,7 @@ class BadClientEvent implements ClientEvent {
     required TResult Function() orElse,
     TResult Function(Init value)? init,
     TResult Function(ConfigurationChanged value)? configurationChanged,
-    TResult Function(FeedRequested value)? feedRequested,
+    TResult Function(RestoreFeedRequested value)? restoreFeedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
     TResult Function(DocumentTimeSpent value)? documentTimeSpent,
@@ -96,7 +96,7 @@ class BadClientEvent implements ClientEvent {
       int? maxItemsPerFeedBatch,
     )?
         configurationChanged,
-    TResult Function()? feedRequested,
+    TResult Function()? restoreFeedRequested,
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
     TResult Function(DocumentId documentId, DocumentViewMode mode, int seconds)?
@@ -121,7 +121,7 @@ class BadClientEvent implements ClientEvent {
       int? maxItemsPerFeedBatch,
     )
         configurationChanged,
-    required TResult Function() feedRequested,
+    required TResult Function() restoreFeedRequested,
     required TResult Function() nextFeedBatchRequested,
     required TResult Function(Set<DocumentId> documentIds) feedDocumentsClosed,
     required TResult Function(
@@ -144,7 +144,7 @@ class BadClientEvent implements ClientEvent {
       int? maxItemsPerFeedBatch,
     )?
         configurationChanged,
-    TResult Function()? feedRequested,
+    TResult Function()? restoreFeedRequested,
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
     TResult Function(
@@ -165,8 +165,8 @@ class BadEngineEvent implements EngineEvent {
 
   @override
   TResult map<TResult extends Object?>({
-    required TResult Function(FeedRequestSucceeded value) feedRequestSucceeded,
-    required TResult Function(FeedRequestFailed value) feedRequestFailed,
+    required TResult Function(RestoreFeedSucceeded value) restoreFeedSucceeded,
+    required TResult Function(RestoreFeedFailed value) restoreFeedFailed,
     required TResult Function(NextFeedBatchRequestSucceeded value)
         nextFeedBatchRequestSucceeded,
     required TResult Function(NextFeedBatchRequestFailed value)
@@ -189,8 +189,8 @@ class BadEngineEvent implements EngineEvent {
 
   @override
   TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(FeedRequestSucceeded value)? feedRequestSucceeded,
-    TResult Function(FeedRequestFailed value)? feedRequestFailed,
+    TResult Function(RestoreFeedSucceeded value)? restoreFeedSucceeded,
+    TResult Function(RestoreFeedFailed value)? restoreFeedFailed,
     TResult Function(NextFeedBatchRequestSucceeded value)?
         nextFeedBatchRequestSucceeded,
     TResult Function(NextFeedBatchRequestFailed value)?
@@ -209,8 +209,8 @@ class BadEngineEvent implements EngineEvent {
   @override
   TResult maybeMap<TResult extends Object?>({
     required TResult Function() orElse,
-    TResult Function(FeedRequestSucceeded value)? feedRequestSucceeded,
-    TResult Function(FeedRequestFailed value)? feedRequestFailed,
+    TResult Function(RestoreFeedSucceeded value)? restoreFeedSucceeded,
+    TResult Function(RestoreFeedFailed value)? restoreFeedFailed,
     TResult Function(NextFeedBatchRequestSucceeded value)?
         nextFeedBatchRequestSucceeded,
     TResult Function(NextFeedBatchRequestFailed value)?
@@ -229,8 +229,8 @@ class BadEngineEvent implements EngineEvent {
   @override
   TResult maybeWhen<TResult extends Object?>({
     required TResult Function() orElse,
-    TResult Function(List<Document> items)? feedRequestSucceeded,
-    TResult Function(FeedFailureReason reason)? feedRequestFailed,
+    TResult Function(List<Document> items)? restoreFeedSucceeded,
+    TResult Function(FeedFailureReason reason)? restoreFeedFailed,
     TResult Function(List<Document> items)? nextFeedBatchRequestSucceeded,
     TResult Function(FeedFailureReason reason)? nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
@@ -256,8 +256,8 @@ class BadEngineEvent implements EngineEvent {
 
   @override
   TResult when<TResult extends Object?>({
-    required TResult Function(List<Document> items) feedRequestSucceeded,
-    required TResult Function(FeedFailureReason reason) feedRequestFailed,
+    required TResult Function(List<Document> items) restoreFeedSucceeded,
+    required TResult Function(FeedFailureReason reason) restoreFeedFailed,
     required TResult Function(List<Document> items)
         nextFeedBatchRequestSucceeded,
     required TResult Function(FeedFailureReason reason)
@@ -280,8 +280,8 @@ class BadEngineEvent implements EngineEvent {
 
   @override
   TResult? whenOrNull<TResult extends Object?>({
-    TResult Function(List<Document> items)? feedRequestSucceeded,
-    TResult Function(FeedFailureReason reason)? feedRequestFailed,
+    TResult Function(List<Document> items)? restoreFeedSucceeded,
+    TResult Function(FeedFailureReason reason)? restoreFeedFailed,
     TResult Function(List<Document> items)? nextFeedBatchRequestSucceeded,
     TResult Function(FeedFailureReason reason)? nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,

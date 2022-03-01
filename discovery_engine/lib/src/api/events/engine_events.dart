@@ -18,8 +18,8 @@ import 'package:xayn_discovery_engine/src/api/models/document.dart';
 part 'engine_events.freezed.dart';
 part 'engine_events.g.dart';
 
-/// Abstract class implemented by events like [FeedRequestSucceeded],
-/// [FeedRequestFailed], [NextFeedBatchRequestSucceeded],
+/// Abstract class implemented by events like [RestoreFeedSucceeded],
+/// [RestoreFeedFailed], [NextFeedBatchRequestSucceeded],
 /// [NextFeedBatchRequestFailed] or [NextFeedBatchAvailable].
 ///
 /// Used to group discovery feed related events.
@@ -69,19 +69,19 @@ enum EngineExceptionReason {
 
 @freezed
 class EngineEvent with _$EngineEvent {
-  /// Event created as a successful response to FeedRequested event.
+  /// Event created as a successful response to RestoreFeedRequested event.
   /// Passes back a list of [Document] entities back to the client.
   @Implements<FeedEngineEvent>()
-  const factory EngineEvent.feedRequestSucceeded(List<Document> items) =
-      FeedRequestSucceeded;
+  const factory EngineEvent.restoreFeedSucceeded(List<Document> items) =
+      RestoreFeedSucceeded;
 
-  /// Event created as a failure response to FeedRequested event.
+  /// Event created as a failure response to RestoreFeedRequested event.
   ///
   /// Passes back a failure reason that the client can use to determine
   /// how to react, e.g. display user friendly messages, repeat request, etc.
   @Implements<FeedEngineEvent>()
-  const factory EngineEvent.feedRequestFailed(FeedFailureReason reason) =
-      FeedRequestFailed;
+  const factory EngineEvent.restoreFeedFailed(FeedFailureReason reason) =
+      RestoreFeedFailed;
 
   /// Event created as a successful response to NextFeedBatchRequested event.
   /// Passes back a list of [Document] objects back to the client.
@@ -102,7 +102,7 @@ class EngineEvent with _$EngineEvent {
   /// Event created by the engine possibly after doing some background queries,
   /// to let the app know that there is new content available for the discovery
   /// feed. In response to that event the app may decide to show an indicator
-  /// for the user that new content is ready or it might send a FeedRequested
+  /// for the user that new content is ready or it might send a RestoreFeedRequested
   /// event to ask for new documents.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchAvailable() = NextFeedBatchAvailable;

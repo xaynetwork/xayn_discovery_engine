@@ -19,7 +19,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
         DiscoveryEngine,
         EngineExceptionRaised,
-        FeedRequestSucceeded,
+        RestoreFeedSucceeded,
         NextFeedBatchRequestSucceeded;
 
 import '../logging.dart' show setupLogging;
@@ -30,7 +30,7 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine requestFeed', () {
+  group('DiscoveryEngine restoreFeed', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
 
@@ -44,7 +44,7 @@ void main() {
     });
 
     test(
-        'requestFeed should return the feed that has been requested before with'
+        'restoreFeed should return the feed that has been requested before with'
         ' requestNextFeedBatch', () async {
       server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
@@ -52,18 +52,18 @@ void main() {
       );
 
       final nextBatchResponse = await engine.requestNextFeedBatch();
-      final restoreFeedResponse = await engine.requestFeed();
+      final restoreFeedResponse = await engine.restoreFeed();
 
       expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
-      expect(restoreFeedResponse, isA<FeedRequestSucceeded>());
+      expect(restoreFeedResponse, isA<RestoreFeedSucceeded>());
       expect(
         (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
-        equals((restoreFeedResponse as FeedRequestSucceeded).items),
+        equals((restoreFeedResponse as RestoreFeedSucceeded).items),
       );
     });
 
     test(
-        'if requestNextFeedBatch fails due to a news api request error, requestFeed'
+        'if requestNextFeedBatch fails due to a news api request error, restoreFeed'
         ' should return an empty list', () async {
       server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
@@ -73,10 +73,10 @@ void main() {
       server.replyWithError = true;
       final nextBatchResponse = await engine.requestNextFeedBatch();
       expect(nextBatchResponse, isA<EngineExceptionRaised>());
-      final restoreFeedResponse = await engine.requestFeed();
+      final restoreFeedResponse = await engine.restoreFeed();
 
-      expect(restoreFeedResponse, isA<FeedRequestSucceeded>());
-      expect((restoreFeedResponse as FeedRequestSucceeded).items, isEmpty);
+      expect(restoreFeedResponse, isA<RestoreFeedSucceeded>());
+      expect((restoreFeedResponse as RestoreFeedSucceeded).items, isEmpty);
     });
   });
 }

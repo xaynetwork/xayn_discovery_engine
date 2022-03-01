@@ -15,8 +15,8 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
-        FeedRequestSucceeded,
-        FeedRequestFailed,
+        RestoreFeedSucceeded,
+        RestoreFeedFailed,
         EngineEvent,
         FeedFailureReason,
         EngineExceptionRaised,
@@ -32,33 +32,33 @@ import 'utils/utils.dart'
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine requestFeed', () {
+  group('DiscoveryEngine restoreFeed', () {
     test(
-        'if worker responds with "FeedRequestSucceeded" event it should pass it'
+        'if worker responds with "RestoreFeedSucceeded" event it should pass it'
         'as a response of the Discovery Engine', () async {
       final engine = await createEngineWithEntryPoint(withSuccessResponse);
 
       expect(
-        engine.requestFeed(),
-        completion(isA<FeedRequestSucceeded>()),
+        engine.restoreFeed(),
+        completion(isA<RestoreFeedSucceeded>()),
       );
       expect(
         engine.engineEvents,
         emitsInOrder(<EngineEvent>[
-          const FeedRequestSucceeded([]),
+          const RestoreFeedSucceeded([]),
         ]),
       );
     });
 
     test(
-        'if worker responds with "FeedRequestFailed" event it should pass it'
+        'if worker responds with "RestoreFeedFailed" event it should pass it'
         'as a response of the Discovery Engine', () async {
       final engine = await createEngineWithEntryPoint(withFailureResponse);
-      final response = await engine.requestFeed();
+      final response = await engine.restoreFeed();
 
-      expect(response, isA<FeedRequestFailed>());
+      expect(response, isA<RestoreFeedFailed>());
       expect(
-        (response as FeedRequestFailed).reason,
+        (response as RestoreFeedFailed).reason,
         FeedFailureReason.noNewsForMarket,
       );
     });
@@ -67,7 +67,7 @@ void main() {
         'if worker responds with "EngineExceptionRaised" event it should pass it'
         'as a response of the Discovery Engine', () async {
       final engine = await createEngineWithEntryPoint(withErrorResponse);
-      final response = await engine.requestFeed();
+      final response = await engine.restoreFeed();
 
       expect(response, isA<EngineExceptionRaised>());
       expect(
@@ -81,7 +81,7 @@ void main() {
         'catch it and respond with "EngineExceptionRaised" event '
         'with "wrongEventInResponse" reason', () async {
       final engine = await createEngineWithEntryPoint(withWrongEventResponse);
-      final response = await engine.requestFeed();
+      final response = await engine.restoreFeed();
 
       expect(response, isA<EngineExceptionRaised>());
       expect(
@@ -94,19 +94,19 @@ void main() {
 
 void withFailureResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
-      feedRequestedResponse: const EngineEvent.feedRequestFailed(
+      restoreFeedRequestedResponse: const EngineEvent.restoreFeedFailed(
         FeedFailureReason.noNewsForMarket,
       ),
     );
 
 void withErrorResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
-      feedRequestedResponse: const EngineEvent.engineExceptionRaised(
+      restoreFeedRequestedResponse: const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
       ),
     );
 
 void withWrongEventResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       initialMessage,
-      feedRequestedResponse: const EngineEvent.nextFeedBatchAvailable(),
+      restoreFeedRequestedResponse: const EngineEvent.nextFeedBatchAvailable(),
     );

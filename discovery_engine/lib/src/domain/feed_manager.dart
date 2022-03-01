@@ -54,7 +54,7 @@ class FeedManager {
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleFeedClientEvent(FeedClientEvent event) =>
       event.maybeWhen(
-        feedRequested: () => restoreFeed(),
+        restoreFeedRequested: () => restoreFeed(),
         nextFeedBatchRequested: () => nextFeedBatch(),
         feedDocumentsClosed: (ids) => deactivateDocuments(ids),
         orElse: () =>
@@ -82,7 +82,7 @@ class FeedManager {
             });
 
           final feed = sortedActives.map((doc) => doc.toApiDocument()).toList();
-          return EngineEvent.feedRequestSucceeded(feed);
+          return EngineEvent.restoreFeedSucceeded(feed);
         },
       );
 

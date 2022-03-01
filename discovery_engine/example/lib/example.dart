@@ -72,15 +72,15 @@ Future<void> runExample() async {
   });
 
   // you can also use `async await` style for request/response
-  final requestFeedResponse = await engine.requestFeed();
+  final restoreFeedResponse = await engine.restoreFeed();
 
-  requestFeedResponse.whenOrNull(
-    feedRequestSucceeded: (items) {
+  restoreFeedResponse.whenOrNull(
+    restoreFeedSucceeded: (items) {
       print(
-        '\n[FeedRequestSucceeded]:\nupdate app state with Documents: $items',
+        '\n[RestoreFeedSucceeded]:\nupdate app state with Documents: $items',
       );
     },
-    feedRequestFailed: (reason) {
+    restoreFeedFailed: (reason) {
       print('\nrequest failed because of: $reason');
     },
     engineExceptionRaised: (reason, message, stackTrace) {
@@ -111,6 +111,6 @@ Future<void> runExample() async {
 
   print('\nAfter disposing the engine you can not send any events.');
   print('Trying to do that will cause:');
-  final resp = await engine.send(const FeedRequested());
+  final resp = await engine.send(const RestoreFeedRequested());
   print('${(resp as EngineExceptionRaised).reason}');
 }

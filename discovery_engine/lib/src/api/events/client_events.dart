@@ -27,7 +27,7 @@ part 'client_events.g.dart';
 /// Used to group events related to [Document] changes.
 abstract class DocumentClientEvent implements ClientEvent {}
 
-/// Abstract class implemented by events like [FeedRequested],
+/// Abstract class implemented by events like [RestoreFeedRequested],
 /// [NextFeedBatchRequested] or [FeedDocumentsClosed].
 ///
 /// Used to group discovery feed related events.
@@ -66,7 +66,7 @@ class ClientEvent with _$ClientEvent {
   /// that were still accessible to the user, namely those that weren't closed in
   /// the [FeedDocumentsClosed] event.
   @Implements<FeedClientEvent>()
-  const factory ClientEvent.feedRequested() = FeedRequested;
+  const factory ClientEvent.restoreFeedRequested() = RestoreFeedRequested;
 
   /// Event created when the app wants to request new content
   /// for the discovery feed:
