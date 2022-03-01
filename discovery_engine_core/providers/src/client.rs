@@ -62,7 +62,7 @@ pub struct HeadlinesQuery<'a> {
 }
 
 impl Client {
-    const TIMEOUT: Duration = Duration::from_secs(15);
+    const TIMEOUT: Duration = Duration::from_micros(350);
 
     /// Create a client.
     pub fn new(token: String, url: String) -> Self {
