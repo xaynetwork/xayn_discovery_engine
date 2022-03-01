@@ -88,6 +88,9 @@ pub enum Error {
     /// Error while querying with client: {0}.
     Client(#[source] GenericError),
 
+    /// Invalid search query: {0}.
+    InvalidQuery(String),
+
     /// List of errors/warnings. {0:?}
     Errors(Vec<Error>),
 }
@@ -341,10 +344,14 @@ where
         reacted: &UserReacted,
     ) -> Result<(), Error> {
         let mut stacks = self.stacks.write().await;
-        stacks
-            .get_mut(&reacted.stack_id)
-            .ok_or(Error::InvalidStackId(reacted.stack_id))?
-            .update_relevance(reacted.reaction);
+
+        // update relevance of stack if the reacted document belongs to one
+        if !reacted.stack_id.is_nil() {
+            stacks
+                .get_mut(&reacted.stack_id)
+                .ok_or(Error::InvalidStackId(reacted.stack_id))?
+                .update_relevance(reacted.reaction);
+        };
 
         self.ranker.log_user_reaction(reacted)?;
 
@@ -370,50 +377,46 @@ where
         }
     }
 
-    /// Perform an active search with the given `page` number.
-    pub async fn active_search(&mut self, page: usize) -> Result<Vec<Document>, Error> {
-        let phrases = self
-            .ranker
-            .select_top_key_phrases(self.core_config.select_top);
-
-        if phrases.is_empty() {
-            return Ok(vec![]);
+    /// Perform an active search with the given query parameters.
+    pub async fn active_search(
+        &mut self,
+        query: &str,
+        page: usize,
+        page_size: usize,
+    ) -> Result<Vec<Document>, Error> {
+        if query.trim().is_empty() {
+            return Err(Error::InvalidQuery(query.to_string()));
         }
-        let filter = &phrases
-            .into_iter()
-            .fold(Filter::default(), |filter, phrase| {
-                filter.add_keyword(phrase.words())
-            });
-
         let EndpointConfig {
             api_key,
             api_base_url,
-            page_size,
             markets,
+            ..
         } = &self.config;
 
+        let filter = &Filter::default().add_keyword(query);
         let client = Client::new(api_key.clone(), api_base_url.clone());
         let mut articles = Vec::new();
         let mut errors = Vec::new();
         for market in markets.read().await.iter() {
-            let query = NewsQuery {
+            let news_query = NewsQuery {
                 market,
                 filter,
-                page_size: *page_size,
+                page_size,
                 page: Some(page),
             };
-            match client.news(&query).await {
+            match client.news(&news_query).await {
                 Ok(batch) => articles.extend(batch),
                 Err(err) => errors.push(Error::Client(err.into())),
             };
         }
 
         let mut documents = Vec::new();
-        let stack_id = uuid::Uuid::nil().into(); // FIXME documents here not associated with a stack
+        let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
         for article in articles {
             match self
                 .ranker
-                .compute_smbert(article.title.as_str())
+                .compute_smbert(&article.title)
                 .map_err(Error::Ranker)
                 .and_then(|embedding| {
                     document_from_article(article, stack_id, embedding).map_err(Error::Document)
