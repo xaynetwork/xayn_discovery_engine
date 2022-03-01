@@ -20,7 +20,6 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
         ClientEventSucceeded,
-        DiscoveryEngine,
         DocumentId,
         DocumentsUpdated,
         EngineEvent,
@@ -29,9 +28,9 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         NextFeedBatchRequestSucceeded,
         UserReaction;
 import '../logging.dart' show setupLogging;
-import 'utils/create_config.dart'
-    show TestEngineData, createConfig, setupTestEngineData;
 import 'utils/db.dart' show loadEngineState;
+import 'utils/helpers.dart'
+    show TestEngineData, initEngine, setupTestEngineData;
 import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 
 void main() {
@@ -52,9 +51,7 @@ void main() {
     });
 
     test('change the user reaction of a document', () async {
-      var engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
-      );
+      var engine = await initEngine(data, server.port);
 
       // fetch some documents
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();
@@ -67,9 +64,7 @@ void main() {
       expect(stateBeforeRequest, isNotNull);
 
       // change the user reaction of the first document
-      engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
-      );
+      engine = await initEngine(data, server.port);
       final doc =
           (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items.first;
       expect(
@@ -101,9 +96,7 @@ void main() {
     test(
         'if a document id is invalid, the engine should throw an'
         ' EngineExceptionRaised event', () async {
-      final engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
-      );
+      final engine = await initEngine(data, server.port);
 
       final response = await engine.changeUserReaction(
         documentId: DocumentId(),
@@ -115,6 +108,7 @@ void main() {
         (response as EngineExceptionRaised).reason,
         EngineExceptionReason.genericError,
       );
+      await engine.dispose();
     });
   });
 }

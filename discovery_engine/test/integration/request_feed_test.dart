@@ -23,8 +23,8 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         NextFeedBatchRequestSucceeded;
 
 import '../logging.dart' show setupLogging;
-import 'utils/create_config.dart'
-    show TestEngineData, createConfig, setupTestEngineData;
+import 'utils/helpers.dart'
+    show TestEngineData, initEngine, setupTestEngineData;
 import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 
 void main() {
@@ -33,13 +33,16 @@ void main() {
   group('DiscoveryEngine restoreFeed', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
+    late DiscoveryEngine engine;
 
     setUp(() async {
       data = await setupTestEngineData();
       server = await LocalNewsApiServer.start();
+      engine = await initEngine(data, server.port);
     });
 
     tearDown(() async {
+      await engine.dispose();
       await server.close();
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
@@ -47,10 +50,6 @@ void main() {
     test(
         'restoreFeed should return the feed that has been requested before with'
         ' requestNextFeedBatch', () async {
-      final engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
-      );
-
       final nextBatchResponse = await engine.requestNextFeedBatch();
       final restoreFeedResponse = await engine.restoreFeed();
 
@@ -65,10 +64,6 @@ void main() {
     test(
         'if requestNextFeedBatch fails due to a news api request error, restoreFeed'
         ' should return an empty list', () async {
-      final engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
-      );
-
       server.replyWithError = true;
       final nextBatchResponse = await engine.requestNextFeedBatch();
       expect(nextBatchResponse, isA<EngineExceptionRaised>());
