@@ -67,12 +67,15 @@ void main() {
         'when calling "copyAssets" method and the asset file is NOT in the '
         'destination directory, then it should copy it from assets, but if '
         'the file is present, then it should NOT copy it', () async {
-      final fileRef = File('$outputPath/$kAssetsPath/dummy-asset');
+      final filePath = '$outputPath/$kAssetsPath/dummy-asset';
+      final tmpFileRef = File('$filePath.$tmpFileExt');
       await copier.copyAssets(manifest);
 
       expect(loadAssetCounter, equals(1));
-      expect(fileRef.existsSync(), isTrue);
+      expect(tmpFileRef.existsSync(), isTrue);
 
+      // we mock successful checksum verification
+      await tmpFileRef.rename(filePath);
       // now the file exists so it shouldn't copy it again
       await copier.copyAssets(manifest);
 
