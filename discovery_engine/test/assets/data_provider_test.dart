@@ -16,17 +16,21 @@ import 'dart:io' show Directory, File;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
-    show AssetReporter, Manifest;
+    show
+        AssetFetcherException,
+        AssetReporter,
+        DataProvider,
+        Manifest,
+        tmpFileExt;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
 import '../logging.dart' show setupLogging;
-import 'utils/local_asset_server.dart' show LocalAssetServer;
+import 'utils/local_asset_server.dart' show LocalAssetServer, bytesMap;
 import 'utils/mock_http_asset_fetcher.dart' show HttpAssetFetcherWithCounter;
-import 'utils/mock_manifest_reader.dart'
-    show MockManifestReader, goodJson, wrongChecksumJson;
+import 'utils/mock_manifest_reader.dart' show goodJson, wrongChecksumJson;
 
 void main() {
   setupLogging();
@@ -34,21 +38,40 @@ void main() {
   group('DataProvider', () {
     group('getSetupData', () {
       const port = 8080;
-      const assetUrl = 'http://localhost:$port';
       final outputPath = '${Directory.current.path}/test/assets/utils/output';
-      final dummyAssetPath = '$outputPath/dummy-asset';
-      final assetFetcher = HttpAssetFetcherWithCounter(assetUrl);
       final manifest = Manifest.fromJson(goodJson);
+      final wrongManifest = Manifest.fromJson(wrongChecksumJson);
+      final finalSetupData = NativeSetupData(
+        smbertVocab: '$outputPath/smbertVocab',
+        smbertModel: '$outputPath/smbertModel',
+        kpeVocab: '$outputPath/kpeVocab',
+        kpeModel: '$outputPath/kpeModel',
+        kpeClassifier: '$outputPath/kpeClassifier',
+        kpeCnn: '$outputPath/kpeCnn',
+      );
+      final tmpSetupData = NativeSetupData(
+        smbertVocab: '$outputPath/smbertVocab.$tmpFileExt',
+        smbertModel: '$outputPath/smbertModel.$tmpFileExt',
+        kpeVocab: '$outputPath/kpeVocab.$tmpFileExt',
+        kpeModel: '$outputPath/kpeModel.$tmpFileExt',
+        kpeClassifier: '$outputPath/kpeClassifier.$tmpFileExt',
+        kpeCnn: '$outputPath/kpeCnn.$tmpFileExt',
+      );
 
       late LocalAssetServer server;
+      late HttpAssetFetcherWithCounter assetFetcher;
       late AssetReporter assetReporter;
+      late DataProvider dataProvider;
 
       setUpAll(() async {
         server = await LocalAssetServer.start(port);
       });
 
       setUp(() async {
+        assetFetcher = HttpAssetFetcherWithCounter('http://localhost:$port');
         assetReporter = AssetReporter();
+        dataProvider =
+            createDataProvider(assetFetcher, assetReporter, outputPath);
       });
 
       tearDown(() {
@@ -62,58 +85,63 @@ void main() {
       });
 
       test(
-          'when provided with proper json manifest it can download assets '
-          'and asset fragments, and save them to a specified output path',
-          () async {
-        final dataProvider = createDataProvider(
-          assetFetcher,
-          assetReporter,
-          outputPath,
-        );
+          'when assets are not downloaded yet, and there is no temp files to '
+          'verify it will fetch assets from the server and save them under '
+          'specified path on the filesystem', () async {
+        final setupData = await dataProvider.getSetupData(manifest);
 
-        final setupData =
-            (await dataProvider.getSetupData(manifest)) as NativeSetupData;
-
-        expect(File(dummyAssetPath).existsSync(), isTrue);
-        expect(setupData.smbertVocab, equals(dummyAssetPath));
-        expect(setupData.smbertModel, equals(dummyAssetPath));
-        expect(setupData.kpeVocab, equals(dummyAssetPath));
-        expect(setupData.kpeModel, equals(dummyAssetPath));
-        expect(setupData.kpeCnn, equals(dummyAssetPath));
-        expect(setupData.kpeClassifier, equals(dummyAssetPath));
+        expect(setupData, equals(finalSetupData));
+        expect(allSetupDataFilesExist(finalSetupData), isTrue);
+        expect(assetFetcher.callCount, equals(8));
       });
 
       test(
-          'when the assets were already downloaded and the checksums are matching '
+          'when the assets were already downloaded and verified '
           'it will serve those assets instead of fetching them again',
           () async {
-        final dataProvider = createDataProvider(
-          assetFetcher,
-          assetReporter,
-          outputPath,
-        );
-        await _prepareOutputFiles(assetFetcher, manifest, outputPath);
-        await dataProvider.getSetupData(manifest);
+        await _createAssetFiles(manifest, outputPath);
 
+        final setupData = await dataProvider.getSetupData(manifest);
+
+        expect(setupData, equals(finalSetupData));
+        expect(allSetupDataFilesExist(finalSetupData), isTrue);
         expect(assetFetcher.callCount, equals(0));
       });
 
       test(
-          'when the assets were already downloaded but the checksums '
-          'are NOT matching, it will fetch new files from the server',
-          () async {
-        final manifestReader = MockManifestReader(wrongChecksumJson);
-        final dataProvider = createDataProvider(
-          assetFetcher,
-          assetReporter,
-          outputPath,
-        );
-        final manifest = await manifestReader.read();
-        await _prepareOutputFiles(assetFetcher, manifest, outputPath);
+          'when the temp assets are available, and they have RIGHT checksums '
+          'it will verify and rename them ', () async {
+        await _createAssetFiles(manifest, outputPath, isTemp: true);
 
-        await dataProvider.getSetupData(manifest);
+        final setupData = await dataProvider.getSetupData(manifest);
 
+        expect(setupData, equals(finalSetupData));
+        expect(allSetupDataFilesExist(finalSetupData), isTrue);
+        expect(allSetupDataFilesExist(tmpSetupData), isFalse);
+        expect(assetFetcher.callCount, equals(0));
+      });
+
+      test(
+          'when the temp assets are available, but they have WRONG checksums '
+          'it will delete them and download assets from the server', () async {
+        await _createAssetFiles(wrongManifest, outputPath, isTemp: true);
+
+        final setupData = await dataProvider.getSetupData(manifest);
+
+        expect(setupData, equals(finalSetupData));
+        expect(allSetupDataFilesExist(finalSetupData), isTrue);
+        expect(allSetupDataFilesExist(tmpSetupData), isFalse);
         expect(assetFetcher.callCount, equals(8));
+      });
+
+      test(
+          'when fetching assets from the server, if the checksum verification '
+          'of the downloaded assets fails, it will throw an '
+          '"AssetFetcherException"', () async {
+        expect(
+          dataProvider.getSetupData(wrongManifest),
+          throwsA(isA<AssetFetcherException>()),
+        );
       });
 
       test(
@@ -121,25 +149,42 @@ void main() {
           'the fetcher is able to retry the request', () async {
         server.setRequestFailCount(1);
 
-        await _prepareOutputFiles(assetFetcher, manifest, outputPath);
+        final setupData = await dataProvider.getSetupData(manifest);
 
-        expect(server.callCount.values, equals([1]));
-        expect(File(dummyAssetPath).existsSync(), isTrue);
+        expect(setupData, equals(finalSetupData));
+        expect(allSetupDataFilesExist(finalSetupData), isTrue);
+        expect(server.callCountSum, equals(8));
+        expect(assetFetcher.callCount, equals(8));
       });
     });
   });
 }
 
-Future<void> _prepareOutputFiles(
-  HttpAssetFetcherWithCounter assetFetcher,
+Future<void> _createAssetFiles(
   Manifest manifest,
-  String basePath,
-) async {
-  for (final asset in manifest.assets) {
-    final bytes = await assetFetcher.fetchAsset(asset);
-    final filePath = '$basePath/${asset.urlSuffix}';
-    final file = File(filePath)..createSync(recursive: true);
-    await file.writeAsBytes(bytes, flush: true);
-    assetFetcher.resetCount();
-  }
+  String basePath, {
+  bool isTemp = false,
+}) async {
+  await Future.wait(
+    manifest.assets.map((asset) async {
+      final filePath =
+          '$basePath/${asset.urlSuffix}${isTemp ? '.$tmpFileExt' : ''}';
+      final file = File(filePath)..createSync(recursive: true);
+      final bytes =
+          asset.checksum.checksum != '123' ? bytesMap[asset.urlSuffix] : [0];
+      await file.writeAsBytes(bytes!, flush: true);
+    }),
+  );
+}
+
+bool allSetupDataFilesExist(NativeSetupData setupData) {
+  final list = [
+    File(setupData.smbertVocab).existsSync(),
+    File(setupData.smbertModel).existsSync(),
+    File(setupData.kpeVocab).existsSync(),
+    File(setupData.kpeModel).existsSync(),
+    File(setupData.kpeCnn).existsSync(),
+    File(setupData.kpeClassifier).existsSync(),
+  ];
+  return list.any((it) => it == false) == false;
 }

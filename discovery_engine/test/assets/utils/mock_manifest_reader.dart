@@ -33,67 +33,34 @@ class MockManifestReader extends ManifestReader {
   }
 }
 
-const goodJson = {
+const checksum =
+    'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d';
+final goodJson = {
   'assets': [
-    {
-      'id': 'smbertVocab',
-      'url_suffix': 'dummy-asset',
-      'checksum':
-          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
-      'fragments': <Map<String, String>>[],
-    },
-    {
-      'id': 'smbertModel',
-      'url_suffix': 'dummy-asset',
-      'checksum':
-          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
-      'fragments': [
-        {
-          'url_suffix': 'dummy-asset',
-          'checksum':
-              'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d'
-        },
-        {
-          'url_suffix': 'dummy-asset',
-          'checksum':
-              'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d'
-        },
-        {
-          'url_suffix': 'dummy-asset',
-          'checksum':
-              'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d'
-        },
-      ]
-    },
-    {
-      'id': 'kpeVocab',
-      'url_suffix': 'dummy-asset',
-      'checksum':
-          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
-      'fragments': <Map<String, String>>[],
-    },
-    {
-      'id': 'kpeModel',
-      'url_suffix': 'dummy-asset',
-      'checksum':
-          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
-      'fragments': <Map<String, String>>[],
-    },
-    {
-      'id': 'kpeCnn',
-      'url_suffix': 'dummy-asset',
-      'checksum':
-          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
-      'fragments': <Map<String, String>>[],
-    },
-    {
-      'id': 'kpeClassifier',
-      'url_suffix': 'dummy-asset',
-      'checksum':
-          'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d',
-      'fragments': <Map<String, String>>[],
-    }
+    'smbertVocab',
+    'smbertModel',
+    'kpeVocab',
+    'kpeModel',
+    'kpeCnn',
+    'kpeClassifier',
   ]
+      .map(
+        (id) => {
+          'id': id,
+          'url_suffix': id,
+          'checksum': checksum,
+          'fragments': id == 'smbertModel'
+              ? List.generate(
+                  3,
+                  (index) => {
+                    'url_suffix': '${id}_$index',
+                    'checksum': checksum,
+                  },
+                )
+              : <Map<String, String>>[],
+        },
+      )
+      .toList(),
 };
 
 final wrongChecksumJson = {
