@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
 use url::Url;
 
@@ -38,13 +38,30 @@ impl ArticleFilter for DuplicateFilter {
         stack: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        let urls = history
+        let mut urls = history
             .iter()
-            .map(|doc| doc.url.as_str())
-            .chain(stack.iter().map(|doc| doc.resource.url.as_str()))
+            .map(|doc| Cow::Borrowed(doc.url.as_str()))
+            .chain(
+                stack
+                    .iter()
+                    .map(|doc| Cow::Borrowed(doc.resource.url.as_str())),
+            )
             .collect::<HashSet<_>>();
 
-        articles.retain(|article| !urls.contains(&article.link.as_str()));
+        let mut titles = history
+            .iter()
+            .map(|doc| Cow::Borrowed(&doc.title))
+            .chain(stack.iter().map(|doc| Cow::Borrowed(&doc.resource.title)))
+            .collect::<HashSet<_>>();
+
+        articles.retain(|article| {
+            let do_retain = !(urls.contains(&Cow::Borrowed(article.link.as_str()))
+                || titles.contains(&Cow::Borrowed(&article.title)));
+            urls.insert(Cow::Owned(article.link.to_string()));
+            titles.insert(Cow::Owned(article.title.clone()));
+            do_retain
+        });
+
         Ok(articles)
     }
 }
