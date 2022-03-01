@@ -16,6 +16,8 @@ import 'dart:io';
 
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show Manifest, createManifestReader, Configuration, FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show kAssetsPath;
 
 class TestEngineData {
   final Manifest manifest;
@@ -27,7 +29,7 @@ Future<TestEngineData> setupTestEngineData() async {
   final applicationDirectoryPath =
       (await Directory.systemTemp.createTemp()).path;
   await Link(
-    '$applicationDirectoryPath/engine_data/assets',
+    '$applicationDirectoryPath/$kAssetsPath',
   ).create(
     '${Directory.current.path}/../discovery_engine_flutter/example/assets',
     recursive: true,
