@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
+    show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
@@ -38,7 +38,7 @@ abstract class Engine {
   /// Changes the currently supported markets.
   Future<void> setMarkets(
     List<HistoricDocument> history,
-    List<FeedMarket> markets,
+    FeedMarkets markets,
   );
 
   /// Retrieves at most [maxDocuments] feed documents.

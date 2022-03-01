@@ -20,6 +20,8 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show ClientEventSucceeded;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
     show FeedManager;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -64,7 +66,7 @@ Future<void> main() async {
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
-  const maxBatch = 5;
+  final config = EventConfig(5);
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
@@ -72,7 +74,7 @@ Future<void> main() async {
 
   final mgr = FeedManager(
     engine,
-    maxBatch,
+    config,
     docRepo,
     activeRepo,
     changedRepo,
