@@ -17,10 +17,10 @@ import 'dart:io';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
         Configuration,
+        createManifestReader,
         DiscoveryEngine,
         FeedMarket,
-        Manifest,
-        createManifestReader;
+        Manifest;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show kAssetsPath;
 
