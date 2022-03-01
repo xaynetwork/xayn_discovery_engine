@@ -21,9 +21,12 @@ import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show DiscoveryEngine, EngineInitException, NextFeedBatchRequestSucceeded;
-import 'package:xayn_discovery_engine/src/domain/assets/assets.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart';
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show kDatabasePath;
+import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
+    show engineStateBox;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
+    show HiveEngineStateRepository;
 
 import '../logging.dart' show setupLogging;
 import 'utils/create_config.dart'
