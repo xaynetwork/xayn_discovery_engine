@@ -197,7 +197,7 @@ class EventHandler {
       EngineInitializer(
         config: config,
         setupData: setupData,
-        state: engineState,
+        engineState: engineState,
         history: history,
         aiConfig: aiConfig,
       ),
