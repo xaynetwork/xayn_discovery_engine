@@ -63,9 +63,9 @@ void main() {
     });
 
     test(
-        'if requestNextFeedBatch traces a news api request error, then the'
-        ' depleted stacks have not been updated and subsequent calls should'
-        ' fail with FeedFailureReason.noNewsForMarket', () async {
+        'if a news api request error occurs, then the requestNextFeedBatch'
+        ' depletes the internal stacks and subsequent calls should fail with'
+        ' FeedFailureReason.noNewsForMarket', () async {
       server = await LocalNewsApiServer.start();
       final engine = await DiscoveryEngine.init(
         configuration: createConfig(data, server.port),
