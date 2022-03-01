@@ -55,7 +55,7 @@ void main() {
         EngineInitializer(
           config: config,
           setupData: setupData,
-          state: null,
+          engineState: null,
           history: [],
           aiConfig: null,
         ),

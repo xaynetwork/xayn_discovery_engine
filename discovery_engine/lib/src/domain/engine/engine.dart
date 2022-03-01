@@ -63,7 +63,7 @@ class EngineInitializer with EquatableMixin {
   final SetupData setupData;
 
   /// The state to restore.
-  final Uint8List? state;
+  final Uint8List? engineState;
 
   /// The history to use for filtering initial results.
   final List<HistoricDocument> history;
@@ -74,11 +74,11 @@ class EngineInitializer with EquatableMixin {
   EngineInitializer({
     required this.config,
     required this.setupData,
-    required this.state,
+    required this.engineState,
     required this.history,
     required this.aiConfig,
   });
 
   @override
-  List<Object?> get props => [config, setupData, state, history];
+  List<Object?> get props => [config, setupData, engineState, history];
 }

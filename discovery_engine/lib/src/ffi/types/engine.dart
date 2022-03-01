@@ -78,7 +78,7 @@ class DiscoveryEngineFfi implements Engine {
         setupData,
         aiConfig: initializer.aiConfig,
       ).allocNative().move(),
-      initializer.state?.allocNative().move() ?? nullptr,
+      initializer.engineState?.allocNative().move() ?? nullptr,
       initializer.history.allocNative().move(),
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
