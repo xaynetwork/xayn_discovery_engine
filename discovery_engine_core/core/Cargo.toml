@@ -21,7 +21,7 @@ tokio = { version = "1.17.0", default-features = false, features = ["sync"] }
 tracing = "0.1.31"
 url = { version = "2.2.2", features = ["serde"] }
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
-xayn-ai = { git = "https://github.com/xaynetwork/xayn_ai", branch = "TY-2390-new_smbert_model" }
+xayn-ai = { git = "https://github.com/xaynetwork/xayn_ai", branch = "master" }
 xayn-discovery-engine-providers = { path = "../providers" }
 
 [dev-dependencies]
