@@ -12,7 +12,8 @@ on:
 
 jobs:
   selection:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
+
     # Set job outputs to values from filter step
     outputs:
       dart: ${{ steps.filter.outputs.dart }}
@@ -21,6 +22,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
       # For pull requests it's not necessary to checkout the code
       - uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721
         id: filter
@@ -29,8 +31,8 @@ jobs:
             rust: &rust
               - 'discovery_engine_core/**'
               - '.github/workflows/ci*'
+              - '.github/actions/setup-job-docker/*'
               - '.github/actions/setup-job/*'
-              - '.github/actions/install-cargo-sort/*'
               - 'justfile'
             dart: &dart
               - *rust
@@ -45,17 +47,17 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the dart CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           dart: true
-          deps: false
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check formatting
         run: just dart-fmt
@@ -64,17 +66,18 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust/dart CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           dart: true
           rust: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Analyze code
         run: just dart-check
@@ -83,6 +86,8 @@ jobs:
     needs: [selection, cargo-test]
     if: ${{ always()}}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 20
     steps:
       - name: Check cargo-test
@@ -96,11 +101,10 @@ jobs:
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust/dart CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           dart: true
           rust: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: just dart-test
@@ -109,17 +113,18 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the dart CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           dart: true
           rust: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dartdoc
         working-directory: ${{ env.DART_WORKSPACE }}
@@ -129,6 +134,7 @@ jobs:
         run: just dart-check-doc
 
   dart-ok:
+    runs-on: ubuntu-20.04
     needs:
       - selection
       - dart-format
@@ -136,7 +142,6 @@ jobs:
       - dart-test
       - dart-doc
     if: ${{always()}}
-    runs-on: ubuntu-20.04
     steps:
       - run: |
           if(${{ needs.selection.outputs.dart == 'false'}} ||
@@ -153,17 +158,17 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
-          flutter: true
           rust: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Analyze code
         run: just flutter-check
@@ -172,28 +177,28 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
-          flutter: true
           rust: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: just flutter-test
 
   flutter-ok:
+    runs-on: ubuntu-20.04
     if: ${{always()}}
     needs:
       - selection
       - flutter-test
       - flutter-analyze
-    runs-on: ubuntu-20.04
     steps:
       - run: |
           if(${{ needs.selection.outputs.flutter == 'false'}} ||
@@ -209,19 +214,16 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: nightly
-          deps: false
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install cargo-sort
-        uses: ./.github/actions/install-cargo-sort
 
       - name: cargo fmt
         run: just rust-fmt
@@ -230,15 +232,16 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: cargo clippy
         run: |
@@ -248,15 +251,16 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: |
@@ -266,15 +270,16 @@ jobs:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: cargo doc
         run: |

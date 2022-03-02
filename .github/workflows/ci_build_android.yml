@@ -16,6 +16,8 @@ on:
 jobs:
   build-android-libs:
     runs-on: ubuntu-20.04
+    container:
+      image: xaynetci/yellow:9135de0
     timeout-minutes: 45
     strategy:
       matrix:
@@ -31,12 +33,9 @@ jobs:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
-          android: true
-          rust-target: ${{ matrix.target }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Android library
         id: build
@@ -44,7 +43,7 @@ jobs:
           ARTIFACT_DIR_BASE=${{ github.job }}
           if ${{ inputs.production }}; then
             just compile-android-ci "${{ matrix.target }}" --prod
-            ARTIFACT_DIR_BASE+="-production"
+            ARTIFACT_DIR_BASE="${ARTIFACT_DIR_BASE}-production"
           else
             just compile-android-ci "${{ matrix.target }}"
           fi
