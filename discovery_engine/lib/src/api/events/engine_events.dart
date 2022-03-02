@@ -23,28 +23,40 @@ part 'engine_events.g.dart';
 /// [NextFeedBatchRequestFailed] or [NextFeedBatchAvailable].
 ///
 /// Used to group discovery feed related events.
-abstract class FeedEngineEvent {}
+abstract class FeedEngineEvent implements EngineEvent {}
 
 /// Abstract class implemented by events like [ClientEventSucceeded] or
 /// [EngineExceptionRaised].
 ///
 /// Used to group generic system events.
-abstract class SystemEngineEvent {}
+abstract class SystemEngineEvent implements EngineEvent {}
 
 /// Abstract class implemented by events used to communicate status of
 /// AI assets fetching process.
-abstract class AssetsStatusEngineEvent {}
+abstract class AssetsStatusEngineEvent implements EngineEvent {}
 
 /// Abstract class implemented by events like [DocumentsUpdated].
 ///
 /// Used to group events related to [Document] changes.
 abstract class DocumentEngineEvent implements EngineEvent {}
 
+/// Abstract class implemented by events like ... TODO
+///
+/// Used to group active search related events.
+abstract class SearchEngineEvent implements EngineEvent {}
+
 enum FeedFailureReason {
   @JsonValue(0)
   notAuthorised,
   @JsonValue(1)
   noNewsForMarket,
+}
+
+enum SearchFailureReason {
+  @JsonValue(0)
+  noActiveSearch,
+  @JsonValue(1)
+  noResultsAvailable,
 }
 
 enum EngineExceptionReason {
@@ -142,6 +154,34 @@ class EngineEvent with _$EngineEvent {
   @Implements<DocumentEngineEvent>()
   const factory EngineEvent.documentsUpdated(List<Document> items) =
       DocumentsUpdated;
+
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.searchRequestSucceeded(List<Document> items) =
+      SearchRequestSucceeded;
+
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.searchRequestFailed(
+    SearchFailureReason reason,
+  ) = SearchRequestFailed;
+
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.nextSearchBatchRequestSucceeded(
+    List<Document> items,
+  ) = NextSearchBatchRequestSucceeded;
+
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.nextSearchBatchRequestFailed(
+    SearchFailureReason reason,
+  ) = NextSearchBatchRequestFailed;
+
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.restoreSearchSucceeded(List<Document> items) =
+      RestoreSearchSucceeded;
+
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.restoreSearchFailed(
+    SearchFailureReason reason,
+  ) = RestoreSearchFailed;
 
   /// Converts json Map to [EngineEvent].
   factory EngineEvent.fromJson(Map<String, Object?> json) =>
