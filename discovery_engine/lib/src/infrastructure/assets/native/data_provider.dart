@@ -26,6 +26,7 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         Manifest,
         SetupData,
         tmpFileExt;
+import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 class NativeDataProvider extends DataProvider {
   @override
@@ -84,9 +85,8 @@ class NativeDataProvider extends DataProvider {
     // if the file doesn't exist we try to look for the temp file copied from
     // bundled assets, waiting for checksum verification
     final tmpFileRef = File('$filePath.$tmpFileExt');
-    final doesTmpFileExist = tmpFileRef.existsSync();
 
-    if (doesTmpFileExist) {
+    try {
       if (await _verifyChecksum(tmpFileRef, asset.checksum.checksumAsHex)) {
         // if we have a tmp file and it has a proper checksum we move it
         // to proper destination path
@@ -97,6 +97,10 @@ class NativeDataProvider extends DataProvider {
         // this step and start fetching from server faster
         await tmpFileRef.delete();
       }
+    } catch (e, s) {
+      // file probably doesn't exist, so just continue
+      const msg = 'Somethign went wrong with assets tmp file verification';
+      logger.e(msg, e, s);
     }
 
     // if we didn't found a tmp file or it's verification failed we try to fetch
