@@ -19,6 +19,7 @@ use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -333,7 +334,7 @@ where
             match articles.map_err(Error::StackOpFailed).and_then(|articles| {
                 let id = stack.id();
                 articles
-                    .into_iter()
+                    .into_par_iter()
                     .map(|article| {
                         let title = article.title.as_str();
                         let embedding = self.ranker.compute_smbert(title).map_err(Error::Ranker)?;
