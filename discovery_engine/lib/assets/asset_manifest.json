@@ -10,16 +10,7 @@
       "id": "smbertModel",
       "url_suffix": "smbert_v0001/smbert-quantized.onnx",
       "checksum": "83bf0604484231f2d2016aacb0b6e647ee65e1f29024c8c53b8a347e39b745db",
-      "fragments": [
-        {
-          "url_suffix": "smbert_v0001/smbert-quantized.onnx_11MB_00",
-          "checksum": "340fe35f964a1da6c38bef3395f087a9dcd86f6d9ec4ca9cb2a70446c5f88023"
-        },
-        {
-          "url_suffix": "smbert_v0001/smbert-quantized.onnx_11MB_01",
-          "checksum": "6456f7fd7f5eebd3abdcd07d6b2237576343bd02f9dc6e5c0815e2154da873c3"
-        }
-      ]
+      "fragments": []
     },
     {
       "id": "kpeVocab",
