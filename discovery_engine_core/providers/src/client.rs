@@ -17,8 +17,8 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use displaydoc::Display as DisplayDoc;
-use url::Url;
 use thiserror::Error;
+use url::Url;
 
 use crate::{
     filter::{Filter, Market},
@@ -94,10 +94,12 @@ impl Client {
     }
 
     fn build_news_query(url: &mut Url, params: &NewsQuery<'_>) -> Result<(), Error> {
-        url.path_segments_mut().map_err(|_| Error::InvalidUrlBase(None))?
+        url.path_segments_mut()
+            .map_err(|_| Error::InvalidUrlBase(None))?
             .push("_sn");
         let mut query = url.query_pairs_mut();
-        query.append_pair("sort_by", "relevancy")
+        query
+            .append_pair("sort_by", "relevancy")
             .append_pair("lang", &params.market.lang_code)
             .append_pair("countries", &params.market.country_code)
             .append_pair("page_size", &params.page_size.to_string())
@@ -132,7 +134,8 @@ impl Client {
     }
 
     fn build_headlines_query(url: &mut Url, params: &HeadlinesQuery<'_>) -> Result<(), Error> {
-        url.path_segments_mut().map_err(|_| Error::InvalidUrlBase(None))?
+        url.path_segments_mut()
+            .map_err(|_| Error::InvalidUrlBase(None))?
             .push("_lh");
         url.query_pairs_mut()
             .append_pair("lang", &params.market.lang_code)
