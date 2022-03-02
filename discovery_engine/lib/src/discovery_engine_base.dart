@@ -17,21 +17,28 @@ import 'package:universal_platform/universal_platform.dart'
     show UniversalPlatform;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
+        AssetsStatusEngineEvent,
         ClientEvent,
         ClientEventSucceeded,
-        AssetsStatusEngineEvent,
         Configuration,
-        UserReaction,
         DocumentId,
         DocumentViewMode,
         EngineEvent,
         EngineExceptionReason,
+        FeedMarket,
         FeedMarkets,
-        RestoreFeedFailed,
-        RestoreFeedSucceeded,
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
-        NextFeedBatchRequestSucceeded;
+        NextFeedBatchRequestSucceeded,
+        SearchRequestSucceeded,
+        SearchRequestFailed,
+        NextSearchBatchRequestSucceeded,
+        NextSearchBatchRequestFailed,
+        RestoreSearchSucceeded,
+        RestoreSearchFailed,
+        RestoreFeedFailed,
+        RestoreFeedSucceeded,
+        UserReaction;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -259,6 +266,96 @@ class DiscoveryEngine {
   }) {
     return _trySend(() async {
       final event = ClientEvent.userReactionChanged(documentId, userReaction);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Requests a new search for [Document] items related to `queryTerm` for
+  /// a particular `market`.
+  ///
+  /// In response it can return:
+  /// - [SearchRequestSucceeded] for successful response, containing a list of
+  /// [Document] items
+  /// - [SearchRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> requestSearch({
+    required String queryTerm,
+    required FeedMarket market,
+  }) {
+    return _trySend(() async {
+      final event = ClientEvent.searchRequested(queryTerm, market);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        searchRequestSucceeded: true,
+        searchRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Requests next batch of [Document] items related to the current active search.
+  ///
+  /// In response it can return:
+  /// - [NextSearchBatchRequestSucceeded] for successful response, containing a list of
+  /// [Document] items
+  /// - [NextSearchBatchRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> requestNextSearchBatch() {
+    return _trySend(() async {
+      const event = ClientEvent.nextSearchBatchRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        nextSearchBatchRequestSucceeded: true,
+        nextSearchBatchRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Restores latest active search that wasn't closed.
+  ///
+  /// In response it can return:
+  /// - [RestoreSearchSucceeded] for successful response, containing a list of
+  /// [Document] items
+  /// - [RestoreSearchFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> restoreSearch() {
+    return _trySend(() async {
+      const event = ClientEvent.restoreSearchRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        restoreSearchSucceeded: true,
+        restoreSearchFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Closes the [Document]s related to current active search for further
+  /// modification.
+  ///
+  /// **IMPORTANT!:**
+  /// Use when the [Document]s are no longer available to the user and the user
+  /// **can NOT interact** with them.
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
+  Future<EngineEvent> closeSearch() {
+    return _trySend(() async {
+      const event = ClientEvent.searchClosed();
       final response = await _manager.send(event);
 
       return response.mapEvent(
