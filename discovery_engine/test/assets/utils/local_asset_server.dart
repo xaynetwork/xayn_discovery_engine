@@ -12,22 +12,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:io' show HttpServer, HttpStatus, InternetAddress, Directory, File;
+import 'dart:io' show HttpServer, HttpStatus, InternetAddress;
 
-const kMockDataPath = '/test/assets/utils/input';
+const _bytes = [48, 48, 10];
+const bytesMap = {
+  'smbertVocab': _bytes,
+  'smbertModel': _bytes,
+  'kpeVocab': _bytes,
+  'kpeModel': _bytes,
+  'kpeCnn': _bytes,
+  'kpeClassifier': _bytes,
+};
 
 class LocalAssetServer {
   final HttpServer _server;
-  final String _mockDataPath;
-  final Map<String, int> _callCount = {};
+  final Map<Uri, int> _callCount = {};
   int _failCount = 0;
 
-  Map<String, int> get callCount => _callCount;
+  int get callCountSum => _callCount.values.reduce((sum, val) => sum + val);
 
-  LocalAssetServer._(
-    this._server, {
-    String? mockDataPath,
-  }) : _mockDataPath = mockDataPath ?? kMockDataPath {
+  LocalAssetServer._(this._server) {
     _handleRequests();
   }
 
@@ -46,17 +50,23 @@ class LocalAssetServer {
 
   Future<void> _handleRequests() async {
     await for (final request in _server) {
-      final filePath = '${Directory.current.path}$_mockDataPath${request.uri}';
-      final file = File(filePath);
-      final callCount = _callCount[filePath] ?? 0;
+      final callCount = _callCount[request.uri] ?? 0;
+      final assetNameArgs = '${request.uri}'.substring(1).split('_');
 
       if (callCount < _failCount) {
         request.response.statusCode = HttpStatus.serviceUnavailable;
-        _callCount[filePath] = callCount + 1;
-      } else if (!file.existsSync()) {
+        _callCount[request.uri] = callCount + 1;
+      } else if (bytesMap[assetNameArgs.first] == null) {
         request.response.statusCode = HttpStatus.notFound;
       } else {
-        await file.openRead().pipe(request.response);
+        final bytes = bytesMap[assetNameArgs.last] ??
+            [
+              bytesMap[assetNameArgs.first]!.elementAt(
+                int.parse(assetNameArgs.last),
+              )
+            ];
+
+        await Stream.fromIterable([bytes]).pipe(request.response);
       }
 
       await request.response.close();
