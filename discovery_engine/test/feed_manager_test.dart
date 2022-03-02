@@ -66,7 +66,7 @@ Future<void> main() async {
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
-  final config = EventConfig(5);
+  final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();

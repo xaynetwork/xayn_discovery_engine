@@ -48,6 +48,7 @@ Configuration createConfig(
     apiBaseUrl: 'http://localhost:$serverPort',
     assetsUrl: 'https://ai-assets.xaynet.dev',
     maxItemsPerFeedBatch: 50,
+    maxItemsPerSearchBatch: 20,
     applicationDirectoryPath: data.applicationDirectoryPath,
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
     manifest: data.manifest,

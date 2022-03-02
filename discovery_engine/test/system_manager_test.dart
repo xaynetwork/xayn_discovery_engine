@@ -44,7 +44,7 @@ Future<void> main() async {
   final docBox = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
-  final config = EventConfig(5);
+  final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
   final docRepo = HiveDocumentRepository();
 
   final mgr = SystemManager(engine, config, docRepo);
@@ -79,15 +79,22 @@ Future<void> main() async {
       final markets = {
         const FeedMarket(countryCode: 'Country', langCode: 'language')
       };
-      final evt = await mgr.changeConfiguration(markets, null);
+      final evt = await mgr.changeConfiguration(markets, null, null);
       expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
     });
 
     test('change configuration maxItemsPerFeedBatch', () async {
-      final maxDocs = mgr.maxDocs;
-      final evt = await mgr.changeConfiguration(null, maxDocs + 1);
+      final maxDocs = mgr.maxFeedDocs;
+      final evt = await mgr.changeConfiguration(null, maxDocs + 1, null);
       expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
-      expect(mgr.maxDocs, maxDocs + 1);
+      expect(mgr.maxFeedDocs, maxDocs + 1);
+    });
+
+    test('change configuration maxItemsPerSearchBatch', () async {
+      final maxDocs = mgr.maxSearchDocs;
+      final evt = await mgr.changeConfiguration(null, null, maxDocs + 1);
+      expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
+      expect(mgr.maxSearchDocs, maxDocs + 1);
     });
   });
 }

@@ -35,7 +35,10 @@ class SystemManager {
   SystemManager(this._engine, this._config, this._docRepo);
 
   @visibleForTesting
-  int get maxDocs => _config.maxDocs;
+  int get maxFeedDocs => _config.maxFeedDocs;
+
+  @visibleForTesting
+  int get maxSearchDocs => _config.maxSearchDocs;
 
   /// Handle the given system client event.
   ///
@@ -51,6 +54,7 @@ class SystemManager {
   Future<EngineEvent> changeConfiguration(
     FeedMarkets? feedMarkets,
     int? maxItemsPerFeedBatch,
+    int? maxItemsPerSearchBatch,
   ) async {
     if (feedMarkets != null) {
       final history = await _docRepo.fetchHistory();
@@ -65,7 +69,10 @@ class SystemManager {
       }
     }
     if (maxItemsPerFeedBatch != null) {
-      _config.maxDocs = maxItemsPerFeedBatch;
+      _config.maxFeedDocs = maxItemsPerFeedBatch;
+    }
+    if (maxItemsPerSearchBatch != null) {
+      _config.maxSearchDocs = maxItemsPerSearchBatch;
     }
 
     return const EngineEvent.clientEventSucceeded();

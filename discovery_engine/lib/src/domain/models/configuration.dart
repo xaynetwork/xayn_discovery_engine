@@ -30,6 +30,7 @@ class Configuration with _$Configuration {
     required String apiBaseUrl,
     required String assetsUrl,
     required int maxItemsPerFeedBatch,
+    required int maxItemsPerSearchBatch,
     required String applicationDirectoryPath,
     required FeedMarkets feedMarkets,
     required Manifest manifest,

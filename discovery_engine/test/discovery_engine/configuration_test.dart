@@ -31,6 +31,7 @@ void main() {
           apiBaseUrl: '',
           assetsUrl: '',
           maxItemsPerFeedBatch: -1,
+          maxItemsPerSearchBatch: -1,
           applicationDirectoryPath: '',
           manifest: Manifest([]),
         ),
