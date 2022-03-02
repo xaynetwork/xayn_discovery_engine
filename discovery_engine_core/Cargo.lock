@@ -997,7 +997,7 @@ dependencies = [
 [[package]]
 name = "kpe"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#7860216852084e165942a9d23ebbbfa63b1bf4e7"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2390-new_smbert_model#0860755843128867386d594c911e48164507e7b8"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1020,7 +1020,7 @@ dependencies = [
 [[package]]
 name = "layer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#7860216852084e165942a9d23ebbbfa63b1bf4e7"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2390-new_smbert_model#0860755843128867386d594c911e48164507e7b8"
 dependencies = [
  "bincode",
  "displaydoc",
@@ -1821,7 +1821,7 @@ dependencies = [
 [[package]]
 name = "rubert"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#7860216852084e165942a9d23ebbbfa63b1bf4e7"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2390-new_smbert_model#0860755843128867386d594c911e48164507e7b8"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1836,7 +1836,7 @@ dependencies = [
 [[package]]
 name = "rubert-tokenizer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#7860216852084e165942a9d23ebbbfa63b1bf4e7"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2390-new_smbert_model#0860755843128867386d594c911e48164507e7b8"
 dependencies = [
  "displaydoc",
  "num-traits",
@@ -2786,7 +2786,7 @@ dependencies = [
 [[package]]
 name = "xayn-ai"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#7860216852084e165942a9d23ebbbfa63b1bf4e7"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2390-new_smbert_model#0860755843128867386d594c911e48164507e7b8"
 dependencies = [
  "anyhow",
  "bincode",
