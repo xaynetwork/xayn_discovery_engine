@@ -135,11 +135,19 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   /// Processes user reaction.
+  ///
+  /// The history is only required for positive reactions.
   @override
-  Future<void> userReacted(final UserReacted userReacted) async {
+  Future<void> userReacted(
+    final List<HistoricDocument>? history,
+    final UserReacted userReacted,
+  ) async {
     final boxedUserReacted = userReacted.allocNative();
-    final result =
-        await asyncFfi.userReacted(_engine.ref, boxedUserReacted.move());
+    final result = await asyncFfi.userReacted(
+      _engine.ref,
+      history?.allocNative().move() ?? nullptr,
+      boxedUserReacted.move(),
+    );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
   }

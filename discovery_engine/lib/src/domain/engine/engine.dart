@@ -51,7 +51,12 @@ abstract class Engine {
   Future<void> timeSpent(TimeSpent timeSpent);
 
   /// Process the user's reaction to a document.
-  Future<void> userReacted(UserReacted userReacted);
+  ///
+  /// The history is only required for positive reactions.
+  Future<void> userReacted(
+    List<HistoricDocument>? history,
+    UserReacted userReacted,
+  );
 }
 
 /// Passed to constructors/initializers of `Engine` implementing classes.

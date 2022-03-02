@@ -125,8 +125,12 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Processes user reaction.
+    ///
+    /// The history is only required for positive reactions.
+    #[allow(clippy::box_vec)]
     pub async fn user_reacted(
         engine: &SharedEngine,
+        history: Option<Box<Vec<HistoricDocument>>>,
         reacted: Box<UserReacted>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -134,7 +138,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .user_reacted(reacted.as_ref())
+                .user_reacted(history.as_deref().map(Vec::as_slice), reacted.as_ref())
                 .await
                 .map_err(|error| error.to_string()),
         )

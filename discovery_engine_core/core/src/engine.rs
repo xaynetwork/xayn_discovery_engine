@@ -32,7 +32,15 @@ use xayn_ai::{
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    document::{self, document_from_article, Document, HistoricDocument, TimeSpent, UserReacted},
+    document::{
+        self,
+        document_from_article,
+        Document,
+        HistoricDocument,
+        TimeSpent,
+        UserReacted,
+        UserReaction,
+    },
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{
@@ -288,7 +296,13 @@ where
     }
 
     /// Process the feedback about the user reacting to a document.
-    pub async fn user_reacted(&mut self, reacted: &UserReacted) -> Result<(), Error> {
+    ///
+    /// The history is only required for positive reactions.
+    pub async fn user_reacted(
+        &mut self,
+        history: Option<&[HistoricDocument]>,
+        reacted: &UserReacted,
+    ) -> Result<(), Error> {
         let mut stacks = self.stacks.write().await;
         stacks
             .get_mut(&reacted.stack_id)
@@ -297,7 +311,19 @@ where
 
         self.ranker.log_user_reaction(reacted)?;
 
-        rank_stacks(stacks.values_mut(), &mut self.ranker)
+        rank_stacks(stacks.values_mut(), &mut self.ranker)?;
+
+        if let UserReaction::Positive = reacted.reaction {
+            if let Some(history) = history {
+                drop(stacks);
+                self.update_stacks(history, self.core_config.request_new)
+                    .await
+            } else {
+                Err(Error::StackOpFailed(stack::Error::NoHistory))
+            }
+        } else {
+            Ok(())
+        }
     }
 
     /// Updates the stacks with data related to the top key phrases of the current data.

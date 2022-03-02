@@ -134,7 +134,10 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> userReacted(UserReacted userReacted) async {
+  Future<void> userReacted(
+    List<HistoricDocument>? history,
+    UserReacted userReacted,
+  ) async {
     _incrementCount('userReacted');
   }
 }
