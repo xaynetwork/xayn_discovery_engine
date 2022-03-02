@@ -19,7 +19,7 @@ use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -230,7 +230,8 @@ where
             core_config.keep_top,
             usize::MAX,
         )
-        .await;
+        .await
+        .ok();
 
         Ok(Self {
             config,
@@ -266,7 +267,11 @@ where
     /// Updates the markets configuration.
     ///
     /// Also resets and updates all stacks.
-    pub async fn set_markets(&mut self, history: &[HistoricDocument], markets: Vec<Market>) {
+    pub async fn set_markets(
+        &mut self,
+        history: &[HistoricDocument],
+        markets: Vec<Market>,
+    ) -> Result<(), Error> {
         *self.config.markets.write().await = markets;
 
         let mut stacks = self.stacks.write().await;
@@ -281,7 +286,7 @@ where
             self.core_config.keep_top,
             self.core_config.request_new,
         )
-        .await;
+        .await
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
@@ -301,7 +306,7 @@ where
             self.core_config.keep_top,
             self.core_config.request_new,
         )
-        .await;
+        .await?;
 
         Ok(documents)
     }
@@ -340,8 +345,7 @@ where
                     self.core_config.keep_top,
                     self.core_config.request_new,
                 )
-                .await;
-                Ok(())
+                .await
             } else {
                 Err(Error::StackOpFailed(stack::Error::NoHistory))
             }
@@ -379,7 +383,7 @@ async fn update_stacks<'a>(
     select_top: usize,
     keep_top: usize,
     request_new: usize,
-) {
+) -> Result<(), Error> {
     let mut stacks: Vec<_> = stacks.filter(|stack| stack.len() <= request_new).collect();
 
     let needs_key_phrases = stacks.iter().any(|stack| stack.ops.needs_key_phrases());
@@ -389,11 +393,15 @@ async fn update_stacks<'a>(
         vec![]
     };
 
+    let mut errors = Vec::new();
+    let max_errors = stacks.len();
     for stack in &mut stacks {
         let articles = match stack.new_items(&key_phrases).await {
             Ok(articles) => articles,
             Err(error) => {
-                error!("{}", Error::StackOpFailed(error));
+                let error = Error::StackOpFailed(error);
+                error!("{}", error);
+                errors.push(error);
                 continue;
             }
         };
@@ -401,38 +409,51 @@ async fn update_stacks<'a>(
         let articles = match stack.filter_articles(history, articles) {
             Ok(articles) => articles,
             Err(error) => {
-                error!("{}", Error::StackOpFailed(error));
+                let error = Error::StackOpFailed(error);
+                error!("{}", error);
+                errors.push(error);
                 continue;
             }
         };
 
         let id = stack.id();
-        let documents = articles
+        let (documents, article_errors) = articles
             .into_par_iter()
-            .filter_map(|article| {
+            .map(|article| {
                 let title = article.title.as_str();
-                let embedding = match ranker.compute_smbert(title) {
-                    Ok(embedding) => embedding,
-                    Err(error) => {
-                        error!("{}", Error::Ranker(error));
-                        return None;
-                    }
-                };
-                match document_from_article(article, id, embedding) {
-                    Ok(document) => Some(document),
-                    Err(error) => {
-                        error!("{}", Error::Document(error));
-                        None
-                    }
-                }
+                let embedding = ranker.compute_smbert(title).map_err(|error| {
+                    let error = Error::Ranker(error);
+                    error!("{}", error);
+                    error
+                })?;
+                document_from_article(article, id, embedding).map_err(|error| {
+                    let error = Error::Document(error);
+                    error!("{}", error);
+                    error
+                })
             })
-            .collect::<Vec<_>>();
+            .partition_map::<Vec<_>, Vec<_>, _, _, _>(|result| match result {
+                Ok(document) => Either::Left(document),
+                Err(error) => Either::Right(error),
+            });
+        if documents.is_empty() {
+            errors.push(Error::Errors(article_errors));
+            continue;
+        }
 
         if let Err(error) = stack.update(&documents, ranker) {
-            error!("{}", Error::StackOpFailed(error));
+            let error = Error::StackOpFailed(error);
+            error!("{}", error);
+            errors.push(error);
         } else {
             stack.data.retain_top(keep_top);
         }
+    }
+
+    if errors.len() < max_errors {
+        Ok(())
+    } else {
+        Err(Error::Errors(errors))
     }
 }
 
