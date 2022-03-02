@@ -28,7 +28,7 @@
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
     clippy::module_name_repetitions,
-    clippy::items_after_statements,
+    clippy::items_after_statements
 )]
 
 pub use xayn_discovery_engine_providers::Market;
