@@ -33,31 +33,6 @@ pub(crate) trait ArticleFilter {
     ) -> Result<Vec<Article>, GenericError>;
 }
 
-struct UniqueArticle(Article);
-
-impl Eq for UniqueArticle {}
-impl PartialEq for UniqueArticle {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.link == other.0.link || self.0.title == other.0.title
-    }
-}
-
-impl PartialOrd for UniqueArticle {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for UniqueArticle {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.eq(other) {
-            Ordering::Equal
-        } else {
-            (&self.0.title, &self.0.link).cmp(&(&other.0.title, &other.0.link))
-        }
-    }
-}
-
 struct DuplicateFilter;
 
 impl ArticleFilter for DuplicateFilter {
@@ -84,7 +59,32 @@ impl ArticleFilter for DuplicateFilter {
             !(urls.contains(&article.0.link.as_str()) || titles.contains(&&article.0.title))
         });
 
-        Ok(articles.into_iter().map(|u| u.0).collect())
+        return Ok(articles.into_iter().map(|u| u.0).collect());
+
+        struct UniqueArticle(Article);
+
+        impl Eq for UniqueArticle {}
+        impl PartialEq for UniqueArticle {
+            fn eq(&self, other: &Self) -> bool {
+                self.0.link == other.0.link || self.0.title == other.0.title
+            }
+        }
+
+        impl PartialOrd for UniqueArticle {
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl Ord for UniqueArticle {
+            fn cmp(&self, other: &Self) -> Ordering {
+                if self.eq(other) {
+                    Ordering::Equal
+                } else {
+                    (&self.0.title, &self.0.link).cmp(&(&other.0.title, &other.0.link))
+                }
+            }
+        }
     }
 }
 
