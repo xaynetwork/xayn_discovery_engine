@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Cow, collections::HashSet};
+use std::collections::HashSet;
 
 use url::Url;
 
@@ -30,35 +30,48 @@ pub(crate) trait ArticleFilter {
     ) -> Result<Vec<Article>, GenericError>;
 }
 
+struct UniqueArticle(Article);
+
+impl Eq for UniqueArticle {}
+impl PartialEq for UniqueArticle {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.link == other.0.link || self.0.title == other.0.title
+    }
+}
+
+impl std::hash::Hash for UniqueArticle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.link.hash(state);
+        self.0.title.hash(state);
+    }
+}
 struct DuplicateFilter;
 
 impl ArticleFilter for DuplicateFilter {
     fn apply(
         history: &[HistoricDocument],
         stack: &[Document],
-        mut articles: Vec<Article>,
+        articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        let mut urls = history
+        let urls = history
             .iter()
-            .map(|doc| Cow::from(doc.url.as_str()))
-            .chain(stack.iter().map(|doc| Cow::from(doc.resource.url.as_str())))
+            .map(|doc| doc.url.as_str())
+            .chain(stack.iter().map(|doc| doc.resource.url.as_str()))
             .collect::<HashSet<_>>();
 
-        let mut titles = history
+        let titles = history
             .iter()
-            .map(|doc| Cow::from(&doc.title))
-            .chain(stack.iter().map(|doc| Cow::from(&doc.resource.title)))
+            .map(|doc| &doc.title)
+            .chain(stack.iter().map(|doc| &doc.resource.title))
             .collect::<HashSet<_>>();
+
+        let mut articles: HashSet<_> = articles.into_iter().map(UniqueArticle).collect();
 
         articles.retain(|article| {
-            let do_retain = !(urls.contains(&Cow::from(article.link.as_str()))
-                || titles.contains(&Cow::from(&article.title)));
-            urls.insert(Cow::from(article.link.to_string()));
-            titles.insert(Cow::from(article.title.clone()));
-            do_retain
+            !(urls.contains(&article.0.link.as_str()) || titles.contains(&&article.0.title))
         });
 
-        Ok(articles)
+        Ok(articles.into_iter().map(|u| u.0).collect())
     }
 }
 
@@ -106,6 +119,7 @@ mod tests {
         document::{document_from_article, Document},
         stack::filters::CommonFilter,
     };
+    use itertools::Itertools;
     use xayn_discovery_engine_providers::Article;
 
     use super::*;
@@ -129,11 +143,12 @@ mod tests {
             .unwrap()
             .into_iter()
             .map(|article| article.title)
+            .sorted()
             .collect::<Vec<_>>();
 
         assert_eq!(filtered, [
-            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
         ]);
     }
 
@@ -157,11 +172,12 @@ mod tests {
             .unwrap()
             .into_iter()
             .map(|article| article.title)
+            .sorted()
             .collect::<Vec<_>>();
 
         assert_eq!(filtered, [
-            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
         ]);
     }
 
@@ -182,13 +198,13 @@ mod tests {
             .collect();
 
         let result = CommonFilter::apply(&[], documents.as_slice(), input).unwrap();
-        let titles = result.iter().map(|a| &a.title).collect::<Vec<_>>();
+        let titles = result.iter().map(|a| &a.title).sorted().collect::<Vec<_>>();
 
         assert_eq!(titles.as_slice(), [
-            "Olympic champion Lundby laments ski jumping's weight issues",
             "Jerusalem blanketed in white after rare snowfall",
-            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+            "Olympic champion Lundby laments ski jumping's weight issues",
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
         ]);
     }
 
