@@ -14,7 +14,7 @@
 
 //! Client to get new documents.
 
-use std::{collections::BTreeMap, time::Duration};
+use std::time::Duration;
 
 use displaydoc::Display as DisplayDoc;
 use thiserror::Error;
