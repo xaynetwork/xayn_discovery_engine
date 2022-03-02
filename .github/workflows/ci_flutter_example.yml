@@ -16,11 +16,13 @@ jobs:
     # The reason we don't need the Android libraries here is that, for Android, we have
     # a dynamic library that is loaded at runtime, while for iOS we have a static library
     # that needs to exist during the linking process.
-    runs-on: ${{ matrix.os }}
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 30
     strategy:
       matrix:
-        target: [android, ios]
+        target: [android]
         include:
           - target: android
             os: ubuntu-20.04
@@ -32,7 +34,7 @@ jobs:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
           flutter: true

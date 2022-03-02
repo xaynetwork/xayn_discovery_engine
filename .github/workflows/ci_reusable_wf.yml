@@ -12,7 +12,9 @@ on:
 
 jobs:
   selection:
-    runs-on: ubuntu-latest
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     # Set job outputs to values from filter step
     outputs:
       dart: ${{ steps.filter.outputs.dart }}
@@ -21,6 +23,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      
+      - run: |
+          pwd
+          ls -lh
+
       # For pull requests it's not necessary to checkout the code
       - uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721
         id: filter
@@ -29,7 +36,7 @@ jobs:
             rust: &rust
               - 'discovery_engine_core/**'
               - '.github/workflows/ci*'
-              - '.github/actions/setup-job/*'
+              - '.github/actions/setup-job-docker/*'
               - '.github/actions/install-cargo-sort/*'
               - 'justfile'
             dart: &dart
@@ -44,14 +51,16 @@ jobs:
   dart-format:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the dart CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           dart: true
           deps: false
@@ -63,14 +72,16 @@ jobs:
   dart-analyze:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust/dart CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           dart: true
           rust: true
@@ -82,7 +93,9 @@ jobs:
   dart-test:
     needs: [selection, cargo-test]
     if: ${{ always()}}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 20
     steps:
       - name: Check cargo-test
@@ -96,7 +109,7 @@ jobs:
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust/dart CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           dart: true
           rust: true
@@ -108,14 +121,16 @@ jobs:
   dart-doc:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the dart CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           dart: true
           rust: true
@@ -136,7 +151,7 @@ jobs:
       - dart-test
       - dart-doc
     if: ${{always()}}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
     steps:
       - run: |
           if(${{ needs.selection.outputs.dart == 'false'}} ||
@@ -152,14 +167,16 @@ jobs:
   flutter-analyze:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           flutter: true
           rust: true
@@ -171,14 +188,16 @@ jobs:
   flutter-test:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           flutter: true
           rust: true
@@ -192,7 +211,7 @@ jobs:
     needs:
       - flutter-test
       - flutter-analyze
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
     steps:
       - run: |
           if(${{ needs.selection.outputs.flutter == 'false'}} ||
@@ -207,13 +226,15 @@ jobs:
   cargo-format:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: nightly
           deps: false
@@ -228,13 +249,15 @@ jobs:
   cargo-clippy:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -246,13 +269,15 @@ jobs:
   cargo-test:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -264,13 +289,15 @@ jobs:
   cargo-doc:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -286,7 +313,7 @@ jobs:
       - cargo-clippy
       - cargo-test
       - cargo-doc
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
     steps:
       - run: exit 0
 
@@ -295,7 +322,7 @@ jobs:
     if: ${{always()}}
     outputs:
       run-result:  ${{ steps.run-check.outputs.run-result }}
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
     timeout-minutes: 5
     steps:
       - name: Run Check

@@ -15,7 +15,9 @@ on:
 
 jobs:
   build-android-libs:
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
+    container:
+      image: wunderdogneo/rust-flutter-android:latest
     timeout-minutes: 45
     strategy:
       matrix:
@@ -31,7 +33,7 @@ jobs:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-docker
         with:
           rust: true
           android: true

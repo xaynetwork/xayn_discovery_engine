@@ -1,13 +1,16 @@
 name: CI
-on:
-  push:
-    branches-ignore:
-      - 'main'
-      - '_bors*'
+# on:
+#   push:
+#     branches-ignore:
+#       - 'main'
+#       - '_bors*'
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+on:
+  workflow_call:
+
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
 
 permissions:
   contents: read
@@ -18,7 +21,7 @@ jobs:
 
   ci-ok:
     needs: dev-ci
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
     timeout-minutes: 5
     steps:
       - name: CI OK Testing

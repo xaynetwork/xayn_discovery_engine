@@ -1,13 +1,20 @@
 name: Bors CI
+
+# on:
+#   push:
+#     branches:
+#       - '_bors_staging'
+#       - '_bors_trying'
+
 on:
   push:
-    branches:
-      - '_bors_staging'
-      - '_bors_trying'
+    branches-ignore:
+      - 'main'
+      - '_bors*'
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
 
 permissions:
   contents: read
@@ -30,7 +37,7 @@ jobs:
 
   ci-ok:
     needs: [dev-ci, build-ios-libs, build-android-libs, build-flutter-example]
-    runs-on: ubuntu-20.04
+    runs-on: azure-vm
     timeout-minutes: 5
     if: always()
     steps:
