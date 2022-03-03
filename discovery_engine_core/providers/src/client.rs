@@ -14,10 +14,11 @@
 
 //! Client to get new documents.
 
-use std::{collections::BTreeMap, time::Duration};
+use std::time::Duration;
 
 use displaydoc::Display as DisplayDoc;
 use thiserror::Error;
+use url::Url;
 
 use crate::{
     filter::{Filter, Market},
@@ -26,6 +27,8 @@ use crate::{
 
 #[derive(Error, Debug, DisplayDoc)]
 pub enum Error {
+    /// Invalid API Url base
+    InvalidUrlBase(Option<url::ParseError>),
     /// Failed to execute the HTTP request: {0}
     RequestExecution(#[source] reqwest::Error),
     /// Server returned a non-successful status code: {0}
@@ -71,16 +74,14 @@ impl Client {
 
     /// Retrieve news from the remote API
     pub async fn news(&self, params: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
-        let mut query: BTreeMap<String, String> = BTreeMap::new();
-        query.insert("sort_by".into(), "relevancy".into());
-        Self::build_news_query(&mut query, params);
+        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
+        Self::build_news_query(&mut url, params)?;
 
         let c = reqwest::Client::new();
         let response = c
-            .get(format!("{}/_sn", self.url))
+            .get(url)
             .timeout(Self::TIMEOUT)
             .bearer_auth(&self.token)
-            .query(&query)
             .send()
             .await
             .map_err(Error::RequestExecution)?
@@ -92,30 +93,35 @@ impl Client {
         Ok(result)
     }
 
-    fn build_news_query(query: &mut BTreeMap<String, String>, params: &NewsQuery<'_>) {
-        query.insert("lang".to_string(), params.market.lang_code.to_string());
-        query.insert(
-            "countries".to_string(),
-            params.market.country_code.to_string(),
-        );
-        query.insert("page_size".to_string(), params.page_size.to_string());
-        query.insert("q".to_string(), params.filter.build());
+    fn build_news_query(url: &mut Url, params: &NewsQuery<'_>) -> Result<(), Error> {
+        url.path_segments_mut()
+            .map_err(|_| Error::InvalidUrlBase(None))?
+            .push("_sn");
+        let mut query = url.query_pairs_mut();
+        query
+            .append_pair("sort_by", "relevancy")
+            .append_pair("lang", &params.market.lang_code)
+            .append_pair("countries", &params.market.country_code)
+            .append_pair("page_size", &params.page_size.to_string())
+            .append_pair("q", &params.filter.build());
+
         if let Some(page) = params.page {
-            query.insert("page".to_string(), page.to_string());
+            query.append_pair("page", &page.to_string());
         }
+
+        Ok(())
     }
 
     /// Retrieve headlines from the remote API
     pub async fn headlines(&self, params: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
-        let mut query: BTreeMap<String, String> = BTreeMap::new();
-        Self::build_headlines_query(&mut query, params);
+        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
+        Self::build_headlines_query(&mut url, params)?;
 
         let c = reqwest::Client::new();
         let response = c
-            .get(format!("{}/_lh", self.url))
+            .get(url)
             .timeout(Self::TIMEOUT)
             .bearer_auth(&self.token)
-            .query(&query)
             .send()
             .await
             .map_err(Error::RequestExecution)?
@@ -127,13 +133,15 @@ impl Client {
         Ok(result)
     }
 
-    fn build_headlines_query(query: &mut BTreeMap<String, String>, params: &HeadlinesQuery<'_>) {
-        query.insert("lang".to_string(), params.market.lang_code.to_string());
-        query.insert(
-            "countries".to_string(),
-            params.market.country_code.to_string(),
-        );
-        query.insert("page_size".to_string(), params.page_size.to_string());
+    fn build_headlines_query(url: &mut Url, params: &HeadlinesQuery<'_>) -> Result<(), Error> {
+        url.path_segments_mut()
+            .map_err(|_| Error::InvalidUrlBase(None))?
+            .push("_lh");
+        url.query_pairs_mut()
+            .append_pair("lang", &params.market.lang_code)
+            .append_pair("countries", &params.market.country_code)
+            .append_pair("page_size", &params.page_size.to_string());
+        Ok(())
     }
 }
 
