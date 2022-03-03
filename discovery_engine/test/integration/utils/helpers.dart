@@ -15,7 +15,12 @@
 import 'dart:io';
 
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show Manifest, createManifestReader, Configuration, FeedMarket;
+    show
+        Configuration,
+        createManifestReader,
+        DiscoveryEngine,
+        FeedMarket,
+        Manifest;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show kAssetsPath;
 
@@ -52,5 +57,14 @@ Configuration createConfig(
     applicationDirectoryPath: data.applicationDirectoryPath,
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
     manifest: data.manifest,
+  );
+}
+
+Future<DiscoveryEngine> initEngine(
+  TestEngineData data,
+  int serverPort,
+) async {
+  return DiscoveryEngine.init(
+    configuration: createConfig(data, serverPort),
   );
 }

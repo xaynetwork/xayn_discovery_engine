@@ -19,8 +19,8 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
     show DiscoveryEngine;
 
 import '../logging.dart' show setupLogging;
-import 'utils/create_config.dart'
-    show TestEngineData, createConfig, setupTestEngineData;
+import 'utils/helpers.dart'
+    show TestEngineData, initEngine, setupTestEngineData;
 import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 
 void main() {
@@ -32,6 +32,7 @@ void main() {
 
     setUp(() async {
       data = await setupTestEngineData();
+      server = await LocalNewsApiServer.start();
     });
 
     tearDown(() async {
@@ -40,23 +41,17 @@ void main() {
     });
 
     test('init engine with ai models', () async {
-      server = await LocalNewsApiServer.start();
-      final engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
-      );
-
+      final engine = await initEngine(data, server.port);
       expect(engine, isA<DiscoveryEngine>());
+      await engine.dispose();
     });
 
     test('news api request error should not raise an engine init exception',
         () async {
-      server = await LocalNewsApiServer.start();
       server.replyWithError = true;
-      final engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
-      );
-
+      final engine = await initEngine(data, server.port);
       expect(engine, isA<DiscoveryEngine>());
+      await engine.dispose();
     });
   });
 }
