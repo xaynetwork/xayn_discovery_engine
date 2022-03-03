@@ -15,7 +15,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::sync::RwLock;
+use futures::{stream::FuturesUnordered, StreamExt};
+use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{Article, Client, Filter, Market, NewsQuery};
@@ -34,7 +35,7 @@ use super::Ops;
 /// Stack operations customized for personalized news items.
 #[derive(Default)]
 pub(crate) struct PersonalizedNews {
-    client: Client,
+    client: Arc<Client>,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
     page_size: usize,
 }
@@ -46,7 +47,10 @@ impl Ops for PersonalizedNews {
     }
 
     fn configure(&mut self, config: &EndpointConfig) {
-        self.client = Client::new(config.api_key.clone(), config.api_base_url.clone());
+        self.client = Arc::new(Client::new(
+            config.api_key.clone(),
+            config.api_base_url.clone(),
+        ));
         self.markets.replace(Arc::clone(&config.markets));
         self.page_size = config.page_size;
     }
@@ -62,22 +66,30 @@ impl Ops for PersonalizedNews {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
-            let filter = &key_phrases.iter().fold(Filter::default(), |filter, kp| {
+            let filter = Arc::new(key_phrases.iter().fold(Filter::default(), |filter, kp| {
                 filter.add_keyword(kp.words())
-            });
+            }));
 
-            for market in markets.read().await.iter() {
-                let query = NewsQuery {
-                    market,
-                    filter,
-                    page_size: self.page_size,
-                    page: None,
-                };
-                match self.client.news(&query).await {
-                    Ok(batch) => articles.extend(batch),
-                    Err(err) => errors.push(err),
+            let mut requests = markets
+                .read()
+                .await
+                .iter()
+                .cloned()
+                .map(|market| {
+                    spawn_news_request(self.client.clone(), market, filter.clone(), self.page_size)
+                })
+                .collect::<FuturesUnordered<_>>();
+
+            while let Some(handle) = requests.next().await {
+                // should we also push handle errors?
+                if let Ok(result) = handle {
+                    match result {
+                        Ok(batch) => articles.extend(batch),
+                        Err(err) => errors.push(err),
+                    }
                 }
             }
+
             if articles.is_empty() && !errors.is_empty() {
                 Err(errors.pop().unwrap(/* nonempty errors */).into())
             } else {
@@ -102,4 +114,23 @@ impl Ops for PersonalizedNews {
         res.extend_from_slice(new);
         Ok(res)
     }
+}
+
+fn spawn_news_request(
+    client: Arc<Client>,
+    market: Market,
+    filter: Arc<Filter>,
+    page_size: usize,
+) -> JoinHandle<Result<Vec<Article>, xayn_discovery_engine_providers::Error>> {
+    tokio::spawn(async move {
+        let market = market;
+        let query = NewsQuery {
+            market: &market,
+            filter,
+            page_size,
+            page: None,
+        };
+
+        client.news(&query).await
+    })
 }
