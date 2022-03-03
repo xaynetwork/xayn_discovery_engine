@@ -71,5 +71,4 @@ mod tests {
         let filter = Filter::default().add_keyword("a\"b");
         assert_eq!("\"ab\"", filter.build());
     }
-
 }
