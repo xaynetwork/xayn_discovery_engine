@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:io' show File, Directory;
+import 'dart:io' show File, Directory, FileSystemException;
 
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
@@ -26,7 +26,6 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         Manifest,
         SetupData,
         tmpFileExt;
-import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 class NativeDataProvider extends DataProvider {
   @override
@@ -97,10 +96,8 @@ class NativeDataProvider extends DataProvider {
         // this step and start fetching from server faster
         await tmpFileRef.delete();
       }
-    } catch (e, s) {
+    } on FileSystemException {
       // file probably doesn't exist, so just continue
-      const msg = 'Somethign went wrong with assets tmp file verification';
-      logger.e(msg, e, s);
     }
 
     // if we didn't found a tmp file or it's verification failed we try to fetch
