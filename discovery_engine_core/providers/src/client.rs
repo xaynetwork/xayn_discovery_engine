@@ -14,7 +14,7 @@
 
 //! Client to get new documents.
 
-use std::time::Duration;
+use std::{ops::Deref, time::Duration};
 
 use displaydoc::Display as DisplayDoc;
 use thiserror::Error;
@@ -53,11 +53,11 @@ pub struct Client {
 }
 
 /// Parameters determining which news to fetch
-pub struct NewsQuery<'a> {
+pub struct NewsQuery<'a, F> {
     /// Market of news.
     pub market: &'a Market,
     /// News filter.
-    pub filter: &'a Filter,
+    pub filter: F,
     /// How many articles to return (per page).
     pub page_size: usize,
     /// Page number.
@@ -83,7 +83,10 @@ impl Client {
     }
 
     /// Retrieve news from the remote API
-    pub async fn news(&self, params: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
+    pub async fn news(
+        &self,
+        params: &NewsQuery<'_, impl Deref<Target = Filter>>,
+    ) -> Result<Vec<Article>, Error> {
         let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
         Self::build_news_query(&mut url, params)?;
 
@@ -103,7 +106,10 @@ impl Client {
         Ok(result)
     }
 
-    fn build_news_query(url: &mut Url, params: &NewsQuery<'_>) -> Result<(), Error> {
+    fn build_news_query(
+        url: &mut Url,
+        params: &NewsQuery<'_, impl Deref<Target = Filter>>,
+    ) -> Result<(), Error> {
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
             .push("_sn");

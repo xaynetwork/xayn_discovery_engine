@@ -66,9 +66,9 @@ impl Ops for PersonalizedNews {
         if let Some(markets) = self.markets.as_ref() {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
-            let filter = &key_phrases.iter().fold(Filter::default(), |filter, kp| {
+            let filter = Arc::new(key_phrases.iter().fold(Filter::default(), |filter, kp| {
                 filter.add_keyword(kp.words())
-            });
+            }));
 
             let mut requests = markets
                 .read()
@@ -124,15 +124,14 @@ impl Ops for PersonalizedNews {
 fn spawn_news_request(
     client: Arc<Client>,
     market: Market,
-    filter: Filter,
+    filter: Arc<Filter>,
     page_size: usize,
 ) -> JoinHandle<Result<Vec<Article>, xayn_discovery_engine_providers::Error>> {
     tokio::spawn(async move {
         let market = market;
-        let filter = filter;
         let query = NewsQuery {
             market: &market,
-            filter: &filter,
+            filter,
             page_size,
             page: None,
         };
