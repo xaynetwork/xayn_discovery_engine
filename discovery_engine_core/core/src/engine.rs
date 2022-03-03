@@ -415,7 +415,7 @@ async fn update_stacks<'a>(
         };
 
         let id = stack.id();
-        let artices_len = articles.len();
+        let articles_len = articles.len();
         let (documents, articles_errors) = articles
             .into_par_iter()
             .map(|article| {
@@ -435,7 +435,8 @@ async fn update_stacks<'a>(
                 Ok(document) => Either::Left(document),
                 Err(error) => Either::Right(error),
             });
-        if artices_len > 0 && articles_errors.len() == artices_len {
+        // only push an error if the articles aren't empty for other reasons and all articles failed
+        if articles_len > 0 && articles_errors.len() == articles_len {
             errors.push(Error::Errors(articles_errors));
             continue;
         }
