@@ -85,7 +85,7 @@ impl Client {
     /// Retrieve news from the remote API
     pub async fn news(
         &self,
-        params: &NewsQuery<'_, impl Deref<Target = Filter>>,
+        params: &NewsQuery<'_, impl Deref<Target = Filter> + Send + Sync>,
     ) -> Result<Vec<Article>, Error> {
         let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
         Self::build_news_query(&mut url, params)?;
@@ -108,7 +108,7 @@ impl Client {
 
     fn build_news_query(
         url: &mut Url,
-        params: &NewsQuery<'_, impl Deref<Target = Filter>>,
+        params: &NewsQuery<'_, impl Deref<Target = Filter> + Send + Sync>,
     ) -> Result<(), Error> {
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?

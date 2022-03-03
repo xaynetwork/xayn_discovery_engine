@@ -76,12 +76,7 @@ impl Ops for PersonalizedNews {
                 .iter()
                 .cloned()
                 .map(|market| {
-                    spawn_news_request(
-                        self.client.clone(),
-                        market.clone(),
-                        filter.clone(),
-                        self.page_size,
-                    )
+                    spawn_news_request(self.client.clone(), market, filter.clone(), self.page_size)
                 })
                 .collect::<FuturesUnordered<_>>();
 
