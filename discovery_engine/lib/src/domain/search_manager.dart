@@ -60,10 +60,10 @@ class SearchManager {
     this._engineStateRepo,
   );
 
-  /// Handle the given feed client event.
+  /// Handle the given search client event.
   ///
   /// Fails if [event] does not have a handler implemented.
-  Future<EngineEvent> handleClientEvent(SearchClientEvent event) =>
+  Future<EngineEvent> handleSearchClientEvent(SearchClientEvent event) =>
       event.maybeWhen(
         searchRequested: _searchRequested,
         nextSearchBatchRequested: _nextSearchBatchRequested,
