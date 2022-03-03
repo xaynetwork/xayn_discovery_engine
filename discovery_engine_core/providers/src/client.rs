@@ -49,6 +49,7 @@ pub enum Error {
 pub struct Client {
     token: String,
     url: String,
+    timeout: Duration,
 }
 
 /// Parameters determining which news to fetch
@@ -74,11 +75,21 @@ pub struct HeadlinesQuery<'a> {
 }
 
 impl Client {
-    const TIMEOUT: Duration = Duration::from_millis(3500);
-
     /// Create a client.
-    pub fn new(token: String, url: String) -> Self {
-        Self { token, url }
+    pub fn new(token: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            token: token.into(),
+            url: url.into(),
+            timeout: Duration::from_millis(3500),
+        }
+    }
+
+    /// Configures the timeout.
+    ///
+    /// The timeout defaults to 3.5s.
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
     }
 
     /// Retrieve news from the remote API
@@ -89,7 +100,7 @@ impl Client {
         let c = reqwest::Client::new();
         let response = c
             .get(url)
-            .timeout(Self::TIMEOUT)
+            .timeout(self.timeout)
             .bearer_auth(&self.token)
             .send()
             .await
@@ -139,7 +150,7 @@ impl Client {
         let c = reqwest::Client::new();
         let response = c
             .get(url)
-            .timeout(Self::TIMEOUT)
+            .timeout(self.timeout)
             .bearer_auth(&self.token)
             .send()
             .await
@@ -182,10 +193,7 @@ mod tests {
     #[tokio::test]
     async fn test_simple_news_query() {
         let mock_server = MockServer::start().await;
-        let client = Client {
-            token: "test-token".to_string(),
-            url: mock_server.uri(),
-        };
+        let client = Client::new("test-token", mock_server.uri());
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/climate-change.json"));
@@ -228,10 +236,7 @@ mod tests {
     #[tokio::test]
     async fn test_news_multiple_keywords() {
         let mock_server = MockServer::start().await;
-        let client = Client {
-            token: "test-token".to_string(),
-            url: mock_server.uri(),
-        };
+        let client = Client::new("test-token", mock_server.uri());
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/msft-vs-aapl.json"));
@@ -277,10 +282,7 @@ mod tests {
     #[tokio::test]
     async fn test_headlines() {
         let mock_server = MockServer::start().await;
-        let client = Client {
-            token: "test-token".to_string(),
-            url: mock_server.uri(),
-        };
+        let client = Client::new("test-token", mock_server.uri());
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
