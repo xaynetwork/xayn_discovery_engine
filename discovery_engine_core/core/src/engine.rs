@@ -386,15 +386,13 @@ async fn update_stacks<'a>(
 ) -> Result<(), Error> {
     let mut stacks: Vec<_> = stacks.filter(|stack| stack.len() <= request_new).collect();
 
-    let needs_key_phrases = stacks.iter().any(|stack| stack.ops.needs_key_phrases());
-    let key_phrases = if needs_key_phrases {
-        ranker.select_top_key_phrases(select_top)
-    } else {
-        vec![]
-    };
+    let key_phrases = stacks
+        .iter()
+        .any(|stack| stack.ops.needs_key_phrases())
+        .then(|| ranker.select_top_key_phrases(select_top))
+        .unwrap_or_default();
 
     let mut errors = Vec::new();
-    let max_errors = stacks.len();
     for stack in &mut stacks {
         let articles = match stack.new_items(&key_phrases).await {
             Ok(articles) => articles,
@@ -417,7 +415,8 @@ async fn update_stacks<'a>(
         };
 
         let id = stack.id();
-        let (documents, article_errors) = articles
+        let artices_len = articles.len();
+        let (documents, articles_errors) = articles
             .into_par_iter()
             .map(|article| {
                 let title = article.title.as_str();
@@ -436,8 +435,8 @@ async fn update_stacks<'a>(
                 Ok(document) => Either::Left(document),
                 Err(error) => Either::Right(error),
             });
-        if documents.is_empty() {
-            errors.push(Error::Errors(article_errors));
+        if artices_len > 0 && articles_errors.len() == artices_len {
+            errors.push(Error::Errors(articles_errors));
             continue;
         }
 
@@ -450,7 +449,7 @@ async fn update_stacks<'a>(
         }
     }
 
-    if errors.len() < max_errors {
+    if errors.len() < stacks.len() {
         Ok(())
     } else {
         Err(Error::Errors(errors))

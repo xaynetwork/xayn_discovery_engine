@@ -18,7 +18,8 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
         DiscoveryEngine,
-        EngineExceptionRaised,
+        FeedFailureReason,
+        NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded,
         RestoreFeedSucceeded;
 
@@ -62,20 +63,30 @@ void main() {
     });
 
     test(
-        'if requestNextFeedBatch fails due to a news api request error, restoreFeed'
-        ' should return an empty list', () async {
-      server = await LocalNewsApiServer.start();
-      final engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
+        'if a news api request error occurs, then the requestNextFeedBatch'
+        ' depletes the internal stacks and subsequent calls should fail with'
+        ' FeedFailureReason.noNewsForMarket', () async {
+      // the server error only occurs for fetching breaking news, the personalized news succeeds
+      // early with empty documents and no error before a server request is made because no key
+      // phrases are selected due to no previous feedback, overall only one of the two stacks fails
+      // which results in successful batch requests until all stacks are depleted
+      server.replyWithError = true;
+
+      // the next batch can still return the documents fetched during engine init
+      final nextBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      expect(
+        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
+        isNotEmpty,
       );
 
-      server.replyWithError = true;
-      final nextBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextBatchResponse, isA<EngineExceptionRaised>());
-      final restoreFeedResponse = await engine.restoreFeed();
-
-      expect(restoreFeedResponse, isA<RestoreFeedSucceeded>());
-      expect((restoreFeedResponse as RestoreFeedSucceeded).items, isEmpty);
+      // all subsequent batches fail because of the server error
+      final subsequentBatchResponse = await engine.requestNextFeedBatch();
+      expect(subsequentBatchResponse, isA<NextFeedBatchRequestFailed>());
+      expect(
+        (subsequentBatchResponse as NextFeedBatchRequestFailed).reason,
+        equals(FeedFailureReason.noNewsForMarket),
+      );
     });
   });
 }
