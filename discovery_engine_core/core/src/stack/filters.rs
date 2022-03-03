@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
+use std::{
+    cmp::Ordering,
+    collections::{BTreeSet, HashSet},
+};
 
 use url::Url;
 
@@ -36,7 +39,7 @@ impl ArticleFilter for DuplicateFilter {
     fn apply(
         history: &[HistoricDocument],
         stack: &[Document],
-        mut articles: Vec<Article>,
+        articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
         let urls = history
             .iter()
@@ -44,8 +47,44 @@ impl ArticleFilter for DuplicateFilter {
             .chain(stack.iter().map(|doc| doc.resource.url.as_str()))
             .collect::<HashSet<_>>();
 
-        articles.retain(|article| !urls.contains(&article.link.as_str()));
-        Ok(articles)
+        let titles = history
+            .iter()
+            .map(|doc| &doc.title)
+            .chain(stack.iter().map(|doc| &doc.resource.title))
+            .collect::<HashSet<_>>();
+
+        let mut articles: BTreeSet<_> = articles.into_iter().map(UniqueArticle).collect();
+
+        articles.retain(|article| {
+            !(urls.contains(&article.0.link.as_str()) || titles.contains(&&article.0.title))
+        });
+
+        return Ok(articles.into_iter().map(|u| u.0).collect());
+
+        struct UniqueArticle(Article);
+
+        impl Eq for UniqueArticle {}
+        impl PartialEq for UniqueArticle {
+            fn eq(&self, other: &Self) -> bool {
+                self.0.link == other.0.link || self.0.title == other.0.title
+            }
+        }
+
+        impl PartialOrd for UniqueArticle {
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl Ord for UniqueArticle {
+            fn cmp(&self, other: &Self) -> Ordering {
+                if self.eq(other) {
+                    Ordering::Equal
+                } else {
+                    (&self.0.title, &self.0.link).cmp(&(&other.0.title, &other.0.link))
+                }
+            }
+        }
     }
 }
 
@@ -87,12 +126,13 @@ impl ArticleFilter for CommonFilter {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryInto;
+    use std::{convert::TryInto, iter::FromIterator};
 
     use crate::{
         document::{document_from_article, Document},
         stack::filters::CommonFilter,
     };
+    use itertools::Itertools;
     use xayn_discovery_engine_providers::Article;
 
     use super::*;
@@ -116,11 +156,12 @@ mod tests {
             .unwrap()
             .into_iter()
             .map(|article| article.title)
+            .sorted()
             .collect::<Vec<_>>();
 
         assert_eq!(filtered, [
-            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
         ]);
     }
 
@@ -144,11 +185,12 @@ mod tests {
             .unwrap()
             .into_iter()
             .map(|article| article.title)
+            .sorted()
             .collect::<Vec<_>>();
 
         assert_eq!(filtered, [
-            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
         ]);
     }
 
@@ -169,13 +211,13 @@ mod tests {
             .collect();
 
         let result = CommonFilter::apply(&[], documents.as_slice(), input).unwrap();
-        let titles = result.iter().map(|a| &a.title).collect::<Vec<_>>();
+        let titles = result.iter().map(|a| &a.title).sorted().collect::<Vec<_>>();
 
         assert_eq!(titles.as_slice(), [
-            "Olympic champion Lundby laments ski jumping's weight issues",
             "Jerusalem blanketed in white after rare snowfall",
-            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
+            "Olympic champion Lundby laments ski jumping's weight issues",
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
         ]);
     }
 
@@ -225,5 +267,51 @@ mod tests {
 
         let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_dedup_articles_them_self() {
+        let valid_articles = serde_json::from_str::<Vec<Article>>(include_str!(
+            "../../test-fixtures/articles-valid.json"
+        ))
+        .unwrap();
+        assert!(valid_articles.len() >= 4);
+
+        let mut articles = valid_articles.clone();
+
+        articles.push(valid_articles[0].clone());
+        articles.push({
+            let mut article = valid_articles[1].clone();
+            article.link = "https://with_same_link.test".to_owned();
+            article
+        });
+        articles.push({
+            let mut article = valid_articles[2].clone();
+            article.title = "With same url".to_owned();
+            article
+        });
+        articles.push({
+            let mut article = valid_articles[3].clone();
+            article.link = "https://unique.test".to_owned();
+            article.title = "Unique".to_owned();
+            article
+        });
+
+        let filtered = CommonFilter::apply(&[], &[], articles)
+            .unwrap()
+            .into_iter()
+            .map(|article| article.title)
+            .sorted()
+            .collect::<Vec<_>>();
+
+        assert_eq!(filtered.len(), 5, "Unexpected len for: {:?}", filtered);
+
+        // It's "arbitrary" weather `valid_article[1]/[2]` or their "new pseudo-equal" version is picked
+        let filtered = HashSet::<_>::from_iter(filtered);
+        assert!(filtered.contains(&valid_articles[0].title));
+        assert!(filtered.contains(&valid_articles[2].title) || filtered.contains("Foo Bar"));
+        assert!(filtered.contains(&valid_articles[1].title));
+        assert!(filtered.contains(&valid_articles[3].title));
+        assert!(filtered.contains("Unique"));
     }
 }
