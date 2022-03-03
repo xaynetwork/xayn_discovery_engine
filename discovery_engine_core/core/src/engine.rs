@@ -88,8 +88,8 @@ pub enum Error {
     /// Error while querying with client: {0}.
     Client(#[source] GenericError),
 
-    /// Invalid search query: {0}.
-    InvalidQuery(String),
+    /// Invalid search query.
+    InvalidQuery,
 
     /// List of errors/warnings. {0:?}
     Errors(Vec<Error>),
@@ -385,7 +385,7 @@ where
         page_size: usize,
     ) -> Result<Vec<Document>, Error> {
         if query.trim().is_empty() {
-            return Err(Error::InvalidQuery(query.to_string()));
+            return Err(Error::InvalidQuery);
         }
         let EndpointConfig {
             api_key,
@@ -394,16 +394,20 @@ where
             ..
         } = &self.config;
 
+        let mut errors = Vec::new();
+        let mut articles = Vec::new();
         let filter = &Filter::default().add_keyword(query);
         let client = Client::new(api_key.clone(), api_base_url.clone());
-        let mut articles = Vec::new();
-        let mut errors = Vec::new();
-        for market in markets.read().await.iter() {
+
+        let markets = markets.read().await;
+        let scaled_page_size = page_size / markets.len() + 1;
+        let scaled_page = Some(page * markets.len());
+        for market in markets.iter() {
             let news_query = NewsQuery {
                 market,
                 filter,
-                page_size,
-                page: Some(page),
+                page_size: scaled_page_size,
+                page: scaled_page,
             };
             match client.news(&news_query).await {
                 Ok(batch) => articles.extend(batch),
@@ -411,20 +415,21 @@ where
             };
         }
 
-        let mut documents = Vec::new();
         let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
-        for article in articles {
-            match self
-                .ranker
-                .compute_smbert(&article.title)
-                .map_err(Error::Ranker)
-                .and_then(|embedding| {
-                    document_from_article(article, stack_id, embedding).map_err(Error::Document)
-                }) {
-                Ok(doc) => documents.push(doc),
-                Err(err) => errors.push(err),
-            }
-        }
+        let mut documents = articles
+            .into_iter()
+            .filter_map(|article| {
+                self.ranker
+                    .compute_smbert(&article.title)
+                    .map_err(Error::Ranker)
+                    .and_then(|embedding| {
+                        document_from_article(article, stack_id, embedding).map_err(Error::Document)
+                    })
+                    .map_err(|e| errors.push(e))
+                    .ok()
+            })
+            .take(page_size)
+            .collect::<Vec<_>>();
 
         if let Err(err) = self.ranker.rank(&mut documents) {
             errors.push(Error::Ranker(err));
