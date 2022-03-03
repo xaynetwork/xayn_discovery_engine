@@ -41,7 +41,10 @@ abstract class AssetsStatusEngineEvent implements EngineEvent {}
 /// Used to group events related to [Document] changes.
 abstract class DocumentEngineEvent implements EngineEvent {}
 
-/// Abstract class implemented by events like ... TODO
+/// Abstract class implemented by events like [SearchRequestSucceeded],
+/// [SearchRequestFailed], [NextSearchBatchRequestSucceeded],
+/// [NextSearchBatchRequestFailed], [RestoreSearchSucceeded],
+/// [RestoreSearchFailed].
 ///
 /// Used to group active search related events.
 abstract class SearchEngineEvent implements EngineEvent {}
@@ -83,7 +86,7 @@ enum EngineExceptionReason {
 @freezed
 class EngineEvent with _$EngineEvent {
   /// Event created as a successful response to RestoreFeedRequested event.
-  /// Passes back a list of [Document] entities back to the client.
+  /// Passes a list of [Document] entities back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.restoreFeedSucceeded(List<Document> items) =
       RestoreFeedSucceeded;
@@ -97,7 +100,7 @@ class EngineEvent with _$EngineEvent {
       RestoreFeedFailed;
 
   /// Event created as a successful response to NextFeedBatchRequested event.
-  /// Passes back a list of [Document] objects back to the client.
+  /// Passes a list of [Document] entities back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchRequestSucceeded(
     List<Document> items,
@@ -156,34 +159,49 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.documentsUpdated(List<Document> items) =
       DocumentsUpdated;
 
+  /// Event created as a successful response to SearchRequested event.
+  /// Passes the [ActiveSearch] params and a list of [Document] entities back
+  /// to the client.
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.searchRequestSucceeded(
     ActiveSearch search,
     List<Document> items,
   ) = SearchRequestSucceeded;
 
+  /// Event created as a failure response to SearchRequested event.
+  /// Passes a failure reason back to the client.
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.searchRequestFailed(
     SearchFailureReason reason,
   ) = SearchRequestFailed;
 
+  /// Event created as a successful response to NextSearchBatchRequested event.
+  /// Passes the [ActiveSearch] params and a list of [Document] entities back
+  /// to the client.
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.nextSearchBatchRequestSucceeded(
     ActiveSearch search,
     List<Document> items,
   ) = NextSearchBatchRequestSucceeded;
 
+  /// Event created as a failure response to NextSearchBatchRequested event.
+  /// Passes a failure reason back to the client.
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.nextSearchBatchRequestFailed(
     SearchFailureReason reason,
   ) = NextSearchBatchRequestFailed;
 
+  /// Event created as a successful response to RestoreSearchRequested event.
+  /// Passes the [ActiveSearch] params and a list of [Document] entities back
+  /// to the client.
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.restoreSearchSucceeded(
     ActiveSearch search,
     List<Document> items,
   ) = RestoreSearchSucceeded;
 
+  /// Event created as a failure response to RestoreSearchRequested event.
+  /// Passes a failure reason back to the client.
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.restoreSearchFailed(
     SearchFailureReason reason,
