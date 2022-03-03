@@ -37,7 +37,7 @@ jobs:
 
   ci-ok:
     needs: [dev-ci, build-ios-libs, build-android-libs, build-flutter-example]
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     timeout-minutes: 5
     if: always()
     steps:

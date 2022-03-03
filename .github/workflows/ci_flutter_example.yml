@@ -12,24 +12,40 @@ permissions:
   contents: read
 
 jobs:
-  flutter-build-example:
+  flutter-build-example-ios:
+    runs-on: macos-11
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the CI.
+        uses: ./.github/actions/setup-job
+        with:
+          rust: true
+          flutter: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download artifacts
+        id: artifacts
+        uses: actions/download-artifact@f023be2c48cc18debc3bacd34cb396e0295e2869 # v2.1.0
+        with:
+          path: ${{ runner.temp }}/artifacts/
+
+      - name: Copy artifacts
+        working-directory: ${{ steps.artifacts.outputs.download-path }}
+        run: cp -R ${{ inputs.artifact-dir-base-ios }}-*/* ${{ github.workspace }}/${{ env.FLUTTER_WORKSPACE }}/ios
+
+      - name: Build flutter example
+        run: just flutter-build ios --no-codesign
+
+  flutter-build-example-android:
     # The reason we don't need the Android libraries here is that, for Android, we have
     # a dynamic library that is loaded at runtime, while for iOS we have a static library
     # that needs to exist during the linking process.
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 30
-    strategy:
-      matrix:
-        target: [android]
-        include:
-          - target: android
-            os: ubuntu-20.04
-            cmd: just flutter-build apk
-          - target: ios
-            os: macos-11
-            cmd: just flutter-build ios --no-codesign
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
@@ -40,17 +56,5 @@ jobs:
           flutter: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download artifacts
-        if: matrix.target == 'ios'
-        id: artifacts
-        uses: actions/download-artifact@f023be2c48cc18debc3bacd34cb396e0295e2869 # v2.1.0
-        with:
-          path: ${{ runner.temp }}/artifacts/
-
-      - name: Copy artifacts
-        if: matrix.target == 'ios'
-        working-directory: ${{ steps.artifacts.outputs.download-path }}
-        run: cp -R ${{ inputs.artifact-dir-base-ios }}-*/* ${{ github.workspace }}/${{ env.FLUTTER_WORKSPACE }}/ios
-
       - name: Build flutter example
-        run: ${{ matrix.cmd }}
+        run: just flutter-build apk

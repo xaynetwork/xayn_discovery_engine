@@ -12,9 +12,9 @@ on:
 
 jobs:
   selection:
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     # Set job outputs to values from filter step
     outputs:
       dart: ${{ steps.filter.outputs.dart }}
@@ -51,9 +51,9 @@ jobs:
   dart-format:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 10
     steps:
       - name: Checkout repository
@@ -72,9 +72,9 @@ jobs:
   dart-analyze:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -93,9 +93,9 @@ jobs:
   dart-test:
     needs: [selection, cargo-test]
     if: ${{ always()}}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 20
     steps:
       - name: Check cargo-test
@@ -121,9 +121,9 @@ jobs:
   dart-doc:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -144,6 +144,7 @@ jobs:
         run: just dart-check-doc
 
   dart-ok:
+    runs-on: ubuntu-20.04
     needs:
       - selection
       - dart-format
@@ -151,7 +152,6 @@ jobs:
       - dart-test
       - dart-doc
     if: ${{always()}}
-    runs-on: azure-vm
     steps:
       - run: |
           if(${{ needs.selection.outputs.dart == 'false'}} ||
@@ -167,9 +167,9 @@ jobs:
   flutter-analyze:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -188,9 +188,9 @@ jobs:
   flutter-test:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -207,11 +207,11 @@ jobs:
         run: just flutter-test
 
   flutter-ok:
+    runs-on: ubuntu-20.04
     if: ${{always()}}
     needs:
       - flutter-test
       - flutter-analyze
-    runs-on: azure-vm
     steps:
       - run: |
           if(${{ needs.selection.outputs.flutter == 'false'}} ||
@@ -226,9 +226,9 @@ jobs:
   cargo-format:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -249,9 +249,9 @@ jobs:
   cargo-clippy:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -269,9 +269,9 @@ jobs:
   cargo-test:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -289,9 +289,9 @@ jobs:
   cargo-doc:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -313,7 +313,7 @@ jobs:
       - cargo-clippy
       - cargo-test
       - cargo-doc
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     steps:
       - run: exit 0
 
@@ -322,7 +322,7 @@ jobs:
     if: ${{always()}}
     outputs:
       run-result:  ${{ steps.run-check.outputs.run-result }}
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
       - name: Run Check

@@ -21,7 +21,7 @@ jobs:
 
   ci-ok:
     needs: dev-ci
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
       - name: CI OK Testing

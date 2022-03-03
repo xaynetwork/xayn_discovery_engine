@@ -15,9 +15,9 @@ on:
 
 jobs:
   build-android-libs:
-    runs-on: azure-vm
+    runs-on: ubuntu-20.04
     container:
-      image: wunderdogneo/rust-flutter-android:latest
+      image: wunderdogneo/test2:latest
     timeout-minutes: 45
     strategy:
       matrix:

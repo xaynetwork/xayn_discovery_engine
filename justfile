@@ -155,7 +155,7 @@ dart-build: _run-cbindgen _run-ffigen _run-async-bindgen _run-build-runner
 # Builds rust
 rust-build: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
-    cargo build --locked
+    cargo build -j6 --locked
 
 # Builds dart and rust
 build: rust-build dart-build
@@ -228,7 +228,7 @@ _compile-android target:
     cd "$RUST_WORKSPACE"; \
         cargo ndk -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION \
         -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build \
-        --release -p xayn-discovery-engine-bindings --locked
+        --release -p xayn-discovery-engine-bindings --locked -j6
 
 compile-android-local: _codegen-order-workaround
     #!/usr/bin/env sh
