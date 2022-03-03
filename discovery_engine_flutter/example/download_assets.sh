@@ -38,5 +38,5 @@ download()
   fi
 }
 
-download smbert v0000
+download smbert v0001
 download kpe v0001
