@@ -66,6 +66,7 @@ class _MyAppState extends State<MyApp> {
       apiBaseUrl: 'https://example-api.dev',
       assetsUrl: 'https://ai-assets.xaynet.dev',
       maxItemsPerFeedBatch: 50,
+      maxItemsPerSearchBatch: 20,
       applicationDirectoryPath: appDir.path,
       feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
       manifest: manifest,

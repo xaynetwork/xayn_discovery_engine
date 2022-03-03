@@ -70,9 +70,11 @@ class DiscoveryEngine {
   ///     apiKey: '**********',
   ///     apiBaseUrl: 'https://example-api.dev',
   ///     assetsUrl: 'https://ai-assets.dev',
-  ///     feedMarket: 'de-DE',
-  ///     maxItemsPerFeedBatch: 50,
+  ///     maxItemsPerFeedBatch: 20,
+  ///     maxItemsPerSearchBatch: 20,
+  ///     feedMarket: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
   ///     applicationDirectoryPath: './',
+  ///     manifest: Manifest.fromJson({}),
   ///   );
   ///
   ///   // Initialize the engine
@@ -131,11 +133,13 @@ class DiscoveryEngine {
   Future<EngineEvent> changeConfiguration({
     FeedMarkets? feedMarkets,
     int? maxItemsPerFeedBatch,
+    int? maxItemsPerSearchBatch,
   }) async {
     return _trySend(() async {
       final event = ClientEvent.configurationChanged(
         feedMarkets: feedMarkets,
         maxItemsPerFeedBatch: maxItemsPerFeedBatch,
+        maxItemsPerSearchBatch: maxItemsPerSearchBatch,
       );
       final response = await _manager.send(event);
 

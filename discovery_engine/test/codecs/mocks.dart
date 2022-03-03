@@ -94,6 +94,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(
       FeedMarkets? feedMarkets,
       int? maxItemsPerFeedBatch,
+      int? maxItemsPerSearchBatch,
     )?
         configurationChanged,
     TResult Function()? restoreFeedRequested,
@@ -119,6 +120,7 @@ class BadClientEvent implements ClientEvent {
     required TResult Function(
       FeedMarkets? feedMarkets,
       int? maxItemsPerFeedBatch,
+      int? maxItemsPerSearchBatch,
     )
         configurationChanged,
     required TResult Function() restoreFeedRequested,
@@ -142,6 +144,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(
       FeedMarkets? feedMarkets,
       int? maxItemsPerFeedBatch,
+      int? maxItemsPerSearchBatch,
     )?
         configurationChanged,
     TResult Function()? restoreFeedRequested,

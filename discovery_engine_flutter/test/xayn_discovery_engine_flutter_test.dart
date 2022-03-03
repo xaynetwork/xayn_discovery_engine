@@ -80,6 +80,7 @@ void main() {
         apiBaseUrl: 'https://use-mock-engine.test',
         assetsUrl: 'http://localhost:$port',
         maxItemsPerFeedBatch: 50,
+        maxItemsPerSearchBatch: 20,
         applicationDirectoryPath: outputPath,
         feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
         manifest: manifest,

@@ -81,6 +81,7 @@ final mockConfig = Configuration(
   apiBaseUrl: 'https://api.example.com',
   assetsUrl: 'https://ai-assets.example.com',
   maxItemsPerFeedBatch: 50,
+  maxItemsPerSearchBatch: 20,
   applicationDirectoryPath: './',
   feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
   manifest: Manifest.fromJson(goodJson),

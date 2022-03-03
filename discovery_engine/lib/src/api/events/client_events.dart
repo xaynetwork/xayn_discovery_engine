@@ -55,9 +55,11 @@ class ClientEvent with _$ClientEvent {
   @Implements<SystemClientEvent>()
   @Assert('feedMarkets == null || feedMarkets.length > 0')
   @Assert('maxItemsPerFeedBatch == null || maxItemsPerFeedBatch > 0')
+  @Assert('maxItemsPerSearchBatch == null || maxItemsPerSearchBatch > 0')
   const factory ClientEvent.configurationChanged({
     FeedMarkets? feedMarkets,
     int? maxItemsPerFeedBatch,
+    int? maxItemsPerSearchBatch,
   }) = ConfigurationChanged;
 
   /// Event created when opening up discovery screen (upon initial start

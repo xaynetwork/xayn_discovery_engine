@@ -38,6 +38,7 @@ void main() {
       apiBaseUrl: '',
       assetsUrl: '',
       maxItemsPerFeedBatch: 0,
+      maxItemsPerSearchBatch: 0,
       applicationDirectoryPath: '',
       feedMarkets: {const FeedMarket(countryCode: '', langCode: '')},
       manifest: Manifest([]),
