@@ -14,6 +14,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/api/models/document.dart';
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
 
 part 'engine_events.freezed.dart';
 part 'engine_events.g.dart';
@@ -156,8 +157,10 @@ class EngineEvent with _$EngineEvent {
       DocumentsUpdated;
 
   @Implements<SearchEngineEvent>()
-  const factory EngineEvent.searchRequestSucceeded(List<Document> items) =
-      SearchRequestSucceeded;
+  const factory EngineEvent.searchRequestSucceeded(
+    ActiveSearch search,
+    List<Document> items,
+  ) = SearchRequestSucceeded;
 
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.searchRequestFailed(
@@ -166,6 +169,7 @@ class EngineEvent with _$EngineEvent {
 
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.nextSearchBatchRequestSucceeded(
+    ActiveSearch search,
     List<Document> items,
   ) = NextSearchBatchRequestSucceeded;
 
@@ -175,8 +179,10 @@ class EngineEvent with _$EngineEvent {
   ) = NextSearchBatchRequestFailed;
 
   @Implements<SearchEngineEvent>()
-  const factory EngineEvent.restoreSearchSucceeded(List<Document> items) =
-      RestoreSearchSucceeded;
+  const factory EngineEvent.restoreSearchSucceeded(
+    ActiveSearch search,
+    List<Document> items,
+  ) = RestoreSearchSucceeded;
 
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.restoreSearchFailed(

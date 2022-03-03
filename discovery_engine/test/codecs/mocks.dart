@@ -14,6 +14,7 @@
 
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
+        ActiveSearch,
         ClientEvent,
         ClientEventSucceeded,
         Configuration,
@@ -313,11 +314,14 @@ class BadEngineEvent implements EngineEvent {
     )?
         engineExceptionRaised,
     TResult Function(List<Document> items)? documentsUpdated,
-    TResult Function(List<Document> items)? searchRequestSucceeded,
+    TResult Function(ActiveSearch search, List<Document> items)?
+        searchRequestSucceeded,
     TResult Function(SearchFailureReason reason)? searchRequestFailed,
-    TResult Function(List<Document> items)? nextSearchBatchRequestSucceeded,
+    TResult Function(ActiveSearch search, List<Document> items)?
+        nextSearchBatchRequestSucceeded,
     TResult Function(SearchFailureReason reason)? nextSearchBatchRequestFailed,
-    TResult Function(List<Document> items)? restoreSearchSucceeded,
+    TResult Function(ActiveSearch search, List<Document> items)?
+        restoreSearchSucceeded,
     TResult Function(SearchFailureReason reason)? restoreSearchFailed,
   }) {
     throw UnimplementedError();
@@ -348,13 +352,15 @@ class BadEngineEvent implements EngineEvent {
     )
         engineExceptionRaised,
     required TResult Function(List<Document> items) documentsUpdated,
-    required TResult Function(List<Document> items) searchRequestSucceeded,
+    required TResult Function(ActiveSearch search, List<Document> items)
+        searchRequestSucceeded,
     required TResult Function(SearchFailureReason reason) searchRequestFailed,
-    required TResult Function(List<Document> items)
+    required TResult Function(ActiveSearch search, List<Document> items)
         nextSearchBatchRequestSucceeded,
     required TResult Function(SearchFailureReason reason)
         nextSearchBatchRequestFailed,
-    required TResult Function(List<Document> items) restoreSearchSucceeded,
+    required TResult Function(ActiveSearch search, List<Document> items)
+        restoreSearchSucceeded,
     required TResult Function(SearchFailureReason reason) restoreSearchFailed,
   }) {
     throw UnimplementedError();
@@ -378,11 +384,14 @@ class BadEngineEvent implements EngineEvent {
     )?
         engineExceptionRaised,
     TResult Function(List<Document> items)? documentsUpdated,
-    TResult Function(List<Document> items)? searchRequestSucceeded,
+    TResult Function(ActiveSearch search, List<Document> items)?
+        searchRequestSucceeded,
     TResult Function(SearchFailureReason reason)? searchRequestFailed,
-    TResult Function(List<Document> items)? nextSearchBatchRequestSucceeded,
+    TResult Function(ActiveSearch search, List<Document> items)?
+        nextSearchBatchRequestSucceeded,
     TResult Function(SearchFailureReason reason)? nextSearchBatchRequestFailed,
-    TResult Function(List<Document> items)? restoreSearchSucceeded,
+    TResult Function(ActiveSearch search, List<Document> items)?
+        restoreSearchSucceeded,
     TResult Function(SearchFailureReason reason)? restoreSearchFailed,
   }) {
     throw UnimplementedError();
