@@ -24,8 +24,9 @@ pub struct Filter {
 
 impl Filter {
     /// Add a keyword to filter with. All keyword are in "or" with each other.
-    pub fn add_keyword(mut self, keyword: impl Into<String>) -> Self {
-        self.keywords.push(keyword.into());
+    pub fn add_keyword(mut self, keyword: &str) -> Self {
+        // " can interfere with the quoting that we do while constructing the filter
+        self.keywords.push(keyword.replace("\"", ""));
 
         self
     }
@@ -64,4 +65,11 @@ mod tests {
         let filter = Filter::default().add_keyword("c d").add_keyword("a b");
         assert_eq!(expected, filter.build());
     }
+
+    #[test]
+    fn test_filter_remove_invalid_char() {
+        let filter = Filter::default().add_keyword("a\"b");
+        assert_eq!("\"ab\"", filter.build());
+    }
+
 }
