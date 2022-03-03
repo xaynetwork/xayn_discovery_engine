@@ -29,34 +29,22 @@ class LocalNewsApiServer {
 
   Future<void> _handleRequests() async {
     await for (final request in _server) {
-      switch (request.uri.path) {
-        case '/_sn':
-        case '/_lh':
-          await handleNewsAPIRequest(request);
-          break;
-        default:
-          _replyWithError(request);
+      if (_returnError) {
+        _replyWithError(request);
+      } else {
+        switch (request.uri.path) {
+          case '/_sn':
+            await _replyWithData(request, _snFile);
+            break;
+          case '/_lh':
+            await _replyWithData(request, _lhFile);
+            break;
+          default:
+            _replyWithError(request);
+        }
       }
 
       await request.response.close();
-    }
-  }
-
-  Future<void> handleNewsAPIRequest(HttpRequest request) async {
-    if (_returnError) {
-      _replyWithError(request);
-      return;
-    } else {
-      switch (request.uri.path) {
-        case '/_sn':
-          await _replyWithData(request, _snFile);
-          break;
-        case '/_lh':
-          await _replyWithData(request, _lhFile);
-          break;
-        default:
-          _replyWithError(request);
-      }
     }
   }
 
