@@ -85,7 +85,7 @@ enum EngineExceptionReason {
 
 @freezed
 class EngineEvent with _$EngineEvent {
-  /// Event created as a successful response to RestoreFeedRequested event.
+  /// Event created as a success response to RestoreFeedRequested event.
   /// Passes a list of [Document] entities back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.restoreFeedSucceeded(List<Document> items) =
@@ -99,7 +99,7 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.restoreFeedFailed(FeedFailureReason reason) =
       RestoreFeedFailed;
 
-  /// Event created as a successful response to NextFeedBatchRequested event.
+  /// Event created as a success response to NextFeedBatchRequested event.
   /// Passes a list of [Document] entities back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchRequestSucceeded(
@@ -152,14 +152,14 @@ class EngineEvent with _$EngineEvent {
     String? stackTrace,
   }) = EngineExceptionRaised;
 
-  /// Event created as a successful response to some client events which are
+  /// Event created as a success response to some client events which are
   /// updating a [Document] (currently only "UserReactionChanged").
   /// Passes back to the client a list of changed [Document] entities.
   @Implements<DocumentEngineEvent>()
   const factory EngineEvent.documentsUpdated(List<Document> items) =
       DocumentsUpdated;
 
-  /// Event created as a successful response to SearchRequested event.
+  /// Event created as a success response to SearchRequested event.
   /// Passes the [ActiveSearch] params and a list of [Document] entities back
   /// to the client.
   @Implements<SearchEngineEvent>()
@@ -175,7 +175,7 @@ class EngineEvent with _$EngineEvent {
     SearchFailureReason reason,
   ) = SearchRequestFailed;
 
-  /// Event created as a successful response to NextSearchBatchRequested event.
+  /// Event created as a success response to NextSearchBatchRequested event.
   /// Passes the [ActiveSearch] params and a list of [Document] entities back
   /// to the client.
   @Implements<SearchEngineEvent>()
@@ -191,7 +191,7 @@ class EngineEvent with _$EngineEvent {
     SearchFailureReason reason,
   ) = NextSearchBatchRequestFailed;
 
-  /// Event created as a successful response to RestoreSearchRequested event.
+  /// Event created as a success response to RestoreSearchRequested event.
   /// Passes the [ActiveSearch] params and a list of [Document] entities back
   /// to the client.
   @Implements<SearchEngineEvent>()

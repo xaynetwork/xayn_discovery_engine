@@ -162,7 +162,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [RestoreFeedSucceeded] for successful response, containing a list of
-  /// [Document] items
+  /// [Document]s
   /// - [RestoreFeedFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
@@ -186,7 +186,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [NextFeedBatchRequestSucceeded] for successful response, containing
-  /// a list of [Document] items
+  /// a list of [Document]s
   /// - [NextFeedBatchRequestFailed] for failed response, with a reason for
   /// failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
@@ -275,12 +275,12 @@ class DiscoveryEngine {
     });
   }
 
-  /// Requests a new search for [Document] items related to `queryTerm` for
+  /// Requests a new search for [Document]s related to `queryTerm` for
   /// a particular `market`.
   ///
   /// In response it can return:
   /// - [SearchRequestSucceeded] for successful response, containing a list of
-  /// [Document] items
+  /// [Document]s
   /// - [SearchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
@@ -300,11 +300,11 @@ class DiscoveryEngine {
     });
   }
 
-  /// Requests next batch of [Document] items related to the current active search.
+  /// Requests next batch of [Document]s related to the current active search.
   ///
   /// In response it can return:
   /// - [NextSearchBatchRequestSucceeded] for successful response, containing a list of
-  /// [Document] items
+  /// [Document]s
   /// - [NextSearchBatchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
@@ -325,7 +325,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [RestoreSearchSucceeded] for successful response, containing a list of
-  /// [Document] items
+  /// [Document]s
   /// - [RestoreSearchFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
