@@ -3057,6 +3057,7 @@ dependencies = [
  "displaydoc",
  "figment",
  "float-cmp",
+ "futures",
  "itertools",
  "mockall",
  "rand 0.8.5",

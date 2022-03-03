@@ -15,7 +15,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::sync::RwLock;
+use futures::{stream::FuturesUnordered, StreamExt};
+use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{Article, Client, HeadlinesQuery, Market};
@@ -34,7 +35,7 @@ use super::Ops;
 /// Stack operations customized for breaking news items.
 #[derive(Default)]
 pub(crate) struct BreakingNews {
-    client: Client,
+    client: Arc<Client>,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
     page_size: usize,
 }
@@ -46,7 +47,10 @@ impl Ops for BreakingNews {
     }
 
     fn configure(&mut self, config: &EndpointConfig) {
-        self.client = Client::new(config.api_key.clone(), config.api_base_url.clone());
+        self.client = Arc::new(Client::new(
+            config.api_key.clone(),
+            config.api_base_url.clone(),
+        ));
         self.markets.replace(Arc::clone(&config.markets));
         self.page_size = config.page_size;
     }
@@ -60,17 +64,23 @@ impl Ops for BreakingNews {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
 
+            let mut requests = FuturesUnordered::new();
             for market in markets.read().await.iter() {
-                let query = HeadlinesQuery {
-                    market,
-                    page_size: self.page_size,
-                    page: 1,
-                };
-                match self.client.headlines(&query).await {
-                    Ok(batch) => articles.extend(batch),
-                    Err(err) => errors.push(err),
+                let request =
+                    spawn_headlines_request(self.client.clone(), market.clone(), self.page_size);
+                requests.push(request);
+            }
+
+            while let Some(handle) = requests.next().await {
+                // should we also push handle errors?
+                if let Ok(result) = handle {
+                    match result {
+                        Ok(batch) => articles.extend(batch),
+                        Err(err) => errors.push(err),
+                    }
                 }
             }
+
             if articles.is_empty() && !errors.is_empty() {
                 Err(errors.pop().unwrap(/* nonempty errors */).into())
             } else {
@@ -95,4 +105,20 @@ impl Ops for BreakingNews {
         res.extend_from_slice(new);
         Ok(res)
     }
+}
+
+fn spawn_headlines_request(
+    client: Arc<Client>,
+    market: Market,
+    page_size: usize,
+) -> JoinHandle<Result<Vec<Article>, xayn_discovery_engine_providers::Error>> {
+    tokio::spawn(async move {
+        let market = market;
+        let query = HeadlinesQuery {
+            market: &market,
+            page_size,
+            page: 1,
+        };
+        client.headlines(&query).await
+    })
 }

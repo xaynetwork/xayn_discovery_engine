@@ -25,6 +25,7 @@ use crate::{
     newscatcher::{Article, Response as NewscatcherResponse},
 };
 
+/// Client errors.
 #[derive(Error, Debug, DisplayDoc)]
 pub enum Error {
     /// Invalid API Url base

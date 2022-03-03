@@ -31,6 +31,6 @@ mod expression;
 mod filter;
 mod newscatcher;
 
-pub use client::{Client, HeadlinesQuery, NewsQuery};
+pub use client::{Client, Error, HeadlinesQuery, NewsQuery};
 pub use filter::{Filter, Market};
 pub use newscatcher::{Article, Response, Topic};
