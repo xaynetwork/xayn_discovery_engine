@@ -32,7 +32,15 @@ use xayn_ai::{
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    document::{self, document_from_article, Document, HistoricDocument, TimeSpent, UserReacted},
+    document::{
+        self,
+        document_from_article,
+        Document,
+        HistoricDocument,
+        TimeSpent,
+        UserReacted,
+        UserReaction,
+    },
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{
@@ -195,12 +203,12 @@ where
 
     async fn from_stack_data(
         config: EndpointConfig,
-        ranker: R,
+        mut ranker: R,
         history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
         stack_ops: Vec<BoxedOps>,
     ) -> Result<Self, Error> {
-        let stacks = stack_ops
+        let mut stacks = stack_ops
             .into_iter()
             .map(|mut ops| {
                 let id = ops.id();
@@ -208,22 +216,28 @@ where
                 ops.configure(&config);
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
-            .collect::<Result<_, _>>()
-            .map(RwLock::new)
+            .collect::<Result<HashMap<_, _>, _>>()
             .map_err(Error::InvalidStack)?;
         let core_config = CoreConfig::default();
 
-        let mut engine = Self {
+        // we don't want to fail initialization if there are network problems
+        update_stacks(
+            stacks.values_mut(),
+            &mut ranker,
+            history,
+            core_config.select_top,
+            core_config.keep_top,
+            usize::MAX,
+        )
+        .await
+        .ok();
+
+        Ok(Self {
             config,
             core_config,
-            stacks,
+            stacks: RwLock::new(stacks),
             ranker,
-        };
-
-        // we don't want to fail initialization if there are network problems
-        engine.update_stacks(history, usize::MAX).await.ok();
-
-        Ok(engine)
+        })
     }
 
     /// Serializes the state of the `Engine` and `Ranker` state.
@@ -259,11 +273,19 @@ where
     ) -> Result<(), Error> {
         *self.config.markets.write().await = markets;
 
-        for stack in self.stacks.write().await.values_mut() {
+        let mut stacks = self.stacks.write().await;
+        for stack in stacks.values_mut() {
             stack.data = StackData::default();
         }
-        self.update_stacks(history, self.core_config.request_new)
-            .await
+        update_stacks(
+            stacks.values_mut(),
+            &mut self.ranker,
+            history,
+            self.core_config.select_top,
+            self.core_config.keep_top,
+            self.core_config.request_new,
+        )
+        .await
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
@@ -272,10 +294,18 @@ where
         history: &[HistoricDocument],
         max_documents: usize,
     ) -> Result<Vec<Document>, Error> {
-        let documents = SelectionIter::new(BetaSampler, self.stacks.write().await.values_mut())
-            .select(max_documents)?;
-        self.update_stacks(history, self.core_config.request_new)
-            .await?;
+        let mut stacks = self.stacks.write().await;
+        let documents =
+            SelectionIter::new(BetaSampler, stacks.values_mut()).select(max_documents)?;
+        update_stacks(
+            stacks.values_mut(),
+            &mut self.ranker,
+            history,
+            self.core_config.select_top,
+            self.core_config.keep_top,
+            self.core_config.request_new,
+        )
+        .await?;
 
         Ok(documents)
     }
@@ -288,7 +318,13 @@ where
     }
 
     /// Process the feedback about the user reacting to a document.
-    pub async fn user_reacted(&mut self, reacted: &UserReacted) -> Result<(), Error> {
+    ///
+    /// The history is only required for positive reactions.
+    pub async fn user_reacted(
+        &mut self,
+        history: Option<&[HistoricDocument]>,
+        reacted: &UserReacted,
+    ) -> Result<(), Error> {
         let mut stacks = self.stacks.write().await;
         stacks
             .get_mut(&reacted.stack_id)
@@ -297,66 +333,23 @@ where
 
         self.ranker.log_user_reaction(reacted)?;
 
-        rank_stacks(stacks.values_mut(), &mut self.ranker)
-    }
-
-    /// Updates the stacks with data related to the top key phrases of the current data.
-    ///
-    /// Requires a threshold below which new items will be requested for a stack.
-    async fn update_stacks(
-        &mut self,
-        history: &[HistoricDocument],
-        request_new: usize,
-    ) -> Result<(), Error> {
-        let mut stacks = self.stacks.write().await;
-
-        let mut stacks: Vec<_> = stacks
-            .values_mut()
-            .filter(|stack| stack.len() <= request_new)
-            .collect();
-
-        let needs_key_phrases = stacks.iter().any(|stack| stack.ops.needs_key_phrases());
-
-        let key_phrases = if needs_key_phrases {
-            self.ranker
-                .select_top_key_phrases(self.core_config.select_top)
-        } else {
-            vec![]
-        };
-
-        let mut errors = Vec::new();
-        for stack in &mut stacks {
-            let articles = stack
-                .new_items(&key_phrases)
+        rank_stacks(stacks.values_mut(), &mut self.ranker)?;
+        if let UserReaction::Positive = reacted.reaction {
+            if let Some(history) = history {
+                update_stacks(
+                    stacks.values_mut(),
+                    &mut self.ranker,
+                    history,
+                    self.core_config.select_top,
+                    self.core_config.keep_top,
+                    self.core_config.request_new,
+                )
                 .await
-                .and_then(|articles| stack.filter_articles(history, articles));
-
-            match articles.map_err(Error::StackOpFailed).and_then(|articles| {
-                let id = stack.id();
-                articles
-                    .into_par_iter()
-                    .map(|article| {
-                        let title = article.title.as_str();
-                        let embedding = self.ranker.compute_smbert(title).map_err(Error::Ranker)?;
-                        document_from_article(article, id, embedding).map_err(Error::Document)
-                    })
-                    .collect::<Result<Vec<_>, _>>()
-            }) {
-                Ok(documents) => {
-                    if let Err(error) = stack.update(&documents, &mut self.ranker) {
-                        errors.push(Error::StackOpFailed(error));
-                    } else {
-                        stack.data.retain_top(self.core_config.keep_top);
-                    }
-                }
-                Err(error) => errors.push(error),
+            } else {
+                Err(Error::StackOpFailed(stack::Error::NoHistory))
             }
-        }
-
-        if errors.is_empty() {
-            Ok(())
         } else {
-            Err(Error::Errors(errors))
+            Ok(())
         }
     }
 }
@@ -373,6 +366,61 @@ fn rank_stacks<'a>(
 
         errors
     });
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::Errors(errors))
+    }
+}
+
+/// Updates the stacks with data related to the top key phrases of the current data.
+async fn update_stacks<'a>(
+    stacks: impl Iterator<Item = &'a mut Stack> + Send + Sync,
+    ranker: &mut (impl Ranker + Send + Sync),
+    history: &[HistoricDocument],
+    select_top: usize,
+    keep_top: usize,
+    request_new: usize,
+) -> Result<(), Error> {
+    let mut stacks: Vec<_> = stacks.filter(|stack| stack.len() <= request_new).collect();
+
+    let needs_key_phrases = stacks.iter().any(|stack| stack.ops.needs_key_phrases());
+
+    let key_phrases = if needs_key_phrases {
+        ranker.select_top_key_phrases(select_top)
+    } else {
+        vec![]
+    };
+
+    let mut errors = Vec::new();
+    for stack in &mut stacks {
+        let articles = stack
+            .new_items(&key_phrases)
+            .await
+            .and_then(|articles| stack.filter_articles(history, articles));
+
+        match articles.map_err(Error::StackOpFailed).and_then(|articles| {
+            let id = stack.id();
+            articles
+                .into_par_iter()
+                .map(|article| {
+                    let title = article.title.as_str();
+                    let embedding = ranker.compute_smbert(title).map_err(Error::Ranker)?;
+                    document_from_article(article, id, embedding).map_err(Error::Document)
+                })
+                .collect::<Result<Vec<_>, _>>()
+        }) {
+            Ok(documents) => {
+                if let Err(error) = stack.update(&documents, ranker) {
+                    errors.push(Error::StackOpFailed(error));
+                } else {
+                    stack.data.retain_top(keep_top);
+                }
+            }
+            Err(error) => errors.push(error),
+        }
+    }
 
     if errors.is_empty() {
         Ok(())

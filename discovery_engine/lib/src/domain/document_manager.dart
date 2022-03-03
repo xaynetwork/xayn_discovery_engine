@@ -82,6 +82,9 @@ class DocumentManager {
 
     await _documentRepo.update(doc..userReaction = userReaction);
     await _engine.userReacted(
+      userReaction == UserReaction.positive
+          ? await _documentRepo.fetchHistory()
+          : null,
       UserReacted(
         id: id,
         stackId: doc.stackId,
