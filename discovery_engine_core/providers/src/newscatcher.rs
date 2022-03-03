@@ -42,7 +42,7 @@ pub enum Topic {
 }
 
 /// A news article
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Article {
     /// Newscatcher API's unique identifier for each news article.
     #[serde(
@@ -147,8 +147,13 @@ where
     Ok(opt.unwrap_or(Topic::News))
 }
 
+/// Query response from the Newscatcher API
 #[derive(Deserialize, Debug)]
-pub(crate) struct Response {
-    pub(crate) status: String,
-    pub(crate) articles: Vec<Article>,
+pub struct Response {
+    /// Status message
+    pub status: String,
+    /// Main response content
+    pub articles: Vec<Article>,
+    /// Total pages of content available
+    pub total_pages: usize,
 }

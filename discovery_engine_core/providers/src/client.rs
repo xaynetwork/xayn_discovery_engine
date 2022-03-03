@@ -33,8 +33,15 @@ pub enum Error {
     RequestExecution(#[source] reqwest::Error),
     /// Server returned a non-successful status code: {0}
     StatusCode(#[source] reqwest::Error),
+    /// Failed to fetch from the server: {0}
+    Fetching(#[source] reqwest::Error),
     /// Failed to decode the server's response: {0}
-    Decoding(#[source] reqwest::Error),
+    Decoding(#[source] serde_json::Error),
+    /// Failed to decode the server's response at JSON path {1}: {0}
+    DecodingAtPath(
+        String,
+        #[source] serde_path_to_error::Error<serde_json::Error>,
+    ),
 }
 
 /// Client that can provide documents.
@@ -62,6 +69,8 @@ pub struct HeadlinesQuery<'a> {
     pub market: &'a Market,
     /// How many articles to return (per page).
     pub page_size: usize,
+    /// Which page of the results to return.
+    pub page: usize,
 }
 
 impl Client {
@@ -88,7 +97,7 @@ impl Client {
             .error_for_status()
             .map_err(Error::StatusCode)?;
 
-        let news: NewscatcherResponse = response.json().await.map_err(Error::Decoding)?;
+        let news: NewscatcherResponse = response.json().await.map_err(Error::Fetching)?;
         let result: Vec<Article> = news.articles.into_iter().collect();
         Ok(result)
     }
@@ -114,6 +123,16 @@ impl Client {
 
     /// Retrieve headlines from the remote API
     pub async fn headlines(&self, params: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
+        let news = self.headlines_query(params).await?;
+        let result: Vec<Article> = news.articles.into_iter().collect();
+        Ok(result)
+    }
+
+    /// Performs a query to retrieve headlines against the Newscatcher API
+    pub async fn headlines_query(
+        &self,
+        params: &HeadlinesQuery<'_>,
+    ) -> Result<NewscatcherResponse, Error> {
         let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
         Self::build_headlines_query(&mut url, params)?;
 
@@ -128,9 +147,10 @@ impl Client {
             .error_for_status()
             .map_err(Error::StatusCode)?;
 
-        let news: NewscatcherResponse = response.json().await.map_err(Error::Decoding)?;
-        let result: Vec<Article> = news.articles.into_iter().collect();
-        Ok(result)
+        let raw_response = response.text().await.map_err(Error::Fetching)?;
+        let deserializer = &mut serde_json::Deserializer::from_str(&raw_response);
+        serde_path_to_error::deserialize(deserializer)
+            .map_err(|error| Error::DecodingAtPath(error.path().to_string(), error))
     }
 
     fn build_headlines_query(url: &mut Url, params: &HeadlinesQuery<'_>) -> Result<(), Error> {
@@ -140,7 +160,8 @@ impl Client {
         url.query_pairs_mut()
             .append_pair("lang", &params.market.lang_code)
             .append_pair("countries", &params.market.country_code)
-            .append_pair("page_size", &params.page_size.to_string());
+            .append_pair("page_size", &params.page_size.to_string())
+            .append_pair("page", &params.page.to_string());
         Ok(())
     }
 }
@@ -269,6 +290,7 @@ mod tests {
             .and(query_param("lang", "en"))
             .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -281,6 +303,7 @@ mod tests {
                 country_code: "US".to_string(),
             },
             page_size: 2,
+            page: 1,
         };
 
         let docs = client.headlines(&params).await.unwrap();
