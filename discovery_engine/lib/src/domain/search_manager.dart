@@ -65,10 +65,10 @@ class SearchManager {
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleSearchClientEvent(SearchClientEvent event) =>
       event.maybeWhen(
-        searchRequested: _searchRequested,
-        nextSearchBatchRequested: _nextSearchBatchRequested,
-        restoreSearchRequested: _restoreSearchRequested,
-        searchClosed: _searchClosed,
+        searchRequested: searchRequested,
+        nextSearchBatchRequested: nextSearchBatchRequested,
+        restoreSearchRequested: restoreSearchRequested,
+        searchClosed: searchClosed,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -90,11 +90,11 @@ class SearchManager {
   }
 
   /// Obtain the first batch of search documents and persist to repositories.
-  Future<EngineEvent> _searchRequested(
+  Future<EngineEvent> searchRequested(
     String queryTerm,
     FeedMarket market,
   ) async {
-    await _searchClosed();
+    await searchClosed();
 
     final search = ActiveSearch(
       queryTerm: queryTerm,
@@ -116,7 +116,7 @@ class SearchManager {
   }
 
   /// Obtain the next batch of search documents and persist to repositories.
-  Future<EngineEvent> _nextSearchBatchRequested() async {
+  Future<EngineEvent> nextSearchBatchRequested() async {
     var search = await _searchRepo.getCurrent();
 
     if (search == null) {
@@ -142,7 +142,7 @@ class SearchManager {
   /// Returns the list of active search documents, ordered by their global rank.
   ///
   /// That is, documents are ordered by their timestamp, then local rank.
-  Future<EngineEvent> _restoreSearchRequested() async {
+  Future<EngineEvent> restoreSearchRequested() async {
     final search = await _searchRepo.getCurrent();
 
     if (search == null) {
@@ -174,7 +174,7 @@ class SearchManager {
   }
 
   /// Clear the active search and deactivate interacted search documents.
-  Future<EngineEvent> _searchClosed() async {
+  Future<EngineEvent> searchClosed() async {
     await _searchRepo.clear();
 
     final allDocs = await _docRepo.fetchAll();
