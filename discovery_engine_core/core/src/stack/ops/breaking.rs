@@ -64,12 +64,13 @@ impl Ops for BreakingNews {
             let mut articles = Vec::new();
             let mut errors = Vec::new();
 
-            let mut requests = FuturesUnordered::new();
-            for market in markets.read().await.iter() {
-                let request =
-                    spawn_headlines_request(self.client.clone(), market.clone(), self.page_size);
-                requests.push(request);
-            }
+            let mut requests = markets
+                .read()
+                .await
+                .iter()
+                .cloned()
+                .map(|market| spawn_headlines_request(self.client.clone(), market, self.page_size))
+                .collect::<FuturesUnordered<_>>();
 
             while let Some(handle) = requests.next().await {
                 // should we also push handle errors?

@@ -70,16 +70,20 @@ impl Ops for PersonalizedNews {
                 filter.add_keyword(kp.words())
             });
 
-            let mut requests = FuturesUnordered::new();
-            for market in markets.read().await.iter() {
-                let request = spawn_news_request(
-                    self.client.clone(),
-                    market.clone(),
-                    filter.clone(),
-                    self.page_size,
-                );
-                requests.push(request);
-            }
+            let mut requests = markets
+                .read()
+                .await
+                .iter()
+                .cloned()
+                .map(|market| {
+                    spawn_news_request(
+                        self.client.clone(),
+                        market.clone(),
+                        filter.clone(),
+                        self.page_size,
+                    )
+                })
+                .collect::<FuturesUnordered<_>>();
 
             while let Some(handle) = requests.next().await {
                 // should we also push handle errors?
