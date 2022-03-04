@@ -97,7 +97,6 @@ void withFailureResponse(Object initialMessage) => MockDiscoveryEngineWorker(
       nextFeedBatchRequestedResponse:
           const EngineEvent.nextFeedBatchRequestFailed(
         FeedFailureReason.noNewsForMarket,
-        null,
       ),
     );
 

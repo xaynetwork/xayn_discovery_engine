@@ -97,7 +97,7 @@ class FeedManager {
     } catch (e) {
       return EngineEvent.nextFeedBatchRequestFailed(
         FeedFailureReason.stacksOpsError,
-        '$e',
+        errors: '$e',
       );
     }
 
