@@ -20,6 +20,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show DiscoveryEngine, EngineInitException, NextFeedBatchRequestSucceeded;
+
 import '../logging.dart' show setupLogging;
 import 'utils/db.dart' show loadEngineState, saveEngineState;
 import 'utils/helpers.dart'

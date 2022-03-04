@@ -51,6 +51,14 @@ void main() {
     test(
         'restoreFeed should return the feed that has been requested before with'
         ' requestNextFeedBatch', () async {
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[
+          isA<NextFeedBatchRequestSucceeded>(),
+          isA<RestoreFeedSucceeded>(),
+        ]),
+      );
+
       final nextBatchResponse = await engine.requestNextFeedBatch();
       final restoreFeedResponse = await engine.restoreFeed();
 
