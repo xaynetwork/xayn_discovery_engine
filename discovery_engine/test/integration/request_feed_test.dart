@@ -16,12 +16,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show
-        DiscoveryEngine,
-        FeedFailureReason,
-        NextFeedBatchRequestFailed,
-        NextFeedBatchRequestSucceeded,
-        RestoreFeedSucceeded;
+    show DiscoveryEngine, NextFeedBatchRequestSucceeded, RestoreFeedSucceeded;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -67,33 +62,6 @@ void main() {
       expect(
         (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
         equals((restoreFeedResponse as RestoreFeedSucceeded).items),
-      );
-    });
-
-    test(
-        'if a news api request error occurs, then the requestNextFeedBatch'
-        ' depletes the internal stacks and subsequent calls should fail with'
-        ' FeedFailureReason.noNewsForMarket', () async {
-      // the server error only occurs for fetching breaking news, the personalized news succeeds
-      // early with empty documents and no error before a server request is made because no key
-      // phrases are selected due to no previous feedback, overall only one of the two stacks fails
-      // which results in successful batch requests until all stacks are depleted
-      server.replyWithError = true;
-
-      // the next batch can still return the documents fetched during engine init
-      final nextBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
-      expect(
-        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
-        isNotEmpty,
-      );
-
-      // all subsequent batches fail because of the server error
-      final subsequentBatchResponse = await engine.requestNextFeedBatch();
-      expect(subsequentBatchResponse, isA<NextFeedBatchRequestFailed>());
-      expect(
-        (subsequentBatchResponse as NextFeedBatchRequestFailed).reason,
-        equals(FeedFailureReason.noNewsForMarket),
       );
     });
   });

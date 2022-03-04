@@ -17,14 +17,16 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
+        ClientEventSucceeded,
         DiscoveryEngine,
         FeedFailureReason,
         NextFeedBatchRequestFailed,
-        NextFeedBatchRequestSucceeded;
+        NextFeedBatchRequestSucceeded,
+        UserReaction;
 
 import '../logging.dart' show setupLogging;
-import 'utils/create_config.dart'
-    show TestEngineData, createConfig, setupTestEngineData;
+import 'utils/helpers.dart'
+    show TestEngineData, initEngine, setupTestEngineData;
 import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 
 void main() {
@@ -33,50 +35,90 @@ void main() {
   group('DiscoveryEngine requestNextFeedBatch', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
+    late DiscoveryEngine engine;
 
     setUp(() async {
+      server = await LocalNewsApiServer.start();
       data = await setupTestEngineData();
+      engine = await initEngine(data, server.port);
     });
 
     tearDown(() async {
+      await engine.dispose();
       await server.close();
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
 
     test('requestNextFeedBatch should return the next feed batch', () async {
-      server = await LocalNewsApiServer.start();
-      final engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
-      );
-
-      final nextBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      engine = await initEngine(data, server.port);
       expect(
-        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[
+          isA<NextFeedBatchRequestSucceeded>(),
+        ]),
+      );
+      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      expect(
+        (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items,
         isNotEmpty,
       );
     });
 
     test(
-        'if news api request fails, requestNextFeedBatch should return the'
-        'NextFeedBatchRequestFailed event with the reason stacksOpsError',
+        'if a news api request error occurs, then the requestNextFeedBatch'
+        ' depletes the internal stacks and subsequent calls should fail with'
+        ' FeedFailureReason.noNewsForMarket', () async {
+      engine = await initEngine(data, server.port);
+      // the server error only occurs for fetching breaking news, the personalized news succeeds
+      // early with empty documents and no error before a server request is made because no key
+      // phrases are selected due to no previous feedback, overall only one of the two stacks fails
+      // which results in successful batch requests until all stacks are depleted
+      server.replyWithError = true;
+
+      // the next batch can still return the documents fetched during engine init
+      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      expect(
+        (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items,
+        isNotEmpty,
+      );
+
+      // all subsequent batches fail because of the server error
+      final subsequentBatchResponse = await engine.requestNextFeedBatch();
+      expect(subsequentBatchResponse, isA<NextFeedBatchRequestFailed>());
+      expect(
+        (subsequentBatchResponse as NextFeedBatchRequestFailed).reason,
+        equals(FeedFailureReason.noNewsForMarket),
+      );
+    });
+
+    test(
+        'if all stacks fail to update, requestNextFeedBatch should return the'
+        ' NextFeedBatchRequestFailed event with the reason stacksOpsError',
         () async {
-      server = await LocalNewsApiServer.start();
-      final engine = await DiscoveryEngine.init(
-        configuration: createConfig(data, server.port),
+      final nextFeedBatchSuccessful = await engine.requestNextFeedBatch();
+      expect(nextFeedBatchSuccessful, isA<NextFeedBatchRequestSucceeded>());
+
+      // "like" a document in order to be able to select keywords and update
+      // both stacks on the next request
+      final doc = (nextFeedBatchSuccessful as NextFeedBatchRequestSucceeded)
+          .items
+          .first;
+      expect(
+        await engine.changeUserReaction(
+          documentId: doc.documentId,
+          userReaction: UserReaction.positive,
+        ),
+        isA<ClientEventSucceeded>(),
       );
 
       server.replyWithError = true;
-
-      final nextBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextBatchResponse, isA<NextFeedBatchRequestFailed>());
+      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestFailed>());
       expect(
-        (nextBatchResponse as NextFeedBatchRequestFailed).reason,
+        (nextFeedBatchResponse as NextFeedBatchRequestFailed).reason,
         equals(FeedFailureReason.stacksOpsError),
-      );
-      expect(
-        nextBatchResponse.errors,
-        contains('kind: Status(404)'),
       );
     });
   });
