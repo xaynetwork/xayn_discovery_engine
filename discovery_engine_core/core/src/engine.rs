@@ -144,6 +144,9 @@ struct CoreConfig {
     keep_top: usize,
     /// The lower bound of documents per stack at which new items are requested.
     request_new: usize,
+    /// The number of times to get feed documents after which the stacks are updated without the
+    /// limitation of `request_new`.
+    request_after: usize,
 }
 
 impl Default for CoreConfig {
@@ -152,6 +155,7 @@ impl Default for CoreConfig {
             select_top: 3,
             keep_top: 20,
             request_new: 3,
+            request_after: 2,
         }
     }
 }
@@ -162,6 +166,7 @@ pub struct Engine<R> {
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
     ranker: R,
+    request_after: usize,
 }
 
 impl<R> Engine<R>
@@ -238,6 +243,7 @@ where
             core_config,
             stacks: RwLock::new(stacks),
             ranker,
+            request_after: 0,
         })
     }
 
@@ -298,15 +304,20 @@ where
         let mut stacks = self.stacks.write().await;
         let documents =
             SelectionIter::new(BetaSampler, stacks.values_mut()).select(max_documents)?;
+
+        let request_new = (self.request_after < self.core_config.request_after)
+            .then(|| self.core_config.request_new)
+            .unwrap_or(usize::MAX);
         update_stacks(
             stacks.values_mut(),
             &mut self.ranker,
             history,
             self.core_config.select_top,
             self.core_config.keep_top,
-            self.core_config.request_new,
+            request_new,
         )
         .await?;
+        self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
         Ok(documents)
     }
@@ -345,7 +356,9 @@ where
                     self.core_config.keep_top,
                     usize::MAX,
                 )
-                .await
+                .await?;
+                self.request_after = 0;
+                Ok(())
             } else {
                 Err(Error::StackOpFailed(stack::Error::NoHistory))
             }
