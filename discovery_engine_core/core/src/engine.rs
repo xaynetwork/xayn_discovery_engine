@@ -305,11 +305,9 @@ where
         let documents =
             SelectionIter::new(BetaSampler, stacks.values_mut()).select(max_documents)?;
 
-        let request_new = if self.request_after < self.core_config.request_after {
-            self.core_config.request_new
-        } else {
-            usize::MAX
-        };
+        let request_new = (self.request_after < self.core_config.request_after)
+            .then(|| self.core_config.request_new)
+            .unwrap_or(usize::MAX);
         update_stacks(
             stacks.values_mut(),
             &mut self.ranker,
@@ -319,11 +317,7 @@ where
             request_new,
         )
         .await?;
-        if self.request_after < self.core_config.request_after {
-            self.request_after += 1;
-        } else {
-            self.request_after = 0;
-        }
+        self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
         Ok(documents)
     }
