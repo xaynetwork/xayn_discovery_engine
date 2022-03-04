@@ -366,6 +366,16 @@ where
             Ok(())
         }
     }
+
+    /// Performs an active search with the given query parameters.
+    pub async fn active_search(
+        &mut self,
+        _query: &str,
+        _page: usize,
+        _page_size: usize,
+    ) -> Result<Vec<Document>, Error> {
+        todo!() // implemented in TY-2434
+    }
 }
 
 /// The ranker could rank the documents in a different order so we update the stacks with it.
