@@ -153,6 +153,7 @@ pub struct Response {
     /// Status message
     pub status: String,
     /// Main response content
+    #[serde(default)]
     pub articles: Vec<Article>,
     /// Total pages of content available
     pub total_pages: usize,
