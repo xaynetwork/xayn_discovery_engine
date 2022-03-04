@@ -301,7 +301,11 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(List<Document> items)? restoreFeedSucceeded,
     TResult Function(FeedFailureReason reason)? restoreFeedFailed,
     TResult Function(List<Document> items)? nextFeedBatchRequestSucceeded,
-    TResult Function(FeedFailureReason reason)? nextFeedBatchRequestFailed,
+    TResult Function(
+      FeedFailureReason reason,
+      String? message,
+    )?
+        nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
     TResult Function()? fetchingAssetsStarted,
     TResult Function(double percentage)? fetchingAssetsProgressed,
@@ -338,7 +342,10 @@ class BadEngineEvent implements EngineEvent {
     required TResult Function(FeedFailureReason reason) restoreFeedFailed,
     required TResult Function(List<Document> items)
         nextFeedBatchRequestSucceeded,
-    required TResult Function(FeedFailureReason reason)
+    required TResult Function(
+      FeedFailureReason reason,
+      String? message,
+    )
         nextFeedBatchRequestFailed,
     required TResult Function() nextFeedBatchAvailable,
     required TResult Function() fetchingAssetsStarted,
@@ -371,7 +378,11 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(List<Document> items)? restoreFeedSucceeded,
     TResult Function(FeedFailureReason reason)? restoreFeedFailed,
     TResult Function(List<Document> items)? nextFeedBatchRequestSucceeded,
-    TResult Function(FeedFailureReason reason)? nextFeedBatchRequestFailed,
+    TResult Function(
+      FeedFailureReason reason,
+      String? message,
+    )?
+        nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
     TResult Function()? fetchingAssetsStarted,
     TResult Function(double percentage)? fetchingAssetsProgressed,

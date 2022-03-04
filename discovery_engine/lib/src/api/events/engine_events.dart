@@ -54,6 +54,8 @@ enum FeedFailureReason {
   notAuthorised,
   @JsonValue(1)
   noNewsForMarket,
+  @JsonValue(2)
+  stacksOpsError,
 }
 
 enum SearchFailureReason {
@@ -113,6 +115,7 @@ class EngineEvent with _$EngineEvent {
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchRequestFailed(
     FeedFailureReason reason,
+    String? errors,
   ) = NextFeedBatchRequestFailed;
 
   /// Event created by the engine possibly after doing some background queries,
