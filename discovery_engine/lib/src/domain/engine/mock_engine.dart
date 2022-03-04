@@ -123,7 +123,7 @@ class MockEngine implements Engine {
     } else {
       return [
         DocumentWithActiveData(doc0, active0),
-        DocumentWithActiveData(doc1, active1)
+        DocumentWithActiveData(doc1, active1),
       ];
     }
   }
@@ -139,5 +139,19 @@ class MockEngine implements Engine {
     UserReacted userReacted,
   ) async {
     _incrementCount('userReacted');
+  }
+
+  @override
+  Future<List<DocumentWithActiveData>> activeSearch(
+    String query,
+    int page,
+    int pageSize,
+  ) async {
+    _incrementCount('activeSearch');
+
+    return [
+      DocumentWithActiveData(doc0, active0),
+      DocumentWithActiveData(doc1, active1),
+    ];
   }
 }
