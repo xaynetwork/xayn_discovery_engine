@@ -18,7 +18,7 @@ use xayn_discovery_engine_core::document::Document;
 
 use crate::types::{
     slice::{alloc_uninitialized_slice, boxed_slice_from_raw_parts, next_element},
-    vec::{get_vec_buffer, get_vec_len},
+    vec::{get_vec_buffer, get_vec_len}, primitives::FfiUsize,
 };
 
 /// Initializes a `Vec<Document>` at given place.
@@ -36,7 +36,7 @@ use crate::types::{
 pub unsafe extern "C" fn init_document_vec_at(
     place: *mut Vec<Document>,
     slice_ptr: *mut Document,
-    slice_len: usize,
+    slice_len: FfiUsize,
 ) {
     unsafe {
         place.write(Vec::from(boxed_slice_from_raw_parts(slice_ptr, slice_len)));
@@ -45,7 +45,7 @@ pub unsafe extern "C" fn init_document_vec_at(
 
 /// Alloc an uninitialized `Box<[Document]>`.
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_document_slice(len: usize) -> *mut Document {
+pub extern "C" fn alloc_uninitialized_document_slice(len: FfiUsize) -> *mut Document {
     alloc_uninitialized_slice(len)
 }
 
@@ -69,7 +69,7 @@ pub unsafe extern "C" fn next_document(place: *mut Document) -> *mut Document {
 ///
 /// The pointer must represent a valid `Box<[Document]>` instance.
 #[no_mangle]
-pub unsafe extern "C" fn drop_document_slice(documents: *mut Document, len: usize) {
+pub unsafe extern "C" fn drop_document_slice(documents: *mut Document, len: FfiUsize) {
     drop(unsafe { boxed_slice_from_raw_parts(documents, len) });
 }
 
@@ -79,7 +79,7 @@ pub unsafe extern "C" fn drop_document_slice(documents: *mut Document, len: usiz
 ///
 /// The pointer must point to a valid `Vec<Document>` instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_document_vec_len(documents: *mut Vec<Document>) -> usize {
+pub unsafe extern "C" fn get_document_vec_len(documents: *mut Vec<Document>) -> FfiUsize {
     unsafe { get_vec_len(documents) }
 }
 

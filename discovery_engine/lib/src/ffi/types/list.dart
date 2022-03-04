@@ -14,6 +14,9 @@
 
 import 'dart:ffi' show NativeType, Pointer;
 
+import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
+    show checkFfiUsize;
+
 class ListFfiAdapter<Type, RustType extends NativeType,
     RustVecType extends NativeType> {
   final Pointer<RustType> Function(int) alloc;
@@ -37,6 +40,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
 
   /// Allocates a slice of `RustType` containing all items of this list.
   Pointer<RustType> createSlice(List<Type> list) {
+    checkFfiUsize(list.length, 'list.length');
     final slice = alloc(list.length);
     list.fold<Pointer<RustType>>(slice, (nextElement, market) {
       writeNative(market, nextElement);
@@ -50,6 +54,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
     final Pointer<RustType> ptr,
     final int len,
   ) {
+    checkFfiUsize(len, 'list.length');
     final out = <Type>[];
     Iterable<int>.generate(len).fold<Pointer<RustType>>(ptr, (nextElement, _) {
       out.add(readNative(nextElement));
@@ -63,6 +68,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
     final List<Type> list,
     final Pointer<RustVecType> place,
   ) {
+    checkFfiUsize(list.length, 'list.length');
     final slice = createSlice(list);
     writeNativeVec(place, slice, list.length);
   }

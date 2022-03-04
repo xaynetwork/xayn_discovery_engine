@@ -21,7 +21,7 @@ use crate::types::{
     vec::{get_vec_buffer, get_vec_len},
 };
 
-use super::boxed::alloc_uninitialized;
+use super::{boxed::alloc_uninitialized, primitives::FfiUsize};
 
 /// Initializes a `Vec<HistoricDocument>` at given place.
 ///
@@ -38,7 +38,7 @@ use super::boxed::alloc_uninitialized;
 pub unsafe extern "C" fn init_historic_document_vec_at(
     place: *mut Vec<HistoricDocument>,
     slice_ptr: *mut HistoricDocument,
-    slice_len: usize,
+    slice_len: FfiUsize,
 ) {
     unsafe {
         place.write(Vec::from(boxed_slice_from_raw_parts(slice_ptr, slice_len)));
@@ -47,7 +47,7 @@ pub unsafe extern "C" fn init_historic_document_vec_at(
 
 /// Alloc an uninitialized `Box<[HistoricDocument]>`.
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_historic_document_slice(len: usize) -> *mut HistoricDocument {
+pub extern "C" fn alloc_uninitialized_historic_document_slice(len: FfiUsize) -> *mut HistoricDocument {
     alloc_uninitialized_slice(len)
 }
 
@@ -81,7 +81,7 @@ pub unsafe extern "C" fn next_historic_document(
 #[no_mangle]
 pub unsafe extern "C" fn drop_historic_document_slice(
     documents: *mut HistoricDocument,
-    len: usize,
+    len: FfiUsize,
 ) {
     drop(unsafe { boxed_slice_from_raw_parts(documents, len) });
 }
@@ -94,7 +94,7 @@ pub unsafe extern "C" fn drop_historic_document_slice(
 #[no_mangle]
 pub unsafe extern "C" fn get_historic_document_vec_len(
     documents: *mut Vec<HistoricDocument>,
-) -> usize {
+) -> FfiUsize {
     unsafe { get_vec_len(documents) }
 }
 

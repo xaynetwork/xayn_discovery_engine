@@ -44,6 +44,7 @@ class PrimitivesFfi {
 
 extension Uint8ListFfi on Uint8List {
   Boxed<RustVecU8> allocNative() {
+    checkFfiUsize(length, 'Uint8List.length');
     final ptr = ffi.alloc_uninitialized_bytes(length);
     ptr.asTypedList(length).setAll(0, this);
     final vec = ffi.alloc_vec_u8(ptr, length);
@@ -54,5 +55,12 @@ extension Uint8ListFfi on Uint8List {
     final len = ffi.get_vec_u8_len(vec);
     final buffer = ffi.get_vec_u8_buffer(vec);
     return Uint8List.fromList(buffer.asTypedList(len));
+  }
+}
+
+// FIXME[dart >1.16]: Use AbiSpecificInteger
+void checkFfiUsize(int val, String name) {
+  if (val > 0xFFFFFFFF) {
+    throw ArgumentError.value(val, name, 'only 32bit values are supported');
   }
 }

@@ -18,7 +18,7 @@ use std::ptr;
 
 use url::Url;
 
-use super::{option::get_option_some, string::str_from_raw_parts};
+use super::{option::get_option_some, string::str_from_raw_parts, primitives::FfiUsize};
 
 /// Creates a rust `Url` based on given parsing given `&str` at given place.
 ///
@@ -30,7 +30,7 @@ use super::{option::get_option_some, string::str_from_raw_parts};
 ///   the pointer is expected to point to uninitialized memory.
 /// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust `str`.
 #[no_mangle]
-pub unsafe extern "C" fn init_url_at(place: *mut Url, str_ptr: *const u8, str_len: usize) -> u8 {
+pub unsafe extern "C" fn init_url_at(place: *mut Url, str_ptr: *const u8, str_len: FfiUsize) -> u8 {
     if let Ok(url) = unsafe { parse_url_from_parts(str_ptr, str_len) } {
         unsafe {
             ptr::write(place, url);
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn init_url_at(place: *mut Url, str_ptr: *const u8, str_le
 pub unsafe extern "C" fn init_some_url_at(
     place: *mut Option<Url>,
     str_ptr: *const u8,
-    str_len: usize,
+    str_len: FfiUsize,
 ) -> u8 {
     if let Ok(url) = unsafe { parse_url_from_parts(str_ptr, str_len) } {
         unsafe {
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn init_some_url_at(
 /// # Safety
 ///
 /// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust `str`.
-unsafe fn parse_url_from_parts(str_ptr: *const u8, str_len: usize) -> Result<Url, url::ParseError> {
+unsafe fn parse_url_from_parts(str_ptr: *const u8, str_len: FfiUsize) -> Result<Url, url::ParseError> {
     Url::parse(unsafe { str_from_raw_parts(str_ptr, str_len) })
 }
 
@@ -105,8 +105,8 @@ pub unsafe extern "C" fn get_url_buffer(url: *const Url) -> *const u8 {
 ///
 /// - The pointer must point to a sound initialized `Url` instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_url_buffer_len(url: *const Url) -> usize {
-    unsafe { &*url }.as_str().len()
+pub unsafe extern "C" fn get_url_buffer_len(url: *const Url) -> FfiUsize {
+    FfiUsize::from_usize_lossy(unsafe { &*url }.as_str().len())
 }
 
 /// Returns a pointer to the value in the `Some` variant.
@@ -164,7 +164,7 @@ mod tests {
         let url = "https://foo.example/bar";
         let place = &mut MaybeUninit::<Url>::uninit();
         unsafe {
-            let ok = init_url_at(place.as_mut_ptr(), url.as_ptr(), url.len());
+            let ok = init_url_at(place.as_mut_ptr(), url.as_ptr(), FfiUsize::from_usize_lossy(url.len()));
             assert_eq!(ok, 1);
         }
         let place = unsafe { place.assume_init_mut() };
@@ -176,7 +176,7 @@ mod tests {
         let url = "not_an_url";
         let place = &mut MaybeUninit::<Url>::uninit();
         unsafe {
-            let ok = init_url_at(place.as_mut_ptr(), url.as_ptr(), url.len());
+            let ok = init_url_at(place.as_mut_ptr(), url.as_ptr(), FfiUsize::from_usize_lossy(url.len()));
             assert_eq!(ok, 0);
         }
     }

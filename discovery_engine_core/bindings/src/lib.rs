@@ -95,7 +95,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn get_feed_documents(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
-        max_documents: usize,
+        max_documents: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine

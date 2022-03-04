@@ -27,31 +27,19 @@ use tracing::error;
 
 use xayn_ai::{
     ranker::{AveragePooler, Builder, CoiSystemConfig},
-    KpeConfig,
-    SMBertConfig,
+    KpeConfig, SMBertConfig,
 };
 use xayn_discovery_engine_providers::{Client, Filter, Market, NewsQuery};
 
 use crate::{
     document::{
-        self,
-        document_from_article,
-        Document,
-        HistoricDocument,
-        TimeSpent,
-        UserReacted,
+        self, document_from_article, Document, HistoricDocument, TimeSpent, UserReacted,
         UserReaction,
     },
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{
-        self,
-        BoxedOps,
-        BreakingNews,
-        Data as StackData,
-        Id as StackId,
-        PersonalizedNews,
-        Stack,
+        self, BoxedOps, BreakingNews, Data as StackData, Id as StackId, PersonalizedNews, Stack,
     },
 };
 
@@ -305,11 +293,11 @@ where
     pub async fn get_feed_documents(
         &mut self,
         history: &[HistoricDocument],
-        max_documents: usize,
+        max_documents: u32,
     ) -> Result<Vec<Document>, Error> {
         let mut stacks = self.stacks.write().await;
         let documents =
-            SelectionIter::new(BetaSampler, stacks.values_mut()).select(max_documents)?;
+            SelectionIter::new(BetaSampler, stacks.values_mut()).select(max_documents as usize)?;
 
         let request_new = (self.request_after < self.core_config.request_after)
             .then(|| self.core_config.request_new)
@@ -642,7 +630,7 @@ struct State {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
+    use std::{error::Error, mem::size_of};
 
     use super::*;
 
@@ -684,5 +672,10 @@ mod tests {
                 .with_penalty(&[0.99, 0.66, 0.33])?,
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_usize_not_to_small() {
+        assert!(size_of::<usize>() >= size_of::<u32>());
     }
 }

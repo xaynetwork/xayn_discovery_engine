@@ -19,12 +19,15 @@ import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustEmbedding;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
+    show checkFfiUsize;
 
 extension EmbeddingFfi on Embedding {
   void writeNative(
     final Pointer<RustEmbedding> place,
   ) {
     final len = values.length;
+    checkFfiUsize(len, 'Embedding.length');
     final buffer = ffi.alloc_uninitialized_f32_slice(len);
     buffer.asTypedList(len).setAll(0, values);
     ffi.init_embedding_at(place, buffer, len);

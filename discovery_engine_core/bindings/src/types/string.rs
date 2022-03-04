@@ -16,7 +16,7 @@
 
 use std::{ptr, slice, str};
 
-use super::option::get_option_some;
+use super::{option::get_option_some, primitives::FfiUsize};
 
 /// Helper to create a `&str`.
 ///
@@ -24,8 +24,10 @@ use super::option::get_option_some;
 ///
 /// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust string for the
 ///   lifetime of `'a`.
-pub(super) unsafe fn str_from_raw_parts<'a>(str_ptr: *const u8, str_len: usize) -> &'a str {
-    unsafe { str::from_utf8_unchecked(slice::from_raw_parts(str_ptr, str_len)) }
+/// - `str_len` must be less then `2**32` bytes or at least truncating the string
+///   to that byte length must still be a sound rust string.
+pub(super) unsafe fn str_from_raw_parts<'a>(str_ptr: *const u8, str_len: FfiUsize) -> &'a str {
+    unsafe { str::from_utf8_unchecked(slice::from_raw_parts(str_ptr, str_len.to_usize())) }
 }
 
 /// Creates a rust `String` from given `Box<str>`.
@@ -36,9 +38,10 @@ pub(super) unsafe fn str_from_raw_parts<'a>(str_ptr: *const u8, str_len: usize) 
 ///   the pointer is expected to point to uninitialized memory.
 /// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust string.
 #[no_mangle]
-pub unsafe extern "C" fn init_string_at(place: *mut String, str_ptr: *mut u8, str_len: usize) {
+pub unsafe extern "C" fn init_string_at(place: *mut String, str_ptr: *mut u8, str_len: FfiUsize) {
+    let len = str_len.to_usize();
     unsafe {
-        ptr::write(place, String::from_raw_parts(str_ptr, str_len, str_len));
+        ptr::write(place, String::from_raw_parts(str_ptr, len, len));
     }
 }
 
@@ -48,8 +51,8 @@ pub unsafe extern "C" fn init_string_at(place: *mut String, str_ptr: *mut u8, st
 ///
 /// The pointer must point to a valid `String` instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_string_len(string: *mut String) -> usize {
-    unsafe { &*string }.len()
+pub unsafe extern "C" fn get_string_len(string: *mut String) -> FfiUsize {
+    FfiUsize::from_usize_lossy(unsafe { &*string }.len())
 }
 
 /// Returns a pointer to the underlying buffer of the given rust string.
@@ -95,8 +98,9 @@ pub unsafe extern "C" fn drop_string(boxed: *mut String) {
 pub unsafe extern "C" fn init_option_string_some_at(
     place: *mut Option<String>,
     str_ptr: *mut u8,
-    str_len: usize,
+    str_len: FfiUsize,
 ) {
+    let str_len = str_len.to_usize();
     unsafe {
         ptr::write(
             place,
@@ -161,7 +165,7 @@ mod tests {
         let place = &mut String::new();
         unsafe {
             let boxed = string.to_owned().into_boxed_str();
-            let str_len = boxed.len();
+            let str_len = FfiUsize::from_usize_lossy(boxed.len());
             let str_ptr = Box::into_raw(boxed).cast::<u8>();
             init_string_at(place, str_ptr, str_len);
         }
@@ -175,7 +179,7 @@ mod tests {
             let ptr = (&mut string as *mut String).cast();
             let len = get_string_len(ptr);
             let data_ptr = get_string_buffer(ptr);
-            slice::from_raw_parts(data_ptr, len).to_owned()
+            slice::from_raw_parts(data_ptr, len.to_usize()).to_owned()
         };
         let res = String::from_utf8(bytes).unwrap();
         assert_eq!(string, res);

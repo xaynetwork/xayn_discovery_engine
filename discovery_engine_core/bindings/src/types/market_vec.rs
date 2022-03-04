@@ -21,7 +21,7 @@ use crate::types::{
     vec::{get_vec_buffer, get_vec_len},
 };
 
-use super::boxed::{self, alloc_uninitialized};
+use super::{boxed::{self, alloc_uninitialized}, primitives::FfiUsize};
 
 /// Initializes a `Vec<Market>` at given place.
 ///
@@ -38,7 +38,7 @@ use super::boxed::{self, alloc_uninitialized};
 pub unsafe extern "C" fn init_market_vec_at(
     place: *mut Vec<Market>,
     slice_ptr: *mut Market,
-    len: usize,
+    len: FfiUsize,
 ) {
     unsafe {
         place.write(Vec::from(boxed_slice_from_raw_parts(slice_ptr, len)));
@@ -47,7 +47,7 @@ pub unsafe extern "C" fn init_market_vec_at(
 
 /// Alloc an uninitialized `Box<[Market]>`.
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_market_slice(len: usize) -> *mut Market {
+pub extern "C" fn alloc_uninitialized_market_slice(len: FfiUsize) -> *mut Market {
     alloc_uninitialized_slice(len)
 }
 
@@ -57,7 +57,7 @@ pub extern "C" fn alloc_uninitialized_market_slice(len: usize) -> *mut Market {
 ///
 /// The pointer must represent a valid `Box<[Market]>` instance.
 #[no_mangle]
-pub unsafe extern "C" fn drop_market_slice(markets: *mut Market, len: usize) {
+pub unsafe extern "C" fn drop_market_slice(markets: *mut Market, len: FfiUsize) {
     drop(unsafe { boxed_slice_from_raw_parts(markets, len) });
 }
 
@@ -99,7 +99,7 @@ pub unsafe extern "C" fn next_market(place: *mut Market) -> *mut Market {
 ///
 /// The pointer must point to a valid `Vec<Market>` instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_market_vec_len(markets: *mut Vec<Market>) -> usize {
+pub unsafe extern "C" fn get_market_vec_len(markets: *mut Vec<Market>) -> FfiUsize {
     unsafe { get_vec_len(markets) }
 }
 

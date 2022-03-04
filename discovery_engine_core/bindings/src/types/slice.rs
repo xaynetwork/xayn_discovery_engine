@@ -16,8 +16,11 @@
 
 use std::{mem::MaybeUninit, slice};
 
+use super::primitives::FfiUsize;
+
 /// Allocates an array of (uninitialized) `T` memory objects of given length.
-pub(super) fn alloc_uninitialized_slice<T>(len: usize) -> *mut T {
+pub(super) fn alloc_uninitialized_slice<T>(len: FfiUsize) -> *mut T {
+    let len = len.to_usize();
     let mut vec = Vec::<MaybeUninit<T>>::with_capacity(len);
     //SAFE: MaybeUninit doesn't need initialization
     unsafe {
@@ -28,8 +31,12 @@ pub(super) fn alloc_uninitialized_slice<T>(len: usize) -> *mut T {
 }
 
 /// Creates a `Box<[T]>` from a pointer to the first element and the slice len.
-pub(super) unsafe fn boxed_slice_from_raw_parts<T>(ptr: *mut T, len: usize) -> Box<[T]> {
-    unsafe { Box::from_raw(slice::from_raw_parts_mut(ptr, len)) }
+///
+/// # Safety
+///
+/// - It must be sound to create a `Box<[T]>` from given `ptr` and `len`.
+pub(super) unsafe fn boxed_slice_from_raw_parts<T>(ptr: *mut T, len: FfiUsize) -> Box<[T]> {
+    unsafe { Box::from_raw(slice::from_raw_parts_mut(ptr, len.to_usize())) }
 }
 
 /// Given a pointer to an element in an array, returns a pointer to the next element.

@@ -98,7 +98,7 @@ pub unsafe extern "C" fn news_resource_place_of_image(
 /// The pointer must point to a valid [`NewsResource`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn news_resource_place_of_rank(place: *mut NewsResource) -> *mut usize {
+pub unsafe extern "C" fn news_resource_place_of_rank(place: *mut NewsResource) -> *mut u64 {
     unsafe { addr_of_mut!((*place).rank) }
 }
 

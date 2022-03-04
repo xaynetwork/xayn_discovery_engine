@@ -118,7 +118,7 @@ pub struct NewsResource {
     pub image: Option<Url>,
 
     /// The rank of the domain of the source,
-    pub rank: usize,
+    pub rank: u64,
 
     /// How much the article match the query.
     pub score: Option<f32>,
