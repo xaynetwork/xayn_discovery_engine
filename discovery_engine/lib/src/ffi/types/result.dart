@@ -16,7 +16,7 @@ import 'dart:ffi' show NativeType, nullptr, Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustSharedEngine;
-import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
@@ -198,6 +198,6 @@ final resultSharedEngineStringFfiAdapter = MoveResultFfiAdapter(
   readNativeOk: (final Pointer<RustSharedEngine> sharedEngine) => sharedEngine,
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
-  freeOk: ffi.drop_shared_engine,
+  freeOk: asyncFfi.dispose,
   freeResult: ffi.drop_result_shared_engine_string,
 );

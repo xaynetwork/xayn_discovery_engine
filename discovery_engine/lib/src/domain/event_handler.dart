@@ -95,7 +95,7 @@ class EventConfig {
 }
 
 class EventHandler {
-  bool _isInitialized;
+  Engine? _engine;
   final AssetReporter _assetReporter;
   final ChangedDocumentsReporter _changedDocumentsReporter;
   late final DocumentManager _documentManager;
@@ -103,7 +103,7 @@ class EventHandler {
   late final SystemManager _systemManager;
 
   EventHandler()
-      : _isInitialized = false,
+      : _engine = null,
         _assetReporter = AssetReporter(),
         _changedDocumentsReporter = ChangedDocumentsReporter();
 
@@ -114,6 +114,9 @@ class EventHandler {
 
   /// Performs clean-up. Closes all open database boxes and stream controllers.
   Future<void> close() async {
+    final engine = _engine;
+    _engine = null;
+    await engine?.dispose();
     await _changedDocumentsReporter.close();
     await Hive.close();
   }
@@ -127,7 +130,7 @@ class EventHandler {
   /// previous events to finish processing.
   Future<EngineEvent> handleMessage(ClientEvent clientEvent) async {
     if (clientEvent is Init) {
-      if (_isInitialized) {
+      if (_engine != null) {
         return const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,
         );
@@ -151,7 +154,7 @@ class EventHandler {
       }
     }
 
-    if (!_isInitialized) {
+    if (_engine == null) {
       return const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
       );
@@ -230,7 +233,7 @@ class EventHandler {
     );
     _systemManager = SystemManager(engine, eventConfig, documentRepository);
 
-    _isInitialized = true;
+    _engine = engine;
 
     return const EngineEvent.clientEventSucceeded();
   }

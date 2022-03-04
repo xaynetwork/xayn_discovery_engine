@@ -12,11 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async' show FutureOr;
 import 'dart:ffi' show NativeType, nullptr, Pointer;
 
 class Boxed<RustType extends NativeType> {
   Pointer<RustType> _ptr;
-  final void Function(Pointer<RustType>) _free;
+  final FutureOr<void> Function(Pointer<RustType>) _free;
 
   /// Creates a new wrapper instance.
   ///
@@ -58,9 +59,9 @@ class Boxed<RustType extends NativeType> {
   /// Frees/drops the boxed type, if it wasn't already dropped or moved.
   ///
   /// Is always safe to call if this type was constructed/used correctly.
-  void free() {
+  FutureOr<void> free() async {
     if (!moved) {
-      _free(move());
+      await _free(move());
     }
   }
 

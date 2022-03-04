@@ -106,7 +106,7 @@ class MockEngine implements Engine {
     List<HistoricDocument> history,
     FeedMarkets markets,
   ) async {
-    _incrementCount('setMarket');
+    _incrementCount('setMarkets');
   }
 
   @override
@@ -130,7 +130,7 @@ class MockEngine implements Engine {
 
   @override
   Future<void> timeSpent(TimeSpent timeSpent) async {
-    _incrementCount('timeLogged');
+    _incrementCount('timeSpent');
   }
 
   @override
@@ -149,5 +149,10 @@ class MockEngine implements Engine {
   ) async {
     _incrementCount('activeSearch');
     return [];
+  }
+
+  @override
+  Future<void> dispose() async {
+    _incrementCount('dispose');
   }
 }

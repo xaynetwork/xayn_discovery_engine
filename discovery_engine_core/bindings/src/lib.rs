@@ -161,4 +161,9 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .map_err(|error| error.to_string()),
         )
     }
+
+    /// Disposes the engine.
+    pub async fn dispose(engine: Box<SharedEngine>) {
+        engine.as_ref().as_ref().lock().await;
+    }
 }

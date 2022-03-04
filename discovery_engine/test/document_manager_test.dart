@@ -252,7 +252,7 @@ Future<void> main() async {
       expect(dataUpdated, isNotNull);
       expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
       expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
-      expect(engine.getCallCount('timeLogged'), equals(2));
+      expect(engine.getCallCount('timeSpent'), equals(2));
     });
   });
 }
