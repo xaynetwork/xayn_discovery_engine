@@ -18,6 +18,7 @@ import 'dart:ffi' show nullptr, Pointer, Uint8, Uint8Pointer;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustOptionString, RustString;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 
 extension StringFfi on String {
   void writeNative(final Pointer<RustString> place) {
@@ -32,6 +33,12 @@ extension StringFfi on String {
         ffi.get_string_buffer(place),
         ffi.get_string_len(place),
       ).readNative();
+
+  Boxed<RustString> allocNative() {
+    final place = ffi.alloc_uninitialized_string();
+    writeNative(place);
+    return Boxed(place, ffi.drop_string);
+  }
 }
 
 extension OptionStringFfi on String? {
