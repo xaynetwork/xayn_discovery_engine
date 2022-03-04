@@ -343,7 +343,7 @@ where
                     history,
                     self.core_config.select_top,
                     self.core_config.keep_top,
-                    self.core_config.request_new,
+                    usize::MAX,
                 )
                 .await
             } else {
