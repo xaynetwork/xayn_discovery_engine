@@ -385,6 +385,10 @@ async fn update_stacks<'a>(
     request_new: usize,
 ) -> Result<(), Error> {
     let mut stacks: Vec<_> = stacks.filter(|stack| stack.len() <= request_new).collect();
+    // return early if there are no stacks to be updated
+    if stacks.is_empty() {
+        return Ok(());
+    }
 
     let key_phrases = stacks
         .iter()
@@ -450,6 +454,7 @@ async fn update_stacks<'a>(
         }
     }
 
+    // only return an error if all stacks failed
     if errors.len() < stacks.len() {
         Ok(())
     } else {
