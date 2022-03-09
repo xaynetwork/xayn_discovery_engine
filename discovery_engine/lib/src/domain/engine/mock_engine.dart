@@ -148,10 +148,6 @@ class MockEngine implements Engine {
     int pageSize,
   ) async {
     _incrementCount('activeSearch');
-
-    return [
-      DocumentWithActiveData(doc0, active0),
-      DocumentWithActiveData(doc1, active1),
-    ];
+    return [];
   }
 }

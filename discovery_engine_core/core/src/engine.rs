@@ -374,8 +374,8 @@ where
     pub async fn active_search(
         &mut self,
         _query: &str,
-        _page: usize,
-        _page_size: usize,
+        _page: u32,
+        _page_size: u32,
     ) -> Result<Vec<Document>, Error> {
         todo!() // implemented in TY-2434
     }

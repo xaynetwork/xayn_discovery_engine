@@ -148,8 +148,8 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn active_search(
         engine: &SharedEngine,
         query: Box<String>,
-        page: usize,
-        page_size: usize,
+        page: u32,
+        page_size: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
