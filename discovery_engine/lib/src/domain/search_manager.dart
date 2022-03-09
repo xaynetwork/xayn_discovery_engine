@@ -21,6 +21,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
     show EventConfig;
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
+    show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
