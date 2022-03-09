@@ -381,8 +381,8 @@ where
     pub async fn active_search(
         &mut self,
         query: &str,
-        page: usize,
-        page_size: usize,
+        page: u32,
+        page_size: u32,
     ) -> Result<Vec<Document>, Error> {
         if query.trim().is_empty() {
             return Err(Error::InvalidQuery);
@@ -400,13 +400,13 @@ where
         let client = Client::new(api_key.clone(), api_base_url.clone());
 
         let markets = markets.read().await;
-        let scaled_page_size = page_size / markets.len() + 1;
+        let scaled_page_size = page_size as usize / markets.len() + 1;
         for market in markets.iter() {
             let news_query = NewsQuery {
                 market,
                 filter,
                 page_size: scaled_page_size,
-                page: Some(page),
+                page: Some(page as usize),
             };
             match client.news(&news_query).await {
                 Ok(batch) => articles.extend(batch),
@@ -427,7 +427,7 @@ where
                     .map_err(|e| errors.push(e))
                     .ok()
             })
-            .take(page_size)
+            .take(page_size as usize)
             .collect::<Vec<_>>();
 
         if let Err(err) = self.ranker.rank(&mut documents) {
