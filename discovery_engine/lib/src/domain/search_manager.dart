@@ -21,8 +21,6 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
     show EventConfig;
-import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
-    show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -76,13 +74,11 @@ class SearchManager {
       );
 
   Future<List<api.Document>> _getSearchDocuments(ActiveSearch search) async {
-    // final searchDocs = await _engine.activeSearch(
-    //   search.queryTerm,
-    //   search.requestedPageNb,
-    //   search.pageSize,
-    // );
-    // TODO: replace with code above when `activeSearch` method is merged
-    final searchDocs = <DocumentWithActiveData>[];
+    final searchDocs = await _engine.activeSearch(
+      search.queryTerm,
+      search.requestedPageNb,
+      search.pageSize,
+    );
     await _engineStateRepo.save(await _engine.serialize());
 
     await _docRepo.updateMany(searchDocs.map((e) => e.document));
