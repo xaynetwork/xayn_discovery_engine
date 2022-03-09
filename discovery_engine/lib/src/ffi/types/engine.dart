@@ -19,8 +19,6 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
-import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
@@ -126,16 +124,6 @@ class DiscoveryEngineFfi implements Engine {
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
         .toDocumentListWithActiveData();
-  }
-
-  /// Gets search documents.
-  @override
-  Future<List<DocumentWithActiveData>> getSearchDocuments(
-    ActiveSearch search,
-    int maxDocuments,
-  ) {
-    // TODO: implement getSearchDocuments
-    throw UnimplementedError();
   }
 
   /// Processes time spent.

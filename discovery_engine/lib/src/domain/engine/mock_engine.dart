@@ -18,8 +18,6 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData, DocumentWithActiveData;
-import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -42,12 +40,8 @@ class MockEngine implements Engine {
   final Map<String, int> callCounter = {};
   late Document doc0;
   late Document doc1;
-  late Document doc2;
-  late Document doc3;
   late ActiveDocumentData active0;
   late ActiveDocumentData active1;
-  late ActiveDocumentData active2;
-  late ActiveDocumentData active3;
 
   MockEngine([EngineInitializer? initializer]) {
     if (initializer != null) {
@@ -71,7 +65,6 @@ class MockEngine implements Engine {
       'topic': 'news',
     });
     final stackId = StackId();
-    final searchStackId = StackId();
 
     doc0 = Document(
       documentId: DocumentId(),
@@ -85,24 +78,8 @@ class MockEngine implements Engine {
       batchIndex: 1,
       resource: resource,
     );
-    doc2 = Document(
-      documentId: DocumentId(),
-      stackId: searchStackId,
-      batchIndex: 0,
-      resource: resource,
-      isSearched: true,
-    );
-    doc3 = Document(
-      documentId: DocumentId(),
-      stackId: searchStackId,
-      batchIndex: 1,
-      resource: resource,
-      isSearched: true,
-    );
     active1 = ActiveDocumentData(Embedding.fromList([0]));
     active0 = ActiveDocumentData(Embedding.fromList([1, 3]));
-    active2 = ActiveDocumentData(Embedding.fromList([0]));
-    active3 = ActiveDocumentData(Embedding.fromList([1, 3]));
   }
 
   void _incrementCount(String key) {
@@ -147,25 +124,6 @@ class MockEngine implements Engine {
       return [
         DocumentWithActiveData(doc0, active0),
         DocumentWithActiveData(doc1, active1),
-      ];
-    }
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> getSearchDocuments(
-    ActiveSearch search,
-    int maxDocuments,
-  ) async {
-    _incrementCount('getSearchDocuments');
-
-    if (maxDocuments < 1) {
-      return [];
-    } else if (maxDocuments == 1) {
-      return [DocumentWithActiveData(doc2, active2)];
-    } else {
-      return [
-        DocumentWithActiveData(doc2, active2),
-        DocumentWithActiveData(doc3, active3)
       ];
     }
   }

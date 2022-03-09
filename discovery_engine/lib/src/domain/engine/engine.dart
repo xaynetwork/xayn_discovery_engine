@@ -19,8 +19,6 @@ import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
     show SetupData;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
-import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -46,12 +44,6 @@ abstract class Engine {
   /// Retrieves at most [maxDocuments] feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
-    int maxDocuments,
-  );
-
-  /// Retrieves at most [maxDocuments] search documents.
-  Future<List<DocumentWithActiveData>> getSearchDocuments(
-    ActiveSearch search,
     int maxDocuments,
   );
 
