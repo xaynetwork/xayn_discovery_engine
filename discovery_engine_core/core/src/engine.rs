@@ -401,13 +401,12 @@ where
 
         let markets = markets.read().await;
         let scaled_page_size = page_size / markets.len() + 1;
-        let scaled_page = Some(page * markets.len());
         for market in markets.iter() {
             let news_query = NewsQuery {
                 market,
                 filter,
                 page_size: scaled_page_size,
-                page: scaled_page,
+                page: Some(page),
             };
             match client.news(&news_query).await {
                 Ok(batch) => articles.extend(batch),
