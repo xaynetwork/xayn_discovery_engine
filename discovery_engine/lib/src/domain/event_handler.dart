@@ -68,7 +68,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         activeDocumentDataBox,
         changedDocumentIdBox,
         documentBox,
-        engineStateBox;
+        engineStateBox,
+        searchBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart';
@@ -294,7 +295,7 @@ class EventHandler {
       _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
       _openDbBox<Uint8List>(changedDocumentIdBox),
       _openDbBox<Uint8List>(engineStateBox),
-      _openDbBox<ActiveSearch>(activeDocumentDataBox),
+      _openDbBox<ActiveSearch>(searchBox),
     ]);
   }
 
