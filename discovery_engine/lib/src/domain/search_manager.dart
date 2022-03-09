@@ -194,7 +194,7 @@ class SearchManager {
       return {
         ...aggr,
         doc.userReaction: [
-          ...aggr[doc.userReaction] ?? [],
+          ...aggr[doc.userReaction] ?? <Document>[],
           doc,
         ],
       };
@@ -202,8 +202,8 @@ class SearchManager {
 
     // we want to leave interacted docs as part of history
     final interacted = [
-      ...docsByInteraction[UserReaction.positive] ?? [],
-      ...docsByInteraction[UserReaction.negative] ?? [],
+      ...docsByInteraction[UserReaction.positive] ?? <Document>[],
+      ...docsByInteraction[UserReaction.negative] ?? <Document>[],
     ].map((doc) => doc..isActive = false);
     await _docRepo.updateMany(interacted);
 
