@@ -110,13 +110,6 @@ class SearchManager {
       market: market,
     );
     final docs = await _getSearchDocuments(search);
-
-    if (docs.isEmpty) {
-      const reason = SearchFailureReason.noResultsAvailable;
-      return const EngineEvent.searchRequestFailed(reason);
-    }
-
-    // TODO: should we persist active search before we get documents?
     await _searchRepo.save(search);
 
     return EngineEvent.searchRequestSucceeded(search, docs);
@@ -134,13 +127,6 @@ class SearchManager {
     // lets update active search params
     search = search.copyWith(requestedPageNb: search.requestedPageNb + 1);
     final docs = await _getSearchDocuments(search);
-
-    if (docs.isEmpty) {
-      const reason = SearchFailureReason.noResultsAvailable;
-      return const EngineEvent.nextSearchBatchRequestFailed(reason);
-    }
-
-    // TODO: should we persist updated search params before we get documents?
     await _searchRepo.save(search);
 
     return EngineEvent.nextSearchBatchRequestSucceeded(search, docs);
