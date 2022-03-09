@@ -368,6 +368,9 @@ where
     }
 
     /// Performs an active search with the given query parameters.
+    ///
+    /// # Panics
+    /// Unimplemented.
     pub async fn active_search(
         &mut self,
         _query: &str,
