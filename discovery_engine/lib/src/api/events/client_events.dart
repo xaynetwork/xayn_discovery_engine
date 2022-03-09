@@ -51,6 +51,7 @@ class ClientEvent with _$ClientEvent {
   /// for the engine to work, like personalisation and feed market
   /// (for performing background queries).
   @Implements<SystemClientEvent>()
+  @Assert('aiConfig == null || aiConfig != ""')
   const factory ClientEvent.init(
     Configuration configuration, {
     String? aiConfig,
@@ -97,6 +98,7 @@ class ClientEvent with _$ClientEvent {
   /// Event created when a [Document] has been viewed in a certain mode for
   /// the given amount of time in seconds.
   @Implements<DocumentClientEvent>()
+  @Assert('seconds > 0')
   const factory ClientEvent.documentTimeSpent(
     DocumentId documentId,
     DocumentViewMode mode,
@@ -113,6 +115,7 @@ class ClientEvent with _$ClientEvent {
 
   /// Event created when the user starts a new active search.
   @Implements<SearchClientEvent>()
+  @Assert('queryTerm != ""')
   const factory ClientEvent.searchRequested(
     String queryTerm,
     FeedMarket market,
