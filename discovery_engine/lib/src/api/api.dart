@@ -24,7 +24,12 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         FeedDocumentsClosed,
         DocumentClientEvent,
         DocumentTimeSpent,
-        UserReactionChanged;
+        UserReactionChanged,
+        SearchClientEvent,
+        SearchRequested,
+        NextSearchBatchRequested,
+        RestoreSearchRequested,
+        SearchClosed;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
         EngineEvent,
@@ -35,6 +40,14 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         NextFeedBatchRequestFailed,
         NextFeedBatchAvailable,
         FeedFailureReason,
+        SearchEngineEvent,
+        SearchRequestSucceeded,
+        SearchRequestFailed,
+        NextSearchBatchRequestSucceeded,
+        NextSearchBatchRequestFailed,
+        RestoreSearchSucceeded,
+        RestoreSearchFailed,
+        SearchFailureReason,
         AssetsStatusEngineEvent,
         FetchingAssetsStarted,
         FetchingAssetsProgressed,
@@ -46,6 +59,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         EngineExceptionRaised,
         EngineExceptionReason;
 export 'package:xayn_discovery_engine/src/api/models/document.dart';
+export 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch;
 export 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
 export 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;

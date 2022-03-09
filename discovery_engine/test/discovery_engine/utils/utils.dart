@@ -22,6 +22,8 @@ import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     show DiscoveryEngineWorker;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show Manifest;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 
@@ -37,6 +39,10 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent feedDocumentsClosedResponse;
   final EngineEvent userReactionChangedResponse;
   final EngineEvent documentTimeLoggedResponse;
+  final EngineEvent searchRequestedResponse;
+  final EngineEvent nextSearchBatchRequestedResponse;
+  final EngineEvent restoreSearchResponse;
+  final EngineEvent searchClosedResponse;
 
   MockDiscoveryEngineWorker(
     Object initialMessage, {
@@ -50,6 +56,13 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.feedDocumentsClosedResponse = const EngineEvent.clientEventSucceeded(),
     this.userReactionChangedResponse = const EngineEvent.clientEventSucceeded(),
     this.documentTimeLoggedResponse = const EngineEvent.clientEventSucceeded(),
+    this.searchRequestedResponse =
+        const EngineEvent.searchRequestSucceeded(mockActiveSearch, []),
+    this.nextSearchBatchRequestedResponse =
+        const EngineEvent.nextSearchBatchRequestSucceeded(mockActiveSearch, []),
+    this.restoreSearchResponse =
+        const EngineEvent.restoreSearchSucceeded(mockActiveSearch, []),
+    this.searchClosedResponse = const EngineEvent.clientEventSucceeded(),
   }) : super(initialMessage);
 
   @override
@@ -62,6 +75,10 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       feedDocumentsClosed: (_) => feedDocumentsClosedResponse,
       userReactionChanged: (_) => userReactionChangedResponse,
       documentTimeSpent: (_) => documentTimeLoggedResponse,
+      searchRequested: (_) => searchRequestedResponse,
+      nextSearchBatchRequested: (_) => nextSearchBatchRequestedResponse,
+      restoreSearchRequested: (_) => restoreSearchResponse,
+      searchClosed: (_) => searchClosedResponse,
     );
     return send(response, request.sender);
   }
@@ -99,4 +116,11 @@ final mockNewsResource = NewsResource(
   country: 'EN',
   language: 'en',
   topic: 'news',
+);
+
+const mockActiveSearch = ActiveSearch(
+  queryTerm: 'example',
+  requestedPageNb: 1,
+  pageSize: 20,
+  market: FeedMarket(countryCode: 'DE', langCode: 'de'),
 );

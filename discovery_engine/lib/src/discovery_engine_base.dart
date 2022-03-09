@@ -17,21 +17,28 @@ import 'package:universal_platform/universal_platform.dart'
     show UniversalPlatform;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
+        AssetsStatusEngineEvent,
         ClientEvent,
         ClientEventSucceeded,
-        AssetsStatusEngineEvent,
         Configuration,
-        UserReaction,
         DocumentId,
         DocumentViewMode,
         EngineEvent,
         EngineExceptionReason,
+        FeedMarket,
         FeedMarkets,
-        RestoreFeedFailed,
-        RestoreFeedSucceeded,
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
-        NextFeedBatchRequestSucceeded;
+        NextFeedBatchRequestSucceeded,
+        SearchRequestSucceeded,
+        SearchRequestFailed,
+        NextSearchBatchRequestSucceeded,
+        NextSearchBatchRequestFailed,
+        RestoreSearchSucceeded,
+        RestoreSearchFailed,
+        RestoreFeedFailed,
+        RestoreFeedSucceeded,
+        UserReaction;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -155,7 +162,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [RestoreFeedSucceeded] for successful response, containing a list of
-  /// [Document] items
+  /// [Document]s
   /// - [RestoreFeedFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
@@ -179,7 +186,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [NextFeedBatchRequestSucceeded] for successful response, containing
-  /// a list of [Document] items
+  /// a list of [Document]s
   /// - [NextFeedBatchRequestFailed] for failed response, with a reason for
   /// failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
@@ -268,6 +275,96 @@ class DiscoveryEngine {
     });
   }
 
+  /// Requests a new search for [Document]s related to `queryTerm` for
+  /// a particular `market`.
+  ///
+  /// In response it can return:
+  /// - [SearchRequestSucceeded] for successful response, containing a list of
+  /// [Document]s
+  /// - [SearchRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> requestSearch({
+    required String queryTerm,
+    required FeedMarket market,
+  }) {
+    return _trySend(() async {
+      final event = ClientEvent.searchRequested(queryTerm, market);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        searchRequestSucceeded: true,
+        searchRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Requests next batch of [Document]s related to the current active search.
+  ///
+  /// In response it can return:
+  /// - [NextSearchBatchRequestSucceeded] for successful response, containing a list of
+  /// [Document]s
+  /// - [NextSearchBatchRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> requestNextSearchBatch() {
+    return _trySend(() async {
+      const event = ClientEvent.nextSearchBatchRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        nextSearchBatchRequestSucceeded: true,
+        nextSearchBatchRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Restores latest active search that wasn't closed.
+  ///
+  /// In response it can return:
+  /// - [RestoreSearchSucceeded] for successful response, containing a list of
+  /// [Document]s
+  /// - [RestoreSearchFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> restoreSearch() {
+    return _trySend(() async {
+      const event = ClientEvent.restoreSearchRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        restoreSearchSucceeded: true,
+        restoreSearchFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Closes the [Document]s related to current active search for further
+  /// modification.
+  ///
+  /// **IMPORTANT!:**
+  /// Use when the [Document]s are no longer available to the user and the user
+  /// **can NOT interact** with them.
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
+  Future<EngineEvent> closeSearch() {
+    return _trySend(() async {
+      const event = ClientEvent.searchClosed();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
   /// Send a [ClientEvent] to the [DiscoveryEngine] and wait for a response.
   Future<EngineEvent> send(ClientEvent event) =>
       _trySend(() => _manager.send(event));
@@ -318,6 +415,12 @@ extension _MapEvent on EngineEvent {
     bool? clientEventSucceeded,
     bool? engineExceptionRaised,
     bool? documentsUpdated,
+    bool? searchRequestSucceeded,
+    bool? searchRequestFailed,
+    bool? nextSearchBatchRequestSucceeded,
+    bool? nextSearchBatchRequestFailed,
+    bool? restoreSearchSucceeded,
+    bool? restoreSearchFailed,
   }) =>
       map(
         restoreFeedSucceeded: _maybePassThrough(restoreFeedSucceeded),
@@ -333,6 +436,14 @@ extension _MapEvent on EngineEvent {
         clientEventSucceeded: _maybePassThrough(clientEventSucceeded),
         engineExceptionRaised: _maybePassThrough(engineExceptionRaised),
         documentsUpdated: _maybePassThrough(documentsUpdated),
+        searchRequestSucceeded: _maybePassThrough(searchRequestSucceeded),
+        searchRequestFailed: _maybePassThrough(searchRequestFailed),
+        nextSearchBatchRequestSucceeded:
+            _maybePassThrough(nextSearchBatchRequestSucceeded),
+        nextSearchBatchRequestFailed:
+            _maybePassThrough(nextSearchBatchRequestFailed),
+        restoreSearchSucceeded: _maybePassThrough(restoreSearchSucceeded),
+        restoreSearchFailed: _maybePassThrough(restoreSearchFailed),
       );
 
   EngineEvent Function(EngineEvent) _maybePassThrough(bool? condition) {

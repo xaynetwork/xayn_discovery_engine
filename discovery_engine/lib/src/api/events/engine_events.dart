@@ -14,6 +14,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/api/models/document.dart';
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
 
 part 'engine_events.freezed.dart';
 part 'engine_events.g.dart';
@@ -23,28 +24,43 @@ part 'engine_events.g.dart';
 /// [NextFeedBatchRequestFailed] or [NextFeedBatchAvailable].
 ///
 /// Used to group discovery feed related events.
-abstract class FeedEngineEvent {}
+abstract class FeedEngineEvent implements EngineEvent {}
 
 /// Abstract class implemented by events like [ClientEventSucceeded] or
 /// [EngineExceptionRaised].
 ///
 /// Used to group generic system events.
-abstract class SystemEngineEvent {}
+abstract class SystemEngineEvent implements EngineEvent {}
 
 /// Abstract class implemented by events used to communicate status of
 /// AI assets fetching process.
-abstract class AssetsStatusEngineEvent {}
+abstract class AssetsStatusEngineEvent implements EngineEvent {}
 
 /// Abstract class implemented by events like [DocumentsUpdated].
 ///
 /// Used to group events related to [Document] changes.
 abstract class DocumentEngineEvent implements EngineEvent {}
 
+/// Abstract class implemented by events like [SearchRequestSucceeded],
+/// [SearchRequestFailed], [NextSearchBatchRequestSucceeded],
+/// [NextSearchBatchRequestFailed], [RestoreSearchSucceeded],
+/// [RestoreSearchFailed].
+///
+/// Used to group active search related events.
+abstract class SearchEngineEvent implements EngineEvent {}
+
 enum FeedFailureReason {
   @JsonValue(0)
   notAuthorised,
   @JsonValue(1)
   noNewsForMarket,
+}
+
+enum SearchFailureReason {
+  @JsonValue(0)
+  noActiveSearch,
+  @JsonValue(1)
+  noResultsAvailable,
 }
 
 enum EngineExceptionReason {
@@ -69,8 +85,8 @@ enum EngineExceptionReason {
 
 @freezed
 class EngineEvent with _$EngineEvent {
-  /// Event created as a successful response to RestoreFeedRequested event.
-  /// Passes back a list of [Document] entities back to the client.
+  /// Event created as a success response to RestoreFeedRequested event.
+  /// Passes a list of [Document] entities back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.restoreFeedSucceeded(List<Document> items) =
       RestoreFeedSucceeded;
@@ -83,8 +99,8 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.restoreFeedFailed(FeedFailureReason reason) =
       RestoreFeedFailed;
 
-  /// Event created as a successful response to NextFeedBatchRequested event.
-  /// Passes back a list of [Document] objects back to the client.
+  /// Event created as a success response to NextFeedBatchRequested event.
+  /// Passes a list of [Document] entities back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchRequestSucceeded(
     List<Document> items,
@@ -136,12 +152,60 @@ class EngineEvent with _$EngineEvent {
     String? stackTrace,
   }) = EngineExceptionRaised;
 
-  /// Event created as a successful response to some client events which are
+  /// Event created as a success response to some client events which are
   /// updating a [Document] (currently only "UserReactionChanged").
   /// Passes back to the client a list of changed [Document] entities.
   @Implements<DocumentEngineEvent>()
   const factory EngineEvent.documentsUpdated(List<Document> items) =
       DocumentsUpdated;
+
+  /// Event created as a success response to SearchRequested event.
+  /// Passes the [ActiveSearch] params and a list of [Document] entities back
+  /// to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.searchRequestSucceeded(
+    ActiveSearch search,
+    List<Document> items,
+  ) = SearchRequestSucceeded;
+
+  /// Event created as a failure response to SearchRequested event.
+  /// Passes a failure reason back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.searchRequestFailed(
+    SearchFailureReason reason,
+  ) = SearchRequestFailed;
+
+  /// Event created as a success response to NextSearchBatchRequested event.
+  /// Passes the [ActiveSearch] params and a list of [Document] entities back
+  /// to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.nextSearchBatchRequestSucceeded(
+    ActiveSearch search,
+    List<Document> items,
+  ) = NextSearchBatchRequestSucceeded;
+
+  /// Event created as a failure response to NextSearchBatchRequested event.
+  /// Passes a failure reason back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.nextSearchBatchRequestFailed(
+    SearchFailureReason reason,
+  ) = NextSearchBatchRequestFailed;
+
+  /// Event created as a success response to RestoreSearchRequested event.
+  /// Passes the [ActiveSearch] params and a list of [Document] entities back
+  /// to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.restoreSearchSucceeded(
+    ActiveSearch search,
+    List<Document> items,
+  ) = RestoreSearchSucceeded;
+
+  /// Event created as a failure response to RestoreSearchRequested event.
+  /// Passes a failure reason back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.restoreSearchFailed(
+    SearchFailureReason reason,
+  ) = RestoreSearchFailed;
 
   /// Converts json Map to [EngineEvent].
   factory EngineEvent.fromJson(Map<String, Object?> json) =>
