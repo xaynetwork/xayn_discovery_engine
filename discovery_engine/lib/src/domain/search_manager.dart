@@ -101,7 +101,6 @@ class SearchManager {
       requestedPageNb: 1,
       pageSize: _config.maxSearchDocs,
     );
-
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
     return EngineEvent.searchRequestSucceeded(search, docs);
