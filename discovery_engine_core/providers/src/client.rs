@@ -23,6 +23,7 @@ use url::Url;
 use crate::{
     filter::{Filter, Market},
     newscatcher::{Article, Response as NewscatcherResponse},
+    seal::Seal,
 };
 
 /// Client errors.
@@ -46,9 +47,7 @@ pub enum Error {
 }
 
 /// Represents a Query to Newscatcher.
-///
-/// Should not be implemented outside of this module.
-pub trait Query: Sync {
+pub trait Query: Seal + Sync {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error>;
 }
 
@@ -89,6 +88,8 @@ where
     }
 }
 
+impl<T> Seal for NewsQuery<'_, T> {}
+
 /// Parameters determining which headlines to fetch
 pub struct HeadlinesQuery<'a> {
     /// Market of headlines.
@@ -112,6 +113,8 @@ impl Query for HeadlinesQuery<'_> {
         Ok(())
     }
 }
+
+impl Seal for HeadlinesQuery<'_> {}
 
 /// Client that can provide documents.
 #[derive(Default)]
