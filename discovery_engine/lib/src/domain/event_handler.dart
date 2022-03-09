@@ -44,11 +44,14 @@ import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
     show FeedManager;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData, ActiveDocumentDataAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch, ActiveSearchAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, UserReactionAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarketAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -72,7 +75,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         searchBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart';
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
+    show HiveActiveSearchRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
     show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -287,6 +291,7 @@ class EventHandler {
     Hive.registerAdapter(DurationAdapter());
     Hive.registerAdapter(UriAdapter());
     Hive.registerAdapter(EmbeddingAdapter());
+    Hive.registerAdapter(FeedMarketAdapter());
     Hive.registerAdapter(ActiveSearchAdapter());
 
     // open boxes
