@@ -120,6 +120,6 @@ fn spawn_headlines_request(
             page_size,
             page: 1,
         };
-        client.headlines(&query).await
+        client.query_articles(&query).await
     })
 }

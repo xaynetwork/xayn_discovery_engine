@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
             page_size: 100,
             page,
         };
-        let raw_response = client.headlines_query(&params).await.unwrap();
+        let raw_response = client.query_newscatcher(&params).await.unwrap();
         total_pages = raw_response.total_pages;
 
         let content = serde_json::to_string_pretty(&raw_response.articles)?;

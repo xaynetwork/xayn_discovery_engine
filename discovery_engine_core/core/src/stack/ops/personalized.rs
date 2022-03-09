@@ -131,6 +131,6 @@ fn spawn_news_request(
             page: None,
         };
 
-        client.news(&query).await
+        client.query_articles(&query).await
     })
 }

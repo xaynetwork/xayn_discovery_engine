@@ -408,7 +408,7 @@ where
                 page_size: scaled_page_size,
                 page: Some(page as usize),
             };
-            match client.news(&news_query).await {
+            match client.query_articles(&news_query).await {
                 Ok(batch) => articles.extend(batch),
                 Err(err) => errors.push(Error::Client(err.into())),
             };
