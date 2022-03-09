@@ -17,8 +17,9 @@
 use xayn_discovery_engine_core::document::Document;
 
 use crate::types::{
+    primitives::FfiUsize,
     slice::{alloc_uninitialized_slice, boxed_slice_from_raw_parts, next_element},
-    vec::{get_vec_buffer, get_vec_len}, primitives::FfiUsize,
+    vec::{get_vec_buffer, get_vec_len},
 };
 
 /// Initializes a `Vec<Document>` at given place.

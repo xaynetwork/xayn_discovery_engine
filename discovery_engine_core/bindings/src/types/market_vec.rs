@@ -21,7 +21,10 @@ use crate::types::{
     vec::{get_vec_buffer, get_vec_len},
 };
 
-use super::{boxed::{self, alloc_uninitialized}, primitives::FfiUsize};
+use super::{
+    boxed::{self, alloc_uninitialized},
+    primitives::FfiUsize,
+};
 
 /// Initializes a `Vec<Market>` at given place.
 ///

@@ -47,7 +47,9 @@ pub unsafe extern "C" fn init_historic_document_vec_at(
 
 /// Alloc an uninitialized `Box<[HistoricDocument]>`.
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_historic_document_slice(len: FfiUsize) -> *mut HistoricDocument {
+pub extern "C" fn alloc_uninitialized_historic_document_slice(
+    len: FfiUsize,
+) -> *mut HistoricDocument {
     alloc_uninitialized_slice(len)
 }
 

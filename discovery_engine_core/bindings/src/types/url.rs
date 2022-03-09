@@ -18,7 +18,7 @@ use std::ptr;
 
 use url::Url;
 
-use super::{option::get_option_some, string::str_from_raw_parts, primitives::FfiUsize};
+use super::{option::get_option_some, primitives::FfiUsize, string::str_from_raw_parts};
 
 /// Creates a rust `Url` based on given parsing given `&str` at given place.
 ///
@@ -71,7 +71,10 @@ pub unsafe extern "C" fn init_some_url_at(
 /// # Safety
 ///
 /// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust `str`.
-unsafe fn parse_url_from_parts(str_ptr: *const u8, str_len: FfiUsize) -> Result<Url, url::ParseError> {
+unsafe fn parse_url_from_parts(
+    str_ptr: *const u8,
+    str_len: FfiUsize,
+) -> Result<Url, url::ParseError> {
     Url::parse(unsafe { str_from_raw_parts(str_ptr, str_len) })
 }
 
@@ -164,7 +167,11 @@ mod tests {
         let url = "https://foo.example/bar";
         let place = &mut MaybeUninit::<Url>::uninit();
         unsafe {
-            let ok = init_url_at(place.as_mut_ptr(), url.as_ptr(), FfiUsize::from_usize_lossy(url.len()));
+            let ok = init_url_at(
+                place.as_mut_ptr(),
+                url.as_ptr(),
+                FfiUsize::from_usize_lossy(url.len()),
+            );
             assert_eq!(ok, 1);
         }
         let place = unsafe { place.assume_init_mut() };
@@ -176,7 +183,11 @@ mod tests {
         let url = "not_an_url";
         let place = &mut MaybeUninit::<Url>::uninit();
         unsafe {
-            let ok = init_url_at(place.as_mut_ptr(), url.as_ptr(), FfiUsize::from_usize_lossy(url.len()));
+            let ok = init_url_at(
+                place.as_mut_ptr(),
+                url.as_ptr(),
+                FfiUsize::from_usize_lossy(url.len()),
+            );
             assert_eq!(ok, 0);
         }
     }

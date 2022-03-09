@@ -29,7 +29,6 @@ use super::{
 /// to 2**32, e.g. for `Vec` the extern interface will
 /// only expose the first 2**32 elements of a
 /// `Vec`.
-///
 // FIXME[dart >1.16]: Use AbiSpecificInteger.
 #[derive(Clone, Copy)]
 #[repr(transparent)]

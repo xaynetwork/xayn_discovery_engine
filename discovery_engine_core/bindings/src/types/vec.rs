@@ -14,7 +14,7 @@
 
 //! Modules containing FFI glue for `Vec<T>`.
 
-use super::{slice::boxed_slice_from_raw_parts, primitives::FfiUsize};
+use super::{primitives::FfiUsize, slice::boxed_slice_from_raw_parts};
 
 /// Get length of a `Box<Vec<T>>`.
 ///
