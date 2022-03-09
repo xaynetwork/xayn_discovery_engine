@@ -98,7 +98,7 @@ class ClientEvent with _$ClientEvent {
   /// Event created when a [Document] has been viewed in a certain mode for
   /// the given amount of time in seconds.
   @Implements<DocumentClientEvent>()
-  @Assert('seconds > 0')
+  @Assert('seconds >= 0')
   const factory ClientEvent.documentTimeSpent(
     DocumentId documentId,
     DocumentViewMode mode,
