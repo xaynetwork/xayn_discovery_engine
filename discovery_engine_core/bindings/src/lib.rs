@@ -143,4 +143,22 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .map_err(|error| error.to_string()),
         )
     }
+
+    /// Perform an active search with the given query parameters.
+    pub async fn active_search(
+        engine: &SharedEngine,
+        query: Box<String>,
+        page: u32,
+        page_size: u32,
+    ) -> Box<Result<Vec<Document>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .active_search(query.as_ref(), page, page_size)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
 }

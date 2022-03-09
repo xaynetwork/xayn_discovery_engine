@@ -51,6 +51,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
         resultVecDocumentStringFfiAdapter,
         resultVecU8StringFfiAdapter,
         resultVoidStringFfiAdapter;
+import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
@@ -150,6 +151,26 @@ class DiscoveryEngineFfi implements Engine {
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
+  /// Performs an active search.
+  @override
+  Future<List<DocumentWithActiveData>> activeSearch(
+    String query,
+    int page,
+    int pageSize,
+  ) async {
+    final boxedQuery = query.allocNative();
+    final result = await asyncFfi.activeSearch(
+      _engine.ref,
+      boxedQuery.move(),
+      page,
+      pageSize,
+    );
+
+    return resultVecDocumentStringFfiAdapter
+        .consumeNative(result)
+        .toDocumentListWithActiveData();
   }
 
   /// Drops the engine.

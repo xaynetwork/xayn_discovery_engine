@@ -57,6 +57,13 @@ abstract class Engine {
     List<HistoricDocument>? history,
     UserReacted userReacted,
   );
+
+  /// Perform an active search with the given query parameters.
+  Future<List<DocumentWithActiveData>> activeSearch(
+    String query,
+    int page,
+    int pageSize,
+  );
 }
 
 /// Passed to constructors/initializers of `Engine` implementing classes.
