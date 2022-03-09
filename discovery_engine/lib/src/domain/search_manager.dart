@@ -109,9 +109,8 @@ class SearchManager {
       pageSize: _config.maxSearchDocs,
       market: market,
     );
-    final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
-
+    final docs = await _getSearchDocuments(search);
     return EngineEvent.searchRequestSucceeded(search, docs);
   }
 
@@ -126,9 +125,8 @@ class SearchManager {
 
     // lets update active search params
     search = search.copyWith(requestedPageNb: search.requestedPageNb + 1);
-    final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
-
+    final docs = await _getSearchDocuments(search);
     return EngineEvent.nextSearchBatchRequestSucceeded(search, docs);
   }
 
