@@ -24,7 +24,9 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         RestoreSearchFailed,
         RestoreSearchSucceeded,
         SearchFailureReason,
-        SearchRequestSucceeded;
+        SearchRequestSucceeded,
+        SearchTermRequestFailed,
+        SearchTermRequestSucceeded;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -287,6 +289,37 @@ Future<void> main() async {
         );
         expect(engine.getCallCount('activeSearch'), equals(0));
         expect(engine.getCallCount('serialize'), equals(0));
+      });
+    });
+
+    group('searchTermRequested', () {
+      test(
+          'when there is no active search stored it should return '
+          '"SearchTermRequestFailed" event with "noActiveSearch" reason',
+          () async {
+        // lets clear the repo
+        await searchRepo.clear();
+
+        final response = await mgr.searchTermRequested();
+
+        expect(response, isA<SearchTermRequestFailed>());
+        expect(
+          (response as SearchTermRequestFailed).reason,
+          SearchFailureReason.noActiveSearch,
+        );
+      });
+
+      test(
+          'if active search is available it should return '
+          '"SearchTermRequestSucceeded" event with the current search term',
+          () async {
+        final response = await mgr.searchTermRequested();
+
+        expect(response, isA<SearchTermRequestSucceeded>());
+        expect(
+          (response as SearchTermRequestSucceeded).searchTerm,
+          mockActiveSearch.queryTerm,
+        );
       });
     });
 
