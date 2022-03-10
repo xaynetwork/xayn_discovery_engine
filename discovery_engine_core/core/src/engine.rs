@@ -427,7 +427,6 @@ where
                     .map_err(|e| errors.push(e))
                     .ok()
             })
-            .take(page_size as usize)
             .collect::<Vec<_>>();
 
         if let Err(err) = self.ranker.rank(&mut documents) {
@@ -436,6 +435,7 @@ where
         if documents.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
+            documents.truncate(page_size as usize);
             Ok(documents)
         }
     }
