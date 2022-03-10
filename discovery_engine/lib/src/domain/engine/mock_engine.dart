@@ -49,7 +49,6 @@ class MockEngine implements Engine {
     }
 
     final stackId = StackId();
-
     doc0 = Document(
       documentId: DocumentId(),
       stackId: stackId,
