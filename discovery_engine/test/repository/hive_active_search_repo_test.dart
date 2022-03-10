@@ -18,8 +18,6 @@ import 'package:hive/hive.dart' show Box, Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show searchBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
@@ -34,7 +32,6 @@ Future<void> main() async {
       queryTerm: 'example search query',
       requestedPageNb: 1,
       pageSize: 10,
-      market: FeedMarket(countryCode: 'DE', langCode: 'de'),
     );
 
     setUpAll(() async {
@@ -94,10 +91,7 @@ Future<void> main() async {
           () async {
         await repo.save(search);
 
-        final search2 = search.copyWith(
-          requestedPageNb: 2,
-          market: const FeedMarket(countryCode: 'US', langCode: 'en'),
-        );
+        final search2 = search.copyWith(requestedPageNb: 2);
         await repo.save(search2);
 
         expect(box.isNotEmpty, isTrue);

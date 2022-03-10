@@ -131,10 +131,7 @@ class ClientEvent with _$ClientEvent {
   /// Event created when the user starts a new active search.
   @Implements<SearchClientEvent>()
   @Assert('queryTerm != ""')
-  const factory ClientEvent.searchRequested(
-    String queryTerm,
-    FeedMarket market,
-  ) = SearchRequested;
+  const factory ClientEvent.searchRequested(String queryTerm) = SearchRequested;
 
   /// Event created when the client asks for a next batch of documents related
   /// to the current active search.

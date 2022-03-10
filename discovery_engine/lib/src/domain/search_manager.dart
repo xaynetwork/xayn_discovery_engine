@@ -25,8 +25,6 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/active_search_repo.dart'
@@ -93,19 +91,16 @@ class SearchManager {
   }
 
   /// Obtain the first batch of search documents and persist to repositories.
-  Future<EngineEvent> searchRequested(
-    String queryTerm,
-    FeedMarket market,
-  ) async {
+  Future<EngineEvent> searchRequested(String queryTerm) async {
     await searchClosed();
 
     final search = ActiveSearch(
       queryTerm: queryTerm,
       requestedPageNb: 1,
       pageSize: _config.maxSearchDocs,
-      market: market,
     );
     await _searchRepo.save(search);
+
     final docs = await _getSearchDocuments(search);
     return EngineEvent.searchRequestSucceeded(search, docs);
   }
