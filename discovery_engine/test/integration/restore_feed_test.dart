@@ -16,7 +16,7 @@ import 'dart:io' show Directory;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show DiscoveryEngine;
+    show DiscoveryEngine, NextFeedBatchRequestSucceeded, RestoreFeedSucceeded;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -26,32 +26,43 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine init', () {
+  group('DiscoveryEngine restoreFeed', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
+    late DiscoveryEngine engine;
 
     setUp(() async {
       data = await setupTestEngineData();
       server = await LocalNewsApiServer.start();
+      engine = await initEngine(data, server.port);
     });
 
     tearDown(() async {
+      await engine.dispose();
       await server.close();
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
 
-    test('init engine with ai models', () async {
-      final engine = await initEngine(data, server.port);
-      expect(engine, isA<DiscoveryEngine>());
-      await engine.dispose();
-    });
+    test(
+        'restoreFeed should return the feed that has been requested before with'
+        ' requestNextFeedBatch', () async {
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[
+          isA<NextFeedBatchRequestSucceeded>(),
+          isA<RestoreFeedSucceeded>(),
+        ]),
+      );
 
-    test('news api request error should not raise an engine init exception',
-        () async {
-      server.replyWithError = true;
-      final engine = await initEngine(data, server.port);
-      expect(engine, isA<DiscoveryEngine>());
-      await engine.dispose();
+      final nextBatchResponse = await engine.requestNextFeedBatch();
+      final restoreFeedResponse = await engine.restoreFeed();
+
+      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      expect(restoreFeedResponse, isA<RestoreFeedSucceeded>());
+      expect(
+        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
+        equals((restoreFeedResponse as RestoreFeedSucceeded).items),
+      );
     });
   });
 }

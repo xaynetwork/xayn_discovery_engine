@@ -20,6 +20,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
     show EventConfig;
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
+    show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -89,8 +91,16 @@ class FeedManager {
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
     final history = await _docRepo.fetchHistory();
-    final feedDocs =
-        await _engine.getFeedDocuments(history, _config.maxFeedDocs);
+    final List<DocumentWithActiveData> feedDocs;
+    try {
+      feedDocs = await _engine.getFeedDocuments(history, _config.maxFeedDocs);
+    } catch (e) {
+      return EngineEvent.nextFeedBatchRequestFailed(
+        FeedFailureReason.stacksOpsError,
+        errors: '$e',
+      );
+    }
+
     await _engineStateRepo.save(await _engine.serialize());
 
     await _docRepo.updateMany(feedDocs.map((e) => e.document));

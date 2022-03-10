@@ -12,16 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:io';
+import 'dart:io' show Directory;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
+        ClientEventSucceeded,
         DiscoveryEngine,
         FeedFailureReason,
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded,
-        RestoreFeedSucceeded;
+        UserReaction;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -31,14 +32,14 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine restoreFeed', () {
+  group('DiscoveryEngine requestNextFeedBatch', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
     late DiscoveryEngine engine;
 
     setUp(() async {
-      data = await setupTestEngineData();
       server = await LocalNewsApiServer.start();
+      data = await setupTestEngineData();
       engine = await initEngine(data, server.port);
     });
 
@@ -48,25 +49,19 @@ void main() {
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
 
-    test(
-        'restoreFeed should return the feed that has been requested before with'
-        ' requestNextFeedBatch', () async {
+    test('requestNextFeedBatch should return the next feed batch', () async {
+      engine = await initEngine(data, server.port);
       expect(
         engine.engineEvents,
         emitsInOrder(<Matcher>[
           isA<NextFeedBatchRequestSucceeded>(),
-          isA<RestoreFeedSucceeded>(),
         ]),
       );
-
-      final nextBatchResponse = await engine.requestNextFeedBatch();
-      final restoreFeedResponse = await engine.restoreFeed();
-
-      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
-      expect(restoreFeedResponse, isA<RestoreFeedSucceeded>());
+      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
       expect(
-        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
-        equals((restoreFeedResponse as RestoreFeedSucceeded).items),
+        (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items,
+        isNotEmpty,
       );
     });
 
@@ -74,6 +69,7 @@ void main() {
         'if a news api request error occurs, then the requestNextFeedBatch'
         ' depletes the internal stacks and subsequent calls should fail with'
         ' FeedFailureReason.noNewsForMarket', () async {
+      engine = await initEngine(data, server.port);
       // the server error only occurs for fetching breaking news, the personalized news succeeds
       // early with empty documents and no error before a server request is made because no key
       // phrases are selected due to no previous feedback, overall only one of the two stacks fails
@@ -81,10 +77,10 @@ void main() {
       server.replyWithError = true;
 
       // the next batch can still return the documents fetched during engine init
-      final nextBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
       expect(
-        (nextBatchResponse as NextFeedBatchRequestSucceeded).items,
+        (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items,
         isNotEmpty,
       );
 
@@ -94,6 +90,35 @@ void main() {
       expect(
         (subsequentBatchResponse as NextFeedBatchRequestFailed).reason,
         equals(FeedFailureReason.noNewsForMarket),
+      );
+    });
+
+    test(
+        'if all stacks fail to update, requestNextFeedBatch should return the'
+        ' NextFeedBatchRequestFailed event with the reason stacksOpsError',
+        () async {
+      final nextFeedBatchSuccessful = await engine.requestNextFeedBatch();
+      expect(nextFeedBatchSuccessful, isA<NextFeedBatchRequestSucceeded>());
+
+      // "like" a document in order to be able to select keywords and update
+      // both stacks on the next request
+      final doc = (nextFeedBatchSuccessful as NextFeedBatchRequestSucceeded)
+          .items
+          .first;
+      expect(
+        await engine.changeUserReaction(
+          documentId: doc.documentId,
+          userReaction: UserReaction.positive,
+        ),
+        isA<ClientEventSucceeded>(),
+      );
+
+      server.replyWithError = true;
+      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
+      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestFailed>());
+      expect(
+        (nextFeedBatchResponse as NextFeedBatchRequestFailed).reason,
+        equals(FeedFailureReason.stacksOpsError),
       );
     });
   });

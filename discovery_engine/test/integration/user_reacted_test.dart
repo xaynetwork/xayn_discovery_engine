@@ -14,7 +14,7 @@
 
 @Timeout(Duration(seconds: 80))
 
-import 'dart:io';
+import 'dart:io' show Directory;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
