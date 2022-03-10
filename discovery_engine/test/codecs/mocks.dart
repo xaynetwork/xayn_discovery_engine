@@ -34,7 +34,6 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ExcludedSourcesListRequested,
         FeedDocumentsClosed,
         FeedFailureReason,
-        FeedMarket,
         FeedMarkets,
         FetchingAssetsFinished,
         FetchingAssetsProgressed,
