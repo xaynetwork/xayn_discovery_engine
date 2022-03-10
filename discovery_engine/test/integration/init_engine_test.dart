@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:io';
+import 'dart:io' show Directory;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'

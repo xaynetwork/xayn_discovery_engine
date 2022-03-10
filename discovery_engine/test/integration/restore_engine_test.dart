@@ -14,7 +14,7 @@
 
 @Timeout(Duration(seconds: 60))
 
-import 'dart:io';
+import 'dart:io' show Directory;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:test/test.dart';
