@@ -57,8 +57,11 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         SearchRequestFailed,
         SearchRequestSucceeded,
         SearchRequested,
+        SearchTermRequestFailed,
+        SearchTermRequestSucceeded,
         UserReaction,
         UserReactionChanged;
+import 'package:xayn_discovery_engine/src/api/events/client_events.dart';
 
 class BadClientEvent implements ClientEvent {
   const BadClientEvent();
@@ -84,6 +87,7 @@ class BadClientEvent implements ClientEvent {
     required TResult Function(RestoreSearchRequested value)
         restoreSearchRequested,
     required TResult Function(SearchClosed value) searchClosed,
+    required TResult Function(SearchTermRequested value) searchTermRequested,
   }) {
     throw UnimplementedError();
   }
@@ -105,6 +109,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(NextSearchBatchRequested value)? nextSearchBatchRequested,
     TResult Function(RestoreSearchRequested value)? restoreSearchRequested,
     TResult Function(SearchClosed value)? searchClosed,
+    TResult Function(SearchTermRequested value)? searchTermRequested,
   }) {
     throw UnimplementedError();
   }
@@ -127,6 +132,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function(NextSearchBatchRequested value)? nextSearchBatchRequested,
     TResult Function(RestoreSearchRequested value)? restoreSearchRequested,
     TResult Function(SearchClosed value)? searchClosed,
+    TResult Function(SearchTermRequested value)? searchTermRequested,
   }) {
     throw UnimplementedError();
   }
@@ -155,6 +161,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? nextSearchBatchRequested,
     TResult Function()? restoreSearchRequested,
     TResult Function()? searchClosed,
+    TResult Function()? searchTermRequested,
   }) {
     throw UnimplementedError();
   }
@@ -192,6 +199,7 @@ class BadClientEvent implements ClientEvent {
     required TResult Function() nextSearchBatchRequested,
     required TResult Function() restoreSearchRequested,
     required TResult Function() searchClosed,
+    required TResult Function() searchTermRequested,
   }) {
     throw UnimplementedError();
   }
@@ -223,6 +231,7 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? nextSearchBatchRequested,
     TResult Function()? restoreSearchRequested,
     TResult Function()? searchClosed,
+    TResult Function()? searchTermRequested,
   }) {
     throw UnimplementedError();
   }
@@ -265,6 +274,10 @@ class BadEngineEvent implements EngineEvent {
     required TResult Function(RestoreSearchSucceeded value)
         restoreSearchSucceeded,
     required TResult Function(RestoreSearchFailed value) restoreSearchFailed,
+    required TResult Function(SearchTermRequestSucceeded value)
+        searchTermRequestSucceeded,
+    required TResult Function(SearchTermRequestFailed value)
+        searchTermRequestFailed,
   }) {
     throw UnimplementedError();
   }
@@ -296,6 +309,9 @@ class BadEngineEvent implements EngineEvent {
         nextSearchBatchRequestFailed,
     TResult Function(RestoreSearchSucceeded value)? restoreSearchSucceeded,
     TResult Function(RestoreSearchFailed value)? restoreSearchFailed,
+    TResult Function(SearchTermRequestSucceeded value)?
+        searchTermRequestSucceeded,
+    TResult Function(SearchTermRequestFailed value)? searchTermRequestFailed,
   }) {
     throw UnimplementedError();
   }
@@ -328,6 +344,9 @@ class BadEngineEvent implements EngineEvent {
         nextSearchBatchRequestFailed,
     TResult Function(RestoreSearchSucceeded value)? restoreSearchSucceeded,
     TResult Function(RestoreSearchFailed value)? restoreSearchFailed,
+    TResult Function(SearchTermRequestSucceeded value)?
+        searchTermRequestSucceeded,
+    TResult Function(SearchTermRequestFailed value)? searchTermRequestFailed,
   }) {
     throw UnimplementedError();
   }
@@ -367,6 +386,8 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(ActiveSearch search, List<Document> items)?
         restoreSearchSucceeded,
     TResult Function(SearchFailureReason reason)? restoreSearchFailed,
+    TResult Function(String searchTerm)? searchTermRequestSucceeded,
+    TResult Function(SearchFailureReason reason)? searchTermRequestFailed,
   }) {
     throw UnimplementedError();
   }
@@ -412,6 +433,9 @@ class BadEngineEvent implements EngineEvent {
     required TResult Function(ActiveSearch search, List<Document> items)
         restoreSearchSucceeded,
     required TResult Function(SearchFailureReason reason) restoreSearchFailed,
+    required TResult Function(String searchTerm) searchTermRequestSucceeded,
+    required TResult Function(SearchFailureReason reason)
+        searchTermRequestFailed,
   }) {
     throw UnimplementedError();
   }
@@ -450,6 +474,8 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(ActiveSearch search, List<Document> items)?
         restoreSearchSucceeded,
     TResult Function(SearchFailureReason reason)? restoreSearchFailed,
+    TResult Function(String searchTerm)? searchTermRequestSucceeded,
+    TResult Function(SearchFailureReason reason)? searchTermRequestFailed,
   }) {
     throw UnimplementedError();
   }

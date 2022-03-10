@@ -46,6 +46,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent nextSearchBatchRequestedResponse;
   final EngineEvent restoreSearchResponse;
   final EngineEvent searchClosedResponse;
+  final EngineEvent searchTermRequestedResponse;
 
   MockDiscoveryEngineWorker(
     Object initialMessage, {
@@ -66,6 +67,8 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.restoreSearchResponse =
         const EngineEvent.restoreSearchSucceeded(mockActiveSearch, []),
     this.searchClosedResponse = const EngineEvent.clientEventSucceeded(),
+    this.searchTermRequestedResponse =
+        const EngineEvent.searchTermRequestSucceeded(queryTerm),
     this.excludedSourceAddedResponse = const EngineEvent.clientEventSucceeded(),
     this.excludedSourceRemovedResponse =
         const EngineEvent.clientEventSucceeded(),
@@ -90,6 +93,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       nextSearchBatchRequested: (_) => nextSearchBatchRequestedResponse,
       restoreSearchRequested: (_) => restoreSearchResponse,
       searchClosed: (_) => searchClosedResponse,
+      searchTermRequested: (_) => searchTermRequestedResponse,
     );
     return send(response, request.sender);
   }
@@ -129,8 +133,10 @@ final mockNewsResource = NewsResource(
   topic: 'news',
 );
 
+const queryTerm = 'example';
+
 const mockActiveSearch = ActiveSearch(
-  queryTerm: 'example',
+  queryTerm: queryTerm,
   requestedPageNb: 1,
   pageSize: 20,
 );

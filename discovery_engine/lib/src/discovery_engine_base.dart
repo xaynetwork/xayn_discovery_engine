@@ -35,6 +35,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         SearchRequestFailed,
         NextSearchBatchRequestSucceeded,
         NextSearchBatchRequestFailed,
+        SearchTermRequestSucceeded,
+        SearchTermRequestFailed,
         RestoreSearchSucceeded,
         RestoreSearchFailed,
         RestoreFeedFailed,
@@ -396,6 +398,27 @@ class DiscoveryEngine {
     });
   }
 
+  /// Returns the current search term.
+  ///
+  /// In response it can return:
+  /// - [SearchTermRequestSucceeded] for successful response, containing the
+  /// search term
+  /// - [SearchTermRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> getSearchTerm() {
+    return _trySend(() async {
+      const event = ClientEvent.searchTermRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        searchTermRequestSucceeded: true,
+        searchTermRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
   /// Closes the [Document]s related to current active search for further
   /// modification.
   ///
@@ -477,6 +500,8 @@ extension _MapEvent on EngineEvent {
     bool? nextSearchBatchRequestFailed,
     bool? restoreSearchSucceeded,
     bool? restoreSearchFailed,
+    bool? searchTermRequestSucceeded,
+    bool? searchTermRequestFailed,
   }) =>
       map(
         restoreFeedSucceeded: _maybePassThrough(restoreFeedSucceeded),
@@ -504,6 +529,9 @@ extension _MapEvent on EngineEvent {
             _maybePassThrough(nextSearchBatchRequestFailed),
         restoreSearchSucceeded: _maybePassThrough(restoreSearchSucceeded),
         restoreSearchFailed: _maybePassThrough(restoreSearchFailed),
+        searchTermRequestSucceeded:
+            _maybePassThrough(searchTermRequestSucceeded),
+        searchTermRequestFailed: _maybePassThrough(searchTermRequestFailed),
       );
 
   EngineEvent Function(EngineEvent) _maybePassThrough(bool? condition) {
