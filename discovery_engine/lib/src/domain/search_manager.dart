@@ -162,7 +162,7 @@ class SearchManager {
     final allDocs = await _docRepo.fetchAll();
     final searchDocs = allDocs
         // we only want search documents
-        .where((doc) => doc.isSearched);
+        .where((doc) => doc.isSearched && doc.isActive);
 
     if (searchDocs.isEmpty) {
       return const EngineEvent.clientEventSucceeded();

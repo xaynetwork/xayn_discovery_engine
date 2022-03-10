@@ -48,24 +48,7 @@ class MockEngine implements Engine {
       this.initializer = initializer;
     }
 
-    final resource = NewsResource.fromJson(const <String, Object>{
-      'title': 'Example',
-      'sourceDomain': 'example.com',
-      'snippet': 'snippet',
-      'url': 'http://exmaple.com/news',
-      'datePublished': '1980-01-01T00:00:00.000000',
-      'provider': <String, String>{
-        'name': 'domain',
-        'thumbnail': 'http://thumbnail.example.com',
-      },
-      'rank': 10,
-      'score': 0.1,
-      'country': 'EN',
-      'language': 'en',
-      'topic': 'news',
-    });
     final stackId = StackId();
-
     doc0 = Document(
       documentId: DocumentId(),
       stackId: stackId,
@@ -148,6 +131,51 @@ class MockEngine implements Engine {
     int pageSize,
   ) async {
     _incrementCount('activeSearch');
-    return [];
+
+    final stackId = StackId.fromBytes(Uint8List.fromList(List.filled(16, 0)));
+    final doc0 = Document(
+      documentId: DocumentId(),
+      stackId: stackId,
+      batchIndex: 0,
+      resource: resource,
+      isSearched: true,
+    );
+    doc1 = Document(
+      documentId: DocumentId(),
+      stackId: stackId,
+      batchIndex: 1,
+      resource: resource,
+      isSearched: true,
+    );
+    active1 = ActiveDocumentData(Embedding.fromList([0]));
+    active0 = ActiveDocumentData(Embedding.fromList([1, 3]));
+
+    if (pageSize < 1) {
+      return [];
+    } else if (pageSize == 1) {
+      return [DocumentWithActiveData(doc0, active0)];
+    } else {
+      return [
+        DocumentWithActiveData(doc0, active0),
+        DocumentWithActiveData(doc1, active1),
+      ];
+    }
   }
 }
+
+final resource = NewsResource.fromJson(const <String, Object>{
+  'title': 'Example',
+  'sourceDomain': 'example.com',
+  'snippet': 'snippet',
+  'url': 'http://exmaple.com/news',
+  'datePublished': '1980-01-01T00:00:00.000000',
+  'provider': <String, String>{
+    'name': 'domain',
+    'thumbnail': 'http://thumbnail.example.com',
+  },
+  'rank': 10,
+  'score': 0.1,
+  'country': 'EN',
+  'language': 'en',
+  'topic': 'news',
+});
