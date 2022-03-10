@@ -59,9 +59,9 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         SearchRequested,
         SearchTermRequestFailed,
         SearchTermRequestSucceeded,
+        SearchTermRequested,
         UserReaction,
         UserReactionChanged;
-import 'package:xayn_discovery_engine/src/api/events/client_events.dart';
 
 class BadClientEvent implements ClientEvent {
   const BadClientEvent();
