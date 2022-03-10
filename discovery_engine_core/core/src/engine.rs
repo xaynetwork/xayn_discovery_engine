@@ -30,7 +30,7 @@ use xayn_ai::{
     KpeConfig,
     SMBertConfig,
 };
-use xayn_discovery_engine_providers::Market;
+use xayn_discovery_engine_providers::{Client, Filter, Market, NewsQuery};
 
 use crate::{
     document::{
@@ -84,6 +84,12 @@ pub enum Error {
 
     /// Error while creating document: {0}.
     Document(#[source] document::Error),
+
+    /// Error while querying with client: {0}.
+    Client(#[source] GenericError),
+
+    /// Invalid search query.
+    InvalidQuery,
 
     /// List of errors/warnings. {0:?}
     Errors(Vec<Error>),
@@ -338,10 +344,14 @@ where
         reacted: &UserReacted,
     ) -> Result<(), Error> {
         let mut stacks = self.stacks.write().await;
-        stacks
-            .get_mut(&reacted.stack_id)
-            .ok_or(Error::InvalidStackId(reacted.stack_id))?
-            .update_relevance(reacted.reaction);
+
+        // update relevance of stack if the reacted document belongs to one
+        if !reacted.stack_id.is_nil() {
+            stacks
+                .get_mut(&reacted.stack_id)
+                .ok_or(Error::InvalidStackId(reacted.stack_id))?
+                .update_relevance(reacted.reaction);
+        };
 
         self.ranker.log_user_reaction(reacted)?;
 
@@ -367,17 +377,67 @@ where
         }
     }
 
-    /// Performs an active search with the given query parameters.
-    ///
-    /// # Panics
-    /// Unimplemented.
+    /// Perform an active search with the given query parameters.
     pub async fn active_search(
         &mut self,
-        _query: &str,
-        _page: u32,
-        _page_size: u32,
+        query: &str,
+        page: u32,
+        page_size: u32,
     ) -> Result<Vec<Document>, Error> {
-        todo!() // implemented in TY-2434
+        if query.trim().is_empty() {
+            return Err(Error::InvalidQuery);
+        }
+        let EndpointConfig {
+            api_key,
+            api_base_url,
+            markets,
+            ..
+        } = &self.config;
+
+        let mut errors = Vec::new();
+        let mut articles = Vec::new();
+        let filter = &Filter::default().add_keyword(query);
+        let client = Client::new(api_key.clone(), api_base_url.clone());
+
+        let markets = markets.read().await;
+        let scaled_page_size = page_size as usize / markets.len() + 1;
+        for market in markets.iter() {
+            let news_query = NewsQuery {
+                market,
+                filter,
+                page_size: scaled_page_size,
+                page: Some(page as usize),
+            };
+            match client.news(&news_query).await {
+                Ok(batch) => articles.extend(batch),
+                Err(err) => errors.push(Error::Client(err.into())),
+            };
+        }
+
+        let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
+        let mut documents = articles
+            .into_iter()
+            .filter_map(|article| {
+                self.ranker
+                    .compute_smbert(&article.title)
+                    .map_err(Error::Ranker)
+                    .and_then(|embedding| {
+                        document_from_article(article, stack_id, embedding).map_err(Error::Document)
+                    })
+                    .map_err(|e| errors.push(e))
+                    .ok()
+            })
+            .collect::<Vec<_>>();
+
+        if let Err(err) = self.ranker.rank(&mut documents) {
+            errors.push(Error::Ranker(err));
+        };
+        if documents.is_empty() && !errors.is_empty() {
+            Err(Error::Errors(errors))
+        } else {
+            documents.truncate(page_size as usize);
+            Ok(documents)
+        }
     }
 }
 

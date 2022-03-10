@@ -80,6 +80,12 @@ pub type BoxedOps = Box<dyn Ops + Send + Sync>;
 #[cfg_attr(test, derive(Default))]
 pub struct Id(Uuid);
 
+impl Id {
+    pub(crate) fn is_nil(&self) -> bool {
+        self.0.is_nil()
+    }
+}
+
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub(crate) struct Stack {
