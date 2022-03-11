@@ -17,7 +17,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart';
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show ClientEventSucceeded;
+    show ClientEventSucceeded, ExcludedSourcesListRequestSucceeded;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -34,10 +34,11 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show
-        documentBox,
         activeDocumentDataBox,
         changedDocumentIdBox,
-        engineStateBox;
+        documentBox,
+        engineStateBox,
+        excludedSourcesBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
@@ -66,6 +67,8 @@ Future<void> main() async {
       await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
   final stateBox =
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
+  final excludedBox =
+      await Hive.openBox<Set<Uri>>(excludedSourcesBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
@@ -194,6 +197,69 @@ Future<void> main() async {
       expect(feed[2].documentId, equals(engine.doc0.documentId));
       expect(feed[2].batchIndex, equals(0));
       // doc3 is excluded since it is inactive
+    });
+  });
+
+  group('Excluded sources', () {
+    setUp(() async {
+      final source = Uri(host: 'www.bbc.com');
+      await excludedSourcesRepo.save({source});
+    });
+
+    tearDown(() async {
+      await excludedBox.clear();
+    });
+
+    test('addExcludedSource', () async {
+      final excludedSoures = {
+        Uri(host: 'www.bbc.com'),
+        Uri(host: 'www.nytimes.com')
+      };
+
+      final source1 =
+          Uri.parse('https://www.bbc.com/politics/87654321-example-article');
+      final source2 =
+          Uri.parse('https://www.nytimes.com/live/2022/03/08/world/example');
+
+      final response1 = await mgr.addExcludedSource(source1);
+      final response2 = await mgr.addExcludedSource(source2);
+
+      expect(response1, isA<ClientEventSucceeded>());
+      expect(response2, isA<ClientEventSucceeded>());
+      expect(excludedBox.values.first, equals(excludedSoures));
+    });
+
+    test('removeExcludedSource', () async {
+      final excludedSoures = {
+        Uri(host: 'www.bbc.com'),
+        Uri(host: 'www.nytimes.com')
+      };
+      await excludedSourcesRepo.save(excludedSoures);
+
+      final source =
+          Uri.parse('https://www.bbc.com/politics/87654321-example-article');
+      final response = await mgr.removeExcludedSource(source);
+
+      expect(response, isA<ClientEventSucceeded>());
+      expect(excludedBox.values.first, equals({Uri(host: 'www.nytimes.com')}));
+    });
+
+    test('getExcludedSourcesList', () async {
+      final excludedSoures = {
+        Uri(host: 'theguardian.com'),
+        Uri(host: 'bbc.co.uk'),
+        Uri(host: 'wsj.com'),
+        Uri(host: 'www.nytimes.com')
+      };
+      await excludedSourcesRepo.save(excludedSoures);
+
+      final response = await mgr.getExcludedSourcesList();
+
+      expect(response, isA<ExcludedSourcesListRequestSucceeded>());
+      expect(
+        (response as ExcludedSourcesListRequestSucceeded).excludedSources,
+        equals(excludedSoures),
+      );
     });
   });
 }
