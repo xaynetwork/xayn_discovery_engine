@@ -144,6 +144,7 @@ class FeedManager {
     final sources = await _excludedSourcesRepository.getAll();
     sources.add(_sanitizeSource(source));
     await _excludedSourcesRepository.save(sources);
+    // TODO: send updated sources to the engine
     return const EngineEvent.clientEventSucceeded();
   }
 
@@ -152,6 +153,7 @@ class FeedManager {
     final sources = await _excludedSourcesRepository.getAll();
     sources.remove(_sanitizeSource(source));
     await _excludedSourcesRepository.save(sources);
+    // TODO: send updated sources to the engine
     return const EngineEvent.clientEventSucceeded();
   }
 
