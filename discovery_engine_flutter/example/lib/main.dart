@@ -86,7 +86,7 @@ class _MyAppState extends State<MyApp> {
         ),
       );
       setState(() => engineState = EngineState.ready);
-      print('Engine initialized successfuly.');
+      print('Engine initialized successfully.');
     } on EngineInitException catch (e) {
       // message what went wrong
       print(e.message);

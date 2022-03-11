@@ -407,7 +407,7 @@ class ContentCategoriesAccepted extends ClientEvent {
 
 ### ClientEventSucceeded
 
-Event created to inform the client that a particular "fire and forget" event, like ie. `UserReactionChanged`, was successfuly processed by the engine.
+Event created to inform the client that a particular "fire and forget" event, like ie. `UserReactionChanged`, was successfully processed by the engine.
 
 ```dart
 class ClientEventSucceeded extends EngineEvent {

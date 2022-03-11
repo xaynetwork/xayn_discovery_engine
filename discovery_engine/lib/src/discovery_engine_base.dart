@@ -252,7 +252,7 @@ class DiscoveryEngine {
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> removeSourcefromExcludedList(Uri source) {
+  Future<EngineEvent> removeSourceFromExcludedList(Uri source) {
     return _trySend(() async {
       final event = ClientEvent.excludedSourceRemoved(source);
       final response = await _manager.send(event);

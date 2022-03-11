@@ -17,6 +17,6 @@ abstract class ExcludedSourcesRepository {
   /// Get a set of all excluded sources.
   Future<Set<Uri>> getAll();
 
-  /// Persist set of exclueded sources.
+  /// Persist a set of excluded sources.
   Future<void> save(Set<Uri> sources);
 }
