@@ -16,8 +16,9 @@ use std::collections::BTreeMap;
 
 use displaydoc::Display;
 use kodama::{linkage, Dendrogram, Method};
+use ndarray::ArrayView1;
 use thiserror::Error;
-use xayn_ai::ranker::cosine_distance;
+use xayn_ai::ranker::cosine_similarity;
 
 use crate::document::Document;
 
@@ -87,6 +88,11 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, distance_threshold: f32) -> Vec<usize>
             labels
         },
     )
+}
+
+/// Computes the cosine distance of two vectors.
+fn cosine_distance(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
+    1.0 - cosine_similarity(a, b)
 }
 
 #[cfg(test)]

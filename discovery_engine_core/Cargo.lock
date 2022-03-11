@@ -1050,7 +1050,7 @@ dependencies = [
 [[package]]
 name = "kpe"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#e035870e48ef89d342ba9c427eb8a3571aa878d8"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1073,7 +1073,7 @@ dependencies = [
 [[package]]
 name = "layer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#e035870e48ef89d342ba9c427eb8a3571aa878d8"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
 dependencies = [
  "bincode",
  "displaydoc",
@@ -1940,7 +1940,7 @@ dependencies = [
 [[package]]
 name = "rubert"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#e035870e48ef89d342ba9c427eb8a3571aa878d8"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1955,7 +1955,7 @@ dependencies = [
 [[package]]
 name = "rubert-tokenizer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#e035870e48ef89d342ba9c427eb8a3571aa878d8"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
 dependencies = [
  "displaydoc",
  "num-traits",
@@ -2994,7 +2994,7 @@ dependencies = [
 [[package]]
 name = "xayn-ai"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#e035870e48ef89d342ba9c427eb8a3571aa878d8"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3078,6 +3078,7 @@ dependencies = [
  "itertools",
  "kodama",
  "mockall",
+ "ndarray",
  "rand 0.8.5",
  "rand_distr",
  "rayon",
