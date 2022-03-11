@@ -46,6 +46,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_documen
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
     show HiveEngineStateRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_excluded_sources_repo.dart'
+    show HiveExcludedSourcesRepository;
 
 import 'discovery_engine/utils/utils.dart';
 import 'logging.dart' show setupLogging;
@@ -71,6 +73,7 @@ Future<void> main() async {
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
   final engineStateRepo = HiveEngineStateRepository();
+  final excludedSourcesRepo = HiveExcludedSourcesRepository();
 
   final mgr = FeedManager(
     engine,
@@ -79,6 +82,7 @@ Future<void> main() async {
     activeRepo,
     changedRepo,
     engineStateRepo,
+    excludedSourcesRepo,
   );
 
   group('FeedManager', () {
