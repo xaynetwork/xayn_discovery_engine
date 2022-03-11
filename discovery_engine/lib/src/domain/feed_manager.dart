@@ -15,7 +15,7 @@
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show EngineEvent, FeedFailureReason;
+    show EngineEvent, EngineExceptionReason, FeedFailureReason;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -139,19 +139,29 @@ class FeedManager {
     return const EngineEvent.clientEventSucceeded();
   }
 
-  /// Adds [Uri] source to excluded sources set.
-  Future<EngineEvent> addExcludedSource(Uri source) async {
+  /// Adds a source to excluded sources set.
+  Future<EngineEvent> addExcludedSource(String source) async {
+    final uri = _sanitizeSource(source);
+    if (uri == null) {
+      const reason = EngineExceptionReason.genericError;
+      return const EngineEvent.engineExceptionRaised(reason);
+    }
     final sources = await _excludedSourcesRepository.getAll();
-    sources.add(_sanitizeSource(source));
+    sources.add(uri);
     await _excludedSourcesRepository.save(sources);
     // TODO: send updated sources to the engine
     return const EngineEvent.clientEventSucceeded();
   }
 
-  /// Removes [Uri] source to excluded sources set.
-  Future<EngineEvent> removeExcludedSource(Uri source) async {
+  /// Removes a source to excluded sources set.
+  Future<EngineEvent> removeExcludedSource(String source) async {
+    final uri = _sanitizeSource(source);
+    if (uri == null) {
+      const reason = EngineExceptionReason.genericError;
+      return const EngineEvent.engineExceptionRaised(reason);
+    }
     final sources = await _excludedSourcesRepository.getAll();
-    sources.remove(_sanitizeSource(source));
+    sources.remove(uri);
     await _excludedSourcesRepository.save(sources);
     // TODO: send updated sources to the engine
     return const EngineEvent.clientEventSucceeded();
@@ -163,5 +173,9 @@ class FeedManager {
     return EngineEvent.excludedSourcesListRequestSucceeded(sources);
   }
 
-  Uri _sanitizeSource(Uri source) => Uri(host: source.host);
+  Uri? _sanitizeSource(String source) {
+    final uri = Uri.tryParse(source);
+    if (uri == null) return uri;
+    return Uri(host: uri.host);
+  }
 }

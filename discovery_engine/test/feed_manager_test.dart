@@ -221,8 +221,8 @@ Future<void> main() async {
       final source2 =
           Uri.parse('https://www.nytimes.com/live/2022/03/08/world/example');
 
-      final response1 = await mgr.addExcludedSource(source1);
-      final response2 = await mgr.addExcludedSource(source2);
+      final response1 = await mgr.addExcludedSource('$source1');
+      final response2 = await mgr.addExcludedSource('$source2');
 
       expect(response1, isA<ClientEventSucceeded>());
       expect(response2, isA<ClientEventSucceeded>());
@@ -238,7 +238,7 @@ Future<void> main() async {
 
       final source =
           Uri.parse('https://www.bbc.com/politics/87654321-example-article');
-      final response = await mgr.removeExcludedSource(source);
+      final response = await mgr.removeExcludedSource('$source');
 
       expect(response, isA<ClientEventSucceeded>());
       expect(excludedBox.values.first, equals({Uri(host: 'www.nytimes.com')}));
