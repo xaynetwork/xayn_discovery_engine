@@ -27,6 +27,11 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         EngineEvent,
         EngineExceptionRaised,
         EngineExceptionReason,
+        ExcludedSourceAdded,
+        ExcludedSourceRemoved,
+        ExcludedSourcesListRequestFailed,
+        ExcludedSourcesListRequestSucceeded,
+        ExcludedSourcesListRequested,
         FeedDocumentsClosed,
         FeedFailureReason,
         FeedMarket,
@@ -67,6 +72,11 @@ class BadClientEvent implements ClientEvent {
     required TResult Function(NextFeedBatchRequested value)
         nextFeedBatchRequested,
     required TResult Function(FeedDocumentsClosed value) feedDocumentsClosed,
+    required TResult Function(ExcludedSourceAdded value) excludedSourceAdded,
+    required TResult Function(ExcludedSourceRemoved value)
+        excludedSourceRemoved,
+    required TResult Function(ExcludedSourcesListRequested value)
+        excludedSourcesListRequested,
     required TResult Function(DocumentTimeSpent value) documentTimeSpent,
     required TResult Function(UserReactionChanged value) userReactionChanged,
     required TResult Function(SearchRequested value) searchRequested,
@@ -86,6 +96,10 @@ class BadClientEvent implements ClientEvent {
     TResult Function(RestoreFeedRequested value)? restoreFeedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
+    TResult Function(ExcludedSourceAdded value)? excludedSourceAdded,
+    TResult Function(ExcludedSourceRemoved value)? excludedSourceRemoved,
+    TResult Function(ExcludedSourcesListRequested value)?
+        excludedSourcesListRequested,
     TResult Function(DocumentTimeSpent value)? documentTimeSpent,
     TResult Function(UserReactionChanged value)? userReactionChanged,
     TResult Function(SearchRequested value)? searchRequested,
@@ -104,6 +118,10 @@ class BadClientEvent implements ClientEvent {
     TResult Function(RestoreFeedRequested value)? restoreFeedRequested,
     TResult Function(NextFeedBatchRequested value)? nextFeedBatchRequested,
     TResult Function(FeedDocumentsClosed value)? feedDocumentsClosed,
+    TResult Function(ExcludedSourceAdded value)? excludedSourceAdded,
+    TResult Function(ExcludedSourceRemoved value)? excludedSourceRemoved,
+    TResult Function(ExcludedSourcesListRequested value)?
+        excludedSourcesListRequested,
     TResult Function(DocumentTimeSpent value)? documentTimeSpent,
     TResult Function(UserReactionChanged value)? userReactionChanged,
     TResult Function(SearchRequested value)? searchRequested,
@@ -127,6 +145,9 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? restoreFeedRequested,
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
+    TResult Function(Uri source)? excludedSourceAdded,
+    TResult Function(Uri source)? excludedSourceRemoved,
+    TResult Function()? excludedSourcesListRequested,
     TResult Function(DocumentId documentId, DocumentViewMode mode, int seconds)?
         documentTimeSpent,
     TResult Function(DocumentId documentId, UserReaction userReaction)?
@@ -157,6 +178,9 @@ class BadClientEvent implements ClientEvent {
     required TResult Function() restoreFeedRequested,
     required TResult Function() nextFeedBatchRequested,
     required TResult Function(Set<DocumentId> documentIds) feedDocumentsClosed,
+    required TResult Function(Uri source) excludedSourceAdded,
+    required TResult Function(Uri source) excludedSourceRemoved,
+    required TResult Function() excludedSourcesListRequested,
     required TResult Function(
       DocumentId documentId,
       DocumentViewMode mode,
@@ -186,6 +210,9 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? restoreFeedRequested,
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
+    TResult Function(Uri source)? excludedSourceAdded,
+    TResult Function(Uri source)? excludedSourceRemoved,
+    TResult Function()? excludedSourcesListRequested,
     TResult Function(
       DocumentId documentId,
       DocumentViewMode mode,
@@ -216,6 +243,10 @@ class BadEngineEvent implements EngineEvent {
         nextFeedBatchRequestFailed,
     required TResult Function(NextFeedBatchAvailable value)
         nextFeedBatchAvailable,
+    required TResult Function(ExcludedSourcesListRequestSucceeded value)
+        excludedSourcesListRequestSucceeded,
+    required TResult Function(ExcludedSourcesListRequestFailed value)
+        excludedSourcesListRequestFailed,
     required TResult Function(FetchingAssetsStarted value)
         fetchingAssetsStarted,
     required TResult Function(FetchingAssetsProgressed value)
@@ -249,6 +280,10 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(NextFeedBatchRequestFailed value)?
         nextFeedBatchRequestFailed,
     TResult Function(NextFeedBatchAvailable value)? nextFeedBatchAvailable,
+    TResult Function(ExcludedSourcesListRequestSucceeded value)?
+        excludedSourcesListRequestSucceeded,
+    TResult Function(ExcludedSourcesListRequestFailed value)?
+        excludedSourcesListRequestFailed,
     TResult Function(FetchingAssetsStarted value)? fetchingAssetsStarted,
     TResult Function(FetchingAssetsProgressed value)? fetchingAssetsProgressed,
     TResult Function(FetchingAssetsFinished value)? fetchingAssetsFinished,
@@ -277,6 +312,10 @@ class BadEngineEvent implements EngineEvent {
     TResult Function(NextFeedBatchRequestFailed value)?
         nextFeedBatchRequestFailed,
     TResult Function(NextFeedBatchAvailable value)? nextFeedBatchAvailable,
+    TResult Function(ExcludedSourcesListRequestSucceeded value)?
+        excludedSourcesListRequestSucceeded,
+    TResult Function(ExcludedSourcesListRequestFailed value)?
+        excludedSourcesListRequestFailed,
     TResult Function(FetchingAssetsStarted value)? fetchingAssetsStarted,
     TResult Function(FetchingAssetsProgressed value)? fetchingAssetsProgressed,
     TResult Function(FetchingAssetsFinished value)? fetchingAssetsFinished,
@@ -307,6 +346,9 @@ class BadEngineEvent implements EngineEvent {
     )?
         nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
+    TResult Function(Set<Uri> excludedSources)?
+        excludedSourcesListRequestSucceeded,
+    TResult Function()? excludedSourcesListRequestFailed,
     TResult Function()? fetchingAssetsStarted,
     TResult Function(double percentage)? fetchingAssetsProgressed,
     TResult Function()? fetchingAssetsFinished,
@@ -348,6 +390,9 @@ class BadEngineEvent implements EngineEvent {
     )
         nextFeedBatchRequestFailed,
     required TResult Function() nextFeedBatchAvailable,
+    required TResult Function(Set<Uri> excludedSources)
+        excludedSourcesListRequestSucceeded,
+    required TResult Function() excludedSourcesListRequestFailed,
     required TResult Function() fetchingAssetsStarted,
     required TResult Function(double percentage) fetchingAssetsProgressed,
     required TResult Function() fetchingAssetsFinished,
@@ -384,6 +429,9 @@ class BadEngineEvent implements EngineEvent {
     )?
         nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
+    TResult Function(Set<Uri> excludedSources)?
+        excludedSourcesListRequestSucceeded,
+    TResult Function()? excludedSourcesListRequestFailed,
     TResult Function()? fetchingAssetsStarted,
     TResult Function(double percentage)? fetchingAssetsProgressed,
     TResult Function()? fetchingAssetsFinished,

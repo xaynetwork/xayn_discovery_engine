@@ -126,6 +126,18 @@ class EngineEvent with _$EngineEvent {
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchAvailable() = NextFeedBatchAvailable;
 
+  /// Event created as a success response to ExcludedSourcesListRequested event.
+  /// Passes a set of [Uri] of exclueded sources back to the client.
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.excludedSourcesListRequestSucceeded(
+    Set<Uri> excludedSources,
+  ) = ExcludedSourcesListRequestSucceeded;
+
+  /// Event created as a failure response to ExcludedSourcesListRequested event.
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.excludedSourcesListRequestFailed() =
+      ExcludedSourcesListRequestFailed;
+
   /// Event created when fetching of AI assets has started.
   @Implements<AssetsStatusEngineEvent>()
   const factory EngineEvent.fetchingAssetsStarted() = FetchingAssetsStarted;
