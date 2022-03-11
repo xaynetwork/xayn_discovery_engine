@@ -95,6 +95,21 @@ class ClientEvent with _$ClientEvent {
     Set<DocumentId> documentIds,
   ) = FeedDocumentsClosed;
 
+  /// Event created when a source is added to the list of excluded sources.
+  @Implements<FeedClientEvent>()
+  const factory ClientEvent.excludedSourceAdded(Uri source) =
+      ExcludedSourceAdded;
+
+  /// Event created when a source is removed from the list of excluded sources.
+  @Implements<FeedClientEvent>()
+  const factory ClientEvent.excludedSourceRemoved(Uri source) =
+      ExcludedSourceRemoved;
+
+  /// Event created when a client requests for list of excluded sources.
+  @Implements<FeedClientEvent>()
+  const factory ClientEvent.excludedSourcesListRequested() =
+      ExcludedSourcesListRequested;
+
   /// Event created when a [Document] has been viewed in a certain mode for
   /// the given amount of time in seconds.
   @Implements<DocumentClientEvent>()

@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,9 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const documentBox = 'document';
-const changedDocumentIdBox = 'changed_document';
-const activeDocumentDataBox = 'active_document';
-const engineStateBox = 'engine_state';
-const searchBox = 'search';
-const excludedSourcesBox = 'excluded_sources';
+/// Repository interface for [Uri] sources excluded from the feed.
+abstract class ExcludedSourcesRepository {
+  /// Get a set of all excluded sources.
+  Future<Set<Uri>> getAll();
+
+  /// Persist a set of excluded sources.
+  Future<void> save(Set<Uri> sources);
+}

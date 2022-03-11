@@ -30,6 +30,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded,
+        ExcludedSourcesListRequestSucceeded,
+        ExcludedSourcesListRequestFailed,
         SearchRequestSucceeded,
         SearchRequestFailed,
         NextSearchBatchRequestSucceeded,
@@ -226,6 +228,63 @@ class DiscoveryEngine {
     });
   }
 
+  /// Adds a source [Uri] to the set of excluded sources.
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
+  Future<EngineEvent> addSourceToExcludedList(Uri source) {
+    return _trySend(() async {
+      final event = ClientEvent.excludedSourceAdded(source);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Removes a source [Uri] from the set of excluded sources.
+  ///
+  /// In response it can return:
+  /// - [ClientEventSucceeded] indicating a successful operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
+  Future<EngineEvent> removeSourceFromExcludedList(Uri source) {
+    return _trySend(() async {
+      final event = ClientEvent.excludedSourceRemoved(source);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        clientEventSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Returns a [Set<Uri>] with excluded sources.
+  ///
+  /// In response it can return:
+  /// - [ExcludedSourcesListRequestSucceeded] indicating a successful operation,
+  /// containing a set of sources.
+  /// - [ExcludedSourcesListRequestFailed] indicating a failed operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
+  Future<EngineEvent> getExcludedSourcesList() {
+    return _trySend(() async {
+      const event = ClientEvent.excludedSourcesListRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        excludedSourcesListRequestSucceeded: true,
+        excludedSourcesListRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
   /// Logs the time in seconds spent by a user on a [Document] in a certain
   /// mode.
   ///
@@ -409,6 +468,8 @@ extension _MapEvent on EngineEvent {
     bool? nextFeedBatchRequestSucceeded,
     bool? nextFeedBatchRequestFailed,
     bool? nextFeedBatchAvailable,
+    bool? excludedSourcesListRequestSucceeded,
+    bool? excludedSourcesListRequestFailed,
     bool? fetchingAssetsStarted,
     bool? fetchingAssetsProgressed,
     bool? fetchingAssetsFinished,
@@ -430,6 +491,10 @@ extension _MapEvent on EngineEvent {
         nextFeedBatchRequestFailed:
             _maybePassThrough(nextFeedBatchRequestFailed),
         nextFeedBatchAvailable: _maybePassThrough(nextFeedBatchAvailable),
+        excludedSourcesListRequestSucceeded:
+            _maybePassThrough(excludedSourcesListRequestSucceeded),
+        excludedSourcesListRequestFailed:
+            _maybePassThrough(excludedSourcesListRequestFailed),
         fetchingAssetsStarted: _maybePassThrough(fetchingAssetsStarted),
         fetchingAssetsProgressed: _maybePassThrough(fetchingAssetsProgressed),
         fetchingAssetsFinished: _maybePassThrough(fetchingAssetsFinished),

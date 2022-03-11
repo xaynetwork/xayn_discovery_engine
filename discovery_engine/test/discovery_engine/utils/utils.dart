@@ -37,6 +37,9 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent restoreFeedRequestedResponse;
   final EngineEvent nextFeedBatchRequestedResponse;
   final EngineEvent feedDocumentsClosedResponse;
+  final EngineEvent excludedSourceAddedResponse;
+  final EngineEvent excludedSourceRemovedResponse;
+  final EngineEvent excludedSourcesListRequestedResponse;
   final EngineEvent userReactionChangedResponse;
   final EngineEvent documentTimeLoggedResponse;
   final EngineEvent searchRequestedResponse;
@@ -63,6 +66,11 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.restoreSearchResponse =
         const EngineEvent.restoreSearchSucceeded(mockActiveSearch, []),
     this.searchClosedResponse = const EngineEvent.clientEventSucceeded(),
+    this.excludedSourceAddedResponse = const EngineEvent.clientEventSucceeded(),
+    this.excludedSourceRemovedResponse =
+        const EngineEvent.clientEventSucceeded(),
+    this.excludedSourcesListRequestedResponse =
+        const EngineEvent.excludedSourcesListRequestSucceeded(<Uri>{}),
   }) : super(initialMessage);
 
   @override
@@ -73,6 +81,9 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       restoreFeedRequested: (_) => restoreFeedRequestedResponse,
       nextFeedBatchRequested: (_) => nextFeedBatchRequestedResponse,
       feedDocumentsClosed: (_) => feedDocumentsClosedResponse,
+      excludedSourceAdded: (_) => excludedSourceAddedResponse,
+      excludedSourceRemoved: (_) => excludedSourceRemovedResponse,
+      excludedSourcesListRequested: (_) => excludedSourcesListRequestedResponse,
       userReactionChanged: (_) => userReactionChangedResponse,
       documentTimeSpent: (_) => documentTimeLoggedResponse,
       searchRequested: (_) => searchRequestedResponse,

@@ -126,6 +126,18 @@ class EngineEvent with _$EngineEvent {
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchAvailable() = NextFeedBatchAvailable;
 
+  /// Event created as a success response to ExcludedSourcesListRequested event.
+  /// Passes a set of [Uri] of excluded sources back to the client.
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.excludedSourcesListRequestSucceeded(
+    Set<Uri> excludedSources,
+  ) = ExcludedSourcesListRequestSucceeded;
+
+  /// Event created as a failure response to ExcludedSourcesListRequested event.
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.excludedSourcesListRequestFailed() =
+      ExcludedSourcesListRequestFailed;
+
   /// Event created when fetching of AI assets has started.
   @Implements<AssetsStatusEngineEvent>()
   const factory EngineEvent.fetchingAssetsStarted() = FetchingAssetsStarted;
@@ -140,7 +152,7 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.fetchingAssetsFinished() = FetchingAssetsFinished;
 
   /// Event created to inform the client that a particular "fire and forget"
-  /// event, like UserReactionChanged, was successfuly processed
+  /// event, like UserReactionChanged, was successfully processed
   /// by the engine.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.clientEventSucceeded() = ClientEventSucceeded;
