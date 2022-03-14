@@ -64,6 +64,9 @@ abstract class Engine {
     int page,
     int pageSize,
   );
+
+  /// Disposes the engine.
+  Future<void> dispose();
 }
 
 /// Passed to constructors/initializers of `Engine` implementing classes.

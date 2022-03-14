@@ -19,18 +19,6 @@ use tokio::sync::Mutex;
 
 use xayn_discovery_engine_core::XaynAiEngine;
 
-use super::boxed;
-
 /// A shared discovery engine with a lock.
 #[derive(AsRef, From)]
 pub struct SharedEngine(Mutex<XaynAiEngine>);
-
-/// Drops a `Box<SharedEngine>`.
-///
-/// # Safety
-///
-/// - The pointer must represent a valid `Box<SharedEngine>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn drop_shared_engine(engine: *mut SharedEngine) {
-    unsafe { boxed::drop(engine) }
-}

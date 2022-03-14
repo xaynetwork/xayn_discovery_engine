@@ -22,7 +22,7 @@ void main() {
   final dangling = Pointer<Uint32>.fromAddress(address);
 
   test('ref/mut point to the right address', () {
-    final box = Boxed(dangling, (_) {
+    final box = Boxed(dangling, (_) async {
       throw AssertionError('free is not supposed to be called here');
     });
     expect(box.ref, equals(dangling));
@@ -30,7 +30,7 @@ void main() {
   });
 
   test('move moves the ownership', () {
-    final box = Boxed(dangling, (_) {
+    final box = Boxed(dangling, (_) async {
       throw AssertionError('free is not supposed to be called here');
     });
     expect(box.moved, isFalse);

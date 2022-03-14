@@ -173,11 +173,9 @@ class DiscoveryEngineFfi implements Engine {
         .toDocumentListWithActiveData();
   }
 
-  /// Drops the engine.
-  ///
-  /// # Safety
-  /// Must only be called after all other futures of the engine have been completed.
-  void free() {
-    _engine.free();
+  /// Disposes the engine.
+  @override
+  Future<void> dispose() async {
+    await _engine.free();
   }
 }
