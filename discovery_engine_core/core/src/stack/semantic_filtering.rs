@@ -16,19 +16,19 @@ use std::collections::BTreeMap;
 
 use displaydoc::Display;
 use kodama::{linkage, Dendrogram, Method};
-use ndarray::ArrayView1;
 use thiserror::Error;
-use xayn_ai::ranker::cosine_similarity;
+use xayn_ai::ranker::pairwise_cosine_similarity;
 
 use crate::document::Document;
 
 /// Semantic clustering errors.
 #[derive(Error, Debug, Display)]
-pub enum Error {
+enum Error {
     /// No enough documents.
     NotEnoughDocuments,
 }
 
+#[allow(dead_code)]
 fn determine_semantic_clusters(
     documents: &[Document],
     method: Method,
@@ -38,17 +38,11 @@ fn determine_semantic_clusters(
         return Err(Error::NotEnoughDocuments);
     }
 
-    let length = (documents.len() * (documents.len() - 1)) / 2;
-    let mut condensed_distance_matrix = Vec::with_capacity(length);
-    for row in 0..documents.len() - 1 {
-        for col in row + 1..documents.len() {
-            let distance = cosine_distance(
-                documents[row].smbert_embedding.view(),
-                documents[col].smbert_embedding.view(),
-            );
-            condensed_distance_matrix.push(distance);
-        }
-    }
+    let mut condensed_distance_matrix = condensed_cosine_distance(documents);
+    debug_assert_eq!(
+        condensed_distance_matrix.len(),
+        (documents.len() * (documents.len() - 1)) / 2,
+    );
 
     let dendrogram = linkage(&mut condensed_distance_matrix, documents.len(), method);
     let labels = cut_tree(&dendrogram, distance_threshold);
@@ -90,9 +84,16 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, distance_threshold: f32) -> Vec<usize>
     )
 }
 
-/// Computes the cosine distance of two vectors.
-fn cosine_distance(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
-    1.0 - cosine_similarity(a, b)
+/// Computes the condensed cosine distance matrix of the documents' embeddings.
+fn condensed_cosine_distance(documents: &[Document]) -> Vec<f32> {
+    pairwise_cosine_similarity(
+        documents
+            .iter()
+            .map(|document| document.smbert_embedding.view()),
+    )
+    .indexed_iter()
+    .filter_map(|((i, j), &similarity)| (i < j).then(|| 1. - similarity))
+    .collect()
 }
 
 #[cfg(test)]

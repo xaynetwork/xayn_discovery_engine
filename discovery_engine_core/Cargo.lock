@@ -34,9 +34,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.55"
+version = "1.0.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "159bb86af3a200e19a068f4224eae4c8bb2d0fa054c7e5d1cacd5cef95e684cd"
+checksum = "4361135be9122e0870de935d7c439aef945b9f9ddd4199a553b5270b49c82a27"
 
 [[package]]
 name = "anymap2"
@@ -1050,7 +1050,7 @@ dependencies = [
 [[package]]
 name = "kpe"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#614014bb26f5a7fc1a9635e0171bb7c25d0e74e1"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1073,7 +1073,7 @@ dependencies = [
 [[package]]
 name = "layer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#614014bb26f5a7fc1a9635e0171bb7c25d0e74e1"
 dependencies = [
  "bincode",
  "displaydoc",
@@ -1860,9 +1860,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.5.4"
+version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d07a8629359eb56f1e2fb1652bb04212c072a87ba68546a04065d525673ac461"
+checksum = "1a11647b6b25ff05a515cb92c365cec08801e83423a235b51e231e1808747286"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -1940,7 +1940,7 @@ dependencies = [
 [[package]]
 name = "rubert"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#614014bb26f5a7fc1a9635e0171bb7c25d0e74e1"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1955,7 +1955,7 @@ dependencies = [
 [[package]]
 name = "rubert-tokenizer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#614014bb26f5a7fc1a9635e0171bb7c25d0e74e1"
 dependencies = [
  "displaydoc",
  "num-traits",
@@ -2158,9 +2158,9 @@ checksum = "9def91fd1e018fe007022791f865d0ccc9b3a0d5001e01aabb8b40e46000afb5"
 
 [[package]]
 name = "smallstr"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e922794d168678729ffc7e07182721a14219c65814e66e91b839a272fe5ae4f"
+checksum = "63b1aefdf380735ff8ded0b15f31aab05daf1f70216c01c02a12926badd1df9d"
 dependencies = [
  "smallvec",
 ]
@@ -2994,7 +2994,7 @@ dependencies = [
 [[package]]
 name = "xayn-ai"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#32d46cfda709cb7ade5d954bde7ff61ed6e49544"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=TY-2467-cosine-similarity#614014bb26f5a7fc1a9635e0171bb7c25d0e74e1"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3006,9 +3006,11 @@ dependencies = [
  "js-sys",
  "kpe",
  "layer",
+ "lazy_static",
  "ndarray",
  "obake",
  "rand 0.8.5",
+ "regex",
  "rubert",
  "serde",
  "serde_repr",
@@ -3078,7 +3080,6 @@ dependencies = [
  "itertools",
  "kodama",
  "mockall",
- "ndarray",
  "rand 0.8.5",
  "rand_distr",
  "rayon",
