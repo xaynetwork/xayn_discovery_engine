@@ -14,28 +14,19 @@
 
 use std::collections::BTreeMap;
 
-use displaydoc::Display;
 use kodama::{linkage, Dendrogram, Method};
-use thiserror::Error;
 use xayn_ai::ranker::pairwise_cosine_similarity;
 
 use crate::document::Document;
-
-/// Semantic clustering errors.
-#[derive(Error, Debug, Display)]
-enum Error {
-    /// No enough documents.
-    NotEnoughDocuments,
-}
 
 #[allow(dead_code)]
 fn determine_semantic_clusters(
     documents: &[Document],
     method: Method,
     distance_threshold: f32,
-) -> Result<Vec<usize>, Error> {
+) -> Vec<usize> {
     if documents.len() < 2 {
-        return Err(Error::NotEnoughDocuments);
+        return vec![0; documents.len()];
     }
 
     let mut condensed_distance_matrix = condensed_cosine_distance(documents);
@@ -45,8 +36,7 @@ fn determine_semantic_clusters(
     );
 
     let dendrogram = linkage(&mut condensed_distance_matrix, documents.len(), method);
-    let labels = cut_tree(&dendrogram, distance_threshold);
-    Ok(labels)
+    cut_tree(&dendrogram, distance_threshold)
 }
 
 fn cut_tree(dendrogram: &Dendrogram<f32>, distance_threshold: f32) -> Vec<usize> {
@@ -101,25 +91,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cluster_no_enough_samples() {
-        let res = determine_semantic_clusters(&[], Method::Average, 1.);
-        assert!(matches!(res.unwrap_err(), Error::NotEnoughDocuments))
+    fn test_cluster_empty_documents() {
+        let labels = determine_semantic_clusters(&[], Method::Average, 1.);
+        assert!(labels.is_empty());
     }
 
     #[test]
-    fn test_cluster_one_documents() {
-        let res = determine_semantic_clusters(&[Document::default()], Method::Average, 1.);
-        assert!(matches!(res.unwrap_err(), Error::NotEnoughDocuments))
+    fn test_cluster_single_document() {
+        let labels = determine_semantic_clusters(&[Document::default()], Method::Average, 1.);
+        assert_eq!(labels, vec![0]);
     }
 
     #[test]
     fn test_cluster_multiple_documents() {
-        let res = determine_semantic_clusters(
+        let labels = determine_semantic_clusters(
             &[Document::default(), Document::default()],
             Method::Average,
             1.,
         );
-        assert_eq!(res.unwrap(), [0, 0])
+        assert_eq!(labels, [0, 0]);
     }
 
     #[test]
