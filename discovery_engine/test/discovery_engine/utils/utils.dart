@@ -133,5 +133,4 @@ const mockActiveSearch = ActiveSearch(
   queryTerm: 'example',
   requestedPageNb: 1,
   pageSize: 20,
-  market: FeedMarket(countryCode: 'DE', langCode: 'de'),
 );

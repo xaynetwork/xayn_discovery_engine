@@ -34,7 +34,6 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ExcludedSourcesListRequested,
         FeedDocumentsClosed,
         FeedFailureReason,
-        FeedMarket,
         FeedMarkets,
         FetchingAssetsFinished,
         FetchingAssetsProgressed,
@@ -152,7 +151,7 @@ class BadClientEvent implements ClientEvent {
         documentTimeSpent,
     TResult Function(DocumentId documentId, UserReaction userReaction)?
         userReactionChanged,
-    TResult Function(String queryTerm, FeedMarket market)? searchRequested,
+    TResult Function(String queryTerm)? searchRequested,
     TResult Function()? nextSearchBatchRequested,
     TResult Function()? restoreSearchRequested,
     TResult Function()? searchClosed,
@@ -189,8 +188,7 @@ class BadClientEvent implements ClientEvent {
         documentTimeSpent,
     required TResult Function(DocumentId documentId, UserReaction reaction)
         userReactionChanged,
-    required TResult Function(String queryTerm, FeedMarket market)
-        searchRequested,
+    required TResult Function(String queryTerm) searchRequested,
     required TResult Function() nextSearchBatchRequested,
     required TResult Function() restoreSearchRequested,
     required TResult Function() searchClosed,
@@ -221,7 +219,7 @@ class BadClientEvent implements ClientEvent {
         documentTimeSpent,
     TResult Function(DocumentId documentId, UserReaction reaction)?
         userReactionChanged,
-    TResult Function(String queryTerm, FeedMarket market)? searchRequested,
+    TResult Function(String queryTerm)? searchRequested,
     TResult Function()? nextSearchBatchRequested,
     TResult Function()? restoreSearchRequested,
     TResult Function()? searchClosed,

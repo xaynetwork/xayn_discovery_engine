@@ -23,6 +23,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         EngineExceptionReason,
         FeedClientEvent,
         Init,
+        SearchClientEvent,
         SystemClientEvent;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show
@@ -43,14 +44,20 @@ import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
     show FeedManager;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData, ActiveDocumentDataAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch, ActiveSearchAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, UserReactionAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarketAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewModeAdapter;
+import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
+    show SearchManager;
 import 'package:xayn_discovery_engine/src/domain/system_manager.dart'
     show SystemManager;
 import 'package:xayn_discovery_engine/src/ffi/types/engine.dart'
@@ -64,9 +71,12 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         activeDocumentDataBox,
         changedDocumentIdBox,
         documentBox,
-        engineStateBox;
+        engineStateBox,
+        searchBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
+    show HiveActiveSearchRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
     show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -100,6 +110,7 @@ class EventHandler {
   final ChangedDocumentsReporter _changedDocumentsReporter;
   late final DocumentManager _documentManager;
   late final FeedManager _feedManager;
+  late final SearchManager _searchManager;
   late final SystemManager _systemManager;
 
   EventHandler()
@@ -165,6 +176,8 @@ class EventHandler {
         return const EngineEvent.clientEventSucceeded();
       } else if (clientEvent is SystemClientEvent) {
         return await _systemManager.handleSystemClientEvent(clientEvent);
+      } else if (clientEvent is SearchClientEvent) {
+        return await _searchManager.handleSearchClientEvent(clientEvent);
       } else {
         return const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,
@@ -193,6 +206,7 @@ class EventHandler {
     final documentRepository = HiveDocumentRepository();
     final activeDataRepository = HiveActiveDocumentDataRepository();
     final changedDocumentRepository = HiveChangedDocumentRepository();
+    final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
 
     final setupData = await _fetchAssets(config);
@@ -223,6 +237,15 @@ class EventHandler {
     _feedManager = FeedManager(
       engine,
       eventConfig,
+      documentRepository,
+      activeDataRepository,
+      changedDocumentRepository,
+      engineStateRepository,
+    );
+    _searchManager = SearchManager(
+      engine,
+      eventConfig,
+      activeSearchRepository,
       documentRepository,
       activeDataRepository,
       changedDocumentRepository,
@@ -268,12 +291,17 @@ class EventHandler {
     Hive.registerAdapter(DurationAdapter());
     Hive.registerAdapter(UriAdapter());
     Hive.registerAdapter(EmbeddingAdapter());
+    Hive.registerAdapter(FeedMarketAdapter());
+    Hive.registerAdapter(ActiveSearchAdapter());
 
     // open boxes
-    await _openDbBox<Document>(documentBox);
-    await _openDbBox<ActiveDocumentData>(activeDocumentDataBox);
-    await _openDbBox<Uint8List>(changedDocumentIdBox);
-    await _openDbBox<Uint8List>(engineStateBox);
+    await Future.wait([
+      _openDbBox<Document>(documentBox),
+      _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
+      _openDbBox<Uint8List>(changedDocumentIdBox),
+      _openDbBox<Uint8List>(engineStateBox),
+      _openDbBox<ActiveSearch>(searchBox),
+    ]);
   }
 
   /// Tries to open a box persisted on disk. In case of failure opens it in memory.

@@ -15,8 +15,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket, $FeedMarketCopyWith;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show searchTypeId;
 
@@ -31,7 +29,6 @@ class ActiveSearch with _$ActiveSearch {
     @HiveField(0) required String queryTerm,
     @HiveField(1) required int requestedPageNb,
     @HiveField(2) required int pageSize,
-    @HiveField(3) required FeedMarket market,
   }) = _ActiveSearch;
 
   factory ActiveSearch.fromJson(Map<String, Object?> json) =>

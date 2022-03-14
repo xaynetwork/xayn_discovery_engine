@@ -25,7 +25,6 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         DocumentViewMode,
         EngineEvent,
         EngineExceptionReason,
-        FeedMarket,
         FeedMarkets,
         NextFeedBatchAvailable,
         NextFeedBatchRequestFailed,
@@ -334,8 +333,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Requests a new search for [Document]s related to `queryTerm` for
-  /// a particular `market`.
+  /// Requests a new search for [Document]s related to `queryTerm`.
   ///
   /// In response it can return:
   /// - [SearchRequestSucceeded] for successful response, containing a list of
@@ -343,12 +341,9 @@ class DiscoveryEngine {
   /// - [SearchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestSearch({
-    required String queryTerm,
-    required FeedMarket market,
-  }) {
+  Future<EngineEvent> requestSearch(String queryTerm) {
     return _trySend(() async {
-      final event = ClientEvent.searchRequested(queryTerm, market);
+      final event = ClientEvent.searchRequested(queryTerm);
       final response = await _manager.send(event);
 
       return response.mapEvent(
