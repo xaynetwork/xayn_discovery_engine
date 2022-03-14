@@ -407,19 +407,17 @@ class ContentCategoriesAccepted extends ClientEvent {
 
 ### ClientEventSucceeded
 
-Event created to inform the client that a particular "fire and forget" event, like ie. `UserReactionChanged`, was successfully processed by the engine.
+Event created as a success response to various client events, like `UserReactionChanged`.
 
 ```dart
 class ClientEventSucceeded extends EngineEvent {
-  final EventId eventId;
-
-  const ClientEventSucceeded(this.eventId);
+  const ClientEventSucceeded();
 }
 ```
 
 ### EngineExceptionRaised
 
-Event created by the engine for multitude of generic reasons, also as a "failure" event in response to "fire and forget" events, like ie. `UserReactionChanged`.
+Event created by the engine for multitude of generic reasons, also as a "failure" event in response to various events, like ie. `UserReactionChanged`.
 
 ```dart
 enum EngineExceptionReason {
