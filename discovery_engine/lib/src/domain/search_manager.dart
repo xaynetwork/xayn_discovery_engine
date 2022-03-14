@@ -67,6 +67,7 @@ class SearchManager {
         nextSearchBatchRequested: nextSearchBatchRequested,
         restoreSearchRequested: restoreSearchRequested,
         searchClosed: searchClosed,
+        searchTermRequested: searchTermRequested,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -99,7 +100,6 @@ class SearchManager {
       requestedPageNb: 1,
       pageSize: _config.maxSearchDocs,
     );
-
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
     return EngineEvent.searchRequestSucceeded(search, docs);
@@ -153,6 +153,18 @@ class SearchManager {
     final docs = searchDocs.map((doc) => doc.toApiDocument()).toList();
 
     return EngineEvent.restoreSearchSucceeded(search, docs);
+  }
+
+  /// Return the active search term.
+  Future<EngineEvent> searchTermRequested() async {
+    final search = await _searchRepo.getCurrent();
+
+    if (search == null) {
+      const reason = SearchFailureReason.noActiveSearch;
+      return const EngineEvent.searchTermRequestFailed(reason);
+    }
+
+    return EngineEvent.searchTermRequestSucceeded(search.queryTerm);
   }
 
   /// Clear the active search and deactivate interacted search documents.

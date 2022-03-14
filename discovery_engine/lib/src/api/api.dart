@@ -32,6 +32,7 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         SearchRequested,
         NextSearchBatchRequested,
         RestoreSearchRequested,
+        SearchTermRequested,
         SearchClosed;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
@@ -52,6 +53,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         NextSearchBatchRequestFailed,
         RestoreSearchSucceeded,
         RestoreSearchFailed,
+        SearchTermRequestSucceeded,
+        SearchTermRequestFailed,
         SearchFailureReason,
         AssetsStatusEngineEvent,
         FetchingAssetsStarted,

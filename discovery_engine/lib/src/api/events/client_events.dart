@@ -143,6 +143,10 @@ class ClientEvent with _$ClientEvent {
   @Implements<SearchClientEvent>()
   const factory ClientEvent.restoreSearchRequested() = RestoreSearchRequested;
 
+  /// Event created when the client asks for current active search term.
+  @Implements<SearchClientEvent>()
+  const factory ClientEvent.searchTermRequested() = SearchTermRequested;
+
   /// Event created when the client makes [Document]s in the active search
   /// not accessible to the user anymore. The engine registers those documents
   /// as immutable, so they can't be changed anymore by the client.

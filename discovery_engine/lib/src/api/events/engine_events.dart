@@ -222,6 +222,19 @@ class EngineEvent with _$EngineEvent {
     SearchFailureReason reason,
   ) = RestoreSearchFailed;
 
+  /// Event created as a success response to SearchTermRequested event.
+  /// Passes the current search term back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.searchTermRequestSucceeded(String searchTerm) =
+      SearchTermRequestSucceeded;
+
+  /// Event created as a failure response to SearchTermRequested event.
+  /// Passes a failure reason back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.searchTermRequestFailed(
+    SearchFailureReason reason,
+  ) = SearchTermRequestFailed;
+
   /// Converts json Map to [EngineEvent].
   factory EngineEvent.fromJson(Map<String, Object?> json) =>
       _$EngineEventFromJson(json);
