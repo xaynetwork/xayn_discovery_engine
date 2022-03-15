@@ -45,6 +45,10 @@ pub struct Market {
     pub country_code: String,
     /// Language code as defined in ISO 639-1 — 2 letter code, e.g. 'de' or 'en'
     pub lang_code: String,
+    /// Up to which "quality rank" news articles should be included for this market.
+    ///
+    /// News with a quality rank higher (i.e. worse) then the limit will not be included.
+    pub news_quality_rank_limit: Option<usize>,
 }
 
 #[cfg(test)]

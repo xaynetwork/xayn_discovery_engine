@@ -71,12 +71,17 @@ impl CommonQueryParts<'_> {
             .push(single_path_element_suffix);
 
         let query = &mut url.query_pairs_mut();
+
         query
             .append_pair("lang", &self.market.lang_code)
             .append_pair("countries", &self.market.country_code)
             .append_pair("page_size", &self.page_size.to_string())
             // FIXME Consider cmp::min(self.page, 1) or explicit error variant
             .append_pair("page", &self.page.to_string());
+
+        if let Some(rank_limit) = self.market.news_quality_rank_limit {
+            query.append_pair("to_rank", &rank_limit.to_string());
+        }
 
         Ok(())
     }
@@ -209,6 +214,7 @@ mod tests {
             .and(query_param("countries", "AU"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
+            .and(query_param("to_rank", "9222"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -218,6 +224,7 @@ mod tests {
         let market = &Market {
             lang_code: "en".to_string(),
             country_code: "AU".to_string(),
+            news_quality_rank_limit: Some(9_222),
         };
         let filter = &Filter::default().add_keyword("Climate change");
 
@@ -262,6 +269,7 @@ mod tests {
         let market = &Market {
             lang_code: "de".to_string(),
             country_code: "DE".to_string(),
+            news_quality_rank_limit: None,
         };
         let filter = &Filter::default()
             .add_keyword("Bill Gates")
@@ -311,6 +319,7 @@ mod tests {
                 market: &Market {
                     lang_code: "en".to_string(),
                     country_code: "US".to_string(),
+                    news_quality_rank_limit: None,
                 },
                 page_size: 2,
                 page: 1,
