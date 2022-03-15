@@ -70,12 +70,12 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, threshold: f32) -> Vec<usize> {
                 // unwrap safety:
                 // - inital cluster ids have been inserted in the beginning
                 // - merged cluster ids have been inserted in a previous iteration/step
-                let mut cluster1 = clusters.remove(&step.cluster1).unwrap();
-                let cluster2 = clusters.remove(&step.cluster2).unwrap();
+                let mut cluster_1 = clusters.remove(&step.cluster1).unwrap();
+                let cluster_2 = clusters.remove(&step.cluster2).unwrap();
 
                 // merge clusters
-                cluster1.extend(cluster2);
-                clusters.insert(id, cluster1);
+                cluster_1.extend(cluster_2);
+                clusters.insert(id, cluster_1);
 
                 (id + 1, clusters)
             },
@@ -94,6 +94,7 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, threshold: f32) -> Vec<usize> {
 }
 
 #[cfg(test)]
+#[allow(clippy::non_ascii_literal)]
 mod tests {
     use super::*;
 
@@ -128,7 +129,7 @@ mod tests {
         //       A    B    C    D
         let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
         let labels = cut_tree(&dendrogram, 3.6);
-        assert_eq!(labels, [0, 0, 0, 0])
+        assert_eq!(labels, [0, 0, 0, 0]);
     }
 
     #[test]
@@ -140,7 +141,7 @@ mod tests {
         //       A    B    C    D
         let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
         let labels = cut_tree(&dendrogram, 0.75);
-        assert_eq!(labels, [2, 2, 0, 1])
+        assert_eq!(labels, [2, 2, 0, 1]);
     }
 
     #[test]
@@ -152,6 +153,6 @@ mod tests {
         //       A    B    C    D
         let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
         let labels = cut_tree(&dendrogram, 0.5);
-        assert_eq!(labels, [0, 1, 2, 3])
+        assert_eq!(labels, [0, 1, 2, 3]);
     }
 }
