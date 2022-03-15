@@ -209,6 +209,14 @@ Future<void> main() async {
       await excludedBox.clear();
     });
 
+    test('when adding empty source throw "ArgumentError"', () async {
+      expect(() => mgr.addExcludedSource(''), throwsArgumentError);
+    });
+
+    test('when removing empty source throw "ArgumentError"', () async {
+      expect(() => mgr.removeExcludedSource(''), throwsArgumentError);
+    });
+
     test('addExcludedSource', () async {
       final excludedSoures = {'www.bbc.com', 'www.nytimes.com'};
       const source1 = 'www.bbc.com';

@@ -15,7 +15,7 @@
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show EngineEvent, EngineExceptionReason, FeedFailureReason;
+    show EngineEvent, FeedFailureReason;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
