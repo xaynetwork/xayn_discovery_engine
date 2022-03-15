@@ -52,14 +52,45 @@ pub trait Query: Seal + Sync {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error>;
 }
 
-/// Parameters determining which news to fetch
-pub struct NewsQuery<'a, F> {
+/// Elements shared between various Newscatcher queries.
+pub struct CommonQueryParts<'a> {
     /// Market of news.
     pub market: &'a Market,
-    /// News filter.
-    pub filter: F,
     /// How many articles to return (per page).
     pub page_size: usize,
+}
+
+impl CommonQueryParts<'_> {
+    fn setup_url(
+        &self,
+        url: &mut Url,
+        single_path_element_suffix: &str,
+        page: Option<usize>,
+    ) -> Result<(), Error> {
+        url.path_segments_mut()
+            .map_err(|_| Error::InvalidUrlBase(None))?
+            .push(single_path_element_suffix);
+
+        let query = &mut url.query_pairs_mut();
+        query
+            .append_pair("lang", &self.market.lang_code)
+            .append_pair("countries", &self.market.country_code)
+            .append_pair("page_size", &self.page_size.to_string());
+
+        if let Some(page) = page {
+            query.append_pair("page", &page.to_string());
+        }
+
+        Ok(())
+    }
+}
+
+/// Parameters determining which news to fetch
+pub struct NewsQuery<'a, F> {
+    /// Common parts
+    pub common: CommonQueryParts<'a>,
+    /// News filter.
+    pub filter: F,
     /// Page number.
     pub page: Option<usize>,
 }
@@ -69,14 +100,9 @@ where
     F: Deref<Target = Filter> + Sync,
 {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push("_sn");
+        self.common.setup_url(url, "_sn", self.page)?;
 
-        let query = &mut url.query_pairs_mut();
-        add_marked_to_query(query, &self.market);
-        add_page_info_to_query(query, self.page_size, self.page);
-        query
+        url.query_pairs_mut()
             .append_pair("sort_by", "relevancy")
             .append_pair("q", &self.filter.build());
 
@@ -88,42 +114,19 @@ impl<T> Seal for NewsQuery<'_, T> {}
 
 /// Parameters determining which headlines to fetch
 pub struct HeadlinesQuery<'a> {
-    /// Market of headlines.
-    pub market: &'a Market,
-    /// How many articles to return (per page).
-    pub page_size: usize,
-    /// Which page of the results to return.
+    /// Common parts
+    pub common: CommonQueryParts<'a>,
+    /// Page number.
     pub page: usize,
 }
 
 impl Query for HeadlinesQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push("_lh");
-        let query = &mut url.query_pairs_mut();
-        add_marked_to_query(query, &self.market);
-        add_page_info_to_query(query, self.page_size, Some(self.page));
-        Ok(())
+        self.common.setup_url(url, "_lh", Some(self.page))
     }
 }
 
 impl Seal for HeadlinesQuery<'_> {}
-
-type QuerySerializer<'a> = url::form_urlencoded::Serializer<'a, url::UrlQuery<'a>>;
-
-fn add_marked_to_query(query: &mut QuerySerializer<'_>, market: &Market) {
-    query
-        .append_pair("lang", &market.lang_code)
-        .append_pair("countries", &market.country_code);
-}
-
-fn add_page_info_to_query(query: &mut QuerySerializer<'_>, page_size: usize, page: Option<usize>) {
-    query.append_pair("page_size", &page_size.to_string());
-    if let Some(page) = page {
-        query.append_pair("page", &page.to_string());
-    }
-}
 
 /// Client that can provide documents.
 #[derive(Default)]
@@ -226,9 +229,11 @@ mod tests {
         let filter = &Filter::default().add_keyword("Climate change");
 
         let params = NewsQuery {
-            market,
+            common: CommonQueryParts {
+                market,
+                page_size: 2,
+            },
             filter,
-            page_size: 2,
             page: Some(1),
         };
 
@@ -270,9 +275,11 @@ mod tests {
             .add_keyword("Tim Cook");
 
         let params = NewsQuery {
-            market,
+            common: CommonQueryParts {
+                market,
+                page_size: 2,
+            },
             filter,
-            page_size: 2,
             page: None,
         };
 
@@ -307,11 +314,13 @@ mod tests {
             .await;
 
         let params = HeadlinesQuery {
-            market: &Market {
-                lang_code: "en".to_string(),
-                country_code: "US".to_string(),
+            common: CommonQueryParts {
+                market: &Market {
+                    lang_code: "en".to_string(),
+                    country_code: "US".to_string(),
+                },
+                page_size: 2,
             },
-            page_size: 2,
             page: 1,
         };
 
