@@ -40,17 +40,26 @@ pub unsafe extern "C" fn market_place_of_lang_code(place: *mut Market) -> *mut S
     unsafe { addr_of_mut!((*place).lang_code) }
 }
 
-/// Sets the `news_quality_rank_limit` field of a [`Market`] to `None`.
+/// Finish the initialization of a [`Market`] instance.
+///
+/// This sets defaults for fields not yet exposed to dart.
+///
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid [`Market`] memory object, it
-/// might be uninitialized.
+/// - The pointer must point to a valid [`Market`] memory object, it
+///   might be uninitialized.
+/// - Must be called after all exposed fields have been initialized and
+///   not before that.
 #[no_mangle]
-pub unsafe extern "C" fn init_market_news_quality_rank_limit(place: *mut Market) {
+pub unsafe extern "C" fn finish_market_initialization(place: *mut Market) {
     unsafe {
-        addr_of_mut!((*place).news_quality_rank_limit).write(None);
-    }
+        //Note: I'm not sure if `&*place.country_code` is guaranteed to not construct a
+        //      intermediate `&place` (which would be unsound).
+        #[allow(clippy::deref_addrof)]
+        let limit = Market::default_news_quality_rank_limit(&*addr_of_mut!((*place).country_code));
+        addr_of_mut!((*place).news_quality_rank_limit).write(limit);
+    };
 }
 
 /// Alloc an uninitialized `Box<Market>`, mainly used for testing.

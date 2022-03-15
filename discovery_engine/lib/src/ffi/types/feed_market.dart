@@ -25,8 +25,7 @@ extension FeedMarketFfi on FeedMarket {
   void writeNative(Pointer<RustMarket> place) {
     countryCode.writeNative(ffi.market_place_of_country_code(place));
     langCode.writeNative(ffi.market_place_of_lang_code(place));
-    //FIXME properly set it
-    ffi.init_market_news_quality_rank_limit(place);
+    ffi.finish_market_initialization(place);
   }
 
   static FeedMarket readNative(Pointer<RustMarket> market) {
