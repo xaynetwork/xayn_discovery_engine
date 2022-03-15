@@ -48,6 +48,7 @@ pub enum Error {
 
 /// Represents a Query to Newscatcher.
 pub trait Query: Seal + Sync {
+    /// Sets query specific parameters on given Newscatcher base URL.
     fn setup_url(&self, url: &mut Url) -> Result<(), Error>;
 }
 
