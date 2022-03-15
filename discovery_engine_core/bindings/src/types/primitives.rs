@@ -25,8 +25,8 @@ use super::{
 
 /// Type to represent "length" in FFI.
 ///
-/// Be aware that values returned are clamped
-/// to 2**32, e.g. for `Vec` the extern interface will
+/// Be aware that values returned are bounded
+/// by 2**32, e.g. for `Vec` the extern interface will
 /// only expose the first 2**32 elements of a
 /// `Vec`.
 // FIXME[dart >1.16]: Use AbiSpecificInteger.
@@ -42,9 +42,9 @@ impl FfiUsize {
         self.0 as usize
     }
 
-    /// Creates a instance from a `usize`.
+    /// Creates an instance from an `usize`.
     ///
-    /// The value is clamped to `2**32`.
+    /// The value is bounded by `2**32`.
     pub fn from_usize_lossy(v: usize) -> Self {
         Self(v.try_into().unwrap_or(u32::MAX))
     }

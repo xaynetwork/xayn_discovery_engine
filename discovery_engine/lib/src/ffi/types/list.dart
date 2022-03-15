@@ -40,7 +40,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
 
   /// Allocates a slice of `RustType` containing all items of this list.
   Pointer<RustType> createSlice(List<Type> list) {
-    checkFfiUsize(list.length, 'list.length');
+    checkFfiUsize(list.length, 'List.length');
     final slice = alloc(list.length);
     list.fold<Pointer<RustType>>(slice, (nextElement, market) {
       writeNative(market, nextElement);
@@ -54,7 +54,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
     final Pointer<RustType> ptr,
     final int len,
   ) {
-    checkFfiUsize(len, 'list.length');
+    checkFfiUsize(len, 'List.length');
     final out = <Type>[];
     Iterable<int>.generate(len).fold<Pointer<RustType>>(ptr, (nextElement, _) {
       out.add(readNative(nextElement));
@@ -68,7 +68,7 @@ class ListFfiAdapter<Type, RustType extends NativeType,
     final List<Type> list,
     final Pointer<RustVecType> place,
   ) {
-    checkFfiUsize(list.length, 'list.length');
+    checkFfiUsize(list.length, 'List.length');
     final slice = createSlice(list);
     writeNativeVec(place, slice, list.length);
   }

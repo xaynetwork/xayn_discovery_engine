@@ -75,7 +75,7 @@ class BoxedStr {
   factory BoxedStr.create(String string) {
     final utf8Bytes = utf8.encode(string);
     final len = utf8Bytes.length;
-    checkFfiUsize(len, 'string.len');
+    checkFfiUsize(len, 'String.len');
     final ptr = ffi.alloc_uninitialized_bytes(len);
     ptr.asTypedList(len).setAll(0, utf8Bytes);
     return BoxedStr.fromRawParts(ptr, len);
