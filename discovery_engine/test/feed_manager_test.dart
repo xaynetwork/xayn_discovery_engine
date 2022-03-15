@@ -68,7 +68,7 @@ Future<void> main() async {
   final stateBox =
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
   final excludedBox =
-      await Hive.openBox<Set<Uri>>(excludedSourcesBox, bytes: Uint8List(0));
+      await Hive.openBox<Set<String>>(excludedSourcesBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
@@ -202,8 +202,7 @@ Future<void> main() async {
 
   group('Excluded sources', () {
     setUp(() async {
-      final source = Uri(host: 'www.bbc.com');
-      await excludedSourcesRepo.save({source});
+      await excludedSourcesRepo.save({'www.bbc.com'});
     });
 
     tearDown(() async {
@@ -211,18 +210,12 @@ Future<void> main() async {
     });
 
     test('addExcludedSource', () async {
-      final excludedSoures = {
-        Uri(host: 'www.bbc.com'),
-        Uri(host: 'www.nytimes.com')
-      };
+      final excludedSoures = {'www.bbc.com', 'www.nytimes.com'};
+      const source1 = 'www.bbc.com';
+      const source2 = 'www.nytimes.com';
 
-      final source1 =
-          Uri.parse('https://www.bbc.com/politics/87654321-example-article');
-      final source2 =
-          Uri.parse('https://www.nytimes.com/live/2022/03/08/world/example');
-
-      final response1 = await mgr.addExcludedSource('$source1');
-      final response2 = await mgr.addExcludedSource('$source2');
+      final response1 = await mgr.addExcludedSource(source1);
+      final response2 = await mgr.addExcludedSource(source2);
 
       expect(response1, isA<ClientEventSucceeded>());
       expect(response2, isA<ClientEventSucceeded>());
@@ -230,26 +223,21 @@ Future<void> main() async {
     });
 
     test('removeExcludedSource', () async {
-      final excludedSoures = {
-        Uri(host: 'www.bbc.com'),
-        Uri(host: 'www.nytimes.com')
-      };
+      final excludedSoures = {'www.bbc.com', 'www.nytimes.com'};
       await excludedSourcesRepo.save(excludedSoures);
 
-      final source =
-          Uri.parse('https://www.bbc.com/politics/87654321-example-article');
-      final response = await mgr.removeExcludedSource('$source');
+      final response = await mgr.removeExcludedSource('www.bbc.com');
 
       expect(response, isA<ClientEventSucceeded>());
-      expect(excludedBox.values.first, equals({Uri(host: 'www.nytimes.com')}));
+      expect(excludedBox.values.first, equals({'www.nytimes.com'}));
     });
 
     test('getExcludedSourcesList', () async {
       final excludedSoures = {
-        Uri(host: 'theguardian.com'),
-        Uri(host: 'bbc.co.uk'),
-        Uri(host: 'wsj.com'),
-        Uri(host: 'www.nytimes.com')
+        'theguardian.com',
+        'bbc.co.uk',
+        'wsj.com',
+        'www.nytimes.com',
       };
       await excludedSourcesRepo.save(excludedSoures);
 

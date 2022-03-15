@@ -73,7 +73,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.excludedSourceRemovedResponse =
         const EngineEvent.clientEventSucceeded(),
     this.excludedSourcesListRequestedResponse =
-        const EngineEvent.excludedSourcesListRequestSucceeded(<Uri>{}),
+        const EngineEvent.excludedSourcesListRequestSucceeded({'example.com'}),
   }) : super(initialMessage);
 
   @override

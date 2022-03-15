@@ -141,13 +141,11 @@ class FeedManager {
 
   /// Adds a source to excluded sources set.
   Future<EngineEvent> addExcludedSource(String source) async {
-    final uri = _sanitizeSource(source);
-    if (uri == null) {
-      const reason = EngineExceptionReason.genericError;
-      return const EngineEvent.engineExceptionRaised(reason);
+    if (source.isEmpty) {
+      throw ArgumentError('source "$source" can\'t be empty');
     }
     final sources = await _excludedSourcesRepository.getAll();
-    sources.add(uri);
+    sources.add(source);
     await _excludedSourcesRepository.save(sources);
     // TODO: send updated sources to the engine
     return const EngineEvent.clientEventSucceeded();
@@ -155,13 +153,11 @@ class FeedManager {
 
   /// Removes a source to excluded sources set.
   Future<EngineEvent> removeExcludedSource(String source) async {
-    final uri = _sanitizeSource(source);
-    if (uri == null) {
-      const reason = EngineExceptionReason.genericError;
-      return const EngineEvent.engineExceptionRaised(reason);
+    if (source.isEmpty) {
+      throw ArgumentError('source "$source" can\'t be empty');
     }
     final sources = await _excludedSourcesRepository.getAll();
-    sources.remove(uri);
+    sources.remove(source);
     await _excludedSourcesRepository.save(sources);
     // TODO: send updated sources to the engine
     return const EngineEvent.clientEventSucceeded();
@@ -171,11 +167,5 @@ class FeedManager {
   Future<EngineEvent> getExcludedSourcesList() async {
     final sources = await _excludedSourcesRepository.getAll();
     return EngineEvent.excludedSourcesListRequestSucceeded(sources);
-  }
-
-  Uri? _sanitizeSource(String source) {
-    final uri = Uri.tryParse(source);
-    if (uri == null) return uri;
-    return Uri(host: uri.host);
   }
 }

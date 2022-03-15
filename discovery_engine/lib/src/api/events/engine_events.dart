@@ -130,7 +130,7 @@ class EngineEvent with _$EngineEvent {
   /// Passes a set of [Uri] of excluded sources back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.excludedSourcesListRequestSucceeded(
-    Set<Uri> excludedSources,
+    Set<String> excludedSources,
   ) = ExcludedSourcesListRequestSucceeded;
 
   /// Event created as a failure response to ExcludedSourcesListRequested event.

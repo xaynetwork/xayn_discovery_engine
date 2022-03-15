@@ -363,7 +363,7 @@ class BadEngineEvent implements EngineEvent {
     )?
         nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
-    TResult Function(Set<Uri> excludedSources)?
+    TResult Function(Set<String> excludedSources)?
         excludedSourcesListRequestSucceeded,
     TResult Function()? excludedSourcesListRequestFailed,
     TResult Function()? fetchingAssetsStarted,
@@ -409,7 +409,7 @@ class BadEngineEvent implements EngineEvent {
     )
         nextFeedBatchRequestFailed,
     required TResult Function() nextFeedBatchAvailable,
-    required TResult Function(Set<Uri> excludedSources)
+    required TResult Function(Set<String> excludedSources)
         excludedSourcesListRequestSucceeded,
     required TResult Function() excludedSourcesListRequestFailed,
     required TResult Function() fetchingAssetsStarted,
@@ -451,7 +451,7 @@ class BadEngineEvent implements EngineEvent {
     )?
         nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
-    TResult Function(Set<Uri> excludedSources)?
+    TResult Function(Set<String> excludedSources)?
         excludedSourcesListRequestSucceeded,
     TResult Function()? excludedSourcesListRequestFailed,
     TResult Function()? fetchingAssetsStarted,

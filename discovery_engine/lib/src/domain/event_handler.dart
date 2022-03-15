@@ -309,7 +309,7 @@ class EventHandler {
       _openDbBox<Uint8List>(changedDocumentIdBox),
       _openDbBox<Uint8List>(engineStateBox),
       _openDbBox<ActiveSearch>(searchBox),
-      _openDbBox<Set<Uri>>(excludedSourcesBox),
+      _openDbBox<Set<String>>(excludedSourcesBox),
     ]);
   }
 

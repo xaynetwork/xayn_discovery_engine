@@ -265,7 +265,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Returns a [Set<Uri>] with excluded sources.
+  /// Returns a [Set<String>] with excluded sources.
   ///
   /// In response it can return:
   /// - [ExcludedSourcesListRequestSucceeded] indicating a successful operation,
