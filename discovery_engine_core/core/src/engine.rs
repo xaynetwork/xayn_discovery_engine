@@ -406,9 +406,9 @@ where
                 common: CommonQueryParts {
                     market,
                     page_size: scaled_page_size,
+                    page: page as usize,
                 },
                 filter,
-                page: Some(page as usize),
             };
             match client.query_articles(&news_query).await {
                 Ok(batch) => articles.extend(batch),

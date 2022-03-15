@@ -43,8 +43,8 @@ async fn main() -> Result<()> {
             common: CommonQueryParts {
                 market: &market,
                 page_size: 100,
+                page,
             },
-            page,
         };
         let raw_response = client.query_newscatcher(&params).await.unwrap();
         total_pages = raw_response.total_pages;

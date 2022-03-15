@@ -119,8 +119,8 @@ fn spawn_headlines_request(
             common: CommonQueryParts {
                 market: &market,
                 page_size,
+                page: 1,
             },
-            page: 1,
         };
         client.query_articles(&query).await
     })

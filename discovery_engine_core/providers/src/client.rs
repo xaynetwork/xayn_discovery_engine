@@ -58,15 +58,14 @@ pub struct CommonQueryParts<'a> {
     pub market: &'a Market,
     /// How many articles to return (per page).
     pub page_size: usize,
+    /// The number of the page which should be returned.
+    ///
+    /// Paging starts with `1`.
+    pub page: usize,
 }
 
 impl CommonQueryParts<'_> {
-    fn setup_url(
-        &self,
-        url: &mut Url,
-        single_path_element_suffix: &str,
-        page: Option<usize>,
-    ) -> Result<(), Error> {
+    fn setup_url(&self, url: &mut Url, single_path_element_suffix: &str) -> Result<(), Error> {
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
             .push(single_path_element_suffix);
@@ -75,11 +74,9 @@ impl CommonQueryParts<'_> {
         query
             .append_pair("lang", &self.market.lang_code)
             .append_pair("countries", &self.market.country_code)
-            .append_pair("page_size", &self.page_size.to_string());
-
-        if let Some(page) = page {
-            query.append_pair("page", &page.to_string());
-        }
+            .append_pair("page_size", &self.page_size.to_string())
+            // FIXME Consider cmp::min(self.page, 1) or explicit error variant
+            .append_pair("page", &self.page.to_string());
 
         Ok(())
     }
@@ -91,8 +88,6 @@ pub struct NewsQuery<'a, F> {
     pub common: CommonQueryParts<'a>,
     /// News filter.
     pub filter: F,
-    /// Page number.
-    pub page: Option<usize>,
 }
 
 impl<F> Query for NewsQuery<'_, F>
@@ -100,7 +95,7 @@ where
     F: Deref<Target = Filter> + Sync,
 {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_sn", self.page)?;
+        self.common.setup_url(url, "_sn")?;
 
         url.query_pairs_mut()
             .append_pair("sort_by", "relevancy")
@@ -116,13 +111,11 @@ impl<T> Seal for NewsQuery<'_, T> {}
 pub struct HeadlinesQuery<'a> {
     /// Common parts
     pub common: CommonQueryParts<'a>,
-    /// Page number.
-    pub page: usize,
 }
 
 impl Query for HeadlinesQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_lh", Some(self.page))
+        self.common.setup_url(url, "_lh")
     }
 }
 
@@ -232,9 +225,9 @@ mod tests {
             common: CommonQueryParts {
                 market,
                 page_size: 2,
+                page: 1,
             },
             filter,
-            page: Some(1),
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -278,9 +271,9 @@ mod tests {
             common: CommonQueryParts {
                 market,
                 page_size: 2,
+                page: 1,
             },
             filter,
-            page: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -320,8 +313,8 @@ mod tests {
                     country_code: "US".to_string(),
                 },
                 page_size: 2,
+                page: 1,
             },
-            page: 1,
         };
 
         let docs = client.query_articles(&params).await.unwrap();

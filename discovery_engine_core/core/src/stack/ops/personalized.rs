@@ -135,9 +135,9 @@ fn spawn_news_request(
             common: CommonQueryParts {
                 market: &market,
                 page_size,
+                page: 1,
             },
             filter,
-            page: None,
         };
 
         client.query_articles(&query).await
