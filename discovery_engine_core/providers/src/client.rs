@@ -73,17 +73,12 @@ where
             .map_err(|_| Error::InvalidUrlBase(None))?
             .push("_sn");
 
-        let mut query = url.query_pairs_mut();
+        let query = &mut url.query_pairs_mut();
+        add_marked_to_query(query, &self.market);
+        add_page_info_to_query(query, self.page_size, self.page);
         query
             .append_pair("sort_by", "relevancy")
-            .append_pair("lang", &self.market.lang_code)
-            .append_pair("countries", &self.market.country_code)
-            .append_pair("page_size", &self.page_size.to_string())
             .append_pair("q", &self.filter.build());
-
-        if let Some(page) = self.page {
-            query.append_pair("page", &page.to_string());
-        }
 
         Ok(())
     }
@@ -106,16 +101,29 @@ impl Query for HeadlinesQuery<'_> {
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
             .push("_lh");
-        url.query_pairs_mut()
-            .append_pair("lang", &self.market.lang_code)
-            .append_pair("countries", &self.market.country_code)
-            .append_pair("page_size", &self.page_size.to_string())
-            .append_pair("page", &self.page.to_string());
+        let query = &mut url.query_pairs_mut();
+        add_marked_to_query(query, &self.market);
+        add_page_info_to_query(query, self.page_size, Some(self.page));
         Ok(())
     }
 }
 
 impl Seal for HeadlinesQuery<'_> {}
+
+type QuerySerializer<'a> = url::form_urlencoded::Serializer<'a, url::UrlQuery<'a>>;
+
+fn add_marked_to_query(query: &mut QuerySerializer<'_>, market: &Market) {
+    query
+        .append_pair("lang", &market.lang_code)
+        .append_pair("countries", &market.country_code);
+}
+
+fn add_page_info_to_query(query: &mut QuerySerializer<'_>, page_size: usize, page: Option<usize>) {
+    query.append_pair("page_size", &page_size.to_string());
+    if let Some(page) = page {
+        query.append_pair("page", &page.to_string());
+    }
+}
 
 /// Client that can provide documents.
 #[derive(Default)]
