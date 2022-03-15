@@ -21,6 +21,8 @@ use ndarray::Array;
 use crate::types::slice::boxed_slice_from_raw_parts;
 use xayn_discovery_engine_core::document::Embedding;
 
+use super::primitives::FfiUsize;
+
 /// Creates a rust `Embedding` with given capacity at given memory address.
 ///
 /// # Safety
@@ -32,7 +34,7 @@ use xayn_discovery_engine_core::document::Embedding;
 pub unsafe extern "C" fn init_embedding_at(
     place: *mut Embedding,
     owning_ptr: *mut f32,
-    len: usize,
+    len: FfiUsize,
 ) {
     let boxed_slice = unsafe { boxed_slice_from_raw_parts::<f32>(owning_ptr, len) };
     let embedding = Embedding::from(Array::from(boxed_slice));
@@ -65,11 +67,13 @@ pub unsafe extern "C" fn get_embedding_buffer(embedding: *const Embedding) -> *c
 // tests. If that isn't the case anymore it should be considered to
 // change this interface, e.g. to support reading a buffer with strides.
 #[no_mangle]
-pub unsafe extern "C" fn get_embedding_buffer_len(embedding: *mut Embedding) -> usize {
-    unsafe { &*embedding }
+pub unsafe extern "C" fn get_embedding_buffer_len(embedding: *mut Embedding) -> FfiUsize {
+    let len = unsafe { &*embedding }
         .as_slice()
         .unwrap_or_else(|| abort())
-        .len()
+        .len();
+
+    FfiUsize::from_usize_lossy(len)
 }
 
 /// Alloc an uninitialized `Box<Embedding>`, mainly used for testing.
@@ -104,7 +108,7 @@ mod tests {
         let read = unsafe {
             let buffer_view = slice::from_raw_parts(
                 get_embedding_buffer(embedding),
-                get_embedding_buffer_len(embedding),
+                get_embedding_buffer_len(embedding).to_usize(),
             );
             Embedding::from(Array::from_vec(buffer_view.to_owned()))
         };
@@ -114,11 +118,11 @@ mod tests {
     #[test]
     fn test_writing_embedding_works() {
         let embedding = arbitrary_embedding();
-        let len = embedding.len();
+        let len = FfiUsize::from_usize_lossy(embedding.len());
         let place: &mut Embedding = &mut Embedding::from(arr1(&[]));
         unsafe {
             let data_ptr = alloc_uninitialized_f32_slice(len);
-            ptr::copy(embedding.as_ptr(), data_ptr, len);
+            ptr::copy(embedding.as_ptr(), data_ptr, len.to_usize());
             init_embedding_at(place, data_ptr, len);
         }
         assert_eq!(*place, embedding);

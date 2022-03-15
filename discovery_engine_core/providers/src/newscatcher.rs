@@ -64,7 +64,7 @@ pub struct Article {
 
     /// The page rank of the source website.
     #[serde(deserialize_with = "deserialize_rank")]
-    pub rank: usize,
+    pub rank: u64,
 
     /// The domain of the article's source, e.g. `xayn.com`. Not a valid URL.
     #[serde(
@@ -130,12 +130,12 @@ where
 }
 
 /// Null-value tolerant deserialization of rank
-fn deserialize_rank<'de, D>(deserializer: D) -> Result<usize, D::Error>
+fn deserialize_rank<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
     D: Deserializer<'de>,
 {
     let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or(usize::MAX))
+    Ok(opt.unwrap_or(u64::MAX))
 }
 
 /// Null-value tolerant deserialization of topic
