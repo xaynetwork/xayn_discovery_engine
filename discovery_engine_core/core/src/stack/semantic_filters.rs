@@ -14,18 +14,15 @@
 
 use std::collections::BTreeMap;
 
+use itertools::Itertools;
 use kodama::{linkage, Dendrogram, Method};
 use xayn_ai::ranker::pairwise_cosine_similarity;
 
 use crate::document::Document;
 
-/// Determines the clusters with an agglomerative clustering approach.
+/// Agglomerates clusters wrt the documents' embeddings.
 #[allow(dead_code)]
-fn determine_semantic_clusters(
-    documents: &[Document],
-    method: Method,
-    distance_threshold: f32,
-) -> Vec<usize> {
+fn determine_semantic_clusters(documents: &[Document], distance_threshold: f32) -> Vec<usize> {
     if documents.len() < 2 {
         return vec![0; documents.len()];
     }
@@ -36,7 +33,11 @@ fn determine_semantic_clusters(
         (documents.len() * (documents.len() - 1)) / 2,
     );
 
-    let dendrogram = linkage(&mut condensed_dissimilarity_matrix, documents.len(), method);
+    let dendrogram = linkage(
+        &mut condensed_dissimilarity_matrix,
+        documents.len(),
+        Method::Average,
+    );
     cut_tree(&dendrogram, distance_threshold)
 }
 
@@ -50,6 +51,94 @@ fn condensed_cosine_distance(documents: &[Document]) -> Vec<f32> {
     .indexed_iter()
     .filter_map(|((i, j), &similarity)| (i < j).then(|| 1. - similarity))
     .collect()
+}
+
+/// Agglomerates clusters wrt the documents' publication date differences.
+#[allow(dead_code)]
+fn determine_date_clusters(
+    documents: &[Document],
+    labels: &[usize],
+    date_threshold: f32,
+) -> Vec<usize> {
+    debug_assert_eq!(documents.len(), labels.len());
+    let clusters = labels.iter().enumerate().fold(
+        BTreeMap::<_, Vec<_>>::new(),
+        |mut clusters, (idx, &label)| {
+            clusters.entry(label).or_default().push(idx);
+            clusters
+        },
+    );
+
+    let (_, labels) = clusters.into_values().fold(
+        (0, vec![0; labels.len()]),
+        |(label, mut labels), cluster| {
+            let label =
+                determine_date_subcluster(documents, &mut labels, date_threshold, cluster, label);
+            (label, labels)
+        },
+    );
+
+    labels
+}
+
+/// Agglomerates subclusters of a semantic cluster wrt the documents' publication date differences.
+fn determine_date_subcluster(
+    documents: &[Document],
+    labels: &mut [usize],
+    date_threshold: f32,
+    cluster: Vec<usize>,
+    label: usize,
+) -> usize {
+    debug_assert!(cluster.iter().copied().max().unwrap() < labels.len());
+    if cluster.len() < 2 {
+        labels[cluster[0]] = label;
+        return label + 1;
+    }
+
+    let mut condensed_dissimilarity_matrix = condensed_date_distance(documents, &cluster);
+    debug_assert_eq!(
+        condensed_dissimilarity_matrix.len(),
+        (cluster.len() * (cluster.len() - 1)) / 2,
+    );
+
+    let dendrogram = linkage(
+        &mut condensed_dissimilarity_matrix,
+        cluster.len(),
+        Method::Average,
+    );
+    let sublabels = cut_tree(&dendrogram, date_threshold);
+    let offset = cluster
+        .into_iter()
+        .zip(sublabels)
+        .fold(0, |offset, (idx, sublabel)| {
+            labels[idx] = label + sublabel;
+            offset.max(sublabel)
+        });
+
+    label + 1 + offset
+}
+
+/// Computes the condensed date distance matrix (in days) of the documents' publication dates.
+fn condensed_date_distance(documents: &[Document], cluster: &[usize]) -> Vec<f32> {
+    let dates = || {
+        documents
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, document)| {
+                cluster
+                    .contains(&idx)
+                    .then(|| document.resource.date_published)
+            })
+            .enumerate()
+    };
+
+    dates()
+        .cartesian_product(dates())
+        .filter_map(|((i, this), (j, other))| {
+            #[allow(clippy::cast_precision_loss)] // day difference is small
+            (i < j).then(|| (this - other).num_days().abs() as f32)
+        })
+        .collect()
 }
 
 /// Cuts off the dendrogram at the first step which exceeds the distance/dissimilarity threshold.
@@ -99,25 +188,64 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cluster_empty_documents() {
-        let labels = determine_semantic_clusters(&[], Method::Average, 1.);
+    fn test_semantic_cluster_empty_documents() {
+        let labels = determine_semantic_clusters(&[], 1.);
         assert!(labels.is_empty());
     }
 
     #[test]
-    fn test_cluster_single_document() {
-        let labels = determine_semantic_clusters(&[Document::default()], Method::Average, 1.);
+    fn test_semantic_cluster_single_document() {
+        let labels = determine_semantic_clusters(&[Document::default()], 1.);
         assert_eq!(labels, [0]);
     }
 
     #[test]
-    fn test_cluster_multiple_documents() {
-        let labels = determine_semantic_clusters(
-            &[Document::default(), Document::default()],
-            Method::Average,
-            1.,
-        );
+    fn test_semantic_cluster_multiple_documents() {
+        let labels = determine_semantic_clusters(&[Document::default(), Document::default()], 1.);
         assert_eq!(labels, [0, 0]);
+    }
+
+    #[test]
+    fn test_date_cluster_empty_documents() {
+        let labels = determine_date_clusters(&[], &[], 1.);
+        assert!(labels.is_empty());
+    }
+
+    #[test]
+    fn test_date_cluster_single_document() {
+        let labels = determine_date_clusters(&[Document::default()], &[0], 1.);
+        assert_eq!(labels, [0]);
+    }
+
+    #[test]
+    fn test_date_cluster_multiple_documents() {
+        let labels =
+            determine_date_clusters(&[Document::default(), Document::default()], &[0, 0], 1.);
+        assert_eq!(labels, [0, 0]);
+    }
+
+    #[test]
+    fn test_date_subcluster() {
+        let documents = [
+            Document::default(), // 1
+            Document::default(), // 0
+            Document::default(), // 1
+            Document::default(), // 2
+        ];
+        let label = 0;
+        let mut labels = [0, 0, 0, 0];
+
+        let label = determine_date_subcluster(&documents, &mut labels, 1., vec![1], label);
+        assert_eq!(label, 1);
+        assert_eq!(labels, [0, 0, 0, 0]);
+
+        let label = determine_date_subcluster(&documents, &mut labels, 1., vec![0, 2], label);
+        assert_eq!(label, 2);
+        assert_eq!(labels, [1, 0, 1, 0]);
+
+        let label = determine_date_subcluster(&documents, &mut labels, 1., vec![3], label);
+        assert_eq!(label, 3);
+        assert_eq!(labels, [1, 0, 1, 2]);
     }
 
     #[test]
