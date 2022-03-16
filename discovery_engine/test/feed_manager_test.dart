@@ -237,11 +237,6 @@ Future<void> main() async {
       expect(() => mgr.removeExcludedSource(''), throwsArgumentError);
     });
 
-    test('when removing source not stored with documents throw "ArgumentError"',
-        () async {
-      expect(() => mgr.removeExcludedSource('bbc.co.uk'), throwsArgumentError);
-    });
-
     test('addExcludedSource', () async {
       final excludedSoures = {'www.bbc.com', 'www.nytimes.com'};
       const source1 = 'www.bbc.com';

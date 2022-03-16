@@ -139,7 +139,8 @@ class FeedManager {
     return const EngineEvent.clientEventSucceeded();
   }
 
-  Future<void> _throwIfInvalidSource(String source) async {
+  /// Adds a source to excluded sources set.
+  Future<EngineEvent> addExcludedSource(String source) async {
     if (source.isEmpty) {
       throw ArgumentError('source can\'t be empty');
     }
@@ -154,11 +155,7 @@ class FeedManager {
     if (!doesExist) {
       throw ArgumentError('source $source not found in database');
     }
-  }
 
-  /// Adds a source to excluded sources set.
-  Future<EngineEvent> addExcludedSource(String source) async {
-    await _throwIfInvalidSource(source);
     final sources = await _excludedSourcesRepository.getAll();
     sources.add(source);
     await _excludedSourcesRepository.save(sources);
@@ -168,7 +165,10 @@ class FeedManager {
 
   /// Removes a source to excluded sources set.
   Future<EngineEvent> removeExcludedSource(String source) async {
-    await _throwIfInvalidSource(source);
+    if (source.isEmpty) {
+      throw ArgumentError('source can\'t be empty');
+    }
+
     final sources = await _excludedSourcesRepository.getAll();
     sources.remove(source);
     await _excludedSourcesRepository.save(sources);
