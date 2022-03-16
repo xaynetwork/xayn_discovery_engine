@@ -147,6 +147,7 @@ impl Client {
     /// Configures the timeout.
     ///
     /// The timeout defaults to 3.5s.
+    #[must_use = "dropped changed client"]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self

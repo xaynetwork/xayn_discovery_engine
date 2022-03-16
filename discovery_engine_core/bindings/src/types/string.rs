@@ -156,8 +156,9 @@ pub unsafe extern "C" fn drop_option_string(boxed: *mut Option<String>) {
 
 #[cfg(test)]
 mod tests {
+    use std::{ptr::addr_of_mut, slice};
+
     use super::*;
-    use std::slice;
 
     #[test]
     fn test_writing_string_works() {
@@ -176,7 +177,7 @@ mod tests {
     fn test_reading_string_works() {
         let mut string = "lzkljwejguojgheujkhgj".to_owned();
         let bytes = unsafe {
-            let ptr = (&mut string as *mut String).cast();
+            let ptr = addr_of_mut!(string);
             let len = get_string_len(ptr);
             let data_ptr = get_string_buffer(ptr);
             slice::from_raw_parts(data_ptr, len.to_usize()).to_owned()
