@@ -170,7 +170,7 @@ class DiscoveryEngineFfi implements Engine {
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
-        .toDocumentListWithActiveData();
+        .toDocumentListWithActiveData(searched: true);
   }
 
   /// Disposes the engine.

@@ -70,11 +70,16 @@ class DocumentFfi with EquatableMixin {
     resource.writeNative(ffi.document_place_of_resource(place));
   }
 
-  Document toDocument({required int batchIndex}) => Document(
+  Document toDocument({
+    required int batchIndex,
+    bool isSearched = false,
+  }) =>
+      Document(
         documentId: id,
         stackId: stackId,
         resource: resource,
         batchIndex: batchIndex,
+        isSearched: isSearched,
       );
 
   ActiveDocumentData toActiveDocumentData() =>
