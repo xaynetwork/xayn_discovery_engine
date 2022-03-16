@@ -202,10 +202,25 @@ Future<void> main() async {
 
   group('Excluded sources', () {
     setUp(() async {
+      final stackId = StackId();
+      final doc1 = Document(
+        documentId: DocumentId(),
+        stackId: stackId,
+        batchIndex: 1,
+        resource: mockNewsResource.copyWith(sourceDomain: 'www.nytimes.com'),
+      );
+      final doc2 = Document(
+        documentId: DocumentId(),
+        stackId: stackId,
+        batchIndex: 2,
+        resource: mockNewsResource.copyWith(sourceDomain: 'www.bbc.com'),
+      );
+      await docRepo.updateMany([doc1, doc2]);
       await excludedSourcesRepo.save({'www.bbc.com'});
     });
 
     tearDown(() async {
+      await docBox.clear();
       await excludedBox.clear();
     });
 
@@ -213,8 +228,18 @@ Future<void> main() async {
       expect(() => mgr.addExcludedSource(''), throwsArgumentError);
     });
 
+    test('when adding source not stored with documents throw "ArgumentError"',
+        () async {
+      expect(() => mgr.addExcludedSource('example.com'), throwsArgumentError);
+    });
+
     test('when removing empty source throw "ArgumentError"', () async {
       expect(() => mgr.removeExcludedSource(''), throwsArgumentError);
+    });
+
+    test('when removing source not stored with documents throw "ArgumentError"',
+        () async {
+      expect(() => mgr.removeExcludedSource('bbc.co.uk'), throwsArgumentError);
     });
 
     test('addExcludedSource', () async {
@@ -231,8 +256,7 @@ Future<void> main() async {
     });
 
     test('removeExcludedSource', () async {
-      final excludedSoures = {'www.bbc.com', 'www.nytimes.com'};
-      await excludedSourcesRepo.save(excludedSoures);
+      await excludedSourcesRepo.save({'www.nytimes.com'});
 
       final response = await mgr.removeExcludedSource('www.bbc.com');
 
