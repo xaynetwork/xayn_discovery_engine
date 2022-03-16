@@ -33,8 +33,7 @@ use crate::{
     document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::{
-        filters::{ArticleFilter, CommonFilter},
-        semantic_filters::{filter_semantically, SemanticFilterConfig},
+        filters::{filter_semantically, ArticleFilter, CommonFilter, SemanticFilterConfig},
         Id,
     },
 };

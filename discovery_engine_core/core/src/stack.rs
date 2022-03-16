@@ -32,7 +32,6 @@ use crate::{
 mod data;
 mod filters;
 mod ops;
-mod semantic_filters;
 
 pub use self::ops::Ops;
 pub(crate) use self::{
