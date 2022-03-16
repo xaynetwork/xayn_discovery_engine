@@ -30,7 +30,7 @@ use xayn_ai::{
     KpeConfig,
     SMBertConfig,
 };
-use xayn_discovery_engine_providers::{Client, Filter, Market, NewsQuery};
+use xayn_discovery_engine_providers::{Client, CommonQueryParts, Filter, Market, NewsQuery};
 
 use crate::{
     document::{
@@ -403,12 +403,14 @@ where
         let scaled_page_size = page_size as usize / markets.len() + 1;
         for market in markets.iter() {
             let news_query = NewsQuery {
-                market,
+                common: CommonQueryParts {
+                    market,
+                    page_size: scaled_page_size,
+                    page: page as usize,
+                },
                 filter,
-                page_size: scaled_page_size,
-                page: Some(page as usize),
             };
-            match client.news(&news_query).await {
+            match client.query_articles(&news_query).await {
                 Ok(batch) => articles.extend(batch),
                 Err(err) => errors.push(Error::Client(err.into())),
             };

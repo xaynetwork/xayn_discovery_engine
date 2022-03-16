@@ -23,6 +23,7 @@ use url::Url;
 use crate::{
     filter::{Filter, Market},
     newscatcher::{Article, Response as NewscatcherResponse},
+    seal::Seal,
 };
 
 /// Client errors.
@@ -45,34 +46,87 @@ pub enum Error {
     ),
 }
 
+/// Represents a Query to Newscatcher.
+pub trait Query: Seal + Sync {
+    /// Sets query specific parameters on given Newscatcher base URL.
+    fn setup_url(&self, url: &mut Url) -> Result<(), Error>;
+}
+
+/// Elements shared between various Newscatcher queries.
+pub struct CommonQueryParts<'a> {
+    /// Market of news.
+    pub market: &'a Market,
+    /// How many articles to return (per page).
+    pub page_size: usize,
+    /// The number of the page which should be returned.
+    ///
+    /// Paging starts with `1`.
+    pub page: usize,
+}
+
+impl CommonQueryParts<'_> {
+    fn setup_url(&self, url: &mut Url, single_path_element_suffix: &str) -> Result<(), Error> {
+        url.path_segments_mut()
+            .map_err(|_| Error::InvalidUrlBase(None))?
+            .push(single_path_element_suffix);
+
+        let query = &mut url.query_pairs_mut();
+        query
+            .append_pair("lang", &self.market.lang_code)
+            .append_pair("countries", &self.market.country_code)
+            .append_pair("page_size", &self.page_size.to_string())
+            // FIXME Consider cmp::min(self.page, 1) or explicit error variant
+            .append_pair("page", &self.page.to_string());
+
+        Ok(())
+    }
+}
+
+/// Parameters determining which news to fetch
+pub struct NewsQuery<'a, F> {
+    /// Common parts
+    pub common: CommonQueryParts<'a>,
+    /// News filter.
+    pub filter: F,
+}
+
+impl<F> Query for NewsQuery<'_, F>
+where
+    F: Deref<Target = Filter> + Sync,
+{
+    fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
+        self.common.setup_url(url, "_sn")?;
+
+        url.query_pairs_mut()
+            .append_pair("sort_by", "relevancy")
+            .append_pair("q", &self.filter.build());
+
+        Ok(())
+    }
+}
+
+impl<T> Seal for NewsQuery<'_, T> {}
+
+/// Parameters determining which headlines to fetch
+pub struct HeadlinesQuery<'a> {
+    /// Common parts
+    pub common: CommonQueryParts<'a>,
+}
+
+impl Query for HeadlinesQuery<'_> {
+    fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
+        self.common.setup_url(url, "_lh")
+    }
+}
+
+impl Seal for HeadlinesQuery<'_> {}
+
 /// Client that can provide documents.
 #[derive(Default)]
 pub struct Client {
     token: String,
     url: String,
     timeout: Duration,
-}
-
-/// Parameters determining which news to fetch
-pub struct NewsQuery<'a, F> {
-    /// Market of news.
-    pub market: &'a Market,
-    /// News filter.
-    pub filter: F,
-    /// How many articles to return (per page).
-    pub page_size: usize,
-    /// Page number.
-    pub page: Option<usize>,
-}
-
-/// Parameters determining which headlines to fetch
-pub struct HeadlinesQuery<'a> {
-    /// Market of headlines.
-    pub market: &'a Market,
-    /// How many articles to return (per page).
-    pub page_size: usize,
-    /// Which page of the results to return.
-    pub page: usize,
 }
 
 impl Client {
@@ -93,66 +147,20 @@ impl Client {
         self
     }
 
-    /// Retrieve news from the remote API
-    pub async fn news(
-        &self,
-        params: &NewsQuery<'_, impl Deref<Target = Filter> + Send + Sync>,
-    ) -> Result<Vec<Article>, Error> {
-        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
-        Self::build_news_query(&mut url, params)?;
-
-        let c = reqwest::Client::new();
-        let response = c
-            .get(url)
-            .timeout(self.timeout)
-            .bearer_auth(&self.token)
-            .send()
+    /// Run a query for fetching `Article`s from Newscatcher.
+    pub async fn query_articles(&self, query: &impl Query) -> Result<Vec<Article>, Error> {
+        self.query_newscatcher(query)
             .await
-            .map_err(Error::RequestExecution)?
-            .error_for_status()
-            .map_err(Error::StatusCode)?;
-
-        let news: NewscatcherResponse = response.json().await.map_err(Error::Fetching)?;
-        let result: Vec<Article> = news.articles.into_iter().collect();
-        Ok(result)
+            .map(|news| news.articles)
     }
 
-    fn build_news_query(
-        url: &mut Url,
-        params: &NewsQuery<'_, impl Deref<Target = Filter> + Send + Sync>,
-    ) -> Result<(), Error> {
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push("_sn");
-        let mut query = url.query_pairs_mut();
-        query
-            .append_pair("sort_by", "relevancy")
-            .append_pair("lang", &params.market.lang_code)
-            .append_pair("countries", &params.market.country_code)
-            .append_pair("page_size", &params.page_size.to_string())
-            .append_pair("q", &params.filter.build());
-
-        if let Some(page) = params.page {
-            query.append_pair("page", &page.to_string());
-        }
-
-        Ok(())
-    }
-
-    /// Retrieve headlines from the remote API
-    pub async fn headlines(&self, params: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
-        let news = self.headlines_query(params).await?;
-        let result: Vec<Article> = news.articles.into_iter().collect();
-        Ok(result)
-    }
-
-    /// Performs a query to retrieve headlines against the Newscatcher API
-    pub async fn headlines_query(
+    /// Run a query against Newscatcher.
+    pub async fn query_newscatcher(
         &self,
-        params: &HeadlinesQuery<'_>,
+        query: &impl Query,
     ) -> Result<NewscatcherResponse, Error> {
         let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
-        Self::build_headlines_query(&mut url, params)?;
+        query.setup_url(&mut url)?;
 
         let c = reqwest::Client::new();
         let response = c
@@ -165,22 +173,10 @@ impl Client {
             .error_for_status()
             .map_err(Error::StatusCode)?;
 
-        let raw_response = response.text().await.map_err(Error::Fetching)?;
-        let deserializer = &mut serde_json::Deserializer::from_str(&raw_response);
+        let raw_response = response.bytes().await.map_err(Error::Fetching)?;
+        let deserializer = &mut serde_json::Deserializer::from_slice(&raw_response);
         serde_path_to_error::deserialize(deserializer)
             .map_err(|error| Error::DecodingAtPath(error.path().to_string(), error))
-    }
-
-    fn build_headlines_query(url: &mut Url, params: &HeadlinesQuery<'_>) -> Result<(), Error> {
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push("_lh");
-        url.query_pairs_mut()
-            .append_pair("lang", &params.market.lang_code)
-            .append_pair("countries", &params.market.country_code)
-            .append_pair("page_size", &params.page_size.to_string())
-            .append_pair("page", &params.page.to_string());
-        Ok(())
     }
 }
 
@@ -226,13 +222,15 @@ mod tests {
         let filter = &Filter::default().add_keyword("Climate change");
 
         let params = NewsQuery {
-            market,
+            common: CommonQueryParts {
+                market,
+                page_size: 2,
+                page: 1,
+            },
             filter,
-            page_size: 2,
-            page: Some(1),
         };
 
-        let docs = client.news(&params).await.unwrap();
+        let docs = client.query_articles(&params).await.unwrap();
 
         assert_eq!(docs.len(), 2);
 
@@ -270,13 +268,15 @@ mod tests {
             .add_keyword("Tim Cook");
 
         let params = NewsQuery {
-            market,
+            common: CommonQueryParts {
+                market,
+                page_size: 2,
+                page: 1,
+            },
             filter,
-            page_size: 2,
-            page: None,
         };
 
-        let docs = client.news(&params).await.unwrap();
+        let docs = client.query_articles(&params).await.unwrap();
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(0).unwrap();
@@ -307,15 +307,17 @@ mod tests {
             .await;
 
         let params = HeadlinesQuery {
-            market: &Market {
-                lang_code: "en".to_string(),
-                country_code: "US".to_string(),
+            common: CommonQueryParts {
+                market: &Market {
+                    lang_code: "en".to_string(),
+                    country_code: "US".to_string(),
+                },
+                page_size: 2,
+                page: 1,
             },
-            page_size: 2,
-            page: 1,
         };
 
-        let docs = client.headlines(&params).await.unwrap();
+        let docs = client.query_articles(&params).await.unwrap();
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(1).unwrap();

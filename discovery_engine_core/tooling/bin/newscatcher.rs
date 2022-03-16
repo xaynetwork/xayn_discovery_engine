@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use anyhow::{Context, Result};
-use xayn_discovery_engine_providers::{Client, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{Client, CommonQueryParts, HeadlinesQuery, Market};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -40,11 +40,13 @@ async fn main() -> Result<()> {
     while page <= total_pages {
         println!("Fetching page {} of {}", page, total_pages);
         let params = HeadlinesQuery {
-            market: &market,
-            page_size: 100,
-            page,
+            common: CommonQueryParts {
+                market: &market,
+                page_size: 100,
+                page,
+            },
         };
-        let raw_response = client.headlines_query(&params).await.unwrap();
+        let raw_response = client.query_newscatcher(&params).await.unwrap();
         total_pages = raw_response.total_pages;
 
         let content = serde_json::to_string_pretty(&raw_response.articles)?;

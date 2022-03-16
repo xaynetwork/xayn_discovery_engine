@@ -19,7 +19,14 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::{Article, Client, Filter, Market, NewsQuery};
+use xayn_discovery_engine_providers::{
+    Article,
+    Client,
+    CommonQueryParts,
+    Filter,
+    Market,
+    NewsQuery,
+};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -125,12 +132,14 @@ fn spawn_news_request(
     tokio::spawn(async move {
         let market = market;
         let query = NewsQuery {
-            market: &market,
+            common: CommonQueryParts {
+                market: &market,
+                page_size,
+                page: 1,
+            },
             filter,
-            page_size,
-            page: None,
         };
 
-        client.news(&query).await
+        client.query_articles(&query).await
     })
 }

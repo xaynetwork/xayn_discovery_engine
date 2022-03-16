@@ -19,7 +19,7 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::{Article, Client, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -116,10 +116,12 @@ fn spawn_headlines_request(
     tokio::spawn(async move {
         let market = market;
         let query = HeadlinesQuery {
-            market: &market,
-            page_size,
-            page: 1,
+            common: CommonQueryParts {
+                market: &market,
+                page_size,
+                page: 1,
+            },
         };
-        client.headlines(&query).await
+        client.query_articles(&query).await
     })
 }
