@@ -142,7 +142,7 @@ class FeedManager {
   /// Adds a source to excluded sources set.
   Future<EngineEvent> addExcludedSource(String source) async {
     if (source.isEmpty) {
-      throw ArgumentError('source "$source" can\'t be empty');
+      throw ArgumentError('source can\'t be empty');
     }
     final sources = await _excludedSourcesRepository.getAll();
     sources.add(source);
@@ -154,7 +154,7 @@ class FeedManager {
   /// Removes a source to excluded sources set.
   Future<EngineEvent> removeExcludedSource(String source) async {
     if (source.isEmpty) {
-      throw ArgumentError('source "$source" can\'t be empty');
+      throw ArgumentError('source can\'t be empty');
     }
     final sources = await _excludedSourcesRepository.getAll();
     sources.remove(source);
