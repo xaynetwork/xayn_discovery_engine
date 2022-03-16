@@ -69,13 +69,16 @@ extension DocumentSliceFfi on List<DocumentFfi> {
     return res;
   }
 
-  List<DocumentWithActiveData> toDocumentListWithActiveData() => asMap()
-      .entries
-      .map(
-        (e) => DocumentWithActiveData(
-          e.value.toDocument(batchIndex: e.key),
-          e.value.toActiveDocumentData(),
-        ),
-      )
-      .toList();
+  List<DocumentWithActiveData> toDocumentListWithActiveData({
+    bool isSearched = false,
+  }) =>
+      asMap()
+          .entries
+          .map(
+            (e) => DocumentWithActiveData(
+              e.value.toDocument(batchIndex: e.key, isSearched: isSearched),
+              e.value.toActiveDocumentData(),
+            ),
+          )
+          .toList();
 }
