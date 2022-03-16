@@ -31,6 +31,7 @@ async fn main() -> Result<()> {
     let market = Market {
         lang_code: "en".to_string(),
         country_code: "US".to_string(),
+        news_quality_rank_limit: None,
     };
 
     // This is updated every iteration, based on the response from Newscatcher. So in reality,
