@@ -47,7 +47,7 @@ pub struct Market {
     pub lang_code: String,
     /// Up to which "quality rank" news articles should be included for this market.
     ///
-    /// News with a quality rank higher (i.e. worse) then the limit will not be included.
+    /// News with a quality rank higher (i.e. worse) than the limit will not be included.
     pub news_quality_rank_limit: Option<usize>,
 }
 
