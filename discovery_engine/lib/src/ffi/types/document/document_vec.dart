@@ -70,13 +70,13 @@ extension DocumentSliceFfi on List<DocumentFfi> {
   }
 
   List<DocumentWithActiveData> toDocumentListWithActiveData({
-    bool searched = false,
+    bool isSearched = false,
   }) =>
       asMap()
           .entries
           .map(
             (e) => DocumentWithActiveData(
-              e.value.toDocument(batchIndex: e.key, isSearched: searched),
+              e.value.toDocument(batchIndex: e.key, isSearched: isSearched),
               e.value.toActiveDocumentData(),
             ),
           )
