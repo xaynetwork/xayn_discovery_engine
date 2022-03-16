@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::{stream::FuturesUnordered, StreamExt};
+use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
@@ -26,6 +27,7 @@ use crate::{
     engine::{EndpointConfig, GenericError},
     stack::{
         filters::{ArticleFilter, CommonFilter},
+        semantic_filters::{filter_semantically, SemanticFilterConfig},
         Id,
     },
 };
@@ -38,6 +40,7 @@ pub(crate) struct BreakingNews {
     client: Arc<Client>,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
     page_size: usize,
+    semantic_filter_config: SemanticFilterConfig,
 }
 
 #[async_trait]
@@ -102,9 +105,10 @@ impl Ops for BreakingNews {
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
-        let mut res: Vec<_> = stack.into();
-        res.extend_from_slice(new);
-        Ok(res)
+        let merged = chain!(stack, new).cloned().collect();
+        let filtered = filter_semantically(merged, &self.semantic_filter_config);
+
+        Ok(filtered)
     }
 }
 
