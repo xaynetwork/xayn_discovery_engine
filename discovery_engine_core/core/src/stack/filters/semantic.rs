@@ -56,12 +56,12 @@ fn condensed_decay_factor(
     max_days: f32,
     max_dissimilarity: f32,
 ) -> Vec<f32> {
-    let scale = 1. / ((-0.1 * max_days).exp() - 1.);
-    let addend = scale * (-0.1 * max_days).exp();
+    let exp_max_days = (-0.1 * max_days).exp();
     date_distance
         .into_iter()
         .map(|distance| {
-            (scale * (max_dissimilarity - 1.) * ((-0.1 * distance).exp() + addend)).max(0.)
+            ((exp_max_days - (-0.1 * distance).exp()) / (exp_max_days - 1.)).max(0.)
+                * (1. - max_dissimilarity)
                 + max_dissimilarity
         })
         .collect()
@@ -138,9 +138,10 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, max_dissimilarity: f32) -> Vec<usize> 
 
 /// Configurations for semantic filtering.
 pub(crate) struct SemanticFilterConfig {
-    /// Maximum days threshold after which documents fully decay.
+    /// Maximum days threshold after which documents fully decay (must be non-negative).
     max_days: f32,
-    /// Cluster cutoff threshold for dissimilarity of normalized combined distances.
+    /// Cluster cutoff threshold for dissimilarity of normalized combined distances (must be in the
+    /// unit intervall [0, 1]).
     max_dissimilarity: f32,
 }
 
@@ -214,7 +215,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "pink needs to fix the decay formula"]
     #[allow(clippy::cast_precision_loss)] // d is small
     #[allow(clippy::float_cmp)] // exact equality due to maximum function
     fn test_condensed_decay_factor() {
