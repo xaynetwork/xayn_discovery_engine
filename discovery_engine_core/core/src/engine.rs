@@ -406,6 +406,8 @@ where
                     market,
                     page_size: scaled_page_size,
                     page: page as usize,
+                    //FIXME pass excluded_sources
+                    excluded_sources: &[],
                 },
                 filter,
             };

@@ -131,6 +131,8 @@ fn spawn_headlines_request(
                 market: &market,
                 page_size,
                 page: 1,
+                //FIXME pass excluded_sources
+                excluded_sources: &[],
             },
         };
         client.query_articles(&query).await

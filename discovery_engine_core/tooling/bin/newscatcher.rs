@@ -44,6 +44,7 @@ async fn main() -> Result<()> {
                 market: &market,
                 page_size: 100,
                 page,
+                excluded_sources: &[],
             },
         };
         let raw_response = client.query_newscatcher(&params).await.unwrap();
