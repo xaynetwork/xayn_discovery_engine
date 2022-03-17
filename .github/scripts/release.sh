@@ -71,6 +71,7 @@ git rm --ignore-unmatch -r .
 rsync -a --exclude example "$WS_ROOT/$DART_WORKSPACE/" "$DST_DIR/$DART_WORKSPACE"
 rsync -a --exclude examples "$WS_ROOT/$RUST_WORKSPACE/" "$DST_DIR/$RUST_WORKSPACE"
 rsync -a --exclude example "$WS_ROOT/$FLUTTER_WORKSPACE/" "$DST_DIR/$FLUTTER_WORKSPACE"
+rsync -a "$WS_ROOT/.gitattributes" "$DST_DIR/.gitattributes"
 
 # Remove files from .gitignore that needs to be uploaded to the release repo
 find . -type f -name .gitignore -exec sed -i -e '/DELETE_AFTER_THIS_IN_RELEASE/,$d' '{}' \;
