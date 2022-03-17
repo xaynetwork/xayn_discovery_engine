@@ -18,112 +18,26 @@ use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use xayn_ai::ranker::pairwise_cosine_similarity;
 
-use crate::document::Document;
+use crate::{document::Document, utils::nan_safe_f32_cmp};
 
-/// Agglomerates clusters wrt the documents' embeddings.
-fn determine_semantic_clusters(documents: &[Document], distance_threshold: f32) -> Vec<usize> {
-    if documents.len() < 2 {
-        return vec![0; documents.len()];
-    }
-
-    let mut condensed_dissimilarity_matrix = condensed_cosine_distance(documents);
-    debug_assert_eq!(
-        condensed_dissimilarity_matrix.len(),
-        (documents.len() * (documents.len() - 1)) / 2,
-    );
-
-    let dendrogram = linkage(
-        &mut condensed_dissimilarity_matrix,
-        documents.len(),
-        Method::Average,
-    );
-    cut_tree(&dendrogram, distance_threshold)
-}
-
-/// Computes the condensed cosine distance matrix of the documents' embeddings.
-fn condensed_cosine_distance(documents: &[Document]) -> Vec<f32> {
+/// Computes the condensed cosine similarity matrix of the documents' embeddings.
+fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
     pairwise_cosine_similarity(
         documents
             .iter()
             .map(|document| document.smbert_embedding.view()),
     )
     .indexed_iter()
-    .filter_map(|((i, j), &similarity)| (i < j).then(|| 1. - similarity))
+    .filter_map(|((i, j), &similarity)| (i < j).then(|| similarity))
     .collect()
 }
 
-/// Agglomerates clusters wrt the documents' publication date differences.
-fn determine_date_clusters(
-    documents: &[Document],
-    labels: &[usize],
-    date_threshold: f32,
-) -> Vec<usize> {
-    debug_assert_eq!(documents.len(), labels.len());
-    let clusters = labels.iter().enumerate().fold(
-        BTreeMap::<_, Vec<_>>::new(),
-        |mut clusters, (idx, &label)| {
-            clusters.entry(label).or_default().push(idx);
-            clusters
-        },
-    );
-
-    let (_, labels) = clusters.into_values().fold(
-        (0, vec![0; labels.len()]),
-        |(label, mut labels), cluster| {
-            let label =
-                determine_date_subcluster(documents, &mut labels, date_threshold, cluster, label);
-            (label, labels)
-        },
-    );
-
-    labels
-}
-
-/// Agglomerates subclusters of a semantic cluster wrt the documents' publication date differences.
-fn determine_date_subcluster(
-    documents: &[Document],
-    labels: &mut [usize],
-    date_threshold: f32,
-    cluster: Vec<usize>,
-    label: usize,
-) -> usize {
-    debug_assert!(cluster.iter().copied().max().unwrap() < labels.len());
-    if cluster.len() < 2 {
-        labels[cluster[0]] = label;
-        return label + 1;
-    }
-
-    let mut condensed_dissimilarity_matrix = condensed_date_distance(documents, &cluster);
-    debug_assert_eq!(
-        condensed_dissimilarity_matrix.len(),
-        (cluster.len() * (cluster.len() - 1)) / 2,
-    );
-
-    let dendrogram = linkage(
-        &mut condensed_dissimilarity_matrix,
-        cluster.len(),
-        Method::Average,
-    );
-    let sublabels = cut_tree(&dendrogram, date_threshold);
-    let offset = izip!(cluster, sublabels).fold(0, |offset, (idx, sublabel)| {
-        labels[idx] = label + sublabel;
-        offset.max(sublabel)
-    });
-
-    label + 1 + offset
-}
-
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
-fn condensed_date_distance(documents: &[Document], cluster: &[usize]) -> Vec<f32> {
+fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
     let dates = || {
         documents
             .iter()
-            .enumerate()
-            .filter_map(|(idx, document)| {
-                cluster
-                    .contains(&idx)
-                    .then(|| document.resource.date_published)
-            })
+            .map(|document| document.resource.date_published)
             .enumerate()
     };
 
@@ -136,8 +50,53 @@ fn condensed_date_distance(documents: &[Document], cluster: &[usize]) -> Vec<f32
         .collect()
 }
 
+/// Computes the condensed decayed date distance matrix.
+fn condensed_decay_factor(
+    date_distance: Vec<f32>,
+    max_days: f32,
+    max_dissimilarity: f32,
+) -> Vec<f32> {
+    let exp_max_days = (-0.1 * max_days).exp();
+    date_distance
+        .into_iter()
+        .map(|distance| {
+            ((exp_max_days - (-0.1 * distance).exp()) / (exp_max_days - 1.)).max(0.)
+                * (1. - max_dissimilarity)
+                + max_dissimilarity
+        })
+        .collect()
+}
+
+/// Computes the condensed combined normalized distance matrix.
+fn condensed_normalized_distance(cosine_similarity: Vec<f32>, decay_factor: Vec<f32>) -> Vec<f32> {
+    let combined = izip!(cosine_similarity, decay_factor)
+        .map(|(similarity, factor)| similarity * factor)
+        .collect::<Vec<_>>();
+    let (min, max) = combined
+        .iter()
+        .copied()
+        .minmax_by(nan_safe_f32_cmp)
+        .into_option()
+        .unwrap_or_default();
+    let diff = max - min;
+
+    if diff > 0. {
+        combined
+            .into_iter()
+            .map(|dis| 1. - ((dis - min) / diff))
+            .collect()
+    } else {
+        // the denominator is zero iff either:
+        // - there are less than two documents
+        // - all documents have the same embedding and date
+        // - all documents decayed because they are too old
+        // in either case all documents are treated as similar, ie with minimum distance
+        vec![0.; combined.len()]
+    }
+}
+
 /// Cuts off the dendrogram at the first step which exceeds the distance/dissimilarity threshold.
-fn cut_tree(dendrogram: &Dendrogram<f32>, threshold: f32) -> Vec<usize> {
+fn cut_tree(dendrogram: &Dendrogram<f32>, max_dissimilarity: f32) -> Vec<usize> {
     // at the beginning every sample is in its own cluster
     let clusters = (0..dendrogram.observations())
         .map(|x| (x, vec![x]))
@@ -147,12 +106,12 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, threshold: f32) -> Vec<usize> {
     let (_, clusters) = dendrogram
         .steps()
         .iter()
-        .take_while(|step| step.dissimilarity < threshold)
+        .take_while(|step| step.dissimilarity < max_dissimilarity)
         .fold(
             (dendrogram.observations(), clusters),
             |(id, mut clusters), step| {
                 // unwrap safety:
-                // - inital cluster ids have been inserted in the beginning
+                // - initial cluster ids have been inserted in the beginning
                 // - merged cluster ids have been inserted in a previous iteration/step
                 let mut cluster_1 = clusters.remove(&step.cluster1).unwrap();
                 let cluster_2 = clusters.remove(&step.cluster2).unwrap();
@@ -179,17 +138,18 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, threshold: f32) -> Vec<usize> {
 
 /// Configurations for semantic filtering.
 pub(crate) struct SemanticFilterConfig {
-    /// Cluster cutoff threshold for dissimilarity of cosine distances.
-    distance_threshold: f32,
-    /// Cluster cutoff threshold for dissimilarity of date distances.
-    date_threshold: f32,
+    /// Maximum days threshold after which documents fully decay (must be non-negative).
+    max_days: f32,
+    /// Cluster cutoff threshold for dissimilarity of normalized combined distances (must be in the
+    /// unit interval [0, 1]).
+    max_dissimilarity: f32,
 }
 
 impl Default for SemanticFilterConfig {
     fn default() -> Self {
         Self {
-            distance_threshold: 0.67,
-            date_threshold: 10.,
+            max_days: 10.,
+            max_dissimilarity: 0.67,
         }
     }
 }
@@ -199,8 +159,18 @@ pub(crate) fn filter_semantically(
     documents: Vec<Document>,
     config: &SemanticFilterConfig,
 ) -> Vec<Document> {
-    let labels = determine_semantic_clusters(&documents, config.distance_threshold);
-    let labels = determine_date_clusters(&documents, &labels, config.date_threshold);
+    if documents.len() < 2 {
+        return documents;
+    }
+
+    let cosine_similarity = condensed_cosine_similarity(&documents);
+    let date_distance = condensed_date_distance(&documents);
+    let decay_factor =
+        condensed_decay_factor(date_distance, config.max_days, config.max_dissimilarity);
+    let mut normalized_distance = condensed_normalized_distance(cosine_similarity, decay_factor);
+
+    let dendrogram = linkage(&mut normalized_distance, documents.len(), Method::Average);
+    let labels = cut_tree(&dendrogram, config.max_dissimilarity);
 
     izip!(documents, labels)
         .unique_by(|(_, label)| *label)
@@ -211,67 +181,57 @@ pub(crate) fn filter_semantically(
 #[cfg(test)]
 #[allow(clippy::non_ascii_literal)]
 mod tests {
+    use std::iter::repeat_with;
+
     use super::*;
 
     #[test]
-    fn test_semantic_cluster_empty_documents() {
-        let labels = determine_semantic_clusters(&[], 1.);
-        assert!(labels.is_empty());
+    fn test_condensed_cosine_similarity() {
+        for n in 0..5 {
+            let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
+            let condensed = condensed_cosine_similarity(&documents);
+            if n < 2 {
+                assert!(condensed.is_empty());
+            } else {
+                assert_eq!(condensed.len(), n * (n - 1) / 2);
+            }
+            assert!(condensed.iter().all(|c| (-1. ..=1.).contains(c)));
+        }
     }
 
     #[test]
-    fn test_semantic_cluster_single_document() {
-        let labels = determine_semantic_clusters(&[Document::default()], 1.);
-        assert_eq!(labels, [0]);
+    #[allow(clippy::float_cmp)] // c represents whole days
+    fn test_condensed_date_distance() {
+        for n in 0..5 {
+            let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
+            let condensed = condensed_date_distance(&documents);
+            if n < 2 {
+                assert!(condensed.is_empty());
+            } else {
+                assert_eq!(condensed.len(), n * (n - 1) / 2);
+            }
+            assert!(condensed.into_iter().all(|c| 0. <= c && c == c.trunc()));
+        }
     }
 
     #[test]
-    fn test_semantic_cluster_multiple_documents() {
-        let labels = determine_semantic_clusters(&[Document::default(), Document::default()], 1.);
-        assert_eq!(labels, [0, 0]);
-    }
-
-    #[test]
-    fn test_date_cluster_empty_documents() {
-        let labels = determine_date_clusters(&[], &[], 1.);
-        assert!(labels.is_empty());
-    }
-
-    #[test]
-    fn test_date_cluster_single_document() {
-        let labels = determine_date_clusters(&[Document::default()], &[0], 1.);
-        assert_eq!(labels, [0]);
-    }
-
-    #[test]
-    fn test_date_cluster_multiple_documents() {
-        let labels =
-            determine_date_clusters(&[Document::default(), Document::default()], &[0, 0], 1.);
-        assert_eq!(labels, [0, 0]);
-    }
-
-    #[test]
-    fn test_date_subcluster() {
-        let documents = [
-            Document::default(), // 1
-            Document::default(), // 0
-            Document::default(), // 1
-            Document::default(), // 2
-        ];
-        let label = 0;
-        let mut labels = [0, 0, 0, 0];
-
-        let label = determine_date_subcluster(&documents, &mut labels, 1., vec![1], label);
-        assert_eq!(label, 1);
-        assert_eq!(labels, [0, 0, 0, 0]);
-
-        let label = determine_date_subcluster(&documents, &mut labels, 1., vec![0, 2], label);
-        assert_eq!(label, 2);
-        assert_eq!(labels, [1, 0, 1, 0]);
-
-        let label = determine_date_subcluster(&documents, &mut labels, 1., vec![3], label);
-        assert_eq!(label, 3);
-        assert_eq!(labels, [1, 0, 1, 2]);
+    #[allow(clippy::cast_precision_loss)] // d is small
+    #[allow(clippy::float_cmp)] // exact equality due to maximum function
+    fn test_condensed_decay_factor() {
+        for n in 0..5 {
+            let date_distance = (0..n).map(|d| d as f32).collect();
+            let max_days = 2;
+            let max_dissimilarity = 0.5;
+            let condensed =
+                condensed_decay_factor(date_distance, max_days as f32, max_dissimilarity);
+            for (m, c) in condensed.into_iter().enumerate() {
+                if m < max_days {
+                    assert!(c > max_dissimilarity);
+                } else {
+                    assert_eq!(c, max_dissimilarity);
+                }
+            }
+        }
     }
 
     #[test]
@@ -311,16 +271,30 @@ mod tests {
     }
 
     #[test]
+    fn test_filter_semantically_empty() {
+        let documents = vec![];
+        let config = SemanticFilterConfig::default();
+        let filtered = filter_semantically(documents, &config);
+        assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn test_filter_semantically_single() {
+        let documents = vec![Document::default()];
+        let config = SemanticFilterConfig::default();
+        let filtered = filter_semantically(documents.clone(), &config);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, documents[0].id);
+    }
+
+    #[test]
     fn test_filter_semantically_same() {
         let documents = vec![
             Document::default(),
             Document::default(),
             Document::default(),
         ];
-        let config = SemanticFilterConfig {
-            distance_threshold: 1.,
-            date_threshold: 1.,
-        };
+        let config = SemanticFilterConfig::default();
         let filtered = filter_semantically(documents.clone(), &config);
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id, documents[0].id);
@@ -334,8 +308,8 @@ mod tests {
             Document::default(),
         ];
         let config = SemanticFilterConfig {
-            distance_threshold: 0.,
-            date_threshold: 0.,
+            max_dissimilarity: 0.,
+            ..SemanticFilterConfig::default()
         };
         let filtered = filter_semantically(documents.clone(), &config);
         assert_eq!(filtered.len(), 3);
