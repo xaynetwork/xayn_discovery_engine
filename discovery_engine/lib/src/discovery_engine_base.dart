@@ -235,7 +235,7 @@ class DiscoveryEngine {
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> addSourceToExcludedList(Uri source) {
+  Future<EngineEvent> addSourceToExcludedList(String source) {
     return _trySend(() async {
       final event = ClientEvent.excludedSourceAdded(source);
       final response = await _manager.send(event);
@@ -253,7 +253,7 @@ class DiscoveryEngine {
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> removeSourceFromExcludedList(Uri source) {
+  Future<EngineEvent> removeSourceFromExcludedList(String source) {
     return _trySend(() async {
       final event = ClientEvent.excludedSourceRemoved(source);
       final response = await _manager.send(event);
@@ -265,7 +265,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Returns a [Set<Uri>] with excluded sources.
+  /// Returns a [Set<String>] with excluded sources.
   ///
   /// In response it can return:
   /// - [ExcludedSourcesListRequestSucceeded] indicating a successful operation,

@@ -72,7 +72,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         changedDocumentIdBox,
         documentBox,
         engineStateBox,
-        searchBox;
+        searchBox,
+        excludedSourcesBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
@@ -83,6 +84,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_documen
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
     show HiveEngineStateRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_excluded_sources_repo.dart'
+    show HiveExcludedSourcesRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
     show DurationAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_embedding_adapter.dart'
@@ -211,6 +214,7 @@ class EventHandler {
     final changedDocumentRepository = HiveChangedDocumentRepository();
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
+    final excludedSourcesRepository = HiveExcludedSourcesRepository();
 
     final setupData = await _fetchAssets(config);
     final engineState = await engineStateRepository.load();
@@ -244,6 +248,7 @@ class EventHandler {
       activeDataRepository,
       changedDocumentRepository,
       engineStateRepository,
+      excludedSourcesRepository,
     );
     _searchManager = SearchManager(
       engine,
@@ -304,6 +309,7 @@ class EventHandler {
       _openDbBox<Uint8List>(changedDocumentIdBox),
       _openDbBox<Uint8List>(engineStateBox),
       _openDbBox<ActiveSearch>(searchBox),
+      _openDbBox<Set<String>>(excludedSourcesBox),
     ]);
   }
 

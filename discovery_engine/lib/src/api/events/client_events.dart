@@ -97,12 +97,14 @@ class ClientEvent with _$ClientEvent {
 
   /// Event created when a source is added to the list of excluded sources.
   @Implements<FeedClientEvent>()
-  const factory ClientEvent.excludedSourceAdded(Uri source) =
+  @Assert('source != ""')
+  const factory ClientEvent.excludedSourceAdded(String source) =
       ExcludedSourceAdded;
 
   /// Event created when a source is removed from the list of excluded sources.
   @Implements<FeedClientEvent>()
-  const factory ClientEvent.excludedSourceRemoved(Uri source) =
+  @Assert('source != ""')
+  const factory ClientEvent.excludedSourceRemoved(String source) =
       ExcludedSourceRemoved;
 
   /// Event created when a client requests for list of excluded sources.

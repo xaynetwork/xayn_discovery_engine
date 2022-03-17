@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/// Repository interface for [Uri] sources excluded from the feed.
+/// Repository interface for source domains excluded from the feed.
 abstract class ExcludedSourcesRepository {
   /// Get a set of all excluded sources.
-  Future<Set<Uri>> getAll();
+  Future<Set<String>> getAll();
 
   /// Persist a set of excluded sources.
-  Future<void> save(Set<Uri> sources);
+  Future<void> save(Set<String> sources);
 }

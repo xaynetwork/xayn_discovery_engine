@@ -32,6 +32,8 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
     show EngineStateRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/excluded_sources_repo.dart'
+    show ExcludedSourcesRepository;
 
 /// Business logic concerning the management of the feed.
 class FeedManager {
@@ -41,6 +43,7 @@ class FeedManager {
   final ActiveDocumentDataRepository _activeRepo;
   final ChangedDocumentRepository _changedRepo;
   final EngineStateRepository _engineStateRepo;
+  final ExcludedSourcesRepository _excludedSourcesRepository;
 
   FeedManager(
     this._engine,
@@ -49,6 +52,7 @@ class FeedManager {
     this._activeRepo,
     this._changedRepo,
     this._engineStateRepo,
+    this._excludedSourcesRepository,
   );
 
   /// Handle the given feed client event.
@@ -56,9 +60,12 @@ class FeedManager {
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleFeedClientEvent(FeedClientEvent event) =>
       event.maybeWhen(
-        restoreFeedRequested: () => restoreFeed(),
-        nextFeedBatchRequested: () => nextFeedBatch(),
-        feedDocumentsClosed: (ids) => deactivateDocuments(ids),
+        restoreFeedRequested: restoreFeed,
+        nextFeedBatchRequested: nextFeedBatch,
+        feedDocumentsClosed: deactivateDocuments,
+        excludedSourceAdded: addExcludedSource,
+        excludedSourceRemoved: removeExcludedSource,
+        excludedSourcesListRequested: getExcludedSourcesList,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -130,5 +137,45 @@ class FeedManager {
     await _docRepo.updateMany(inactives);
 
     return const EngineEvent.clientEventSucceeded();
+  }
+
+  /// Adds a source to excluded sources set.
+  Future<EngineEvent> addExcludedSource(String source) async {
+    if (source.isEmpty) {
+      throw ArgumentError('source can\'t be empty');
+    }
+
+    final allDocuments = await _docRepo.fetchAll();
+    final doesExist = allDocuments
+        .any((doc) => doc.isActive && doc.resource.sourceDomain == source);
+
+    if (!doesExist) {
+      throw ArgumentError('source $source not found in database');
+    }
+
+    final sources = await _excludedSourcesRepository.getAll();
+    sources.add(source);
+    await _excludedSourcesRepository.save(sources);
+    // TODO: send updated sources to the engine
+    return const EngineEvent.clientEventSucceeded();
+  }
+
+  /// Removes a source to excluded sources set.
+  Future<EngineEvent> removeExcludedSource(String source) async {
+    if (source.isEmpty) {
+      throw ArgumentError('source can\'t be empty');
+    }
+
+    final sources = await _excludedSourcesRepository.getAll();
+    sources.remove(source);
+    await _excludedSourcesRepository.save(sources);
+    // TODO: send updated sources to the engine
+    return const EngineEvent.clientEventSucceeded();
+  }
+
+  /// Returns excluded sources.
+  Future<EngineEvent> getExcludedSourcesList() async {
+    final sources = await _excludedSourcesRepository.getAll();
+    return EngineEvent.excludedSourcesListRequestSucceeded(sources);
   }
 }

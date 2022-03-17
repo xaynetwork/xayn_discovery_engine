@@ -150,8 +150,8 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? restoreFeedRequested,
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
-    TResult Function(Uri source)? excludedSourceAdded,
-    TResult Function(Uri source)? excludedSourceRemoved,
+    TResult Function(String source)? excludedSourceAdded,
+    TResult Function(String source)? excludedSourceRemoved,
     TResult Function()? excludedSourcesListRequested,
     TResult Function(DocumentId documentId, DocumentViewMode mode, int seconds)?
         documentTimeSpent,
@@ -184,8 +184,8 @@ class BadClientEvent implements ClientEvent {
     required TResult Function() restoreFeedRequested,
     required TResult Function() nextFeedBatchRequested,
     required TResult Function(Set<DocumentId> documentIds) feedDocumentsClosed,
-    required TResult Function(Uri source) excludedSourceAdded,
-    required TResult Function(Uri source) excludedSourceRemoved,
+    required TResult Function(String source) excludedSourceAdded,
+    required TResult Function(String source) excludedSourceRemoved,
     required TResult Function() excludedSourcesListRequested,
     required TResult Function(
       DocumentId documentId,
@@ -216,8 +216,8 @@ class BadClientEvent implements ClientEvent {
     TResult Function()? restoreFeedRequested,
     TResult Function()? nextFeedBatchRequested,
     TResult Function(Set<DocumentId> documentIds)? feedDocumentsClosed,
-    TResult Function(Uri source)? excludedSourceAdded,
-    TResult Function(Uri source)? excludedSourceRemoved,
+    TResult Function(String source)? excludedSourceAdded,
+    TResult Function(String source)? excludedSourceRemoved,
     TResult Function()? excludedSourcesListRequested,
     TResult Function(
       DocumentId documentId,
@@ -363,7 +363,7 @@ class BadEngineEvent implements EngineEvent {
     )?
         nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
-    TResult Function(Set<Uri> excludedSources)?
+    TResult Function(Set<String> excludedSources)?
         excludedSourcesListRequestSucceeded,
     TResult Function()? excludedSourcesListRequestFailed,
     TResult Function()? fetchingAssetsStarted,
@@ -409,7 +409,7 @@ class BadEngineEvent implements EngineEvent {
     )
         nextFeedBatchRequestFailed,
     required TResult Function() nextFeedBatchAvailable,
-    required TResult Function(Set<Uri> excludedSources)
+    required TResult Function(Set<String> excludedSources)
         excludedSourcesListRequestSucceeded,
     required TResult Function() excludedSourcesListRequestFailed,
     required TResult Function() fetchingAssetsStarted,
@@ -451,7 +451,7 @@ class BadEngineEvent implements EngineEvent {
     )?
         nextFeedBatchRequestFailed,
     TResult Function()? nextFeedBatchAvailable,
-    TResult Function(Set<Uri> excludedSources)?
+    TResult Function(Set<String> excludedSources)?
         excludedSourcesListRequestSucceeded,
     TResult Function()? excludedSourcesListRequestFailed,
     TResult Function()? fetchingAssetsStarted,

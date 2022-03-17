@@ -23,18 +23,16 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_exclude
 
 Future<void> main() async {
   group('HiveExcludedSourcesRepository', () {
-    late Box<Set<Uri>> box;
+    late Box<Set<String>> box;
     late HiveExcludedSourcesRepository repo;
 
-    final sources = <Uri>{
-      Uri(host: 'nytimes.com'),
-      Uri(host: 'cnn.com'),
-      Uri(host: 'wsj.com'),
-    };
+    final sources = {'nytimes.com', 'cnn.com', 'wsj.com'};
 
     setUpAll(() async {
-      box =
-          await Hive.openBox<Set<Uri>>(excludedSourcesBox, bytes: Uint8List(0));
+      box = await Hive.openBox<Set<String>>(
+        excludedSourcesBox,
+        bytes: Uint8List(0),
+      );
     });
 
     setUp(() async {
@@ -49,7 +47,7 @@ Future<void> main() async {
       test('when the box is empty it will return an empty set', () async {
         final excludedSources = await repo.getAll();
 
-        expect(excludedSources, equals(<Uri>{}));
+        expect(excludedSources, equals(<String>{}));
       });
 
       test('when the box has some data it will return that data', () async {
@@ -72,10 +70,7 @@ Future<void> main() async {
           () async {
         await repo.save(sources);
 
-        final newSources = <Uri>{
-          Uri(host: 'theguardian.com'),
-          Uri(host: 'bbc.co.uk'),
-        };
+        final newSources = {'theguardian.com', 'bbc.co.uk'};
         await repo.save(newSources);
 
         expect(box.isNotEmpty, isTrue);

@@ -22,15 +22,15 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
 class HiveExcludedSourcesRepository implements ExcludedSourcesRepository {
   static const stateKey = 0;
 
-  Box<Set<Uri>> get box => Hive.box<Set<Uri>>(excludedSourcesBox);
+  Box<Set<String>> get box => Hive.box<Set<String>>(excludedSourcesBox);
 
   @override
-  Future<Set<Uri>> getAll() async {
-    return box.get(stateKey) ?? <Uri>{};
+  Future<Set<String>> getAll() async {
+    return box.get(stateKey) ?? <String>{};
   }
 
   @override
-  Future<void> save(Set<Uri> sources) async {
+  Future<void> save(Set<String> sources) async {
     await box.put(stateKey, sources);
   }
 }

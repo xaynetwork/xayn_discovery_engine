@@ -17,7 +17,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart';
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show ClientEventSucceeded;
+    show ClientEventSucceeded, ExcludedSourcesListRequestSucceeded;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -34,10 +34,11 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show
-        documentBox,
         activeDocumentDataBox,
         changedDocumentIdBox,
-        engineStateBox;
+        documentBox,
+        engineStateBox,
+        excludedSourcesBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
@@ -46,6 +47,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_documen
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
     show HiveEngineStateRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_excluded_sources_repo.dart'
+    show HiveExcludedSourcesRepository;
 
 import 'discovery_engine/utils/utils.dart';
 import 'logging.dart' show setupLogging;
@@ -64,6 +67,8 @@ Future<void> main() async {
       await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
   final stateBox =
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
+  final excludedBox =
+      await Hive.openBox<Set<String>>(excludedSourcesBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
@@ -71,6 +76,7 @@ Future<void> main() async {
   final activeRepo = HiveActiveDocumentDataRepository();
   final changedRepo = HiveChangedDocumentRepository();
   final engineStateRepo = HiveEngineStateRepository();
+  final excludedSourcesRepo = HiveExcludedSourcesRepository();
 
   final mgr = FeedManager(
     engine,
@@ -79,6 +85,7 @@ Future<void> main() async {
     activeRepo,
     changedRepo,
     engineStateRepo,
+    excludedSourcesRepo,
   );
 
   group('FeedManager', () {
@@ -190,6 +197,84 @@ Future<void> main() async {
       expect(feed[2].documentId, equals(engine.doc0.documentId));
       expect(feed[2].batchIndex, equals(0));
       // doc3 is excluded since it is inactive
+    });
+  });
+
+  group('Excluded sources', () {
+    setUp(() async {
+      final stackId = StackId();
+      final doc1 = Document(
+        documentId: DocumentId(),
+        stackId: stackId,
+        batchIndex: 1,
+        resource: mockNewsResource.copyWith(sourceDomain: 'www.nytimes.com'),
+      );
+      final doc2 = Document(
+        documentId: DocumentId(),
+        stackId: stackId,
+        batchIndex: 2,
+        resource: mockNewsResource.copyWith(sourceDomain: 'www.bbc.com'),
+      );
+      await docRepo.updateMany([doc1, doc2]);
+      await excludedSourcesRepo.save({'www.bbc.com'});
+    });
+
+    tearDown(() async {
+      await docBox.clear();
+      await excludedBox.clear();
+    });
+
+    test('when adding empty source throw "ArgumentError"', () async {
+      expect(() => mgr.addExcludedSource(''), throwsArgumentError);
+    });
+
+    test('when adding source not stored with documents throw "ArgumentError"',
+        () async {
+      expect(() => mgr.addExcludedSource('example.com'), throwsArgumentError);
+    });
+
+    test('when removing empty source throw "ArgumentError"', () async {
+      expect(() => mgr.removeExcludedSource(''), throwsArgumentError);
+    });
+
+    test('addExcludedSource', () async {
+      final excludedSoures = {'www.bbc.com', 'www.nytimes.com'};
+      const source1 = 'www.bbc.com';
+      const source2 = 'www.nytimes.com';
+
+      final response1 = await mgr.addExcludedSource(source1);
+      final response2 = await mgr.addExcludedSource(source2);
+
+      expect(response1, isA<ClientEventSucceeded>());
+      expect(response2, isA<ClientEventSucceeded>());
+      expect(excludedBox.values.first, equals(excludedSoures));
+    });
+
+    test('removeExcludedSource', () async {
+      await excludedSourcesRepo.save({'www.nytimes.com'});
+
+      final response = await mgr.removeExcludedSource('www.bbc.com');
+
+      expect(response, isA<ClientEventSucceeded>());
+      expect(excludedBox.values.first, equals({'www.nytimes.com'}));
+    });
+
+    test('getExcludedSourcesList', () async {
+      final excludedSoures = {
+        'theguardian.com',
+        'bbc.co.uk',
+        'wsj.com',
+        'www.nytimes.com',
+      };
+      await excludedSourcesRepo.save(excludedSoures);
+
+      final response = await mgr.getExcludedSourcesList();
+
+      expect(response, isA<ExcludedSourcesListRequestSucceeded>());
+      expect(
+        (response as ExcludedSourcesListRequestSucceeded).excludedSources,
+        equals(excludedSoures),
+      );
     });
   });
 }

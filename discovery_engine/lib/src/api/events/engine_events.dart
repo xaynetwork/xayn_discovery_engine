@@ -130,7 +130,7 @@ class EngineEvent with _$EngineEvent {
   /// Passes a set of [Uri] of excluded sources back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.excludedSourcesListRequestSucceeded(
-    Set<Uri> excludedSources,
+    Set<String> excludedSources,
   ) = ExcludedSourcesListRequestSucceeded;
 
   /// Event created as a failure response to ExcludedSourcesListRequested event.
@@ -151,14 +151,13 @@ class EngineEvent with _$EngineEvent {
   @Implements<AssetsStatusEngineEvent>()
   const factory EngineEvent.fetchingAssetsFinished() = FetchingAssetsFinished;
 
-  /// Event created to inform the client that a particular "fire and forget"
-  /// event, like UserReactionChanged, was successfully processed
-  /// by the engine.
+  /// Event created as a success response to various client events, like
+  /// UserReactionChanged.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.clientEventSucceeded() = ClientEventSucceeded;
 
   /// Event created by the engine for a multitude of generic reasons, also
-  /// as a "failure" event in response to "fire and forget" events, like
+  /// as a "failure" event in response to various events, like
   /// UserReactionChanged.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.engineExceptionRaised(
