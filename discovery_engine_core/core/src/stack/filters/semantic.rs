@@ -14,14 +14,13 @@
 
 use std::collections::BTreeMap;
 
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use xayn_ai::ranker::pairwise_cosine_similarity;
 
 use crate::document::Document;
 
 /// Agglomerates clusters wrt the documents' embeddings.
-#[allow(dead_code)]
 fn determine_semantic_clusters(documents: &[Document], distance_threshold: f32) -> Vec<usize> {
     if documents.len() < 2 {
         return vec![0; documents.len()];
@@ -54,7 +53,6 @@ fn condensed_cosine_distance(documents: &[Document]) -> Vec<f32> {
 }
 
 /// Agglomerates clusters wrt the documents' publication date differences.
-#[allow(dead_code)]
 fn determine_date_clusters(
     documents: &[Document],
     labels: &[usize],
@@ -107,13 +105,10 @@ fn determine_date_subcluster(
         Method::Average,
     );
     let sublabels = cut_tree(&dendrogram, date_threshold);
-    let offset = cluster
-        .into_iter()
-        .zip(sublabels)
-        .fold(0, |offset, (idx, sublabel)| {
-            labels[idx] = label + sublabel;
-            offset.max(sublabel)
-        });
+    let offset = izip!(cluster, sublabels).fold(0, |offset, (idx, sublabel)| {
+        labels[idx] = label + sublabel;
+        offset.max(sublabel)
+    });
 
     label + 1 + offset
 }
@@ -180,6 +175,37 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, threshold: f32) -> Vec<usize> {
             labels
         },
     )
+}
+
+/// Configurations for semantic filtering.
+pub(crate) struct SemanticFilterConfig {
+    /// Cluster cutoff threshold for dissimilarity of cosine distances.
+    distance_threshold: f32,
+    /// Cluster cutoff threshold for dissimilarity of date distances.
+    date_threshold: f32,
+}
+
+impl Default for SemanticFilterConfig {
+    fn default() -> Self {
+        Self {
+            distance_threshold: 0.67,
+            date_threshold: 10.,
+        }
+    }
+}
+
+/// Filters the documents semantically.
+pub(crate) fn filter_semantically(
+    documents: Vec<Document>,
+    config: &SemanticFilterConfig,
+) -> Vec<Document> {
+    let labels = determine_semantic_clusters(&documents, config.distance_threshold);
+    let labels = determine_date_clusters(&documents, &labels, config.date_threshold);
+
+    izip!(documents, labels)
+        .unique_by(|(_, label)| *label)
+        .map(|(document, _)| document)
+        .collect()
 }
 
 #[cfg(test)]
@@ -282,5 +308,39 @@ mod tests {
         let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
         let labels = cut_tree(&dendrogram, 0.5);
         assert_eq!(labels, [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_filter_semantically_same() {
+        let documents = vec![
+            Document::default(),
+            Document::default(),
+            Document::default(),
+        ];
+        let config = SemanticFilterConfig {
+            distance_threshold: 1.,
+            date_threshold: 1.,
+        };
+        let filtered = filter_semantically(documents.clone(), &config);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, documents[0].id);
+    }
+
+    #[test]
+    fn test_filter_semantically_different() {
+        let documents = vec![
+            Document::default(),
+            Document::default(),
+            Document::default(),
+        ];
+        let config = SemanticFilterConfig {
+            distance_threshold: 0.,
+            date_threshold: 0.,
+        };
+        let filtered = filter_semantically(documents.clone(), &config);
+        assert_eq!(filtered.len(), 3);
+        assert_eq!(filtered[0].id, documents[0].id);
+        assert_eq!(filtered[1].id, documents[1].id);
+        assert_eq!(filtered[2].id, documents[2].id);
     }
 }
