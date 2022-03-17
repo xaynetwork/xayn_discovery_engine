@@ -41,6 +41,11 @@ abstract class Engine {
     FeedMarkets markets,
   );
 
+  /// Changes the currently excluded sources.
+  Future<void> setExcludedSources(
+    Set<String> sources,
+  );
+
   /// Retrieves at most [maxDocuments] feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,

@@ -156,7 +156,9 @@ class FeedManager {
     final sources = await _excludedSourcesRepository.getAll();
     sources.add(source);
     await _excludedSourcesRepository.save(sources);
-    // TODO: send updated sources to the engine
+    await _engine.setExcludedSources(sources);
+    // do we need to persist serialized engine state after updating sources?
+    await _engineStateRepo.save(await _engine.serialize());
     return const EngineEvent.clientEventSucceeded();
   }
 
@@ -169,7 +171,9 @@ class FeedManager {
     final sources = await _excludedSourcesRepository.getAll();
     sources.remove(source);
     await _excludedSourcesRepository.save(sources);
-    // TODO: send updated sources to the engine
+    await _engine.setExcludedSources(sources);
+    // do we need to persist serialized engine state after updating sources?
+    await _engineStateRepo.save(await _engine.serialize());
     return const EngineEvent.clientEventSucceeded();
   }
 
