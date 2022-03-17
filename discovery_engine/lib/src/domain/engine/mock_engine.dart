@@ -93,6 +93,13 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<void> setExcludedSources(
+    Set<String> sources,
+  ) async {
+    _incrementCount('setExcludedSources');
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
     int maxDocuments,

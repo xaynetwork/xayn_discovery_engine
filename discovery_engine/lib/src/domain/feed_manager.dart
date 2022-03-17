@@ -156,7 +156,7 @@ class FeedManager {
     final sources = await _excludedSourcesRepository.getAll();
     sources.add(source);
     await _excludedSourcesRepository.save(sources);
-    // TODO: send updated sources to the engine
+    await _engine.setExcludedSources(sources);
     return const EngineEvent.clientEventSucceeded();
   }
 
@@ -169,7 +169,7 @@ class FeedManager {
     final sources = await _excludedSourcesRepository.getAll();
     sources.remove(source);
     await _excludedSourcesRepository.save(sources);
-    // TODO: send updated sources to the engine
+    await _engine.setExcludedSources(sources);
     return const EngineEvent.clientEventSucceeded();
   }
 

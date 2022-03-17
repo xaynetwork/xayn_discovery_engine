@@ -109,6 +109,21 @@ class DiscoveryEngineFfi implements Engine {
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
+  /// Sets the excluded sources.
+  @override
+  Future<void> setExcludedSources(
+    Set<String> sources,
+  ) async {
+    // TODO: implement setExcludedSources
+    throw UnimplementedError();
+    // final result = await asyncFfi.setExcludedSources(
+    //   _engine.ref,
+    //   sources.toList().allocVec().move(),
+    // );
+    //
+    // return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
   /// Gets feed documents.
   @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
