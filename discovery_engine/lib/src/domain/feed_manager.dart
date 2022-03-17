@@ -147,10 +147,7 @@ class FeedManager {
 
     final allDocuments = await _docRepo.fetchAll();
     final doesExist = allDocuments
-        .where((doc) => doc.isActive)
-        .map((doc) => doc.resource.sourceDomain)
-        .toSet()
-        .contains(source);
+        .any((doc) => doc.isActive && doc.resource.sourceDomain == source);
 
     if (!doesExist) {
       throw ArgumentError('source $source not found in database');
