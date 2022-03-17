@@ -18,7 +18,7 @@ use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use xayn_ai::ranker::pairwise_cosine_similarity;
 
-use crate::document::Document;
+use crate::{document::Document, utils::nan_safe_f32_cmp};
 
 /// Agglomerates clusters wrt the documents' embeddings.
 fn determine_semantic_clusters(documents: &[Document], distance_threshold: f32) -> Vec<usize> {
@@ -114,16 +114,11 @@ fn determine_date_subcluster(
 }
 
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
-fn condensed_date_distance(documents: &[Document], cluster: &[usize]) -> Vec<f32> {
+fn condensed_date_distance(documents: &[Document], _cluster: &[usize]) -> Vec<f32> {
     let dates = || {
         documents
             .iter()
-            .enumerate()
-            .filter_map(|(idx, document)| {
-                cluster
-                    .contains(&idx)
-                    .then(|| document.resource.date_published)
-            })
+            .map(|document| document.resource.date_published)
             .enumerate()
     };
 
@@ -134,6 +129,50 @@ fn condensed_date_distance(documents: &[Document], cluster: &[usize]) -> Vec<f32
             (i < j).then(|| (this - other).num_days().abs() as f32)
         })
         .collect()
+}
+
+/// Computes the normalized condensed dissimilarity matrix of the documents' embeddings and dates.
+#[allow(dead_code)]
+fn condensed_distance(documents: &[Document], max_days: f32, threshold: f32) -> Vec<f32> {
+    let cosine_distance = condensed_cosine_distance(documents);
+    let date_distance = condensed_date_distance(documents, &[]);
+
+    let scale = 1. / ((-0.1 * max_days).exp() - 1.);
+    let addend = scale * (-0.1 * max_days).exp();
+    let decay_factor = date_distance
+        .into_iter()
+        .map(|distance| {
+            (scale * (threshold - 1.) * ((-0.1 * distance).exp() + addend)).max(0.) + threshold
+        })
+        .collect::<Vec<_>>();
+
+    let dissimilarity = izip!(cosine_distance, decay_factor)
+        .map(|(distance, factor)| distance * factor)
+        .collect::<Vec<_>>();
+    debug_assert!(dissimilarity
+        .iter()
+        .all(|&dissimilarity| dissimilarity >= 0.));
+    let (min, max) = dissimilarity
+        .iter()
+        .copied()
+        .minmax_by(nan_safe_f32_cmp)
+        .into_option()
+        .unwrap_or_default();
+    let diff = max - min;
+
+    if diff > 0. {
+        dissimilarity
+            .into_iter()
+            .map(|dis| (dis - min) / diff)
+            .collect()
+    } else {
+        // the denominator is zero iff either:
+        // - there are less than two documents
+        // - all documents have the same embedding and date
+        // - all documents decayed because they are too old
+        // in either case all documents are treated as similar, ie with zero dissimilarity
+        vec![0.; dissimilarity.len()]
+    }
 }
 
 /// Cuts off the dendrogram at the first step which exceeds the distance/dissimilarity threshold.
