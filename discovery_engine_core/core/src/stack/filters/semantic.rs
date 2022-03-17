@@ -33,7 +33,7 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
 }
 
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
-fn condensed_date_distance(documents: &[Document], _cluster: &[usize]) -> Vec<f32> {
+fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
     let dates = || {
         documents
             .iter()
@@ -163,7 +163,7 @@ pub(crate) fn filter_semantically(
     }
 
     let cosine_similarity = condensed_cosine_similarity(&documents);
-    let date_distance = condensed_date_distance(&documents, &[]);
+    let date_distance = condensed_date_distance(&documents);
     let decay_factor =
         condensed_decay_factor(date_distance, config.max_days, config.max_dissimilarity);
     let mut normalized_distance = condensed_normalized_distance(cosine_similarity, decay_factor);
@@ -180,7 +180,59 @@ pub(crate) fn filter_semantically(
 #[cfg(test)]
 #[allow(clippy::non_ascii_literal)]
 mod tests {
+    use std::iter::repeat_with;
+
     use super::*;
+
+    #[test]
+    fn test_condensed_cosine_similarity() {
+        for n in 0..5 {
+            let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
+            let condensed = condensed_cosine_similarity(&documents);
+            if n < 2 {
+                assert!(condensed.is_empty());
+            } else {
+                assert_eq!(condensed.len(), n * (n - 1) / 2);
+            }
+            assert!(condensed.iter().all(|c| (-1. ..=1.).contains(c)));
+        }
+    }
+
+    #[test]
+    #[allow(clippy::float_cmp)] // c represents whole days
+    fn test_condensed_date_distance() {
+        for n in 0..5 {
+            let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
+            let condensed = condensed_date_distance(&documents);
+            if n < 2 {
+                assert!(condensed.is_empty());
+            } else {
+                assert_eq!(condensed.len(), n * (n - 1) / 2);
+            }
+            assert!(condensed.into_iter().all(|c| 0. <= c && c == c.trunc()));
+        }
+    }
+
+    #[test]
+    #[ignore = "pink needs to fix the decay formula"]
+    #[allow(clippy::cast_precision_loss)] // d is small
+    #[allow(clippy::float_cmp)] // exact equality due to maximum function
+    fn test_condensed_decay_factor() {
+        for n in 0..5 {
+            let date_distance = (0..n).map(|d| d as f32).collect();
+            let max_days = 2;
+            let max_dissimilarity = 0.5;
+            let condensed =
+                condensed_decay_factor(date_distance, max_days as f32, max_dissimilarity);
+            for (m, c) in condensed.into_iter().enumerate() {
+                if m < max_days {
+                    assert!(c > max_dissimilarity);
+                } else {
+                    assert_eq!(c, max_dissimilarity);
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_cut_tree_1_cluster() {
