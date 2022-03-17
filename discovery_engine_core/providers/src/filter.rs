@@ -46,17 +46,13 @@ pub struct Market {
     pub country_code: String,
     /// Language code as defined in ISO 639-1 — 2 letter code, e.g. 'de' or 'en'
     pub lang_code: String,
-    /// Up to which "quality rank" news articles should be included for this market.
-    ///
-    /// News with a quality rank higher (i.e. worse) than the limit will not be included.
-    pub news_quality_rank_limit: Option<usize>,
 }
 
 impl Market {
     /// Returns the default news quality rank limit for given country.
-    pub fn default_news_quality_rank_limit(country_code: &str) -> Option<usize> {
+    pub fn news_quality_rank_limit(&self) -> Option<usize> {
         #[allow(clippy::match_same_arms)]
-        Some(match country_code {
+        Some(match &*self.country_code {
             "AT" => 70_000,
             "BE" => 70_000,
             "CA" => 70_000,

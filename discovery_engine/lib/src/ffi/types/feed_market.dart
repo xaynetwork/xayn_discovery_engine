@@ -25,7 +25,6 @@ extension FeedMarketFfi on FeedMarket {
   void writeNative(Pointer<RustMarket> place) {
     countryCode.writeNative(ffi.market_place_of_country_code(place));
     langCode.writeNative(ffi.market_place_of_lang_code(place));
-    ffi.finish_market_initialization(place);
   }
 
   static FeedMarket readNative(Pointer<RustMarket> market) {

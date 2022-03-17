@@ -79,10 +79,6 @@ impl CommonQueryParts<'_> {
             // FIXME Consider cmp::min(self.page, 1) or explicit error variant
             .append_pair("page", &self.page.to_string());
 
-        if let Some(rank_limit) = self.market.news_quality_rank_limit {
-            query.append_pair("to_rank", &rank_limit.to_string());
-        }
-
         Ok(())
     }
 }
@@ -102,9 +98,14 @@ where
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
         self.common.setup_url(url, "_sn")?;
 
-        url.query_pairs_mut()
+        let mut query = url.query_pairs_mut();
+        query
             .append_pair("sort_by", "relevancy")
             .append_pair("q", &self.filter.build());
+
+        if let Some(limit) = self.common.market.news_quality_rank_limit() {
+            query.append_pair("to_rank", &limit.to_string());
+        }
 
         Ok(())
     }
@@ -214,7 +215,6 @@ mod tests {
             .and(query_param("countries", "AU"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
-            .and(query_param("to_rank", "9222"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -224,7 +224,52 @@ mod tests {
         let market = &Market {
             lang_code: "en".to_string(),
             country_code: "AU".to_string(),
-            news_quality_rank_limit: Some(9_222),
+        };
+        let filter = &Filter::default().add_keyword("Climate change");
+
+        let params = NewsQuery {
+            common: CommonQueryParts {
+                market,
+                page_size: 2,
+                page: 1,
+            },
+            filter,
+        };
+
+        let docs = client.query_articles(&params).await.unwrap();
+
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        assert_eq!(doc.title, "Businesses \u{2018}more concerned than ever'");
+    }
+
+    #[tokio::test]
+    async fn test_simple_news_query_with_rank_limit() {
+        let mock_server = MockServer::start().await;
+        let client = Client::new("test-token", mock_server.uri());
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/_sn"))
+            .and(query_param("q", "\"Climate change\""))
+            .and(query_param("sort_by", "relevancy"))
+            .and(query_param("lang", "de"))
+            .and(query_param("countries", "DE"))
+            .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
+            .and(query_param("to_rank", "12000"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = &Market {
+            lang_code: "de".to_string(),
+            country_code: "DE".to_string(),
         };
         let filter = &Filter::default().add_keyword("Climate change");
 
@@ -269,7 +314,6 @@ mod tests {
         let market = &Market {
             lang_code: "de".to_string(),
             country_code: "DE".to_string(),
-            news_quality_rank_limit: None,
         };
         let filter = &Filter::default()
             .add_keyword("Bill Gates")
@@ -319,7 +363,6 @@ mod tests {
                 market: &Market {
                     lang_code: "en".to_string(),
                     country_code: "US".to_string(),
-                    news_quality_rank_limit: None,
                 },
                 page_size: 2,
                 page: 1,
