@@ -111,7 +111,7 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, max_dissimilarity: f32) -> Vec<usize> 
             (dendrogram.observations(), clusters),
             |(id, mut clusters), step| {
                 // unwrap safety:
-                // - inital cluster ids have been inserted in the beginning
+                // - initial cluster ids have been inserted in the beginning
                 // - merged cluster ids have been inserted in a previous iteration/step
                 let mut cluster_1 = clusters.remove(&step.cluster1).unwrap();
                 let cluster_2 = clusters.remove(&step.cluster2).unwrap();
@@ -141,7 +141,7 @@ pub(crate) struct SemanticFilterConfig {
     /// Maximum days threshold after which documents fully decay (must be non-negative).
     max_days: f32,
     /// Cluster cutoff threshold for dissimilarity of normalized combined distances (must be in the
-    /// unit intervall [0, 1]).
+    /// unit interval [0, 1]).
     max_dissimilarity: f32,
 }
 
