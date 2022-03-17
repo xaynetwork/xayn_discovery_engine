@@ -37,6 +37,7 @@ use super::Ops;
 pub(crate) struct BreakingNews {
     client: Arc<Client>,
     markets: Arc<RwLock<Vec<Market>>>,
+    excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     semantic_filter_config: SemanticFilterConfig,
 }
@@ -49,6 +50,7 @@ impl BreakingNews {
             markets: config.markets.clone(),
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
+            excluded_sources: config.excluded_sources.clone(),
         }
     }
 
@@ -81,13 +83,21 @@ impl Ops for BreakingNews {
         let mut articles = Vec::new();
         let mut errors = Vec::new();
 
+        let excluded_sources = self.excluded_sources.read().await;
         let mut requests = self
             .markets
             .read()
             .await
             .iter()
             .cloned()
-            .map(|market| spawn_headlines_request(self.client.clone(), market, self.page_size))
+            .map(|market| {
+                spawn_headlines_request(
+                    self.client.clone(),
+                    market,
+                    self.page_size,
+                    excluded_sources.clone(),
+                )
+            })
             .collect::<FuturesUnordered<_>>();
 
         while let Some(handle) = requests.next().await {
@@ -123,6 +133,7 @@ fn spawn_headlines_request(
     client: Arc<Client>,
     market: Market,
     page_size: usize,
+    excluded_sources: Vec<String>,
 ) -> JoinHandle<Result<Vec<Article>, xayn_discovery_engine_providers::Error>> {
     tokio::spawn(async move {
         let market = market;
@@ -131,8 +142,7 @@ fn spawn_headlines_request(
                 market: &market,
                 page_size,
                 page: 1,
-                //FIXME pass excluded_sources
-                excluded_sources: &[],
+                excluded_sources: &excluded_sources,
             },
         };
         client.query_articles(&query).await

@@ -27,31 +27,19 @@ use tracing::error;
 
 use xayn_ai::{
     ranker::{AveragePooler, Builder, CoiSystemConfig},
-    KpeConfig,
-    SMBertConfig,
+    KpeConfig, SMBertConfig,
 };
 use xayn_discovery_engine_providers::{Client, CommonQueryParts, Filter, Market, NewsQuery};
 
 use crate::{
     document::{
-        self,
-        document_from_article,
-        Document,
-        HistoricDocument,
-        TimeSpent,
-        UserReacted,
+        self, document_from_article, Document, HistoricDocument, TimeSpent, UserReacted,
         UserReaction,
     },
     mab::{self, BetaSampler, SelectionIter},
     ranker::Ranker,
     stack::{
-        self,
-        BoxedOps,
-        BreakingNews,
-        Data as StackData,
-        Id as StackId,
-        PersonalizedNews,
-        Stack,
+        self, BoxedOps, BreakingNews, Data as StackData, Id as StackId, PersonalizedNews, Stack,
     },
 };
 
@@ -129,6 +117,8 @@ pub(crate) struct EndpointConfig {
     pub(crate) page_size: usize,
     /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
+    /// Sources to exclude for news queries.
+    pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
 }
 
 impl From<InitConfig> for EndpointConfig {
@@ -138,6 +128,7 @@ impl From<InitConfig> for EndpointConfig {
             api_base_url: config.api_base_url,
             page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
+            excluded_sources: Arc::new(RwLock::new(Vec::new())),
         }
     }
 }
