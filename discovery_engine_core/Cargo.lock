@@ -57,7 +57,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#a299c69aacb1f017c0f062a83203b5f6225c462f"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#060a79a6a4a5da8d060dadfc7da5cbd9f8272c7a"
 dependencies = [
  "async-bindgen-derive",
  "once_cell",
@@ -70,7 +70,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-derive"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#a299c69aacb1f017c0f062a83203b5f6225c462f"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#060a79a6a4a5da8d060dadfc7da5cbd9f8272c7a"
 dependencies = [
  "heck 0.4.0",
  "once_cell",
@@ -82,7 +82,7 @@ dependencies = [
 [[package]]
 name = "async-bindgen-gen-dart"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#a299c69aacb1f017c0f062a83203b5f6225c462f"
+source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#060a79a6a4a5da8d060dadfc7da5cbd9f8272c7a"
 dependencies = [
  "anyhow",
  "handlebars",
@@ -1050,7 +1050,7 @@ dependencies = [
 [[package]]
 name = "kpe"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#808b2fbca9034723b6b4fb8d54e349077b3a4dcf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#9f4edfec4ddf25b718fffa404a2248681facfd24"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1073,7 +1073,7 @@ dependencies = [
 [[package]]
 name = "layer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#808b2fbca9034723b6b4fb8d54e349077b3a4dcf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#9f4edfec4ddf25b718fffa404a2248681facfd24"
 dependencies = [
  "bincode",
  "displaydoc",
@@ -1940,7 +1940,7 @@ dependencies = [
 [[package]]
 name = "rubert"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#808b2fbca9034723b6b4fb8d54e349077b3a4dcf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#9f4edfec4ddf25b718fffa404a2248681facfd24"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1955,7 +1955,7 @@ dependencies = [
 [[package]]
 name = "rubert-tokenizer"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#808b2fbca9034723b6b4fb8d54e349077b3a4dcf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#9f4edfec4ddf25b718fffa404a2248681facfd24"
 dependencies = [
  "displaydoc",
  "num-traits",
@@ -2994,7 +2994,7 @@ dependencies = [
 [[package]]
 name = "xayn-ai"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#808b2fbca9034723b6b4fb8d54e349077b3a4dcf"
+source = "git+https://github.com/xaynetwork/xayn_ai?branch=master#9f4edfec4ddf25b718fffa404a2248681facfd24"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3022,7 +3022,7 @@ dependencies = [
 [[package]]
 name = "xayn-dart-api-dl"
 version = "0.3.0+2.0.0"
-source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#bf1423f2eaf5b3c1914b8a0a6696ebbff7872f73"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#3917690c9cfb65bb0877f3ad364b58a03555abb5"
 dependencies = [
  "displaydoc",
  "once_cell",
@@ -3034,7 +3034,7 @@ dependencies = [
 [[package]]
 name = "xayn-dart-api-dl-sys"
 version = "0.3.0+2.0.0"
-source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#bf1423f2eaf5b3c1914b8a0a6696ebbff7872f73"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#3917690c9cfb65bb0877f3ad364b58a03555abb5"
 dependencies = [
  "bindgen",
  "cc",

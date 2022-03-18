@@ -24,9 +24,10 @@ pub struct Filter {
 
 impl Filter {
     /// Add a keyword to filter with. All keyword are in "or" with each other.
+    #[must_use = "dropped changed filter"]
     pub fn add_keyword(mut self, keyword: &str) -> Self {
         // " can interfere with the quoting that we do while constructing the filter
-        self.keywords.push(keyword.replace("\"", ""));
+        self.keywords.push(keyword.replace('"', ""));
 
         self
     }
