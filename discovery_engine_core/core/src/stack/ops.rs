@@ -20,7 +20,7 @@ use xayn_discovery_engine_providers::Article;
 
 use crate::{
     document::{Document, HistoricDocument},
-    engine::{EndpointConfig, GenericError},
+    engine::GenericError,
     stack::Id,
 };
 use xayn_ai::ranker::KeyPhrase;
@@ -40,9 +40,6 @@ pub trait Ops {
     /// Only one stack with a given id can be added to [`Engine`](crate::engine::Engine).
     /// This method must always return the same value for a given implementation.
     fn id(&self) -> Id;
-
-    /// Configure the operations from endpoint settings.
-    fn configure(&mut self, config: &EndpointConfig);
 
     /// Returns new items that could be added to the stack.
     ///

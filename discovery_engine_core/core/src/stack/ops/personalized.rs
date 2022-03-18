@@ -41,7 +41,6 @@ use crate::{
 use super::Ops;
 
 /// Stack operations customized for personalized news items.
-#[derive(Default)]
 pub(crate) struct PersonalizedNews {
     client: Arc<Client>,
     markets: Option<Arc<RwLock<Vec<Market>>>>,
@@ -49,19 +48,22 @@ pub(crate) struct PersonalizedNews {
     semantic_filter_config: SemanticFilterConfig,
 }
 
+impl PersonalizedNews {
+    /// Creates a personalized news stack.
+    pub(crate) fn new(config: &EndpointConfig) -> Self {
+        Self {
+            client: Arc::new(Client::new(&config.api_key, &config.api_base_url)),
+            markets: Some(config.markets.clone()),
+            page_size: config.page_size,
+            semantic_filter_config: SemanticFilterConfig::default(),
+        }
+    }
+}
+
 #[async_trait]
 impl Ops for PersonalizedNews {
     fn id(&self) -> Id {
         Id(Uuid::parse_str("311dc7eb-5fc7-4aa4-8232-e119f7e80e76").unwrap(/* valid uuid */))
-    }
-
-    fn configure(&mut self, config: &EndpointConfig) {
-        self.client = Arc::new(Client::new(
-            config.api_key.clone(),
-            config.api_base_url.clone(),
-        ));
-        self.markets.replace(Arc::clone(&config.markets));
-        self.page_size = config.page_size;
     }
 
     fn needs_key_phrases(&self) -> bool {
