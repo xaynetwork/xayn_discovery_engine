@@ -1,0 +1,32 @@
+name: 'setup job'
+description: 'Setup dart and/or rust CI job'
+inputs:
+  dart:
+    description: 'Setup dart'
+    default: "false"
+    required: false
+  rust:
+    description: 'Setup rust'
+    default: "false"
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Load .env
+      uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
+
+    - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      if: inputs.rust != 'false'
+      with:
+        working-directory: ${{ env.RUST_WORKSPACE }}
+
+    - name: Setup dependencies
+      shell: bash
+      run: |
+        mkdir -p cargo-installs/bin
+        cp /usr/local/cargo/bin/async-bindgen-gen-dart cargo-installs/bin/async-bindgen-gen-dart
+
+    - name: dart deps
+      shell: bash
+      if: ${{ inputs.dart != 'false' }}
+      run: just dart-deps
