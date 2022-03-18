@@ -43,7 +43,7 @@ use super::Ops;
 /// Stack operations customized for personalized news items.
 pub(crate) struct PersonalizedNews {
     client: Arc<Client>,
-    markets: Option<Arc<RwLock<Vec<Market>>>>,
+    markets: Arc<RwLock<Vec<Market>>>,
     page_size: usize,
     semantic_filter_config: SemanticFilterConfig,
 }
@@ -53,7 +53,7 @@ impl PersonalizedNews {
     pub(crate) fn new(config: &EndpointConfig) -> Self {
         Self {
             client: Arc::new(Client::new(&config.api_key, &config.api_base_url)),
-            markets: Some(config.markets.clone()),
+            markets: config.markets.clone(),
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
         }
@@ -74,40 +74,38 @@ impl Ops for PersonalizedNews {
         if key_phrases.is_empty() {
             return Ok(vec![]);
         }
-        if let Some(markets) = self.markets.as_ref() {
-            let mut articles = Vec::new();
-            let mut errors = Vec::new();
-            let filter = Arc::new(key_phrases.iter().fold(Filter::default(), |filter, kp| {
-                filter.add_keyword(kp.words())
-            }));
 
-            let mut requests = markets
-                .read()
-                .await
-                .iter()
-                .cloned()
-                .map(|market| {
-                    spawn_news_request(self.client.clone(), market, filter.clone(), self.page_size)
-                })
-                .collect::<FuturesUnordered<_>>();
+        let mut articles = Vec::new();
+        let mut errors = Vec::new();
+        let filter = Arc::new(key_phrases.iter().fold(Filter::default(), |filter, kp| {
+            filter.add_keyword(kp.words())
+        }));
 
-            while let Some(handle) = requests.next().await {
-                // should we also push handle errors?
-                if let Ok(result) = handle {
-                    match result {
-                        Ok(batch) => articles.extend(batch),
-                        Err(err) => errors.push(err),
-                    }
+        let mut requests = self
+            .markets
+            .read()
+            .await
+            .iter()
+            .cloned()
+            .map(|market| {
+                spawn_news_request(self.client.clone(), market, filter.clone(), self.page_size)
+            })
+            .collect::<FuturesUnordered<_>>();
+
+        while let Some(handle) = requests.next().await {
+            // should we also push handle errors?
+            if let Ok(result) = handle {
+                match result {
+                    Ok(batch) => articles.extend(batch),
+                    Err(err) => errors.push(err),
                 }
             }
+        }
 
-            if articles.is_empty() && !errors.is_empty() {
-                Err(errors.pop().unwrap(/* nonempty errors */).into())
-            } else {
-                Ok(articles)
-            }
+        if articles.is_empty() && !errors.is_empty() {
+            Err(errors.pop().unwrap(/* nonempty errors */).into())
         } else {
-            Ok(vec![])
+            Ok(articles)
         }
     }
 

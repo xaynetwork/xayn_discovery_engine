@@ -36,7 +36,7 @@ use super::Ops;
 /// Stack operations customized for breaking news items.
 pub(crate) struct BreakingNews {
     client: Arc<Client>,
-    markets: Option<Arc<RwLock<Vec<Market>>>>,
+    markets: Arc<RwLock<Vec<Market>>>,
     page_size: usize,
     semantic_filter_config: SemanticFilterConfig,
 }
@@ -46,7 +46,7 @@ impl BreakingNews {
     pub(crate) fn new(config: &EndpointConfig) -> Self {
         Self {
             client: Arc::new(Client::new(&config.api_key, &config.api_base_url)),
-            markets: Some(config.markets.clone()),
+            markets: config.markets.clone(),
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
         }
@@ -64,35 +64,32 @@ impl Ops for BreakingNews {
     }
 
     async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
-        if let Some(markets) = self.markets.as_ref() {
-            let mut articles = Vec::new();
-            let mut errors = Vec::new();
+        let mut articles = Vec::new();
+        let mut errors = Vec::new();
 
-            let mut requests = markets
-                .read()
-                .await
-                .iter()
-                .cloned()
-                .map(|market| spawn_headlines_request(self.client.clone(), market, self.page_size))
-                .collect::<FuturesUnordered<_>>();
+        let mut requests = self
+            .markets
+            .read()
+            .await
+            .iter()
+            .cloned()
+            .map(|market| spawn_headlines_request(self.client.clone(), market, self.page_size))
+            .collect::<FuturesUnordered<_>>();
 
-            while let Some(handle) = requests.next().await {
-                // should we also push handle errors?
-                if let Ok(result) = handle {
-                    match result {
-                        Ok(batch) => articles.extend(batch),
-                        Err(err) => errors.push(err),
-                    }
+        while let Some(handle) = requests.next().await {
+            // should we also push handle errors?
+            if let Ok(result) = handle {
+                match result {
+                    Ok(batch) => articles.extend(batch),
+                    Err(err) => errors.push(err),
                 }
             }
+        }
 
-            if articles.is_empty() && !errors.is_empty() {
-                Err(errors.pop().unwrap(/* nonempty errors */).into())
-            } else {
-                Ok(articles)
-            }
+        if articles.is_empty() && !errors.is_empty() {
+            Err(errors.pop().unwrap(/* nonempty errors */).into())
         } else {
-            Ok(vec![])
+            Ok(articles)
         }
     }
 
