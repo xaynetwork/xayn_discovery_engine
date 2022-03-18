@@ -43,45 +43,49 @@ impl ArticleFilter for DuplicateFilter {
         let urls = stack
             .iter()
             .map(|doc| (doc.resource.url.as_str(), doc.resource.rank))
-            .chain(history.iter().map(|doc| (doc.url.as_str(), 0))) // TEMP historic docs not ranked
-            .fold(HashMap::new(), |mut map, (url, rank)| {
-                let best_rank = map.entry(url).or_insert(rank);
+            .chain(history.iter().map(|doc| (doc.url.as_str(), 0)))
+            .fold(HashMap::new(), |mut urls, (url, rank)| {
+                let best_rank = urls.entry(url).or_insert(rank);
                 if rank < *best_rank {
                     *best_rank = rank;
                 };
-                map
+                urls
             });
 
         let titles = stack
             .iter()
             .map(|doc| (&doc.resource.title, doc.resource.rank))
-            .chain(history.iter().map(|doc| (&doc.title, 0))) // TEMP historic docs not ranked
-            .fold(HashMap::new(), |mut map, (title, rank)| {
-                let best_rank = map.entry(title).or_insert(rank);
+            .chain(history.iter().map(|doc| (&doc.title, 0)))
+            .fold(HashMap::new(), |mut titles, (title, rank)| {
+                let best_rank = titles.entry(title).or_insert(rank);
                 if rank < *best_rank {
                     *best_rank = rank;
                 };
-                map
+                titles
             });
 
-        // discard articles that are dups of each other in the title keeping only the best ranked
+        // discard dups in the title keeping only the best ranked
         articles.sort_unstable_by(|art1, art2| match art1.title.cmp(&art2.title) {
             Ordering::Equal => art1.rank.cmp(&art2.rank),
             ord => ord,
         });
         articles.dedup_by(|art1, art2| art1.title == art2.title);
 
-        // discard articles that are dups of each other in the url keeping only the best ranked
+        // discard dups in the url keeping only the best ranked
         articles.sort_unstable_by(|art1, art2| match art1.link.cmp(&art2.link) {
             Ordering::Equal => art1.rank.cmp(&art2.rank),
             ord => ord,
         });
         articles.dedup_by(|art1, art2| art1.link == art2.link);
 
+        // discard worse-ranked dups of documents
         articles.retain(|article| {
-            let is_dup =
-                urls.contains_key(&article.link.as_str()) || titles.contains_key(&&article.title);
-            !(is_dup) // or is_dup but better ranked
+            match (urls.get(&article.link.as_str()), titles.get(&article.title)) {
+                (None, None) => true,
+                (Some(rank_u), None) => &article.rank < rank_u,
+                (None, Some(rank_t)) => &article.rank < rank_t,
+                (Some(rank_u), Some(rank_t)) => &article.rank < rank_u && &article.rank < rank_t,
+            }
         });
 
         Ok(articles)
