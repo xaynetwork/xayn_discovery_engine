@@ -106,7 +106,7 @@ impl ArticleFilter for MalformedFilter {
         _stack: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        articles.retain(|article| MalformedFilter::is_valid(article));
+        articles.retain(MalformedFilter::is_valid);
         Ok(articles)
     }
 }
