@@ -190,7 +190,6 @@ jobs:
   flutter-ok:
     if: ${{always()}}
     needs:
-      - selection
       - flutter-test
       - flutter-analyze
     runs-on: ubuntu-20.04

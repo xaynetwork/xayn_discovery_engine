@@ -1,2 +1,0 @@
-discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_*.a filter=lfs diff=lfs merge=lfs -text
-discovery_engine_flutter/android/src/main/jniLibs/*/libxayn_discovery_engine_bindings.so filter=lfs diff=lfs merge=lfs -text
