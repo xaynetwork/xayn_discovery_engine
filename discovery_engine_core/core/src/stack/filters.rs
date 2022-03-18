@@ -14,7 +14,7 @@
 
 mod article;
 mod semantic;
-use std::{cmp::Ordering, collections::HashSet};
+use std::{cmp::Ordering, collections::HashMap};
 
 use url::Url;
 
@@ -40,17 +40,29 @@ impl ArticleFilter for DuplicateFilter {
         stack: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        let urls = history
+        let urls = stack
             .iter()
-            .map(|doc| doc.url.as_str())
-            .chain(stack.iter().map(|doc| doc.resource.url.as_str()))
-            .collect::<HashSet<_>>();
+            .map(|doc| (doc.resource.url.as_str(), doc.resource.rank))
+            .chain(history.iter().map(|doc| (doc.url.as_str(), 0))) // TEMP historic docs not ranked
+            .fold(HashMap::new(), |mut map, (url, rank)| {
+                let best_rank = map.entry(url).or_insert(rank);
+                if rank < *best_rank {
+                    *best_rank = rank;
+                };
+                map
+            });
 
-        let titles = history
+        let titles = stack
             .iter()
-            .map(|doc| &doc.title)
-            .chain(stack.iter().map(|doc| &doc.resource.title))
-            .collect::<HashSet<_>>();
+            .map(|doc| (&doc.resource.title, doc.resource.rank))
+            .chain(history.iter().map(|doc| (&doc.title, 0))) // TEMP historic docs not ranked
+            .fold(HashMap::new(), |mut map, (title, rank)| {
+                let best_rank = map.entry(title).or_insert(rank);
+                if rank < *best_rank {
+                    *best_rank = rank;
+                };
+                map
+            });
 
         // discard articles that are dups of each other in the title keeping only the best ranked
         articles.sort_unstable_by(|art1, art2| match art1.title.cmp(&art2.title) {
@@ -67,7 +79,9 @@ impl ArticleFilter for DuplicateFilter {
         articles.dedup_by(|art1, art2| art1.link == art2.link);
 
         articles.retain(|article| {
-            !(urls.contains(&article.link.as_str()) || titles.contains(&&article.title))
+            let is_dup =
+                urls.contains_key(&article.link.as_str()) || titles.contains_key(&&article.title);
+            !(is_dup) // or is_dup but better ranked
         });
 
         Ok(articles)
@@ -112,7 +126,7 @@ impl ArticleFilter for CommonFilter {
 
 #[cfg(test)]
 mod tests {
-    use std::{convert::TryInto, iter::FromIterator};
+    use std::{collections::HashSet, convert::TryInto, iter::FromIterator};
 
     use crate::{
         document::{document_from_article, Document},
