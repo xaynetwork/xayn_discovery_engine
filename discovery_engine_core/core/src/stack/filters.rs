@@ -40,30 +40,6 @@ impl ArticleFilter for DuplicateFilter {
         stack: &[Document],
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        let urls = stack
-            .iter()
-            .map(|doc| (doc.resource.url.as_str(), doc.resource.rank))
-            .chain(history.iter().map(|doc| (doc.url.as_str(), 0)))
-            .fold(HashMap::new(), |mut urls, (url, rank)| {
-                let best_rank = urls.entry(url).or_insert(rank);
-                if rank < *best_rank {
-                    *best_rank = rank;
-                };
-                urls
-            });
-
-        let titles = stack
-            .iter()
-            .map(|doc| (&doc.resource.title, doc.resource.rank))
-            .chain(history.iter().map(|doc| (&doc.title, 0)))
-            .fold(HashMap::new(), |mut titles, (title, rank)| {
-                let best_rank = titles.entry(title).or_insert(rank);
-                if rank < *best_rank {
-                    *best_rank = rank;
-                };
-                titles
-            });
-
         // discard dups in the title keeping only the best ranked
         articles.sort_unstable_by(|art1, art2| match art1.title.cmp(&art2.title) {
             Ordering::Equal => art1.rank.cmp(&art2.rank),
@@ -77,6 +53,37 @@ impl ArticleFilter for DuplicateFilter {
             ord => ord,
         });
         articles.dedup_by(|art1, art2| art1.link == art2.link);
+
+        let urls = stack
+            .iter()
+            .map(|doc| (doc.resource.url.as_str(), doc.resource.rank))
+            .chain(history.iter().map(|doc| (doc.url.as_str(), 0)))
+            .fold(HashMap::new(), |mut urls, (url, rank)| {
+                urls.entry(url)
+                    .and_modify(|best_rank| {
+                        if rank < *best_rank {
+                            *best_rank = rank;
+                        }
+                    })
+                    .or_insert(rank);
+                urls
+            });
+
+        let titles = stack
+            .iter()
+            .map(|doc| (&doc.resource.title, doc.resource.rank))
+            .chain(history.iter().map(|doc| (&doc.title, 0)))
+            .fold(HashMap::new(), |mut titles, (title, rank)| {
+                titles
+                    .entry(title)
+                    .and_modify(|best_rank| {
+                        if rank < *best_rank {
+                            *best_rank = rank;
+                        }
+                    })
+                    .or_insert(rank);
+                titles
+            });
 
         // discard worse-ranked dups of documents
         articles.retain(|article| {
