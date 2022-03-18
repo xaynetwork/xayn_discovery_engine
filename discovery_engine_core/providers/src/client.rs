@@ -127,7 +127,6 @@ impl Query for HeadlinesQuery<'_> {
 impl Seal for HeadlinesQuery<'_> {}
 
 /// Client that can provide documents.
-#[derive(Default)]
 pub struct Client {
     token: String,
     url: String,

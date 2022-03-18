@@ -120,7 +120,7 @@ pub struct InitConfig {
 }
 
 /// Discovery Engine endpoint settings.
-pub struct EndpointConfig {
+pub(crate) struct EndpointConfig {
     /// Key for accessing API.
     pub(crate) api_key: String,
     /// Base URL for API.
@@ -222,10 +222,9 @@ where
     ) -> Result<Self, Error> {
         let mut stacks = stack_ops
             .into_iter()
-            .map(|mut ops| {
+            .map(|ops| {
                 let id = ops.id();
                 let data = stack_data(id);
-                ops.configure(&config);
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
             .collect::<Result<HashMap<_, _>, _>>()
@@ -596,9 +595,10 @@ impl XaynAiEngine {
         let builder =
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
+        let endpoint_config = config.into();
         let stack_ops = vec![
-            Box::new(BreakingNews::default()) as BoxedOps,
-            Box::new(PersonalizedNews::default()) as BoxedOps,
+            Box::new(BreakingNews::new(&endpoint_config)) as BoxedOps,
+            Box::new(PersonalizedNews::new(&endpoint_config)) as BoxedOps,
         ];
 
         if let Some(state) = state {
@@ -608,10 +608,10 @@ impl XaynAiEngine {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Self::from_state(&state.engine, config.into(), ranker, history, stack_ops).await
+            Self::from_state(&state.engine, endpoint_config, ranker, history, stack_ops).await
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Self::new(config.into(), ranker, history, stack_ops).await
+            Self::new(endpoint_config, ranker, history, stack_ops).await
         }
     }
 }
