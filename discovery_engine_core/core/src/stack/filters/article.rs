@@ -135,7 +135,7 @@ impl ArticleFilter for CommonFilter {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, convert::TryInto, iter::FromIterator};
+    use std::{convert::TryInto, iter::FromIterator};
 
     use crate::document::{document_from_article, Document};
     use itertools::Itertools;
@@ -285,17 +285,21 @@ mod tests {
         .unwrap();
         assert!(valid_articles.len() >= 4);
 
+        // start with 4 articles {0, 1, 2, 3}
         let mut articles = valid_articles.clone();
 
+        // add some more: {0, 1, 2, 3, 0, 1', 2', 3'}
         articles.push(valid_articles[0].clone());
         articles.push({
             let mut article = valid_articles[1].clone();
             article.link = "https://with_same_link.test".to_owned();
+            article.rank = u64::MAX;
             article
         });
         articles.push({
             let mut article = valid_articles[2].clone();
             article.title = "With same url".to_owned();
+            article.rank = 1;
             article
         });
         articles.push({
@@ -305,21 +309,29 @@ mod tests {
             article
         });
 
+        // after filtering: {0, 1, 2', 3, 3'}
         let filtered = CommonFilter::apply(&[], &[], articles)
             .unwrap()
             .into_iter()
-            .map(|article| article.title)
-            .sorted()
+            .map(|article| (article.title, article.rank))
             .collect::<Vec<_>>();
 
         assert_eq!(filtered.len(), 5, "Unexpected len for: {:?}", filtered);
 
-        // It's "arbitrary" weather `valid_article[1]/[2]` or their "new pseudo-equal" version is picked
-        let filtered = HashSet::<_>::from_iter(filtered);
-        assert!(filtered.contains(&valid_articles[0].title));
-        assert!(filtered.contains(&valid_articles[2].title) || filtered.contains("Foo Bar"));
-        assert!(filtered.contains(&valid_articles[1].title));
-        assert!(filtered.contains(&valid_articles[3].title));
-        assert!(filtered.contains("Unique"));
+        let filtered = HashMap::<_, _>::from_iter(filtered);
+        assert_eq!(
+            filtered.get(&valid_articles[0].title),
+            Some(&valid_articles[0].rank)
+        );
+        assert_eq!(
+            filtered.get(&valid_articles[1].title),
+            Some(&valid_articles[1].rank)
+        );
+        assert_eq!(filtered.get("With same url"), Some(&1));
+        assert_eq!(
+            filtered.get(&valid_articles[3].title),
+            Some(&valid_articles[3].rank)
+        );
+        assert_eq!(filtered.get("Unique"), Some(&valid_articles[3].rank));
     }
 }
