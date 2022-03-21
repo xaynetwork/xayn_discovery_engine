@@ -12,10 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    cmp::Ordering,
-    collections::{BTreeSet, HashSet},
-};
+use std::{cmp::Ordering, collections::HashMap};
 
 use url::Url;
 
@@ -39,52 +36,64 @@ impl ArticleFilter for DuplicateFilter {
     fn apply(
         history: &[HistoricDocument],
         stack: &[Document],
-        articles: Vec<Article>,
+        mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        let urls = history
+        // discard dups in the title keeping only the best ranked
+        articles.sort_unstable_by(|art1, art2| match art1.title.cmp(&art2.title) {
+            Ordering::Equal => art1.rank.cmp(&art2.rank),
+            ord => ord,
+        });
+        articles.dedup_by(|art1, art2| art1.title == art2.title);
+
+        // discard dups in the url keeping only the best ranked
+        articles.sort_unstable_by(|art1, art2| match art1.link.cmp(&art2.link) {
+            Ordering::Equal => art1.rank.cmp(&art2.rank),
+            ord => ord,
+        });
+        articles.dedup_by(|art1, art2| art1.link == art2.link);
+
+        let urls = stack
             .iter()
-            .map(|doc| doc.url.as_str())
-            .chain(stack.iter().map(|doc| doc.resource.url.as_str()))
-            .collect::<HashSet<_>>();
+            .map(|doc| (doc.resource.url.as_str(), doc.resource.rank))
+            .chain(history.iter().map(|doc| (doc.url.as_str(), 0)))
+            .fold(HashMap::new(), |mut urls, (url, rank)| {
+                urls.entry(url)
+                    .and_modify(|best_rank| {
+                        if rank < *best_rank {
+                            *best_rank = rank;
+                        }
+                    })
+                    .or_insert(rank);
+                urls
+            });
 
-        let titles = history
+        let titles = stack
             .iter()
-            .map(|doc| &doc.title)
-            .chain(stack.iter().map(|doc| &doc.resource.title))
-            .collect::<HashSet<_>>();
+            .map(|doc| (&doc.resource.title, doc.resource.rank))
+            .chain(history.iter().map(|doc| (&doc.title, 0)))
+            .fold(HashMap::new(), |mut titles, (title, rank)| {
+                titles
+                    .entry(title)
+                    .and_modify(|best_rank| {
+                        if rank < *best_rank {
+                            *best_rank = rank;
+                        }
+                    })
+                    .or_insert(rank);
+                titles
+            });
 
-        let mut articles: BTreeSet<_> = articles.into_iter().map(UniqueArticle).collect();
-
+        // discard worse-ranked dups of documents
         articles.retain(|article| {
-            !(urls.contains(&article.0.link.as_str()) || titles.contains(&&article.0.title))
+            match (urls.get(&article.link.as_str()), titles.get(&article.title)) {
+                (None, None) => true,
+                (Some(rank_u), None) => &article.rank < rank_u,
+                (None, Some(rank_t)) => &article.rank < rank_t,
+                (Some(rank_u), Some(rank_t)) => &article.rank < rank_u && &article.rank < rank_t,
+            }
         });
 
-        return Ok(articles.into_iter().map(|u| u.0).collect());
-
-        struct UniqueArticle(Article);
-
-        impl Eq for UniqueArticle {}
-        impl PartialEq for UniqueArticle {
-            fn eq(&self, other: &Self) -> bool {
-                self.0.link == other.0.link || self.0.title == other.0.title
-            }
-        }
-
-        impl PartialOrd for UniqueArticle {
-            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-
-        impl Ord for UniqueArticle {
-            fn cmp(&self, other: &Self) -> Ordering {
-                if self.eq(other) {
-                    Ordering::Equal
-                } else {
-                    (&self.0.title, &self.0.link).cmp(&(&other.0.title, &other.0.link))
-                }
-            }
-        }
+        Ok(articles)
     }
 }
 
@@ -126,7 +135,7 @@ impl ArticleFilter for CommonFilter {
 
 #[cfg(test)]
 mod tests {
-    use std::{convert::TryInto, iter::FromIterator};
+    use std::{collections::HashSet, convert::TryInto, iter::FromIterator};
 
     use crate::document::{document_from_article, Document};
     use itertools::Itertools;
