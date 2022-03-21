@@ -30,6 +30,15 @@ jobs:
           key: ${{ secrets.SSH}}
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
 
+      - name: Install SSH key gitlab
+        uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0 # v2.3.1
+        with:
+          key: ${{ secrets.SSH}}
+          known_hosts: ${{ secrets.KNOWN_HOSTS }}
+          config: |
+            Host gitlab
+            HostName gitlab.com
+
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
