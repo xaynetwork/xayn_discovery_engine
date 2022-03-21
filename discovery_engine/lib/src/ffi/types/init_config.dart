@@ -61,15 +61,15 @@ class InitConfigFfi with EquatableMixin {
 
   factory InitConfigFfi(
     Configuration configuration,
-    NativeSetupData setupData, {
+    NativeSetupData setupData,
+    Set<String> excludedSources, {
     String? aiConfig,
   }) =>
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
         feedMarkets: configuration.feedMarkets.toList(),
-        //FIXME[now]
-        excludedSources: [],
+        excludedSources: excludedSources.toList(),
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
         kpeVocab: setupData.kpeVocab,
