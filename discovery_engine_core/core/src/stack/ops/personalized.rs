@@ -21,7 +21,12 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{
-    Article, Client, CommonQueryParts, Filter, Market, NewsQuery,
+    Article,
+    Client,
+    CommonQueryParts,
+    Filter,
+    Market,
+    NewsQuery,
 };
 
 use crate::{
