@@ -83,7 +83,7 @@ impl Ops for BreakingNews {
         let mut articles = Vec::new();
         let mut errors = Vec::new();
 
-        let excluded_sources = self.excluded_sources.read().await;
+        let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
         let mut requests = self
             .markets
             .read()
@@ -133,7 +133,7 @@ fn spawn_headlines_request(
     client: Arc<Client>,
     market: Market,
     page_size: usize,
-    excluded_sources: Vec<String>,
+    excluded_sources: Arc<Vec<String>>,
 ) -> JoinHandle<Result<Vec<Article>, xayn_discovery_engine_providers::Error>> {
     tokio::spawn(async move {
         let market = market;

@@ -97,7 +97,7 @@ impl Ops for PersonalizedNews {
             filter.add_keyword(kp.words())
         }));
 
-        let excluded_sources = self.excluded_sources.read().await;
+        let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
         let mut requests = self
             .markets
             .read()
@@ -149,7 +149,7 @@ fn spawn_news_request(
     market: Market,
     filter: Arc<Filter>,
     page_size: usize,
-    excluded_sources: Vec<String>,
+    excluded_sources: Arc<Vec<String>>,
 ) -> JoinHandle<Result<Vec<Article>, xayn_discovery_engine_providers::Error>> {
     tokio::spawn(async move {
         let market = market;

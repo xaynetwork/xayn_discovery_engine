@@ -140,7 +140,7 @@ impl From<InitConfig> for EndpointConfig {
             api_base_url: config.api_base_url,
             page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
-            excluded_sources: Arc::new(RwLock::new(Vec::new())),
+            excluded_sources: Arc::default(),
         }
     }
 }
