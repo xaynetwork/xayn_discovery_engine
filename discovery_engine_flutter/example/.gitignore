@@ -51,5 +51,5 @@ app.*.map.json
 # Keep the folder structure for assets
 !/assets/kpe_v0001
 !/assets/kpe_v0001/.gitkeep
-!/assets/smbert_v0000
-!/assets/smbert_v0000/.gitkeep
+!/assets/smbert_v0001
+!/assets/smbert_v0001/.gitkeep
