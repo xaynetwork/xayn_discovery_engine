@@ -45,18 +45,15 @@ pub trait Ops {
     ///
     /// Personalized key phrases can be optionally used to return items
     /// tailored to the user's interests.
-    async fn new_items(&self, key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError>;
+    async fn new_items(
+        &self,
+        key_phrases: &[KeyPhrase],
+        history: &[HistoricDocument],
+        stack: &[Document],
+    ) -> Result<Vec<Article>, GenericError>;
 
     /// Returns if `[new_items]` needs the key phrases to work.
     fn needs_key_phrases(&self) -> bool;
-
-    /// Filter `articles` based on `stack` documents.
-    fn filter_articles(
-        &self,
-        history: &[HistoricDocument],
-        stack: &[Document],
-        articles: Vec<Article>,
-    ) -> Result<Vec<Article>, GenericError>;
 
     /// Merge stacked and new items.
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;

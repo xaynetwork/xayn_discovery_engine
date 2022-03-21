@@ -51,6 +51,15 @@ impl BreakingNews {
             semantic_filter_config: SemanticFilterConfig::default(),
         }
     }
+
+    /// Filter `articles` based on `stack` documents.
+    fn filter_articles(
+        history: &[HistoricDocument],
+        stack: &[Document],
+        articles: Vec<Article>,
+    ) -> Result<Vec<Article>, GenericError> {
+        CommonFilter::apply(history, stack, articles)
+    }
 }
 
 #[async_trait]
@@ -63,7 +72,12 @@ impl Ops for BreakingNews {
         false
     }
 
-    async fn new_items(&self, _key_phrases: &[KeyPhrase]) -> Result<Vec<Article>, GenericError> {
+    async fn new_items(
+        &self,
+        _key_phrases: &[KeyPhrase],
+        history: &[HistoricDocument],
+        stack: &[Document],
+    ) -> Result<Vec<Article>, GenericError> {
         let mut articles = Vec::new();
         let mut errors = Vec::new();
 
@@ -81,25 +95,20 @@ impl Ops for BreakingNews {
             if let Ok(result) = handle {
                 match result {
                     Ok(batch) => articles.extend(batch),
-                    Err(err) => errors.push(err),
+                    Err(err) => errors.push(err.into()),
                 }
             }
         }
 
+        let articles = Self::filter_articles(history, stack, articles)
+            .map_err(|err| errors.push(err))
+            .unwrap_or_default();
+
         if articles.is_empty() && !errors.is_empty() {
-            Err(errors.pop().unwrap(/* nonempty errors */).into())
+            Err(errors.pop().unwrap(/* nonempty errors */))
         } else {
             Ok(articles)
         }
-    }
-
-    fn filter_articles(
-        &self,
-        history: &[HistoricDocument],
-        stack: &[Document],
-        articles: Vec<Article>,
-    ) -> Result<Vec<Article>, GenericError> {
-        CommonFilter::apply(history, stack, articles)
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
