@@ -62,6 +62,8 @@ pub struct CommonQueryParts<'a> {
     ///
     /// Paging starts with `1`.
     pub page: usize,
+    /// Exclude given sources
+    pub excluded_sources: &'a [String],
 }
 
 impl CommonQueryParts<'_> {
@@ -81,6 +83,10 @@ impl CommonQueryParts<'_> {
 
         if let Some(limit) = self.market.news_quality_rank_limit() {
             query.append_pair("to_rank", &limit.to_string());
+        }
+
+        if !self.excluded_sources.is_empty() {
+            query.append_pair("not_sources", &self.excluded_sources.join(","));
         }
 
         Ok(())
@@ -232,6 +238,7 @@ mod tests {
                 market,
                 page_size: 2,
                 page: 1,
+                excluded_sources: &[],
             },
             filter,
         };
@@ -245,7 +252,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_simple_news_query_with_rank_limit() {
+    async fn test_simple_news_query_with_additional_parameters() {
         let mock_server = MockServer::start().await;
         let client = Client::new("test-token", mock_server.uri());
 
@@ -260,6 +267,7 @@ mod tests {
             .and(query_param("countries", "DE"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
+            .and(query_param("not_sources", "dodo.com,dada.net"))
             .and(query_param("to_rank", "12000"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
@@ -278,6 +286,7 @@ mod tests {
                 market,
                 page_size: 2,
                 page: 1,
+                excluded_sources: &["dodo.com".into(), "dada.net".into()],
             },
             filter,
         };
@@ -324,6 +333,7 @@ mod tests {
                 market,
                 page_size: 2,
                 page: 1,
+                excluded_sources: &[],
             },
             filter,
         };
@@ -366,6 +376,7 @@ mod tests {
                 },
                 page_size: 2,
                 page: 1,
+                excluded_sources: &[],
             },
         };
 
