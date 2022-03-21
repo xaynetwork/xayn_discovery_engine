@@ -177,19 +177,12 @@ impl Stack {
     pub(crate) async fn new_items(
         &self,
         key_phrases: &[xayn_ai::ranker::KeyPhrase],
-    ) -> Result<Vec<Article>, Error> {
-        self.ops.new_items(key_phrases).await.map_err(Error::New)
-    }
-
-    /// Filters a list of articles
-    pub(crate) fn filter_articles(
-        &self,
         history: &[HistoricDocument],
-        articles: Vec<Article>,
     ) -> Result<Vec<Article>, Error> {
         self.ops
-            .filter_articles(history, &self.data.documents, articles)
-            .map_err(Error::Filter)
+            .new_items(key_phrases, history, &self.data.documents)
+            .await
+            .map_err(Error::New)
     }
 }
 

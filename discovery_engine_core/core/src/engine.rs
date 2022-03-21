@@ -485,17 +485,7 @@ async fn update_stacks<'a>(
 
     let mut errors = Vec::new();
     for stack in &mut stacks {
-        let articles = match stack.new_items(&key_phrases).await {
-            Ok(articles) => articles,
-            Err(error) => {
-                let error = Error::StackOpFailed(error);
-                error!("{}", error);
-                errors.push(error);
-                continue;
-            }
-        };
-
-        let articles = match stack.filter_articles(history, articles) {
+        let articles = match stack.new_items(&key_phrases, history).await {
             Ok(articles) => articles,
             Err(error) => {
                 let error = Error::StackOpFailed(error);
