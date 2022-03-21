@@ -33,11 +33,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Setup job
-        uses: ./.github/actions/setup-job-docker
-        with:
-          dart: true
-          rust: true
+      # - name: Setup job
+      #   uses: ./.github/actions/setup-job-docker
+      #   with:
+      #     dart: true
+      #     rust: true
 
       # - name: Download artifacts
       #   id: artifacts
