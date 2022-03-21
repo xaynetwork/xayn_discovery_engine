@@ -44,6 +44,7 @@ use super::Ops;
 pub(crate) struct PersonalizedNews {
     client: Arc<Client>,
     markets: Arc<RwLock<Vec<Market>>>,
+    excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     semantic_filter_config: SemanticFilterConfig,
 }
@@ -56,6 +57,7 @@ impl PersonalizedNews {
             markets: config.markets.clone(),
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
+            excluded_sources: config.excluded_sources.clone(),
         }
     }
 
@@ -95,6 +97,7 @@ impl Ops for PersonalizedNews {
             filter.add_keyword(kp.words())
         }));
 
+        let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
         let mut requests = self
             .markets
             .read()
@@ -102,7 +105,13 @@ impl Ops for PersonalizedNews {
             .iter()
             .cloned()
             .map(|market| {
-                spawn_news_request(self.client.clone(), market, filter.clone(), self.page_size)
+                spawn_news_request(
+                    self.client.clone(),
+                    market,
+                    filter.clone(),
+                    self.page_size,
+                    excluded_sources.clone(),
+                )
             })
             .collect::<FuturesUnordered<_>>();
 
@@ -140,6 +149,7 @@ fn spawn_news_request(
     market: Market,
     filter: Arc<Filter>,
     page_size: usize,
+    excluded_sources: Arc<Vec<String>>,
 ) -> JoinHandle<Result<Vec<Article>, xayn_discovery_engine_providers::Error>> {
     tokio::spawn(async move {
         let market = market;
@@ -148,8 +158,7 @@ fn spawn_news_request(
                 market: &market,
                 page_size,
                 page: 1,
-                //FIXME pass excluded_sources
-                excluded_sources: &[],
+                excluded_sources: &excluded_sources,
             },
             filter,
         };

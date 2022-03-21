@@ -129,6 +129,8 @@ pub(crate) struct EndpointConfig {
     pub(crate) page_size: usize,
     /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
+    /// Sources to exclude for news queries.
+    pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
 }
 
 impl From<InitConfig> for EndpointConfig {
@@ -138,6 +140,7 @@ impl From<InitConfig> for EndpointConfig {
             api_base_url: config.api_base_url,
             page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
+            excluded_sources: Arc::default(),
         }
     }
 }
