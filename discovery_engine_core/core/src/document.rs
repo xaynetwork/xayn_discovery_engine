@@ -15,6 +15,7 @@
 //! Personalized document that is returned from [`Engine`](crate::engine::Engine).
 
 use std::{
+    cmp::Ordering,
     convert::{TryFrom, TryInto},
     time::Duration,
 };
@@ -220,6 +221,27 @@ pub(crate) fn document_from_article(
         smbert_embedding,
         resource: article.try_into()?,
     })
+}
+
+/// Removes documents where the title or url is duplicated.
+pub(crate) fn dedup_documents(documents: &mut Vec<Document>) {
+    // discard dups in the title keeping only the best ranked
+    documents.sort_unstable_by(
+        |doc1, doc2| match doc1.resource.title.cmp(&doc2.resource.title) {
+            Ordering::Equal => doc1.resource.rank.cmp(&doc2.resource.rank),
+            ord => ord,
+        },
+    );
+    documents.dedup_by(|doc1, doc2| doc1.resource.title == doc2.resource.title);
+
+    // discard dups in the url keeping only the best ranked
+    documents.sort_unstable_by(
+        |doc1, doc2| match doc1.resource.url.cmp(&doc2.resource.url) {
+            Ordering::Equal => doc1.resource.rank.cmp(&doc2.resource.rank),
+            ord => ord,
+        },
+    );
+    documents.dedup_by(|doc1, doc2| doc1.resource.url == doc2.resource.url);
 }
 
 /// Represents a [`Document`] in the document history.
