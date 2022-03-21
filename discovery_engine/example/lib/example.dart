@@ -27,6 +27,7 @@ Future<void> runExample() async {
     maxItemsPerSearchBatch: 20,
     applicationDirectoryPath: appDirPath,
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+    excludedSources: {},
     manifest: manifest,
   );
 

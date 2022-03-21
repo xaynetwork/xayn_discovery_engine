@@ -56,6 +56,7 @@ Configuration createConfig(
     maxItemsPerSearchBatch: 20,
     applicationDirectoryPath: data.applicationDirectoryPath,
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+    excludedSources: {},
     manifest: data.manifest,
   );
 }

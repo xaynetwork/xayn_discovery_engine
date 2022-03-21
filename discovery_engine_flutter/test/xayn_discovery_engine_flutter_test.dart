@@ -83,6 +83,7 @@ void main() {
         maxItemsPerSearchBatch: 20,
         applicationDirectoryPath: outputPath,
         feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+        excludedSources: {},
         manifest: manifest,
       );
 

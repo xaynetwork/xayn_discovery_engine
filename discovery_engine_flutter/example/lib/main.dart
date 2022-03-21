@@ -69,6 +69,7 @@ class _MyAppState extends State<MyApp> {
       maxItemsPerSearchBatch: 20,
       applicationDirectoryPath: appDir.path,
       feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+      excludedSources: {},
       manifest: manifest,
     );
 

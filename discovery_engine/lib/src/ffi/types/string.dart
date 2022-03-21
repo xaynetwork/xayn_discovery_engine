@@ -16,9 +16,11 @@ import 'dart:convert' show utf8;
 import 'dart:ffi' show nullptr, Pointer, Uint8, Uint8Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustOptionString, RustString;
+    show RustOptionString, RustString, RustVecString;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
+import 'package:xayn_discovery_engine/src/ffi/types/list.dart'
+    show ListFfiAdapter;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
     show checkFfiUsize;
 
@@ -90,4 +92,28 @@ class BoxedStr {
     final data = ptr.asTypedList(len);
     return utf8.decode(data);
   }
+}
+
+final _listAdapter = ListFfiAdapter<String, RustString, RustVecString>(
+  alloc: ffi.alloc_uninitialized_string_slice,
+  next: ffi.next_string,
+  writeNative: (string, place) => string.writeNative(place),
+  readNative: StringFfi.readNative,
+  getVecLen: ffi.get_string_vec_len,
+  getVecBuffer: ffi.get_string_vec_buffer,
+  writeNativeVec: ffi.init_string_vec_at,
+);
+
+extension StringListFfi on List<String> {
+  /// Writes a rust-`Vec<RustString>` to given place.
+  void writeNative(
+    final Pointer<RustVecString> place,
+  ) =>
+      _listAdapter.writeVec(this, place);
+
+  /// Reads a rust-`&Vec<RustString>` returning a dart-`List<String>`.
+  static List<String> readNative(
+    final Pointer<RustVecString> vec,
+  ) =>
+      _listAdapter.readVec(vec);
 }

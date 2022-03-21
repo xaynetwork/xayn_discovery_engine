@@ -27,7 +27,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
-    show OptionStringFfi, StringFfi;
+    show OptionStringFfi, StringFfi, StringListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
@@ -35,6 +35,7 @@ class InitConfigFfi with EquatableMixin {
   final String apiKey;
   final String apiBaseUrl;
   final List<FeedMarket> feedMarkets;
+  final List<String> excludedSources;
   final String smbertVocab;
   final String smbertModel;
   final String kpeVocab;
@@ -48,6 +49,7 @@ class InitConfigFfi with EquatableMixin {
         apiKey,
         apiBaseUrl,
         feedMarkets,
+        excludedSources,
         smbertVocab,
         smbertModel,
         kpeVocab,
@@ -66,6 +68,7 @@ class InitConfigFfi with EquatableMixin {
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
         feedMarkets: configuration.feedMarkets.toList(),
+        excludedSources: configuration.excludedSources.toList(),
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
         kpeVocab: setupData.kpeVocab,
@@ -79,6 +82,7 @@ class InitConfigFfi with EquatableMixin {
     required this.apiKey,
     required this.apiBaseUrl,
     required this.feedMarkets,
+    required this.excludedSources,
     required this.smbertVocab,
     required this.smbertModel,
     required this.kpeVocab,
@@ -98,7 +102,9 @@ class InitConfigFfi with EquatableMixin {
   void writeNative(Pointer<RustInitConfig> place) {
     apiKey.writeNative(ffi.init_config_place_of_api_key(place));
     apiBaseUrl.writeNative(ffi.init_config_place_of_api_base_url(place));
-    feedMarkets.toList().writeVec(ffi.init_config_place_of_markets(place));
+    feedMarkets.writeVec(ffi.init_config_place_of_markets(place));
+    excludedSources
+        .writeNative(ffi.init_config_place_of_excluded_sources(place));
     smbertVocab.writeNative(ffi.init_config_place_of_smbert_vocab(place));
     smbertModel.writeNative(ffi.init_config_place_of_smbert_model(place));
     kpeVocab.writeNative(ffi.init_config_place_of_kpe_vocab(place));
@@ -116,6 +122,9 @@ class InitConfigFfi with EquatableMixin {
           StringFfi.readNative(ffi.init_config_place_of_api_base_url(config)),
       feedMarkets:
           FeedMarketSliceFfi.readVec(ffi.init_config_place_of_markets(config)),
+      excludedSources: StringListFfi.readNative(
+        ffi.init_config_place_of_excluded_sources(config),
+      ),
       smbertVocab:
           StringFfi.readNative(ffi.init_config_place_of_smbert_vocab(config)),
       smbertModel:

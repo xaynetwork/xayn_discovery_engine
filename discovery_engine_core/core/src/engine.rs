@@ -103,6 +103,8 @@ pub struct InitConfig {
     pub api_base_url: String,
     /// List of markets to use.
     pub markets: Vec<Market>,
+    /// List of excluded sources to use.
+    pub excluded_sources: Vec<String>,
     /// S-mBert vocabulary path.
     pub smbert_vocab: String,
     /// S-mBert model path.
@@ -140,7 +142,7 @@ impl From<InitConfig> for EndpointConfig {
             api_base_url: config.api_base_url,
             page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
-            excluded_sources: Arc::default(),
+            excluded_sources: Arc::new(RwLock::new(config.excluded_sources)),
         }
     }
 }

@@ -46,4 +46,5 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "Vec_Document" = "RustVecDocument"
 "Vec_HistoricDocument" = "RustVecHistoricDocument"
 "Vec_Market" = "RustVecMarket"
+"Vec_String" = "RustVecString"
 "Vec_u8" = "RustVecU8"

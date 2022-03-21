@@ -116,6 +116,7 @@ final mockConfig = Configuration(
   maxItemsPerSearchBatch: 20,
   applicationDirectoryPath: './',
   feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+  excludedSources: {},
   manifest: Manifest.fromJson(goodJson),
 );
 

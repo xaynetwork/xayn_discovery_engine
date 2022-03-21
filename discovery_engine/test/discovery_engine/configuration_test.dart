@@ -27,6 +27,7 @@ void main() {
       expect(
         () => Configuration(
           feedMarkets: values,
+          excludedSources: {},
           apiKey: '',
           apiBaseUrl: '',
           assetsUrl: '',
