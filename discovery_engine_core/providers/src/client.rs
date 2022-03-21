@@ -84,7 +84,7 @@ impl CommonQueryParts<'_> {
         if let Some(limit) = self.market.news_quality_rank_limit() {
             query.append_pair("to_rank", &limit.to_string());
         }
-        
+
         if !self.excluded_sources.is_empty() {
             query.append_pair("not_sources", &self.excluded_sources.join(","));
         }
