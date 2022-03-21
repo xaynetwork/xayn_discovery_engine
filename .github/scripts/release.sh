@@ -46,7 +46,7 @@ echo "Targeting branch: $BRANCH"
 
 # Create a temporary folder to clone the other repo
 DST_DIR=$(mktemp -d)
-DST_REPO='git@github.com:xaynetwork/xayn_discovery_engine_release.git'
+DST_REPO='git@gitlab.com:xayn/xayn_discovery_engine_release.git'
 
 SRC_COMMIT=$(git rev-parse HEAD)
 SRC_COMMIT_MSG=$(git log --format=%B -n1)

@@ -27,7 +27,7 @@ jobs:
       - name: Install SSH key
         uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0 # v2.3.1
         with:
-          key: ${{ secrets.SSH }}
+          key: ${{ secrets.RELEASE_REPO_SSH_KEY }}
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
 
       - name: Checkout repository
