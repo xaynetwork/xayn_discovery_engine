@@ -33,7 +33,13 @@ use crate::{
     document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::{
-        filters::{filter_semantically, ArticleFilter, CommonFilter, SemanticFilterConfig},
+        filters::{
+            dedup_documents,
+            filter_semantically,
+            ArticleFilter,
+            CommonFilter,
+            SemanticFilterConfig,
+        },
         Id,
     },
 };
@@ -120,6 +126,7 @@ impl Ops for PersonalizedNews {
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
         let merged = chain!(stack, new).cloned().collect();
+        dedup_documents(&mut merged);
         let filtered = filter_semantically(merged, &self.semantic_filter_config);
 
         Ok(filtered)
