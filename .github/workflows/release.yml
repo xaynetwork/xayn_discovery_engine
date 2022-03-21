@@ -29,11 +29,11 @@ jobs:
         with:
           key: ${{ secrets.RELEASE_REPO_SSH_KEY}}
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
-          config: |
-            Host gitlab
-            HostName gitlab.com
-            IdentityFile ~/.ssh/id_rsa-gitlab
-          if_key_exists: replace
+          # config: |
+          #   Host gitlab
+          #   HostName gitlab.com
+          #   IdentityFile ~/.ssh/id_rsa-gitlab
+          # if_key_exists: replace
 
       - name: Checkout repository
         uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -72,3 +72,4 @@ jobs:
       - name: Copy Repository
         shell: bash
         run: .github/scripts/release.sh --do-push
+
