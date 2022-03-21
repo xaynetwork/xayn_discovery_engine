@@ -29,6 +29,7 @@ jobs:
         with:
           key: ${{ secrets.SSH}}
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
+          if_key_exists: replace
           config: |
             Host github
             HostName github.com
@@ -39,6 +40,7 @@ jobs:
         with:
           key: ${{ secrets.SSH}}
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
+          if_key_exists: replace
           config: |
             Host gitlab
             HostName gitlab.com
