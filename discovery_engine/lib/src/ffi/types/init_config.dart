@@ -68,7 +68,8 @@ class InitConfigFfi with EquatableMixin {
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
         feedMarkets: configuration.feedMarkets.toList(),
-        excludedSources: configuration.excludedSources.toList(),
+        //FIXME[now]
+        excludedSources: [],
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
         kpeVocab: setupData.kpeVocab,

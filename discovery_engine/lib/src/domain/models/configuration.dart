@@ -33,7 +33,6 @@ class Configuration with _$Configuration {
     required int maxItemsPerSearchBatch,
     required String applicationDirectoryPath,
     required FeedMarkets feedMarkets,
-    required Set<String> excludedSources,
     required Manifest manifest,
   }) = _Configuration;
 

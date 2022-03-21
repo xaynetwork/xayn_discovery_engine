@@ -41,7 +41,6 @@ void main() {
       maxItemsPerSearchBatch: 0,
       applicationDirectoryPath: '',
       feedMarkets: {const FeedMarket(countryCode: '', langCode: '')},
-      excludedSources: {},
       manifest: Manifest([]),
     );
     final setupData = NativeSetupData(
