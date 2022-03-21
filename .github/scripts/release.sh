@@ -67,6 +67,8 @@ fi
 WS_ROOT="$(pwd)"
 cd "$DST_DIR"
 
+git remote rm origin
+git remote add origin gitlab.com:xayn/xayn_discovery_engine_release.git
 # Cleaning all files on the destination repository
 # --ignore-unmatch avoid to fail if the repository is empty
 git rm --ignore-unmatch -r .
@@ -96,3 +98,8 @@ if [ "$DRY_RUN" = "false" ]; then
 else
     echo "Prepared release at: $DST_DIR"
 fi
+
+echo "---- git remote list ----"
+git remote -v
+echo "---- git remote list ----"
+
