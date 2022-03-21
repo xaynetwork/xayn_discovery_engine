@@ -54,13 +54,13 @@ SRC_COMMIT_MSG=$(git log --format=%B -n1)
 # Check if the branch exists, if so, clone using the existing branch,
 # if not, clone using the default branch and let git push to send to the right branch
 BRANCH_EXISTS=$(git ls-remote --heads "$DST_REPO" "$BRANCH" | wc -l);
-git clone --depth 1 "$DST_REPO" "$DST_DIR"
-#if [ $BRANCH_EXISTS -eq 0 ]; then
-#    # We do not need to create a branch as we use `git push -u origin HEAD:$BRANCH`
-#    git clone --depth 1 "$DST_REPO" "$DST_DIR"
-#else
-#    git clone -b "$BRANCH" --depth 1 "$DST_REPO" "$DST_DIR";
-#fi
+> ~/.ssh/known_hosts
+if [ $BRANCH_EXISTS -eq 0 ]; then
+    # We do not need to create a branch as we use `git push -u origin HEAD:$BRANCH`
+    git clone --depth 1 "$DST_REPO" "$DST_DIR"
+else
+    git clone -b "$BRANCH" --depth 1 "$DST_REPO" "$DST_DIR";
+fi
 
 WS_ROOT="$(pwd)"
 cd "$DST_DIR"
