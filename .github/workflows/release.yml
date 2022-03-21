@@ -38,6 +38,7 @@ jobs:
         with:
           dart: true
           rust: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download artifacts
         id: artifacts
