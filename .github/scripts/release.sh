@@ -51,8 +51,6 @@ DST_REPO='git@gitlab.com:xayn/xayn_discovery_engine_release.git'
 SRC_COMMIT=$(git rev-parse HEAD)
 SRC_COMMIT_MSG=$(git log --format=%B -n1)
 
-eval "$(ssh-agent -s)"
-ssh-add
 # Check if the branch exists, if so, clone using the existing branch,
 # if not, clone using the default branch and let git push to send to the right branch
 BRANCH_EXISTS=$(git ls-remote --heads "$DST_REPO" "$BRANCH" | wc -l);

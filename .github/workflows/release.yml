@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           git config --global user.email "ci@xayn.com"
-          git config --global user.name "ci"
+          git config --global user.name "cixayn"
 
       - name: Copy Repository
         shell: bash
