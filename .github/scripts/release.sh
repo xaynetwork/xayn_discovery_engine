@@ -56,6 +56,8 @@ SRC_COMMIT_MSG=$(git log --format=%B -n1)
 echo "---- git remote list ----"
 git remote -v
 echo "---- git remote list ----"
+git remote rm origin
+git remote add origin gitlab.com:xayn/xayn_discovery_engine_release.git
 BRANCH_EXISTS=$(git ls-remote --heads "$DST_REPO" "$BRANCH" | wc -l);
 if [ $BRANCH_EXISTS -eq 0 ]; then
     # We do not need to create a branch as we use `git push -u origin HEAD:$BRANCH`
@@ -67,8 +69,6 @@ fi
 WS_ROOT="$(pwd)"
 cd "$DST_DIR"
 
-git remote rm origin
-git remote add origin gitlab.com:xayn/xayn_discovery_engine_release.git
 # Cleaning all files on the destination repository
 # --ignore-unmatch avoid to fail if the repository is empty
 git rm --ignore-unmatch -r .
