@@ -79,6 +79,10 @@ impl CommonQueryParts<'_> {
             // FIXME Consider cmp::min(self.page, 1) or explicit error variant
             .append_pair("page", &self.page.to_string());
 
+        if let Some(limit) = self.market.news_quality_rank_limit() {
+            query.append_pair("to_rank", &limit.to_string());
+        }
+
         Ok(())
     }
 }
@@ -102,10 +106,6 @@ where
         query
             .append_pair("sort_by", "relevancy")
             .append_pair("q", &self.filter.build());
-
-        if let Some(limit) = self.common.market.news_quality_rank_limit() {
-            query.append_pair("to_rank", &limit.to_string());
-        }
 
         Ok(())
     }
