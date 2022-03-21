@@ -53,9 +53,6 @@ SRC_COMMIT_MSG=$(git log --format=%B -n1)
 
 # Check if the branch exists, if so, clone using the existing branch,
 # if not, clone using the default branch and let git push to send to the right branch
-echo "---- ssh-add list ----"
-ssh-add -l
-echo "---- ssh-add list ----"
 echo "---- git remote list ----"
 git remote -v
 echo "---- git remote list ----"
