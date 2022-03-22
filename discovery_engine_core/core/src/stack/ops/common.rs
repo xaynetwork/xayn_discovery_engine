@@ -110,7 +110,7 @@ mod tests {
     fn client(responses: Vec<Resp>) -> Requests<u32> {
         responses
             .into_iter()
-            .map(|response| tokio::spawn(async move { response.0 }))
+            .map(|response| tokio::spawn(async { response.0 }))
             .collect::<FuturesUnordered<_>>()
     }
 
@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_request_min_new_items_only() {
+    async fn test_request_min_new_items_only_errors() {
         let res = request_min_new_items(
             2,
             2,
