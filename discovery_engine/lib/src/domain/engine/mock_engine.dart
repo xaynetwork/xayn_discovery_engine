@@ -94,6 +94,7 @@ class MockEngine implements Engine {
 
   @override
   Future<void> setExcludedSources(
+    List<HistoricDocument> history,
     Set<String> sources,
   ) async {
     _incrementCount('setExcludedSources');

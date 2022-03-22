@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashSet;
+
 use derivative::Derivative;
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
@@ -66,6 +68,12 @@ impl Data {
         if len > keep {
             self.documents.drain(..len - keep);
         }
+    }
+
+    /// Retains only documents with sources not excluded
+    pub(crate) fn prune_by_excluded_sources(&mut self, excluded_sources: &HashSet<String>) {
+        self.documents
+            .retain(|doc| !excluded_sources.contains(&doc.resource.source_domain));
     }
 }
 

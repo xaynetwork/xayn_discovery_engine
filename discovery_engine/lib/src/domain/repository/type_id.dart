@@ -24,3 +24,4 @@ const stackIdTypeId = 8;
 const embeddingTypeId = 9;
 const feedMarketTypeId = 10;
 const searchTypeId = 11;
+const setStringTypeId = 12;

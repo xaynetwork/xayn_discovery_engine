@@ -145,18 +145,20 @@ class FeedManager {
       throw ArgumentError('source can\'t be empty');
     }
 
-    final allDocuments = await _docRepo.fetchAll();
-    final doesExist = allDocuments
-        .any((doc) => doc.isActive && doc.resource.sourceDomain == source);
+    // FIXME BUG isActive is not correctly set as activity is tracked through another repo :/
+    // final allDocuments = await _docRepo.fetchAll();
+    // final doesExist = allDocuments
+    //     .any((doc) => doc.isActive && doc.resource.sourceDomain == source);
 
-    if (!doesExist) {
-      throw ArgumentError('source $source not found in database');
-    }
+    // if (!doesExist) {
+    //   throw ArgumentError('source $source not found in database');
+    // }
 
     final sources = await _excludedSourcesRepository.getAll();
     sources.add(source);
     await _excludedSourcesRepository.save(sources);
-    await _engine.setExcludedSources(sources);
+    final history = await _docRepo.fetchHistory();
+    await _engine.setExcludedSources(history, sources);
     return const EngineEvent.clientEventSucceeded();
   }
 
@@ -169,7 +171,8 @@ class FeedManager {
     final sources = await _excludedSourcesRepository.getAll();
     sources.remove(source);
     await _excludedSourcesRepository.save(sources);
-    await _engine.setExcludedSources(sources);
+    final history = await _docRepo.fetchHistory();
+    await _engine.setExcludedSources(history, sources);
     return const EngineEvent.clientEventSucceeded();
   }
 

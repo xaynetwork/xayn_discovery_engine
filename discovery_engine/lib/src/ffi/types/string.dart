@@ -105,13 +105,20 @@ final _listAdapter = ListFfiAdapter<String, RustString, RustVecString>(
 );
 
 extension StringListFfi on List<String> {
-  /// Writes a rust-`Vec<RustString>` to given place.
+  /// Allocates a `Box<Vec<String>>`.
+  Boxed<RustVecString> allocNative() {
+    final place = ffi.alloc_uninitialized_string_vec();
+    writeNative(place);
+    return Boxed(place, ffi.drop_string_vec);
+  }
+
+  /// Writes a `Vec<String>` to given place.
   void writeNative(
     final Pointer<RustVecString> place,
   ) =>
       _listAdapter.writeVec(this, place);
 
-  /// Reads a rust-`&Vec<RustString>` returning a dart-`List<String>`.
+  /// Reads a `&Vec<String>` returning a dart-`List<String>`.
   static List<String> readNative(
     final Pointer<RustVecString> vec,
   ) =>

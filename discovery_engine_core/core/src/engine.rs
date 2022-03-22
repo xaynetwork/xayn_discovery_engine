@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use displaydoc::Display;
 use figment::{
@@ -446,6 +449,31 @@ where
             documents.truncate(page_size as usize);
             Ok(documents)
         }
+    }
+
+    /// Sets a new list of excluded sources
+    pub async fn set_excluded_sources(
+        &mut self,
+        history: &[HistoricDocument],
+        excluded_sources: Vec<String>,
+    ) -> Result<(), Error> {
+        let exclusion_set = excluded_sources.iter().cloned().collect::<HashSet<_>>();
+        *self.config.excluded_sources.write().await = excluded_sources;
+
+        let mut stacks = self.stacks.write().await;
+        for stack in stacks.values_mut() {
+            stack.data.prune_by_excluded_sources(&exclusion_set);
+        }
+
+        update_stacks(
+            stacks.values_mut(),
+            &mut self.ranker,
+            history,
+            self.core_config.select_top,
+            self.core_config.keep_top,
+            self.core_config.request_new,
+        )
+        .await
     }
 }
 

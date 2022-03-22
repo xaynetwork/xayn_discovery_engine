@@ -51,7 +51,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
         resultVecDocumentStringFfiAdapter,
         resultVecU8StringFfiAdapter,
         resultVoidStringFfiAdapter;
-import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
+    show StringFfi, StringListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
@@ -113,16 +114,16 @@ class DiscoveryEngineFfi implements Engine {
   /// Sets the excluded sources.
   @override
   Future<void> setExcludedSources(
+    List<HistoricDocument> history,
     Set<String> sources,
   ) async {
-    // TODO: implement setExcludedSources
-    throw UnimplementedError();
-    // final result = await asyncFfi.setExcludedSources(
-    //   _engine.ref,
-    //   sources.toList().allocVec().move(),
-    // );
-    //
-    // return resultVoidStringFfiAdapter.consumeNative(result);
+    final result = await asyncFfi.setExcludedSources(
+      _engine.ref,
+      history.allocNative().move(),
+      sources.toList().allocNative().move(),
+    );
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
   /// Gets feed documents.
