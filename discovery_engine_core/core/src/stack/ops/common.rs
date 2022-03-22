@@ -54,14 +54,14 @@ async fn request_new_items(
 pub(super) async fn request_min_new_items(
     max_requests: u32,
     min_articles: usize,
-    requests_fn: impl Fn(usize) -> Requests + Send + Sync,
+    requests_fn: impl Fn(u32) -> Requests + Send + Sync,
     filter_fn: impl Fn(Vec<Article>) -> Result<Vec<Article>, GenericError> + Send + Sync,
 ) -> Result<Vec<Article>, GenericError> {
     let mut articles = Vec::new();
     let mut error = None;
 
-    for page in 1..=max_requests as usize {
-        match request_new_items(|| requests_fn(page), |articles| filter_fn(articles)).await {
+    for request_num in 0..max_requests {
+        match request_new_items(|| requests_fn(request_num), |articles| filter_fn(articles)).await {
             Ok(batch) => articles.extend(batch),
             Err(err) => {
                 error.replace(err);

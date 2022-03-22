@@ -107,8 +107,9 @@ impl Ops for PersonalizedNews {
         request_min_new_items(
             self.max_requests,
             self.min_articles,
-            |page| {
+            |request_num| {
                 spawn_requests_for_markets(markets.clone(), |market| {
+                    let page = request_num as usize + 1;
                     spawn_news_request(
                         self.client.clone(),
                         market,
