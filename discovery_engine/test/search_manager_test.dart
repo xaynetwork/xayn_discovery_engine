@@ -44,18 +44,11 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
     show SearchManager;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show
-        documentBox,
-        activeDocumentDataBox,
-        changedDocumentIdBox,
-        engineStateBox,
-        searchBox;
+    show documentBox, activeDocumentDataBox, engineStateBox, searchBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
     show HiveActiveSearchRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
-    show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
@@ -72,7 +65,6 @@ Future<void> main() async {
     late Box<Document> docBox;
     late Box<ActiveSearch> activeSearchBox;
     late Box<ActiveDocumentData> activeBox;
-    late Box<Uint8List> changedBox;
     late Box<Uint8List> stateBox;
 
     final engine = MockEngine();
@@ -80,7 +72,6 @@ Future<void> main() async {
     final docRepo = HiveDocumentRepository();
     final searchRepo = HiveActiveSearchRepository();
     final activeRepo = HiveActiveDocumentDataRepository();
-    final changedRepo = HiveChangedDocumentRepository();
     final engineStateRepo = HiveEngineStateRepository();
 
     final mgr = SearchManager(
@@ -89,7 +80,6 @@ Future<void> main() async {
       searchRepo,
       docRepo,
       activeRepo,
-      changedRepo,
       engineStateRepo,
     );
 
@@ -113,8 +103,6 @@ Future<void> main() async {
       activeSearchBox = await Hive.openBox(searchBox, bytes: Uint8List(0));
       activeBox =
           await Hive.openBox(activeDocumentDataBox, bytes: Uint8List(0));
-      changedBox =
-          await Hive.openBox(changedDocumentIdBox, bytes: Uint8List(0));
       stateBox = await Hive.openBox(engineStateBox, bytes: Uint8List(0));
     });
 
@@ -130,8 +118,6 @@ Future<void> main() async {
       await docRepo.updateMany([doc1, doc2]);
       await activeRepo.update(doc1.documentId, data);
       await activeRepo.update(doc2.documentId, data);
-      await changedRepo.add(doc1.documentId);
-      await changedRepo.add(doc2.documentId);
     });
 
     tearDown(() async {
@@ -141,7 +127,6 @@ Future<void> main() async {
         docBox.clear(),
         activeSearchBox.clear(),
         activeBox.clear(),
-        changedBox.clear(),
         stateBox.clear(),
       ]);
     });
@@ -337,7 +322,6 @@ Future<void> main() async {
         expect(response, isA<ClientEventSucceeded>());
         expect(activeSearchBox.isEmpty, isTrue);
         expect(activeBox.length, equals(2));
-        expect(changedBox.length, equals(2));
         expect(docBox.length, equals(2));
         expect(doc1.isActive, isTrue);
         expect(doc2.isActive, isTrue);
@@ -366,8 +350,6 @@ Future<void> main() async {
         );
         await activeRepo.update(doc3.documentId, data);
         await activeRepo.update(doc4.documentId, data);
-        await changedRepo.add(doc3.documentId);
-        await changedRepo.add(doc4.documentId);
         await docRepo.updateMany([doc1, doc2, doc3, doc4]);
 
         final response = await mgr.searchClosed();
@@ -377,11 +359,6 @@ Future<void> main() async {
         // only doc1 should be left in the active data and changed doc boxes
         expect(activeBox.length, equals(1));
         expect(activeBox.get('${doc1.documentId}'), equals(data));
-        expect(changedBox.length, equals(1));
-        expect(
-          changedBox.get('${doc1.documentId}'),
-          equals(doc1.documentId.value),
-        );
         expect(docBox.length, equals(3));
         // doc1 wasn't searched so it should stay active
         expect(doc1.isActive, isTrue);

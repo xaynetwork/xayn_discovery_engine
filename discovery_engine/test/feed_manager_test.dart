@@ -33,16 +33,9 @@ import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show
-        activeDocumentDataBox,
-        changedDocumentIdBox,
-        documentBox,
-        engineStateBox,
-        excludedSourcesBox;
+    show activeDocumentDataBox, documentBox, engineStateBox, excludedSourcesBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
-    show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
@@ -63,8 +56,6 @@ Future<void> main() async {
     activeDocumentDataBox,
     bytes: Uint8List(0),
   );
-  final changedBox =
-      await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
   final stateBox =
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
   final excludedBox =
@@ -74,7 +65,6 @@ Future<void> main() async {
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
-  final changedRepo = HiveChangedDocumentRepository();
   final engineStateRepo = HiveEngineStateRepository();
   final excludedSourcesRepo = HiveExcludedSourcesRepository();
 
@@ -83,7 +73,6 @@ Future<void> main() async {
     config,
     docRepo,
     activeRepo,
-    changedRepo,
     engineStateRepo,
     excludedSourcesRepo,
   );
@@ -117,7 +106,6 @@ Future<void> main() async {
       // doc2 is active & changed, doc3 is neither
       await docRepo.updateMany([doc2, doc3]);
       await activeRepo.update(id2, data);
-      await changedRepo.add(id2);
 
       engine.resetCallCounter();
     });
@@ -125,7 +113,6 @@ Future<void> main() async {
     tearDown(() async {
       await docBox.clear();
       await activeBox.clear();
-      await changedBox.clear();
       await stateBox.clear();
     });
 
@@ -135,7 +122,6 @@ Future<void> main() async {
 
       // id2 should be removed from active and changed repos
       expect(activeBox, isEmpty);
-      expect(changedBox, isEmpty);
 
       // id2 should now be deactivated, id3 still inactive
       expect(docBox, hasLength(2));

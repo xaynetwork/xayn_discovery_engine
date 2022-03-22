@@ -29,8 +29,6 @@ import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/active_search_repo.dart'
     show ActiveSearchRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
-    show ChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
@@ -45,7 +43,6 @@ class SearchManager {
   final ActiveSearchRepository _searchRepo;
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
-  final ChangedDocumentRepository _changedRepo;
   final EngineStateRepository _engineStateRepo;
 
   SearchManager(
@@ -54,7 +51,6 @@ class SearchManager {
     this._searchRepo,
     this._docRepo,
     this._activeRepo,
-    this._changedRepo,
     this._engineStateRepo,
   );
 
@@ -182,7 +178,6 @@ class SearchManager {
 
     final ids = searchDocs.map((doc) => doc.documentId);
     await _activeRepo.removeByIds(ids);
-    await _changedRepo.removeMany(ids);
 
     final docsByInteraction = searchDocs.fold<DocsByReaction>({}, (aggr, doc) {
       return {

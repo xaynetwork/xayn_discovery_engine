@@ -26,8 +26,6 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/changed_document_repo.dart'
-    show ChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
@@ -41,7 +39,6 @@ class FeedManager {
   final EventConfig _config;
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
-  final ChangedDocumentRepository _changedRepo;
   final EngineStateRepository _engineStateRepo;
   final ExcludedSourcesRepository _excludedSourcesRepository;
 
@@ -50,7 +47,6 @@ class FeedManager {
     this._config,
     this._docRepo,
     this._activeRepo,
-    this._changedRepo,
     this._engineStateRepo,
     this._excludedSourcesRepository,
   );
@@ -130,7 +126,6 @@ class FeedManager {
   /// Deactivate the given documents.
   Future<EngineEvent> deactivateDocuments(Set<DocumentId> ids) async {
     await _activeRepo.removeByIds(ids);
-    await _changedRepo.removeMany(ids);
 
     final docs = await _docRepo.fetchByIds(ids);
     final inactives = docs.map((doc) => doc..isActive = false);

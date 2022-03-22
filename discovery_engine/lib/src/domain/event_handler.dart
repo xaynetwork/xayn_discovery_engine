@@ -69,7 +69,6 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetch
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show
         activeDocumentDataBox,
-        changedDocumentIdBox,
         documentBox,
         engineStateBox,
         searchBox,
@@ -78,8 +77,6 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
     show HiveActiveSearchRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
-    show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
@@ -211,7 +208,6 @@ class EventHandler {
     // create repositories
     final documentRepository = HiveDocumentRepository();
     final activeDataRepository = HiveActiveDocumentDataRepository();
-    final changedDocumentRepository = HiveChangedDocumentRepository();
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
     final excludedSourcesRepository = HiveExcludedSourcesRepository();
@@ -246,7 +242,6 @@ class EventHandler {
       eventConfig,
       documentRepository,
       activeDataRepository,
-      changedDocumentRepository,
       engineStateRepository,
       excludedSourcesRepository,
     );
@@ -256,7 +251,6 @@ class EventHandler {
       activeSearchRepository,
       documentRepository,
       activeDataRepository,
-      changedDocumentRepository,
       engineStateRepository,
     );
     _systemManager = SystemManager(engine, eventConfig, documentRepository);
@@ -306,7 +300,6 @@ class EventHandler {
     await Future.wait([
       _openDbBox<Document>(documentBox),
       _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
-      _openDbBox<Uint8List>(changedDocumentIdBox),
       _openDbBox<Uint8List>(engineStateBox),
       _openDbBox<ActiveSearch>(searchBox),
       _openDbBox<Set<String>>(excludedSourcesBox),
