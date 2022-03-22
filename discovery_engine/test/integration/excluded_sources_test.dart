@@ -13,21 +13,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io' show Directory;
-import 'dart:typed_data';
 
-import 'package:hive/hive.dart';
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show
-        ClientEventSucceeded,
-        DiscoveryEngine,
-        FeedFailureReason,
-        NextFeedBatchRequestFailed,
-        NextFeedBatchRequestSucceeded,
-        UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/active_data.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_excluded_sources_repo.dart';
+    show ClientEventSucceeded, DiscoveryEngine, NextFeedBatchRequestSucceeded;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
