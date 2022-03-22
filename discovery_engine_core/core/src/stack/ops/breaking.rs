@@ -19,14 +19,7 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::{
-    Article,
-    Client,
-    CommonQueryParts,
-    Error,
-    HeadlinesQuery,
-    Market,
-};
+use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -130,7 +123,7 @@ fn spawn_headlines_request(
     page_size: usize,
     page: usize,
     excluded_sources: Arc<Vec<String>>,
-) -> JoinHandle<Result<Vec<Article>, Error>> {
+) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
         let query = HeadlinesQuery {
@@ -141,6 +134,6 @@ fn spawn_headlines_request(
                 excluded_sources: &excluded_sources,
             },
         };
-        client.query_articles(&query).await
+        client.query_articles(&query).await.map_err(Into::into)
     })
 }

@@ -23,7 +23,6 @@ use xayn_discovery_engine_providers::{
     Article,
     Client,
     CommonQueryParts,
-    Error,
     Filter,
     Market,
     NewsQuery,
@@ -140,7 +139,7 @@ fn spawn_news_request(
     page_size: usize,
     page: usize,
     excluded_sources: Arc<Vec<String>>,
-) -> JoinHandle<Result<Vec<Article>, Error>> {
+) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
         let query = NewsQuery {
@@ -152,7 +151,6 @@ fn spawn_news_request(
             },
             filter,
         };
-
-        client.query_articles(&query).await
+        client.query_articles(&query).await.map_err(Into::into)
     })
 }
