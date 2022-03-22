@@ -38,7 +38,10 @@ use crate::{
     },
 };
 
-use super::{common::request_min_new_items, Ops};
+use super::{
+    common::{request_min_new_items, spawn_requests_for_markets},
+    Ops,
+};
 
 /// Stack operations customized for personalized news items.
 pub(crate) struct PersonalizedNews {
@@ -102,18 +105,19 @@ impl Ops for PersonalizedNews {
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
 
         request_min_new_items(
-            markets,
             self.max_requests,
             self.min_articles,
-            |market, page| {
-                spawn_news_request(
-                    self.client.clone(),
-                    market,
-                    filter.clone(),
-                    self.page_size,
-                    page,
-                    excluded_sources.clone(),
-                )
+            |page| {
+                spawn_requests_for_markets(markets.clone(), |market| {
+                    spawn_news_request(
+                        self.client.clone(),
+                        market,
+                        filter.clone(),
+                        self.page_size,
+                        page,
+                        excluded_sources.clone(),
+                    )
+                })
             },
             |articles| Self::filter_articles(history, stack, articles),
         )
