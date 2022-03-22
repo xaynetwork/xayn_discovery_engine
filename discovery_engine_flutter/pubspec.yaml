@@ -13,7 +13,7 @@ dependencies:
     sdk: flutter
   xayn_discovery_engine:
     git:
-      url: git@github.com:xaynetwork/xayn_discovery_engine_release.git
+      url: git@gitlab.com:xayn/xayn_discovery_engine_release.git
       ref: change_me_to_commit_ref
       path: discovery_engine
 
