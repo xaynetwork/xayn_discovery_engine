@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub(crate) mod breaking;
+mod common;
 pub(crate) mod personalized;
 
 use async_trait::async_trait;

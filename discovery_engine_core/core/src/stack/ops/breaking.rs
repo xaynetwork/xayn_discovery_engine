@@ -15,12 +15,18 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::{stream::FuturesUnordered, StreamExt};
 use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{
+    Article,
+    Client,
+    CommonQueryParts,
+    Error,
+    HeadlinesQuery,
+    Market,
+};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -31,7 +37,7 @@ use crate::{
     },
 };
 
-use super::Ops;
+use super::{common::request_min_new_items, Ops};
 
 /// Stack operations customized for breaking news items.
 pub(crate) struct BreakingNews {
@@ -40,8 +46,8 @@ pub(crate) struct BreakingNews {
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     semantic_filter_config: SemanticFilterConfig,
-    _max_requests: u32,
-    _min_articles: usize,
+    max_requests: u32,
+    min_articles: usize,
 }
 
 impl BreakingNews {
@@ -53,8 +59,8 @@ impl BreakingNews {
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
             excluded_sources: config.excluded_sources.clone(),
-            _max_requests: config.max_requests,
-            _min_articles: config.min_articles,
+            max_requests: config.max_requests,
+            min_articles: config.min_articles,
         }
     }
 
@@ -84,45 +90,25 @@ impl Ops for BreakingNews {
         history: &[HistoricDocument],
         stack: &[Document],
     ) -> Result<Vec<Article>, GenericError> {
-        let mut articles = Vec::new();
-        let mut errors = Vec::new();
-
+        let markets = self.markets.read().await.clone();
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
-        let mut requests = self
-            .markets
-            .read()
-            .await
-            .iter()
-            .cloned()
-            .map(|market| {
+
+        request_min_new_items(
+            markets,
+            self.max_requests,
+            self.min_articles,
+            |market, page| {
                 spawn_headlines_request(
                     self.client.clone(),
                     market,
                     self.page_size,
+                    page,
                     excluded_sources.clone(),
                 )
-            })
-            .collect::<FuturesUnordered<_>>();
-
-        while let Some(handle) = requests.next().await {
-            // should we also push handle errors?
-            if let Ok(result) = handle {
-                match result {
-                    Ok(batch) => articles.extend(batch),
-                    Err(err) => errors.push(err.into()),
-                }
-            }
-        }
-
-        let articles = Self::filter_articles(history, stack, articles)
-            .map_err(|err| errors.push(err))
-            .unwrap_or_default();
-
-        if articles.is_empty() && !errors.is_empty() {
-            Err(errors.pop().unwrap(/* nonempty errors */))
-        } else {
-            Ok(articles)
-        }
+            },
+            |articles| Self::filter_articles(history, stack, articles),
+        )
+        .await
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
@@ -137,15 +123,16 @@ fn spawn_headlines_request(
     client: Arc<Client>,
     market: Market,
     page_size: usize,
+    page: usize,
     excluded_sources: Arc<Vec<String>>,
-) -> JoinHandle<Result<Vec<Article>, xayn_discovery_engine_providers::Error>> {
+) -> JoinHandle<Result<Vec<Article>, Error>> {
     tokio::spawn(async move {
         let market = market;
         let query = HeadlinesQuery {
             common: CommonQueryParts {
                 market: &market,
                 page_size,
-                page: 1,
+                page,
                 excluded_sources: &excluded_sources,
             },
         };
