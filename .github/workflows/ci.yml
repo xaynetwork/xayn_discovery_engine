@@ -1,9 +1,7 @@
 name: CI
+
 on:
-  push:
-    branches-ignore:
-      - 'main'
-      - '_bors*'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

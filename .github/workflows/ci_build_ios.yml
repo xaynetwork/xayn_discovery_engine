@@ -15,7 +15,7 @@ on:
 
 jobs:
   build-ios-libs:
-    runs-on: macos-11
+    runs-on: hetzner-mac-pm
     timeout-minutes: 60
     strategy:
       matrix:
