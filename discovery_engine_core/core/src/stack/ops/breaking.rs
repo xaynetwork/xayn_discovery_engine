@@ -40,6 +40,8 @@ pub(crate) struct BreakingNews {
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     semantic_filter_config: SemanticFilterConfig,
+    _max_requests: u32,
+    _min_articles: usize,
 }
 
 impl BreakingNews {
@@ -51,6 +53,8 @@ impl BreakingNews {
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
             excluded_sources: config.excluded_sources.clone(),
+            _max_requests: config.max_requests,
+            _min_articles: config.min_articles,
         }
     }
 
