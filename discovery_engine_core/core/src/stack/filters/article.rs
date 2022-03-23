@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, collections::HashMap};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+};
 
 use url::Url;
 
@@ -45,32 +48,28 @@ impl ArticleFilter for DuplicateFilter {
         });
         articles.dedup_by(|art1, art2| art1.title == art2.title);
 
-        // discard dups in the url keeping only the best ranked
-        articles.sort_unstable_by(|art1, art2| match art1.link.cmp(&art2.link) {
-            Ordering::Equal => art1.rank.cmp(&art2.rank),
-            ord => ord,
-        });
+        // discard dups in the link (such dups assumed to have the same rank)
+        articles.sort_unstable_by(|art1, art2| art1.link.cmp(&art2.link));
         articles.dedup_by(|art1, art2| art1.link == art2.link);
 
-        let urls = stack
+        let (hist_urls, hist_titles) = history
             .iter()
-            .map(|doc| (doc.resource.url.as_str(), doc.resource.rank))
-            .chain(history.iter().map(|doc| (doc.url.as_str(), 0)))
-            .fold(HashMap::new(), |mut urls, (url, rank)| {
-                urls.entry(url)
-                    .and_modify(|best_rank| {
-                        if rank < *best_rank {
-                            *best_rank = rank;
-                        }
-                    })
-                    .or_insert(rank);
-                urls
-            });
+            .map(|doc| (doc.url.as_str(), &doc.title))
+            .unzip::<_, _, HashSet<_>, HashSet<_>>();
 
-        let titles = stack
+        // discard dups of historical documents
+        articles.retain(|art| {
+            !hist_titles.contains(&art.title) && !hist_urls.contains(art.link.as_str())
+        });
+
+        let stack_urls = stack
+            .iter()
+            .map(|doc| doc.resource.url.as_str())
+            .collect::<HashSet<_>>();
+
+        let stack_titles = stack
             .iter()
             .map(|doc| (&doc.resource.title, doc.resource.rank))
-            .chain(history.iter().map(|doc| (&doc.title, 0)))
             .fold(HashMap::new(), |mut titles, (title, rank)| {
                 titles
                     .entry(title)
@@ -83,13 +82,17 @@ impl ArticleFilter for DuplicateFilter {
                 titles
             });
 
-        // discard worse-ranked dups of documents
-        articles.retain(|article| {
-            match (urls.get(&article.link.as_str()), titles.get(&article.title)) {
-                (None, None) => true,
-                (Some(rank_u), None) => &article.rank < rank_u,
-                (None, Some(rank_t)) => &article.rank < rank_t,
-                (Some(rank_u), Some(rank_t)) => &article.rank < rank_u && &article.rank < rank_t,
+        // discard worse-ranked dups of stack documents; more precisely, discard:
+        // * dups of stack documents in the url
+        // * dups of stack documents in the title when the rank is no better
+        articles.retain(|art| {
+            match (
+                stack_urls.contains(art.link.as_str()),
+                stack_titles.get(&art.title),
+            ) {
+                (false, None) => true,
+                (false, Some(doc_rank)) => &art.rank < doc_rank,
+                (true, _) => false,
             }
         });
 
@@ -299,7 +302,6 @@ mod tests {
         articles.push({
             let mut article = valid_articles[2].clone();
             article.title = "With same url".to_owned();
-            article.rank = 1;
             article
         });
         articles.push({
@@ -309,7 +311,7 @@ mod tests {
             article
         });
 
-        // after filtering: {0, 1, 2', 3, 3'}
+        // after filtering: {0, 1, 2/2', 3, 3'}
         let filtered = CommonFilter::apply(&[], &[], articles)
             .unwrap()
             .into_iter()
@@ -327,7 +329,12 @@ mod tests {
             filtered.get(&valid_articles[1].title),
             Some(&valid_articles[1].rank)
         );
-        assert_eq!(filtered.get("With same url"), Some(&1));
+        assert_eq!(
+            filtered
+                .get("With same url")
+                .xor(filtered.get(&valid_articles[2].title)),
+            Some(&valid_articles[2].rank)
+        );
         assert_eq!(
             filtered.get(&valid_articles[3].title),
             Some(&valid_articles[3].rank)
