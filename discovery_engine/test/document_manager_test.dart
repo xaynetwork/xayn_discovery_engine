@@ -34,15 +34,9 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show
-        activeDocumentDataBox,
-        changedDocumentIdBox,
-        documentBox,
-        engineStateBox;
+    show activeDocumentDataBox, documentBox, engineStateBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_changed_document_repo.dart'
-    show HiveChangedDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
@@ -61,15 +55,12 @@ Future<void> main() async {
     activeDocumentDataBox,
     bytes: Uint8List(0),
   );
-  final changedBox =
-      await Hive.openBox<Uint8List>(changedDocumentIdBox, bytes: Uint8List(0));
   final stateBox =
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
-  final changedRepo = HiveChangedDocumentRepository();
   final engineStateRepo = HiveEngineStateRepository();
 
   group('DocumentManager', () {
@@ -109,7 +100,6 @@ Future<void> main() async {
       // doc1 is active & changed, doc2 is neither
       await docRepo.updateMany([doc1, doc2]);
       await activeRepo.update(id1, data);
-      await changedRepo.add(id1);
 
       engine.resetCallCounter();
     });
@@ -119,7 +109,6 @@ Future<void> main() async {
 
       await docBox.clear();
       await activeBox.clear();
-      await changedBox.clear();
       await stateBox.clear();
 
       // reset test data
@@ -184,7 +173,6 @@ Future<void> main() async {
       // other repos unchanged
       expect(activeBox, hasLength(1));
       expect(await activeRepo.fetchById(id1), equals(data));
-      expect(await changedRepo.fetchAll(), equals([id1]));
     });
 
     test('add negative document time', () async {
@@ -241,7 +229,6 @@ Future<void> main() async {
 
       // other repos unchanged
       expect(await docRepo.fetchAll(), unorderedEquals(<Document>[doc1, doc2]));
-      expect(await changedRepo.fetchAll(), equals([id1]));
 
       // add a further 3 seconds
       await mgr.addActiveDocumentTime(id1, mode, 3);

@@ -13,8 +13,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const documentBox = 'document';
-const changedDocumentIdBox = 'changed_document';
 const activeDocumentDataBox = 'active_document';
 const engineStateBox = 'engine_state';
 const searchBox = 'search';
 const excludedSourcesBox = 'excluded_sources';
+
+// names below were used by boxes which are now deprecated
+// please use different names when adding new boxes / repositories
+// ignore: unused_element
+const _changedDocumentIdBox = 'changed_document';
