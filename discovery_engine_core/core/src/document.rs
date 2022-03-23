@@ -225,13 +225,19 @@ pub(crate) fn document_from_article(
 
 /// Discards documents where the title is duplicated, keeping only the top ranked.
 pub(crate) fn dedup_documents(documents: &mut Vec<Document>) {
-    documents.sort_unstable_by(
-        |doc1, doc2| match doc1.resource.title.cmp(&doc2.resource.title) {
+    documents.sort_unstable_by(|doc1, doc2| {
+        match doc1
+            .resource
+            .title
+            .to_lowercase()
+            .cmp(&doc2.resource.title.to_lowercase())
+        {
             Ordering::Equal => doc1.resource.rank.cmp(&doc2.resource.rank),
             ord => ord,
-        },
-    );
-    documents.dedup_by(|doc1, doc2| doc1.resource.title == doc2.resource.title);
+        }
+    });
+
+    documents.dedup_by_key(|doc| doc.resource.title.to_lowercase());
 }
 
 /// Represents a [`Document`] in the document history.

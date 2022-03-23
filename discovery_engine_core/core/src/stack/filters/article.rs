@@ -20,7 +20,7 @@ use std::{
 use url::Url;
 
 use crate::{
-    document::{Document, HistoricDocument},
+    document::{Document, HistoricDocument, NewsResource},
     engine::GenericError,
 };
 use xayn_discovery_engine_providers::Article;
@@ -42,11 +42,13 @@ impl ArticleFilter for DuplicateFilter {
         mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
         // discard dups in the title keeping only the best ranked
-        articles.sort_unstable_by(|art1, art2| match art1.title.cmp(&art2.title) {
-            Ordering::Equal => art1.rank.cmp(&art2.rank),
-            ord => ord,
+        articles.sort_unstable_by(|art1, art2| {
+            match art1.title.to_lowercase().cmp(&art2.title.to_lowercase()) {
+                Ordering::Equal => art1.rank.cmp(&art2.rank),
+                ord => ord,
+            }
         });
-        articles.dedup_by(|art1, art2| art1.title == art2.title);
+        articles.dedup_by_key(|art| art.title.to_lowercase());
 
         // discard dups in the link (such dups assumed to have the same rank)
         articles.sort_unstable_by(|art1, art2| art1.link.cmp(&art2.link));
@@ -54,12 +56,13 @@ impl ArticleFilter for DuplicateFilter {
 
         let (hist_urls, hist_titles) = history
             .iter()
-            .map(|doc| (doc.url.as_str(), &doc.title))
+            .map(|doc| (doc.url.as_str(), doc.title.to_lowercase().trim().to_owned()))
             .unzip::<_, _, HashSet<_>, HashSet<_>>();
 
         // discard dups of historical documents
         articles.retain(|art| {
-            !hist_titles.contains(&art.title) && !hist_urls.contains(art.link.as_str())
+            !hist_titles.contains(art.title.to_lowercase().trim())
+                && !hist_urls.contains(art.link.as_str())
         });
 
         let stack_urls = stack
@@ -69,7 +72,10 @@ impl ArticleFilter for DuplicateFilter {
 
         let stack_titles = stack
             .iter()
-            .map(|doc| (&doc.resource.title, doc.resource.rank))
+            .map(|doc| {
+                let NewsResource { title, rank, .. } = &doc.resource;
+                (title.to_lowercase().trim().to_owned(), *rank)
+            })
             .fold(HashMap::new(), |mut titles, (title, rank)| {
                 titles
                     .entry(title)
@@ -88,7 +94,7 @@ impl ArticleFilter for DuplicateFilter {
         articles.retain(|art| {
             match (
                 stack_urls.contains(art.link.as_str()),
-                stack_titles.get(&art.title),
+                stack_titles.get(art.title.to_lowercase().trim()),
             ) {
                 (false, None) => true,
                 (false, Some(doc_rank)) => &art.rank < doc_rank,
