@@ -133,6 +133,10 @@ pub(crate) struct EndpointConfig {
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
     /// Sources to exclude for news queries.
     pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
+    /// The maximum number of requests to try to reach the number of `min_articles`.
+    pub(crate) max_requests: u32,
+    /// The minimum number of new articles to try to return when updating the stack.
+    pub(crate) min_articles: usize,
 }
 
 impl From<InitConfig> for EndpointConfig {
@@ -143,6 +147,8 @@ impl From<InitConfig> for EndpointConfig {
             page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
             excluded_sources: Arc::new(RwLock::new(config.excluded_sources)),
+            max_requests: 5,
+            min_articles: 20,
         }
     }
 }
