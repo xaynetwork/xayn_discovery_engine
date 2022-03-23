@@ -59,6 +59,7 @@ void main() {
           engineState: null,
           history: [],
           aiConfig: null,
+          excludedSources: {},
         ),
       ),
       allOf(

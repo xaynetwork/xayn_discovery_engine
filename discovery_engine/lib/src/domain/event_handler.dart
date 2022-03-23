@@ -219,6 +219,8 @@ class EventHandler {
     final setupData = await _fetchAssets(config);
     final engineState = await engineStateRepository.load();
     final history = await documentRepository.fetchHistory();
+    final excludedSources = await excludedSourcesRepository.getAll();
+
     final engine = await _initializeEngine(
       EngineInitializer(
         config: config,
@@ -226,6 +228,7 @@ class EventHandler {
         engineState: engineState,
         history: history,
         aiConfig: aiConfig,
+        excludedSources: excludedSources,
       ),
     );
 

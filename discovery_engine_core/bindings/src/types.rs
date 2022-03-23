@@ -30,6 +30,7 @@ pub mod primitives;
 pub mod result;
 pub mod slice;
 pub mod string;
+pub mod string_vec;
 pub mod url;
 pub mod uuid;
 pub mod vec;

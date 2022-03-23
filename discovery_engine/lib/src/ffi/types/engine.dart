@@ -77,6 +77,7 @@ class DiscoveryEngineFfi implements Engine {
       InitConfigFfi(
         initializer.config,
         setupData,
+        initializer.excludedSources,
         aiConfig: initializer.aiConfig,
       ).allocNative().move(),
       initializer.engineState?.allocNative().move() ?? nullptr,
