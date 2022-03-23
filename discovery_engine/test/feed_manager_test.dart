@@ -228,14 +228,6 @@ Future<void> main() async {
       expect(() => mgr.addExcludedSource(''), throwsArgumentError);
     });
 
-    test(
-      'when adding source not stored with documents throw "ArgumentError"',
-      () async {
-        expect(() => mgr.addExcludedSource('example.com'), throwsArgumentError);
-      },
-      skip: true,
-    );
-
     test('when removing empty source throw "ArgumentError"', () async {
       expect(() => mgr.removeExcludedSource(''), throwsArgumentError);
     });

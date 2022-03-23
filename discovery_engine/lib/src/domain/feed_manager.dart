@@ -145,15 +145,6 @@ class FeedManager {
       throw ArgumentError('source can\'t be empty');
     }
 
-    // FIXME BUG isActive is not correctly set as activity is tracked through another repo :/
-    // final allDocuments = await _docRepo.fetchAll();
-    // final doesExist = allDocuments
-    //     .any((doc) => doc.isActive && doc.resource.sourceDomain == source);
-
-    // if (!doesExist) {
-    //   throw ArgumentError('source $source not found in database');
-    // }
-
     final sources = await _excludedSourcesRepository.getAll();
     sources.add(source);
     await _excludedSourcesRepository.save(sources);
