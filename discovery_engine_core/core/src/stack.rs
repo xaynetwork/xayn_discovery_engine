@@ -14,6 +14,8 @@
 
 //! Export types to customize the behaviour of a stack.
 
+use std::collections::HashSet;
+
 use derivative::Derivative;
 use derive_more::{Display, From};
 use displaydoc::Display as DisplayDoc;
@@ -183,6 +185,13 @@ impl Stack {
             .new_items(key_phrases, history, &self.data.documents)
             .await
             .map_err(Error::New)
+    }
+
+    /// Retains only data/documents with sources not excluded.
+    pub(crate) fn prune_by_excluded_sources(&mut self, excluded_sources: &HashSet<String>) {
+        self.data
+            .documents
+            .retain(|doc| !excluded_sources.contains(&doc.resource.source_domain));
     }
 }
 

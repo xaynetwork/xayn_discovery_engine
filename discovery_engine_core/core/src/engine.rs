@@ -462,7 +462,7 @@ where
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
-            stack.data.prune_by_excluded_sources(&exclusion_set);
+            stack.prune_by_excluded_sources(&exclusion_set);
         }
 
         update_stacks(
