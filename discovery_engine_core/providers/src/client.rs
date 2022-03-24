@@ -62,7 +62,7 @@ pub struct CommonQueryParts<'a> {
     ///
     /// Paging starts with `1`.
     pub page: usize,
-    /// Exclude given sources
+    /// Exclude given sources.
     pub excluded_sources: &'a [String],
 }
 
@@ -119,15 +119,24 @@ where
 
 impl<T> Seal for NewsQuery<'_, T> {}
 
-/// Parameters determining which headlines to fetch
+/// Parameters determining which headlines to fetch.
 pub struct HeadlinesQuery<'a> {
-    /// Common parts
+    /// Common parts.
     pub common: CommonQueryParts<'a>,
+    /// Favourite sources.
+    pub sources: &'a [String],
 }
 
 impl Query for HeadlinesQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_lh")
+        self.common.setup_url(url, "_lh")?;
+
+        if !self.sources.is_empty() {
+            let mut query = url.query_pairs_mut();
+            query.append_pair("sources", &self.sources.join(","));
+        };
+
+        Ok(())
     }
 }
 
@@ -362,6 +371,7 @@ mod tests {
             .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
+            .and(query_param("sources", "dodo.com,dada.net"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -378,6 +388,7 @@ mod tests {
                 page: 1,
                 excluded_sources: &[],
             },
+            sources: &["dodo.com".into(), "dada.net".into()],
         };
 
         let docs = client.query_articles(&params).await.unwrap();

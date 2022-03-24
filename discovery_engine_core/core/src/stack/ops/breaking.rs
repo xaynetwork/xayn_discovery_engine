@@ -144,6 +144,7 @@ fn spawn_headlines_request(
                 page: 1,
                 excluded_sources: &excluded_sources,
             },
+            sources: &[], // TEMP
         };
         client.query_articles(&query).await
     })
