@@ -38,7 +38,7 @@ use crate::{
 };
 
 use super::{
-    common::{request_min_new_items, spawn_requests_for_markets},
+    common::{create_requests_for_markets, request_min_new_items},
     Ops,
 };
 
@@ -107,7 +107,7 @@ impl Ops for PersonalizedNews {
             self.max_requests,
             self.min_articles,
             |request_num| {
-                spawn_requests_for_markets(markets.clone(), |market| {
+                create_requests_for_markets(markets.clone(), |market| {
                     let page = request_num as usize + 1;
                     spawn_news_request(
                         self.client.clone(),

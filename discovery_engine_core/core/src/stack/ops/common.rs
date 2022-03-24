@@ -23,7 +23,6 @@ type Requests<I> = FuturesUnordered<JoinHandle<ItemsResult<I>>>;
 
 async fn request_new_items<I: Send>(
     requests_fn: impl FnOnce() -> Requests<I> + Send,
-    filter_fn: impl FnOnce(Vec<I>) -> ItemsResult<I> + Send,
 ) -> ItemsResult<I> {
     let mut requests = requests_fn();
     let mut items = Vec::new();
@@ -40,10 +39,6 @@ async fn request_new_items<I: Send>(
             }
         }
     }
-
-    let items = filter_fn(items)
-        .map_err(|err| error.replace(err))
-        .unwrap_or_default();
 
     if items.is_empty() && error.is_some() {
         Err(error.unwrap(/* nonempty error */))
@@ -62,12 +57,16 @@ pub(super) async fn request_min_new_items<I: Send>(
     let mut error = None;
 
     for request_num in 0..max_requests {
-        match request_new_items(|| requests_fn(request_num), |items| filter_fn(items)).await {
+        match request_new_items(|| requests_fn(request_num)).await {
             Ok(batch) => items.extend(batch),
             Err(err) => {
                 error.replace(err);
             }
         };
+
+        items = filter_fn(items)
+            .map_err(|err| error.replace(err))
+            .unwrap_or_default();
 
         if items.len() >= min_articles {
             break;
@@ -81,7 +80,7 @@ pub(super) async fn request_min_new_items<I: Send>(
     }
 }
 
-pub(super) fn spawn_requests_for_markets<I>(
+pub(super) fn create_requests_for_markets<I>(
     markets: Vec<Market>,
     request_fn: impl Fn(Market) -> JoinHandle<ItemsResult<I>> + Send,
 ) -> Requests<I> {
@@ -116,13 +115,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_new_items() {
-        let items = request_new_items(
-            || {
-                let responses = vec![Resp::ok(&[1]), Resp::ok(&[2, 3])];
-                client(responses)
-            },
-            Ok,
-        )
+        let items = request_new_items(|| {
+            let responses = vec![Resp::ok(&[1]), Resp::ok(&[2, 3])];
+            client(responses)
+        })
         .await
         .unwrap();
         assert_eq!(items.len(), 3);
@@ -130,13 +126,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_new_items_only_errors() {
-        let res = request_new_items(
-            || {
-                let responses = vec![Resp::err("0"), Resp::err("1")];
-                client(responses)
-            },
-            Ok,
-        )
+        let res = request_new_items(|| {
+            let responses = vec![Resp::err("0"), Resp::err("1")];
+            client(responses)
+        })
         .await;
         assert!(res.is_err());
         assert_eq!(res.unwrap_err().to_string(), "1");
@@ -144,23 +137,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_new_items_mixed() {
-        let items = request_new_items(
-            || {
-                let responses = vec![Resp::err("0"), Resp::ok(&[1])];
-                client(responses)
-            },
-            Ok,
-        )
+        let items = request_new_items(|| {
+            let responses = vec![Resp::err("0"), Resp::ok(&[1])];
+            client(responses)
+        })
         .await
         .unwrap();
         assert_eq!(items.len(), 1);
     }
 
     #[tokio::test]
-    async fn test_request_new_items_filter() {
-        let items = request_new_items(
-            || {
-                let responses = vec![Resp::ok(&[1]), Resp::ok(&[2, 3])];
+    async fn test_request_min_new_items_filter_filter() {
+        let items = request_min_new_items(
+            3,
+            2,
+            |i| {
+                let responses = vec![Resp::ok(&[i])];
                 client(responses)
             },
             |items| Ok(items.into_iter().filter(|item| *item != 2).collect()),
@@ -171,9 +163,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_request_new_items_filter_error() {
-        let res: Result<Vec<u32>, GenericError> =
-            request_new_items(FuturesUnordered::new, |_| Err(GenericError::from("filter"))).await;
+    async fn test_request_min_new_items_filter_error() {
+        let res: Result<Vec<u32>, GenericError> = request_min_new_items(
+            1,
+            1,
+            |_| FuturesUnordered::new(),
+            |_| Err(GenericError::from("filter")),
+        )
+        .await;
         assert!(res.is_err());
         assert_eq!(res.unwrap_err().to_string(), "filter");
     }
