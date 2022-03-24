@@ -31,6 +31,11 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Prepare path
+      shell: bash
+      run: |
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
     - name: Load .env
       uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
 

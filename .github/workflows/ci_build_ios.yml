@@ -25,6 +25,10 @@ jobs:
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
+      - run: |
+          whoami
+          env
+
       - name: Setup the rust CI
         uses: ./.github/actions/setup-job
         with:
