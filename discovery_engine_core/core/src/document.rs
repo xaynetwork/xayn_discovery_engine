@@ -15,7 +15,6 @@
 //! Personalized document that is returned from [`Engine`](crate::engine::Engine).
 
 use std::{
-    cmp::Ordering,
     convert::{TryFrom, TryInto},
     time::Duration,
 };
@@ -32,7 +31,7 @@ use uuid::Uuid;
 
 use xayn_discovery_engine_providers::Article;
 
-use crate::stack::Id as StackId;
+use crate::{stack::Id as StackId, utils::normalize};
 
 pub use xayn_ai::ranker::Embedding;
 
@@ -226,17 +225,10 @@ pub(crate) fn document_from_article(
 /// Discards documents where the title is duplicated, keeping only the top ranked.
 pub(crate) fn dedup_documents(documents: &mut Vec<Document>) {
     documents.sort_unstable_by(|doc1, doc2| {
-        match doc1
-            .resource
-            .title
-            .to_lowercase()
-            .cmp(&doc2.resource.title.to_lowercase())
-        {
-            Ordering::Equal => doc1.resource.rank.cmp(&doc2.resource.rank),
-            ord => ord,
-        }
+        normalize(&doc1.resource.title)
+            .cmp(&normalize(&doc2.resource.title))
+            .then(doc1.resource.rank.cmp(&doc2.resource.rank))
     });
-
     documents.dedup_by_key(|doc| doc.resource.title.to_lowercase());
 }
 
