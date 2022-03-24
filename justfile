@@ -226,7 +226,7 @@ dry-run-release:
 _compile-android target:
     # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
     cd "$RUST_WORKSPACE"; \
-        cargo ndk -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION \
+        cargo ndk --bindgen -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION \
         -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build \
         --release -p xayn-discovery-engine-bindings --locked
 
