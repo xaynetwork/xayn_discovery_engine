@@ -26,6 +26,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 
 import '../../assets/utils/mock_manifest_reader.dart';
 
@@ -72,9 +74,13 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.excludedSourceAddedResponse = const EngineEvent.clientEventSucceeded(),
     this.excludedSourceRemovedResponse =
         const EngineEvent.clientEventSucceeded(),
-    this.excludedSourcesListRequestedResponse =
-        const EngineEvent.excludedSourcesListRequestSucceeded({'example.com'}),
-  }) : super(initialMessage);
+    EngineEvent? excludedSourcesListRequestedResponse,
+  })  : excludedSourcesListRequestedResponse =
+            excludedSourcesListRequestedResponse ??
+                EngineEvent.excludedSourcesListRequestSucceeded(
+                  {Source('example.com')},
+                ),
+        super(initialMessage);
 
   @override
   Future<void> onMessage(request) async {
@@ -123,7 +129,7 @@ final mockNewsResource = NewsResource(
   title: 'Example',
   snippet: 'snippet',
   url: Uri.parse('https://example.com'),
-  sourceDomain: 'example.com',
+  sourceDomain: Source('example.com'),
   datePublished: DateTime.utc(2022, 01, 01),
   image: Uri.parse('http://thumbnail.example.com'),
   rank: 10,

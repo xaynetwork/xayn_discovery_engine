@@ -15,6 +15,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show newsResourceTypeId;
 
@@ -30,7 +32,7 @@ class NewsResource with _$NewsResource {
     @HiveField(0) required String title,
     @HiveField(1) required String snippet,
     @HiveField(2) required Uri url,
-    @HiveField(3) required String sourceDomain,
+    @HiveField(3) required Source sourceDomain,
     @HiveField(4) required Uri? image,
     @HiveField(5) required DateTime datePublished,
     @HiveField(6) required int rank,

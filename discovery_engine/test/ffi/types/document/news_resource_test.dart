@@ -15,6 +15,8 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/news_resource.dart'
     show NewsResourceFfi;
@@ -25,7 +27,7 @@ void main() {
       title: 'fun',
       snippet: 'fun is fun',
       url: Uri.parse('https://www.foobar.example/dodo'),
-      sourceDomain: 'www.example',
+      sourceDomain: Source('www.example'),
       image: null,
       datePublished: DateTime.now(),
       rank: 12,

@@ -12,27 +12,30 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:hive/hive.dart' show Hive, Box;
+import 'package:hive/hive.dart' show BinaryReader, BinaryWriter, TypeAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
-import 'package:xayn_discovery_engine/src/domain/repository/excluded_sources_repo.dart'
-    show ExcludedSourcesRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show excludedSourcesBox;
+import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
+    show setSourceTypeId, sourceTypeId;
+import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_set_adapter.dart';
 
-/// Hive repository implementation of [ExcludedSourcesRepository].
-class HiveExcludedSourcesRepository implements ExcludedSourcesRepository {
-  static const stateKey = 0;
-
-  Box<Set<Source>> get box => Hive.box<Set<Source>>(excludedSourcesBox);
+class SourceAdapter extends TypeAdapter<Source> {
+  @override
+  int get typeId => sourceTypeId;
 
   @override
-  Future<Set<Source>> getAll() async {
-    return box.get(stateKey) ?? <Source>{};
-  }
+  Source read(BinaryReader reader) => Source(reader.readString());
 
   @override
-  Future<void> save(Set<Source> sources) async {
-    await box.put(stateKey, sources);
+  void write(BinaryWriter writer, Source obj) {
+    writer.writeString(obj.toString());
   }
+}
+
+class SetSourceAdapter extends SetAdapter<Source> {
+  @override
+  int get typeId => setSourceTypeId;
+
+  @override
+  TypeAdapter<Source> get delegateAdapter => SourceAdapter();
 }

@@ -17,6 +17,8 @@ import 'dart:io' show Directory;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show ClientEventSucceeded, DiscoveryEngine, NextFeedBatchRequestSucceeded;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -48,17 +50,17 @@ void main() {
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();
       expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
       expect(server.lastUri?.queryParameters['not_sources'], isNull);
-      var response = await engine.addSourceToExcludedList('dodo.test');
+      var response = await engine.addSourceToExcludedList(Source('dodo.test'));
       expect(response, isA<ClientEventSucceeded>());
       expect(
         server.lastUri?.queryParameters['not_sources'],
         equals('dodo.test'),
       );
-      response = await engine.addSourceToExcludedList('dada.test');
+      response = await engine.addSourceToExcludedList(Source('dada.test'));
       expect(response, isA<ClientEventSucceeded>());
-      response = await engine.removeSourceFromExcludedList('dodo.test');
+      response = await engine.removeSourceFromExcludedList(Source('dodo.test'));
       expect(response, isA<ClientEventSucceeded>());
-      response = await engine.addSourceToExcludedList('so.yo.test');
+      response = await engine.addSourceToExcludedList(Source('so.yo.test'));
       expect(response, isA<ClientEventSucceeded>());
       expect(
         server.lastUri?.queryParameters['not_sources']?.split(',').toSet(),

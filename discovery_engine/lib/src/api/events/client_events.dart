@@ -16,6 +16,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart';
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart';
 
@@ -98,13 +100,13 @@ class ClientEvent with _$ClientEvent {
   /// Event created when a source is added to the list of excluded sources.
   @Implements<FeedClientEvent>()
   @Assert('source != ""')
-  const factory ClientEvent.excludedSourceAdded(String source) =
+  const factory ClientEvent.excludedSourceAdded(Source source) =
       ExcludedSourceAdded;
 
   /// Event created when a source is removed from the list of excluded sources.
   @Implements<FeedClientEvent>()
   @Assert('source != ""')
-  const factory ClientEvent.excludedSourceRemoved(String source) =
+  const factory ClientEvent.excludedSourceRemoved(Source source) =
       ExcludedSourceRemoved;
 
   /// Event created when a client requests for list of excluded sources.

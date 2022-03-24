@@ -16,21 +16,22 @@ import 'dart:io' show Directory;
 
 import 'package:hive/hive.dart' show Hive, Box;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_set_string_adapter.dart'
-    show SetStringAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart';
+import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_source_adapter.dart'
+    show SetSourceAdapter, SourceAdapter;
 
 import '../logging.dart' show setupLogging;
 
 void main() {
   setupLogging();
 
-  group('StringSetAdapter', () {
-    late Box<Set<String>> box;
+  group('SetSourceAdapter', () {
+    late Box<Set<Source>> box;
 
     setUpAll(() async {
       Hive.init(Directory.current.path);
-      Hive.registerAdapter(SetStringAdapter());
-      box = await Hive.openBox<Set<String>>('SetStringAdapter');
+      Hive.registerAdapter(SetSourceAdapter());
+      box = await Hive.openBox<Set<Source>>('SetSourceAdapter');
     });
 
     tearDown(() async {
@@ -41,8 +42,39 @@ void main() {
       await box.deleteFromDisk();
     });
 
-    test('can write and read `Set<String>`', () async {
-      final originalSet = {'foo', 'bar', 'baz'};
+    test('can write and read `Set<Source>`', () async {
+      final originalSet = {
+        Source('foo.test'),
+        Source('bar.example'),
+        Source('baz.test')
+      };
+      final key = await box.add(originalSet);
+      final newSet = box.get(key)!;
+
+      expect(box, hasLength(1));
+      expect(originalSet, equals(newSet));
+    });
+  });
+
+  group('SourceAdapter', () {
+    late Box<Source> box;
+
+    setUpAll(() async {
+      Hive.init(Directory.current.path);
+      Hive.registerAdapter(SourceAdapter());
+      box = await Hive.openBox<Source>('SetSourceAdapter');
+    });
+
+    tearDown(() async {
+      await box.clear();
+    });
+
+    tearDownAll(() async {
+      await box.deleteFromDisk();
+    });
+
+    test('can write and read `Set<Source>`', () async {
+      final originalSet = Source('foo.test');
       final key = await box.add(originalSet);
       final newSet = box.get(key)!;
 

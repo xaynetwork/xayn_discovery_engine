@@ -54,6 +54,8 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarketAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
@@ -87,8 +89,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_dura
     show DurationAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_embedding_adapter.dart'
     show EmbeddingAdapter;
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_set_string_adapter.dart'
-    show SetStringAdapter;
+import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_source_adapter.dart'
+    show SetSourceAdapter, SourceAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_unique_id_adapter.dart'
     show DocumentIdAdapter, StackIdAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_adapter.dart'
@@ -300,7 +302,8 @@ class EventHandler {
     Hive.registerAdapter(EmbeddingAdapter());
     Hive.registerAdapter(FeedMarketAdapter());
     Hive.registerAdapter(ActiveSearchAdapter());
-    Hive.registerAdapter(SetStringAdapter());
+    Hive.registerAdapter(SourceAdapter());
+    Hive.registerAdapter(SetSourceAdapter());
 
     // open boxes
     await Future.wait([
@@ -308,7 +311,7 @@ class EventHandler {
       _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
       _openDbBox<Uint8List>(engineStateBox),
       _openDbBox<ActiveSearch>(searchBox),
-      _openDbBox<Set<String>>(excludedSourcesBox),
+      _openDbBox<Set<Source>>(excludedSourcesBox),
     ]);
   }
 

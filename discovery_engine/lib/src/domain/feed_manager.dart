@@ -22,6 +22,8 @@ import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
     show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -135,11 +137,7 @@ class FeedManager {
   }
 
   /// Adds a source to excluded sources set.
-  Future<EngineEvent> addExcludedSource(String source) async {
-    if (source.isEmpty) {
-      throw ArgumentError('source can\'t be empty');
-    }
-
+  Future<EngineEvent> addExcludedSource(Source source) async {
     final sources = await _excludedSourcesRepository.getAll();
     sources.add(source);
     await _excludedSourcesRepository.save(sources);
@@ -149,11 +147,7 @@ class FeedManager {
   }
 
   /// Removes a source to excluded sources set.
-  Future<EngineEvent> removeExcludedSource(String source) async {
-    if (source.isEmpty) {
-      throw ArgumentError('source can\'t be empty');
-    }
-
+  Future<EngineEvent> removeExcludedSource(Source source) async {
     final sources = await _excludedSourcesRepository.getAll();
     sources.remove(source);
     await _excludedSourcesRepository.save(sources);

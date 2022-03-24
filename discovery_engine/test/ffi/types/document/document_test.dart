@@ -19,6 +19,8 @@ import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -33,7 +35,7 @@ DocumentFfi arbitraryDocumentFfi() => DocumentFfi(
         title: 'fun',
         snippet: 'fun is fun',
         url: Uri.parse('https://www.foobar.example/dodo'),
-        sourceDomain: 'www.example',
+        sourceDomain: Source('www.example'),
         image: null,
         datePublished: DateTime.now(),
         rank: 12,

@@ -48,6 +48,8 @@ import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     as entry_point show main;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show
@@ -235,7 +237,7 @@ class DiscoveryEngine {
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> addSourceToExcludedList(String source) {
+  Future<EngineEvent> addSourceToExcludedList(Source source) {
     return _trySend(() async {
       final event = ClientEvent.excludedSourceAdded(source);
       final response = await _manager.send(event);
@@ -253,7 +255,7 @@ class DiscoveryEngine {
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> removeSourceFromExcludedList(String source) {
+  Future<EngineEvent> removeSourceFromExcludedList(Source source) {
     return _trySend(() async {
       final event = ClientEvent.excludedSourceRemoved(source);
       final response = await _manager.send(event);
@@ -265,7 +267,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Returns a [Set<String>] with excluded sources.
+  /// Returns a [Set<Source>] with excluded sources.
   ///
   /// In response it can return:
   /// - [ExcludedSourcesListRequestSucceeded] indicating a successful operation,

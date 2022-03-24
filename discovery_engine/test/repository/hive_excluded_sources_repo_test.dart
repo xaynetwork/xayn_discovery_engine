@@ -16,6 +16,8 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Box, Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show excludedSourcesBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_excluded_sources_repo.dart'
@@ -23,13 +25,17 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_exclude
 
 Future<void> main() async {
   group('HiveExcludedSourcesRepository', () {
-    late Box<Set<String>> box;
+    late Box<Set<Source>> box;
     late HiveExcludedSourcesRepository repo;
 
-    final sources = {'nytimes.com', 'cnn.com', 'wsj.com'};
+    final sources = {
+      Source('nytimes.com'),
+      Source('cnn.com'),
+      Source('wsj.com')
+    };
 
     setUpAll(() async {
-      box = await Hive.openBox<Set<String>>(
+      box = await Hive.openBox<Set<Source>>(
         excludedSourcesBox,
         bytes: Uint8List(0),
       );
@@ -70,7 +76,7 @@ Future<void> main() async {
           () async {
         await repo.save(sources);
 
-        final newSources = {'theguardian.com', 'bbc.co.uk'};
+        final newSources = {Source('theguardian.com'), Source('bbc.co.uk')};
         await repo.save(newSources);
 
         expect(box.isNotEmpty, isTrue);

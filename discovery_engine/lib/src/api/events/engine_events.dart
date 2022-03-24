@@ -15,6 +15,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/api/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 
 part 'engine_events.freezed.dart';
 part 'engine_events.g.dart';
@@ -130,7 +132,7 @@ class EngineEvent with _$EngineEvent {
   /// Passes a set of [Uri] of excluded sources back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.excludedSourcesListRequestSucceeded(
-    Set<String> excludedSources,
+    Set<Source> excludedSources,
   ) = ExcludedSourcesListRequestSucceeded;
 
   /// Event created as a failure response to ExcludedSourcesListRequested event.

@@ -12,11 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
+
 /// Repository interface for source domains excluded from the feed.
 abstract class ExcludedSourcesRepository {
   /// Get a set of all excluded sources.
-  Future<Set<String>> getAll();
+  Future<Set<Source>> getAll();
 
   /// Persist a set of excluded sources.
-  Future<void> save(Set<String> sources);
+  Future<void> save(Set<Source> sources);
 }
