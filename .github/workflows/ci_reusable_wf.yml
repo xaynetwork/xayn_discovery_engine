@@ -12,7 +12,9 @@ on:
 
 jobs:
   selection:
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
     # Set job outputs to values from filter step
     outputs:
       dart: ${{ steps.filter.outputs.dart }}
@@ -45,7 +47,7 @@ jobs:
   dart-format:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 10
@@ -64,7 +66,7 @@ jobs:
   dart-analyze:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 15
@@ -83,8 +85,8 @@ jobs:
 
   dart-test:
     needs: [selection, cargo-test]
-    if: ${{ always()}}
-    runs-on: ubuntu-20.04
+    if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' || needs.selection.outputs.flutter == 'rust' }}
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 20
@@ -111,7 +113,7 @@ jobs:
   dart-doc:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 15
@@ -133,7 +135,9 @@ jobs:
         run: just dart-check-doc
 
   dart-ok:
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
     needs:
       - selection
       - dart-format
@@ -156,7 +160,7 @@ jobs:
   flutter-analyze:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 15
@@ -175,7 +179,7 @@ jobs:
   flutter-test:
     needs: selection
     if: ${{ needs.selection.outputs.dart == 'true' || needs.selection.outputs.flutter == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 15
@@ -192,7 +196,7 @@ jobs:
         run: just flutter-test
 
   flutter-ok:
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     if: ${{always()}}
     needs:
       - selection
@@ -212,7 +216,7 @@ jobs:
   cargo-format:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 5
@@ -230,7 +234,7 @@ jobs:
   cargo-clippy:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 20
@@ -249,7 +253,7 @@ jobs:
   cargo-test:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 20
@@ -268,7 +272,7 @@ jobs:
   cargo-doc:
     needs: selection
     if: ${{ needs.selection.outputs.rust == 'true' }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 20
@@ -291,7 +295,9 @@ jobs:
       - cargo-clippy
       - cargo-test
       - cargo-doc
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
     steps:
       - run: exit 0
 
@@ -300,7 +306,9 @@ jobs:
     if: ${{always()}}
     outputs:
       run-result:  ${{ steps.run-check.outputs.run-result }}
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
     timeout-minutes: 5
     steps:
       - name: Run Check

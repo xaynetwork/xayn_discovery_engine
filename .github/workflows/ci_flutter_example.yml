@@ -42,7 +42,7 @@ jobs:
     # The reason we don't need the Android libraries here is that, for Android, we have
     # a dynamic library that is loaded at runtime, while for iOS we have a static library
     # that needs to exist during the linking process.
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 30
