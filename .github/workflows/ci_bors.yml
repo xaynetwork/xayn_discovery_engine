@@ -30,11 +30,14 @@ jobs:
 
   ci-ok:
     needs: [dev-ci, build-ios-libs, build-android-libs, build-flutter-example]
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
     timeout-minutes: 5
     if: always()
     steps:
       - name: CI OK Testing
+        shell: bash
         run: |
           if [[
             "${{ needs.dev-ci.outputs.wf-result }}" == "success" &&

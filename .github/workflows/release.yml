@@ -18,7 +18,7 @@ jobs:
       production: true
 
   release:
-    runs-on: ubuntu-20.04
+    runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 10
