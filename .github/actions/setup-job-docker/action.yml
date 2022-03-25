@@ -20,6 +20,14 @@ runs:
       with:
         working-directory: ${{ env.RUST_WORKSPACE }}
 
+    - name: Configure cargo
+      shell: bash
+      run: |
+        # We do this since multiple jobs are run on the same CI build server,
+        # and if multiple cargo build jobs run at max parallelism it ends up
+        # slowing all builds down.
+        echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
+
     - name: Setup dependencies
       shell: bash
       run: |

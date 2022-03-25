@@ -59,7 +59,7 @@ class LocalNewsApiServer {
   int get port => _server.port;
 
   static Future<LocalNewsApiServer> start() async {
-    final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     return LocalNewsApiServer._(server);
   }
 

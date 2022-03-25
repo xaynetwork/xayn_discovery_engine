@@ -1,0 +1,39 @@
+name: Flutter checks
+
+on:
+  workflow_call:
+
+jobs:
+  flutter-analyze:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the CI
+        uses: ./.github/actions/setup-job-docker
+        with:
+          rust: true
+
+      - name: Analyze code
+        run: just flutter-check
+
+  flutter-test:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the CI
+        uses: ./.github/actions/setup-job-docker
+        with:
+          rust: true
+
+      - name: Run tests
+        run: just flutter-test

@@ -1,4 +1,5 @@
 name: Bors CI
+
 on:
   push:
     branches:
@@ -13,34 +14,47 @@ permissions:
   contents: read
 
 jobs:
-  dev-ci:
-    uses: ./.github/workflows/ci_reusable_wf.yml
+  rust-checks:
+    uses: ./.github/workflows/_reusable.rust.yml
+
+  dart-checks:
+    uses: ./.github/workflows/_reusable.dart.yml
+
+  flutter-checks:
+    uses: ./.github/workflows/_reusable.flutter.yml
 
   build-ios-libs:
-    uses: ./.github/workflows/ci_build_ios.yml
+    uses: ./.github/workflows/_reusable.build-ios.yml
 
   build-android-libs:
-    uses: ./.github/workflows/ci_build_android.yml
+    uses: ./.github/workflows/_reusable.build-android.yml
 
   build-flutter-example:
     needs: build-ios-libs
-    uses: ./.github/workflows/ci_flutter_example.yml
+    uses: ./.github/workflows/_reusable.build-flutter-example.yml
     with:
       artifact-dir-base-ios: ${{ needs.build-ios-libs.outputs.artifact-dir-base }}
 
   ci-ok:
-    needs: [dev-ci, build-ios-libs, build-android-libs, build-flutter-example]
+    needs:
+      - rust-checks
+      - dart-checks
+      - flutter-checks
+      - build-ios-libs
+      - build-android-libs
+      - build-flutter-example
     runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 5
-    if: always()
+    if: ${{ always() }}
     steps:
       - name: CI OK Testing
-        shell: bash
         run: |
           if [[
-            "${{ needs.dev-ci.outputs.wf-result }}" == "success" &&
+            "${{ needs.rust-checks.result }}" == "success" &&
+            "${{ needs.dart-checks.result }}" == "success" &&
+            "${{ needs.flutter-checks.result }}" == "success" &&
             "${{ needs.build-ios-libs.result }}" == "success" &&
             "${{ needs.build-android-libs.result }}" == "success" &&
             "${{ needs.build-flutter-example.result }}" == "success"

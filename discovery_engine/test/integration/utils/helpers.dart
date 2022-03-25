@@ -50,7 +50,7 @@ Configuration createConfig(
 ) {
   return Configuration(
     apiKey: '**********',
-    apiBaseUrl: 'http://localhost:$serverPort',
+    apiBaseUrl: 'http://127.0.0.1:$serverPort',
     assetsUrl: 'https://ai-assets.xaynet.dev',
     maxItemsPerFeedBatch: 50,
     maxItemsPerSearchBatch: 20,

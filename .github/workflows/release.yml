@@ -8,12 +8,12 @@ permissions:
 
 jobs:
   build-ios-libs:
-    uses: ./.github/workflows/ci_build_ios.yml
+    uses: ./.github/workflows/_reusable.build-ios.yml
     with:
       production: true
 
   build-android-libs:
-    uses: ./.github/workflows/ci_build_android.yml
+    uses: ./.github/workflows/_reusable.build-android.yml
     with:
       production: true
 
