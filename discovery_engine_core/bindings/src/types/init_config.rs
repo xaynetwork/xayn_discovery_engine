@@ -51,6 +51,17 @@ pub unsafe extern "C" fn init_config_place_of_markets(place: *mut InitConfig) ->
     unsafe { addr_of_mut!((*place).markets) }
 }
 
+/// Returns a pointer to the `sources` field of a configuration.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`InitConfig`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_config_place_of_sources(place: *mut InitConfig) -> *mut Vec<String> {
+    unsafe { addr_of_mut!((*place).sources) }
+}
+
 /// Returns a pointer to the `excluded_sources` field of a configuration.
 ///
 /// # Safety

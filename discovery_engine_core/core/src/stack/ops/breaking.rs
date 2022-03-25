@@ -39,6 +39,7 @@ use super::{
 pub(crate) struct BreakingNews {
     client: Arc<Client>,
     markets: Arc<RwLock<Vec<Market>>>,
+    sources: Arc<RwLock<Vec<String>>>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     semantic_filter_config: SemanticFilterConfig,
@@ -52,9 +53,10 @@ impl BreakingNews {
         Self {
             client: Arc::new(Client::new(&config.api_key, &config.api_base_url)),
             markets: config.markets.clone(),
+            sources: config.sources.clone(),
+            excluded_sources: config.excluded_sources.clone(),
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
-            excluded_sources: config.excluded_sources.clone(),
             max_requests: config.max_requests,
             min_articles: config.min_articles,
         }
@@ -87,6 +89,7 @@ impl Ops for BreakingNews {
         stack: &[Document],
     ) -> Result<Vec<Article>, GenericError> {
         let markets = self.markets.read().await.clone();
+        let sources = Arc::new(self.sources.read().await.clone());
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
 
         request_min_new_items(
@@ -100,6 +103,7 @@ impl Ops for BreakingNews {
                         market,
                         self.page_size,
                         page,
+                        sources.clone(),
                         excluded_sources.clone(),
                     )
                 })
@@ -123,6 +127,7 @@ fn spawn_headlines_request(
     market: Market,
     page_size: usize,
     page: usize,
+    sources: Arc<Vec<String>>,
     excluded_sources: Arc<Vec<String>>,
 ) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
@@ -134,7 +139,7 @@ fn spawn_headlines_request(
                 page,
                 excluded_sources: &excluded_sources,
             },
-            sources: &[], // TEMP
+            sources: &sources,
         };
         client.query_articles(&query).await.map_err(Into::into)
     })
