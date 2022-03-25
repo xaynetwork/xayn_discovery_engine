@@ -12,15 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    cmp::Ordering,
-    collections::{BTreeSet, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use url::Url;
 
 use crate::{
-    document::{Document, HistoricDocument},
+    document::{Document, HistoricDocument, NewsResource},
     engine::GenericError,
 };
 use xayn_discovery_engine_providers::Article;
@@ -39,53 +36,70 @@ impl ArticleFilter for DuplicateFilter {
     fn apply(
         history: &[HistoricDocument],
         stack: &[Document],
-        articles: Vec<Article>,
+        mut articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        let urls = history
+        // discard dups in the title keeping only the best ranked
+        articles.sort_unstable_by(|art1, art2| {
+            normalize(&art1.title)
+                .cmp(&normalize(&art2.title))
+                .then(art1.rank.cmp(&art2.rank))
+        });
+        articles.dedup_by_key(|art| normalize(&art.title));
+
+        // discard dups in the link (such dups assumed to have the same rank)
+        articles.sort_unstable_by(|art1, art2| art1.link.cmp(&art2.link));
+        articles.dedup_by(|art1, art2| art1.link == art2.link);
+
+        let (hist_urls, hist_titles) = history
             .iter()
-            .map(|doc| doc.url.as_str())
-            .chain(stack.iter().map(|doc| doc.resource.url.as_str()))
-            .collect::<HashSet<_>>();
+            .map(|doc| (doc.url.as_str(), normalize(&doc.title)))
+            .unzip::<_, _, HashSet<_>, HashSet<_>>();
 
-        let titles = history
-            .iter()
-            .map(|doc| &doc.title)
-            .chain(stack.iter().map(|doc| &doc.resource.title))
-            .collect::<HashSet<_>>();
-
-        let mut articles: BTreeSet<_> = articles.into_iter().map(UniqueArticle).collect();
-
-        articles.retain(|article| {
-            !(urls.contains(&article.0.link.as_str()) || titles.contains(&&article.0.title))
+        // discard dups of historical documents
+        articles.retain(|art| {
+            !hist_urls.contains(art.link.as_str()) && !hist_titles.contains(&normalize(&art.title))
         });
 
-        return Ok(articles.into_iter().map(|u| u.0).collect());
+        let stack_urls = stack
+            .iter()
+            .map(|doc| doc.resource.url.as_str())
+            .collect::<HashSet<_>>();
 
-        struct UniqueArticle(Article);
+        let stack_titles = stack
+            .iter()
+            .map(|doc| {
+                let NewsResource { title, rank, .. } = &doc.resource;
+                (normalize(title), *rank)
+            })
+            .fold(HashMap::new(), |mut titles, (title, rank)| {
+                titles
+                    .entry(title)
+                    .and_modify(|best_rank| {
+                        if rank < *best_rank {
+                            *best_rank = rank;
+                        }
+                    })
+                    .or_insert(rank);
+                titles
+            });
 
-        impl Eq for UniqueArticle {}
-        impl PartialEq for UniqueArticle {
-            fn eq(&self, other: &Self) -> bool {
-                self.0.link == other.0.link || self.0.title == other.0.title
-            }
-        }
+        // discard worse-ranked dups of stack documents; more precisely, discard:
+        // * dups of stack documents in the url
+        // * dups of stack documents in the title when the rank is no better
+        articles.retain(|art| {
+            !stack_urls.contains(art.link.as_str())
+                && stack_titles
+                    .get(&normalize(&art.title))
+                    .map_or(true, |doc_rank| &art.rank < doc_rank)
+        });
 
-        impl PartialOrd for UniqueArticle {
-            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-
-        impl Ord for UniqueArticle {
-            fn cmp(&self, other: &Self) -> Ordering {
-                if self.eq(other) {
-                    Ordering::Equal
-                } else {
-                    (&self.0.title, &self.0.link).cmp(&(&other.0.title, &other.0.link))
-                }
-            }
-        }
+        Ok(articles)
     }
+}
+
+/// Normalizes `text` to a trimmed lowercase string.
+pub(crate) fn normalize(text: &str) -> String {
+    text.trim().to_lowercase()
 }
 
 struct MalformedFilter;
@@ -276,12 +290,15 @@ mod tests {
         .unwrap();
         assert!(valid_articles.len() >= 4);
 
+        // start with 4 articles {0, 1, 2, 3}
         let mut articles = valid_articles.clone();
 
+        // add some more: {0, 1, 2, 3, 0, 1', 2', 3'}
         articles.push(valid_articles[0].clone());
         articles.push({
             let mut article = valid_articles[1].clone();
             article.link = "https://with_same_link.test".to_owned();
+            article.rank = u64::MAX;
             article
         });
         articles.push({
@@ -296,21 +313,34 @@ mod tests {
             article
         });
 
+        // after filtering: {0, 1, 2/2', 3, 3'}
         let filtered = CommonFilter::apply(&[], &[], articles)
             .unwrap()
             .into_iter()
-            .map(|article| article.title)
-            .sorted()
+            .map(|article| (article.title, article.rank))
             .collect::<Vec<_>>();
 
         assert_eq!(filtered.len(), 5, "Unexpected len for: {:?}", filtered);
 
-        // It's "arbitrary" weather `valid_article[1]/[2]` or their "new pseudo-equal" version is picked
-        let filtered = HashSet::<_>::from_iter(filtered);
-        assert!(filtered.contains(&valid_articles[0].title));
-        assert!(filtered.contains(&valid_articles[2].title) || filtered.contains("Foo Bar"));
-        assert!(filtered.contains(&valid_articles[1].title));
-        assert!(filtered.contains(&valid_articles[3].title));
-        assert!(filtered.contains("Unique"));
+        let filtered = HashMap::<_, _>::from_iter(filtered);
+        assert_eq!(
+            filtered.get(&valid_articles[0].title),
+            Some(&valid_articles[0].rank)
+        );
+        assert_eq!(
+            filtered.get(&valid_articles[1].title),
+            Some(&valid_articles[1].rank)
+        );
+        assert_eq!(
+            filtered
+                .get("With same url")
+                .xor(filtered.get(&valid_articles[2].title)),
+            Some(&valid_articles[2].rank)
+        );
+        assert_eq!(
+            filtered.get(&valid_articles[3].title),
+            Some(&valid_articles[3].rank)
+        );
+        assert_eq!(filtered.get("Unique"), Some(&valid_articles[3].rank));
     }
 }
