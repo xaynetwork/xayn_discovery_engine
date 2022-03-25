@@ -31,7 +31,7 @@ use uuid::Uuid;
 
 use xayn_discovery_engine_providers::Article;
 
-use crate::{stack::Id as StackId, utils::normalize};
+use crate::stack::{normalize, Id as StackId};
 
 pub use xayn_ai::ranker::Embedding;
 
@@ -229,7 +229,7 @@ pub(crate) fn dedup_documents(documents: &mut Vec<Document>) {
             .cmp(&normalize(&doc2.resource.title))
             .then(doc1.resource.rank.cmp(&doc2.resource.rank))
     });
-    documents.dedup_by_key(|doc| doc.resource.title.to_lowercase());
+    documents.dedup_by_key(|doc| normalize(&doc.resource.title));
 }
 
 /// Represents a [`Document`] in the document history.

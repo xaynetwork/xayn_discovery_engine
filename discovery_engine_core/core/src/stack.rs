@@ -36,6 +36,7 @@ mod ops;
 pub use self::ops::Ops;
 pub(crate) use self::{
     data::Data,
+    filters::normalize,
     ops::{breaking::BreakingNews, personalized::PersonalizedNews},
 };
 

@@ -55,8 +55,3 @@ pub(crate) fn nan_safe_f32_cmp_base(a: &f32, b: &f32, nan_min: bool) -> Ordering
 pub(crate) fn nan_safe_f32_cmp(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp_base(a, b, true)
 }
-
-/// Normalizes `text` to a trimmed lowercase string.
-pub(crate) fn normalize(text: &str) -> String {
-    text.to_lowercase().trim().to_string()
-}

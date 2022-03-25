@@ -19,7 +19,6 @@ use url::Url;
 use crate::{
     document::{Document, HistoricDocument, NewsResource},
     engine::GenericError,
-    utils::normalize,
 };
 use xayn_discovery_engine_providers::Article;
 
@@ -58,7 +57,7 @@ impl ArticleFilter for DuplicateFilter {
 
         // discard dups of historical documents
         articles.retain(|art| {
-            !hist_titles.contains(&normalize(&art.title)) && !hist_urls.contains(art.link.as_str())
+            !hist_urls.contains(art.link.as_str()) && !hist_titles.contains(&normalize(&art.title))
         });
 
         let stack_urls = stack
@@ -96,6 +95,11 @@ impl ArticleFilter for DuplicateFilter {
 
         Ok(articles)
     }
+}
+
+/// Normalizes `text` to a trimmed lowercase string.
+pub(crate) fn normalize(text: &str) -> String {
+    text.trim().to_lowercase()
 }
 
 struct MalformedFilter;

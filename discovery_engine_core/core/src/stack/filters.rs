@@ -16,6 +16,6 @@ mod article;
 mod semantic;
 
 pub(crate) use self::{
-    article::{ArticleFilter, CommonFilter},
+    article::{normalize, ArticleFilter, CommonFilter},
     semantic::{filter_semantically, SemanticFilterConfig},
 };
