@@ -214,17 +214,12 @@ Future<void> main() async {
       expect(() => mgr.addExcludedSource(''), throwsArgumentError);
     });
 
-    test('when adding source not stored with documents throw "ArgumentError"',
-        () async {
-      expect(() => mgr.addExcludedSource('example.com'), throwsArgumentError);
-    });
-
     test('when removing empty source throw "ArgumentError"', () async {
       expect(() => mgr.removeExcludedSource(''), throwsArgumentError);
     });
 
     test('addExcludedSource', () async {
-      final excludedSoures = {'www.bbc.com', 'www.nytimes.com'};
+      final excludedSources = {'www.bbc.com', 'www.nytimes.com'};
       const source1 = 'www.bbc.com';
       const source2 = 'www.nytimes.com';
 
@@ -233,7 +228,7 @@ Future<void> main() async {
 
       expect(response1, isA<ClientEventSucceeded>());
       expect(response2, isA<ClientEventSucceeded>());
-      expect(excludedBox.values.first, equals(excludedSoures));
+      expect(excludedBox.values.first, equals(excludedSources));
     });
 
     test('removeExcludedSource', () async {

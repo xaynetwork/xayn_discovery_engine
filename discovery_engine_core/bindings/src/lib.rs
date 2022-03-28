@@ -162,6 +162,24 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
+    /// Sets the excluded sources and updates the stacks based on that.
+    #[allow(clippy::box_vec)]
+    pub async fn set_excluded_sources(
+        engine: &SharedEngine,
+        history: Box<Vec<HistoricDocument>>,
+        sources: Box<Vec<String>>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .set_excluded_sources(&history, *sources)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
     /// Disposes the engine.
     pub async fn dispose(engine: Box<SharedEngine>) {
         engine.as_ref().as_ref().lock().await;

@@ -87,6 +87,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_dura
     show DurationAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_embedding_adapter.dart'
     show EmbeddingAdapter;
+import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_set_string_adapter.dart'
+    show SetStringAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_unique_id_adapter.dart'
     show DocumentIdAdapter, StackIdAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_adapter.dart'
@@ -298,6 +300,7 @@ class EventHandler {
     Hive.registerAdapter(EmbeddingAdapter());
     Hive.registerAdapter(FeedMarketAdapter());
     Hive.registerAdapter(ActiveSearchAdapter());
+    Hive.registerAdapter(SetStringAdapter());
 
     // open boxes
     await Future.wait([

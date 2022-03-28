@@ -43,6 +43,7 @@ abstract class Engine {
 
   /// Changes the currently excluded sources.
   Future<void> setExcludedSources(
+    List<HistoricDocument> history,
     Set<String> sources,
   );
 

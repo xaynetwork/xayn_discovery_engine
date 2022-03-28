@@ -22,6 +22,7 @@ class LocalNewsApiServer {
   bool _returnError = false;
   String _snFile = 'climate-change.json';
   String _lhFile = 'latest-headlines.json';
+  Uri? lastUri;
 
   LocalNewsApiServer._(this._server) {
     _handleRequests();
@@ -29,6 +30,7 @@ class LocalNewsApiServer {
 
   Future<void> _handleRequests() async {
     await for (final request in _server) {
+      lastUri = request.uri;
       if (_returnError) {
         _replyWithError(request);
       } else {
