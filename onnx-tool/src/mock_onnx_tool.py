@@ -11,7 +11,7 @@ def create_mock_onnx_model(model_path: str, graph_def: GraphProto) -> None:
     model_def = helper.make_model(
         graph_def,
         producer_name='ai.onnx',
-        opset_imports=[helper.make_opsetid('', 15)],
+        opset_imports=[helper.make_opsetid('', 12)],
     )
 
     onnx.checker.check_model(model_def)
