@@ -224,35 +224,32 @@ if __name__ == '__main__':
     parser.add_argument(
         "--output",
         type=str,
-        required=True,
-        help="Mock model's output path (ex: src/smbert-mocked.onnx)",
+        required=False,
+        help="Mock model's output path (ex: ../example/assets).",
     )
     parser.add_argument(
         "--type",
-        type=str,
+        choices=["bert", "smbert"],
         required=True,
         help="Type of the model (ex: smbert|bert)",
     )
+
     args = parser.parse_args()
-    model_path = os.path.abspath(args.output)
-    ext = model_path.split('.')[-1]
+    model_path = os.path.abspath(args.output or os.path.curdir)
 
-    if ext != 'onnx':
-        print(f"The model file must have the extension .onnx: \N{heavy ballot x}")
+    if not os.path.isdir(model_path):
+        print(f"The specified path: \"{args.output}\" does not exist: \N{heavy ballot x}")
         exit(1)
 
-    create_graph = {
-        'smbert': create_smbert_graph,
-        'bert': create_bert_graph,
-    }.get(args.type, None)
-
-    if create_graph is None:
-        print(f"The model type must have be 'smbert' or 'bert': \N{heavy ballot x}")
-        exit(1)
+    model_path = os.path.join(model_path, f"{args.type}-quantized.onnx")
+    create_graph_choices = {
+        "smbert": create_smbert_graph,
+        "bert": create_bert_graph,
+    }
 
     try:
         print("\n====== Converting model to ONNX ======")
-        graph_def = create_graph()
+        graph_def = create_graph_choices.get(args.type)()
         create_mock_onnx_model(model_path, graph_def)
         verify(model_path)
     except Exception as e:
