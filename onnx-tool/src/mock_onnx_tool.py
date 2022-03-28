@@ -106,30 +106,6 @@ def create_smbert_graph() -> GraphProto:
             outputs=['output_1'],
             value=output_value,
         ),
-        # helper.make_node(
-        #     'Expand',
-        #     inputs=['input_ids', 'output_0_shape'],
-        #     outputs=['output_0_int'],
-        # ),
-        # helper.make_node(
-        #     'Cast',
-        #     inputs=['output_0_int'],
-        #     outputs=['output_0'],
-        #     to=TensorProto.FLOAT,
-        # ),
-        # helper.make_node(
-        #     'Resize',
-        #     inputs=['input_ids', '', '', 'output_1_shape'],
-        #     outputs=['output_1_int'],
-        #     mode='nearest',
-        #     # allowzero=1,
-        # ),
-        # helper.make_node(
-        #     'Cast',
-        #     inputs=['output_1_int'],
-        #     outputs=['output_1'],
-        #     to=TensorProto.FLOAT,
-        # ),
     ]
 
     # Create the graph (GraphProto)
