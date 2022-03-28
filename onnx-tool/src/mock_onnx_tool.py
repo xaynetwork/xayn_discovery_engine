@@ -1,13 +1,26 @@
 import os
 from argparse import ArgumentParser
 import onnx
-from onnx import helper, TensorProto
+from onnx import helper, TensorProto, GraphProto
 
-def create_mock_onnx_model(model_path: str):
+def create_mock_onnx_model(model_path: str, graph_def: GraphProto) -> None:
     '''
     Create a mock onnx model.
     '''
+    # Create the model (ModelProto)
+    model_def = helper.make_model(
+        graph_def,
+        producer_name='ai.onnx',
+        opset_imports=[helper.make_opsetid('', 15)],
+    )
 
+    onnx.checker.check_model(model_def)
+    print(f"The model is checked: \N{heavy check mark}")
+
+    onnx.save(model_def, model_path)
+    print(f"The model is saved unde {model_path}: \N{heavy check mark}")
+
+def create_smbert_graph() -> GraphProto:
     # Create one input (ValueInfoProto)
     input_type_proto = helper.make_tensor_type_proto(
         TensorProto.INT64,
@@ -34,12 +47,6 @@ def create_mock_onnx_model(model_path: str):
     ]
 
     # Create nodes (NodeProto)
-    const_tensor_value = helper.make_tensor(
-        name='const_tensor',
-        data_type=TensorProto.INT64,
-        dims=[1],
-        vals=[128],
-    )
     condition_tensor = helper.make_tensor(
         'condition_tensor',
         TensorProto.BOOL,
@@ -57,7 +64,12 @@ def create_mock_onnx_model(model_path: str):
             'Constant',
             inputs=[],
             outputs=['const_tensor'],
-            value=const_tensor_value
+            value=helper.make_tensor(
+                name='const_tensor',
+                data_type=TensorProto.INT64,
+                dims=[1],
+                vals=[128],
+            )
         ),
         helper.make_node(
             'Shape',
@@ -121,26 +133,74 @@ def create_mock_onnx_model(model_path: str):
     ]
 
     # Create the graph (GraphProto)
-    graph_def = helper.make_graph(
+    return helper.make_graph(
         nodes,
-        'test-model',
+        'smbert-mocked',
         inputs,
         outputs,
         [condition_tensor],
     )
 
-    # Create the model (ModelProto)
-    model_def = helper.make_model(
-        graph_def,
-        producer_name='ai.onnx',
-        opset_imports=[helper.make_opsetid('', 15)],
+def create_bert_graph() -> GraphProto:
+    # Create one input (ValueInfoProto)
+    input_type_proto = helper.make_tensor_type_proto(
+        TensorProto.INT64,
+        ['batch', 'sequence'],
     )
-
-    onnx.checker.check_model(model_def)
-    print(f"The model is checked: \N{heavy check mark}")
-
-    onnx.save(model_def, model_path)
-    print(f"The model is saved unde {model_path}: \N{heavy check mark}")
+    inputs = [
+        helper.make_value_info('input_ids', input_type_proto),
+        helper.make_value_info('attention_mask', input_type_proto),
+    ]
+    # Create one output (ValueInfoProto)
+    outputs = [
+        helper.make_tensor_value_info(
+            'last_hidden_state',
+            TensorProto.FLOAT,
+            ['batch', 'sequence', 768],
+        ),
+    ]
+    # Create nodes (NodeProto)
+    nodes = [
+        helper.make_node(
+            'Constant',
+            inputs=[],
+            outputs=['const_tensor'],
+            value=helper.make_tensor(
+                name='const_tensor',
+                data_type=TensorProto.INT64,
+                dims=[1],
+                vals=[768],
+            ),
+        ),
+        helper.make_node(
+            'Shape',
+            inputs=['input_ids'],
+            outputs=['input_ids_shape'],
+        ),
+        helper.make_node(
+            'Concat',
+            inputs=['input_ids_shape', 'const_tensor'],
+            outputs=['last_hidden_state_shape'],
+            axis=0,
+        ),
+        helper.make_node(
+            'ConstantOfShape',
+            inputs=['last_hidden_state_shape'],
+            outputs=['last_hidden_state'],
+            value=helper.make_tensor(
+                'value',
+                TensorProto.FLOAT,
+                [1],
+                [1],
+            ),
+        ),
+    ]
+    return helper.make_graph(
+        nodes,
+        'bert-mocked',
+        inputs,
+        outputs,
+    )
 
 def verify(model_path: str):
     '''
@@ -167,6 +227,12 @@ if __name__ == '__main__':
         required=True,
         help="Mock model's output path (ex: src/smbert-mocked.onnx)",
     )
+    parser.add_argument(
+        "--type",
+        type=str,
+        required=True,
+        help="Type of the model (ex: smbert|bert)",
+    )
     args = parser.parse_args()
     model_path = os.path.abspath(args.output)
     ext = model_path.split('.')[-1]
@@ -175,9 +241,19 @@ if __name__ == '__main__':
         print(f"The model file must have the extension .onnx: \N{heavy ballot x}")
         exit(1)
 
+    create_graph = {
+        'smbert': create_smbert_graph,
+        'bert': create_bert_graph,
+    }.get(args.type, None)
+
+    if create_graph is None:
+        print(f"The model type must have be 'smbert' or 'bert': \N{heavy ballot x}")
+        exit(1)
+
     try:
         print("\n====== Converting model to ONNX ======")
-        create_mock_onnx_model(model_path)
+        graph_def = create_graph()
+        create_mock_onnx_model(model_path, graph_def)
         verify(model_path)
     except Exception as e:
         print(f"Error while converting the model: {e}")
