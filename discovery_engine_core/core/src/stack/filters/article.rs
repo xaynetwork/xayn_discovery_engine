@@ -133,8 +133,8 @@ impl ArticleFilter for CommonFilter {
         stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
-        DuplicateFilter::apply(history, stack, articles)
-            .and_then(|articles| MalformedFilter::apply(history, stack, articles))
+        MalformedFilter::apply(history, stack, articles)
+            .and_then(|articles| DuplicateFilter::apply(history, stack, articles))
     }
 }
 
