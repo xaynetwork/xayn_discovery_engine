@@ -217,7 +217,7 @@ if __name__ == '__main__':
         print(f"The specified path: \"{args.output}\" does not exist: \N{heavy ballot x}")
         exit(1)
 
-    model_path = os.path.join(model_path, f"{args.type}-quantized.onnx")
+    model_path = os.path.join(model_path, f"{args.type}-mocked.onnx")
     create_graph_choices = {
         "smbert": create_smbert_graph,
         "bert": create_bert_graph,

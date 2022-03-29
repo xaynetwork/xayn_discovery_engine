@@ -51,5 +51,7 @@ app.*.map.json
 # Keep the folder structure for assets
 !/assets/kpe_v0001
 !/assets/kpe_v0001/.gitkeep
+!/assets/kpe_v0001/bert-mocked.onnx
 !/assets/smbert_v0001
 !/assets/smbert_v0001/.gitkeep
+!/assets/smbert_v0001/smbert-mocked.onnx
