@@ -321,8 +321,6 @@ where
         max_documents: u32,
     ) -> Result<Vec<Document>, Error> {
         let mut stacks = self.stacks.write().await;
-        let documents =
-            SelectionIter::new(BetaSampler, stacks.values_mut()).select(max_documents as usize)?;
 
         let request_new = (self.request_after < self.core_config.request_after)
             .then(|| self.core_config.request_new)
@@ -338,7 +336,9 @@ where
         .await?;
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
-        Ok(documents)
+        SelectionIter::new(BetaSampler, stacks.values_mut())
+            .select(max_documents as usize)
+            .map_err(Into::into)
     }
 
     /// Process the feedback about the user spending some time on a document.
