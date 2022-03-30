@@ -149,7 +149,7 @@ impl Default for SemanticFilterConfig {
     fn default() -> Self {
         Self {
             max_days: 10.,
-            max_dissimilarity: 0.67,
+            max_dissimilarity: 0.5,
         }
     }
 }
