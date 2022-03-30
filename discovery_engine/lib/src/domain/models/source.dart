@@ -48,3 +48,7 @@ class Source extends Equatable {
   /// be any arbitrary JSON Value.
   Object toJson() => _repr;
 }
+
+extension ToStringListExt on Set<Source> {
+  List<String> toStringList() => map((s) => s._repr).toList();
+}

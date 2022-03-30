@@ -24,7 +24,7 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show Source, ToStringListExt;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -122,7 +122,7 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.setExcludedSources(
       _engine.ref,
       history.allocNative().move(),
-      sources.map((e) => e.toString()).toList().allocNative().move(),
+      sources.toStringList().allocNative().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);

@@ -21,7 +21,7 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show Source, ToStringListExt;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustInitConfig;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -71,7 +71,7 @@ class InitConfigFfi with EquatableMixin {
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
         feedMarkets: configuration.feedMarkets.toList(),
-        excludedSources: excludedSources.map((s) => s.toString()).toList(),
+        excludedSources: excludedSources.toStringList(),
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
         kpeVocab: setupData.kpeVocab,
