@@ -58,6 +58,8 @@ pub(super) async fn request_min_new_items<I: Send>(
 
     for request_num in 0..max_requests {
         match request_new_items(|| requests_fn(request_num)).await {
+            // if the API doesn't return any new items, we stop requesting more pages
+            Ok(batch) if batch.is_empty() => break,
             Ok(batch) => items.extend(batch),
             Err(err) => {
                 error.replace(err);
@@ -167,7 +169,10 @@ mod tests {
         let res: Result<Vec<u32>, GenericError> = request_min_new_items(
             1,
             1,
-            |_| FuturesUnordered::new(),
+            |_| {
+                let responses = vec![Resp::ok(&[0])];
+                client(responses)
+            },
             |_| Err(GenericError::from("filter")),
         )
         .await;
@@ -229,20 +234,14 @@ mod tests {
             3,
             10,
             |i| {
-                if i == 2 {
-                    // only the second request returns an item
-                    let responses = vec![Resp::ok(&[i])];
-                    client(responses)
-                } else {
-                    FuturesUnordered::new()
-                }
+                let responses = vec![Resp::ok(&[i])];
+                client(responses)
             },
             Ok,
         )
         .await
         .unwrap();
-        assert_eq!(items.len(), 1);
-        assert_eq!(items[0], 2);
+        assert_eq!(items.len(), 3);
     }
 
     #[tokio::test]
@@ -276,5 +275,26 @@ mod tests {
         .await
         .unwrap();
         assert!(items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_request_min_new_items_exit_early() {
+        let items = request_min_new_items(
+            5,
+            10,
+            |i| {
+                if i == 2 {
+                    FuturesUnordered::new()
+                } else {
+                    let responses = vec![Resp::ok(&[i])];
+                    client(responses)
+                }
+            },
+            Ok,
+        )
+        .await
+        .unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[1], 1);
     }
 }
