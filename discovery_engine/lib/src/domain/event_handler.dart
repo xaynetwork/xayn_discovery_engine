@@ -74,6 +74,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         documentBox,
         engineStateBox,
         searchBox,
+        sourcesBox,
         excludedSourcesBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
@@ -85,6 +86,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_
     show HiveEngineStateRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_excluded_sources_repo.dart'
     show HiveExcludedSourcesRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_sources_repo.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
     show DurationAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_embedding_adapter.dart'
@@ -214,11 +216,13 @@ class EventHandler {
     final activeDataRepository = HiveActiveDocumentDataRepository();
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
+    final sourcesRepository = HiveSourcesRepository();
     final excludedSourcesRepository = HiveExcludedSourcesRepository();
 
     final setupData = await _fetchAssets(config);
     final engineState = await engineStateRepository.load();
     final history = await documentRepository.fetchHistory();
+    final sources = await sourcesRepository.getAll();
     final excludedSources = await excludedSourcesRepository.getAll();
 
     final engine = await _initializeEngine(
@@ -228,6 +232,7 @@ class EventHandler {
         engineState: engineState,
         history: history,
         aiConfig: aiConfig,
+        sources: sources,
         excludedSources: excludedSources,
       ),
     );
@@ -311,6 +316,7 @@ class EventHandler {
       _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
       _openDbBox<Uint8List>(engineStateBox),
       _openDbBox<ActiveSearch>(searchBox),
+      _openDbBox<Set<String>>(sourcesBox),
       _openDbBox<Set<Source>>(excludedSourcesBox),
     ]);
   }

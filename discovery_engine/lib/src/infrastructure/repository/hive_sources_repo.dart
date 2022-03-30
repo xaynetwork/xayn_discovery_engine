@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,14 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const documentBox = 'document';
-const activeDocumentDataBox = 'active_document';
-const engineStateBox = 'engine_state';
-const searchBox = 'search';
-const sourcesBox = 'sources';
-const excludedSourcesBox = 'excluded_sources';
+import 'package:xayn_discovery_engine/src/domain/repository/sources_repo.dart'
+    show SourcesRepository;
 
-// names below were used by boxes which are now deprecated
-// please use different names when adding new boxes / repositories
-// ignore: unused_element
-const _changedDocumentIdBox = 'changed_document';
+/// Hive repository implementation of [SourcesRepository].
+class HiveSourcesRepository implements SourcesRepository {
+  @override
+  Future<Set<String>> getAll() async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> save(Set<String> sources) async {
+    throw UnimplementedError();
+  }
+}

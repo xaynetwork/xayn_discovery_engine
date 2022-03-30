@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,14 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const documentBox = 'document';
-const activeDocumentDataBox = 'active_document';
-const engineStateBox = 'engine_state';
-const searchBox = 'search';
-const sourcesBox = 'sources';
-const excludedSourcesBox = 'excluded_sources';
+/// Repository interface for source domains excluded from the feed.
+abstract class SourcesRepository {
+  /// Get a set of all favourite sources.
+  Future<Set<String>> getAll();
 
-// names below were used by boxes which are now deprecated
-// please use different names when adding new boxes / repositories
-// ignore: unused_element
-const _changedDocumentIdBox = 'changed_document';
+  /// Persist a set of favourite sources.
+  Future<void> save(Set<String> sources);
+}
