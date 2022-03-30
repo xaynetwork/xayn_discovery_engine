@@ -19,11 +19,12 @@ import 'package:xayn_discovery_engine/src/domain/repository/sources_repo.dart'
 class HiveSourcesRepository implements SourcesRepository {
   @override
   Future<Set<String>> getAll() async {
-    throw UnimplementedError();
+    // TODO unimplemented
+    return {};
   }
 
   @override
   Future<void> save(Set<String> sources) async {
-    throw UnimplementedError();
+    // TODO unimplemented
   }
 }
