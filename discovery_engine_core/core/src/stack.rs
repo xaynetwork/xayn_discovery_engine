@@ -188,11 +188,12 @@ impl Stack {
             .map_err(Error::New)
     }
 
-    /// Retains only data/documents with sources not excluded.
-    pub(crate) fn prune_by_excluded_sources(&mut self, excluded_sources: &HashSet<String>) {
+    /// Filter documents according to whether their source matches one in `sources`.
+    /// The flag `exclude` indicates whether to ex/include such documents.
+    pub(crate) fn prune_by_sources(&mut self, sources: &HashSet<String>, exclude: bool) {
         self.data
             .documents
-            .retain(|doc| !excluded_sources.contains(&doc.resource.source_domain));
+            .retain(|doc| sources.contains(&doc.resource.source_domain) ^ exclude);
     }
 }
 

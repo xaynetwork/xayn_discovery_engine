@@ -463,6 +463,30 @@ where
         }
     }
 
+    /// Updates the favourite sources.
+    pub async fn set_sources(
+        &mut self,
+        history: &[HistoricDocument],
+        sources: Vec<String>,
+    ) -> Result<(), Error> {
+        let sources_set = sources.iter().cloned().collect::<HashSet<_>>();
+        *self.config.excluded_sources.write().await = sources; // FIXME
+
+        let mut stacks = self.stacks.write().await;
+        for stack in stacks.values_mut() {
+            stack.prune_by_sources(&sources_set, false);
+        }
+        update_stacks(
+            stacks.values_mut(),
+            &mut self.ranker,
+            history,
+            self.core_config.select_top,
+            self.core_config.keep_top,
+            self.core_config.request_new,
+        )
+        .await
+    }
+
     /// Sets a new list of excluded sources
     pub async fn set_excluded_sources(
         &mut self,
@@ -474,7 +498,7 @@ where
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
-            stack.prune_by_excluded_sources(&exclusion_set);
+            stack.prune_by_sources(&exclusion_set, true);
         }
 
         update_stacks(
