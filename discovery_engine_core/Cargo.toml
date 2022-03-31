@@ -23,9 +23,5 @@ branch = "main"
 git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
 branch = "main"
 
-[patch.crates-io.hyper]
-git = "https://github.com/xaynetwork/hyper.git"
-branch = "v0.14.6_no_lib"
-
 [profile.dev.package.tract-core]
 opt-level = 3
