@@ -59,7 +59,7 @@ void main() {
           engineState: null,
           history: [],
           aiConfig: null,
-          sources: {},
+          favouriteSources: {},
           excludedSources: {},
         ),
       ),

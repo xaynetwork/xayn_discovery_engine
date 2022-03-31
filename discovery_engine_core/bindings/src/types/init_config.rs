@@ -58,8 +58,10 @@ pub unsafe extern "C" fn init_config_place_of_markets(place: *mut InitConfig) ->
 /// The pointer must point to a valid [`InitConfig`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn init_config_place_of_sources(place: *mut InitConfig) -> *mut Vec<String> {
-    unsafe { addr_of_mut!((*place).sources) }
+pub unsafe extern "C" fn init_config_place_of_favourite_sources(
+    place: *mut InitConfig,
+) -> *mut Vec<String> {
+    unsafe { addr_of_mut!((*place).favourite_sources) }
 }
 
 /// Returns a pointer to the `excluded_sources` field of a configuration.
