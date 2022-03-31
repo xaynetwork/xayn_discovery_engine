@@ -18,7 +18,7 @@ def create_mock_onnx_model(model_path: str, graph_def: GraphProto) -> None:
     print(f"The model is checked: \N{heavy check mark}")
 
     onnx.save(model_def, model_path)
-    print(f"The model is saved unde {model_path}: \N{heavy check mark}")
+    print(f"The model is saved under {model_path}: \N{heavy check mark}")
 
 def create_smbert_graph() -> GraphProto:
     # Create one input (ValueInfoProto)
@@ -207,7 +207,7 @@ if __name__ == '__main__':
         "--type",
         choices=["bert", "smbert"],
         required=True,
-        help="Type of the model (ex: smbert|bert)",
+        help="Type of the model.",
     )
 
     args = parser.parse_args()

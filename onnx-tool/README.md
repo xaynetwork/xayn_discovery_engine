@@ -7,7 +7,7 @@ You need to have [Python](https://www.python.org/) installed.
 
 # 🏗 Usage
 
-First install needed dependencies and then run the script specifiying the type of the model (`bert` or `smbert`) and output path. By default the output path is `"."` (the current directory).
+First install needed dependencies and then run the script specifying the type of the model (`bert` or `smbert`) and output path. By default the output path is `"."` (the current directory).
 
 ```sh
 # create virtual env
