@@ -50,6 +50,7 @@ jobs:
     if: ${{ always() }}
     steps:
       - name: CI OK Testing
+        shell: bash
         run: |
           if [[
             "${{ needs.rust-checks.result }}" == "success" &&

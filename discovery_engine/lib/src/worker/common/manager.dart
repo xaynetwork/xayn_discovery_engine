@@ -31,7 +31,7 @@ import 'package:xayn_discovery_engine/src/worker/native/platform_manager.dart'
     if (dart.library.html) 'package:xayn_discovery_engine/src/worker/web/platform_manager.dart'
     show createPlatformManager;
 
-const kDefaultRequestTimeout = Duration(seconds: 10);
+const kDefaultRequestTimeout = Duration(seconds: 60);
 
 /// [Manager] is providing a platform agnostic way of spawning a Worker and
 /// establishing a communication with it.
