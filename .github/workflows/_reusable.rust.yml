@@ -1,0 +1,73 @@
+name: Rust checks
+
+on:
+  workflow_call:
+
+jobs:
+  cargo-format:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the CI.
+        uses: ./.github/actions/setup-job-docker
+        with:
+          rust: true
+
+      - name: cargo fmt
+        run: just rust-fmt
+
+  cargo-clippy:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the rust CI.
+        uses: ./.github/actions/setup-job-docker
+        with:
+          rust: true
+
+      - name: cargo clippy
+        run: |
+          just rust-check
+
+  cargo-test:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the rust CI.
+        uses: ./.github/actions/setup-job-docker
+        with:
+          rust: true
+
+      - name: Run tests
+        run: |
+          env
+          just rust-test
+
+  cargo-doc:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the rust CI.
+        uses: ./.github/actions/setup-job-docker
+        with:
+          rust: true
+
+      - name: cargo doc
+        run: |
+          just rust-check-doc

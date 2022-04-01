@@ -1,0 +1,80 @@
+name: Dart checks
+
+on:
+  workflow_call:
+
+jobs:
+  dart-format:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the dart CI.
+        uses: ./.github/actions/setup-job-docker
+        with:
+          dart: true
+
+      - name: Check formatting
+        run: just dart-fmt
+
+  dart-analyze:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the rust/dart CI.
+        uses: ./.github/actions/setup-job-docker
+        with:
+          dart: true
+          rust: true
+
+      - name: Analyze code
+        run: just dart-check
+
+  dart-test:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the rust/dart CI.
+        uses: ./.github/actions/setup-job-docker
+        with:
+          dart: true
+          rust: true
+
+      - name: Run tests
+        run: just dart-test
+
+  dart-doc:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup the dart CI.
+        uses: ./.github/actions/setup-job-docker
+        with:
+          dart: true
+          rust: true
+
+      - name: Install dartdoc
+        working-directory: ${{ env.DART_WORKSPACE }}
+        run: dart pub global activate dartdoc
+
+      - name: Check documentation
+        run: just dart-check-doc

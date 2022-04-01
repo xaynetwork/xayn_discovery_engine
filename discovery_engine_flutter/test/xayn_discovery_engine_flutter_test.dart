@@ -78,7 +78,7 @@ void main() {
       final config = Configuration(
         apiKey: 'use-mock-engine',
         apiBaseUrl: 'https://use-mock-engine.test',
-        assetsUrl: 'http://localhost:$port',
+        assetsUrl: 'http://127.0.0.1:$port',
         maxItemsPerFeedBatch: 50,
         maxItemsPerSearchBatch: 20,
         applicationDirectoryPath: outputPath,

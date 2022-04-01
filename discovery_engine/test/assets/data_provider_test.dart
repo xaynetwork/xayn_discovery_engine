@@ -68,7 +68,7 @@ void main() {
       });
 
       setUp(() async {
-        assetFetcher = HttpAssetFetcherWithCounter('http://localhost:$port');
+        assetFetcher = HttpAssetFetcherWithCounter('http://127.0.0.1:$port');
         assetReporter = AssetReporter();
         dataProvider =
             createDataProvider(assetFetcher, assetReporter, outputPath);
