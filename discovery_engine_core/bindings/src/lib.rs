@@ -164,7 +164,7 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Sets the favourite sources and updates the stacks based on that.
     #[allow(clippy::box_vec)]
-    pub async fn set_sources(
+    pub async fn set_favourite_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
         sources: Box<Vec<String>>,
@@ -174,7 +174,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .set_sources(&history, *sources)
+                .set_favourite_sources(&history, *sources)
                 .await
                 .map_err(|error| error.to_string()),
         )

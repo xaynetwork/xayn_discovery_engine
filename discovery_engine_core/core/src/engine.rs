@@ -464,13 +464,13 @@ where
     }
 
     /// Updates the favourite sources.
-    pub async fn set_sources(
+    pub async fn set_favourite_sources(
         &mut self,
         history: &[HistoricDocument],
         sources: Vec<String>,
     ) -> Result<(), Error> {
         let sources_set = sources.iter().cloned().collect::<HashSet<_>>();
-        *self.config.excluded_sources.write().await = sources; // FIXME
+        *self.config.favourite_sources.write().await = sources;
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
