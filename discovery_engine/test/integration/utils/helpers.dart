@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         FeedMarket,
         Manifest;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
-    show kAssetsPath;
+    show Asset, AssetType, kAssetsPath;
 
 class TestEngineData {
   final Manifest manifest;
@@ -40,8 +40,19 @@ Future<TestEngineData> setupTestEngineData() async {
     recursive: true,
   );
   final manifest = await createManifestReader().read();
+  final assetsWithMockedModels = manifest.assets.map((asset) {
+    final isModelAsset =
+        [AssetType.kpeModel, AssetType.smbertModel].contains(asset.id);
 
-  return TestEngineData(manifest, applicationDirectoryPath);
+    if (isModelAsset) {
+      final urlSuffix = asset.urlSuffix.replaceAll(r'quantized', 'mocked');
+      return Asset(asset.id, urlSuffix, asset.checksum, asset.fragments);
+    }
+
+    return asset;
+  }).toList();
+  final mockedManifest = Manifest(assetsWithMockedModels);
+  return TestEngineData(mockedManifest, applicationDirectoryPath);
 }
 
 Configuration createConfig(
