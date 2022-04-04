@@ -2985,6 +2985,7 @@ dependencies = [
  "ndarray",
  "obake",
  "rand 0.8.5",
+ "rayon",
  "regex",
  "rubert",
  "serde",
