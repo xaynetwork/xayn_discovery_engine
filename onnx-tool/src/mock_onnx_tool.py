@@ -10,7 +10,7 @@ def create_mock_onnx_model(model_path: str, graph_def: GraphProto) -> None:
     # Create the model (ModelProto)
     model_def = helper.make_model(
         graph_def,
-        producer_name='ai.onnx',
+        producer_name='com.xayn',
         opset_imports=[helper.make_opsetid('', 12)],
     )
 
@@ -21,7 +21,7 @@ def create_mock_onnx_model(model_path: str, graph_def: GraphProto) -> None:
     print(f"The model is saved under {model_path}: \N{heavy check mark}")
 
 def create_smbert_graph() -> GraphProto:
-    # Create one input (ValueInfoProto)
+    # Create inputs (ValueInfoProto)
     input_type_proto = helper.make_tensor_type_proto(
         TensorProto.INT64,
         ['batch', 'sequence'],
@@ -32,7 +32,7 @@ def create_smbert_graph() -> GraphProto:
         helper.make_value_info('token_type_ids', input_type_proto),
     ]
 
-    # Create one output (ValueInfoProto)
+    # Create outputs (ValueInfoProto)
     outputs = [
         helper.make_tensor_value_info(
             'output_0',
@@ -117,8 +117,8 @@ def create_smbert_graph() -> GraphProto:
         [condition_tensor],
     )
 
-def create_bert_graph() -> GraphProto:
-    # Create one input (ValueInfoProto)
+def create_kpe_graph() -> GraphProto:
+    # Create inputs (ValueInfoProto)
     input_type_proto = helper.make_tensor_type_proto(
         TensorProto.INT64,
         ['batch', 'sequence'],
@@ -127,7 +127,7 @@ def create_bert_graph() -> GraphProto:
         helper.make_value_info('input_ids', input_type_proto),
         helper.make_value_info('attention_mask', input_type_proto),
     ]
-    # Create one output (ValueInfoProto)
+    # Create outputs (ValueInfoProto)
     outputs = [
         helper.make_tensor_value_info(
             'last_hidden_state',
@@ -205,7 +205,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--type",
-        choices=["bert", "smbert"],
+        choices=["kpe", "smbert"],
         required=True,
         help="Type of the model.",
     )
@@ -217,10 +217,11 @@ if __name__ == '__main__':
         print(f"The specified path: \"{args.output}\" does not exist: \N{heavy ballot x}")
         exit(1)
 
-    model_path = os.path.join(model_path, f"{args.type}-mocked.onnx")
+    filename_prefix = "bert" if args.type == "kpe" else args.type
+    model_path = os.path.join(model_path, f"{filename_prefix}-mocked.onnx")
     create_graph_choices = {
         "smbert": create_smbert_graph,
-        "bert": create_bert_graph,
+        "kpe": create_kpe_graph,
     }
 
     try:
