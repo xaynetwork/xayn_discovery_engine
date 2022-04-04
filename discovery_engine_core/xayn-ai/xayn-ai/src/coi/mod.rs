@@ -1,6 +1,5 @@
 pub(crate) mod config;
 pub(crate) mod key_phrase;
-mod merge;
 pub(crate) mod point;
 mod relevance;
 mod stats;
@@ -9,14 +8,12 @@ mod utils;
 
 #[cfg(test)]
 pub(crate) use self::{
-    system::{compute_coi, update_user_interests, CoiSystemError},
     utils::tests::{create_neg_cois, create_pos_cois},
 };
-pub(crate) use merge::reduce_cois;
 pub(crate) use point::find_closest_coi;
 pub(crate) use relevance::RelevanceMap;
 pub(crate) use stats::compute_coi_decay_factor;
-pub(crate) use system::{CoiSystem, NeutralCoiSystem};
+pub(crate) use system::CoiSystem;
 
 use derive_more::From;
 use displaydoc::Display;

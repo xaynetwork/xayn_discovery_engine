@@ -35,14 +35,6 @@ impl CoiStats {
         self.view_count += 1;
         self.last_view = system_time_now();
     }
-
-    pub(crate) fn merge(self, other: Self) -> Self {
-        Self {
-            view_count: self.view_count + other.view_count,
-            view_time: self.view_time + other.view_time,
-            last_view: self.last_view.max(other.last_view),
-        }
-    }
 }
 
 impl Default for CoiStats {

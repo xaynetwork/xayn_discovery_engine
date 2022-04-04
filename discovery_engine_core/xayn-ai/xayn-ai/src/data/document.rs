@@ -1,14 +1,10 @@
-use std::collections::HashMap;
-
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::convert::TryFrom;
 use uuid::Uuid;
 
-use crate::{reranker::systems::CoiSystemData, Error};
-
-use super::document_data::DocumentDataWithRank;
+use crate::Error;
 
 #[repr(transparent)]
 #[cfg_attr(test, derive(Default))]

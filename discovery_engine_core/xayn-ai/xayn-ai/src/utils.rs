@@ -19,7 +19,6 @@ macro_rules! to_vec_of_ref_of {
 #[allow(clippy::useless_attribute, clippy::single_component_path_imports)]
 pub(crate) use to_vec_of_ref_of;
 
-/// Allows comparing and sorting f32 even if `NaN` is involved.
 ///
 /// Pretend that f32 has a total ordering.
 ///
@@ -55,21 +54,6 @@ pub(crate) fn nan_safe_f32_cmp_base(a: &f32, b: &f32, nan_min: bool) -> Ordering
 /// descending sorted order, like e.g.: `[2.0, 1.5, 0.5, NaN]`.
 pub(crate) fn nan_safe_f32_cmp(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp_base(a, b, true)
-}
-
-/// Allows comparing and sorting f32 even if `NaN` is involved.
-///
-/// Pretend that f32 has a total ordering.
-///
-/// `NaN` is treated as the highest possible value, similar to what [`f32::min`] does.
-///
-/// If this is used for sorting this will lead to an ascending order, like
-/// for example `[0.5, 1.5, 2.0, NaN]`.
-///
-/// By switching the input parameters around this can be used to create a
-/// descending sorted order, like e.g.: `[NaN, 2.0, 1.5, 0.5]`.
-pub(crate) fn nan_safe_f32_cmp_high(a: &f32, b: &f32) -> Ordering {
-    nan_safe_f32_cmp_base(a, b, false)
 }
 
 /// `nan_safe_f32_cmp_desc(a,b)` is syntax suggar for `nan_safe_f32_cmp(b, a)`

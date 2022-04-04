@@ -2,7 +2,6 @@
 
 mod analytics;
 mod coi;
-mod context;
 mod data;
 mod embedding;
 mod error;
