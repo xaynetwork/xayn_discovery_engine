@@ -66,7 +66,7 @@ class InitConfigFfi with EquatableMixin {
   factory InitConfigFfi(
     Configuration configuration,
     NativeSetupData setupData,
-    Set<String> favouriteSources,
+    Set<Source> favouriteSources,
     Set<Source> excludedSources, {
     String? aiConfig,
   }) =>
@@ -74,7 +74,7 @@ class InitConfigFfi with EquatableMixin {
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
         feedMarkets: configuration.feedMarkets.toList(),
-        favouriteSources: favouriteSources.toList(),
+        favouriteSources: favouriteSources.toStringList(),
         excludedSources: excludedSources.toStringList(),
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,

@@ -16,7 +16,7 @@ const documentBox = 'document';
 const activeDocumentDataBox = 'active_document';
 const engineStateBox = 'engine_state';
 const searchBox = 'search';
-const sourcesBox = 'sources';
+const favouriteSourcesBox = 'favourite_sources';
 const excludedSourcesBox = 'excluded_sources';
 
 // names below were used by boxes which are now deprecated
