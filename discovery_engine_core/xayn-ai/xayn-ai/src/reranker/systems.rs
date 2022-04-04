@@ -1,5 +1,4 @@
 use crate::{
-    analytics::Analytics,
     coi::{point::UserInterests, RelevanceMap},
     data::{
         document::{DocumentHistory, DocumentId},
@@ -81,15 +80,6 @@ pub(crate) trait ContextSystem {
     ) -> Result<Vec<DocumentDataWithContext>, Error>;
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait AnalyticsSystem {
-    fn compute_analytics(
-        &self,
-        history: &[DocumentHistory],
-        documents: &[DocumentDataWithRank],
-    ) -> Result<Analytics, Error>;
-}
-
 /// Common systems that we need in the reranker
 /// At the moment this exists only to avoid to have 7+ generics around
 pub(crate) trait CommonSystems {
@@ -99,5 +89,4 @@ pub(crate) trait CommonSystems {
     fn mut_coi(&mut self) -> &mut dyn CoiSystem;
     fn ltr(&self) -> &dyn LtrSystem;
     fn context(&self) -> &dyn ContextSystem;
-    fn analytics(&self) -> &dyn AnalyticsSystem;
 }

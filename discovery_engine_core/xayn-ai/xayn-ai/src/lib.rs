@@ -1,6 +1,5 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
-mod analytics;
 mod coi;
 mod data;
 mod embedding;
@@ -10,7 +9,6 @@ mod reranker;
 mod utils;
 
 pub use crate::{
-    analytics::Analytics,
     coi::CoiId,
     data::document::{
         DayOfWeek,
