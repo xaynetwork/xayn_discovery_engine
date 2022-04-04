@@ -4,6 +4,7 @@ members = [
     "core",
     "providers",
     "tooling",
+    "xayn-ai/*",
 ]
 resolver = "2"
 
