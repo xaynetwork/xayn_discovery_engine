@@ -6,10 +6,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::convert::TryFrom;
 use uuid::Uuid;
 
-use crate::{
-    reranker::{systems::CoiSystemData, RerankMode},
-    Error,
-};
+use crate::{reranker::systems::CoiSystemData, Error};
 
 use super::document_data::DocumentDataWithRank;
 
@@ -152,79 +149,6 @@ pub enum Relevance {
     Low = 0,
     Medium = 1,
     High = 2,
-}
-
-/// The outcome of running the reranker.
-///
-/// This is named outcome instead of result as rust uses the
-/// word result in a very specific way which doesn't apply here.
-///
-/// Besides the `final_ranking` all other fields are optional
-/// as depending on configurations (don't run QA-mBERT in certain
-/// context) and errors they might not be available.
-///
-/// Like `final_ranking` already did in the past they match this
-/// information to the input documents by their index.
-#[derive(Serialize, Deserialize)]
-pub struct RerankingOutcomes {
-    /// The final ranking computed by the AI.
-    /// If the AI cannot run till having a final rank for each document the
-    /// initial rank will be used here.
-    pub final_ranking: Vec<u16>,
-
-    /// The QA-mBERT outcomes (similarities)
-    pub qambert_similarities: Option<Vec<f32>>,
-
-    /// The context score of each document.
-    ///
-    /// It can be `None` if it was impossible to compute them.
-    pub context_scores: Option<Vec<f32>>,
-}
-
-impl RerankingOutcomes {
-    /// Creates a `RerankingOutcome` which contains all information.
-    pub(crate) fn from_rank(
-        mode: RerankMode,
-        docs: &[Document],
-        docs_with_rank: &[DocumentDataWithRank],
-    ) -> Self {
-        let docs_with_rank = docs_with_rank
-            .iter()
-            .map(|doc| (doc.id(), doc))
-            .collect::<HashMap<_, _>>();
-
-        let final_ranking = docs
-            .iter()
-            .map(|doc| docs_with_rank[&doc.id].rank.rank as u16)
-            .collect();
-        let qambert_similarities = mode.is_search().then(|| {
-            docs.iter()
-                .map(|doc| docs_with_rank[&doc.id].qambert.similarity)
-                .collect()
-        });
-        let context_scores = mode.is_personalized().then(|| {
-            docs.iter()
-                .map(|doc| docs_with_rank[&doc.id].context.context_value)
-                .collect()
-        });
-
-        Self {
-            final_ranking,
-            qambert_similarities,
-            context_scores,
-        }
-    }
-
-    /// Creates a `RerankingOutcome` from the initial ranking.
-    ///
-    /// This is used if reranking failed.
-    pub(crate) fn from_initial_ranking(docs: &[Document]) -> Self {
-        Self {
-            final_ranking: docs.iter().map(|doc| doc.rank as u16).collect(),
-            qambert_similarities: None,
-            context_scores: None,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize_repr, Deserialize_repr)]

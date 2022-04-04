@@ -21,16 +21,11 @@ pub use crate::{
         DocumentId,
         QueryId,
         Relevance,
-        RerankingOutcomes,
         SessionId,
         UserAction,
         UserFeedback,
     },
     error::Error,
-    reranker::{
-        public::{Builder, Reranker},
-        RerankMode,
-    },
 };
 
 // We need to re-export these, since they encapsulate the arguments

@@ -1,9 +1,7 @@
-mod mem_db;
 mod systems;
 mod utils;
 
 pub(crate) use self::{
-    mem_db::MemDb,
     systems::{mocked_smbert_system, MockCommonSystems},
     utils::{
         data_with_rank,
@@ -28,7 +26,6 @@ pub(crate) use self::{
 
 #[cfg(test)]
 pub(crate) use crate::reranker::{
-    database::MockDatabase,
     systems::{
         MockAnalyticsSystem,
         MockCoiSystem,

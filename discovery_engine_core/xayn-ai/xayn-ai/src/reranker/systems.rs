@@ -16,7 +16,6 @@ use crate::{
         },
     },
     error::Error,
-    reranker::database::Database,
 };
 
 #[cfg(test)]
@@ -94,7 +93,6 @@ pub(crate) trait AnalyticsSystem {
 /// Common systems that we need in the reranker
 /// At the moment this exists only to avoid to have 7+ generics around
 pub(crate) trait CommonSystems {
-    fn database(&self) -> &dyn Database;
     fn smbert(&self) -> &dyn SMBertSystem;
     fn qambert(&self) -> &dyn QAMBertSystem;
     fn coi(&self) -> &dyn CoiSystem;
