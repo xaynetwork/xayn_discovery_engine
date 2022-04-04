@@ -94,7 +94,10 @@ class EngineInitializer with EquatableMixin {
   /// An opaque encoded configuration for the AI in the ranker.
   final String? aiConfig;
 
-  /// A set of excluded Sources
+  /// A set of favourite sources.
+  final Set<Source> favouriteSources;
+
+  /// A set of excluded sources.
   final Set<Source> excludedSources;
 
   EngineInitializer({
@@ -103,6 +106,7 @@ class EngineInitializer with EquatableMixin {
     required this.engineState,
     required this.history,
     required this.aiConfig,
+    required this.favouriteSources,
     required this.excludedSources,
   });
 

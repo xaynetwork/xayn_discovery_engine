@@ -37,6 +37,7 @@ class InitConfigFfi with EquatableMixin {
   final String apiKey;
   final String apiBaseUrl;
   final List<FeedMarket> feedMarkets;
+  final List<String> favouriteSources;
   final List<String> excludedSources;
   final String smbertVocab;
   final String smbertModel;
@@ -51,6 +52,7 @@ class InitConfigFfi with EquatableMixin {
         apiKey,
         apiBaseUrl,
         feedMarkets,
+        favouriteSources,
         excludedSources,
         smbertVocab,
         smbertModel,
@@ -64,6 +66,7 @@ class InitConfigFfi with EquatableMixin {
   factory InitConfigFfi(
     Configuration configuration,
     NativeSetupData setupData,
+    Set<Source> favouriteSources,
     Set<Source> excludedSources, {
     String? aiConfig,
   }) =>
@@ -71,6 +74,7 @@ class InitConfigFfi with EquatableMixin {
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
         feedMarkets: configuration.feedMarkets.toList(),
+        favouriteSources: favouriteSources.toStringList(),
         excludedSources: excludedSources.toStringList(),
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
@@ -85,6 +89,7 @@ class InitConfigFfi with EquatableMixin {
     required this.apiKey,
     required this.apiBaseUrl,
     required this.feedMarkets,
+    required this.favouriteSources,
     required this.excludedSources,
     required this.smbertVocab,
     required this.smbertModel,
@@ -106,6 +111,8 @@ class InitConfigFfi with EquatableMixin {
     apiKey.writeNative(ffi.init_config_place_of_api_key(place));
     apiBaseUrl.writeNative(ffi.init_config_place_of_api_base_url(place));
     feedMarkets.writeVec(ffi.init_config_place_of_markets(place));
+    favouriteSources
+        .writeNative(ffi.init_config_place_of_favourite_sources(place));
     excludedSources
         .writeNative(ffi.init_config_place_of_excluded_sources(place));
     smbertVocab.writeNative(ffi.init_config_place_of_smbert_vocab(place));
@@ -125,6 +132,9 @@ class InitConfigFfi with EquatableMixin {
           StringFfi.readNative(ffi.init_config_place_of_api_base_url(config)),
       feedMarkets:
           FeedMarketSliceFfi.readVec(ffi.init_config_place_of_markets(config)),
+      favouriteSources: StringListFfi.readNative(
+        ffi.init_config_place_of_favourite_sources(config),
+      ),
       excludedSources: StringListFfi.readNative(
         ffi.init_config_place_of_excluded_sources(config),
       ),

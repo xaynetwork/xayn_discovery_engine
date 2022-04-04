@@ -106,6 +106,8 @@ pub struct InitConfig {
     pub api_base_url: String,
     /// List of markets to use.
     pub markets: Vec<Market>,
+    /// List of favourite sources to use.
+    pub favourite_sources: Vec<String>,
     /// List of excluded sources to use.
     pub excluded_sources: Vec<String>,
     /// S-mBert vocabulary path.
@@ -134,6 +136,9 @@ pub(crate) struct EndpointConfig {
     pub(crate) page_size: usize,
     /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
+    /// Favourite sources for news queries.
+    #[allow(dead_code)]
+    pub(crate) favourite_sources: Arc<RwLock<Vec<String>>>,
     /// Sources to exclude for news queries.
     pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
     /// The maximum number of requests to try to reach the number of `min_articles`.
@@ -149,6 +154,7 @@ impl From<InitConfig> for EndpointConfig {
             api_base_url: config.api_base_url,
             page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
+            favourite_sources: Arc::new(RwLock::new(config.favourite_sources)),
             excluded_sources: Arc::new(RwLock::new(config.excluded_sources)),
             max_requests: 5,
             min_articles: 20,

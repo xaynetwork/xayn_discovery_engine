@@ -52,9 +52,9 @@ impl BreakingNews {
         Self {
             client: Arc::new(Client::new(&config.api_key, &config.api_base_url)),
             markets: config.markets.clone(),
+            excluded_sources: config.excluded_sources.clone(),
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
-            excluded_sources: config.excluded_sources.clone(),
             max_requests: config.max_requests,
             min_articles: config.min_articles,
         }
@@ -134,7 +134,7 @@ fn spawn_headlines_request(
                 page,
                 excluded_sources: &excluded_sources,
             },
-            sources: &[], // TEMP
+            sources: &[],
         };
         client.query_articles(&query).await.map_err(Into::into)
     })
