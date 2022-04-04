@@ -16,6 +16,8 @@ import 'dart:ffi' show Pointer, Uint64Pointer;
 
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustNewsResource;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -30,7 +32,9 @@ extension NewsResourceFfi on NewsResource {
     title.writeNative(ffi.news_resource_place_of_title(place));
     snippet.writeNative(ffi.news_resource_place_of_snippet(place));
     url.writeNative(ffi.news_resource_place_of_url(place));
-    sourceDomain.writeNative(ffi.news_resource_place_of_source_domain(place));
+    sourceDomain
+        .toString()
+        .writeNative(ffi.news_resource_place_of_source_domain(place));
     UriFfi.writeNativeOption(
       image,
       ffi.news_resource_place_of_image(place),
@@ -52,8 +56,10 @@ extension NewsResourceFfi on NewsResource {
       snippet:
           StringFfi.readNative(ffi.news_resource_place_of_snippet(resource)),
       url: UriFfi.readNative(ffi.news_resource_place_of_url(resource)),
-      sourceDomain: StringFfi.readNative(
-        ffi.news_resource_place_of_source_domain(resource),
+      sourceDomain: Source(
+        StringFfi.readNative(
+          ffi.news_resource_place_of_source_domain(resource),
+        ),
       ),
       image: UriFfi.readNativeOption(
         ffi.news_resource_place_of_image(resource),

@@ -30,6 +30,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -59,7 +61,7 @@ Future<void> main() async {
   final stateBox =
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
   final excludedBox =
-      await Hive.openBox<Set<String>>(excludedSourcesBox, bytes: Uint8List(0));
+      await Hive.openBox<Set<Source>>(excludedSourcesBox, bytes: Uint8List(0));
 
   final engine = MockEngine();
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
@@ -193,16 +195,18 @@ Future<void> main() async {
         documentId: DocumentId(),
         stackId: stackId,
         batchIndex: 1,
-        resource: mockNewsResource.copyWith(sourceDomain: 'www.nytimes.com'),
+        resource:
+            mockNewsResource.copyWith(sourceDomain: Source('www.nytimes.com')),
       );
       final doc2 = Document(
         documentId: DocumentId(),
         stackId: stackId,
         batchIndex: 2,
-        resource: mockNewsResource.copyWith(sourceDomain: 'www.bbc.com'),
+        resource:
+            mockNewsResource.copyWith(sourceDomain: Source('www.bbc.com')),
       );
       await docRepo.updateMany([doc1, doc2]);
-      await excludedSourcesRepo.save({'www.bbc.com'});
+      await excludedSourcesRepo.save({Source('www.bbc.com')});
     });
 
     tearDown(() async {
@@ -210,18 +214,13 @@ Future<void> main() async {
       await excludedBox.clear();
     });
 
-    test('when adding empty source throw "ArgumentError"', () async {
-      expect(() => mgr.addExcludedSource(''), throwsArgumentError);
-    });
-
-    test('when removing empty source throw "ArgumentError"', () async {
-      expect(() => mgr.removeExcludedSource(''), throwsArgumentError);
-    });
-
     test('addExcludedSource', () async {
-      final excludedSources = {'www.bbc.com', 'www.nytimes.com'};
-      const source1 = 'www.bbc.com';
-      const source2 = 'www.nytimes.com';
+      final excludedSources = {
+        Source('www.bbc.com'),
+        Source('www.nytimes.com')
+      };
+      final source1 = Source('www.bbc.com');
+      final source2 = Source('www.nytimes.com');
 
       final response1 = await mgr.addExcludedSource(source1);
       final response2 = await mgr.addExcludedSource(source2);
@@ -232,20 +231,20 @@ Future<void> main() async {
     });
 
     test('removeExcludedSource', () async {
-      await excludedSourcesRepo.save({'www.nytimes.com'});
+      await excludedSourcesRepo.save({Source('www.nytimes.com')});
 
-      final response = await mgr.removeExcludedSource('www.bbc.com');
+      final response = await mgr.removeExcludedSource(Source('www.bbc.com'));
 
       expect(response, isA<ClientEventSucceeded>());
-      expect(excludedBox.values.first, equals({'www.nytimes.com'}));
+      expect(excludedBox.values.first, equals({Source('www.nytimes.com')}));
     });
 
     test('getExcludedSourcesList', () async {
       final excludedSoures = {
-        'theguardian.com',
-        'bbc.co.uk',
-        'wsj.com',
-        'www.nytimes.com',
+        Source('theguardian.com'),
+        Source('bbc.co.uk'),
+        Source('wsj.com'),
+        Source('www.nytimes.com'),
       };
       await excludedSourcesRepo.save(excludedSoures);
 

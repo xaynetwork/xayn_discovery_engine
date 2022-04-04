@@ -28,6 +28,8 @@ import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -95,7 +97,7 @@ class MockEngine implements Engine {
   @override
   Future<void> setExcludedSources(
     List<HistoricDocument> history,
-    Set<String> sources,
+    Set<Source> sources,
   ) async {
     _incrementCount('setExcludedSources');
   }

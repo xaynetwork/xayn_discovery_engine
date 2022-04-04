@@ -13,24 +13,22 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:hive/hive.dart' show BinaryReader, BinaryWriter, TypeAdapter;
-import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show setStringTypeId;
 
-class SetStringAdapter extends TypeAdapter<Set<String>> {
-  @override
-  int get typeId => setStringTypeId;
+abstract class SetAdapter<T> extends TypeAdapter<Set<T>> {
+  TypeAdapter<T> get delegateAdapter;
 
   @override
-  Set<String> read(BinaryReader reader) {
+  Set<T> read(BinaryReader reader) {
     final length = reader.readUint32();
-    return Iterable.generate(length, (_) => reader.readString()).toSet();
+    return Iterable.generate(length, (_) => delegateAdapter.read(reader))
+        .toSet();
   }
 
   @override
-  void write(BinaryWriter writer, Set<String> obj) {
+  void write(BinaryWriter writer, Set<T> obj) {
     writer.writeUint32(obj.length);
     for (final item in obj) {
-      writer.writeString(item);
+      delegateAdapter.write(writer, item);
     }
   }
 }

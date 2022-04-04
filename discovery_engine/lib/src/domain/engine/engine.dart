@@ -25,6 +25,8 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -44,7 +46,7 @@ abstract class Engine {
   /// Changes the currently excluded sources.
   Future<void> setExcludedSources(
     List<HistoricDocument> history,
-    Set<String> sources,
+    Set<Source> sources,
   );
 
   /// Retrieves at most [maxDocuments] feed documents.
@@ -93,7 +95,7 @@ class EngineInitializer with EquatableMixin {
   final String? aiConfig;
 
   /// A set of excluded Sources
-  final Set<String> excludedSources;
+  final Set<Source> excludedSources;
 
   EngineInitializer({
     required this.config,
