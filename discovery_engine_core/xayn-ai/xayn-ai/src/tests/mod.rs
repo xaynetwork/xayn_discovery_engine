@@ -2,7 +2,7 @@ mod systems;
 mod utils;
 
 pub(crate) use self::{
-    systems::{mocked_smbert_system, MockCommonSystems},
+    systems::{mocked_smbert_system},
     utils::{
         data_with_rank,
         document_history,
