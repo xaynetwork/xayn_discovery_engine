@@ -9,7 +9,6 @@ use crate::{
             DocumentDataWithDocument,
             DocumentDataWithLtr,
             DocumentDataWithQAMBert,
-            DocumentDataWithRank,
             DocumentDataWithSMBert,
             SMBertComponent,
         },
@@ -27,15 +26,6 @@ pub(crate) trait SMBertSystem {
         &self,
         documents: &[DocumentDataWithDocument],
     ) -> Result<Vec<DocumentDataWithSMBert>, Error>;
-}
-
-#[cfg_attr(test, automock)]
-#[allow(clippy::upper_case_acronyms)]
-pub(crate) trait QAMBertSystem {
-    fn compute_similarity(
-        &self,
-        documents: &[DocumentDataWithCoi],
-    ) -> Result<Vec<DocumentDataWithQAMBert>, Error>;
 }
 
 pub(crate) trait CoiSystemData {
@@ -84,7 +74,6 @@ pub(crate) trait ContextSystem {
 /// At the moment this exists only to avoid to have 7+ generics around
 pub(crate) trait CommonSystems {
     fn smbert(&self) -> &dyn SMBertSystem;
-    fn qambert(&self) -> &dyn QAMBertSystem;
     fn coi(&self) -> &dyn CoiSystem;
     fn mut_coi(&mut self) -> &mut dyn CoiSystem;
     fn ltr(&self) -> &dyn LtrSystem;
