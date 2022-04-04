@@ -6,7 +6,6 @@ mod context;
 mod data;
 mod embedding;
 mod error;
-mod ltr;
 pub mod ranker;
 mod reranker;
 mod utils;
@@ -43,7 +42,3 @@ mod tests;
 #[allow(unused_imports)]
 #[rustfmt::skip]
 pub(crate) use rstest_reuse as rstest_reuse;
-
-// Reexport for the dev-tool
-#[doc(hidden)]
-pub use crate::ltr::{list_net, list_net_training_data_from_history};
