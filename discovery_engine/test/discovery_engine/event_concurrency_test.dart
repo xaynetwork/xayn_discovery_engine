@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:async';
+import 'dart:async' show unawaited;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
@@ -24,7 +24,8 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         RestoreFeedSucceeded;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     show DiscoveryEngineWorker;
-import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart';
+import 'package:xayn_discovery_engine/src/worker/common/oneshot.dart'
+    show OneshotRequest;
 
 import '../logging.dart' show setupLogging;
 import 'utils/utils.dart' show createEngineWithEntryPoint;
