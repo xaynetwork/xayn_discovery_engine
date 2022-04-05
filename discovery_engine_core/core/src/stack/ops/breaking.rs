@@ -48,9 +48,9 @@ pub(crate) struct BreakingNews {
 
 impl BreakingNews {
     /// Creates a breaking news stack.
-    pub(crate) fn new(config: &EndpointConfig) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
         Self {
-            client: Arc::new(Client::new(&config.api_key, &config.api_base_url)),
+            client,
             markets: config.markets.clone(),
             excluded_sources: config.excluded_sources.clone(),
             page_size: config.page_size,
