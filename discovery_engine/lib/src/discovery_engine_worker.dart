@@ -12,7 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async' show StreamController;
 import 'dart:convert' show Converter;
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show ClientEvent, EngineEvent, EngineExceptionReason;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
@@ -26,6 +28,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   final _requestConverter = JsonToOneshotRequestConverter();
   final _responseConverter = EngineEventToJsonConverter();
   final _handler = EventHandler();
+  final _incomingMessages = StreamController<OneshotRequest<ClientEvent>>();
 
   @override
   Converter<Object, OneshotRequest<ClientEvent>> get requestConverter =>
@@ -35,7 +38,11 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   Converter<EngineEvent, Object> get responseConverter => _responseConverter;
 
   DiscoveryEngineWorker(Object message) : super(message) {
-    _handler.events.listen((event) => send(event));
+    _incomingMessages.stream
+        // incoming messages processed sequentially
+        .asyncMap(handleMessage)
+        .listen((_) {});
+    _handler.events.listen(send);
   }
 
   Sender? _getSenderFromMessageOrNull(Object? incomingMessage) {
@@ -75,7 +82,10 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   }
 
   @override
-  Future<void> onMessage(request) async {
+  Future<void> onMessage(request) async => _incomingMessages.add(request);
+
+  @visibleForTesting
+  Future<void> handleMessage(OneshotRequest<ClientEvent> request) async {
     final clientEvent = request.payload;
     final response = await _handler.handleMessage(clientEvent);
     send(response, request.sender);
@@ -85,6 +95,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   Future<void> dispose() async {
     await super.dispose();
     await _handler.close();
+    await _incomingMessages.close();
   }
 }
 
