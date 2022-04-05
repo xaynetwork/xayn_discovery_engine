@@ -5,7 +5,6 @@ mod data;
 mod embedding;
 mod error;
 pub mod ranker;
-mod reranker;
 mod utils;
 
 pub use crate::{

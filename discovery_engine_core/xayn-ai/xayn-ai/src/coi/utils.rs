@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::{
     data::document::{Relevance, UserFeedback},
-    reranker::systems::CoiSystemData,
     DocumentHistory,
     DocumentId,
 };
@@ -21,24 +20,6 @@ impl From<(Relevance, UserFeedback)> for DocumentRelevance {
             _ => DocumentRelevance::Positive,
         }
     }
-}
-
-/// Collects all documents that are present in the history.
-/// The history contains the user feedback of these documents.
-pub(super) fn collect_matching_documents<'hist, 'doc>(
-    history: &'hist [DocumentHistory],
-    documents: &'doc [&dyn CoiSystemData],
-) -> Vec<(&'hist DocumentHistory, &'doc dyn CoiSystemData)> {
-    let history: HashMap<&DocumentId, &DocumentHistory> =
-        history.iter().map(|dh| (&dh.id, dh)).collect();
-
-    documents
-        .iter()
-        .filter_map(|doc| {
-            let dh = *history.get(&doc.id())?;
-            Some((dh, *doc))
-        })
-        .collect()
 }
 
 /// Classifies the documents into positive and negative documents based on the user feedback
@@ -83,20 +64,6 @@ pub(super) mod tests {
         id: DocumentId,
         smbert: SMBertComponent,
         coi: Option<CoiComponent>,
-    }
-
-    impl CoiSystemData for MockCoiDoc {
-        fn id(&self) -> DocumentId {
-            self.id
-        }
-
-        fn smbert(&self) -> &SMBertComponent {
-            &self.smbert
-        }
-
-        fn coi(&self) -> Option<&CoiComponent> {
-            self.coi.as_ref()
-        }
     }
 
     fn create_cois<FI: FixedInitializer<Elem = f32>, CP: CoiPointConstructor>(
@@ -238,28 +205,5 @@ pub(super) mod tests {
 
         assert_eq!(negative_docs.len(), 1);
         assert_eq!(negative_docs[0].smbert.embedding, arr1(&[1., 2., 3.]));
-    }
-
-    #[test]
-    fn test_collect_matching_documents() {
-        let history = create_document_history(vec![
-            (Relevance::Low, UserFeedback::Irrelevant),
-            (Relevance::Low, UserFeedback::Relevant),
-            (Relevance::Low, UserFeedback::Relevant),
-            (Relevance::Low, UserFeedback::Relevant),
-        ]);
-
-        let mut documents = create_data_with_embeddings(&[[1., 2., 3.], [3., 2., 1.]]);
-        documents.push(create_data_with_embedding(5, 0, &[4., 5., 6.]));
-        let documents = to_vec_of_ref_of!(documents, &dyn CoiSystemData);
-
-        let matching_documents = collect_matching_documents(&history, &documents);
-
-        assert_eq!(matching_documents.len(), 2);
-        assert_eq!(matching_documents[0].0.id, DocumentId::from_u128(0));
-        assert_eq!(matching_documents[0].1.id(), DocumentId::from_u128(0));
-
-        assert_eq!(matching_documents[1].0.id, DocumentId::from_u128(1));
-        assert_eq!(matching_documents[1].1.id(), DocumentId::from_u128(1));
     }
 }

@@ -16,7 +16,7 @@ use crate::{
             UserInterests,
         },
         relevance::RelevanceMap,
-        utils::{classify_documents_based_on_user_feedback, collect_matching_documents},
+        utils::classify_documents_based_on_user_feedback,
         CoiId,
     },
     data::document_data::{CoiComponent, DocumentDataWithCoi, DocumentDataWithSMBert},
@@ -24,7 +24,6 @@ use crate::{
         smbert::SMBert,
         utils::{Embedding, MINIMUM_COSINE_SIMILARITY},
     },
-    reranker::systems::{self, CoiSystemData},
     DocumentHistory,
     Error,
 };
@@ -96,34 +95,6 @@ impl CoiSystem {
         top: usize,
     ) -> Vec<KeyPhrase> {
         relevances.select_top_key_phrases(cois, top, self.config.horizon(), self.config.penalty())
-    }
-}
-
-impl systems::CoiSystem for CoiSystem {
-    fn compute_coi(
-        &self,
-        documents: &[DocumentDataWithSMBert],
-        user_interests: &UserInterests,
-    ) -> Result<Vec<DocumentDataWithCoi>, Error> {
-        compute_coi(documents, user_interests)
-    }
-
-    fn update_user_interests(
-        &mut self,
-        history: &[DocumentHistory],
-        documents: &[&dyn CoiSystemData],
-        user_interests: UserInterests,
-        relevances: &mut RelevanceMap,
-    ) -> Result<UserInterests, Error> {
-        let smbert = &self.smbert;
-        update_user_interests(
-            user_interests,
-            relevances,
-            history,
-            documents,
-            |key_phrase| smbert.run(key_phrase).map_err(Into::into),
-            &self.config,
-        )
     }
 }
 
@@ -201,27 +172,6 @@ fn log_positive_user_reaction(
     }
 }
 
-/// Updates the positive cois based on the documents data.
-fn update_positive_cois(
-    cois: &mut Vec<PositiveCoi>,
-    docs: &[&dyn CoiSystemData],
-    config: &Config,
-    relevances: &mut RelevanceMap,
-    smbert: impl Fn(&str) -> Result<Embedding, Error> + Copy + Sync,
-) {
-    docs.iter().fold(cois, |cois, doc| {
-        log_positive_user_reaction(
-            cois,
-            &doc.smbert().embedding,
-            config,
-            relevances,
-            smbert,
-            &[/* TODO: run KPE on doc */],
-        );
-        cois
-    });
-}
-
 /// Updates the negative coi closest to the embedding or creates a new one if it's too far away.
 fn log_negative_user_reaction(cois: &mut Vec<NegativeCoi>, embedding: &Embedding, config: &Config) {
     match find_closest_coi_mut(cois, embedding) {
@@ -234,79 +184,9 @@ fn log_negative_user_reaction(cois: &mut Vec<NegativeCoi>, embedding: &Embedding
 }
 
 /// Updates the negative cois based on the documents data.
-fn update_negative_cois(cois: &mut Vec<NegativeCoi>, docs: &[&dyn CoiSystemData], config: &Config) {
-    docs.iter().fold(cois, |cois, doc| {
-        log_negative_user_reaction(cois, &doc.smbert().embedding, config);
-        cois
-    });
-}
-
-pub(crate) fn update_user_interests(
-    mut user_interests: UserInterests,
-    relevances: &mut RelevanceMap,
-    history: &[DocumentHistory],
-    documents: &[&dyn CoiSystemData],
-    smbert: impl Fn(&str) -> Result<Embedding, Error> + Copy + Sync,
-    config: &Config,
-) -> Result<UserInterests, Error> {
-    let matching_documents = collect_matching_documents(history, documents);
-
-    if matching_documents.is_empty() {
-        return Err(CoiSystemError::NoMatchingDocuments.into());
-    }
-
-    let (positive_docs, negative_docs) =
-        classify_documents_based_on_user_feedback(matching_documents);
-
-    update_positive_cois(
-        &mut user_interests.positive,
-        &positive_docs,
-        config,
-        relevances,
-        smbert,
-    );
-    update_negative_cois(&mut user_interests.negative, &negative_docs, config);
-
-    Ok(user_interests)
-}
-
 fn log_document_view_time(cois: &mut [PositiveCoi], embedding: &Embedding, viewed: Duration) {
     if let Some((coi, _)) = find_closest_coi_mut(cois, embedding) {
         coi.log_time(viewed);
-    }
-}
-
-/// Coi system to run when Coi is disabled
-pub struct NeutralCoiSystem;
-
-impl NeutralCoiSystem {
-    pub(crate) const COI: CoiComponent = CoiComponent {
-        id: CoiId(Uuid::nil()),
-        pos_similarity: 0.,
-        neg_similarity: 0.,
-    };
-}
-
-impl systems::CoiSystem for NeutralCoiSystem {
-    fn compute_coi(
-        &self,
-        documents: &[DocumentDataWithSMBert],
-        _user_interests: &UserInterests,
-    ) -> Result<Vec<DocumentDataWithCoi>, Error> {
-        Ok(documents
-            .iter()
-            .map(|document| DocumentDataWithCoi::from_document(document, Self::COI))
-            .collect())
-    }
-
-    fn update_user_interests(
-        &mut self,
-        _history: &[DocumentHistory],
-        _documents: &[&dyn CoiSystemData],
-        _user_interests: UserInterests,
-        _relevances: &mut RelevanceMap,
-    ) -> Result<UserInterests, Error> {
-        unreachable!(/* should never be called on this system */)
     }
 }
 
@@ -447,29 +327,6 @@ mod tests {
     }
 
     #[test]
-    fn test_update_cois_update_the_same_point_twice() {
-        // checks that an updated coi is used in the next iteration
-        let mut cois = create_pos_cois(&[[0., 0., 0.]]);
-        let mut relevances = RelevanceMap::default();
-        let documents = create_data_with_rank(&[[0., 0., 4.9], [0., 0., 5.]]);
-        let documents = to_vec_of_ref_of!(documents, &dyn CoiSystemData);
-        let config = Config::default();
-
-        update_positive_cois(
-            &mut cois,
-            &documents,
-            &config,
-            &mut relevances,
-            |_| unreachable!(),
-        );
-
-        assert_eq!(cois.len(), 1);
-        // updated coi after first embedding = [0., 0., 0.49]
-        // updated coi after second embedding = [0., 0., 0.941]
-        assert_eq!(cois[0].point, arr1(&[0., 0., 0.941]));
-    }
-
-    #[test]
     fn test_compute_coi_for_embedding() {
         let positive = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
         let negative = create_neg_cois(&[[10., 10., 0.], [0., 10., 10.], [10., 0., 10.]]);
@@ -535,57 +392,6 @@ mod tests {
         let user_interests = UserInterests { positive, negative };
         let documents = create_data_with_embeddings(&[[1., NAN, 2.]]);
         let _ = compute_coi(&documents, &user_interests);
-    }
-
-    #[test]
-    fn test_update_user_interests() {
-        let positive = create_pos_cois(&[[3., 2., 1.], [1., 2., 3.]]);
-        let negative = create_neg_cois(&[[4., 5., 6.]]);
-        let user_interests = UserInterests { positive, negative };
-        let mut relevances = RelevanceMap::default();
-        let history = create_document_history(vec![
-            (Relevance::Low, UserFeedback::Irrelevant),
-            (Relevance::Low, UserFeedback::Relevant),
-            (Relevance::Low, UserFeedback::Relevant),
-        ]);
-        let documents = create_data_with_rank(&[[1., 4., 4.], [4., 47., 4.], [1., 1., 1.]]);
-        let documents = to_vec_of_ref_of!(documents, &dyn CoiSystemData);
-        let config = Config::default();
-
-        let UserInterests { positive, negative } = update_user_interests(
-            user_interests,
-            &mut relevances,
-            &history,
-            &documents,
-            |_| todo!(/* mock once KPE is used */),
-            &config,
-        )
-        .unwrap();
-
-        assert_eq!(positive.len(), 3);
-        assert_eq!(positive[0].point, arr1(&[2.7999997, 1.9, 1.]));
-        assert_eq!(positive[1].point, arr1(&[1., 2., 3.]));
-        assert_eq!(positive[2].point, arr1(&[4., 47., 4.]));
-
-        assert_eq!(negative.len(), 1);
-        assert_eq!(negative[0].point, arr1(&[3.6999998, 4.9, 5.7999997]));
-    }
-
-    #[test]
-    fn test_update_user_interests_no_matches() {
-        let error = update_user_interests(
-            UserInterests::default(),
-            &mut RelevanceMap::default(),
-            &[],
-            &[],
-            |_| unreachable!(),
-            &Config::default(),
-        )
-        .err()
-        .unwrap();
-        let error = error.downcast::<CoiSystemError>().unwrap();
-
-        assert!(matches!(error, CoiSystemError::NoMatchingDocuments));
     }
 
     #[test]

@@ -4,7 +4,6 @@ use crate::{
     coi::CoiId,
     data::document::{Document, DocumentId, QueryId, SessionId},
     embedding::utils::Embedding,
-    reranker::systems::CoiSystemData,
 };
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
@@ -130,20 +129,6 @@ impl DocumentDataWithSMBert {
     }
 }
 
-impl CoiSystemData for DocumentDataWithSMBert {
-    fn id(&self) -> DocumentId {
-        self.document_base.id
-    }
-
-    fn smbert(&self) -> &SMBertComponent {
-        &self.smbert
-    }
-
-    fn coi(&self) -> Option<&CoiComponent> {
-        None
-    }
-}
-
 #[cfg_attr(test, derive(Debug, PartialEq, Clone))]
 #[derive(Serialize, Deserialize)]
 #[allow(clippy::upper_case_acronyms)]
@@ -258,20 +243,6 @@ impl DocumentDataWithRank {
             context: document.context,
             rank,
         }
-    }
-}
-
-impl CoiSystemData for DocumentDataWithRank {
-    fn id(&self) -> DocumentId {
-        self.document_base.id
-    }
-
-    fn smbert(&self) -> &SMBertComponent {
-        &self.smbert
-    }
-
-    fn coi(&self) -> Option<&CoiComponent> {
-        Some(&self.coi)
     }
 }
 
