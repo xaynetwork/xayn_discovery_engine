@@ -3402,6 +3402,7 @@ dependencies = [
  "itertools",
  "kodama",
  "mockall",
+ "ndarray",
  "rand 0.8.5",
  "rand_distr",
  "rayon",

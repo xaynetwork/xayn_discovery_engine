@@ -136,6 +136,15 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, max_dissimilarity: f32) -> Vec<usize> 
     )
 }
 
+/// Calculates the normalized distances.
+fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
+    let cosine_similarity = condensed_cosine_similarity(documents);
+    let date_distance = condensed_date_distance(documents);
+    let decay_factor =
+        condensed_decay_factor(date_distance, config.max_days, config.max_dissimilarity);
+    condensed_normalized_distance(cosine_similarity, decay_factor)
+}
+
 /// Configurations for semantic filtering.
 pub(crate) struct SemanticFilterConfig {
     /// Maximum days threshold after which documents fully decay (must be non-negative).
@@ -163,12 +172,7 @@ pub(crate) fn filter_semantically(
         return documents;
     }
 
-    let cosine_similarity = condensed_cosine_similarity(&documents);
-    let date_distance = condensed_date_distance(&documents);
-    let decay_factor =
-        condensed_decay_factor(date_distance, config.max_days, config.max_dissimilarity);
-    let mut normalized_distance = condensed_normalized_distance(cosine_similarity, decay_factor);
-
+    let mut normalized_distance = normalized_distance(&documents, config);
     let dendrogram = linkage(&mut normalized_distance, documents.len(), Method::Average);
     let labels = cut_tree(&dendrogram, config.max_dissimilarity);
 
@@ -182,6 +186,13 @@ pub(crate) fn filter_semantically(
 #[allow(clippy::non_ascii_literal)]
 mod tests {
     use std::iter::repeat_with;
+
+    use chrono::NaiveDateTime;
+    use float_cmp::approx_eq;
+    use ndarray::arr1;
+    use xayn_ai::ranker::Embedding;
+
+    use crate::document::NewsResource;
 
     use super::*;
 
@@ -316,5 +327,40 @@ mod tests {
         assert_eq!(filtered[0].id, documents[0].id);
         assert_eq!(filtered[1].id, documents[1].id);
         assert_eq!(filtered[2].id, documents[2].id);
+    }
+
+    #[test]
+    fn test_normalized_distance() {
+        fn new_doc(embedding: &[f32], secs: i64) -> Document {
+            Document {
+                smbert_embedding: Embedding::from(arr1(embedding)),
+                resource: NewsResource {
+                    date_published: NaiveDateTime::from_timestamp(secs, 0),
+                    ..NewsResource::default()
+                },
+                ..Document::default()
+            }
+        }
+
+        let documents = vec![
+            new_doc(&[0.1, -0.5, 0.5], 100),
+            new_doc(&[12.3, -23.5, 1.5], 100),
+            new_doc(&[2.0, 2.5, 3.5], 865_000),
+            new_doc(&[0.2, -4.5, 9.5], 100),
+        ];
+        let config = SemanticFilterConfig::default();
+        let distances = normalized_distance(&documents, &config);
+        let expected = &[
+            0.201_287_45,
+            0.792_317_5,
+            0.0,
+            1.0,
+            0.473_056_26,
+            0.676_794_2,
+        ];
+        assert!(distances
+            .iter()
+            .zip(expected)
+            .all(|(a, b)| approx_eq!(f32, *a, *b)));
     }
 }
