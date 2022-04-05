@@ -21,8 +21,7 @@ use rubert::{
     NonePooler,
 };
 use rubert_tokenizer::{Builder as TokenizerBuilder, Padding, Tokenizer, Truncation};
-#[allow(unused_imports)]
-use test_utils::{example::validate::transcripts, qambert, smbert};
+use test_utils::{example::validate::transcripts, smbert};
 
 fn main() {
     ValidatorConfig {

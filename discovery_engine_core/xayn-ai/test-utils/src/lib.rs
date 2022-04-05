@@ -3,13 +3,9 @@
 
 mod approx_eq;
 mod asset;
-pub mod bench;
 pub mod example;
 pub mod kpe;
-pub mod ltr;
-pub mod qambert;
 pub mod smbert;
-pub mod test;
 
 pub use crate::approx_eq::ApproxEqIter;
 #[doc(hidden)] // required for standalone export of assert_approx_eq!
