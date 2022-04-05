@@ -14,6 +14,7 @@
 
 import 'dart:async' show StreamController;
 import 'dart:convert' show Converter;
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show ClientEvent, EngineEvent, EngineExceptionReason;
 import 'package:xayn_discovery_engine/src/api/codecs/json_codecs.dart'
@@ -83,7 +84,7 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   @override
   Future<void> onMessage(request) async => _incomingMessages.add(request);
 
-  /// Handles messaged
+  @visibleForTesting
   Future<void> handleMessage(OneshotRequest<ClientEvent> request) async {
     final clientEvent = request.payload;
     final response = await _handler.handleMessage(clientEvent);

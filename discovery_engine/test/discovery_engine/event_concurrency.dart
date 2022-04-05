@@ -1,14 +1,14 @@
-// Copyright 2021 Xayn AG
-
+// Copyright 2022 Xayn AG
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, version 3.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -70,11 +70,11 @@ class MockedDiscoveryEngineWorker extends DiscoveryEngineWorker {
       init: (configuration, aiConfig) async =>
           const EngineEvent.clientEventSucceeded(),
       restoreFeedRequested: () async {
-        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
         return const EngineEvent.restoreFeedSucceeded([]);
       },
       nextFeedBatchRequested: () async {
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         return const EngineEvent.nextFeedBatchRequestSucceeded([]);
       },
       orElse: () async => const EngineEvent.engineExceptionRaised(
