@@ -1,10 +1,10 @@
 [workspace]
 members = [
+    "ai/*",
     "bindings",
     "core",
     "providers",
     "tooling",
-    "xayn-ai/*",
 ]
 resolver = "2"
 
