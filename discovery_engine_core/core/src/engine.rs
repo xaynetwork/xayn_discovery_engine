@@ -420,14 +420,14 @@ where
 
         let markets = markets.read().await;
         let scaled_page_size = page_size as usize / markets.len() + 1;
+        let excluded_sources = self.config.excluded_sources.read().await.clone();
         for market in markets.iter() {
             let news_query = NewsQuery {
                 common: CommonQueryParts {
                     market,
                     page_size: scaled_page_size,
                     page: page as usize,
-                    //FIXME pass excluded_sources
-                    excluded_sources: &[],
+                    excluded_sources: &excluded_sources,
                 },
                 filter,
             };
