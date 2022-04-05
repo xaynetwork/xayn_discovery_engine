@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1};
+use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
 use rubert::{ArcEmbedding1, Embedding1};
 use std::ops::RangeInclusive;
 
@@ -22,36 +22,6 @@ where
     );
 
     norm
-}
-
-/// Computes the l2 norm (euclidean metric) of the difference of two vectors.
-///
-/// # Panics
-/// Panics if the vectors don't consist solely of real values or their shapes don't match.
-pub fn l2_distance<S>(a: ArrayBase<S, Ix1>, b: ArrayBase<S, Ix1>) -> f32
-where
-    S: Data<Elem = f32>,
-{
-    l2_norm(&a - &b)
-}
-
-/// Computes the arithmetic mean of two vectors.
-///
-/// # Panics
-/// Panics if the vectors don't consist solely of real values or their shapes don't match.
-pub fn mean<S>(a: ArrayBase<S, Ix1>, b: ArrayBase<S, Ix1>) -> Array1<f32>
-where
-    S: Data<Elem = f32>,
-{
-    let mean = 0.5 * (&a + &b);
-    assert!(
-        mean.iter().copied().all(f32::is_finite),
-        "vectors must consist of real values only, but got\na: {:?}\nb: {:?}",
-        a,
-        b,
-    );
-
-    mean
 }
 
 /// See [`pairwise_cosine_similarity`] for details
@@ -138,24 +108,6 @@ mod tests {
     #[should_panic(expected = "vector must consist of real values only, but got")]
     fn test_l2_norm_neginf() {
         l2_norm(arr1(&[1., f32::NEG_INFINITY, 3.]));
-    }
-
-    #[test]
-    fn test_l2_distance() {
-        assert_approx_eq!(
-            f32,
-            l2_distance(arr1(&[1., 2., 3.]), arr1(&[4., 5., 6.])),
-            5.196152,
-        );
-    }
-
-    #[test]
-    fn test_mean() {
-        assert_approx_eq!(
-            f32,
-            mean(arr1(&[1., 2., 3.]), arr1(&[4., 5., 6.])),
-            arr1(&[2.5, 3.5, 4.5]),
-        );
     }
 
     #[test]

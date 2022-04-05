@@ -7,9 +7,7 @@ mod system;
 mod utils;
 
 #[cfg(test)]
-pub(crate) use self::{
-    utils::tests::{create_neg_cois, create_pos_cois},
-};
+pub(crate) use self::utils::tests::{create_neg_cois, create_pos_cois};
 pub(crate) use point::find_closest_coi;
 pub(crate) use relevance::RelevanceMap;
 pub(crate) use stats::compute_coi_decay_factor;
