@@ -1,25 +1,9 @@
-#[cfg(target_arch = "wasm32")]
-use std::time::Duration;
 use std::{cmp::Ordering, time::SystemTime};
 
-#[cfg(target_arch = "wasm32")]
-use js_sys::Date;
 use serde::Serialize;
 
 use crate::Error;
 
-macro_rules! to_vec_of_ref_of {
-    ($data: expr, $type:ty) => {
-        $data
-            .iter()
-            .map(|data| -> $type { data })
-            .collect::<Vec<_>>()
-    };
-}
-#[allow(clippy::useless_attribute, clippy::single_component_path_imports)]
-pub(crate) use to_vec_of_ref_of;
-
-///
 /// Pretend that f32 has a total ordering.
 ///
 /// `NaN` is treated as the lowest possible value if `nan_min`, similar to what [`f32::max`] does.
@@ -79,11 +63,7 @@ pub(crate) const SECONDS_PER_DAY: f32 = 86400.;
 /// Gets the current system time depending on the target architecture.
 #[inline]
 pub(crate) fn system_time_now() -> SystemTime {
-    #[cfg(target_arch = "wasm32")]
-    return SystemTime::UNIX_EPOCH + Duration::from_secs_f64(Date::now() / 1000.);
-
-    #[cfg(not(target_arch = "wasm32"))]
-    return SystemTime::now();
+    SystemTime::now()
 }
 
 pub(crate) mod serde_duration_as_days {

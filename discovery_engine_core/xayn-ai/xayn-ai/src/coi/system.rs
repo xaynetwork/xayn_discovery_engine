@@ -1,52 +1,27 @@
 use std::time::Duration;
 
-use displaydoc::Display;
-use thiserror::Error;
 use uuid::Uuid;
 
 use crate::{
     coi::{
         config::Config,
-        point::{
-            find_closest_coi,
-            find_closest_coi_mut,
-            CoiPoint,
-            NegativeCoi,
-            PositiveCoi,
-            UserInterests,
-        },
+        point::{find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
         relevance::RelevanceMap,
-        utils::classify_documents_based_on_user_feedback,
-        CoiId,
     },
-    // data::document_data::{CoiComponent, DocumentDataWithCoi, DocumentDataWithSMBert},
-    embedding::{
-        smbert::SMBert,
-        utils::{Embedding, MINIMUM_COSINE_SIMILARITY},
-    },
-    DocumentHistory,
+    embedding::utils::Embedding,
     Error,
 };
 
 use super::key_phrase::KeyPhrase;
 
-#[derive(Error, Debug, Display)]
-pub(crate) enum CoiSystemError {
-    /// No CoI could be found for the given embedding
-    NoCoi,
-    /// No matching documents could be found
-    NoMatchingDocuments,
-}
-
 pub(crate) struct CoiSystem {
     pub(crate) config: Config,
-    smbert: SMBert,
 }
 
 impl CoiSystem {
     /// Creates a new centre of interest system.
-    pub(crate) fn new(config: Config, smbert: SMBert) -> Self {
-        Self { config, smbert }
+    pub(crate) fn new(config: Config) -> Self {
+        Self { config }
     }
 
     /// Updates the view time of the positive coi closest to the embedding.
@@ -157,49 +132,10 @@ fn log_document_view_time(cois: &mut [PositiveCoi], embedding: &Embedding, viewe
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{arr1, FixedInitializer};
-    use std::f32::NAN;
+    use ndarray::arr1;
 
     use super::*;
-    use crate::{
-        coi::{
-            utils::tests::{
-                create_document_history,
-                create_neg_cois,
-                create_pos_cois,
-            },
-            CoiId,
-        },
-        data::{
-            document::{DocumentId, Relevance, UserFeedback},
-        },
-        utils::to_vec_of_ref_of,
-    };
-    use test_utils::assert_approx_eq;
-
-    #[test]
-    fn test_update_coi_add_point() {
-        let mut cois = create_pos_cois(&[[1., 0., 0.], [1., 0.2, 1.], [0.5, 0.5, 0.1]]);
-        let mut relevances = RelevanceMap::default();
-        let embedding = arr1(&[1.91, 73.78, 72.35]).into();
-        let config = Config::default();
-
-        let (closest, similarity) = find_closest_coi(&cois, &embedding).unwrap();
-
-        assert_eq!(closest.point, arr1(&[0.5, 0.5, 0.1]));
-        assert_approx_eq!(f32, similarity, 0.610_772_5);
-        assert!(config.threshold() >= similarity);
-
-        log_positive_user_reaction(
-            &mut cois,
-            &embedding,
-            &config,
-            &mut relevances,
-            |_| unreachable!(),
-            &[],
-        );
-        assert_eq!(cois.len(), 4);
-    }
+    use crate::coi::utils::tests::{create_neg_cois, create_pos_cois};
 
     #[test]
     fn test_update_coi_update_point() {

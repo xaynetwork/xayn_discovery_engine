@@ -125,7 +125,7 @@ impl<'a> Builder<'a, AveragePooler> {
     /// reading from a file failed or the bytes read are have an unexpected format.
     pub fn build(self) -> Result<Ranker, Error> {
         let smbert = SMBert::from(Arc::new(rubert::Pipeline::from(self.smbert_config)?));
-        let coi = CoiSystem::new(self.coi_config, smbert.clone());
+        let coi = CoiSystem::new(self.coi_config);
         let kpe = kpe::Pipeline::from(self.kpe_config)?;
 
         Ok(Ranker(super::system::Ranker::new(
