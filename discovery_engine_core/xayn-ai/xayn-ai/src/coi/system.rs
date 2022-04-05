@@ -19,7 +19,7 @@ use crate::{
         utils::classify_documents_based_on_user_feedback,
         CoiId,
     },
-    data::document_data::{CoiComponent, DocumentDataWithCoi, DocumentDataWithSMBert},
+    // data::document_data::{CoiComponent, DocumentDataWithCoi, DocumentDataWithSMBert},
     embedding::{
         smbert::SMBert,
         utils::{Embedding, MINIMUM_COSINE_SIMILARITY},
@@ -98,41 +98,6 @@ impl CoiSystem {
     }
 }
 
-/// Assigns a CoI for the given embedding.
-///
-/// Returns `None` if no CoI could be found otherwise it returns the Id of
-/// the CoI along with the positive and negative similarity.
-pub(crate) fn compute_coi_for_embedding(
-    embedding: &Embedding,
-    user_interests: &UserInterests,
-) -> Option<CoiComponent> {
-    let (coi, pos_similarity) = find_closest_coi(&user_interests.positive, embedding)?;
-    let neg_similarity = match find_closest_coi(&user_interests.negative, embedding) {
-        Some((_, similarity)) => similarity,
-        None => MINIMUM_COSINE_SIMILARITY,
-    };
-
-    Some(CoiComponent {
-        id: coi.id,
-        pos_similarity,
-        neg_similarity,
-    })
-}
-
-pub(crate) fn compute_coi(
-    documents: &[DocumentDataWithSMBert],
-    user_interests: &UserInterests,
-) -> Result<Vec<DocumentDataWithCoi>, Error> {
-    documents
-        .iter()
-        .map(|document| {
-            compute_coi_for_embedding(&document.smbert.embedding, user_interests)
-                .map(|coi| DocumentDataWithCoi::from_document(document, coi))
-                .ok_or_else(|| CoiSystemError::NoCoi.into())
-        })
-        .collect()
-}
-
 /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
 fn log_positive_user_reaction(
     cois: &mut Vec<PositiveCoi>,
@@ -199,7 +164,6 @@ mod tests {
     use crate::{
         coi::{
             utils::tests::{
-                create_data_with_embeddings,
                 create_document_history,
                 create_neg_cois,
                 create_pos_cois,
@@ -208,51 +172,10 @@ mod tests {
         },
         data::{
             document::{DocumentId, Relevance, UserFeedback},
-            document_data::{
-                ContextComponent,
-                DocumentBaseComponent,
-                DocumentContentComponent,
-                DocumentDataWithRank,
-                LtrComponent,
-                QAMBertComponent,
-                RankComponent,
-                SMBertComponent,
-            },
         },
         utils::to_vec_of_ref_of,
     };
     use test_utils::assert_approx_eq;
-
-    pub(crate) fn create_data_with_rank(
-        embeddings: &[impl FixedInitializer<Elem = f32>],
-    ) -> Vec<DocumentDataWithRank> {
-        embeddings
-            .iter()
-            .enumerate()
-            .map(|(id, embedding)| DocumentDataWithRank {
-                document_base: DocumentBaseComponent {
-                    id: DocumentId::from_u128(id as u128),
-                    initial_ranking: id,
-                },
-                document_content: DocumentContentComponent {
-                    title: id.to_string(),
-                    ..DocumentContentComponent::default()
-                },
-                smbert: SMBertComponent {
-                    embedding: arr1(embedding.as_init_slice()).into(),
-                },
-                qambert: QAMBertComponent { similarity: 0.5 },
-                coi: CoiComponent {
-                    id: CoiId::mocked(1),
-                    pos_similarity: 0.1,
-                    neg_similarity: 0.1,
-                },
-                ltr: LtrComponent { ltr_score: 0.5 },
-                context: ContextComponent { context_value: 0.5 },
-                rank: RankComponent { rank: 0 },
-            })
-            .collect()
-    }
 
     #[test]
     fn test_update_coi_add_point() {
@@ -324,74 +247,6 @@ mod tests {
         assert_eq!(cois.len(), 2);
         assert_eq!(cois[0].point, arr1(&[0., 1.,]));
         assert_eq!(cois[1].point, arr1(&[1., 0.]));
-    }
-
-    #[test]
-    fn test_compute_coi_for_embedding() {
-        let positive = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
-        let negative = create_neg_cois(&[[10., 10., 0.], [0., 10., 10.], [10., 0., 10.]]);
-        let user_interests = UserInterests { positive, negative };
-        let embedding = arr1(&[2., 3., 4.]).into();
-
-        let coi_comp = compute_coi_for_embedding(&embedding, &user_interests).unwrap();
-
-        assert_eq!(coi_comp.id, CoiId::mocked(2));
-        assert_approx_eq!(f32, coi_comp.pos_similarity, 0.742_781_34);
-        assert_approx_eq!(f32, coi_comp.neg_similarity, 0.919_145_05);
-    }
-
-    #[test]
-    fn test_compute_coi_for_embedding_empty_negative_cois() {
-        let positive_cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
-        let user_interests = UserInterests {
-            positive: positive_cois,
-            negative: Vec::new(),
-        };
-        let embedding = arr1(&[2., 3., 4.]).into();
-
-        let coi_comp = compute_coi_for_embedding(&embedding, &user_interests).unwrap();
-
-        assert_eq!(coi_comp.id, CoiId::mocked(2));
-        assert_approx_eq!(f32, coi_comp.pos_similarity, 0.742_781_34);
-        assert_approx_eq!(f32, coi_comp.neg_similarity, -1.);
-    }
-
-    #[test]
-    fn test_compute_coi() {
-        let positive = create_pos_cois(&[[3., 2., 1.], [1., 2., 3.]]);
-        let negative = create_neg_cois(&[[4., 5., 6.]]);
-        let user_interests = UserInterests { positive, negative };
-        let documents = create_data_with_embeddings(&[[1., 4., 4.], [3., 6., 6.]]);
-
-        let documents_coi = compute_coi(&documents, &user_interests).unwrap();
-
-        assert_eq!(documents_coi[0].coi.id, CoiId::mocked(1));
-        assert_approx_eq!(f32, documents_coi[0].coi.pos_similarity, 0.977_008_4);
-        assert_approx_eq!(f32, documents_coi[0].coi.neg_similarity, 0.952_223_54);
-
-        assert_eq!(documents_coi[1].coi.id, CoiId::mocked(1));
-        assert_approx_eq!(f32, documents_coi[1].coi.pos_similarity, 0.979_957_9);
-        assert_approx_eq!(f32, documents_coi[1].coi.neg_similarity, 0.987_658_3);
-    }
-
-    #[test]
-    #[should_panic(expected = "vector must consist of real values only")]
-    fn test_compute_coi_all_nan() {
-        let positive = create_pos_cois(&[[3., 2., 1.], [1., 2., 3.]]);
-        let negative = create_neg_cois(&[[4., 5., 6.]]);
-        let user_interests = UserInterests { positive, negative };
-        let documents = create_data_with_embeddings(&[[NAN, NAN, NAN]]);
-        let _ = compute_coi(&documents, &user_interests);
-    }
-
-    #[test]
-    #[should_panic(expected = "vector must consist of real values only")]
-    fn test_compute_coi_single_nan() {
-        let positive = create_pos_cois(&[[3., 2., 1.], [1., 2., 3.]]);
-        let negative = create_neg_cois(&[[4., 5., 6.]]);
-        let user_interests = UserInterests { positive, negative };
-        let documents = create_data_with_embeddings(&[[1., NAN, 2.]]);
-        let _ = compute_coi(&documents, &user_interests);
     }
 
     #[test]

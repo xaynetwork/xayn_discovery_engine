@@ -50,21 +50,8 @@ pub(super) mod tests {
             point::{tests::CoiPointConstructor, NegativeCoi, PositiveCoi},
             CoiId,
         },
-        data::document_data::{
-            CoiComponent,
-            DocumentBaseComponent,
-            DocumentContentComponent,
-            DocumentDataWithSMBert,
-            SMBertComponent,
-        },
         utils::to_vec_of_ref_of,
     };
-
-    pub(crate) struct MockCoiDoc {
-        id: DocumentId,
-        smbert: SMBertComponent,
-        coi: Option<CoiComponent>,
-    }
 
     fn create_cois<FI: FixedInitializer<Elem = f32>, CP: CoiPointConstructor>(
         points: &[FI],
@@ -90,37 +77,6 @@ pub(super) mod tests {
         points: &[impl FixedInitializer<Elem = f32>],
     ) -> Vec<NegativeCoi> {
         create_cois(points)
-    }
-
-    pub(crate) fn create_data_with_embeddings(
-        embeddings: &[impl FixedInitializer<Elem = f32>],
-    ) -> Vec<DocumentDataWithSMBert> {
-        embeddings
-            .iter()
-            .enumerate()
-            .map(|(id, embedding)| {
-                create_data_with_embedding(id as u128, id, embedding.as_init_slice())
-            })
-            .collect()
-    }
-
-    pub(crate) fn create_data_with_embedding(
-        id: u128,
-        initial_ranking: usize,
-        embedding: &[f32],
-    ) -> DocumentDataWithSMBert {
-        DocumentDataWithSMBert {
-            document_base: DocumentBaseComponent {
-                id: DocumentId::from_u128(id),
-                initial_ranking,
-            },
-            document_content: DocumentContentComponent {
-                ..Default::default()
-            },
-            smbert: SMBertComponent {
-                embedding: arr1(embedding).into(),
-            },
-        }
     }
 
     pub(crate) fn create_document_history(
@@ -184,26 +140,5 @@ pub(super) mod tests {
             (Relevance::Low, UserFeedback::NotGiven).into(),
             DocumentRelevance::Negative,
         ));
-    }
-
-    #[test]
-    fn test_classify_documents_based_on_user_feedback() {
-        let history = create_document_history(vec![
-            (Relevance::Low, UserFeedback::Irrelevant),
-            (Relevance::Low, UserFeedback::Relevant),
-            (Relevance::Low, UserFeedback::Relevant),
-        ]);
-        let docs = create_data_with_embeddings(&[[1., 2., 3.], [3., 2., 1.], [4., 5., 6.]]);
-        let matching_documents = history.iter().zip(docs.iter()).collect();
-
-        let (positive_docs, negative_docs) =
-            classify_documents_based_on_user_feedback(matching_documents);
-
-        assert_eq!(positive_docs.len(), 2);
-        assert_eq!(positive_docs[0].smbert.embedding, arr1(&[3., 2., 1.]));
-        assert_eq!(positive_docs[1].smbert.embedding, arr1(&[4., 5., 6.]));
-
-        assert_eq!(negative_docs.len(), 1);
-        assert_eq!(negative_docs[0].smbert.embedding, arr1(&[1., 2., 3.]));
     }
 }

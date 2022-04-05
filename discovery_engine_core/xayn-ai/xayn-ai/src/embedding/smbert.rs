@@ -6,7 +6,6 @@ use ndarray::arr1;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    data::document_data::{DocumentDataWithDocument, DocumentDataWithSMBert, SMBertComponent},
     error::Error,
 };
 
