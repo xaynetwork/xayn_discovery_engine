@@ -37,7 +37,10 @@ class DiscoveryEngineWorker extends Worker<ClientEvent, EngineEvent> {
   Converter<EngineEvent, Object> get responseConverter => _responseConverter;
 
   DiscoveryEngineWorker(Object message) : super(message) {
-    _incomingMessages.stream.listen(handleMessage);
+    _incomingMessages.stream
+        // incoming messages processed sequentially
+        .asyncMap(handleMessage)
+        .listen((_) {});
     _handler.events.listen(send);
   }
 
