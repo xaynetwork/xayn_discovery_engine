@@ -12,15 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use uuid::Uuid;
 
 use crate::{
     coi::{
         config::Config,
+        key_phrase::KeyPhrases,
         point::{find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
-        relevance::RelevanceMap,
     },
     embedding::utils::Embedding,
     Error,
@@ -52,7 +52,7 @@ impl CoiSystem {
     pub(crate) fn log_positive_user_reaction(
         &mut self,
         cois: &mut Vec<PositiveCoi>,
-        relevances: &mut RelevanceMap,
+        key_phrases: &mut KeyPhrases,
         embedding: &Embedding,
         smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
         candidates: &[String],
@@ -61,7 +61,7 @@ impl CoiSystem {
             cois,
             embedding,
             &self.config,
-            relevances,
+            key_phrases,
             smbert,
             candidates,
         );
@@ -80,10 +80,10 @@ impl CoiSystem {
     pub(crate) fn select_top_key_phrases(
         &mut self,
         cois: &[PositiveCoi],
-        relevances: &mut RelevanceMap,
+        key_phrases: &mut KeyPhrases,
         top: usize,
-    ) -> Vec<KeyPhrase> {
-        relevances.select_top_key_phrases(cois, top, self.config.horizon(), self.config.penalty())
+    ) -> Vec<Arc<KeyPhrase>> {
+        key_phrases.remove(cois, top, self.config.horizon(), self.config.penalty())
     }
 }
 
@@ -92,7 +92,7 @@ fn log_positive_user_reaction(
     cois: &mut Vec<PositiveCoi>,
     embedding: &Embedding,
     config: &Config,
-    relevances: &mut RelevanceMap,
+    key_phrases: &mut KeyPhrases,
     smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
     candidates: &[String],
 ) {
@@ -102,7 +102,7 @@ fn log_positive_user_reaction(
         Some((coi, similarity)) if similarity >= config.threshold() => {
             coi.shift_point(embedding, config.shift_factor());
             coi.select_key_phrases(
-                relevances,
+                key_phrases,
                 candidates,
                 smbert,
                 config.max_key_phrases(),
@@ -115,7 +115,7 @@ fn log_positive_user_reaction(
         _ => {
             let coi = PositiveCoi::new(Uuid::new_v4(), embedding.clone());
             coi.select_key_phrases(
-                relevances,
+                key_phrases,
                 candidates,
                 smbert,
                 config.max_key_phrases(),
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_update_coi_update_point() {
         let mut cois = create_pos_cois(&[[1., 1., 1.], [10., 10., 10.], [20., 20., 20.]]);
-        let mut relevances = RelevanceMap::default();
+        let mut key_phrases = KeyPhrases::default();
         let embedding = arr1(&[2., 3., 4.]).into();
         let config = Config::default();
 
@@ -164,7 +164,7 @@ mod tests {
             &mut cois,
             &embedding,
             &config,
-            &mut relevances,
+            &mut key_phrases,
             |_| unreachable!(),
             &[],
         );
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn test_update_coi_under_similarity_threshold_adds_new_coi() {
         let mut cois = create_pos_cois(&[[0., 1.]]);
-        let mut relevances = RelevanceMap::default();
+        let mut key_phrases = KeyPhrases::default();
         let embedding = arr1(&[1., 0.]).into();
         let config = Config::default();
 
@@ -189,7 +189,7 @@ mod tests {
             &mut cois,
             &embedding,
             &config,
-            &mut relevances,
+            &mut key_phrases,
             |_| unreachable!(),
             &[],
         );

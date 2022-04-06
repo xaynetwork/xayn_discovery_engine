@@ -73,7 +73,7 @@ impl Ranker {
     }
 
     /// Selects the top key phrases from the positive cois, sorted in descending relevance.
-    pub fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
+    pub fn select_top_key_phrases(&mut self, top: usize) -> Vec<Arc<KeyPhrase>> {
         self.0.select_top_key_phrases(top)
     }
 }

@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use chrono::NaiveDateTime;
 use uuid::Uuid;
 
@@ -38,7 +40,7 @@ pub trait Ranker {
     fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
 
     /// Selects the top key phrases from the positive cois, sorted in descending relevance.
-    fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase>;
+    fn select_top_key_phrases(&mut self, top: usize) -> Vec<Arc<KeyPhrase>>;
 
     /// Serializes the state of the `Ranker`.
     fn serialize(&self) -> Result<Vec<u8>, GenericError>;
@@ -70,7 +72,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
         Ok(())
     }
 
-    fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
+    fn select_top_key_phrases(&mut self, top: usize) -> Vec<Arc<KeyPhrase>> {
         self.select_top_key_phrases(top)
     }
 

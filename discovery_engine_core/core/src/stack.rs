@@ -14,7 +14,7 @@
 
 //! Export types to customize the behaviour of a stack.
 
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use derivative::Derivative;
 use derive_more::{Display, From};
@@ -22,6 +22,7 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
+use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::Article;
 
 use crate::{
@@ -179,7 +180,7 @@ impl Stack {
     /// Returns a list of new articles.
     pub(crate) async fn new_items(
         &self,
-        key_phrases: &[xayn_ai::ranker::KeyPhrase],
+        key_phrases: &[Arc<KeyPhrase>],
         history: &[HistoricDocument],
     ) -> Result<Vec<Article>, Error> {
         self.ops

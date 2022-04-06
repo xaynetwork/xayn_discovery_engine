@@ -82,7 +82,7 @@ impl Ops for BreakingNews {
 
     async fn new_items(
         &self,
-        _key_phrases: &[KeyPhrase],
+        _key_phrases: &[Arc<KeyPhrase>],
         history: &[HistoricDocument],
         stack: &[Document],
     ) -> Result<Vec<Article>, GenericError> {
