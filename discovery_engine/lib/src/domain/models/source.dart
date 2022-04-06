@@ -36,6 +36,8 @@ class Source extends Equatable {
   @override
   String toString() => _repr;
 
+  String get value => _repr;
+
   /// Must only be created anew by the Engine.
   ///
   /// Through other places can (de-)serialize it, iff they do not
