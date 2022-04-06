@@ -10,10 +10,8 @@ use crate::{
 
 /// A pipeline for a KPE model.
 ///
-/// Can be created via the [`Builder`] and consists of a tokenizer, a Bert model, a CNN model and a
+/// Can be created passing a [`Config`] and consists of a tokenizer, a Bert model, a CNN model and a
 /// Classifier model.
-///
-/// [`Builder`]: crate::builder::Builder
 pub struct Pipeline {
     pub(crate) tokenizer: Tokenizer<{ Cnn::KEY_PHRASE_SIZE }>,
     pub(crate) bert: Bert,

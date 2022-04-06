@@ -73,7 +73,7 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
 
     /// Sets the token size for the tokenizer and the model.
     ///
-    /// Defaults to [`K::TOKEN_RANGE`].
+    /// Defaults to [`BertModel::TOKEN_RANGE`].
     ///
     /// # Errors
     /// Fails if `size` is less than two or greater than 512.

@@ -13,7 +13,7 @@ use crate::{
 
 /// A pipeline for a bert model.
 ///
-/// Can be created via the [`Builder`] and consists of a tokenizer, a model and a pooler.
+/// Can be created passing a [`Config`] and consists of a tokenizer, a model and a pooler.
 ///
 /// [`Builder`]: crate::builder::Builder
 pub struct Pipeline<K, P> {

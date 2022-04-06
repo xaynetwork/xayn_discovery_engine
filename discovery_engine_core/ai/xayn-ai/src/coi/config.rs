@@ -106,6 +106,8 @@ impl Config {
     ///
     /// # Errors
     /// Fails if the threshold is not within [`COSINE_SIMILARITY_RANGE`].
+    ///
+    /// [`COSINE_SIMILARITY_RANGE`]: crate::embedding::utils::COSINE_SIMILARITY_RANGE
     pub fn with_threshold(mut self, threshold: f32) -> Result<Self, Error> {
         if COSINE_SIMILARITY_RANGE.contains(&threshold) {
             self.coi.threshold = threshold;

@@ -20,6 +20,7 @@ pub use crate::{
         UserAction,
         UserFeedback,
     },
+    embedding::utils::COSINE_SIMILARITY_RANGE,
     error::Error,
 };
 
