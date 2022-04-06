@@ -15,6 +15,7 @@
 import 'dart:typed_data' show Uint8List;
 import 'package:async/async.dart' show StreamGroup;
 import 'package:hive/hive.dart' show Hive;
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
@@ -56,6 +57,8 @@ import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
+import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
+    show SourcePreference, SourcePreferenceAdapter, PreferenceModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
@@ -73,9 +76,10 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         activeDocumentDataBox,
         documentBox,
         engineStateBox,
-        searchBox,
+        excludedSourcesBox,
         favouriteSourcesBox,
-        excludedSourcesBox;
+        searchBox,
+        sourcePreferenceBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
@@ -84,8 +88,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_documen
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
     show HiveEngineStateRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_excluded_sources_repo.dart'
-    show HiveExcludedSourcesRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_preference_repo.dart'
+    show HiveSourcePreferenceRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
     show DurationAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_embedding_adapter.dart'
@@ -208,19 +212,21 @@ class EventHandler {
     String? aiConfig,
   }) async {
     // init hive
-    await _initDatabase(config.applicationDirectoryPath);
+    registerHiveAdapters();
+    await initDatabase(config.applicationDirectoryPath);
 
     // create repositories
     final documentRepository = HiveDocumentRepository();
     final activeDataRepository = HiveActiveDocumentDataRepository();
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
-    final excludedSourcesRepository = HiveExcludedSourcesRepository();
+    final sourcePreferenceRepository = HiveSourcePreferenceRepository();
 
     final setupData = await _fetchAssets(config);
     final engineState = await engineStateRepository.load();
     final history = await documentRepository.fetchHistory();
-    final excludedSources = await excludedSourcesRepository.getAll();
+    final trustedSources = await sourcePreferenceRepository.getTrusted();
+    final excludedSources = await sourcePreferenceRepository.getExcluded();
 
     final engine = await _initializeEngine(
       EngineInitializer(
@@ -229,7 +235,7 @@ class EventHandler {
         engineState: engineState,
         history: history,
         aiConfig: aiConfig,
-        favouriteSources: {}, // TODO
+        trustedSources: trustedSources,
         excludedSources: excludedSources,
       ),
     );
@@ -252,7 +258,7 @@ class EventHandler {
       documentRepository,
       activeDataRepository,
       engineStateRepository,
-      excludedSourcesRepository,
+      sourcePreferenceRepository,
     );
     _searchManager = SearchManager(
       engine,
@@ -289,9 +295,8 @@ class EventHandler {
     return dataProvider.getSetupData(config.manifest);
   }
 
-  Future<void> _initDatabase(String appDir) async {
-    Hive.init('$appDir/$kDatabasePath');
-    // register hive adapters
+  @visibleForTesting
+  static void registerHiveAdapters() {
     Hive.registerAdapter(DocumentAdapter());
     Hive.registerAdapter(UserReactionAdapter());
     Hive.registerAdapter(DocumentViewModeAdapter());
@@ -306,6 +311,13 @@ class EventHandler {
     Hive.registerAdapter(ActiveSearchAdapter());
     Hive.registerAdapter(SourceAdapter());
     Hive.registerAdapter(SetSourceAdapter());
+    Hive.registerAdapter(SourcePreferenceAdapter());
+    Hive.registerAdapter(PreferenceModeAdapter());
+  }
+
+  @visibleForTesting
+  static Future<void> initDatabase(String appDir) async {
+    Hive.init('$appDir/$kDatabasePath');
 
     // open boxes
     await Future.wait([
@@ -315,11 +327,12 @@ class EventHandler {
       _openDbBox<ActiveSearch>(searchBox),
       _openDbBox<Set<Source>>(favouriteSourcesBox),
       _openDbBox<Set<Source>>(excludedSourcesBox),
+      _openDbBox<SourcePreference>(sourcePreferenceBox),
     ]);
   }
 
   /// Tries to open a box persisted on disk. In case of failure opens it in memory.
-  Future<void> _openDbBox<T>(String name) async {
+  static Future<void> _openDbBox<T>(String name) async {
     try {
       await Hive.openBox<T>(name);
     } catch (e) {

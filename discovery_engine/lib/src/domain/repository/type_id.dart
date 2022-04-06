@@ -26,3 +26,5 @@ const feedMarketTypeId = 10;
 const searchTypeId = 11;
 const setSourceTypeId = 12;
 const sourceTypeId = 13;
+const sourceFilterTypeId = 14;
+const sourceFilterModeTypeId = 15;

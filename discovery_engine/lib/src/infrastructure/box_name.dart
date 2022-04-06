@@ -18,6 +18,7 @@ const engineStateBox = 'engine_state';
 const searchBox = 'search';
 const favouriteSourcesBox = 'favourite_sources';
 const excludedSourcesBox = 'excluded_sources';
+const sourcePreferenceBox = 'source_preferences';
 
 // names below were used by boxes which are now deprecated
 // please use different names when adding new boxes / repositories

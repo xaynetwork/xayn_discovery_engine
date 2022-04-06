@@ -95,7 +95,7 @@ class EngineInitializer with EquatableMixin {
   final String? aiConfig;
 
   /// A set of favourite sources.
-  final Set<Source> favouriteSources;
+  final Set<Source> trustedSources;
 
   /// A set of excluded sources.
   final Set<Source> excludedSources;
@@ -106,7 +106,7 @@ class EngineInitializer with EquatableMixin {
     required this.engineState,
     required this.history,
     required this.aiConfig,
-    required this.favouriteSources,
+    required this.trustedSources,
     required this.excludedSources,
   });
 
