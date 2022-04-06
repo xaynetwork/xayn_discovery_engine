@@ -39,7 +39,7 @@ pub use self::ops::Ops;
 pub(crate) use self::{
     data::Data,
     filters::normalize,
-    ops::{breaking::BreakingNews, personalized::PersonalizedNews},
+    ops::{breaking::BreakingNews, favourite::FavouriteNews, personalized::PersonalizedNews},
 };
 
 /// Errors that could occur while manipulating a stack.
