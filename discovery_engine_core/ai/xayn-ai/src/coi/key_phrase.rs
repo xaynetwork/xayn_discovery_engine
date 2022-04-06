@@ -84,6 +84,7 @@ impl PositiveCoi {
     }
 }
 
+/// Sorted maps from cois to key phrases.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct KeyPhrases {
     // invariant: each vector of selected key phrases must be sorted in descending relevance
