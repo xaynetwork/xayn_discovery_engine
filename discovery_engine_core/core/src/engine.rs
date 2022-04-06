@@ -416,7 +416,7 @@ where
         for market in markets.iter() {
             let news_query = NewsQuery {
                 common: CommonQueryParts {
-                    market,
+                    market: Some(market),
                     page_size: scaled_page_size,
                     page: page as usize,
                     excluded_sources: &excluded_sources,
