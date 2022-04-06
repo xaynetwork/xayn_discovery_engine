@@ -128,10 +128,6 @@ pub struct InitConfig {
 
 /// Discovery Engine endpoint settings.
 pub(crate) struct EndpointConfig {
-    /// Key for accessing API.
-    pub(crate) api_key: String,
-    /// Base URL for API.
-    pub(crate) api_base_url: String,
     /// Page size setting for API.
     pub(crate) page_size: usize,
     /// Write-exclusive access to markets list.
@@ -150,8 +146,6 @@ pub(crate) struct EndpointConfig {
 impl From<InitConfig> for EndpointConfig {
     fn from(config: InitConfig) -> Self {
         Self {
-            api_key: config.api_key,
-            api_base_url: config.api_base_url,
             page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
             favourite_sources: Arc::new(RwLock::new(config.favourite_sources)),
@@ -188,6 +182,7 @@ impl Default for CoreConfig {
 
 /// Discovery Engine.
 pub struct Engine<R> {
+    client: Arc<Client>,
     config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
@@ -205,10 +200,11 @@ where
         ranker: R,
         history: &[HistoricDocument],
         stack_ops: Vec<BoxedOps>,
+        client: Arc<Client>,
     ) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
-        Self::from_stack_data(config, ranker, history, stack_data, stack_ops).await
+        Self::from_stack_data(config, ranker, history, stack_data, stack_ops, client).await
     }
 
     /// Creates a new `Engine` from serialized state and stack operations.
@@ -221,6 +217,7 @@ where
         ranker: R,
         history: &'a [HistoricDocument],
         stack_ops: Vec<BoxedOps>,
+        client: Arc<Client>,
     ) -> Result<Self, Error> {
         if stack_ops.is_empty() {
             return Err(Error::NoStackOps);
@@ -230,7 +227,7 @@ where
             .map_err(Error::Deserialization)?;
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
-        Self::from_stack_data(config, ranker, history, stack_data, stack_ops).await
+        Self::from_stack_data(config, ranker, history, stack_data, stack_ops, client).await
     }
 
     async fn from_stack_data(
@@ -239,6 +236,7 @@ where
         history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
         stack_ops: Vec<BoxedOps>,
+        client: Arc<Client>,
     ) -> Result<Self, Error> {
         let mut stacks = stack_ops
             .into_iter()
@@ -264,6 +262,7 @@ where
         .ok();
 
         Ok(Self {
+            client,
             config,
             core_config,
             stacks: RwLock::new(stacks),
@@ -406,19 +405,12 @@ where
         if query.trim().is_empty() {
             return Err(Error::InvalidQuery);
         }
-        let EndpointConfig {
-            api_key,
-            api_base_url,
-            markets,
-            ..
-        } = &self.config;
 
         let mut errors = Vec::new();
         let mut articles = Vec::new();
         let filter = &Filter::default().add_keyword(query);
-        let client = Client::new(api_key.clone(), api_base_url.clone());
 
-        let markets = markets.read().await;
+        let markets = self.config.markets.read().await;
         let scaled_page_size = page_size as usize / markets.len() + 1;
         let excluded_sources = self.config.excluded_sources.read().await.clone();
         for market in markets.iter() {
@@ -431,7 +423,7 @@ where
                 },
                 filter,
             };
-            match client.query_articles(&news_query).await {
+            match self.client.query_articles(&news_query).await {
                 Ok(batch) => articles.extend(batch),
                 Err(err) => errors.push(Error::Client(err.into())),
             };
@@ -656,10 +648,11 @@ impl XaynAiEngine {
         let builder =
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
+        let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
         let endpoint_config = config.into();
         let stack_ops = vec![
-            Box::new(BreakingNews::new(&endpoint_config)) as BoxedOps,
-            Box::new(PersonalizedNews::new(&endpoint_config)) as BoxedOps,
+            Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
+            Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
         ];
 
         if let Some(state) = state {
@@ -669,10 +662,18 @@ impl XaynAiEngine {
                 .map_err(|err| Error::Ranker(err.into()))?
                 .build()
                 .map_err(|err| Error::Ranker(err.into()))?;
-            Self::from_state(&state.engine, endpoint_config, ranker, history, stack_ops).await
+            Self::from_state(
+                &state.engine,
+                endpoint_config,
+                ranker,
+                history,
+                stack_ops,
+                client,
+            )
+            .await
         } else {
             let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
-            Self::new(endpoint_config, ranker, history, stack_ops).await
+            Self::new(endpoint_config, ranker, history, stack_ops, client).await
         }
     }
 }

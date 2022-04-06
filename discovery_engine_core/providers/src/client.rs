@@ -147,6 +147,7 @@ pub struct Client {
     token: String,
     url: String,
     timeout: Duration,
+    client: reqwest::Client,
 }
 
 impl Client {
@@ -156,6 +157,7 @@ impl Client {
             token: token.into(),
             url: url.into(),
             timeout: Duration::from_millis(3500),
+            client: reqwest::Client::new(),
         }
     }
 
@@ -183,8 +185,8 @@ impl Client {
         let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
         query.setup_url(&mut url)?;
 
-        let c = reqwest::Client::new();
-        let response = c
+        let response = self
+            .client
             .get(url)
             .timeout(self.timeout)
             .bearer_auth(&self.token)

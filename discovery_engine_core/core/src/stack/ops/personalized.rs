@@ -55,9 +55,9 @@ pub(crate) struct PersonalizedNews {
 
 impl PersonalizedNews {
     /// Creates a personalized news stack.
-    pub(crate) fn new(config: &EndpointConfig) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
         Self {
-            client: Arc::new(Client::new(&config.api_key, &config.api_base_url)),
+            client,
             markets: config.markets.clone(),
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
