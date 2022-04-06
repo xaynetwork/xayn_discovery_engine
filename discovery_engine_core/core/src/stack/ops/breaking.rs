@@ -129,7 +129,7 @@ fn spawn_headlines_request(
         let market = market;
         let query = HeadlinesQuery {
             common: CommonQueryParts {
-                market: &market,
+                market: Some(&market),
                 page_size,
                 page,
                 excluded_sources: &excluded_sources,

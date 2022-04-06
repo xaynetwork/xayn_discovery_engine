@@ -55,7 +55,7 @@ pub trait Query: Seal + Sync {
 /// Elements shared between various Newscatcher queries.
 pub struct CommonQueryParts<'a> {
     /// Market of news.
-    pub market: &'a Market,
+    pub market: Option<&'a Market>,
     /// How many articles to return (per page).
     pub page_size: usize,
     /// The number of the page which should be returned.
@@ -74,16 +74,20 @@ impl CommonQueryParts<'_> {
 
         let query = &mut url.query_pairs_mut();
 
+        if let Some(market) = &self.market {
+            query
+                .append_pair("lang", &market.lang_code)
+                .append_pair("countries", &market.country_code);
+
+            if let Some(limit) = market.news_quality_rank_limit() {
+                query.append_pair("to_rank", &limit.to_string());
+            }
+        }
+
         query
-            .append_pair("lang", &self.market.lang_code)
-            .append_pair("countries", &self.market.country_code)
             .append_pair("page_size", &self.page_size.to_string())
             // FIXME Consider cmp::min(self.page, 1) or explicit error variant
             .append_pair("page", &self.page.to_string());
-
-        if let Some(limit) = self.market.news_quality_rank_limit() {
-            query.append_pair("to_rank", &limit.to_string());
-        }
 
         if !self.excluded_sources.is_empty() {
             query.append_pair("not_sources", &self.excluded_sources.join(","));
@@ -244,7 +248,7 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market,
+                market: Some(market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
@@ -292,7 +296,7 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market,
+                market: Some(market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
@@ -339,7 +343,7 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market,
+                market: Some(market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
@@ -378,12 +382,13 @@ mod tests {
             .mount(&mock_server)
             .await;
 
+        let market = Market {
+            lang_code: "en".to_string(),
+            country_code: "US".to_string(),
+        };
         let params = HeadlinesQuery {
             common: CommonQueryParts {
-                market: &Market {
-                    lang_code: "en".to_string(),
-                    country_code: "US".to_string(),
-                },
+                market: Some(&market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],

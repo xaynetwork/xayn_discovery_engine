@@ -145,7 +145,7 @@ fn spawn_news_request(
         let market = market;
         let query = NewsQuery {
             common: CommonQueryParts {
-                market: &market,
+                market: Some(&market),
                 page_size,
                 page,
                 excluded_sources: &excluded_sources,

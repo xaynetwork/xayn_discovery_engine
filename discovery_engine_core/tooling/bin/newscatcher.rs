@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
         println!("Fetching page {} of {}", page, total_pages);
         let params = HeadlinesQuery {
             common: CommonQueryParts {
-                market: &market,
+                market: Some(&market),
                 page_size: 100,
                 page,
                 excluded_sources: &[],
