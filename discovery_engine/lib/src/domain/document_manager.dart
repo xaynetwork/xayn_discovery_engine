@@ -20,6 +20,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -91,6 +93,11 @@ class DocumentManager {
         snippet: doc.snippet,
         smbertEmbedding: smbertEmbedding,
         reaction: userReaction,
+        //TODO pass in the correct market
+        market: const FeedMarket(
+          countryCode: 'US',
+          langCode: 'en',
+        ),
       ),
     );
     await _engineStateRepo.save(await _engine.serialize());

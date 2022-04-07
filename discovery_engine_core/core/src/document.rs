@@ -29,7 +29,7 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-use xayn_discovery_engine_providers::Article;
+use xayn_discovery_engine_providers::{Article, Market};
 
 use crate::stack::{normalize, Id as StackId};
 
@@ -207,6 +207,9 @@ pub struct UserReacted {
 
     /// Reaction.
     pub reaction: UserReaction,
+
+    /// Market from which the document is.
+    pub market: Market,
 }
 
 pub(crate) fn document_from_article(
