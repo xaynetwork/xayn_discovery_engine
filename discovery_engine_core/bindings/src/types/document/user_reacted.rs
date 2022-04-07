@@ -18,7 +18,10 @@ use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
 
-use xayn_discovery_engine_core::document::{Embedding, UserReacted, UserReaction};
+use xayn_discovery_engine_core::{
+    document::{Embedding, UserReacted, UserReaction},
+    Market,
+};
 
 /// Returns a pointer to the `id` field of an [`UserReacted`].
 ///
@@ -77,6 +80,17 @@ pub unsafe extern "C" fn user_reacted_place_of_reaction(
     place: *mut UserReacted,
 ) -> *mut UserReaction {
     unsafe { addr_of_mut!((*place).reaction) }
+}
+
+/// Returns a pointer to the `market` field of an [`UserReacted`].
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`UserReacted`] memory object, it
+/// might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn user_reacted_place_of_market(place: *mut UserReacted) -> *mut Market {
+    unsafe { addr_of_mut!((*place).market) }
 }
 
 /// Alloc an uninitialized `Box<UserReacted>`, mainly used for testing.

@@ -17,6 +17,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 
@@ -27,6 +29,7 @@ class UserReacted with EquatableMixin {
   final String snippet;
   final Embedding smbertEmbedding;
   final UserReaction reaction;
+  final FeedMarket market;
 
   UserReacted({
     required this.id,
@@ -34,6 +37,7 @@ class UserReacted with EquatableMixin {
     required this.snippet,
     required this.smbertEmbedding,
     required this.reaction,
+    required this.market,
   });
 
   @override

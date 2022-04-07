@@ -24,6 +24,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
     show UserReactionFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
     show EmbeddingFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
+    show FeedMarketFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi, StackIdFfi;
@@ -40,6 +42,7 @@ extension UserReactedFfi on UserReacted {
       reaction: UserReactionFfi.readNative(
         ffi.user_reacted_place_of_reaction(place),
       ),
+      market: FeedMarketFfi.readNative(ffi.user_reacted_place_of_market(place)),
     );
   }
 
@@ -56,5 +59,6 @@ extension UserReactedFfi on UserReacted {
     smbertEmbedding
         .writeNative(ffi.user_reacted_place_of_smbert_embedding(place));
     reaction.writeNative(ffi.user_reacted_place_of_reaction(place));
+    market.writeNative(ffi.user_reacted_place_of_market(place));
   }
 }
