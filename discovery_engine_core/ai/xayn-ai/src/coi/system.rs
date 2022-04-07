@@ -40,7 +40,7 @@ impl CoiSystem {
 
     /// Updates the view time of the positive coi closest to the embedding.
     pub(crate) fn log_document_view_time(
-        &mut self,
+        &self,
         cois: &mut [PositiveCoi],
         embedding: &Embedding,
         viewed: Duration,
@@ -50,7 +50,7 @@ impl CoiSystem {
 
     /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
     pub(crate) fn log_positive_user_reaction(
-        &mut self,
+        &self,
         cois: &mut Vec<PositiveCoi>,
         key_phrases: &mut KeyPhrases,
         embedding: &Embedding,
@@ -78,12 +78,18 @@ impl CoiSystem {
 
     /// Selects the top key phrases from the positive cois, sorted in descending relevance.
     pub(crate) fn select_top_key_phrases(
-        &mut self,
+        &self,
         cois: &[PositiveCoi],
         key_phrases: &mut KeyPhrases,
         top: usize,
     ) -> Vec<Arc<KeyPhrase>> {
-        key_phrases.remove(cois, top, self.config.horizon(), self.config.penalty())
+        key_phrases.remove(
+            cois,
+            top,
+            self.config.horizon(),
+            self.config.penalty(),
+            self.config.gamma(),
+        )
     }
 }
 

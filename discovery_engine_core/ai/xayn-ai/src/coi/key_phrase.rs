@@ -122,9 +122,14 @@ impl KeyPhrases {
         top: usize,
         horizon: Duration,
         penalty: &[f32],
+        gamma: f32,
     ) -> Vec<Arc<KeyPhrase>> {
         if self.selected.is_empty() {
             swap(&mut self.selected, &mut self.removed);
+            let max_key_phrases = penalty.len();
+            for coi in cois {
+                self.select(coi, &[], |_| unreachable!(), max_key_phrases, gamma);
+            }
         }
 
         let relevances = compute_coi_relevances(cois, horizon, system_time_now());
@@ -557,8 +562,13 @@ mod tests {
         let mut key_phrases = KeyPhrases::default();
         let config = Config::default();
 
-        let top_key_phrases =
-            key_phrases.remove(&cois, usize::MAX, config.horizon(), config.penalty());
+        let top_key_phrases = key_phrases.remove(
+            &cois,
+            usize::MAX,
+            config.horizon(),
+            config.penalty(),
+            config.gamma(),
+        );
         assert!(top_key_phrases.is_empty());
         assert!(key_phrases.selected.is_empty());
         assert!(key_phrases.removed.is_empty());
@@ -570,8 +580,13 @@ mod tests {
         let mut key_phrases = KeyPhrases::default();
         let config = Config::default();
 
-        let top_key_phrases =
-            key_phrases.remove(&cois, usize::MAX, config.horizon(), config.penalty());
+        let top_key_phrases = key_phrases.remove(
+            &cois,
+            usize::MAX,
+            config.horizon(),
+            config.penalty(),
+            config.gamma(),
+        );
         assert!(top_key_phrases.is_empty());
         assert!(key_phrases.selected.is_empty());
         assert!(key_phrases.removed.is_empty());
@@ -590,7 +605,8 @@ mod tests {
         );
         let config = Config::default();
 
-        let top_key_phrases = key_phrases.remove(&cois, 0, config.horizon(), config.penalty());
+        let top_key_phrases =
+            key_phrases.remove(&cois, 0, config.horizon(), config.penalty(), config.gamma());
         assert!(top_key_phrases.is_empty());
         assert_eq!(key_phrases.selected.len(), cois.len());
         assert_eq!(key_phrases.selected[&cois[0].id].len(), 1);
@@ -627,8 +643,13 @@ mod tests {
         );
         let config = Config::default();
 
-        let top_key_phrases =
-            key_phrases.remove(&cois, usize::MAX, config.horizon(), config.penalty());
+        let top_key_phrases = key_phrases.remove(
+            &cois,
+            usize::MAX,
+            config.horizon(),
+            config.penalty(),
+            config.gamma(),
+        );
         assert_eq!(top_key_phrases.len(), 9);
         assert_eq!(top_key_phrases[0].words(), "still");
         assert_eq!(top_key_phrases[1].words(), "and");
@@ -680,11 +701,21 @@ mod tests {
         );
         let config = Config::default();
 
-        let top_key_phrases_first =
-            key_phrases.remove(&cois, usize::MAX, config.horizon(), config.penalty());
+        let top_key_phrases_first = key_phrases.remove(
+            &cois,
+            usize::MAX,
+            config.horizon(),
+            config.penalty(),
+            config.gamma(),
+        );
 
-        let top_key_phrases_second =
-            key_phrases.remove(&cois, usize::MAX, config.horizon(), config.penalty());
+        let top_key_phrases_second = key_phrases.remove(
+            &cois,
+            usize::MAX,
+            config.horizon(),
+            config.penalty(),
+            config.gamma(),
+        );
 
         assert_eq!(top_key_phrases_first, top_key_phrases_second);
     }
