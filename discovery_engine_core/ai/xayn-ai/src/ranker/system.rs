@@ -3,13 +3,14 @@ use std::time::Duration;
 use displaydoc::Display;
 
 use kpe::Pipeline as KPE;
+use rubert::SMBert;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
     coi::{config::Config, key_phrase::KeyPhrase, point::UserInterests, CoiSystem, RelevanceMap},
     data::document::UserFeedback,
-    embedding::{smbert::SMBert, utils::Embedding},
+    embedding::utils::Embedding,
     error::Error,
     ranker::{
         context::{compute_score_for_docs, Error as ContextError},

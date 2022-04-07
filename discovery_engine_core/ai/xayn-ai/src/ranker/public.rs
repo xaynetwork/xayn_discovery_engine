@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use kpe::Config as KpeConfig;
@@ -6,7 +6,7 @@ use rubert::{AveragePooler, SMBertConfig};
 
 use crate::{
     coi::{config::Config as CoiSystemConfig, key_phrase::KeyPhrase, CoiSystem},
-    embedding::{smbert::SMBert, utils::Embedding},
+    embedding::utils::Embedding,
     error::Error,
     ranker::{
         document::Document,
@@ -124,7 +124,7 @@ impl<'a> Builder<'a, AveragePooler> {
     /// Fails if the SMBert or KPE cannot be initialized. For example because
     /// reading from a file failed or the bytes read are have an unexpected format.
     pub fn build(self) -> Result<Ranker, Error> {
-        let smbert = SMBert::from(Arc::new(rubert::Pipeline::from(self.smbert_config)?));
+        let smbert = rubert::Pipeline::from(self.smbert_config)?;
         let coi = CoiSystem::new(self.coi_config);
         let kpe = kpe::Pipeline::from(self.kpe_config)?;
 

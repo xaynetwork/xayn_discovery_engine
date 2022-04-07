@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde_json::from_reader;
 
 pub const DATA_DIR: &str = "../discovery_engine_flutter/example/assets/";
+pub const ASSET_MANIFEST: &str = "../discovery_engine/lib/assets/asset_manifest.json";
 
 /// Resolves the path to the requested data relative to the workspace directory.
 pub fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
@@ -42,9 +43,9 @@ struct Assets {
 
 /// Reads the asset paths from the static assets file.
 fn read_assets() -> Result<HashMap<String, PathBuf>> {
-    let path = resolve_path(&["../discovery_engine/lib/assets/asset_manifest.json"]);
+    let path = resolve_path(&[ASSET_MANIFEST])?;
 
-    from_reader::<_, Assets>(BufReader::new(File::open(path?)?))
+    from_reader::<_, Assets>(BufReader::new(File::open(path)?))
         .map(|assets| {
             assets
                 .assets
