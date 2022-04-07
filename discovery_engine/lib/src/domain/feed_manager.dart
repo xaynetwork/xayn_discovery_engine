@@ -24,6 +24,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
+import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
+    show SourcePreference, PreferenceMode;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -32,8 +34,8 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
     show EngineStateRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/excluded_sources_repo.dart'
-    show ExcludedSourcesRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/source_preference_repo.dart'
+    show SourcePreferenceRepository;
 
 /// Business logic concerning the management of the feed.
 class FeedManager {
@@ -42,7 +44,7 @@ class FeedManager {
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
   final EngineStateRepository _engineStateRepo;
-  final ExcludedSourcesRepository _excludedSourcesRepository;
+  final SourcePreferenceRepository _sourcePreferenceRepository;
 
   FeedManager(
     this._engine,
@@ -50,7 +52,7 @@ class FeedManager {
     this._docRepo,
     this._activeRepo,
     this._engineStateRepo,
-    this._excludedSourcesRepository,
+    this._sourcePreferenceRepository,
   );
 
   /// Handle the given feed client event.
@@ -138,27 +140,28 @@ class FeedManager {
 
   /// Adds a source to excluded sources set.
   Future<EngineEvent> addExcludedSource(Source source) async {
-    final sources = await _excludedSourcesRepository.getAll();
-    sources.add(source);
-    await _excludedSourcesRepository.save(sources);
+    final pref = SourcePreference(source, PreferenceMode.excluded);
+    await _sourcePreferenceRepository.save(pref);
+
     final history = await _docRepo.fetchHistory();
+    final sources = await _sourcePreferenceRepository.getExcluded();
     await _engine.setExcludedSources(history, sources);
     return const EngineEvent.clientEventSucceeded();
   }
 
   /// Removes a source to excluded sources set.
   Future<EngineEvent> removeExcludedSource(Source source) async {
-    final sources = await _excludedSourcesRepository.getAll();
-    sources.remove(source);
-    await _excludedSourcesRepository.save(sources);
+    await _sourcePreferenceRepository.remove(source);
+
     final history = await _docRepo.fetchHistory();
+    final sources = await _sourcePreferenceRepository.getExcluded();
     await _engine.setExcludedSources(history, sources);
     return const EngineEvent.clientEventSucceeded();
   }
 
   /// Returns excluded sources.
   Future<EngineEvent> getExcludedSourcesList() async {
-    final sources = await _excludedSourcesRepository.getAll();
+    final sources = await _sourcePreferenceRepository.getExcluded();
     return EngineEvent.excludedSourcesListRequestSucceeded(sources);
   }
 }

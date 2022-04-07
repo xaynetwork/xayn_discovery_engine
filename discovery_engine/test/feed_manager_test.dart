@@ -32,18 +32,24 @@ import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
+import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
+    show SourcePreference, PreferenceMode;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show activeDocumentDataBox, documentBox, engineStateBox, excludedSourcesBox;
+    show
+        activeDocumentDataBox,
+        documentBox,
+        engineStateBox,
+        sourcePreferenceBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
     show HiveEngineStateRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_excluded_sources_repo.dart'
-    show HiveExcludedSourcesRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_preference_repo.dart'
+    show HiveSourcePreferenceRepository;
 
 import 'discovery_engine/utils/utils.dart';
 import 'logging.dart' show setupLogging;
@@ -60,15 +66,17 @@ Future<void> main() async {
   );
   final stateBox =
       await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
-  final excludedBox =
-      await Hive.openBox<Set<Source>>(excludedSourcesBox, bytes: Uint8List(0));
+  final sourceBox = await Hive.openBox<SourcePreference>(
+    sourcePreferenceBox,
+    bytes: Uint8List(0),
+  );
 
   final engine = MockEngine();
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
   final docRepo = HiveDocumentRepository();
   final activeRepo = HiveActiveDocumentDataRepository();
   final engineStateRepo = HiveEngineStateRepository();
-  final excludedSourcesRepo = HiveExcludedSourcesRepository();
+  final sourcePreferenceRepo = HiveSourcePreferenceRepository();
 
   final mgr = FeedManager(
     engine,
@@ -76,7 +84,7 @@ Future<void> main() async {
     docRepo,
     activeRepo,
     engineStateRepo,
-    excludedSourcesRepo,
+    sourcePreferenceRepo,
   );
 
   group('FeedManager', () {
@@ -116,6 +124,7 @@ Future<void> main() async {
       await docBox.clear();
       await activeBox.clear();
       await stateBox.clear();
+      await sourceBox.clear();
     });
 
     test('deactivate documents', () async {
@@ -206,12 +215,13 @@ Future<void> main() async {
             mockNewsResource.copyWith(sourceDomain: Source('www.bbc.com')),
       );
       await docRepo.updateMany([doc1, doc2]);
-      await excludedSourcesRepo.save({Source('www.bbc.com')});
+      await sourcePreferenceRepo.save(
+        SourcePreference(Source('www.bbc.com'), PreferenceMode.excluded),
+      );
     });
 
     tearDown(() async {
       await docBox.clear();
-      await excludedBox.clear();
     });
 
     test('addExcludedSource', () async {
@@ -227,26 +237,40 @@ Future<void> main() async {
 
       expect(response1, isA<ClientEventSucceeded>());
       expect(response2, isA<ClientEventSucceeded>());
-      expect(excludedBox.values.first, equals(excludedSources));
+
+      final content = await mgr.getExcludedSourcesList();
+      expect(content, isA<ExcludedSourcesListRequestSucceeded>());
+      expect(
+        (content as ExcludedSourcesListRequestSucceeded).excludedSources,
+        equals(excludedSources),
+      );
     });
 
     test('removeExcludedSource', () async {
-      await excludedSourcesRepo.save({Source('www.nytimes.com')});
-
       final response = await mgr.removeExcludedSource(Source('www.bbc.com'));
-
       expect(response, isA<ClientEventSucceeded>());
-      expect(excludedBox.values.first, equals({Source('www.nytimes.com')}));
+
+      final content = await mgr.getExcludedSourcesList();
+      expect(content, isA<ExcludedSourcesListRequestSucceeded>());
+      expect(
+        (content as ExcludedSourcesListRequestSucceeded).excludedSources,
+        equals({Source('www.nytimes.com')}),
+      );
     });
 
     test('getExcludedSourcesList', () async {
+      await sourceBox.clear();
+
       final excludedSoures = {
         Source('theguardian.com'),
         Source('bbc.co.uk'),
         Source('wsj.com'),
         Source('www.nytimes.com'),
       };
-      await excludedSourcesRepo.save(excludedSoures);
+
+      for (final source in excludedSoures) {
+        await mgr.addExcludedSource(source);
+      }
 
       final response = await mgr.getExcludedSourcesList();
 

@@ -12,14 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+import 'package:xayn_discovery_engine/discovery_engine.dart' show Source;
+import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
+    show SourcePreference;
 
-/// Repository interface for source domains excluded from the feed.
-abstract class ExcludedSourcesRepository {
-  /// Get a set of all excluded sources.
-  Future<Set<Source>> getAll();
+abstract class SourcePreferenceRepository {
+  Future<Set<Source>> getTrusted();
 
-  /// Persist a set of excluded sources.
-  Future<void> save(Set<Source> sources);
+  Future<Set<Source>> getExcluded();
+
+  Future<void> save(SourcePreference filter);
+
+  Future<void> remove(Source source);
 }
