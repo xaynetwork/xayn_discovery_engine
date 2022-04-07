@@ -93,10 +93,9 @@ class DocumentManager {
         snippet: doc.snippet,
         smbertEmbedding: smbertEmbedding,
         reaction: userReaction,
-        //TODO pass in the correct market
-        market: const FeedMarket(
-          countryCode: 'US',
-          langCode: 'en',
+        market: FeedMarket(
+          countryCode: doc.resource.country,
+          langCode: doc.resource.language,
         ),
       ),
     );
