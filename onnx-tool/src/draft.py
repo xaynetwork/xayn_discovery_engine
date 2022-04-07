@@ -57,16 +57,27 @@ def generate_model():
             )
         ),
         helper.make_node(
+            'Constant',
+            inputs=[],
+            outputs=['scales'],
+            value=helper.make_tensor(
+                name='scales_tensor',
+                data_type=TensorProto.FLOAT,
+                dims=[3],
+                vals=[1., 1., 128.],
+            )
+        ),
+        helper.make_node(
             'Shape',
             inputs=['input_ids'],
             outputs=['input_ids_shape'],
         ),
-        helper.make_node(
-            'Concat',
-            inputs=['input_ids_shape', 'const_128'],
-            outputs=['output_0_shape'],
-            axis=0,
-        ),
+        # helper.make_node(
+        #     'Concat',
+        #     inputs=['input_ids_shape', 'const_128'],
+        #     outputs=['output_0_shape'],
+        #     axis=0,
+        # ),
         helper.make_node(
             'Compress',
             inputs=['input_ids_shape', 'condition_tensor'],
@@ -92,7 +103,8 @@ def generate_model():
         ),
         helper.make_node(
             'Resize',
-            inputs=['input_ids_float_plus_one', '', '', 'output_0_shape'],
+            # inputs=['input_ids_float_plus_one', '', '', 'output_0_shape'],
+            inputs=['input_ids_float_plus_one', '', 'scales'],
             outputs=['output_0'],
             mode='linear',
         ),
