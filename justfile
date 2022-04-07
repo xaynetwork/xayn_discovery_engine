@@ -283,6 +283,9 @@ download-assets:
     cd "$FLUTTER_EXAMPLE_WORKSPACE"; \
     ./download_assets.sh
 
+check-android-so:
+    {{justfile_directory()}}/.github/scripts/check_android_so.sh "$FLUTTER_WORKSPACE"/android/src/main/jniLibs/
+
 alias d := dart-test
 alias r := rust-test
 alias t := test
