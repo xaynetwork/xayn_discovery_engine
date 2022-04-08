@@ -66,6 +66,9 @@ class FeedManager {
         excludedSourceAdded: addExcludedSource,
         excludedSourceRemoved: removeExcludedSource,
         excludedSourcesListRequested: getExcludedSourcesList,
+        trustedSourceAdded: addTrustedSource,
+        trustedSourceRemoved: removeTrustedSource,
+        trustedSourcesListRequested: getTrustedSourcesList,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -138,14 +141,29 @@ class FeedManager {
     return const EngineEvent.clientEventSucceeded();
   }
 
+  /// Updates the engine sources after a source is added. It's important to
+  /// note that, for additions of both excluded and trusted sources, always
+  /// need to update the engine's list of excluded _and_ trusted sources,
+  /// because adding a trusted source of the same name as an existing excluded
+  /// source will remove the latter, and vice versa.
+  ///
+  /// E.g. if example.com exists in the list of excluded sources, and we add
+  /// example.com to the list of trusted sources, it will be automatically
+  /// be removed from the list of excluded sources.
+  Future<void> _updateEngineSourcesOnAdd() async {
+    final history = await _docRepo.fetchHistory();
+    final excludedSources = await _sourcePreferenceRepository.getExcluded();
+    final trustedSources = await _sourcePreferenceRepository.getTrusted();
+    await _engine.setExcludedSources(history, excludedSources);
+    await _engine.setTrustedSources(history, trustedSources);
+  }
+
   /// Adds a source to excluded sources set.
   Future<EngineEvent> addExcludedSource(Source source) async {
     final pref = SourcePreference(source, PreferenceMode.excluded);
     await _sourcePreferenceRepository.save(pref);
 
-    final history = await _docRepo.fetchHistory();
-    final sources = await _sourcePreferenceRepository.getExcluded();
-    await _engine.setExcludedSources(history, sources);
+    await _updateEngineSourcesOnAdd();
     return const EngineEvent.clientEventSucceeded();
   }
 
@@ -163,5 +181,27 @@ class FeedManager {
   Future<EngineEvent> getExcludedSourcesList() async {
     final sources = await _sourcePreferenceRepository.getExcluded();
     return EngineEvent.excludedSourcesListRequestSucceeded(sources);
+  }
+
+  Future<EngineEvent> addTrustedSource(Source source) async {
+    final pref = SourcePreference(source, PreferenceMode.trusted);
+    await _sourcePreferenceRepository.save(pref);
+
+    await _updateEngineSourcesOnAdd();
+    return const EngineEvent.clientEventSucceeded();
+  }
+
+  Future<EngineEvent> removeTrustedSource(Source source) async {
+    await _sourcePreferenceRepository.remove(source);
+
+    final history = await _docRepo.fetchHistory();
+    final sources = await _sourcePreferenceRepository.getTrusted();
+    await _engine.setTrustedSources(history, sources);
+    return const EngineEvent.clientEventSucceeded();
+  }
+
+  Future<EngineEvent> getTrustedSourcesList() async {
+    final sources = await _sourcePreferenceRepository.getTrusted();
+    return EngineEvent.trustedSourcesListRequestSucceeded(sources);
   }
 }

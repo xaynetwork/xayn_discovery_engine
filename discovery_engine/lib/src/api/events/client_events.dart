@@ -114,6 +114,23 @@ class ClientEvent with _$ClientEvent {
   const factory ClientEvent.excludedSourcesListRequested() =
       ExcludedSourcesListRequested;
 
+  /// Event created when a source is added to the list of trusted sources.
+  @Implements<FeedClientEvent>()
+  @Assert('source != ""')
+  const factory ClientEvent.trustedSourceAdded(Source source) =
+      TrustedSourceAdded;
+
+  /// Event created when a source is removed from the list of trusted sources.
+  @Implements<FeedClientEvent>()
+  @Assert('source != ""')
+  const factory ClientEvent.trustedSourceRemoved(Source source) =
+      TrustedSourceRemoved;
+
+  /// Event created when a client requests for list of trusted sources.
+  @Implements<FeedClientEvent>()
+  const factory ClientEvent.trustedSourcesListRequested() =
+      TrustedSourcesListRequested;
+
   /// Event created when a [Document] has been viewed in a certain mode for
   /// the given amount of time in seconds.
   @Implements<DocumentClientEvent>()

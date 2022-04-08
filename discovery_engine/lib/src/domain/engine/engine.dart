@@ -49,6 +49,12 @@ abstract class Engine {
     Set<Source> sources,
   );
 
+  /// Changes the trusted sources.
+  Future<void> setTrustedSources(
+    List<HistoricDocument> history,
+    Set<Source> sources,
+  );
+
   /// Retrieves at most [maxDocuments] feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,

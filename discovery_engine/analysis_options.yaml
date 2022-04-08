@@ -8,6 +8,7 @@ analyzer:
     missing_enum_constant_in_switch: error
   exclude:
     - "**/*.g.dart"
+    - "**/*.mocks.dart"
     - "**/*.freezed.dart"
     - "**/*.ext.dart"
     - "**/*.ffigen.dart"

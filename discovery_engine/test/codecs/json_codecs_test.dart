@@ -14,6 +14,7 @@
 
 import 'dart:isolate' show ReceivePort, SendPort;
 
+import 'package:mockito/annotations.dart';
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart';
 import 'package:xayn_discovery_engine/src/api/api.dart'
@@ -39,9 +40,20 @@ import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show Oneshot, OneshotRequest, Sender, SendingPort;
 
 import '../logging.dart' show setupLogging;
+import 'json_codecs_test.mocks.dart';
 import 'matchers.dart' show throwsConverterException;
-import 'mocks.dart' show BadClientEvent, BadEngineEvent;
 
+@GenerateMocks(
+  [],
+  customMocks: [
+    MockSpec<ClientEvent>(
+      unsupportedMembers: {#when, #maybeWhen, #map, #maybeMap},
+    ),
+    MockSpec<EngineEvent>(
+      unsupportedMembers: {#when, #maybeWhen, #map, #maybeMap},
+    ),
+  ],
+)
 void main() {
   setupLogging();
 
@@ -87,7 +99,7 @@ void main() {
 
     test('when converting a "bad" event, should throw "ConverterException"',
         () {
-      const event = BadClientEvent();
+      final event = MockClientEvent();
       final request = OneshotRequest(channel.sender, event);
 
       expect(() => converter.convert(request), throwsConverterException);
@@ -181,7 +193,7 @@ void main() {
 
     test('when converting a "bad" event, should throw "ConverterException"',
         () {
-      const event = BadEngineEvent();
+      final event = MockEngineEvent();
 
       expect(() => converter.convert(event), throwsConverterException);
     });

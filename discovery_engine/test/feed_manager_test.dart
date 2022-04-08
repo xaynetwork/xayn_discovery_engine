@@ -17,7 +17,10 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart';
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show ClientEventSucceeded, ExcludedSourcesListRequestSucceeded;
+    show
+        ClientEventSucceeded,
+        ExcludedSourcesListRequestSucceeded,
+        TrustedSourcesListRequestSucceeded;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -33,7 +36,7 @@ import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
-    show SourcePreference, PreferenceMode;
+    show SourcePreference;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
@@ -197,43 +200,15 @@ Future<void> main() async {
     });
   });
 
-  group('Excluded sources', () {
-    setUp(() async {
-      final stackId = StackId();
-      final doc1 = Document(
-        documentId: DocumentId(),
-        stackId: stackId,
-        batchIndex: 1,
-        resource:
-            mockNewsResource.copyWith(sourceDomain: Source('www.example.com')),
-      );
-      final doc2 = Document(
-        documentId: DocumentId(),
-        stackId: stackId,
-        batchIndex: 2,
-        resource:
-            mockNewsResource.copyWith(sourceDomain: Source('www.example.org')),
-      );
-      await docRepo.updateMany([doc1, doc2]);
-      await sourcePreferenceRepo.save(
-        SourcePreference(Source('www.example.com'), PreferenceMode.excluded),
-      );
-    });
-
+  group('Source preferences', () {
     tearDown(() async {
-      await docBox.clear();
+      await sourceBox.clear();
+      engine.resetCallCounter();
     });
 
     test('addExcludedSource', () async {
-      final excludedSources = {
-        Source('www.example.com'),
-        Source('www.example.org')
-      };
-      final source1 = Source('www.example.com');
-      final source2 = Source('www.example.org');
-
-      final response1 = await mgr.addExcludedSource(source1);
-      final response2 = await mgr.addExcludedSource(source2);
+      final response1 = await mgr.addExcludedSource(Source('test1.local'));
+      final response2 = await mgr.addExcludedSource(Source('test2.local'));
 
       expect(response1, isA<ClientEventSucceeded>());
       expect(response2, isA<ClientEventSucceeded>());
@@ -242,44 +217,109 @@ Future<void> main() async {
       expect(content, isA<ExcludedSourcesListRequestSucceeded>());
       expect(
         (content as ExcludedSourcesListRequestSucceeded).excludedSources,
-        equals(excludedSources),
+        equals({Source('test1.local'), Source('test2.local')}),
+      );
+    });
+
+    test('addTrustedSource', () async {
+      final response1 = await mgr.addTrustedSource(Source('test3.local'));
+      final response2 = await mgr.addTrustedSource(Source('test4.local'));
+
+      expect(response1, isA<ClientEventSucceeded>());
+      expect(response2, isA<ClientEventSucceeded>());
+
+      final content = await mgr.getTrustedSourcesList();
+      expect(content, isA<TrustedSourcesListRequestSucceeded>());
+      expect(
+        (content as TrustedSourcesListRequestSucceeded).sources,
+        equals({Source('test3.local'), Source('test4.local')}),
       );
     });
 
     test('removeExcludedSource', () async {
-      final response =
-          await mgr.removeExcludedSource(Source('www.example.com'));
+      await mgr.addExcludedSource(Source('test1.local'));
+      await mgr.addExcludedSource(Source('test2.local'));
+
+      final response = await mgr.removeExcludedSource(Source('test1.local'));
       expect(response, isA<ClientEventSucceeded>());
 
       final content = await mgr.getExcludedSourcesList();
       expect(content, isA<ExcludedSourcesListRequestSucceeded>());
       expect(
         (content as ExcludedSourcesListRequestSucceeded).excludedSources,
-        equals({Source('www.example.org')}),
+        equals({Source('test2.local')}),
       );
     });
 
-    test('getExcludedSourcesList', () async {
-      await sourceBox.clear();
+    test('removeTrustedSource', () async {
+      await mgr.addTrustedSource(Source('test5.local'));
+      await mgr.addTrustedSource(Source('test6.local'));
 
-      final excludedSoures = {
-        Source('example.com'),
-        Source('example.org'),
-        Source('example.net'),
-        Source('sub.example.com'),
-      };
+      final response = await mgr.removeTrustedSource(Source('test5.local'));
+      expect(response, isA<ClientEventSucceeded>());
 
-      for (final source in excludedSoures) {
-        await mgr.addExcludedSource(source);
-      }
+      final content = await mgr.getTrustedSourcesList();
+      expect(content, isA<TrustedSourcesListRequestSucceeded>());
+      expect(
+        (content as TrustedSourcesListRequestSucceeded).sources,
+        equals({Source('test6.local')}),
+      );
+    });
 
-      final response = await mgr.getExcludedSourcesList();
+    test('getting source lists', () async {
+      await mgr.addTrustedSource(Source('test7.local'));
+      await mgr.addExcludedSource(Source('example.com'));
+      await mgr.addExcludedSource(Source('test8.local'));
+      await mgr.addTrustedSource(Source('test9.local'));
 
+      var response = await mgr.getExcludedSourcesList();
       expect(response, isA<ExcludedSourcesListRequestSucceeded>());
       expect(
         (response as ExcludedSourcesListRequestSucceeded).excludedSources,
-        equals(excludedSoures),
+        equals({
+          Source('example.com'),
+          Source('test8.local'),
+        }),
       );
+
+      response = await mgr.getTrustedSourcesList();
+      expect(response, isA<TrustedSourcesListRequestSucceeded>());
+      expect(
+        (response as TrustedSourcesListRequestSucceeded).sources,
+        equals({
+          Source('test7.local'),
+          Source('test9.local'),
+        }),
+      );
+    });
+
+    test('trusted and excluded sources for the same domain can\'t co-exist',
+        () async {
+      final response1 = await mgr.addTrustedSource(Source('example.com'));
+      final response2 = await mgr.addExcludedSource(Source('example.com'));
+      expect(response1, isA<ClientEventSucceeded>());
+      expect(response2, isA<ClientEventSucceeded>());
+
+      var response = await mgr.getExcludedSourcesList();
+      expect(response, isA<ExcludedSourcesListRequestSucceeded>());
+      expect(
+        (response as ExcludedSourcesListRequestSucceeded).excludedSources,
+        equals({
+          Source('example.com'),
+        }),
+      );
+      expect(
+        engine.excludedSources,
+        equals({Source('example.com')}),
+      );
+
+      response = await mgr.getTrustedSourcesList();
+      expect(response, isA<TrustedSourcesListRequestSucceeded>());
+      expect(
+        (response as TrustedSourcesListRequestSucceeded).sources,
+        isEmpty,
+      );
+      expect(engine.trustedSources, equals(<Source>{}));
     });
   });
 }
