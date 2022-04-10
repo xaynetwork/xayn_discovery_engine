@@ -188,9 +188,12 @@ mod tests {
     use std::iter::repeat_with;
 
     use chrono::NaiveDateTime;
-    use float_cmp::approx_eq;
-    use ndarray::arr1;
-    use xayn_ai::ranker::Embedding;
+    use rubert::SMBert;
+    use test_utils::{assert_approx_eq, smbert};
+    use xayn_ai::{
+        ranker::{AveragePooler, Embedding},
+        SMBertConfig,
+    };
 
     use crate::document::NewsResource;
 
@@ -331,9 +334,9 @@ mod tests {
 
     #[test]
     fn test_normalized_distance() {
-        fn new_doc(embedding: &[f32], secs: i64) -> Document {
+        fn new_doc(smbert_embedding: Embedding, secs: i64) -> Document {
             Document {
-                smbert_embedding: Embedding::from(arr1(embedding)),
+                smbert_embedding,
                 resource: NewsResource {
                     date_published: NaiveDateTime::from_timestamp(secs, 0),
                     ..NewsResource::default()
@@ -342,25 +345,56 @@ mod tests {
             }
         }
 
-        let documents = vec![
-            new_doc(&[0.1, -0.5, 0.5], 100),
-            new_doc(&[12.3, -23.5, 1.5], 100),
-            new_doc(&[2.0, 2.5, 3.5], 865_000),
-            new_doc(&[0.2, -4.5, 9.5], 100),
+        fn normalized_distance_for_titles(
+            titles: &[(&str, i64)],
+            smbert: &SMBert,
+            expected: &[f32],
+        ) {
+            let documents = titles
+                .iter()
+                .map(|(title, secs)| new_doc(smbert.run(title).unwrap(), *secs))
+                .collect::<Vec<_>>();
+            let distances = normalized_distance(&documents, &SemanticFilterConfig::default());
+            assert_approx_eq!(f32, distances, expected);
+        }
+
+        let smbert_config =
+            SMBertConfig::from_files(smbert::vocab().unwrap(), smbert::model().unwrap())
+                .unwrap()
+                .with_token_size(52)
+                .unwrap()
+                .with_accents(false)
+                .with_lowercase(true)
+                .with_pooling(AveragePooler);
+
+        let smbert = SMBert::from(smbert_config).unwrap();
+
+        let titles_en = [
+            ("How To Start A New Life With Less Than $100", 0),
+            ("2 Top Reasons to Buy Electric Vehicle", 864_000),
+            ("Summer Expected to Be \\u2018Brutally Hot'", 0),
+            ("Summer Expected to Be Hot", 0),
         ];
-        let config = SemanticFilterConfig::default();
-        let distances = normalized_distance(&documents, &config);
-        let expected = &[
-            0.201_287_45,
-            0.792_317_5,
-            0.0,
-            1.0,
-            0.473_056_26,
-            0.676_794_2,
+
+        let expected_en = [1., 0.928_844_15, 0.983_816, 0.828_074_4, 0.823_989_33, 0.];
+
+        normalized_distance_for_titles(&titles_en, &smbert, &expected_en);
+
+        let titles_de = [
+            ("Autounfall auf der A10", 0),
+            ("Polizei nimmt Tatverdächtigen fest", 864_000),
+            ("Das neue Elektroauto", 0),
+            ("Wertvoller Hammer gestohlen", 0),
         ];
-        assert!(distances
-            .iter()
-            .zip(expected)
-            .all(|(a, b)| approx_eq!(f32, *a, *b)));
+        let expected_de = [
+            0.657_387_55,
+            0.,
+            0.235_730_89,
+            1.,
+            0.812_637_87,
+            0.559_570_13,
+        ];
+
+        normalized_distance_for_titles(&titles_de, &smbert, &expected_de);
     }
 }
