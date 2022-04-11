@@ -129,16 +129,21 @@ pub struct HeadlinesQuery<'a> {
     pub common: CommonQueryParts<'a>,
     /// Favourite sources.
     pub sources: &'a [String],
+    /// Headlines topic.
+    pub topic: Option<&'a str>,
 }
 
 impl Query for HeadlinesQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
         self.common.setup_url(url, "_lh")?;
 
+        let mut query = url.query_pairs_mut();
         if !self.sources.is_empty() {
-            let mut query = url.query_pairs_mut();
             query.append_pair("sources", &self.sources.join(","));
         };
+        if let Some(topic) = self.topic {
+            query.append_pair("topic", topic);
+        }
 
         Ok(())
     }
@@ -396,6 +401,7 @@ mod tests {
                 excluded_sources: &[],
             },
             sources: &["dodo.com".into(), "dada.net".into()],
+            topic: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();

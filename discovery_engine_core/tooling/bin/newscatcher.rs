@@ -47,6 +47,7 @@ async fn main() -> Result<()> {
                 excluded_sources: &[],
             },
             sources: &[],
+            topic: None,
         };
         let raw_response = client.query_newscatcher(&params).await.unwrap();
         total_pages = raw_response.total_pages;
