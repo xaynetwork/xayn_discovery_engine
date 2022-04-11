@@ -103,6 +103,8 @@ pub struct NewsQuery<'a, F> {
     pub common: CommonQueryParts<'a>,
     /// News filter.
     pub filter: F,
+    /// News topic.
+    pub topic: Option<&'a str>,
 }
 
 impl<F> Query for NewsQuery<'_, F>
@@ -116,6 +118,10 @@ where
         query
             .append_pair("sort_by", "relevancy")
             .append_pair("q", &self.filter.build());
+
+        if let Some(topic) = self.topic {
+            query.append_pair("topic", topic);
+        }
 
         Ok(())
     }
@@ -256,6 +262,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
+            topic: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -304,6 +311,7 @@ mod tests {
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
             },
             filter,
+            topic: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -351,6 +359,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
+            topic: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
