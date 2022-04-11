@@ -688,7 +688,7 @@ fn ai_config_from_json(json: &str) -> Figment {
     Figment::new()
         .merge(Serialized::defaults(CoiSystemConfig::default()))
         .merge(Serialized::default("kpe.token_size", 150))
-        .merge(Serialized::default("smbert.token_size", 52))
+        .merge(Serialized::default("smbert.token_size", 150))
         .merge(Json::string(json))
 }
 
@@ -720,7 +720,7 @@ mod tests {
     fn test_ai_config_from_json_default() -> Result<(), Box<dyn Error>> {
         let ai_config = ai_config_from_json("{}");
         assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
-        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 52);
+        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
             ai_config.extract::<CoiSystemConfig>()?,
             CoiSystemConfig::default(),
