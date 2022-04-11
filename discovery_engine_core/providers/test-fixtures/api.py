@@ -38,7 +38,7 @@ for (key, params) in queries.items():
         article["rights"] = "example.com"
         article["authors"] = ["Anonymous"]
         article["media"] = "https://uploads.example.com/image.png"
-        article["twitter_account"] = "@Example"
+        article["twitter_account"] = "@XaynHQ"
 
     with open(f"{key}.json", "w") as f:
         json.dump(data, f, indent=2)

@@ -27,7 +27,7 @@ Future<void> main() async {
     late SourcePreferenceRepository repo;
 
     final sources = {
-      SourcePreference(Source('example.de'), PreferenceMode.trusted),
+      SourcePreference(Source('sub.example.net'), PreferenceMode.trusted),
       SourcePreference(Source('example.org'), PreferenceMode.excluded),
       SourcePreference(Source('example.com'), PreferenceMode.excluded),
       SourcePreference(Source('example.net'), PreferenceMode.trusted),
@@ -58,7 +58,7 @@ Future<void> main() async {
       }
 
       final trusted = (await repo.getTrusted()).map((source) => source.value);
-      expect(trusted, equals({'example.de', 'example.net'}));
+      expect(trusted, equals({'sub.example.net', 'example.net'}));
 
       final excluded = (await repo.getExcluded()).map((source) => source.value);
       expect(excluded, equals({'example.com', 'example.org'}));

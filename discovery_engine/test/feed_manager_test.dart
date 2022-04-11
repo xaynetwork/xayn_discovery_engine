@@ -266,7 +266,7 @@ Future<void> main() async {
         Source('example.com'),
         Source('example.org'),
         Source('example.net'),
-        Source('www.example.info'),
+        Source('sub.example.com'),
       };
 
       for (final source in excludedSoures) {

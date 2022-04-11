@@ -24,7 +24,7 @@
       ],
       "media": "https://uploads.example.com/image.png",
       "is_opinion": false,
-      "twitter_account": "@Example",
+      "twitter_account": "@XaynHQ",
       "_score": 17.197401,
       "_id": "4e30f7eaa51090aa96a91fcce2dd1ade"
     },
@@ -47,7 +47,7 @@
       ],
       "media": "https://uploads.example.com/image.png",
       "is_opinion": false,
-      "twitter_account": "@Example",
+      "twitter_account": "@XaynHQ",
       "_score": 17.118832,
       "_id": "b7ecc49a15bc38bf224ae01556e52641"
     }
