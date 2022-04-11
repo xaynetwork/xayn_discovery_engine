@@ -433,14 +433,13 @@ where
         let mut documents = articles
             .into_iter()
             .filter_map(|article| {
+                let snippet = article
+                    .excerpt
+                    .is_empty()
+                    .then(|| &article.title)
+                    .unwrap_or(&article.excerpt);
                 self.ranker
-                    .compute_smbert(
-                        article
-                            .excerpt
-                            .is_empty()
-                            .then(|| &article.title)
-                            .unwrap_or(&article.excerpt),
-                    )
+                    .compute_smbert(snippet)
                     .map_err(Error::Ranker)
                     .and_then(|embedding| {
                         document_from_article(article, stack_id, embedding).map_err(Error::Document)
@@ -569,8 +568,12 @@ async fn update_stacks<'a>(
         let (documents, articles_errors) = articles
             .into_par_iter()
             .map(|article| {
-                let title = article.title.as_str();
-                let embedding = ranker.compute_smbert(title).map_err(|error| {
+                let snippet = article
+                    .excerpt
+                    .is_empty()
+                    .then(|| &article.title)
+                    .unwrap_or(&article.excerpt);
+                let embedding = ranker.compute_smbert(snippet).map_err(|error| {
                     let error = Error::Ranker(error);
                     error!("{}", error);
                     error
