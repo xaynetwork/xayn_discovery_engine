@@ -66,7 +66,7 @@ pub struct Article {
     #[serde(deserialize_with = "deserialize_rank")]
     pub rank: u64,
 
-    /// The domain of the article's source, e.g. `xayn.com`. Not a valid URL.
+    /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
     #[serde(
         rename(deserialize = "clean_url"),
         deserialize_with = "deserialize_null_default"

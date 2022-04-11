@@ -108,7 +108,7 @@ pub struct NewsResource {
     /// Url to reach the resource.
     pub url: Url,
 
-    /// The domain of the article's source, e.g. `xayn.com`. Not a valid URL.
+    /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
     pub source_domain: String,
 
     /// Publishing date.

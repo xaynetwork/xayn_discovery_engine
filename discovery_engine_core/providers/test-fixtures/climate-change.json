@@ -10,11 +10,11 @@
       "author": "Anonymous",
       "published_date": "2022-01-27 19:30:00",
       "published_date_precision": "timezone unknown",
-      "link": "https://xayn.com",
-      "clean_url": "xayn.com",
+      "link": "https://example.com",
+      "clean_url": "example.com",
       "excerpt": "Some children and youth find the effects of climate change are traumatic. Taking a trauma-informed approach to education can nurture resilience.",
       "summary": "Some children and youth find the effects of climate change are traumatic. Taking a trauma-informed approach to education can nurture resilience.",
-      "rights": "xayn.com",
+      "rights": "example.com",
       "rank": 361,
       "topic": "news",
       "country": "AU",
@@ -22,9 +22,9 @@
       "authors": [
         "Anonymous"
       ],
-      "media": "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/6179684043a88260009773cd_hero-phone.png",
+      "media": "https://uploads.example.com/image.png",
       "is_opinion": false,
-      "twitter_account": "@XaynHQ",
+      "twitter_account": "@Example",
       "_score": 17.197401,
       "_id": "4e30f7eaa51090aa96a91fcce2dd1ade"
     },
@@ -33,11 +33,11 @@
       "author": "Anonymous",
       "published_date": "2022-01-23 13:01:00",
       "published_date_precision": "full",
-      "link": "https://xayn.com",
-      "clean_url": "xayn.com",
+      "link": "https://example.com",
+      "clean_url": "example.com",
       "excerpt": "Australian business leaders are more concerned about climate change than ever before, with a new report finding there has been a significant shift in opinion in just eight months.",
       "summary": "Australian business leaders are more concerned about climate change than ever before, with a new report finding there has been a significant shift in opinion in just eight months.",
-      "rights": "xayn.com",
+      "rights": "example.com",
       "rank": 570,
       "topic": "tech",
       "country": "AU",
@@ -45,9 +45,9 @@
       "authors": [
         "Anonymous"
       ],
-      "media": "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/6179684043a88260009773cd_hero-phone.png",
+      "media": "https://uploads.example.com/image.png",
       "is_opinion": false,
-      "twitter_account": "@XaynHQ",
+      "twitter_account": "@Example",
       "_score": 17.118832,
       "_id": "b7ecc49a15bc38bf224ae01556e52641"
     }

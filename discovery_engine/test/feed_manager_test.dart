@@ -205,18 +205,18 @@ Future<void> main() async {
         stackId: stackId,
         batchIndex: 1,
         resource:
-            mockNewsResource.copyWith(sourceDomain: Source('www.nytimes.com')),
+            mockNewsResource.copyWith(sourceDomain: Source('www.example.com')),
       );
       final doc2 = Document(
         documentId: DocumentId(),
         stackId: stackId,
         batchIndex: 2,
         resource:
-            mockNewsResource.copyWith(sourceDomain: Source('www.bbc.com')),
+            mockNewsResource.copyWith(sourceDomain: Source('www.example.org')),
       );
       await docRepo.updateMany([doc1, doc2]);
       await sourcePreferenceRepo.save(
-        SourcePreference(Source('www.bbc.com'), PreferenceMode.excluded),
+        SourcePreference(Source('www.example.com'), PreferenceMode.excluded),
       );
     });
 
@@ -226,11 +226,11 @@ Future<void> main() async {
 
     test('addExcludedSource', () async {
       final excludedSources = {
-        Source('www.bbc.com'),
-        Source('www.nytimes.com')
+        Source('www.example.com'),
+        Source('www.example.org')
       };
-      final source1 = Source('www.bbc.com');
-      final source2 = Source('www.nytimes.com');
+      final source1 = Source('www.example.com');
+      final source2 = Source('www.example.org');
 
       final response1 = await mgr.addExcludedSource(source1);
       final response2 = await mgr.addExcludedSource(source2);
@@ -247,14 +247,15 @@ Future<void> main() async {
     });
 
     test('removeExcludedSource', () async {
-      final response = await mgr.removeExcludedSource(Source('www.bbc.com'));
+      final response =
+          await mgr.removeExcludedSource(Source('www.example.com'));
       expect(response, isA<ClientEventSucceeded>());
 
       final content = await mgr.getExcludedSourcesList();
       expect(content, isA<ExcludedSourcesListRequestSucceeded>());
       expect(
         (content as ExcludedSourcesListRequestSucceeded).excludedSources,
-        equals({Source('www.nytimes.com')}),
+        equals({Source('www.example.org')}),
       );
     });
 
@@ -262,10 +263,10 @@ Future<void> main() async {
       await sourceBox.clear();
 
       final excludedSoures = {
-        Source('theguardian.com'),
-        Source('bbc.co.uk'),
-        Source('wsj.com'),
-        Source('www.nytimes.com'),
+        Source('example.com'),
+        Source('example.org'),
+        Source('example.net'),
+        Source('www.example.info'),
       };
 
       for (final source in excludedSoures) {

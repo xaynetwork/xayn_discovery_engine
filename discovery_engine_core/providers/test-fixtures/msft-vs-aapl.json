@@ -10,11 +10,11 @@
       "author": "Anonymous",
       "published_date": "2022-01-24 05:26:00",
       "published_date_precision": "full",
-      "link": "https://xayn.com",
-      "clean_url": "xayn.com",
+      "link": "https://example.com",
+      "clean_url": "example.com",
       "excerpt": "F\u00fcr die Porsche AG sind E-Motoren nicht die einzige L\u00f6sung. Der Autobauer aus Stuttgart setzt auf alternative Kraftstoffe, denen Mensch bestimmte Vorteile attestiert.",
       "summary": "Für die Porsche AG sind E-Motoren nicht die einzige Lösung. Der Autobauer aus Stuttgart setzt auf alternative Kraftstoffe, denen Mensch bestimmte Vorteile attestiert.",
-      "rights": "xayn.com",
+      "rights": "example.com",
       "rank": 974613,
       "topic": "news",
       "country": "DE",
@@ -22,9 +22,9 @@
       "authors": [
         "Anonymous"
       ],
-      "media": "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/6179684043a88260009773cd_hero-phone.png",
+      "media": "https://uploads.example.com/image.png",
       "is_opinion": false,
-      "twitter_account": "@XaynHQ",
+      "twitter_account": "@Example",
       "_score": 20.337284,
       "_id": "5cc34192f7d5822b438900fff5b784f8"
     },
@@ -33,11 +33,11 @@
       "author": "Anonymous",
       "published_date": "2022-01-21 07:19:02",
       "published_date_precision": "full",
-      "link": "https://xayn.com",
-      "clean_url": "xayn.com",
+      "link": "https://example.com",
+      "clean_url": "example.com",
       "excerpt": "Lange vor dem Coronavirus warnte Billd Gates vor der Gefahr einer t\u00f6dlichen Pandemie. J\u00fcngst traf der Milliard\u00e4r erneut eine Vorhersage f\u00fcr die Zukunft und warnt die Menschheit, dass die n\u00e4chste\u2026",
       "summary": "Lange vor dem Coronavirus warnte Billd Gates vor der Gefahr einer t\u00f6dlichen Pandemie. J\u00fcngst traf der Milliard\u00e4r erneut eine Vorhersage f\u00fcr die Zukunft und warnt die Menschheit, dass die n\u00e4chste",
-      "rights": "xayn.com",
+      "rights": "example.com",
       "rank": 34701,
       "topic": "news",
       "country": "DE",
@@ -45,9 +45,9 @@
       "authors": [
         "Anonymous"
       ],
-      "media": "https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/6179684043a88260009773cd_hero-phone.png",
+      "media": "https://uploads.example.com/image.png",
       "is_opinion": false,
-      "twitter_account": "@XaynHQ",
+      "twitter_account": "@Example",
       "_score": 19.865063,
       "_id": "0d73b6d90d4a3c1027df3608e60d2741"
     }
