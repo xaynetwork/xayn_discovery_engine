@@ -3338,6 +3338,7 @@ dependencies = [
  "test-utils",
  "thiserror",
  "uuid",
+ "xayn-discovery-engine-providers",
 ]
 
 [[package]]

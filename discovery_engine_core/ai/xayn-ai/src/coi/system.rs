@@ -15,6 +15,7 @@
 use std::time::Duration;
 
 use uuid::Uuid;
+use xayn_discovery_engine_providers::Market;
 
 use crate::{
     coi::{
@@ -54,6 +55,7 @@ impl CoiSystem {
         cois: &mut Vec<PositiveCoi>,
         key_phrases: &mut KeyPhrases,
         embedding: &Embedding,
+        market: &Market,
         smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
         candidates: &[String],
     ) {
@@ -64,6 +66,7 @@ impl CoiSystem {
             key_phrases,
             smbert,
             candidates,
+            market,
         );
     }
 
@@ -101,6 +104,7 @@ fn log_positive_user_reaction(
     key_phrases: &mut KeyPhrases,
     smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
     candidates: &[String],
+    market: &Market,
 ) {
     match find_closest_coi_mut(cois, embedding) {
         // If the given embedding's similarity to the CoI is above the threshold,
@@ -110,6 +114,7 @@ fn log_positive_user_reaction(
             coi.update_key_phrases(
                 key_phrases,
                 candidates,
+                market,
                 smbert,
                 config.max_key_phrases(),
                 config.gamma(),
@@ -123,6 +128,7 @@ fn log_positive_user_reaction(
             coi.update_key_phrases(
                 key_phrases,
                 candidates,
+                market,
                 smbert,
                 config.max_key_phrases(),
                 config.gamma(),
@@ -173,6 +179,7 @@ mod tests {
             &mut key_phrases,
             |_| unreachable!(),
             &[],
+            &("", "").into(),
         );
 
         assert_eq!(cois.len(), 3);
@@ -198,6 +205,7 @@ mod tests {
             &mut key_phrases,
             |_| unreachable!(),
             &[],
+            &("", "").into(),
         );
 
         assert_eq!(cois.len(), 2);

@@ -20,6 +20,7 @@ use kpe::Pipeline as KPE;
 use rubert::SMBert;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use xayn_discovery_engine_providers::Market;
 
 use crate::{
     coi::{
@@ -118,6 +119,7 @@ impl Ranker {
         user_feedback: UserFeedback,
         snippet: &str,
         embedding: &Embedding,
+        market: &Market,
     ) {
         match user_feedback {
             UserFeedback::Relevant => {
@@ -127,6 +129,7 @@ impl Ranker {
                     &mut self.state.user_interests.positive,
                     &mut self.state.key_phrases,
                     embedding,
+                    market,
                     |words| smbert.run(words).map_err(Into::into),
                     key_phrases.as_slice(),
                 )
