@@ -434,7 +434,13 @@ where
             .into_iter()
             .filter_map(|article| {
                 self.ranker
-                    .compute_smbert(&article.title)
+                    .compute_smbert(
+                        article
+                            .excerpt
+                            .is_empty()
+                            .then(|| &article.title)
+                            .unwrap_or(&article.excerpt),
+                    )
                     .map_err(Error::Ranker)
                     .and_then(|embedding| {
                         document_from_article(article, stack_id, embedding).map_err(Error::Document)
