@@ -422,7 +422,6 @@ where
                     excluded_sources: &excluded_sources,
                 },
                 filter,
-                topic: None,
             };
             match self.client.query_articles(&news_query).await {
                 Ok(batch) => articles.extend(batch),

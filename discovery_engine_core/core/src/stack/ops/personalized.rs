@@ -151,7 +151,6 @@ fn spawn_news_request(
                 excluded_sources: &excluded_sources,
             },
             filter,
-            topic: None,
         };
         client.query_articles(&query).await.map_err(Into::into)
     })
