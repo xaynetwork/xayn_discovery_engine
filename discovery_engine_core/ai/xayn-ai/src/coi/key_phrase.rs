@@ -84,16 +84,16 @@ impl KeyPhrase {
 }
 
 impl PositiveCoi {
-    pub(super) fn update_key_phrases(
+    pub(super) fn update_key_phrases<S>(
         &self,
         key_phrases: &mut KeyPhrases,
-        candidates: &[String],
-        market: &Market,
-        smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
+        candidates: Option<Candidates<S>>,
         max_key_phrases: usize,
         gamma: f32,
-    ) {
-        key_phrases.update(self, candidates, market, smbert, max_key_phrases, gamma);
+    ) where
+        S: Fn(&str) -> Result<Embedding, Error> + Sync,
+    {
+        key_phrases.update(self, candidates, max_key_phrases, gamma);
     }
 }
 
@@ -105,22 +105,46 @@ pub(crate) struct KeyPhrases {
     removed: HashMap<CoiId, Vec<KeyPhrase>>,
 }
 
+/// Smart pointer to candidates' data.
+#[derive(Clone, Copy)]
+pub(crate) struct Candidates<'c, S> {
+    candidates: &'c [String],
+    market: &'c Market,
+    smbert: S,
+}
+
+impl<'c, S> Candidates<'c, S> {
+    pub(crate) fn new(candidates: &'c [String], market: &'c Market, smbert: S) -> Option<Self> {
+        (!candidates.is_empty()).then(|| Self {
+            candidates,
+            market,
+            smbert,
+        })
+    }
+}
+
+impl Candidates<'_, fn(&str) -> Result<Embedding, Error>> {
+    pub(crate) fn empty() -> Option<Self> {
+        None
+    }
+}
+
 impl KeyPhrases {
     /// Updates the key phrases for the positive coi.
     ///
     /// The most relevant key phrases are selected from the set of key phrases of the coi and the
     /// candidates.
-    fn update(
+    fn update<S>(
         &mut self,
         coi: &PositiveCoi,
-        candidates: &[String],
-        market: &Market,
-        smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
+        candidates: Option<Candidates<S>>,
         max_key_phrases: usize,
         gamma: f32,
-    ) {
+    ) where
+        S: Fn(&str) -> Result<Embedding, Error> + Sync,
+    {
         let key_phrases = self.selected.remove(&coi.id).unwrap_or_default();
-        let key_phrases = unify(key_phrases, candidates, market, smbert);
+        let key_phrases = unify(key_phrases, candidates);
         let similarity = similarities(&key_phrases, &coi.point);
         let selected = is_selected(similarity.view(), max_key_phrases, gamma);
         let key_phrases = select(key_phrases, selected, similarity);
@@ -145,9 +169,10 @@ impl KeyPhrases {
             // everytime we take some, which would also be more expensive, then the selection could
             // be outdated once we swap them.
             swap(&mut self.selected, &mut self.removed);
+            let candidates = Candidates::empty();
             let max_key_phrases = penalty.len();
             for coi in cois {
-                self.update(coi, &[], |_| unreachable!(), max_key_phrases, gamma);
+                self.update(coi, candidates, max_key_phrases, gamma);
             }
         }
 
@@ -190,35 +215,42 @@ impl KeyPhrases {
 }
 
 /// Unifies the key phrases and candidates.
-fn unify(
-    key_phrases: Vec<KeyPhrase>,
-    candidates: &[String],
-    market: &Market,
-    smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
-) -> Vec<KeyPhrase> {
-    #[cfg(not(feature = "multithreaded"))]
-    let candidates = candidates.iter();
-    #[cfg(feature = "multithreaded")]
-    let candidates = candidates.into_par_iter();
+fn unify<S>(key_phrases: Vec<KeyPhrase>, candidates: Option<Candidates<S>>) -> Vec<KeyPhrase>
+where
+    S: Fn(&str) -> Result<Embedding, Error> + Sync,
+{
+    if let Some(Candidates {
+        candidates,
+        market,
+        smbert,
+    }) = candidates
+    {
+        #[cfg(not(feature = "multithreaded"))]
+        let candidates = candidates.iter();
+        #[cfg(feature = "multithreaded")]
+        let candidates = candidates.into_par_iter();
 
-    let candidates = candidates
-        .filter(|&candidate| {
-            key_phrases
-                .iter()
-                .all(|key_phrase| key_phrase.words() != candidate)
-        })
-        .map(clean_key_phrase)
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .filter_map(|candidate| {
-            smbert(&candidate)
-                .and_then(|point| {
-                    KeyPhrase::new(candidate, point, market.clone()).map_err(|e| e.into())
-                })
-                .ok()
-        });
+        let candidates = candidates
+            .filter(|&candidate| {
+                key_phrases
+                    .iter()
+                    .all(|key_phrase| key_phrase.words() != candidate)
+            })
+            .map(clean_key_phrase)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .filter_map(|candidate| {
+                smbert(&candidate)
+                    .and_then(|point| {
+                        KeyPhrase::new(candidate, point, market.clone()).map_err(|e| e.into())
+                    })
+                    .ok()
+            });
 
-    key_phrases.into_iter().chain(candidates).collect()
+        key_phrases.into_iter().chain(candidates).collect()
+    } else {
+        key_phrases
+    }
 }
 
 /// Reduces the matrix along the axis while skipping the diagonal elements.
@@ -416,16 +448,12 @@ mod tests {
     fn test_update_key_phrases_empty() {
         let mut key_phrases = KeyPhrases::default();
         let cois = create_pos_cois(&[[1., 0., 0.]]);
-        let candidates = [];
-        let market = ("", "").into();
-        let smbert = |_: &str| unreachable!();
+        let candidates = Candidates::empty();
         let config = Config::default();
 
         key_phrases.update(
             &cois[0],
-            &candidates,
-            &market,
-            smbert,
+            candidates,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -443,16 +471,12 @@ mod tests {
                 KeyPhrase::new("phrase", arr1(&[1., 1., 1.]), ("", "")).unwrap(),
             ],
         );
-        let candidates = [];
-        let market = ("", "").into();
-        let smbert = |_: &str| unreachable!();
+        let candidates = Candidates::empty();
         let config = Config::default();
 
         key_phrases.update(
             &cois[0],
-            &candidates,
-            &market,
-            smbert,
+            candidates,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -474,13 +498,12 @@ mod tests {
             "phrase" => Ok(arr1(&[1., 1., 1.]).into()),
             _ => unreachable!(),
         };
+        let candidates = Candidates::new(&candidates, &market, smbert);
         let config = Config::default();
 
         key_phrases.update(
             &cois[0],
-            &candidates,
-            &market,
-            smbert,
+            candidates,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -497,15 +520,13 @@ mod tests {
         let mut key_phrases = KeyPhrases::default();
         let candidates = ["  a  !@#$%  b  ".into()];
         let market = ("", "").into();
-
         let smbert = |_: &str| Ok(arr1(&[1., 1., 0.]).into());
+        let candidates = Candidates::new(&candidates, &market, smbert);
         let config = Config::default();
 
         key_phrases.update(
             &cois[0],
-            &candidates,
-            &market,
-            smbert,
+            candidates,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -532,13 +553,12 @@ mod tests {
             "words" => Ok(arr1(&[2., 1., 0.]).into()),
             _ => unreachable!(),
         };
+        let candidates = Candidates::new(&candidates, &market, smbert);
         let config = Config::default();
 
         key_phrases.update(
             &cois[0],
-            &candidates,
-            &market,
-            smbert,
+            candidates,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -566,13 +586,12 @@ mod tests {
             "phrase" => Ok(arr1(&[1., 1., 1.]).into()),
             _ => unreachable!(),
         };
+        let candidates = Candidates::new(&candidates, &market, smbert);
         let config = Config::default();
 
         key_phrases.update(
             &cois[0],
-            &candidates,
-            &market,
-            smbert,
+            candidates,
             config.max_key_phrases(),
             config.gamma(),
         );

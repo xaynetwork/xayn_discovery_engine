@@ -15,12 +15,11 @@
 use std::time::Duration;
 
 use uuid::Uuid;
-use xayn_discovery_engine_providers::Market;
 
 use crate::{
     coi::{
         config::Config,
-        key_phrase::KeyPhrases,
+        key_phrase::{Candidates, KeyPhrases},
         point::{find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
     },
     embedding::utils::Embedding,
@@ -50,24 +49,16 @@ impl CoiSystem {
     }
 
     /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
-    pub(crate) fn log_positive_user_reaction(
+    pub(crate) fn log_positive_user_reaction<S>(
         &self,
         cois: &mut Vec<PositiveCoi>,
         key_phrases: &mut KeyPhrases,
         embedding: &Embedding,
-        market: &Market,
-        smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
-        candidates: &[String],
-    ) {
-        log_positive_user_reaction(
-            cois,
-            embedding,
-            &self.config,
-            key_phrases,
-            smbert,
-            candidates,
-            market,
-        );
+        candidates: Option<Candidates<S>>,
+    ) where
+        S: Fn(&str) -> Result<Embedding, Error> + Sync,
+    {
+        log_positive_user_reaction(cois, embedding, &self.config, key_phrases, candidates);
     }
 
     /// Updates the negative coi closest to the embedding or creates a new one if it's too far away.
@@ -97,15 +88,15 @@ impl CoiSystem {
 }
 
 /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
-fn log_positive_user_reaction(
+fn log_positive_user_reaction<S>(
     cois: &mut Vec<PositiveCoi>,
     embedding: &Embedding,
     config: &Config,
     key_phrases: &mut KeyPhrases,
-    smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
-    candidates: &[String],
-    market: &Market,
-) {
+    candidates: Option<Candidates<S>>,
+) where
+    S: Fn(&str) -> Result<Embedding, Error> + Sync,
+{
     match find_closest_coi_mut(cois, embedding) {
         // If the given embedding's similarity to the CoI is above the threshold,
         // we adjust the position of the nearest CoI
@@ -114,8 +105,6 @@ fn log_positive_user_reaction(
             coi.update_key_phrases(
                 key_phrases,
                 candidates,
-                market,
-                smbert,
                 config.max_key_phrases(),
                 config.gamma(),
             );
@@ -128,8 +117,6 @@ fn log_positive_user_reaction(
             coi.update_key_phrases(
                 key_phrases,
                 candidates,
-                market,
-                smbert,
                 config.max_key_phrases(),
                 config.gamma(),
             );
@@ -169,18 +156,11 @@ mod tests {
         let mut key_phrases = KeyPhrases::default();
         let embedding = arr1(&[2., 3., 4.]).into();
         let config = Config::default();
+        let candidates = Candidates::empty();
 
         let last_view_before = cois[0].stats.last_view;
 
-        log_positive_user_reaction(
-            &mut cois,
-            &embedding,
-            &config,
-            &mut key_phrases,
-            |_| unreachable!(),
-            &[],
-            &("", "").into(),
-        );
+        log_positive_user_reaction(&mut cois, &embedding, &config, &mut key_phrases, candidates);
 
         assert_eq!(cois.len(), 3);
         assert_eq!(cois[0].point, arr1(&[1.1, 1.2, 1.3]));
@@ -197,16 +177,9 @@ mod tests {
         let mut key_phrases = KeyPhrases::default();
         let embedding = arr1(&[1., 0.]).into();
         let config = Config::default();
+        let candidates = Candidates::empty();
 
-        log_positive_user_reaction(
-            &mut cois,
-            &embedding,
-            &config,
-            &mut key_phrases,
-            |_| unreachable!(),
-            &[],
-            &("", "").into(),
-        );
+        log_positive_user_reaction(&mut cois, &embedding, &config, &mut key_phrases, candidates);
 
         assert_eq!(cois.len(), 2);
         assert_eq!(cois[0].point, arr1(&[0., 1.,]));
