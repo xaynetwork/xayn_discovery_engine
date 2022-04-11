@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use uuid::Uuid;
 
@@ -76,14 +76,14 @@ impl CoiSystem {
         log_negative_user_reaction(cois, embedding, &self.config);
     }
 
-    /// Selects the top key phrases from the positive cois, sorted in descending relevance.
-    pub(crate) fn select_top_key_phrases(
+    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
+    pub(crate) fn take_key_phrases(
         &self,
         cois: &[PositiveCoi],
         key_phrases: &mut KeyPhrases,
         top: usize,
-    ) -> Vec<Arc<KeyPhrase>> {
-        key_phrases.remove(
+    ) -> Vec<KeyPhrase> {
+        key_phrases.take(
             cois,
             top,
             self.config.horizon(),
@@ -107,7 +107,7 @@ fn log_positive_user_reaction(
         // we adjust the position of the nearest CoI
         Some((coi, similarity)) if similarity >= config.threshold() => {
             coi.shift_point(embedding, config.shift_factor());
-            coi.select_key_phrases(
+            coi.update_key_phrases(
                 key_phrases,
                 candidates,
                 smbert,
@@ -120,7 +120,7 @@ fn log_positive_user_reaction(
         // If the embedding is too dissimilar, we create a new CoI instead
         _ => {
             let coi = PositiveCoi::new(Uuid::new_v4(), embedding.clone());
-            coi.select_key_phrases(
+            coi.update_key_phrases(
                 key_phrases,
                 candidates,
                 smbert,

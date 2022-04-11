@@ -89,7 +89,7 @@ impl Ops for PersonalizedNews {
 
     async fn new_items(
         &self,
-        key_phrases: &[Arc<KeyPhrase>],
+        key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
     ) -> Result<Vec<Article>, GenericError> {

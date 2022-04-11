@@ -17,8 +17,6 @@ mod common;
 pub(crate) mod favourite;
 pub(crate) mod personalized;
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use xayn_discovery_engine_providers::Article;
 
@@ -51,7 +49,7 @@ pub trait Ops {
     /// tailored to the user's interests.
     async fn new_items(
         &self,
-        key_phrases: &[Arc<KeyPhrase>],
+        key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
     ) -> Result<Vec<Article>, GenericError>;

@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use displaydoc::Display;
 
@@ -44,7 +44,7 @@ pub(crate) enum RankerError {
     Context(#[from] ContextError),
 }
 
-pub(super) const STATE_VERSION: u8 = 0;
+pub(super) const STATE_VERSION: u8 = 1;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(super) struct State {
@@ -138,9 +138,9 @@ impl Ranker {
         }
     }
 
-    /// Selects the top key phrases from the positive cois, sorted in descending relevance.
-    pub(crate) fn select_top_key_phrases(&mut self, top: usize) -> Vec<Arc<KeyPhrase>> {
-        self.coi.select_top_key_phrases(
+    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
+    pub(crate) fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
+        self.coi.take_key_phrases(
             &self.state.user_interests.positive,
             &mut self.state.key_phrases,
             top,

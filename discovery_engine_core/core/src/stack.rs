@@ -14,7 +14,7 @@
 
 //! Export types to customize the behaviour of a stack.
 
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 
 use derivative::Derivative;
 use derive_more::{Display, From};
@@ -180,7 +180,7 @@ impl Stack {
     /// Returns a list of new articles.
     pub(crate) async fn new_items(
         &self,
-        key_phrases: &[Arc<KeyPhrase>],
+        key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
     ) -> Result<Vec<Article>, Error> {
         self.ops

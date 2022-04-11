@@ -38,11 +38,14 @@ use crate::{
 
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(Eq, PartialEq)]
-pub struct KeyPhrase {
+struct KP {
     words: String,
     #[derivative(PartialEq = "ignore")]
     point: Embedding,
 }
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct KeyPhrase(Arc<KP>);
 
 impl KeyPhrase {
     pub(super) fn new(
@@ -59,20 +62,20 @@ impl KeyPhrase {
             return Err(CoiError::NonFiniteKeyPhrase(point));
         }
 
-        Ok(Self { words, point })
+        Ok(Self(Arc::new(KP { words, point })))
     }
 
     pub fn words(&self) -> &str {
-        &self.words
+        &self.0.words
     }
 
     pub fn point(&self) -> &Embedding {
-        &self.point
+        &self.0.point
     }
 }
 
 impl PositiveCoi {
-    pub(super) fn select_key_phrases(
+    pub(super) fn update_key_phrases(
         &self,
         key_phrases: &mut KeyPhrases,
         candidates: &[String],
@@ -80,7 +83,7 @@ impl PositiveCoi {
         max_key_phrases: usize,
         gamma: f32,
     ) {
-        key_phrases.select(self, candidates, smbert, max_key_phrases, gamma);
+        key_phrases.update(self, candidates, smbert, max_key_phrases, gamma);
     }
 }
 
@@ -88,16 +91,16 @@ impl PositiveCoi {
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct KeyPhrases {
     // invariant: each vector of selected key phrases must be sorted in descending relevance
-    selected: HashMap<CoiId, Vec<Arc<KeyPhrase>>>,
-    removed: HashMap<CoiId, Vec<Arc<KeyPhrase>>>,
+    selected: HashMap<CoiId, Vec<KeyPhrase>>,
+    removed: HashMap<CoiId, Vec<KeyPhrase>>,
 }
 
 impl KeyPhrases {
-    /// Selects the most relevant key phrases for the positive coi.
+    /// Updates the key phrases for the positive coi.
     ///
     /// The most relevant key phrases are selected from the set of key phrases of the coi and the
     /// candidates.
-    fn select(
+    fn update(
         &mut self,
         coi: &PositiveCoi,
         candidates: &[String],
@@ -115,20 +118,20 @@ impl KeyPhrases {
         }
     }
 
-    /// Removes the top key phrases from the positive cois, sorted in descending relevance.
-    pub(super) fn remove(
+    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
+    pub(super) fn take(
         &mut self,
         cois: &[PositiveCoi],
         top: usize,
         horizon: Duration,
         penalty: &[f32],
         gamma: f32,
-    ) -> Vec<Arc<KeyPhrase>> {
+    ) -> Vec<KeyPhrase> {
         if self.selected.is_empty() {
             swap(&mut self.selected, &mut self.removed);
             let max_key_phrases = penalty.len();
             for coi in cois {
-                self.select(coi, &[], |_| unreachable!(), max_key_phrases, gamma);
+                self.update(coi, &[], |_| unreachable!(), max_key_phrases, gamma);
             }
         }
 
@@ -172,10 +175,10 @@ impl KeyPhrases {
 
 /// Unifies the key phrases and candidates.
 fn unify(
-    key_phrases: Vec<Arc<KeyPhrase>>,
+    key_phrases: Vec<KeyPhrase>,
     candidates: &[String],
     smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
-) -> Vec<Arc<KeyPhrase>> {
+) -> Vec<KeyPhrase> {
     #[cfg(not(feature = "multithreaded"))]
     let candidates = candidates.iter();
     #[cfg(feature = "multithreaded")]
@@ -192,11 +195,7 @@ fn unify(
         .into_iter()
         .filter_map(|candidate| {
             smbert(&candidate)
-                .and_then(|point| {
-                    KeyPhrase::new(candidate, point)
-                        .map(Arc::new)
-                        .map_err(|e| e.into())
-                })
+                .and_then(|point| KeyPhrase::new(candidate, point).map_err(|e| e.into()))
                 .ok()
         });
 
@@ -258,7 +257,7 @@ where
 ///
 /// The matrix is of shape `(key_phrases_len, key_phrases_len + 1)` where the last column holds the
 /// normalized similarities between the key phrases and the coi point.
-fn similarities(key_phrases: &[Arc<KeyPhrase>], coi_point: &Embedding) -> Array2<f32> {
+fn similarities(key_phrases: &[KeyPhrase], coi_point: &Embedding) -> Array2<f32> {
     let len = key_phrases.len();
     let similarity = pairwise_cosine_similarity(
         key_phrases
@@ -335,10 +334,10 @@ fn is_selected(similarity: ArrayView2<f32>, max_key_phrases: usize, gamma: f32) 
 
 /// Selects the determined key phrases.
 fn select(
-    key_phrases: Vec<Arc<KeyPhrase>>,
+    key_phrases: Vec<KeyPhrase>,
     selected: Vec<bool>,
     similarity: Array2<f32>,
-) -> Vec<Arc<KeyPhrase>> {
+) -> Vec<KeyPhrase> {
     let mut key_phrases = izip!(selected, similarity.slice_move(s![.., -1]), key_phrases)
         .filter_map(|(is_selected, similarity, key_phrase)| {
             is_selected.then(|| (similarity, key_phrase))
@@ -388,24 +387,21 @@ mod tests {
         ) -> Self {
             let mut this = Self::default();
             for (coi_id, key_phrase) in izip!(coi_ids, key_phrases) {
-                this.selected
-                    .entry(coi_id)
-                    .or_default()
-                    .push(Arc::new(key_phrase));
+                this.selected.entry(coi_id).or_default().push(key_phrase);
             }
             this
         }
     }
 
     #[test]
-    fn test_select_key_phrases_empty() {
+    fn test_update_key_phrases_empty() {
         let mut key_phrases = KeyPhrases::default();
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let candidates = &[];
         let smbert = |_: &str| unreachable!();
         let config = Config::default();
 
-        key_phrases.select(
+        key_phrases.update(
             &cois[0],
             candidates,
             smbert,
@@ -417,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_key_phrases_no_candidates() {
+    fn test_update_key_phrases_no_candidates() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::new(
             [cois[0].id; 2],
@@ -430,7 +426,7 @@ mod tests {
         let smbert = |_: &str| unreachable!();
         let config = Config::default();
 
-        key_phrases.select(
+        key_phrases.update(
             &cois[0],
             candidates,
             smbert,
@@ -445,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_key_phrases_only_candidates() {
+    fn test_update_key_phrases_only_candidates() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::default();
         let candidates = ["key".into(), "phrase".into()];
@@ -456,7 +452,7 @@ mod tests {
         };
         let config = Config::default();
 
-        key_phrases.select(
+        key_phrases.update(
             &cois[0],
             &candidates,
             smbert,
@@ -471,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_key_phrases_candidates_words_cleaned() {
+    fn test_update_key_phrases_candidates_words_cleaned() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::default();
         let candidates = ["  a  !@#$%  b  ".into()];
@@ -479,7 +475,7 @@ mod tests {
         let smbert = |_: &str| Ok(arr1(&[1., 1., 0.]).into());
         let config = Config::default();
 
-        key_phrases.select(
+        key_phrases.update(
             &cois[0],
             &candidates,
             smbert,
@@ -493,7 +489,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_key_phrases_max() {
+    fn test_update_key_phrases_max() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::new(
             [cois[0].id; 2],
@@ -510,7 +506,7 @@ mod tests {
         };
         let config = Config::default();
 
-        key_phrases.select(
+        key_phrases.update(
             &cois[0],
             &candidates,
             smbert,
@@ -529,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_key_phrases_duplicate() {
+    fn test_update_key_phrases_duplicate() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::new(
             [cois[0].id],
@@ -542,7 +538,7 @@ mod tests {
         };
         let config = Config::default();
 
-        key_phrases.select(
+        key_phrases.update(
             &cois[0],
             &candidates,
             smbert,
@@ -557,12 +553,12 @@ mod tests {
     }
 
     #[test]
-    fn test_select_top_key_phrases_empty_cois() {
+    fn test_take_key_phrases_empty_cois() {
         let cois = create_pos_cois(&[] as &[[f32; 0]]);
         let mut key_phrases = KeyPhrases::default();
         let config = Config::default();
 
-        let top_key_phrases = key_phrases.remove(
+        let top_key_phrases = key_phrases.take(
             &cois,
             usize::MAX,
             config.horizon(),
@@ -575,12 +571,12 @@ mod tests {
     }
 
     #[test]
-    fn test_select_top_key_phrases_empty_key_phrases() {
+    fn test_take_key_phrases_empty_key_phrases() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
         let mut key_phrases = KeyPhrases::default();
         let config = Config::default();
 
-        let top_key_phrases = key_phrases.remove(
+        let top_key_phrases = key_phrases.take(
             &cois,
             usize::MAX,
             config.horizon(),
@@ -593,7 +589,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_top_key_phrases_zero() {
+    fn test_take_key_phrases_zero() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
         let mut key_phrases = KeyPhrases::new(
             [cois[0].id, cois[1].id, cois[2].id],
@@ -606,7 +602,7 @@ mod tests {
         let config = Config::default();
 
         let top_key_phrases =
-            key_phrases.remove(&cois, 0, config.horizon(), config.penalty(), config.gamma());
+            key_phrases.take(&cois, 0, config.horizon(), config.penalty(), config.gamma());
         assert!(top_key_phrases.is_empty());
         assert_eq!(key_phrases.selected.len(), cois.len());
         assert_eq!(key_phrases.selected[&cois[0].id].len(), 1);
@@ -619,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_top_key_phrases_all() {
+    fn test_take_key_phrases_all() {
         let mut cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
         cois[0].log_time(Duration::from_secs(11));
         cois[1].log_time(Duration::from_secs(12));
@@ -643,7 +639,7 @@ mod tests {
         );
         let config = Config::default();
 
-        let top_key_phrases = key_phrases.remove(
+        let top_key_phrases = key_phrases.take(
             &cois,
             usize::MAX,
             config.horizon(),
@@ -677,7 +673,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_top_key_phrases_restore_key_phrases_if_empty() {
+    fn test_take_key_phrases_restore_key_phrases_if_empty() {
         let mut cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
         cois[0].log_time(Duration::from_secs(11));
         cois[1].log_time(Duration::from_secs(12));
@@ -701,7 +697,7 @@ mod tests {
         );
         let config = Config::default();
 
-        let top_key_phrases_first = key_phrases.remove(
+        let top_key_phrases_first = key_phrases.take(
             &cois,
             usize::MAX,
             config.horizon(),
@@ -709,7 +705,7 @@ mod tests {
             config.gamma(),
         );
 
-        let top_key_phrases_second = key_phrases.remove(
+        let top_key_phrases_second = key_phrases.take(
             &cois,
             usize::MAX,
             config.horizon(),
@@ -720,46 +716,50 @@ mod tests {
         assert_eq!(top_key_phrases_first, top_key_phrases_second);
     }
 
-    #[test]
-    fn no_symbol_is_identity_letters() {
-        let s = "aàáâäąbßcçdeèéêëęfghiìíîïlłmnǹńoòóôöpqrsśtuùúüvwyỳýÿzź";
-        assert_eq!(clean_key_phrase(s), s);
-    }
+    mod clean_key_phrase {
+        use super::*;
 
-    #[test]
-    fn no_symbol_is_identity_numbers() {
-        let s = "0123456789";
-        assert_eq!(clean_key_phrase(s), s);
-    }
-
-    #[test]
-    fn remove_symbols() {
-        assert_eq!(clean_key_phrase("!$\",?(){};:."), "");
-    }
-
-    #[test]
-    fn remove_symbols_adjust_space_between() {
-        for s in ["a-b", "a - b"] {
-            assert_eq!(clean_key_phrase(s), "a b");
+        #[test]
+        fn no_symbol_is_identity_letters() {
+            let s = "aàáâäąbßcçdeèéêëęfghiìíîïlłmnǹńoòóôöpqrsśtuùúüvwyỳýÿzź";
+            assert_eq!(clean_key_phrase(s), s);
         }
-    }
 
-    #[test]
-    fn remove_symbols_adjust_space_after() {
-        for s in ["a!  ", "a ! ", "a  !  "] {
-            assert_eq!(clean_key_phrase(s), "a");
+        #[test]
+        fn no_symbol_is_identity_numbers() {
+            let s = "0123456789";
+            assert_eq!(clean_key_phrase(s), s);
         }
-    }
 
-    #[test]
-    fn remove_symbols_adjust_space_before() {
-        for s in ["  !a ", " ! a ", "  !  a  "] {
-            assert_eq!(clean_key_phrase(s), "a");
+        #[test]
+        fn remove_symbols() {
+            assert_eq!(clean_key_phrase("!$\",?(){};:."), "");
         }
-    }
 
-    #[test]
-    fn adjust_spaces() {
-        assert_eq!(clean_key_phrase("  a  b  c  "), "a b c");
+        #[test]
+        fn remove_symbols_adjust_space_between() {
+            for s in ["a-b", "a - b"] {
+                assert_eq!(clean_key_phrase(s), "a b");
+            }
+        }
+
+        #[test]
+        fn remove_symbols_adjust_space_after() {
+            for s in ["a!  ", "a ! ", "a  !  "] {
+                assert_eq!(clean_key_phrase(s), "a");
+            }
+        }
+
+        #[test]
+        fn remove_symbols_adjust_space_before() {
+            for s in ["  !a ", " ! a ", "  !  a  "] {
+                assert_eq!(clean_key_phrase(s), "a");
+            }
+        }
+
+        #[test]
+        fn adjust_spaces() {
+            assert_eq!(clean_key_phrase("  a  b  c  "), "a b c");
+        }
     }
 }

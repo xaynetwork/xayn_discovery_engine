@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use kpe::Config as KpeConfig;
@@ -72,9 +72,9 @@ impl Ranker {
         self.0.log_user_reaction(user_feedback, snippet, embedding)
     }
 
-    /// Selects the top key phrases from the positive cois, sorted in descending relevance.
-    pub fn select_top_key_phrases(&mut self, top: usize) -> Vec<Arc<KeyPhrase>> {
-        self.0.select_top_key_phrases(top)
+    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
+    pub fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
+        self.0.take_key_phrases(top)
     }
 }
 
@@ -104,6 +104,11 @@ impl<'a> Builder<'a, AveragePooler> {
         let bytes = bytes.as_ref();
 
         let state = match bytes[0] {
+            version if version < STATE_VERSION => Err(anyhow!(
+                "Outdated serialized data, no migration available. Found version {} current {}",
+                version,
+                STATE_VERSION,
+            )),
             STATE_VERSION => bincode::deserialize(&bytes[1..]).map_err(Into::into),
             version => Err(anyhow!(
                 "Unsupported serialized data. Found version {} expected {}",
