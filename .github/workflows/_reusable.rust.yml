@@ -53,6 +53,7 @@ jobs:
       - name: Run tests
         run: |
           env
+          just download-assets
           just rust-test
 
   cargo-doc:
