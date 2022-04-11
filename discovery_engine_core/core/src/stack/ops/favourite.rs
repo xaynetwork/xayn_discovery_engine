@@ -104,6 +104,7 @@ impl Ops for FavouriteNews {
         let mut merged = chain!(stack, new).cloned().collect();
         dedup_documents(&mut merged);
         let filtered = filter_semantically(merged, &self.semantic_filter_config);
+
         Ok(filtered)
     }
 }
