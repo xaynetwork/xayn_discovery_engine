@@ -21,7 +21,7 @@ use derive_more::{Display, From};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use uuid::Uuid;
+use uuid::{Bytes, Uuid};
 use xayn_discovery_engine_providers::Article;
 
 use crate::{
@@ -39,7 +39,10 @@ pub use self::ops::Ops;
 pub(crate) use self::{
     data::Data,
     filters::normalize,
-    ops::{breaking::BreakingNews, personalized::PersonalizedNews},
+    ops::{
+        breaking::{BreakingNews, BREAKING_NEWS_ID},
+        personalized::PersonalizedNews,
+    },
 };
 
 /// Errors that could occur while manipulating a stack.
@@ -70,6 +73,9 @@ pub enum Error {
 
     /// Missing the document history to update a stack.
     NoHistory,
+
+    /// A stack op failed for breaking news and there are no key phrases for personalized news.
+    FailedBreakingNewsWithoutKeyPhrasesForPersonalizedNews,
 }
 
 /// Convenience type that boxes an [`ops::Ops`] and adds [`Send`] and [`Sync`].
@@ -86,6 +92,10 @@ pub struct Id(Uuid);
 impl Id {
     pub(crate) fn is_nil(&self) -> bool {
         self.0.is_nil()
+    }
+
+    pub(crate) const fn from_bytes(bytes: Bytes) -> Self {
+        Self(Uuid::from_bytes(bytes))
     }
 }
 

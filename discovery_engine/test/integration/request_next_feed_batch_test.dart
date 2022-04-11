@@ -67,29 +67,19 @@ void main() {
 
     test(
         'if a news api request error occurs, then the requestNextFeedBatch'
-        ' depletes the internal stacks and subsequent calls should fail with'
-        ' FeedFailureReason.noNewsForMarket', () async {
+        '  should fail with FeedFailureReason.stacksOpsError', () async {
       engine = await initEngine(data, server.port);
       // the server error only occurs for fetching breaking news, the personalized news succeeds
       // early with empty documents and no error before a server request is made because no key
-      // phrases are selected due to no previous feedback, overall only one of the two stacks fails
-      // which results in successful batch requests until all stacks are depleted
+      // phrases are selected due to no previous feedback, overall breaking news failed and
+      // personalized news has no key phrases available which results in a failure
       server.replyWithError = true;
 
-      // the next batch can still return the documents fetched during engine init
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestFailed>());
       expect(
-        (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items,
-        isNotEmpty,
-      );
-
-      // all subsequent batches fail because of the server error
-      final subsequentBatchResponse = await engine.requestNextFeedBatch();
-      expect(subsequentBatchResponse, isA<NextFeedBatchRequestFailed>());
-      expect(
-        (subsequentBatchResponse as NextFeedBatchRequestFailed).reason,
-        equals(FeedFailureReason.noNewsForMarket),
+        (nextFeedBatchResponse as NextFeedBatchRequestFailed).reason,
+        equals(FeedFailureReason.stacksOpsError),
       );
     });
 
