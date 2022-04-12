@@ -124,6 +124,7 @@ fn spawn_favourites_request(
                 excluded_sources: &[],
             },
             sources: &sources,
+            topic: None,
         };
         client.query_articles(&query).await.map_err(Into::into)
     })
