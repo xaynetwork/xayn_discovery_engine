@@ -7,8 +7,11 @@ inputs:
     required: false
   rust-target:
     description: 'Install an additional rust target'
-    default: "false"
+    default: ""
     required: false
+  github_token:
+    description: 'The github token used for the `just` action to avoid exceeding API rate limits'
+    required: true
 runs:
   using: "composite"
   steps:
@@ -16,10 +19,11 @@ runs:
       run: |
         echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/.rustup" >> $GITHUB_ENV
         echo "CARGO_HOME=$RUNNER_TOOL_CACHE/.cargo" >> $GITHUB_ENV
-        echo "$RUNNER_TOOL_CACHE/.cargo/bin" >> $GITHUB_PATH
+        # echo "$RUNNER_TOOL_CACHE/.cargo/bin" >> $GITHUB_PATH
 
-    - shell: bash
-      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+    - name: Install rustup
+      shell: bash
+      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y # --no-modify-path
 
     - name: Load .env
       uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
@@ -33,13 +37,13 @@ runs:
 
     - name: Install flutter
       uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
-      if: inputs.flutter != 'false'
+      if: inputs.flutter == 'true'
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
 
     - name: Setup flutter dependencies
       shell: bash
-      if: inputs.flutter != 'false'
+      if: inputs.flutter == 'true'
       run: just flutter-deps
 
     - name: Install rust toolchain
@@ -61,6 +65,7 @@ runs:
       shell: bash
       run: rustup target add ${{ inputs.rust-target }}
 
-    # - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
-    #   with:
-    #     working-directory: ${{ env.RUST_WORKSPACE }}
+    - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      with:
+        sharedKey: ${{ inputs.rust-target }}
+        working-directory: ${{ env.RUST_WORKSPACE }}

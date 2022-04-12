@@ -28,7 +28,7 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           rm -rf ./artifacts
-      
+
       - name: Install SSH key gitlab
         uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0 # v2.3.1
         with:

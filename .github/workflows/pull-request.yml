@@ -15,15 +15,6 @@ permissions:
 
 jobs:
 
-  # test:
-    # runs-on: hetzner-mac-pm
-    # defaults:
-    #   run:
-    #     shell: "/usr/bin/arch -arch arm64e /bin/bash {0}"
-    # steps:
-    #   - run: echo $(uname -m)
-      # run: arch -arm64 echo $(uname -m)
-
   build-ios-libs:
     uses: ./.github/workflows/_reusable.build-ios.yml
 

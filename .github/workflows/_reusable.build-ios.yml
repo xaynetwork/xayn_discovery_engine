@@ -19,9 +19,9 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        target: ["aarch64-apple-ios"]
-    # outputs:
-    #   artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
+        target: ["aarch64-apple-ios", "x86_64-apple-ios"]
+    outputs:
+      artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
@@ -29,31 +29,28 @@ jobs:
         uses: ./.github/actions/setup-job-macos
         with:
           rust-target: ${{ matrix.target }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build iOS library ${{ matrix.target }}
         id: build
         run: |
-          # cd ${{ env.RUST_WORKSPACE }}
-          # cargo check
-          # cargo build --locked
-          just rust-build
-          # ARTIFACT_DIR_BASE=${{ github.job }}
-          # if ${{ inputs.production }}; then
-          #   just compile-ios-ci ${{ matrix.target }} --prod
-          #   ARTIFACT_DIR_BASE+="-production"
-          # else
-          #   just compile-ios-ci ${{ matrix.target }}
-          # fi
-          # echo "::set-output name=artifact-dir-base::$ARTIFACT_DIR_BASE"
+          ARTIFACT_DIR_BASE=${{ github.job }}
+          if ${{ inputs.production }}; then
+            just compile-ios-ci ${{ matrix.target }} --prod
+            ARTIFACT_DIR_BASE+="-production"
+          else
+            just compile-ios-ci ${{ matrix.target }}
+          fi
+          echo "::set-output name=artifact-dir-base::$ARTIFACT_DIR_BASE"
 
-      # - name: Prepare lib for upload
-      #   id: lib
-      #   run: |
-      #     BASE=${{ env.RUST_WORKSPACE }}/target/${{ matrix.target }}/release/${{ env.IOS_LIB_BASE }}
-      #     SRC=${BASE}.a
-      #     DEST=${BASE}_${{ matrix.target }}.a
-      #     mv $SRC $DEST
-      #     echo "::set-output name=path::$DEST"
+      - name: Prepare lib for upload
+        id: lib
+        run: |
+          BASE=${{ env.RUST_WORKSPACE }}/target/${{ matrix.target }}/release/${{ env.IOS_LIB_BASE }}
+          SRC=${BASE}.a
+          DEST=${BASE}_${{ matrix.target }}.a
+          mv $SRC $DEST
+          echo "::set-output name=path::$DEST"
 
       # - name: Upload library artifacts
       #   uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
