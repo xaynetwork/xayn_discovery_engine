@@ -434,7 +434,7 @@ where
             .into_iter()
             .filter_map(|article| {
                 self.ranker
-                    .compute_smbert(&article.title)
+                    .compute_smbert(article.excerpt_or_title())
                     .map_err(Error::Ranker)
                     .and_then(|embedding| {
                         document_from_article(article, stack_id, embedding).map_err(Error::Document)
@@ -563,12 +563,14 @@ async fn update_stacks<'a>(
         let (documents, articles_errors) = articles
             .into_par_iter()
             .map(|article| {
-                let title = article.title.as_str();
-                let embedding = ranker.compute_smbert(title).map_err(|error| {
-                    let error = Error::Ranker(error);
-                    error!("{}", error);
-                    error
-                })?;
+                let embedding =
+                    ranker
+                        .compute_smbert(article.excerpt_or_title())
+                        .map_err(|error| {
+                            let error = Error::Ranker(error);
+                            error!("{}", error);
+                            error
+                        })?;
                 document_from_article(article, id, embedding).map_err(|error| {
                     let error = Error::Document(error);
                     error!("{}", error);
@@ -682,7 +684,7 @@ fn ai_config_from_json(json: &str) -> Figment {
     Figment::new()
         .merge(Serialized::defaults(CoiSystemConfig::default()))
         .merge(Serialized::default("kpe.token_size", 150))
-        .merge(Serialized::default("smbert.token_size", 52))
+        .merge(Serialized::default("smbert.token_size", 150))
         .merge(Json::string(json))
 }
 
@@ -714,7 +716,7 @@ mod tests {
     fn test_ai_config_from_json_default() -> Result<(), Box<dyn Error>> {
         let ai_config = ai_config_from_json("{}");
         assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
-        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 52);
+        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
             ai_config.extract::<CoiSystemConfig>()?,
             CoiSystemConfig::default(),
