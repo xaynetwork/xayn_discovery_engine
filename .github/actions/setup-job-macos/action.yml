@@ -1,5 +1,5 @@
-name: 'setup job'
-description: 'Setup dart and/or rust CI job'
+name: 'Setup job for self-hosted macOS runner'
+description: 'Setup rust and flutter'
 inputs:
   flutter:
     description: 'Setup flutter'
@@ -7,6 +7,10 @@ inputs:
     required: false
   rust-target:
     description: 'Install an additional rust target'
+    default: ""
+    required: false
+  shared-cache-key:
+    description: 'An additional key that is stable over multiple jobs'
     default: ""
     required: false
   github_token:
@@ -25,6 +29,7 @@ runs:
       run: |
         rm -rf "$RUSTUP_HOME"
         rm -rf "$CARGO_HOME"
+        rm -rf "$RUNNER_TEMP"
 
     - name: Install rustup
       shell: bash
@@ -41,14 +46,14 @@ runs:
         just-version: ${{ env.JUST_VERSION }}
 
     - name: Install flutter
-      uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
       if: inputs.flutter == 'true'
+      uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
 
     - name: Setup flutter dependencies
-      shell: bash
       if: inputs.flutter == 'true'
+      shell: bash
       run: just flutter-deps
 
     - name: Install rust toolchain
@@ -65,12 +70,12 @@ runs:
       run: just rust-deps
 
     - name: Install rust target
-      working-directory: ${{ env.RUST_WORKSPACE }}
       if: inputs.rust-target != ''
+      working-directory: ${{ env.RUST_WORKSPACE }}
       shell: bash
       run: rustup target add ${{ inputs.rust-target }}
 
     - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
       with:
-        sharedKey: ${{ inputs.rust-target }}
+        sharedKey: ${{ inputs.shared-cache-key }}
         working-directory: ${{ env.RUST_WORKSPACE }}

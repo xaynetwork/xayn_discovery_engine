@@ -18,6 +18,15 @@ jobs:
   build-ios-libs:
     uses: ./.github/workflows/_reusable.build-ios.yml
 
+  # build-android-libs:
+  #   uses: ./.github/workflows/_reusable.build-android.yml
+
+  build-flutter-example:
+    needs: build-ios-libs
+    uses: ./.github/workflows/_reusable.build-flutter-example.yml
+    with:
+      artifact-dir-base-ios: ${{ needs.build-ios-libs.outputs.artifact-dir-base }}
+
 
       # - uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721
       #   id: filter

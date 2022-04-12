@@ -13,15 +13,20 @@ permissions:
 
 jobs:
   flutter-build-example-ios:
-    runs-on: macos-11
+    runs-on: hetzner-mac-pm
     timeout-minutes: 30
     steps:
+      - name: Clean workspace
+        shell: bash
+        run: |
+          cd ${{ github.workspace }}
+          rm -rf *
+
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the CI.
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-macos
         with:
-          rust: true
           flutter: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -38,21 +43,21 @@ jobs:
       - name: Build flutter example
         run: just flutter-build ios --no-codesign
 
-  flutter-build-example-android:
-    # The reason we don't need the Android libraries here is that, for Android, we have
-    # a dynamic library that is loaded at runtime, while for iOS we have a static library
-    # that needs to exist during the linking process.
-    runs-on: hetzner-pm
-    container:
-      image: xaynetci/yellow:v1
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+  # flutter-build-example-android:
+  #   # The reason we don't need the Android libraries here is that, for Android, we have
+  #   # a dynamic library that is loaded at runtime, while for iOS we have a static library
+  #   # that needs to exist during the linking process.
+  #   runs-on: hetzner-pm
+  #   container:
+  #     image: xaynetci/yellow:v1
+  #   timeout-minutes: 30
+  #   steps:
+  #     - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-      - name: Setup the CI.
-        uses: ./.github/actions/setup-job-docker
-        with:
-          rust: true
+  #     - name: Setup the CI.
+  #       uses: ./.github/actions/setup-job-docker
+  #       with:
+  #         rust: true
 
-      - name: Build flutter example
-        run: just flutter-build apk
+  #     - name: Build flutter example
+  #       run: just flutter-build apk

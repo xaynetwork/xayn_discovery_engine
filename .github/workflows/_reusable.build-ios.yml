@@ -20,12 +20,13 @@ jobs:
     strategy:
       matrix:
         target: ["aarch64-apple-ios", "x86_64-apple-ios"]
+        # target: ["aarch64-apple-ios"]
     outputs:
       artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
     steps:
-      - shell: bash
+      - name: Clean workspace
+        shell: bash
         run: |
-          # clean workspace
           cd ${{ github.workspace }}
           rm -rf *
 
@@ -35,6 +36,7 @@ jobs:
         uses: ./.github/actions/setup-job-macos
         with:
           rust-target: ${{ matrix.target }}
+          shared-cache-key: ${{ github.job }}-${{ matrix.target }}-${{ inputs.production }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build iOS library ${{ matrix.target }}
@@ -58,10 +60,10 @@ jobs:
           mv $SRC $DEST
           echo "::set-output name=path::$DEST"
 
-      # - name: Upload library artifacts
-      #   uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
-      #   with:
-      #     name: ${{ steps.build.outputs.artifact-dir-base }}-${{ matrix.target }}-${{ github.sha }}
-      #     retention-days: 1
-      #     if-no-files-found: error
-      #     path: ${{ steps.lib.outputs.path }}
+      - name: Upload library artifacts
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
+        with:
+          name: ${{ steps.build.outputs.artifact-dir-base }}-${{ matrix.target }}-${{ github.sha }}
+          retention-days: 1
+          if-no-files-found: error
+          path: ${{ steps.lib.outputs.path }}
