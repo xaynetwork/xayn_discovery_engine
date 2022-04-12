@@ -128,6 +128,11 @@ impl KeyPhrases {
         gamma: f32,
     ) -> Vec<KeyPhrase> {
         if self.selected.is_empty() {
+            // `removed` doesn't enforce the same sorting invariants as `selected`, hence we have to
+            // ensure this after swapping them. we only update them once after swapping to guarantee
+            // that the key phrases are fitted for the current coi point. if we were to update them
+            // everytime we take some, which would also be more expensive, then the selection could
+            // be outdated once we swap them.
             swap(&mut self.selected, &mut self.removed);
             let max_key_phrases = penalty.len();
             for coi in cois {
