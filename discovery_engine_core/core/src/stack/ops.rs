@@ -14,6 +14,7 @@
 
 pub(crate) mod breaking;
 mod common;
+pub(crate) mod favourite;
 pub(crate) mod personalized;
 
 use async_trait::async_trait;
