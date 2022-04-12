@@ -44,7 +44,6 @@ pub(crate) use self::{
 
 /// Errors that could occur while manipulating a stack.
 #[derive(Error, Debug, DisplayDoc)]
-#[allow(dead_code)]
 pub enum Error {
     /// Failed to merge current documents with new ones.
     Merge(#[source] GenericError),

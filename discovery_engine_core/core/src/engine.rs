@@ -545,6 +545,11 @@ async fn update_stacks<'a>(
         .any(|stack| stack.ops.needs_key_phrases())
         .then(|| ranker.select_top_key_phrases(select_top))
         .unwrap_or_default();
+    if key_phrases.is_empty() {
+        // only stacks which don't need key phrases remain. eventually, if they all fail, then an
+        // error is returned. if there are no stacks left to be updated, then a success is returned.
+        stacks.retain(|stack| !stack.ops.needs_key_phrases());
+    }
 
     let mut errors = Vec::new();
     for stack in &mut stacks {
