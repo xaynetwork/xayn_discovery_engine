@@ -104,11 +104,7 @@ impl<'a> Builder<'a, AveragePooler> {
         let bytes = bytes.as_ref();
 
         let state = match bytes[0] {
-            version if version < STATE_VERSION => Err(anyhow!(
-                "Outdated serialized data, no migration available. Found version {} current {}",
-                version,
-                STATE_VERSION,
-            )),
+            version if version < STATE_VERSION => Ok(State::default()),
             STATE_VERSION => bincode::deserialize(&bytes[1..]).map_err(Into::into),
             version => Err(anyhow!(
                 "Unsupported serialized data. Found version {} expected {}",
