@@ -44,6 +44,7 @@ pub(crate) struct FavouriteNews {
 }
 
 impl FavouriteNews {
+    #[allow(unused)]
     /// Creates a favourite news stack.
     pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
         Self {
