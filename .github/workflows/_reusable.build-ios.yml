@@ -23,6 +23,12 @@ jobs:
     outputs:
       artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
     steps:
+      - shell: bash
+        run: |
+          # clean workspace
+          cd ${{ github.workspace }}
+          rm -rf *
+
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI
