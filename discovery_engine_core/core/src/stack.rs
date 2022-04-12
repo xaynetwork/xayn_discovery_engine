@@ -21,7 +21,7 @@ use derive_more::{Display, From};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use uuid::{Bytes, Uuid};
+use uuid::Uuid;
 use xayn_discovery_engine_providers::Article;
 
 use crate::{
@@ -85,10 +85,6 @@ pub struct Id(Uuid);
 impl Id {
     pub(crate) fn is_nil(&self) -> bool {
         self.0.is_nil()
-    }
-
-    pub(crate) const fn from_bytes(bytes: Bytes) -> Self {
-        Self(Uuid::from_bytes(bytes))
     }
 }
 

@@ -17,6 +17,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
+use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
 
@@ -69,15 +70,10 @@ impl BreakingNews {
     }
 }
 
-/// 1ce442c8-8a96-433e-91db-c0bee37e5a83 (valid uuid)
-pub(crate) const BREAKING_NEWS_ID: Id = Id::from_bytes([
-    28, 228, 66, 200, 138, 150, 67, 62, 145, 219, 192, 190, 227, 126, 90, 131,
-]);
-
 #[async_trait]
 impl Ops for BreakingNews {
     fn id(&self) -> Id {
-        BREAKING_NEWS_ID
+        Id(Uuid::parse_str("1ce442c8-8a96-433e-91db-c0bee37e5a83").unwrap(/* valid uuid */))
     }
 
     fn needs_key_phrases(&self) -> bool {

@@ -548,10 +548,7 @@ async fn update_stacks<'a>(
     if key_phrases.is_empty() {
         // only stacks which don't need key phrases remain. eventually, if they all fail, then an
         // error is returned. if there are no stacks left to be updated, then a success is returned.
-        stacks = stacks
-            .into_iter()
-            .filter(|stack| !stack.ops.needs_key_phrases())
-            .collect();
+        stacks.retain(|stack| !stack.ops.needs_key_phrases());
     }
 
     let mut errors = Vec::new();
