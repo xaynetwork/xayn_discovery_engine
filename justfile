@@ -228,8 +228,7 @@ _compile-android target:
     cd "$RUST_WORKSPACE"; \
         cargo ndk --bindgen -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION \
         -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build \
-        --release \
-        -p xayn-discovery-engine-bindings --locked
+        --release -p xayn-discovery-engine-bindings --locked
 
 compile-android-local: _codegen-order-workaround
     #!/usr/bin/env sh
