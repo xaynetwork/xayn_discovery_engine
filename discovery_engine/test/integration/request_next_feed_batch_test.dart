@@ -71,8 +71,9 @@ void main() {
       engine = await initEngine(data, server.port);
       // the server error only occurs for fetching breaking news, the personalized news succeeds
       // early with empty documents and no error before a server request is made because no key
-      // phrases are selected due to no previous feedback, overall breaking news failed and
-      // personalized news has no key phrases available which results in a failure
+      // phrases are selected due to no previous feedback. overall breaking news failed and
+      // personalized news is filtered out because there are no key phrases available, which
+      // results in a failure.
       server.replyWithError = true;
 
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();

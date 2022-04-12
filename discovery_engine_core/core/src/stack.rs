@@ -39,15 +39,11 @@ pub use self::ops::Ops;
 pub(crate) use self::{
     data::Data,
     filters::normalize,
-    ops::{
-        breaking::{BreakingNews, BREAKING_NEWS_ID},
-        personalized::PersonalizedNews,
-    },
+    ops::{breaking::BreakingNews, personalized::PersonalizedNews},
 };
 
 /// Errors that could occur while manipulating a stack.
 #[derive(Error, Debug, DisplayDoc)]
-#[allow(dead_code)]
 pub enum Error {
     /// Failed to merge current documents with new ones.
     Merge(#[source] GenericError),
@@ -73,9 +69,6 @@ pub enum Error {
 
     /// Missing the document history to update a stack.
     NoHistory,
-
-    /// A stack op failed for breaking news and there are no key phrases for personalized news.
-    FailedBreakingNewsWithoutKeyPhrasesForPersonalizedNews,
 }
 
 /// Convenience type that boxes an [`ops::Ops`] and adds [`Send`] and [`Sync`].

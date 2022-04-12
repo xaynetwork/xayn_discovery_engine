@@ -55,7 +55,6 @@ use crate::{
         Id as StackId,
         PersonalizedNews,
         Stack,
-        BREAKING_NEWS_ID,
     },
 };
 
@@ -546,34 +545,24 @@ async fn update_stacks<'a>(
         .any(|stack| stack.ops.needs_key_phrases())
         .then(|| ranker.select_top_key_phrases(select_top))
         .unwrap_or_default();
+    if key_phrases.is_empty() {
+        // only stacks which don't need key phrases remain. eventually, if they all fail, then an
+        // error is returned. if there are no stacks left to be updated, then a success is returned.
+        stacks = stacks
+            .into_iter()
+            .filter(|stack| !stack.ops.needs_key_phrases())
+            .collect();
+    }
 
     let mut errors = Vec::new();
     for stack in &mut stacks {
-        // bail if breaking news failed and key phrases for personalized news are empty
-        macro_rules! bail_if_breaking_news_failed_without_key_phrases {
-            ($is_breaking_news_without_key_phrases:expr, $errors:expr $(,)?) => {
-                if $is_breaking_news_without_key_phrases {
-                    errors.push(Error::StackOpFailed(
-                        stack::Error::FailedBreakingNewsWithoutKeyPhrasesForPersonalizedNews,
-                    ));
-                    return Err(Error::Errors($errors));
-                }
-                continue;
-            };
-        }
-
-        let is_breaking_news_without_key_phrases =
-            key_phrases.is_empty() && stack.id() == BREAKING_NEWS_ID;
         let articles = match stack.new_items(&key_phrases, history).await {
             Ok(articles) => articles,
             Err(error) => {
                 let error = Error::StackOpFailed(error);
                 error!("{}", error);
                 errors.push(error);
-                bail_if_breaking_news_failed_without_key_phrases!(
-                    is_breaking_news_without_key_phrases,
-                    errors,
-                );
+                continue;
             }
         };
 
@@ -603,20 +592,13 @@ async fn update_stacks<'a>(
         // only push an error if the articles aren't empty for other reasons and all articles failed
         if articles_len > 0 && articles_errors.len() == articles_len {
             errors.push(Error::Errors(articles_errors));
-            bail_if_breaking_news_failed_without_key_phrases!(
-                is_breaking_news_without_key_phrases,
-                errors,
-            );
+            continue;
         }
 
         if let Err(error) = stack.update(&documents, ranker) {
             let error = Error::StackOpFailed(error);
             error!("{}", error);
             errors.push(error);
-            bail_if_breaking_news_failed_without_key_phrases!(
-                is_breaking_news_without_key_phrases,
-                errors,
-            );
         } else {
             stack.data.retain_top(keep_top);
         }
