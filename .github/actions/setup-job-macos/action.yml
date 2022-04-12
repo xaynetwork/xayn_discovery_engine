@@ -61,6 +61,6 @@ runs:
       shell: bash
       run: rustup target add ${{ inputs.rust-target }}
 
-    - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
-      with:
-        working-directory: ${{ env.RUST_WORKSPACE }}
+    # - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+    #   with:
+    #     working-directory: ${{ env.RUST_WORKSPACE }}
