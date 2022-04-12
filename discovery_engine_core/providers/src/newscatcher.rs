@@ -107,6 +107,15 @@ pub struct Article {
     pub published_date: NaiveDateTime,
 }
 
+impl Article {
+    /// Gets the excerpt or falls back to the title if the excerpt is empty.
+    pub fn excerpt_or_title(&self) -> &str {
+        (!self.excerpt.is_empty())
+            .then(|| &self.excerpt)
+            .unwrap_or(&self.title)
+    }
+}
+
 // Taken from https://github.com/serde-rs/serde/issues/1098#issuecomment-760711617
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
