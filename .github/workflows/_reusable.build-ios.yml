@@ -23,7 +23,7 @@ jobs:
     outputs:
       artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
     steps:
-      - name: Clean workspace
+      - name: Clean up workspace
         shell: bash
         working-directory: ${{ github.workspace }}
         run: rm -rf *

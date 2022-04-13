@@ -16,7 +16,7 @@ jobs:
     runs-on: hetzner-mac-pm
     timeout-minutes: 30
     steps:
-      - name: Clean workspace
+      - name: Clean up workspace
         shell: bash
         working-directory: ${{ github.workspace }}
         run: rm -rf *

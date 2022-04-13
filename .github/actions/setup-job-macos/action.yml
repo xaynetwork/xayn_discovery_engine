@@ -19,7 +19,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Clean Runner tool cache and temp dir
+    - name: Clean up runner tool cache and temp dir
       shell: bash
       run: |
         cd $RUNNER_TOOL_CACHE
