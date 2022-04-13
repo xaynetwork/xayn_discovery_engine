@@ -20,15 +20,13 @@ jobs:
     strategy:
       matrix:
         target: ["aarch64-apple-ios", "x86_64-apple-ios"]
-        # target: ["aarch64-apple-ios"]
     outputs:
       artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
     steps:
       - name: Clean workspace
         shell: bash
-        run: |
-          cd ${{ github.workspace }}
-          rm -rf *
+        working-directory: ${{ github.workspace }}
+        run: rm -rf *
 
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 

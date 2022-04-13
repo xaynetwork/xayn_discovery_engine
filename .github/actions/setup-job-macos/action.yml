@@ -19,21 +19,13 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - shell: bash
-      run: |
-        echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/.rustup" >> $GITHUB_ENV
-        echo "CARGO_HOME=$RUNNER_TOOL_CACHE/.cargo" >> $GITHUB_ENV
-        echo "$RUNNER_TOOL_CACHE/.cargo/bin" >> $GITHUB_PATH
-
-    - shell: bash
-      run: |
-        rm -rf "$RUSTUP_HOME"
-        rm -rf "$CARGO_HOME"
-        rm -rf "$RUNNER_TEMP"
-
-    - name: Install rustup
+    - name: Clean Runner tool cache and temp dir
       shell: bash
-      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      run: |
+        cd $RUNNER_TOOL_CACHE
+        rm -rf *
+        cd $RUNNER_TEMP
+        rm -rf *
 
     - name: Load .env
       uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
@@ -44,6 +36,17 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       with:
         just-version: ${{ env.JUST_VERSION }}
+
+    - name: Install flutter
+      if: inputs.flutter == 'true'
+      uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+
+    - name: Setup flutter dependencies
+      if: inputs.flutter == 'true'
+      shell: bash
+      run: just flutter-deps
 
     - if: inputs.flutter == 'true'
       shell: bash
@@ -56,16 +59,15 @@ runs:
       shell: bash
       run: gem install cocoapods
 
-    - name: Install flutter
-      if: inputs.flutter == 'true'
-      uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
+    - shell: bash
+      run: |
+        echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/.rustup" >> $GITHUB_ENV
+        echo "CARGO_HOME=$RUNNER_TOOL_CACHE/.cargo" >> $GITHUB_ENV
+        echo "$RUNNER_TOOL_CACHE/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Setup flutter dependencies
-      if: inputs.flutter == 'true'
+    - name: Install rustup
       shell: bash
-      run: just flutter-deps
+      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
     - name: Install rust toolchain
       working-directory: ${{ env.RUST_WORKSPACE }}
