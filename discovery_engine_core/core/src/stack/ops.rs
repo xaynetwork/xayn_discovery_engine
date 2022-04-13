@@ -14,8 +14,8 @@
 
 pub(crate) mod breaking;
 mod common;
-pub(crate) mod favourite;
 pub(crate) mod personalized;
+pub(crate) mod trusted;
 
 use async_trait::async_trait;
 use xayn_discovery_engine_providers::Article;

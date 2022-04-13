@@ -127,8 +127,8 @@ impl<T> Seal for NewsQuery<'_, T> {}
 pub struct HeadlinesQuery<'a> {
     /// Common parts.
     pub common: CommonQueryParts<'a>,
-    /// Favourite sources.
-    pub sources: &'a [String],
+    /// Trusted sources.
+    pub trusted_sources: &'a [String],
     /// Headlines topic.
     pub topic: Option<&'a str>,
 }
@@ -138,8 +138,8 @@ impl Query for HeadlinesQuery<'_> {
         self.common.setup_url(url, "_lh")?;
 
         let mut query = url.query_pairs_mut();
-        if !self.sources.is_empty() {
-            query.append_pair("sources", &self.sources.join(","));
+        if !self.trusted_sources.is_empty() {
+            query.append_pair("sources", &self.trusted_sources.join(","));
         };
         if let Some(topic) = self.topic {
             query.append_pair("topic", topic);
@@ -400,7 +400,7 @@ mod tests {
                 page: 1,
                 excluded_sources: &[],
             },
-            sources: &["dodo.com".into(), "dada.net".into()],
+            trusted_sources: &["dodo.com".into(), "dada.net".into()],
             topic: None,
         };
 

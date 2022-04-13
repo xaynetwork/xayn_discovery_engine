@@ -33,8 +33,8 @@ use crate::{
 
 use super::{common::request_min_new_items, Ops};
 
-/// Stack operations customized for favourite news.
-pub(crate) struct FavouriteNews {
+/// Stack operations customized for trusted news.
+pub(crate) struct TrustedNews {
     client: Arc<Client>,
     sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
@@ -43,13 +43,13 @@ pub(crate) struct FavouriteNews {
     min_articles: usize,
 }
 
-impl FavouriteNews {
+impl TrustedNews {
     #[allow(unused)]
-    /// Creates a favourite news stack.
+    /// Creates a trusted news stack.
     pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
         Self {
             client,
-            sources: config.favourite_sources.clone(),
+            sources: config.trusted_sources.clone(),
             page_size: config.page_size,
             semantic_filter_config: SemanticFilterConfig::default(),
             max_requests: config.max_requests,
@@ -67,7 +67,7 @@ impl FavouriteNews {
 }
 
 #[async_trait]
-impl Ops for FavouriteNews {
+impl Ops for TrustedNews {
     fn id(&self) -> Id {
         Id(Uuid::parse_str("d0f699d8-60d2-4008-b3a1-df1cffc4b8a3").unwrap(/* valid uuid */))
     }
@@ -88,7 +88,7 @@ impl Ops for FavouriteNews {
             self.min_articles,
             |request_num| {
                 let page = request_num as usize + 1;
-                let future = spawn_favourites_request(
+                let future = spawn_trusted_request(
                     self.client.clone(),
                     self.page_size,
                     page,
@@ -110,7 +110,7 @@ impl Ops for FavouriteNews {
     }
 }
 
-fn spawn_favourites_request(
+fn spawn_trusted_request(
     client: Arc<Client>,
     page_size: usize,
     page: usize,
@@ -124,7 +124,7 @@ fn spawn_favourites_request(
                 page,
                 excluded_sources: &[],
             },
-            sources: &sources,
+            trusted_sources: &sources,
             topic: None,
         };
         client.query_articles(&query).await.map_err(Into::into)

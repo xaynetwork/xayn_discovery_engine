@@ -106,8 +106,8 @@ pub struct InitConfig {
     pub api_base_url: String,
     /// List of markets to use.
     pub markets: Vec<Market>,
-    /// List of favourite sources to use.
-    pub favourite_sources: Vec<String>,
+    /// List of trusted sources to use.
+    pub trusted_sources: Vec<String>,
     /// List of excluded sources to use.
     pub excluded_sources: Vec<String>,
     /// S-mBert vocabulary path.
@@ -132,9 +132,9 @@ pub(crate) struct EndpointConfig {
     pub(crate) page_size: usize,
     /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
-    /// Favourite sources for news queries.
+    /// Trusted sources for news queries.
     #[allow(dead_code)]
-    pub(crate) favourite_sources: Arc<RwLock<Vec<String>>>,
+    pub(crate) trusted_sources: Arc<RwLock<Vec<String>>>,
     /// Sources to exclude for news queries.
     pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
     /// The maximum number of requests to try to reach the number of `min_articles`.
@@ -148,7 +148,7 @@ impl From<InitConfig> for EndpointConfig {
         Self {
             page_size: 100,
             markets: Arc::new(RwLock::new(config.markets)),
-            favourite_sources: Arc::new(RwLock::new(config.favourite_sources)),
+            trusted_sources: Arc::new(RwLock::new(config.trusted_sources)),
             excluded_sources: Arc::new(RwLock::new(config.excluded_sources)),
             max_requests: 5,
             min_articles: 20,
@@ -455,14 +455,14 @@ where
         }
     }
 
-    /// Updates the favourite sources.
-    pub async fn set_favourite_sources(
+    /// Updates the trusted sources.
+    pub async fn set_trusted_sources(
         &mut self,
         history: &[HistoricDocument],
         sources: Vec<String>,
     ) -> Result<(), Error> {
         let sources_set = sources.iter().cloned().collect::<HashSet<_>>();
-        *self.config.favourite_sources.write().await = sources;
+        *self.config.trusted_sources.write().await = sources;
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {

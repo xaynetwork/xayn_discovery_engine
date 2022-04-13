@@ -134,7 +134,7 @@ class DiscoveryEngineFfi implements Engine {
     List<HistoricDocument> history,
     Set<Source> sources,
   ) async {
-    final result = await asyncFfi.setFavouriteSources(
+    final result = await asyncFfi.setTrustedSources(
       _engine.ref,
       history.allocNative().move(),
       sources.toStringList().allocNative().move(),

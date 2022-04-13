@@ -77,7 +77,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         documentBox,
         engineStateBox,
         excludedSourcesBox,
-        favouriteSourcesBox,
+        trustedSourcesBox,
         searchBox,
         sourcePreferenceBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
@@ -325,7 +325,7 @@ class EventHandler {
       _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
       _openDbBox<Uint8List>(engineStateBox),
       _openDbBox<ActiveSearch>(searchBox),
-      _openDbBox<Set<Source>>(favouriteSourcesBox),
+      _openDbBox<Set<Source>>(trustedSourcesBox),
       _openDbBox<Set<Source>>(excludedSourcesBox),
       _openDbBox<SourcePreference>(sourcePreferenceBox),
     ]);

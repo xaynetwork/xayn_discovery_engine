@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
                 page,
                 excluded_sources: &[],
             },
-            sources: &[],
+            trusted_sources: &[],
             topic: None,
         };
         let raw_response = client.query_newscatcher(&params).await.unwrap();
