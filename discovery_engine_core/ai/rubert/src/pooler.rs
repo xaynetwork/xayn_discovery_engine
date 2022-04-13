@@ -35,6 +35,12 @@ where
 /// The embedding is of shape `(embedding_size,)`.
 pub type Embedding1 = Embedding<Ix1>;
 
+impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
+    fn from(array: [f32; N]) -> Self {
+        Array::from_vec(array.into()).into()
+    }
+}
+
 /// A 2-dimensional sequence embedding.
 ///
 /// The embedding is of shape `(token_size, embedding_size)`.

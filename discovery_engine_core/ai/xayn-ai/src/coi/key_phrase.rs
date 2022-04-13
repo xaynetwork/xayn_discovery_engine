@@ -83,6 +83,12 @@ impl KeyPhrase {
     }
 }
 
+impl PartialEq<&str> for KeyPhrase {
+    fn eq(&self, other: &&str) -> bool {
+        self.words().eq(*other)
+    }
+}
+
 impl PositiveCoi {
     pub(super) fn update_key_phrases(
         &self,
@@ -413,20 +419,20 @@ fn clean_key_phrase(key_phrase: impl AsRef<str>) -> String {
 mod tests {
     use std::time::Duration;
 
-    use ndarray::arr1;
-
     use crate::coi::{config::Config, utils::tests::create_pos_cois};
 
     use super::*;
 
     impl KeyPhrases {
-        pub(crate) fn new<const N: usize>(
-            coi_ids: [CoiId; N],
-            key_phrases: [KeyPhrase; N],
+        pub(crate) fn new<'a, const N: usize>(
+            iter: impl IntoIterator<Item = (CoiId, &'a str, [f32; N], (&'a str, &'a str))>,
         ) -> Self {
             let mut this = Self::default();
-            for (coi_id, key_phrase) in izip!(coi_ids, key_phrases) {
-                this.selected.entry(coi_id).or_default().push(key_phrase);
+            for (coi_id, words, point, market) in iter {
+                this.selected
+                    .entry(coi_id)
+                    .or_default()
+                    .push(KeyPhrase::new(words, point, market).unwrap());
             }
             this
         }
@@ -456,13 +462,10 @@ mod tests {
     #[test]
     fn test_update_key_phrases_no_candidates() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
-        let mut key_phrases = KeyPhrases::new(
-            [cois[0].id; 2],
-            [
-                KeyPhrase::new("key", arr1(&[1., 1., 0.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("phrase", arr1(&[1., 1., 1.]), ("AA", "aa")).unwrap(),
-            ],
-        );
+        let mut key_phrases = KeyPhrases::new([
+            (cois[0].id, "key", [1., 1., 0.], ("AA", "aa")),
+            (cois[0].id, "phrase", [1., 1., 1.], ("AA", "aa")),
+        ]);
         let candidates = [];
         let market = ("AA", "aa").into();
         let smbert = |_: &str| unreachable!();
@@ -477,9 +480,7 @@ mod tests {
             config.gamma(),
         );
         assert_eq!(key_phrases.selected.len(), cois.len());
-        assert_eq!(key_phrases.selected[&cois[0].id].len(), 2);
-        assert_eq!(key_phrases.selected[&cois[0].id][0].words(), "key");
-        assert_eq!(key_phrases.selected[&cois[0].id][1].words(), "phrase");
+        assert_eq!(key_phrases.selected[&cois[0].id], ["key", "phrase"]);
         assert!(key_phrases.removed.is_empty());
     }
 
@@ -490,8 +491,8 @@ mod tests {
         let candidates = ["key".into(), "phrase".into()];
         let market = ("AA", "aa").into();
         let smbert = |words: &str| match words {
-            "key" => Ok(arr1(&[1., 1., 0.]).into()),
-            "phrase" => Ok(arr1(&[1., 1., 1.]).into()),
+            "key" => Ok([1., 1., 0.].into()),
+            "phrase" => Ok([1., 1., 1.].into()),
             _ => unreachable!(),
         };
         let config = Config::default();
@@ -505,9 +506,7 @@ mod tests {
             config.gamma(),
         );
         assert_eq!(key_phrases.selected.len(), cois.len());
-        assert_eq!(key_phrases.selected[&cois[0].id].len(), 2);
-        assert_eq!(key_phrases.selected[&cois[0].id][0].words(), "key");
-        assert_eq!(key_phrases.selected[&cois[0].id][1].words(), "phrase");
+        assert_eq!(key_phrases.selected[&cois[0].id], ["key", "phrase"]);
         assert!(key_phrases.removed.is_empty());
     }
 
@@ -517,7 +516,7 @@ mod tests {
         let mut key_phrases = KeyPhrases::default();
         let candidates = ["  a  !@#$%  b  ".into()];
         let market = ("AA", "aa").into();
-        let smbert = |_: &str| Ok(arr1(&[1., 1., 0.]).into());
+        let smbert = |_: &str| Ok([1., 1., 0.].into());
         let config = Config::default();
 
         key_phrases.update(
@@ -529,29 +528,26 @@ mod tests {
             config.gamma(),
         );
         assert_eq!(key_phrases.selected.len(), cois.len());
-        assert_eq!(key_phrases.selected[&cois[0].id].len(), 1);
-        assert_eq!(key_phrases.selected[&cois[0].id][0].words(), "a b");
+        assert_eq!(key_phrases.selected[&cois[0].id], ["a b"]);
         assert!(key_phrases.removed.is_empty());
     }
 
     #[test]
     fn test_update_key_phrases_max() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
-        let mut key_phrases = KeyPhrases::new(
-            [cois[0].id; 2],
-            [
-                KeyPhrase::new("key", arr1(&[2., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("phrase", arr1(&[1., 1., 0.]), ("AA", "aa")).unwrap(),
-            ],
-        );
+        let mut key_phrases = KeyPhrases::new([
+            (cois[0].id, "key", [2., 1., 1.], ("AA", "aa")),
+            (cois[0].id, "phrase", [1., 1., 0.], ("AA", "aa")),
+        ]);
         let candidates = ["test".into(), "words".into()];
         let market = ("AA", "aa").into();
         let smbert = |words: &str| match words {
-            "test" => Ok(arr1(&[1., 1., 1.]).into()),
-            "words" => Ok(arr1(&[2., 1., 0.]).into()),
+            "test" => Ok([1., 1., 1.].into()),
+            "words" => Ok([2., 1., 0.].into()),
             _ => unreachable!(),
         };
         let config = Config::default();
+        assert_eq!(config.max_key_phrases(), 3);
 
         key_phrases.update(
             &cois[0],
@@ -563,26 +559,20 @@ mod tests {
         );
         assert_eq!(key_phrases.selected.len(), cois.len());
         assert_eq!(
-            key_phrases.selected[&cois[0].id].len(),
-            config.max_key_phrases(),
+            key_phrases.selected[&cois[0].id],
+            ["words", "key", "phrase"],
         );
-        assert_eq!(key_phrases.selected[&cois[0].id][0].words(), "words");
-        assert_eq!(key_phrases.selected[&cois[0].id][1].words(), "key");
-        assert_eq!(key_phrases.selected[&cois[0].id][2].words(), "phrase");
         assert!(key_phrases.removed.is_empty());
     }
 
     #[test]
     fn test_update_key_phrases_duplicate() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
-        let mut key_phrases = KeyPhrases::new(
-            [cois[0].id],
-            [KeyPhrase::new("key", arr1(&[1., 1., 0.]), ("AA", "aa")).unwrap()],
-        );
+        let mut key_phrases = KeyPhrases::new([(cois[0].id, "key", [1., 1., 0.], ("AA", "aa"))]);
         let candidates = ["phrase".into(), "phrase".into()];
         let market = ("AA", "aa").into();
         let smbert = |words: &str| match words {
-            "phrase" => Ok(arr1(&[1., 1., 1.]).into()),
+            "phrase" => Ok([1., 1., 1.].into()),
             _ => unreachable!(),
         };
         let config = Config::default();
@@ -596,9 +586,7 @@ mod tests {
             config.gamma(),
         );
         assert_eq!(key_phrases.selected.len(), cois.len());
-        assert_eq!(key_phrases.selected[&cois[0].id].len(), 2);
-        assert_eq!(key_phrases.selected[&cois[0].id][0].words(), "key");
-        assert_eq!(key_phrases.selected[&cois[0].id][1].words(), "phrase");
+        assert_eq!(key_phrases.selected[&cois[0].id], ["key", "phrase"]);
         assert!(key_phrases.removed.is_empty());
     }
 
@@ -641,26 +629,20 @@ mod tests {
     #[test]
     fn test_take_key_phrases_zero() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
-        let mut key_phrases = KeyPhrases::new(
-            [cois[0].id, cois[1].id, cois[2].id],
-            [
-                KeyPhrase::new("key", arr1(&[1., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("phrase", arr1(&[2., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("words", arr1(&[3., 1., 1.]), ("AA", "aa")).unwrap(),
-            ],
-        );
+        let mut key_phrases = KeyPhrases::new([
+            (cois[0].id, "key", [1., 1., 1.], ("AA", "aa")),
+            (cois[1].id, "phrase", [2., 1., 1.], ("AA", "aa")),
+            (cois[2].id, "words", [3., 1., 1.], ("AA", "aa")),
+        ]);
         let config = Config::default();
 
         let top_key_phrases =
             key_phrases.take(&cois, 0, config.horizon(), config.penalty(), config.gamma());
         assert!(top_key_phrases.is_empty());
         assert_eq!(key_phrases.selected.len(), cois.len());
-        assert_eq!(key_phrases.selected[&cois[0].id].len(), 1);
-        assert_eq!(key_phrases.selected[&cois[0].id][0].words(), "key");
-        assert_eq!(key_phrases.selected[&cois[1].id].len(), 1);
-        assert_eq!(key_phrases.selected[&cois[1].id][0].words(), "phrase");
-        assert_eq!(key_phrases.selected[&cois[2].id].len(), 1);
-        assert_eq!(key_phrases.selected[&cois[2].id][0].words(), "words");
+        assert_eq!(key_phrases.selected[&cois[0].id], ["key"]);
+        assert_eq!(key_phrases.selected[&cois[1].id], ["phrase"]);
+        assert_eq!(key_phrases.selected[&cois[2].id], ["words"]);
         assert!(key_phrases.removed.is_empty());
     }
 
@@ -670,23 +652,17 @@ mod tests {
         cois[0].log_time(Duration::from_secs(11));
         cois[1].log_time(Duration::from_secs(12));
         cois[2].log_time(Duration::from_secs(13));
-        let mut key_phrases = KeyPhrases::new(
-            [
-                cois[0].id, cois[0].id, cois[0].id, cois[1].id, cois[1].id, cois[1].id, cois[2].id,
-                cois[2].id, cois[2].id,
-            ],
-            [
-                KeyPhrase::new("key", arr1(&[3., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("phrase", arr1(&[2., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("words", arr1(&[1., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("and", arr1(&[1., 6., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("more", arr1(&[1., 5., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("stuff", arr1(&[1., 4., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("still", arr1(&[1., 1., 9.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("not", arr1(&[1., 1., 8.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("enough", arr1(&[1., 1., 7.]), ("AA", "aa")).unwrap(),
-            ],
-        );
+        let mut key_phrases = KeyPhrases::new([
+            (cois[0].id, "key", [3., 1., 1.], ("AA", "aa")),
+            (cois[0].id, "phrase", [2., 1., 1.], ("AA", "aa")),
+            (cois[0].id, "words", [1., 1., 1.], ("AA", "aa")),
+            (cois[1].id, "and", [1., 6., 1.], ("AA", "aa")),
+            (cois[1].id, "more", [1., 5., 1.], ("AA", "aa")),
+            (cois[1].id, "stuff", [1., 4., 1.], ("AA", "aa")),
+            (cois[2].id, "still", [1., 1., 9.], ("AA", "aa")),
+            (cois[2].id, "not", [1., 1., 8.], ("AA", "aa")),
+            (cois[2].id, "enough", [1., 1., 7.], ("AA", "aa")),
+        ]);
         let config = Config::default();
 
         let top_key_phrases = key_phrases.take(
@@ -697,29 +673,15 @@ mod tests {
             config.gamma(),
         );
         assert_eq!(top_key_phrases.len(), 9);
-        assert_eq!(top_key_phrases[0].words(), "still");
-        assert_eq!(top_key_phrases[1].words(), "and");
-        assert_eq!(top_key_phrases[2].words(), "key");
-        assert_eq!(top_key_phrases[3].words(), "not");
-        assert_eq!(top_key_phrases[4].words(), "more");
-        assert_eq!(top_key_phrases[5].words(), "phrase");
-        assert_eq!(top_key_phrases[6].words(), "enough");
-        assert_eq!(top_key_phrases[7].words(), "stuff");
-        assert_eq!(top_key_phrases[8].words(), "words");
+        assert_eq!(
+            top_key_phrases,
+            ["still", "and", "key", "not", "more", "phrase", "enough", "stuff", "words"],
+        );
         assert!(key_phrases.selected.is_empty());
         assert_eq!(key_phrases.removed.len(), 3);
-        assert_eq!(key_phrases.removed[&cois[0].id].len(), 3);
-        assert_eq!(key_phrases.removed[&cois[0].id][0].words(), "key");
-        assert_eq!(key_phrases.removed[&cois[0].id][1].words(), "phrase");
-        assert_eq!(key_phrases.removed[&cois[0].id][2].words(), "words");
-        assert_eq!(key_phrases.removed[&cois[1].id].len(), 3);
-        assert_eq!(key_phrases.removed[&cois[1].id][0].words(), "and");
-        assert_eq!(key_phrases.removed[&cois[1].id][1].words(), "more");
-        assert_eq!(key_phrases.removed[&cois[1].id][2].words(), "stuff");
-        assert_eq!(key_phrases.removed[&cois[2].id].len(), 3);
-        assert_eq!(key_phrases.removed[&cois[2].id][0].words(), "still");
-        assert_eq!(key_phrases.removed[&cois[2].id][1].words(), "not");
-        assert_eq!(key_phrases.removed[&cois[2].id][2].words(), "enough");
+        assert_eq!(key_phrases.removed[&cois[0].id], ["key", "phrase", "words"]);
+        assert_eq!(key_phrases.removed[&cois[1].id], ["and", "more", "stuff"]);
+        assert_eq!(key_phrases.removed[&cois[2].id], ["still", "not", "enough"]);
     }
 
     #[test]
@@ -728,23 +690,17 @@ mod tests {
         cois[0].log_time(Duration::from_secs(11));
         cois[1].log_time(Duration::from_secs(12));
         cois[2].log_time(Duration::from_secs(13));
-        let mut key_phrases = KeyPhrases::new(
-            [
-                cois[0].id, cois[0].id, cois[0].id, cois[1].id, cois[1].id, cois[1].id, cois[2].id,
-                cois[2].id, cois[2].id,
-            ],
-            [
-                KeyPhrase::new("key", arr1(&[3., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("phrase", arr1(&[2., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("words", arr1(&[1., 1., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("and", arr1(&[1., 6., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("more", arr1(&[1., 5., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("stuff", arr1(&[1., 4., 1.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("still", arr1(&[1., 1., 9.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("not", arr1(&[1., 1., 8.]), ("AA", "aa")).unwrap(),
-                KeyPhrase::new("enough", arr1(&[1., 1., 7.]), ("AA", "aa")).unwrap(),
-            ],
-        );
+        let mut key_phrases = KeyPhrases::new([
+            (cois[0].id, "key", [3., 1., 1.], ("AA", "aa")),
+            (cois[0].id, "phrase", [2., 1., 1.], ("AA", "aa")),
+            (cois[0].id, "words", [1., 1., 1.], ("AA", "aa")),
+            (cois[1].id, "and", [1., 6., 1.], ("AA", "aa")),
+            (cois[1].id, "more", [1., 5., 1.], ("AA", "aa")),
+            (cois[1].id, "stuff", [1., 4., 1.], ("AA", "aa")),
+            (cois[2].id, "still", [1., 1., 9.], ("AA", "aa")),
+            (cois[2].id, "not", [1., 1., 8.], ("AA", "aa")),
+            (cois[2].id, "enough", [1., 1., 7.], ("AA", "aa")),
+        ]);
         let config = Config::default();
 
         let top_key_phrases_first = key_phrases.take(
