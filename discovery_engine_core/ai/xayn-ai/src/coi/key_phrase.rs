@@ -439,6 +439,65 @@ mod tests {
     }
 
     #[test]
+    fn test_unify_key_phrases_empty() {
+        let key_phrases = vec![];
+        let candidates = [];
+        let market = ("AA", "aa").into();
+        let smbert = |_: &str| unreachable!();
+
+        let key_phrases = unify(key_phrases, &candidates, &market, smbert);
+        assert!(key_phrases.is_empty());
+    }
+
+    #[test]
+    fn test_unify_key_phrases_no_candidates() {
+        let key_phrases = vec![
+            KeyPhrase::new("key", [1., 0., 0.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("phrase", [1., 1., 0.], ("AA", "aa")).unwrap(),
+        ];
+        let candidates = [];
+        let market = ("AA", "aa").into();
+        let smbert = |_: &str| unreachable!();
+
+        let key_phrases = unify(key_phrases, &candidates, &market, smbert);
+        assert_eq!(key_phrases, ["key", "phrase"]);
+    }
+
+    #[test]
+    fn test_unify_key_phrases_only_candidates() {
+        let key_phrases = vec![];
+        let candidates = ["key".into(), "phrase".into()];
+        let market = ("AA", "aa").into();
+        let smbert = |words: &str| match words {
+            "key" => Ok([1., 0., 0.].into()),
+            "phrase" => Ok([1., 1., 0.].into()),
+            _ => unreachable!(),
+        };
+
+        let mut key_phrases = unify(key_phrases, &candidates, &market, smbert);
+        key_phrases.sort_by(|this, other| this.words().cmp(other.words()));
+        assert_eq!(key_phrases, ["key", "phrase"]);
+    }
+
+    #[test]
+    fn test_unify_key_phrases_duplicate() {
+        let key_phrases = vec![
+            KeyPhrase::new("key", [1., 0., 0.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("phrase", [1., 1., 0.], ("AA", "aa")).unwrap(),
+        ];
+        let candidates = ["phrase".into(), "words".into(), "words".into()];
+        let market = ("AA", "aa").into();
+        let smbert = |words: &str| match words {
+            "phrase" => Ok([1., 1., 0.].into()),
+            "words" => Ok([1., 1., 1.].into()),
+            _ => unreachable!(),
+        };
+
+        let key_phrases = unify(key_phrases, &candidates, &market, smbert);
+        assert_eq!(key_phrases, ["key", "phrase", "words"]);
+    }
+
+    #[test]
     fn test_update_key_phrases_empty() {
         let mut key_phrases = KeyPhrases::default();
         let cois = create_pos_cois(&[[1., 0., 0.]]);
