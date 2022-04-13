@@ -521,60 +521,73 @@ mod tests {
     }
 
     #[test]
+    fn test_reduce_without_diag_single() {
+        let result = reduce_without_diag(
+            Array1::range(1., 2., 1.).into_shape((1, 1)).unwrap(),
+            Axis(0),
+            |element| element,
+            |reduced, _| reduced,
+            |reduced, _| reduced,
+        );
+        assert_approx_eq!(f32, result, [[0.]]);
+
+        let result = reduce_without_diag(
+            Array1::range(1., 5., 1.).into_shape((2, 2)).unwrap(),
+            Axis(0),
+            |element| element,
+            |reduced, _| reduced,
+            |reduced, _| reduced,
+        );
+        assert_approx_eq!(f32, result, [[3., 2.]]);
+    }
+
+    #[test]
     fn test_reduce_without_diag_prepare() {
         let result = reduce_without_diag(
-            Array1::range(0., 12., 1.).into_shape((3, 4)).unwrap(),
+            Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap(),
             Axis(0),
             |element| element.powi(2),
             |reduced, _| reduced,
             |reduced, _| reduced,
         );
-        assert_approx_eq!(f32, result, [[16., 1., 4., 9.]]);
+        assert_approx_eq!(f32, result, [[25., 4., 9., 16.]]);
     }
 
     #[test]
     fn test_reduce_without_diag_reduce() {
         let result = reduce_without_diag(
-            Array1::range(0., 12., 1.).into_shape((3, 4)).unwrap(),
+            Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap(),
             Axis(0),
             |element| element,
             |reduced, element| reduced + element,
             |reduced, _| reduced,
         );
-        assert_approx_eq!(f32, result, [[12., 10., 8., 21.]]);
+        assert_approx_eq!(f32, result, [[14., 12., 10., 24.]]);
     }
 
     #[test]
     fn test_reduce_without_diag_finalize() {
         let result = reduce_without_diag(
-            Array1::range(0., 12., 1.).into_shape((3, 4)).unwrap(),
+            Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap(),
             Axis(0),
             |element| element,
             |reduced, _| reduced,
-            |reduced, is_within_square| {
-                is_within_square
-                    .then(|| reduced)
-                    .unwrap_or_else(|| -reduced)
-            },
+            |reduced, is_within_square| is_within_square.then(|| reduced).unwrap_or_default(),
         );
-        assert_approx_eq!(f32, result, [[4., 1., 2., -3.]]);
+        assert_approx_eq!(f32, result, [[5., 2., 3., 0.]]);
     }
 
     #[test]
     fn test_reduce_without_diag_combined() {
-        let array = Array1::range(0., 12., 1.).into_shape((3, 4)).unwrap();
+        let array = Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap();
         let mean = reduce_without_diag(
             array.view(),
             Axis(0),
             |element| element,
             |reduced, element| reduced + element,
-            |reduced, is_within_square| {
-                is_within_square
-                    .then(|| reduced / 2.)
-                    .unwrap_or_else(|| reduced / 3.)
-            },
+            |reduced, is_within_square| reduced / is_within_square.then(|| 2.).unwrap_or(3.),
         );
-        assert_approx_eq!(f32, mean, [[6., 5., 4., 7.]]);
+        assert_approx_eq!(f32, mean, [[7., 6., 5., 8.]]);
         let stddev = reduce_without_diag(
             array - mean,
             Axis(0),
