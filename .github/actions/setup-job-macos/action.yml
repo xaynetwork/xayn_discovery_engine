@@ -45,6 +45,17 @@ runs:
       with:
         just-version: ${{ env.JUST_VERSION }}
 
+    - if: inputs.flutter == 'true'
+      shell: bash
+      run: |
+        echo "GEM_HOME=$RUNNER_TOOL_CACHE/.gem" >> $GITHUB_ENV
+        echo "$RUNNER_TOOL_CACHE/.gem/bin" >> $GITHUB_PATH
+
+    - name: Install Cocoapods
+      if: inputs.flutter == 'true'
+      shell: bash
+      run: gem install cocoapods
+
     - name: Install flutter
       if: inputs.flutter == 'true'
       uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
