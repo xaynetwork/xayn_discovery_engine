@@ -34,7 +34,7 @@ jobs:
         uses: ./.github/actions/setup-job-macos
         with:
           rust-target: ${{ matrix.target }}
-          shared-cache-key: ${{ github.job }}-${{ matrix.target }}-${{ inputs.production }}
+          cache-key: ${{ matrix.target }}-${{ inputs.production }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build iOS library ${{ matrix.target }}
