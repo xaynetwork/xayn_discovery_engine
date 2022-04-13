@@ -14,11 +14,10 @@
 
 use itertools::Itertools;
 use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
-use rubert::{ArcEmbedding1, Embedding1};
+use rubert::Embedding1;
 use std::ops::RangeInclusive;
 
 pub type Embedding = Embedding1;
-pub type ArcEmbedding = ArcEmbedding1;
 
 /// Computes the l2 norm (euclidean metric) of a vector.
 ///

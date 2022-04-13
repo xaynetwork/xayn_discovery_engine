@@ -34,15 +34,7 @@ pub use crate::{
     config::{Config, ConfigError},
     model::kinds,
     pipeline::{Pipeline, PipelineError},
-    pooler::{
-        ArcEmbedding1,
-        ArcEmbedding2,
-        AveragePooler,
-        Embedding1,
-        Embedding2,
-        FirstPooler,
-        NonePooler,
-    },
+    pooler::{AveragePooler, Embedding1, Embedding2, FirstPooler, NonePooler},
 };
 
 /// A sentence (embedding) multilingual Bert pipeline.

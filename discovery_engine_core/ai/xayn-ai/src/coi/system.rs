@@ -19,8 +19,8 @@ use uuid::Uuid;
 use crate::{
     coi::{
         config::Config,
+        key_phrase::KeyPhrases,
         point::{find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
-        relevance::RelevanceMap,
     },
     embedding::utils::Embedding,
     Error,
@@ -40,7 +40,7 @@ impl CoiSystem {
 
     /// Updates the view time of the positive coi closest to the embedding.
     pub(crate) fn log_document_view_time(
-        &mut self,
+        &self,
         cois: &mut [PositiveCoi],
         embedding: &Embedding,
         viewed: Duration,
@@ -50,9 +50,9 @@ impl CoiSystem {
 
     /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
     pub(crate) fn log_positive_user_reaction(
-        &mut self,
+        &self,
         cois: &mut Vec<PositiveCoi>,
-        relevances: &mut RelevanceMap,
+        key_phrases: &mut KeyPhrases,
         embedding: &Embedding,
         smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
         candidates: &[String],
@@ -61,7 +61,7 @@ impl CoiSystem {
             cois,
             embedding,
             &self.config,
-            relevances,
+            key_phrases,
             smbert,
             candidates,
         );
@@ -76,14 +76,20 @@ impl CoiSystem {
         log_negative_user_reaction(cois, embedding, &self.config);
     }
 
-    /// Selects the top key phrases from the positive cois, sorted in descending relevance.
-    pub(crate) fn select_top_key_phrases(
-        &mut self,
+    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
+    pub(crate) fn take_key_phrases(
+        &self,
         cois: &[PositiveCoi],
-        relevances: &mut RelevanceMap,
+        key_phrases: &mut KeyPhrases,
         top: usize,
     ) -> Vec<KeyPhrase> {
-        relevances.select_top_key_phrases(cois, top, self.config.horizon(), self.config.penalty())
+        key_phrases.take(
+            cois,
+            top,
+            self.config.horizon(),
+            self.config.penalty(),
+            self.config.gamma(),
+        )
     }
 }
 
@@ -92,7 +98,7 @@ fn log_positive_user_reaction(
     cois: &mut Vec<PositiveCoi>,
     embedding: &Embedding,
     config: &Config,
-    relevances: &mut RelevanceMap,
+    key_phrases: &mut KeyPhrases,
     smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
     candidates: &[String],
 ) {
@@ -101,8 +107,8 @@ fn log_positive_user_reaction(
         // we adjust the position of the nearest CoI
         Some((coi, similarity)) if similarity >= config.threshold() => {
             coi.shift_point(embedding, config.shift_factor());
-            coi.select_key_phrases(
-                relevances,
+            coi.update_key_phrases(
+                key_phrases,
                 candidates,
                 smbert,
                 config.max_key_phrases(),
@@ -114,8 +120,8 @@ fn log_positive_user_reaction(
         // If the embedding is too dissimilar, we create a new CoI instead
         _ => {
             let coi = PositiveCoi::new(Uuid::new_v4(), embedding.clone());
-            coi.select_key_phrases(
-                relevances,
+            coi.update_key_phrases(
+                key_phrases,
                 candidates,
                 smbert,
                 config.max_key_phrases(),
@@ -154,7 +160,7 @@ mod tests {
     #[test]
     fn test_update_coi_update_point() {
         let mut cois = create_pos_cois(&[[1., 1., 1.], [10., 10., 10.], [20., 20., 20.]]);
-        let mut relevances = RelevanceMap::default();
+        let mut key_phrases = KeyPhrases::default();
         let embedding = arr1(&[2., 3., 4.]).into();
         let config = Config::default();
 
@@ -164,7 +170,7 @@ mod tests {
             &mut cois,
             &embedding,
             &config,
-            &mut relevances,
+            &mut key_phrases,
             |_| unreachable!(),
             &[],
         );
@@ -181,7 +187,7 @@ mod tests {
     #[test]
     fn test_update_coi_under_similarity_threshold_adds_new_coi() {
         let mut cois = create_pos_cois(&[[0., 1.]]);
-        let mut relevances = RelevanceMap::default();
+        let mut key_phrases = KeyPhrases::default();
         let embedding = arr1(&[1., 0.]).into();
         let config = Config::default();
 
@@ -189,7 +195,7 @@ mod tests {
             &mut cois,
             &embedding,
             &config,
-            &mut relevances,
+            &mut key_phrases,
             |_| unreachable!(),
             &[],
         );

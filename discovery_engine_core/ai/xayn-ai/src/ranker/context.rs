@@ -23,10 +23,10 @@ use thiserror::Error;
 use crate::{
     coi::{
         compute_coi_decay_factor,
+        compute_coi_relevances,
         config::Config,
         find_closest_coi,
         point::{CoiPoint, UserInterests},
-        RelevanceMap,
     },
     embedding::utils::Embedding,
     ranker::document::Document,
@@ -71,13 +71,9 @@ fn find_closest_cois(embedding: &Embedding, user_interests: &UserInterests) -> O
     .into()
 }
 
-///# Panics
-///
-/// Panics if the coi relevance is not present in the [`RelevanceMap`].
 fn compute_score_for_embedding(
     embedding: &Embedding,
     user_interests: &UserInterests,
-    relevances: &RelevanceMap,
     horizon: Duration,
     now: SystemTime,
 ) -> Result<f32, Error> {
@@ -87,7 +83,13 @@ fn compute_score_for_embedding(
     let pos_decay = compute_coi_decay_factor(horizon, now, cois.pos_last_view);
     let neg_decay = compute_coi_decay_factor(horizon, now, cois.neg_last_view);
 
-    let pos_coi_relevance = relevances.relevance_for_coi(&cois.pos_id).unwrap();
+    let pos_coi_index = user_interests
+        .positive
+        .iter()
+        .position(|coi| coi.id() == cois.pos_id)
+        .unwrap();
+    let pos_coi_relevance =
+        compute_coi_relevances(&user_interests.positive, horizon, now)[pos_coi_index];
 
     let result =
         cois.pos_similarity * pos_decay + pos_coi_relevance - cois.neg_similarity * neg_decay;
@@ -113,7 +115,6 @@ fn has_enough_cois(
 pub(super) fn compute_score_for_docs(
     documents: &[impl Document],
     user_interests: &UserInterests,
-    relevances: &mut RelevanceMap,
     config: &Config,
 ) -> Result<HashMap<DocumentId, f32>, Error> {
     if !has_enough_cois(
@@ -125,7 +126,6 @@ pub(super) fn compute_score_for_docs(
     }
 
     let now = system_time_now();
-    relevances.compute_relevances(&user_interests.positive, config.horizon(), now);
     documents
         .iter()
         .map(|document| {
@@ -134,7 +134,6 @@ pub(super) fn compute_score_for_docs(
             let score = compute_score_for_embedding(
                 document.smbert_embedding(),
                 user_interests,
-                relevances,
                 config.horizon(),
                 now,
             )?;
@@ -179,13 +178,9 @@ mod tests {
         negative[0].last_view = epoch;
         let user_interests = UserInterests { positive, negative };
 
-        let mut relevances = RelevanceMap::default();
         let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY);
 
-        relevances.compute_relevances(&user_interests.positive, horizon, now);
-        let score =
-            compute_score_for_embedding(&embedding, &user_interests, &relevances, horizon, now)
-                .unwrap();
+        let score = compute_score_for_embedding(&embedding, &user_interests, horizon, now).unwrap();
 
         let pos_similarity = 0.78551644;
         let pos_decay = 0.99999934;
@@ -204,7 +199,6 @@ mod tests {
         let res = compute_score_for_embedding(
             &embedding,
             &UserInterests::default(),
-            &RelevanceMap::default(),
             horizon,
             system_time_now(),
         );

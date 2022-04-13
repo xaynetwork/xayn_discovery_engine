@@ -158,8 +158,8 @@ impl From<InitConfig> for EndpointConfig {
 
 /// Temporary config to allow for configurations within the core without a mirroring outside impl.
 struct CoreConfig {
-    /// The number of selected top key phrases while updating the stacks.
-    select_top: usize,
+    /// The number of taken top key phrases while updating the stacks.
+    take_top: usize,
     /// The number of top documents per stack to keep while filtering the stacks.
     keep_top: usize,
     /// The lower bound of documents per stack at which new items are requested.
@@ -172,7 +172,7 @@ struct CoreConfig {
 impl Default for CoreConfig {
     fn default() -> Self {
         Self {
-            select_top: 3,
+            take_top: 3,
             keep_top: 20,
             request_new: 3,
             request_after: 2,
@@ -254,7 +254,7 @@ where
             stacks.values_mut(),
             &mut ranker,
             history,
-            core_config.select_top,
+            core_config.take_top,
             core_config.keep_top,
             usize::MAX,
         )
@@ -312,7 +312,7 @@ where
             stacks.values_mut(),
             &mut self.ranker,
             history,
-            self.core_config.select_top,
+            self.core_config.take_top,
             self.core_config.keep_top,
             self.core_config.request_new,
         )
@@ -334,7 +334,7 @@ where
             stacks.values_mut(),
             &mut self.ranker,
             history,
-            self.core_config.select_top,
+            self.core_config.take_top,
             self.core_config.keep_top,
             request_new,
         )
@@ -380,7 +380,7 @@ where
                     stacks.values_mut(),
                     &mut self.ranker,
                     history,
-                    self.core_config.select_top,
+                    self.core_config.take_top,
                     self.core_config.keep_top,
                     usize::MAX,
                 )
@@ -472,7 +472,7 @@ where
             stacks.values_mut(),
             &mut self.ranker,
             history,
-            self.core_config.select_top,
+            self.core_config.take_top,
             self.core_config.keep_top,
             self.core_config.request_new,
         )
@@ -497,7 +497,7 @@ where
             stacks.values_mut(),
             &mut self.ranker,
             history,
-            self.core_config.select_top,
+            self.core_config.take_top,
             self.core_config.keep_top,
             self.core_config.request_new,
         )
@@ -530,7 +530,7 @@ async fn update_stacks<'a>(
     stacks: impl Iterator<Item = &'a mut Stack> + Send + Sync,
     ranker: &mut (impl Ranker + Send + Sync),
     history: &[HistoricDocument],
-    select_top: usize,
+    take_top: usize,
     keep_top: usize,
     request_new: usize,
 ) -> Result<(), Error> {
@@ -543,7 +543,7 @@ async fn update_stacks<'a>(
     let key_phrases = stacks
         .iter()
         .any(|stack| stack.ops.needs_key_phrases())
-        .then(|| ranker.select_top_key_phrases(select_top))
+        .then(|| ranker.take_key_phrases(take_top))
         .unwrap_or_default();
     if key_phrases.is_empty() {
         // only stacks which don't need key phrases remain. eventually, if they all fail, then an

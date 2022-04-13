@@ -37,8 +37,8 @@ pub trait Ranker {
     /// Logs a user's interaction.
     fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
 
-    /// Selects the top key phrases from the positive cois, sorted in descending relevance.
-    fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase>;
+    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
+    fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase>;
 
     /// Serializes the state of the `Ranker`.
     fn serialize(&self) -> Result<Vec<u8>, GenericError>;
@@ -70,8 +70,8 @@ impl Ranker for xayn_ai::ranker::Ranker {
         Ok(())
     }
 
-    fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
-        self.select_top_key_phrases(top)
+    fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
+        self.take_key_phrases(top)
     }
 
     fn serialize(&self) -> Result<Vec<u8>, GenericError> {

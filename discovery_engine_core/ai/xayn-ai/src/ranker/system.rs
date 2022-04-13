@@ -22,7 +22,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    coi::{config::Config, key_phrase::KeyPhrase, point::UserInterests, CoiSystem, RelevanceMap},
+    coi::{
+        config::Config,
+        key_phrase::{KeyPhrase, KeyPhrases},
+        point::UserInterests,
+        CoiSystem,
+    },
     data::document::UserFeedback,
     embedding::utils::Embedding,
     error::Error,
@@ -39,7 +44,7 @@ pub(crate) enum RankerError {
     Context(#[from] ContextError),
 }
 
-pub(super) const STATE_VERSION: u8 = 0;
+pub(super) const STATE_VERSION: u8 = 1;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(super) struct State {
@@ -47,7 +52,7 @@ pub(super) struct State {
     pub(super) user_interests: UserInterests,
 
     /// Key phrases.
-    pub(super) relevances: RelevanceMap,
+    pub(super) key_phrases: KeyPhrases,
 }
 
 /// The Ranker.
@@ -88,12 +93,7 @@ impl Ranker {
     ///
     /// Fails if the scores of the documents cannot be computed.
     pub(crate) fn rank(&mut self, documents: &mut [impl Document]) -> Result<(), Error> {
-        rank(
-            documents,
-            &self.state.user_interests,
-            &mut self.state.relevances,
-            &self.coi.config,
-        )
+        rank(documents, &self.state.user_interests, &self.coi.config)
     }
 
     /// Logs the document view time and updates the user interests based on the given information.
@@ -125,7 +125,7 @@ impl Ranker {
                 let key_phrases = self.kpe.run(snippet).unwrap_or_default();
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
-                    &mut self.state.relevances,
+                    &mut self.state.key_phrases,
                     embedding,
                     |words| smbert.run(words).map_err(Into::into),
                     key_phrases.as_slice(),
@@ -138,11 +138,11 @@ impl Ranker {
         }
     }
 
-    /// Selects the top key phrases from the positive cois, sorted in descending relevance.
-    pub(crate) fn select_top_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
-        self.coi.select_top_key_phrases(
+    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
+    pub(crate) fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
+        self.coi.take_key_phrases(
             &self.state.user_interests.positive,
-            &mut self.state.relevances,
+            &mut self.state.key_phrases,
             top,
         )
     }
@@ -151,16 +151,13 @@ impl Ranker {
 fn rank(
     documents: &mut [impl Document],
     user_interests: &UserInterests,
-    relevances: &mut RelevanceMap,
     config: &Config,
 ) -> Result<(), Error> {
     if documents.len() < 2 {
         return Ok(());
     }
 
-    if let Ok(score_for_docs) =
-        compute_score_for_docs(documents, user_interests, relevances, config)
-    {
+    if let Ok(score_for_docs) = compute_score_for_docs(documents, user_interests, config) {
         documents.sort_unstable_by(|this, other| {
             nan_safe_f32_cmp(
                 score_for_docs.get(&this.id()).unwrap(),
@@ -207,12 +204,7 @@ mod tests {
 
         let user_interests = UserInterests { positive, negative };
 
-        let res = rank(
-            &mut documents,
-            &user_interests,
-            &mut RelevanceMap::default(),
-            &config,
-        );
+        let res = rank(&mut documents, &user_interests, &config);
 
         assert!(res.is_ok());
         assert_eq!(documents[0].id(), DocumentId::from_u128(0));
@@ -230,12 +222,7 @@ mod tests {
 
         let config = Config::default().with_min_positive_cois(1).unwrap();
 
-        let res = rank(
-            &mut documents,
-            &UserInterests::default(),
-            &mut RelevanceMap::default(),
-            &config,
-        );
+        let res = rank(&mut documents, &UserInterests::default(), &config);
 
         assert!(res.is_ok());
         assert_eq!(documents[0].id(), DocumentId::from_u128(1));
@@ -247,7 +234,6 @@ mod tests {
         let res = rank(
             &mut [] as &mut [TestDocument],
             &UserInterests::default(),
-            &mut RelevanceMap::default(),
             &Config::default(),
         );
         assert!(res.is_ok());
