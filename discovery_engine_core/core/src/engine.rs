@@ -52,6 +52,7 @@ use crate::{
         BoxedOps,
         BreakingNews,
         Data as StackData,
+        FavouriteNews,
         Id as StackId,
         PersonalizedNews,
         Stack,
@@ -660,6 +661,7 @@ impl XaynAiEngine {
         let stack_ops = vec![
             Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
             Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
+            Box::new(FavouriteNews::new(&endpoint_config, client.clone())) as BoxedOps,
         ];
 
         if let Some(state) = state {
