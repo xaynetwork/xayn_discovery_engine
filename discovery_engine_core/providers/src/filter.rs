@@ -14,6 +14,8 @@
 
 //! Filter the data from the provider.
 
+use serde::{Deserialize, Serialize};
+
 use crate::expression::Expr;
 
 /// Filter the data using custom criteria.
@@ -40,7 +42,7 @@ impl Filter {
 }
 
 /// Define area and language of interests.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Market {
     /// Country code as defined in ISO 3166-1 alpha-2.
     pub country_code: String,
@@ -66,6 +68,19 @@ impl Market {
             "US" => 10_000,
             _ => return None,
         })
+    }
+}
+
+impl<C, L> From<(C, L)> for Market
+where
+    C: Into<String>,
+    L: Into<String>,
+{
+    fn from((country_code, lang_code): (C, L)) -> Self {
+        Self {
+            country_code: country_code.into(),
+            lang_code: lang_code.into(),
+        }
     }
 }
 

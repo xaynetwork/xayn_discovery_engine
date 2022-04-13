@@ -17,6 +17,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use kpe::Config as KpeConfig;
 use rubert::{AveragePooler, SMBertConfig};
+use xayn_discovery_engine_providers::Market;
 
 use crate::{
     coi::{config::Config as CoiSystemConfig, key_phrase::KeyPhrase, CoiSystem},
@@ -68,8 +69,10 @@ impl Ranker {
         user_feedback: UserFeedback,
         snippet: &str,
         embedding: &Embedding,
+        market: &Market,
     ) {
-        self.0.log_user_reaction(user_feedback, snippet, embedding)
+        self.0
+            .log_user_reaction(user_feedback, snippet, embedding, market)
     }
 
     /// Takes the top key phrases from the positive cois, sorted in descending relevance.
