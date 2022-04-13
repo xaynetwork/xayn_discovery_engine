@@ -44,6 +44,8 @@ class MockEngine implements Engine {
   late Document doc1;
   late ActiveDocumentData active0;
   late ActiveDocumentData active1;
+  var trustedSources = <Source>{};
+  var excludedSources = <Source>{};
 
   MockEngine([EngineInitializer? initializer]) {
     if (initializer != null) {
@@ -100,6 +102,16 @@ class MockEngine implements Engine {
     Set<Source> sources,
   ) async {
     _incrementCount('setExcludedSources');
+    excludedSources = sources;
+  }
+
+  @override
+  Future<void> setTrustedSources(
+    List<HistoricDocument> history,
+    Set<Source> sources,
+  ) async {
+    _incrementCount('setTrustedSources');
+    trustedSources = sources;
   }
 
   @override

@@ -140,6 +140,15 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.excludedSourcesListRequestFailed() =
       ExcludedSourcesListRequestFailed;
 
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.trustedSourcesListRequestSucceeded(
+    Set<Source> sources,
+  ) = TrustedSourcesListRequestSucceeded;
+
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.trustedSourcesListRequestFailed() =
+      TrustedSourcesListRequestFailed;
+
   /// Event created when fetching of AI assets has started.
   @Implements<AssetsStatusEngineEvent>()
   const factory EngineEvent.fetchingAssetsStarted() = FetchingAssetsStarted;

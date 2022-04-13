@@ -42,6 +42,9 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent excludedSourceAddedResponse;
   final EngineEvent excludedSourceRemovedResponse;
   final EngineEvent excludedSourcesListRequestedResponse;
+  final EngineEvent trustedSourceAddedResponse;
+  final EngineEvent trustedSourceRemovedResponse;
+  final EngineEvent trustedSourcesListRequestedResponse;
   final EngineEvent userReactionChangedResponse;
   final EngineEvent documentTimeLoggedResponse;
   final EngineEvent searchRequestedResponse;
@@ -75,9 +78,18 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.excludedSourceRemovedResponse =
         const EngineEvent.clientEventSucceeded(),
     EngineEvent? excludedSourcesListRequestedResponse,
+    this.trustedSourceAddedResponse = const EngineEvent.clientEventSucceeded(),
+    this.trustedSourceRemovedResponse =
+        const EngineEvent.clientEventSucceeded(),
+    EngineEvent? trustedSourcesListRequestedResponse,
   })  : excludedSourcesListRequestedResponse =
             excludedSourcesListRequestedResponse ??
                 EngineEvent.excludedSourcesListRequestSucceeded(
+                  {Source('example.com')},
+                ),
+        trustedSourcesListRequestedResponse =
+            trustedSourcesListRequestedResponse ??
+                EngineEvent.trustedSourcesListRequestSucceeded(
                   {Source('example.com')},
                 ),
         super(initialMessage);
@@ -93,6 +105,9 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       excludedSourceAdded: (_) => excludedSourceAddedResponse,
       excludedSourceRemoved: (_) => excludedSourceRemovedResponse,
       excludedSourcesListRequested: (_) => excludedSourcesListRequestedResponse,
+      trustedSourceAdded: (_) => trustedSourceAddedResponse,
+      trustedSourceRemoved: (_) => trustedSourceRemovedResponse,
+      trustedSourcesListRequested: (_) => trustedSourcesListRequestedResponse,
       userReactionChanged: (_) => userReactionChangedResponse,
       documentTimeSpent: (_) => documentTimeLoggedResponse,
       searchRequested: (_) => searchRequestedResponse,

@@ -504,6 +504,8 @@ extension _MapEvent on EngineEvent {
     bool? restoreSearchFailed,
     bool? searchTermRequestSucceeded,
     bool? searchTermRequestFailed,
+    bool? trustedSourcesListRequestSucceeded,
+    bool? trustedSourcesListRequestFailed,
   }) =>
       map(
         restoreFeedSucceeded: _maybePassThrough(restoreFeedSucceeded),
@@ -534,6 +536,10 @@ extension _MapEvent on EngineEvent {
         searchTermRequestSucceeded:
             _maybePassThrough(searchTermRequestSucceeded),
         searchTermRequestFailed: _maybePassThrough(searchTermRequestFailed),
+        trustedSourcesListRequestSucceeded:
+            _maybePassThrough(trustedSourcesListRequestSucceeded),
+        trustedSourcesListRequestFailed:
+            _maybePassThrough(trustedSourcesListRequestFailed),
       );
 
   EngineEvent Function(EngineEvent) _maybePassThrough(bool? condition) {

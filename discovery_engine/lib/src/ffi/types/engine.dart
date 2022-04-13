@@ -129,6 +129,20 @@ class DiscoveryEngineFfi implements Engine {
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
+  @override
+  Future<void> setTrustedSources(
+    List<HistoricDocument> history,
+    Set<Source> sources,
+  ) async {
+    final result = await asyncFfi.setFavouriteSources(
+      _engine.ref,
+      history.allocNative().move(),
+      sources.toStringList().allocNative().move(),
+    );
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
   /// Gets feed documents.
   @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
