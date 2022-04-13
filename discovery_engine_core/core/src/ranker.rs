@@ -66,7 +66,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
             reaction.reaction.into(),
             &reaction.snippet,
             &reaction.smbert_embedding,
-            &("", "").into(), // TODO: TY-2682
+            &reaction.market,
         );
         Ok(())
     }
