@@ -124,7 +124,7 @@ fn spawn_trusted_request(
                 page,
                 excluded_sources: &[],
             },
-            sources: &sources,
+            trusted_sources: &sources,
             topic: None,
         };
         client.query_articles(&query).await.map_err(Into::into)

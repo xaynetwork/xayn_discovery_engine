@@ -16,7 +16,7 @@ const documentBox = 'document';
 const activeDocumentDataBox = 'active_document';
 const engineStateBox = 'engine_state';
 const searchBox = 'search';
-const favouriteSourcesBox = 'favourite_sources';
+const trustedSourcesBox = 'trusted_sources';
 const excludedSourcesBox = 'excluded_sources';
 const sourcePreferenceBox = 'source_preferences';
 

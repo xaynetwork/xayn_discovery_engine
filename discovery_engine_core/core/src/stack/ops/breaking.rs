@@ -134,7 +134,7 @@ fn spawn_headlines_request(
                 page,
                 excluded_sources: &excluded_sources,
             },
-            sources: &[],
+            trusted_sources: &[],
             topic: None,
         };
         client.query_articles(&query).await.map_err(Into::into)
