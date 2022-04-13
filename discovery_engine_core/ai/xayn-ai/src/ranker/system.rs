@@ -25,7 +25,7 @@ use xayn_discovery_engine_providers::Market;
 use crate::{
     coi::{
         config::Config,
-        key_phrase::{Candidates, KeyPhrase, KeyPhrases},
+        key_phrase::{KeyPhrase, KeyPhrases},
         point::UserInterests,
         CoiSystem,
     },
@@ -124,14 +124,14 @@ impl Ranker {
         match user_feedback {
             UserFeedback::Relevant => {
                 let smbert = &self.smbert;
-                let smbert = |words: &str| smbert.run(words).map_err(Into::into);
-                let candidates = self.kpe.run(snippet).unwrap_or_default();
-                let candidates = Candidates::new(candidates.as_slice(), market, smbert);
+                let key_phrases = self.kpe.run(snippet).unwrap_or_default();
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
                     &mut self.state.key_phrases,
                     embedding,
-                    candidates,
+                    |words| smbert.run(words).map_err(Into::into),
+                    key_phrases.as_slice(),
+                    market,
                 )
             }
             UserFeedback::Irrelevant => self
