@@ -591,6 +591,14 @@ mod tests {
     }
 
     #[test]
+    fn test_argmax() {
+        assert!(argmax([] as [f32; 0]).is_none());
+        assert_eq!(argmax([2., 0., 1.]).unwrap(), 0);
+        assert_eq!(argmax([1., 2., 0.]).unwrap(), 1);
+        assert_eq!(argmax([0., 1., 2.]).unwrap(), 2);
+    }
+
+    #[test]
     fn test_update_key_phrases_empty() {
         let mut key_phrases = KeyPhrases::default();
         let cois = create_pos_cois(&[[1., 0., 0.]]);
