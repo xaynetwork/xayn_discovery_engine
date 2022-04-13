@@ -36,6 +36,7 @@ jobs:
         uses: ./.github/actions/setup-job-docker
         with:
           rust: true
+          cache-key: ${{ matrix.target }}-${{ inputs.production }}
 
       - name: Build Android library
         id: build

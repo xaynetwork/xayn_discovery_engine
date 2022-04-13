@@ -9,6 +9,10 @@ inputs:
     description: 'Setup rust'
     default: "false"
     required: false
+  cache-key:
+    description: 'An optional key that is added to the automatic cache key'
+    default: ""
+    required: false
 runs:
   using: "composite"
   steps:
@@ -18,6 +22,7 @@ runs:
     - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
       if: inputs.rust != 'false'
       with:
+        key: ${{ inputs.cache-key }}
         working-directory: ${{ env.RUST_WORKSPACE }}
 
     - name: Configure cargo
