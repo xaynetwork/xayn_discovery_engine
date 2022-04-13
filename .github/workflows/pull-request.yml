@@ -14,61 +14,60 @@ permissions:
   contents: read
 
 jobs:
+  selection:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    outputs:
+      dart: ${{ steps.filter.outputs.dart }}
+      rust: ${{ steps.filter.outputs.rust }}
+      flutter: ${{ steps.filter.outputs.flutter }}
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-  build-ios-libs:
-    uses: ./.github/workflows/_reusable.build-ios.yml
+      - uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721
+        id: filter
+        with:
+          filters: |
+            rust: &rust
+              - 'discovery_engine_core/**'
+              - '.github/workflows/ci*'
+              - '.github/actions/setup-job-docker/*'
+              - '.github/actions/setup-job/*'
+              - 'justfile'
+            dart: &dart
+              - *rust
+              - 'discovery_engine/**'
+            flutter:
+              - *rust
+              - *dart
+              - 'discovery_engine_flutter/**'
 
-  # build-android-libs:
-  #   uses: ./.github/workflows/_reusable.build-android.yml
+  rust-checks:
+    needs: selection
+    if: ${{ needs.selection.outputs.rust  == 'true' }}
+    uses: ./.github/workflows/_reusable.rust.yml
 
-  build-flutter-example:
-    needs: build-ios-libs
-    uses: ./.github/workflows/_reusable.build-flutter-example.yml
-    with:
-      artifact-dir-base-ios: ${{ needs.build-ios-libs.outputs.artifact-dir-base }}
+  dart-checks:
+    needs: selection
+    if: ${{ needs.selection.outputs.dart  == 'true' }}
+    uses: ./.github/workflows/_reusable.dart.yml
 
+  flutter-checks:
+    needs: selection
+    if: ${{ needs.selection.outputs.flutter  == 'true' }}
+    uses: ./.github/workflows/_reusable.flutter.yml
 
-      # - uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721
-      #   id: filter
-      #   with:
-      #     filters: |
-      #       rust: &rust
-      #         - 'discovery_engine_core/**'
-      #         - '.github/workflows/ci*'
-      #         - '.github/actions/setup-job-docker/*'
-      #         - '.github/actions/setup-job/*'
-      #         - 'justfile'
-      #       dart: &dart
-      #         - *rust
-      #         - 'discovery_engine/**'
-      #       flutter:
-      #         - *rust
-      #         - *dart
-      #         - 'discovery_engine_flutter/**'
+  copyright:
+    if: ${{ always() }}
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v1
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
-  # rust-checks:
-  #   needs: selection
-  #   if: ${{ needs.selection.outputs.rust  == 'true' }}
-  #   uses: ./.github/workflows/_reusable.rust.yml
-
-  # dart-checks:
-  #   needs: selection
-  #   if: ${{ needs.selection.outputs.dart  == 'true' }}
-  #   uses: ./.github/workflows/_reusable.dart.yml
-
-  # flutter-checks:
-  #   needs: selection
-  #   if: ${{ needs.selection.outputs.flutter  == 'true' }}
-  #   uses: ./.github/workflows/_reusable.flutter.yml
-
-  # copyright:
-  #   if: ${{ always() }}
-  #   runs-on: hetzner-pm
-  #   container:
-  #     image: xaynetci/yellow:v1
-  #   timeout-minutes: 5
-  #   steps:
-  #     - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
-
-  #     - name: Check copyright
-  #       run: .github/scripts/copyright.sh
+      - name: Check copyright
+        run: .github/scripts/copyright.sh
