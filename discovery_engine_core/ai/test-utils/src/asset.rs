@@ -32,9 +32,8 @@ pub fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
         .ok_or_else(|| Error::new(ErrorKind::NotFound, "missing CARGO_MANIFEST_DIR"))?;
 
     let workspace = PathBuf::from(manifest)
-        .parent()
-        .ok_or_else(|| Error::new(ErrorKind::NotFound, "missing cargo workspace dir"))?
-        .parent()
+        .ancestors()
+        .find(|path| path.to_path_buf().join("Cargo.lock").exists())
         .ok_or_else(|| Error::new(ErrorKind::NotFound, "missing cargo workspace dir"))?
         .to_path_buf();
 

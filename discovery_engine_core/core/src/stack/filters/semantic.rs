@@ -136,6 +136,15 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, max_dissimilarity: f32) -> Vec<usize> 
     )
 }
 
+/// Calculates the normalized distances.
+fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
+    let cosine_similarity = condensed_cosine_similarity(documents);
+    let date_distance = condensed_date_distance(documents);
+    let decay_factor =
+        condensed_decay_factor(date_distance, config.max_days, config.max_dissimilarity);
+    condensed_normalized_distance(cosine_similarity, decay_factor)
+}
+
 /// Configurations for semantic filtering.
 pub(crate) struct SemanticFilterConfig {
     /// Maximum days threshold after which documents fully decay (must be non-negative).
@@ -163,12 +172,7 @@ pub(crate) fn filter_semantically(
         return documents;
     }
 
-    let cosine_similarity = condensed_cosine_similarity(&documents);
-    let date_distance = condensed_date_distance(&documents);
-    let decay_factor =
-        condensed_decay_factor(date_distance, config.max_days, config.max_dissimilarity);
-    let mut normalized_distance = condensed_normalized_distance(cosine_similarity, decay_factor);
-
+    let mut normalized_distance = normalized_distance(&documents, config);
     let dendrogram = linkage(&mut normalized_distance, documents.len(), Method::Average);
     let labels = cut_tree(&dendrogram, config.max_dissimilarity);
 
@@ -182,6 +186,16 @@ pub(crate) fn filter_semantically(
 #[allow(clippy::non_ascii_literal)]
 mod tests {
     use std::iter::repeat_with;
+
+    use chrono::NaiveDateTime;
+    use rubert::SMBert;
+    use test_utils::{assert_approx_eq, smbert};
+    use xayn_ai::{
+        ranker::{AveragePooler, Embedding},
+        SMBertConfig,
+    };
+
+    use crate::document::NewsResource;
 
     use super::*;
 
@@ -316,5 +330,71 @@ mod tests {
         assert_eq!(filtered[0].id, documents[0].id);
         assert_eq!(filtered[1].id, documents[1].id);
         assert_eq!(filtered[2].id, documents[2].id);
+    }
+
+    #[test]
+    fn test_normalized_distance() {
+        fn new_doc(smbert_embedding: Embedding, secs: i64) -> Document {
+            Document {
+                smbert_embedding,
+                resource: NewsResource {
+                    date_published: NaiveDateTime::from_timestamp(secs, 0),
+                    ..NewsResource::default()
+                },
+                ..Document::default()
+            }
+        }
+
+        fn normalized_distance_for_titles(
+            titles: &[(&str, i64)],
+            smbert: &SMBert,
+            expected: &[f32],
+        ) {
+            let documents = titles
+                .iter()
+                .map(|(title, secs)| new_doc(smbert.run(title).unwrap(), *secs))
+                .collect::<Vec<_>>();
+            let distances = normalized_distance(&documents, &SemanticFilterConfig::default());
+            assert_approx_eq!(f32, distances, expected);
+        }
+
+        let smbert_config =
+            SMBertConfig::from_files(smbert::vocab().unwrap(), smbert::model().unwrap())
+                .unwrap()
+                .with_token_size(52)
+                .unwrap()
+                .with_accents(false)
+                .with_lowercase(true)
+                .with_pooling(AveragePooler);
+
+        let smbert = SMBert::from(smbert_config).unwrap();
+
+        let titles_en = [
+            ("How To Start A New Life With Less Than $100", 0),
+            ("2 Top Reasons to Buy Electric Vehicle", 864_000),
+            ("Summer Expected to Be \\u2018Brutally Hot'", 0),
+            ("Summer Expected to Be Hot", 0),
+        ];
+
+        let expected_en = [1., 0.928_844_15, 0.983_816, 0.828_074_4, 0.823_989_33, 0.];
+
+        normalized_distance_for_titles(&titles_en, &smbert, &expected_en);
+
+        let titles_de = [
+            ("Autounfall auf der A10", 0),
+            ("Polizei nimmt Tatverdächtigen fest", 864_000),
+            ("Das neue Elektroauto", 0),
+            ("Wertvoller Hammer gestohlen", 0),
+        ];
+        let expected_de = [
+            0.657_387_55,
+            0.,
+            0.235_730_89,
+            1.,
+            0.812_637_87,
+            0.559_570_13,
+        ];
+
+        normalized_distance_for_titles(&titles_de, &smbert, &expected_de);
     }
 }
