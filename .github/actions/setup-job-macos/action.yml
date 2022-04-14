@@ -23,7 +23,6 @@ runs:
       shell: bash
       run: |
         set -u
-        echo $BASENAME
 
         BASENAME=$(basename "$RUNNER_TOOL_CACHE")
         if [ "$BASENAME" = "_tool" ]; then
