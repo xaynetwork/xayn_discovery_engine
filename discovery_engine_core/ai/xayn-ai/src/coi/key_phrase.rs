@@ -904,9 +904,66 @@ mod tests {
     }
 
     #[test]
+    fn test_refresh_key_phrases_empty_cois() {
+        let cois = create_pos_cois(&[] as &[[f32; 0]]);
+        let coi_id = CoiId::mocked(1);
+        let mut key_phrases = KeyPhrases::new([(coi_id, "key", [1., 1., 1.], ("AA", "aa"))]);
+        let config = Config::default();
+
+        key_phrases.refresh(&cois, config.max_key_phrases(), config.gamma());
+        assert_eq!(key_phrases.selected.len(), 1);
+        assert_eq!(key_phrases.selected[&coi_id], ["key"]);
+        assert!(key_phrases.removed.is_empty());
+    }
+
+    #[test]
+    fn test_refresh_key_phrases_empty_key_phrases() {
+        let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
+        let mut key_phrases = KeyPhrases::default();
+        let config = Config::default();
+
+        key_phrases.refresh(&cois, config.max_key_phrases(), config.gamma());
+        assert!(key_phrases.selected.is_empty());
+        assert!(key_phrases.removed.is_empty());
+    }
+
+    #[test]
+    fn test_refresh_key_phrases_too_many_key_phrases() {
+        let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.]]);
+        let mut key_phrases = KeyPhrases::new([
+            (cois[0].id, "key", [1., 1., 1.], ("AA", "aa")),
+            (cois[0].id, "phrase", [2., 1., 1.], ("AA", "aa")),
+            (cois[0].id, "words", [3., 1., 1.], ("AA", "aa")),
+            (cois[0].id, "and", [4., 1., 1.], ("AA", "aa")),
+            (cois[1].id, "more", [1., 6., 1.], ("AA", "aa")),
+            (cois[1].id, "stuff", [1., 5., 1.], ("AA", "aa")),
+        ]);
+        let config = Config::default();
+
+        key_phrases.refresh(&cois, config.max_key_phrases(), config.gamma());
+        assert_eq!(key_phrases.selected.len(), 2);
+        assert_eq!(
+            key_phrases.selected[&cois[0].id],
+            ["and", "words", "phrase"],
+        );
+        assert_eq!(key_phrases.selected[&cois[1].id], ["more", "stuff"]);
+        assert!(key_phrases.removed.is_empty());
+
+        key_phrases.refresh(&cois, config.max_key_phrases(), config.gamma());
+        assert_eq!(key_phrases.selected.len(), 2);
+        assert_eq!(
+            key_phrases.selected[&cois[0].id],
+            ["and", "words", "phrase"],
+        );
+        assert_eq!(key_phrases.selected[&cois[1].id], ["more", "stuff"]);
+        assert!(key_phrases.removed.is_empty());
+    }
+
+    #[test]
     fn test_take_key_phrases_empty_cois() {
         let cois = create_pos_cois(&[] as &[[f32; 0]]);
-        let mut key_phrases = KeyPhrases::default();
+        let coi_id = CoiId::mocked(1);
+        let mut key_phrases = KeyPhrases::new([(coi_id, "key", [1., 1., 1.], ("AA", "aa"))]);
         let config = Config::default();
 
         let top_key_phrases = key_phrases.take(
@@ -917,7 +974,8 @@ mod tests {
             config.gamma(),
         );
         assert!(top_key_phrases.is_empty());
-        assert!(key_phrases.selected.is_empty());
+        assert_eq!(key_phrases.selected.len(), 1);
+        assert_eq!(key_phrases.selected[&coi_id], ["key"]);
         assert!(key_phrases.removed.is_empty());
     }
 
