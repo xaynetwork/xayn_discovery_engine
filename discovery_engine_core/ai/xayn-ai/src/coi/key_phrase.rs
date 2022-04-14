@@ -441,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unify_key_phrases_empty() {
+    fn test_unify_empty() {
         let key_phrases = vec![];
         let candidates = [];
         let market = ("AA", "aa").into();
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unify_key_phrases_no_candidates() {
+    fn test_unify_no_candidates() {
         let key_phrases = vec![
             KeyPhrase::new("key", [1., 0., 0.], ("AA", "aa")).unwrap(),
             KeyPhrase::new("phrase", [1., 1., 0.], ("AA", "aa")).unwrap(),
@@ -466,7 +466,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unify_key_phrases_only_candidates() {
+    fn test_unify_only_candidates() {
         let key_phrases = vec![];
         let candidates = ["key".into(), "phrase".into()];
         let market = ("AA", "aa").into();
@@ -482,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unify_key_phrases_duplicate() {
+    fn test_unify_duplicate() {
         let key_phrases = vec![
             KeyPhrase::new("key", [1., 0., 0.], ("AA", "aa")).unwrap(),
             KeyPhrase::new("phrase", [1., 1., 0.], ("AA", "aa")).unwrap(),
@@ -604,6 +604,14 @@ mod tests {
     }
 
     #[test]
+    fn test_argmax() {
+        assert!(argmax([] as [f32; 0]).is_none());
+        assert_eq!(argmax([2., 0., 1.]).unwrap(), 0);
+        assert_eq!(argmax([1., 2., 0.]).unwrap(), 1);
+        assert_eq!(argmax([0., 1., 2.]).unwrap(), 2);
+    }
+
+    #[test]
     fn test_similarities_empty() {
         let key_phrases = [];
         let coi_point = [1., 0., 0.].into();
@@ -650,14 +658,6 @@ mod tests {
             ],
             epsilon = 1e-5,
         );
-    }
-
-    #[test]
-    fn test_argmax() {
-        assert!(argmax([] as [f32; 0]).is_none());
-        assert_eq!(argmax([2., 0., 1.]).unwrap(), 0);
-        assert_eq!(argmax([1., 2., 0.]).unwrap(), 1);
-        assert_eq!(argmax([0., 1., 2.]).unwrap(), 2);
     }
 
     #[test]
