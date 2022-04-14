@@ -602,10 +602,10 @@ async fn update_stacks<'a>(
     }
 
     // only return an error if all stacks failed
-    if errors.len() < stacks.len() {
-        Ok(())
-    } else {
+    if !errors.is_empty() && errors.len() >= stacks.len() {
         Err(Error::Errors(errors))
+    } else {
+        Ok(())
     }
 }
 
