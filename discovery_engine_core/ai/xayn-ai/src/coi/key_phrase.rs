@@ -258,7 +258,7 @@ where
                 .filter_map(|(j, element)| (i != j).then(|| prepare(*element)))
                 .reduce(|x, y| reduce(x, y))
                 .map(|reduced| finalize(reduced, i < lane.len()))
-                .unwrap_or_default()
+                .unwrap_or(f32::NAN)
         })
         .collect::<Array1<_>>()
         .insert_axis(axis)
@@ -508,7 +508,7 @@ mod tests {
             |_, _| unreachable!(),
             |_, _| unreachable!(),
         );
-        assert!(reduced.is_empty());
+        assert_eq!(reduced.shape(), [1, 0]);
 
         let reduced = reduce_without_diag(
             ArrayView2::from_shape((0, 4), &[]).unwrap(),
@@ -517,7 +517,7 @@ mod tests {
             |_, _| unreachable!(),
             |_, _| unreachable!(),
         );
-        assert_approx_eq!(f32, reduced, [[0., 0., 0., 0.]]);
+        assert_approx_eq!(f32, reduced, [[f32::NAN, f32::NAN, f32::NAN, f32::NAN]]);
     }
 
     #[test]
@@ -529,7 +529,7 @@ mod tests {
             |reduced, _| reduced,
             |reduced, _| reduced,
         );
-        assert_approx_eq!(f32, reduced, [[0.]]);
+        assert_approx_eq!(f32, reduced, [[f32::NAN]]);
 
         let reduced = reduce_without_diag(
             Array1::range(1., 5., 1.).into_shape((2, 2)).unwrap(),
