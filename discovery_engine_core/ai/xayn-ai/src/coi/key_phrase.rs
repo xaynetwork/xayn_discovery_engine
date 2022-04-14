@@ -364,11 +364,14 @@ fn is_selected(
 fn select(
     key_phrases: Vec<KeyPhrase>,
     selected: Vec<bool>,
-    similarity: Array2<f32>,
+    similarity: ArrayBase<impl Data<Elem = f32>, Ix2>,
 ) -> Vec<KeyPhrase> {
-    let mut key_phrases = izip!(selected, similarity.slice_move(s![.., -1]), key_phrases)
+    debug_assert_eq!(key_phrases.len(), selected.len());
+    debug_assert_eq!(key_phrases.len(), similarity.len_of(Axis(0)));
+
+    let mut key_phrases = izip!(selected, similarity.slice(s![.., -1]), key_phrases)
         .filter_map(|(is_selected, similarity, key_phrase)| {
-            is_selected.then(|| (similarity, key_phrase))
+            is_selected.then(|| (*similarity, key_phrase))
         })
         .collect::<Vec<_>>();
 
@@ -693,6 +696,59 @@ mod tests {
 
         let selected = is_selected(similarity, 2, 1.);
         assert_eq!(selected, [true, false, true]);
+    }
+
+    #[test]
+    fn test_select_empty() {
+        let selection = select(vec![], vec![], Array2::default((0, 1)));
+        assert!(selection.is_empty());
+    }
+
+    #[test]
+    fn test_select_all() {
+        let key_phrases = vec![
+            KeyPhrase::new("key", [1., 1., 0.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("phrase", [1., 1., 1.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("words", [0., 1., 1.], ("AA", "aa")).unwrap(),
+        ];
+        let similarity = Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap();
+
+        let selection = select(
+            key_phrases.clone(),
+            vec![false, false, false],
+            similarity.view(),
+        );
+        assert!(selection.is_empty());
+
+        let selection = select(key_phrases, vec![true, true, true], similarity);
+        assert_eq!(selection, ["words", "phrase", "key"]);
+    }
+
+    #[test]
+    fn test_select_multiple() {
+        let key_phrases = vec![
+            KeyPhrase::new("key", [1., 1., 0.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("phrase", [1., 1., 1.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("words", [0., 1., 1.], ("AA", "aa")).unwrap(),
+        ];
+        let similarity = Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap();
+
+        let selection = select(
+            key_phrases.clone(),
+            vec![true, true, false],
+            similarity.view(),
+        );
+        assert_eq!(selection, ["phrase", "key"]);
+
+        let selection = select(
+            key_phrases.clone(),
+            vec![true, false, true],
+            similarity.view(),
+        );
+        assert_eq!(selection, ["words", "key"]);
+
+        let selection = select(key_phrases, vec![false, true, true], similarity);
+        assert_eq!(selection, ["words", "phrase"]);
     }
 
     #[test]
