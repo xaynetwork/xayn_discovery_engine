@@ -22,10 +22,17 @@ runs:
     - name: Clean up runner tool cache and temp dir
       shell: bash
       run: |
-        cd $RUNNER_TOOL_CACHE
-        rm -rf *
-        cd $RUNNER_TEMP
-        rm -rf *
+        BASENAME=$(basename "$RUNNER_TOOL_CACHE")
+        if [ "$BASENAME" = "_tool" ]; then
+          cd "$RUNNER_TOOL_CACHE" || exit
+          rm -rf *
+        fi
+
+        BASENAME=$(basename "$RUNNER_TEMP")
+        if [ "$BASENAME" = "_temp" ]; then
+          cd "$RUNNER_TEMP" || exit
+          rm -rf *
+        fi
 
     - name: Load .env
       uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
@@ -77,11 +84,6 @@ runs:
           # specified in rust-toolchain.toml
           rustup show
 
-    - name: Install rust deps
-      working-directory: ${{ env.RUST_WORKSPACE }}
-      shell: bash
-      run: just rust-deps
-
     - name: Install rust target
       if: inputs.rust-target != ''
       working-directory: ${{ env.RUST_WORKSPACE }}
@@ -92,3 +94,8 @@ runs:
       with:
         key: ${{ inputs.cache-key }}
         working-directory: ${{ env.RUST_WORKSPACE }}
+
+    - name: Install rust deps
+      working-directory: ${{ env.RUST_WORKSPACE }}
+      shell: bash
+      run: just rust-deps
