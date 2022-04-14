@@ -24,7 +24,7 @@ use std::{
 
 use derivative::Derivative;
 use itertools::izip;
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Ix, Ix2};
+use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix, Ix2};
 #[cfg(feature = "multithreaded")]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -236,20 +236,15 @@ fn unify(
 /// The elements can be prepared before they are reduced. The reduced result can be finalized
 /// whereas the finalization conditially depends on whether the reduced lane is part of the main
 /// square block of the matrix.
-fn reduce_without_diag<S, P, R, F>(
-    a: ArrayBase<S, Ix2>,
+fn reduce_without_diag(
+    array: ArrayBase<impl Data<Elem = f32>, Ix2>,
     axis: Axis,
-    prepare: P,
-    reduce: R,
-    finalize: F,
-) -> Array2<f32>
-where
-    S: Data<Elem = f32>,
-    P: Fn(f32) -> f32,
-    R: Fn(f32, f32) -> f32,
-    F: Fn(f32, bool) -> f32,
-{
-    a.lanes(axis)
+    prepare: impl Fn(f32) -> f32,
+    reduce: impl Fn(f32, f32) -> f32,
+    finalize: impl Fn(f32, bool) -> f32,
+) -> Array2<f32> {
+    array
+        .lanes(axis)
         .into_iter()
         .enumerate()
         .map(|(i, lane)| {
@@ -265,11 +260,7 @@ where
 }
 
 /// Gets the index of the maximum element.
-fn argmax<I, F>(iter: I) -> Option<Ix>
-where
-    I: IntoIterator<Item = F>,
-    F: Borrow<f32>,
-{
+fn argmax(iter: impl IntoIterator<Item = impl Borrow<f32>>) -> Option<Ix> {
     iter.into_iter()
         .enumerate()
         .reduce(|(arg, max), (index, element)| {
@@ -327,15 +318,23 @@ fn similarities(key_phrases: &[KeyPhrase], coi_point: &Embedding) -> Array2<f32>
 }
 
 /// Determines which key phrases should be selected.
-fn is_selected(similarity: ArrayView2<f32>, max_key_phrases: usize, gamma: f32) -> Vec<bool> {
+fn is_selected(
+    similarity: ArrayBase<impl Data<Elem = f32>, Ix2>,
+    max_key_phrases: usize,
+    gamma: f32,
+) -> Vec<bool> {
     let len = similarity.len_of(Axis(0));
     if len <= max_key_phrases {
         return vec![true; len];
     }
 
+    let mut selected = vec![false; len];
+    if max_key_phrases == 0 {
+        return selected;
+    }
+
     let candidate =
         argmax(similarity.slice(s![.., -1])).unwrap(/* at least one key phrase is available */);
-    let mut selected = vec![false; len];
     selected[candidate] = true;
     for _ in 0..max_key_phrases.min(len) - 1 {
         let candidate = argmax(selected.iter().zip(similarity.rows()).map(
@@ -419,6 +418,7 @@ fn clean_key_phrase(key_phrase: impl AsRef<str>) -> String {
 mod tests {
     use std::time::Duration;
 
+    use ndarray::arr2;
     use test_utils::assert_approx_eq;
 
     use crate::coi::{config::Config, utils::tests::create_pos_cois};
@@ -502,7 +502,7 @@ mod tests {
     #[test]
     fn test_reduce_without_diag_empty() {
         let reduced = reduce_without_diag(
-            ArrayView2::from_shape((0, 0), &[]).unwrap(),
+            Array2::default((0, 0)),
             Axis(0),
             |_| unreachable!(),
             |_, _| unreachable!(),
@@ -511,7 +511,7 @@ mod tests {
         assert_eq!(reduced.shape(), [1, 0]);
 
         let reduced = reduce_without_diag(
-            ArrayView2::from_shape((0, 4), &[]).unwrap(),
+            Array2::default((0, 4)),
             Axis(0),
             |_| unreachable!(),
             |_, _| unreachable!(),
@@ -606,6 +606,7 @@ mod tests {
     #[test]
     fn test_argmax() {
         assert!(argmax([] as [f32; 0]).is_none());
+        assert_eq!(argmax([0., 0., 0.]).unwrap(), 0);
         assert_eq!(argmax([2., 0., 1.]).unwrap(), 0);
         assert_eq!(argmax([1., 2., 0.]).unwrap(), 1);
         assert_eq!(argmax([0., 1., 2.]).unwrap(), 2);
@@ -616,7 +617,7 @@ mod tests {
         let key_phrases = [];
         let coi_point = [1., 0., 0.].into();
         let similarity = similarities(&key_phrases, &coi_point);
-        assert!(similarity.is_empty());
+        assert_eq!(similarity.shape(), [0, 1]);
     }
 
     #[test]
@@ -658,6 +659,40 @@ mod tests {
             ],
             epsilon = 1e-5,
         );
+    }
+
+    #[test]
+    fn test_is_selected_empty() {
+        let selected = is_selected(Array2::default((0, 1)).view(), 0, 0.9);
+        assert!(selected.is_empty());
+
+        let selected = is_selected(Array2::default((0, 1)).view(), 3, 0.9);
+        assert!(selected.is_empty());
+    }
+
+    #[test]
+    fn test_is_selected_all() {
+        let selected = is_selected(Array2::default((2, 3)).view(), 0, 0.9);
+        assert_eq!(selected, [false, false]);
+
+        let selected = is_selected(Array2::default((2, 3)).view(), 3, 0.9);
+        assert_eq!(selected, [true, true]);
+    }
+
+    #[test]
+    fn test_is_selected_multiple() {
+        let similarity = arr2(&[[1., 2., 3., 1.], [3., 2., 1., 0.], [1., 1., 1., 2.]]);
+        let selected = is_selected(similarity.view(), 2, 0.);
+        assert_eq!(selected, [false, true, true]);
+
+        let selected = is_selected(similarity.view(), 2, 0.4);
+        assert_eq!(selected, [false, true, true]);
+
+        let selected = is_selected(similarity.view(), 2, 0.9);
+        assert_eq!(selected, [true, false, true]);
+
+        let selected = is_selected(similarity, 2, 1.);
+        assert_eq!(selected, [true, false, true]);
     }
 
     #[test]
