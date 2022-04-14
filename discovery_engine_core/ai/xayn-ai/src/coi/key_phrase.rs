@@ -501,80 +501,80 @@ mod tests {
 
     #[test]
     fn test_reduce_without_diag_empty() {
-        let result = reduce_without_diag(
+        let reduced = reduce_without_diag(
             ArrayView2::from_shape((0, 0), &[]).unwrap(),
             Axis(0),
             |_| unreachable!(),
             |_, _| unreachable!(),
             |_, _| unreachable!(),
         );
-        assert!(result.is_empty());
+        assert!(reduced.is_empty());
 
-        let result = reduce_without_diag(
+        let reduced = reduce_without_diag(
             ArrayView2::from_shape((0, 4), &[]).unwrap(),
             Axis(0),
             |_| unreachable!(),
             |_, _| unreachable!(),
             |_, _| unreachable!(),
         );
-        assert_approx_eq!(f32, result, [[0., 0., 0., 0.]]);
+        assert_approx_eq!(f32, reduced, [[0., 0., 0., 0.]]);
     }
 
     #[test]
     fn test_reduce_without_diag_single() {
-        let result = reduce_without_diag(
+        let reduced = reduce_without_diag(
             Array1::range(1., 2., 1.).into_shape((1, 1)).unwrap(),
             Axis(0),
             |element| element,
             |reduced, _| reduced,
             |reduced, _| reduced,
         );
-        assert_approx_eq!(f32, result, [[0.]]);
+        assert_approx_eq!(f32, reduced, [[0.]]);
 
-        let result = reduce_without_diag(
+        let reduced = reduce_without_diag(
             Array1::range(1., 5., 1.).into_shape((2, 2)).unwrap(),
             Axis(0),
             |element| element,
             |reduced, _| reduced,
             |reduced, _| reduced,
         );
-        assert_approx_eq!(f32, result, [[3., 2.]]);
+        assert_approx_eq!(f32, reduced, [[3., 2.]]);
     }
 
     #[test]
     fn test_reduce_without_diag_prepare() {
-        let result = reduce_without_diag(
+        let reduced = reduce_without_diag(
             Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap(),
             Axis(0),
             |element| element.powi(2),
             |reduced, _| reduced,
             |reduced, _| reduced,
         );
-        assert_approx_eq!(f32, result, [[25., 4., 9., 16.]]);
+        assert_approx_eq!(f32, reduced, [[25., 4., 9., 16.]]);
     }
 
     #[test]
     fn test_reduce_without_diag_reduce() {
-        let result = reduce_without_diag(
+        let reduced = reduce_without_diag(
             Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap(),
             Axis(0),
             |element| element,
             |reduced, element| reduced + element,
             |reduced, _| reduced,
         );
-        assert_approx_eq!(f32, result, [[14., 12., 10., 24.]]);
+        assert_approx_eq!(f32, reduced, [[14., 12., 10., 24.]]);
     }
 
     #[test]
     fn test_reduce_without_diag_finalize() {
-        let result = reduce_without_diag(
+        let reduced = reduce_without_diag(
             Array1::range(1., 13., 1.).into_shape((3, 4)).unwrap(),
             Axis(0),
             |element| element,
             |reduced, _| reduced,
             |reduced, is_within_square| is_within_square.then(|| reduced).unwrap_or_default(),
         );
-        assert_approx_eq!(f32, result, [[5., 2., 3., 0.]]);
+        assert_approx_eq!(f32, reduced, [[5., 2., 3., 0.]]);
     }
 
     #[test]
@@ -601,6 +601,55 @@ mod tests {
             },
         );
         assert_approx_eq!(f32, stddev, [[2., 4., 2., 3.265_986_4]]);
+    }
+
+    #[test]
+    fn test_similarities_empty() {
+        let key_phrases = [];
+        let coi_point = [1., 0., 0.].into();
+        let similarity = similarities(&key_phrases, &coi_point);
+        assert!(similarity.is_empty());
+    }
+
+    #[test]
+    fn test_similarites_single() {
+        let key_phrases = [KeyPhrase::new("key", [1., 1., 0.], ("AA", "aa")).unwrap()];
+        let coi_point = [1., 0., 0.].into();
+        let similarity = similarities(&key_phrases, &coi_point);
+        assert_approx_eq!(f32, similarity, [[0.5, 0.5]]);
+
+        let key_phrases = [
+            KeyPhrase::new("key", [1., 1., 0.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("phrase", [1., 1., 1.], ("AA", "aa")).unwrap(),
+        ];
+        let similarity = similarities(&key_phrases, &coi_point);
+        assert_approx_eq!(f32, similarity, [[0.5, 0.5, 1.5], [0.5, 0.5, -0.5]]);
+    }
+
+    #[test]
+    fn test_similarties_multiple() {
+        let key_phrases = [
+            KeyPhrase::new("key", [1., 1., 0.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("phrase", [1., 1., 1.], ("AA", "aa")).unwrap(),
+            KeyPhrase::new("words", [0., 1., 1.], ("AA", "aa")).unwrap(),
+        ];
+        let coi_point = [1., 0., 0.].into();
+        let similarity = similarities(&key_phrases, &coi_point);
+        assert_approx_eq!(
+            f32,
+            similarity,
+            // the 2nd column should actually be [0.5, 0.5, 0.5], but the similarity computation
+            // between 2/sqrt(2)/sqrt(3) and 2/sqrt(3)/sqrt(2) has numerical rounding errors which
+            // carries over to the normalization. this doesn't matter though, as the result can just
+            // be interpreted as a "random" choice, caused by the numerical precision issue, between
+            // the two equally likely options.
+            [
+                [2.659_591, 1.5, -0.5, 1.407_614_8],
+                [1.5, 6_157_353.5, 1.5, 0.985_435],
+                [-0.5, -0.5, 2.659_591, -0.893_049_9],
+            ],
+            epsilon = 1e-5,
+        );
     }
 
     #[test]
