@@ -22,6 +22,9 @@ runs:
     - name: Clean up runner tool cache and temp dir
       shell: bash
       run: |
+        set -u
+        echo $BASENAME
+
         BASENAME=$(basename "$RUNNER_TOOL_CACHE")
         if [ "$BASENAME" = "_tool" ]; then
           cd "$RUNNER_TOOL_CACHE" || exit
