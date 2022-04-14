@@ -660,8 +660,8 @@ impl XaynAiEngine {
         let endpoint_config = config.into();
         let stack_ops = vec![
             Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
-            Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
             Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
+            Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
         ];
 
         if let Some(state) = state {
