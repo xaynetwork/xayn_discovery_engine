@@ -25,6 +25,7 @@ pub use crate::{
     coi::{
         config::{Config as CoiSystemConfig, Error as CoiSystemConfigError},
         key_phrase::KeyPhrase,
+        point::{CoiPoint, NegativeCoi, PositiveCoi},
     },
     embedding::utils::{cosine_similarity, pairwise_cosine_similarity, Embedding},
     DocumentId,

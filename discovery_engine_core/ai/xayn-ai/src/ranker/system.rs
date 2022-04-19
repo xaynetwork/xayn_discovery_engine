@@ -26,7 +26,7 @@ use crate::{
     coi::{
         config::Config,
         key_phrase::{KeyPhrase, KeyPhrases},
-        point::UserInterests,
+        point::{NegativeCoi, PositiveCoi, UserInterests},
         CoiSystem,
     },
     data::document::UserFeedback,
@@ -148,6 +148,16 @@ impl Ranker {
             &mut self.state.key_phrases,
             top,
         )
+    }
+
+    /// Returns the positive cois.
+    pub(crate) fn positive_cois(&self) -> &[PositiveCoi] {
+        self.state.user_interests.positive.as_slice()
+    }
+
+    /// Returns the negative cois.
+    pub(crate) fn negative_cois(&self) -> &[NegativeCoi] {
+        self.state.user_interests.negative.as_slice()
     }
 }
 

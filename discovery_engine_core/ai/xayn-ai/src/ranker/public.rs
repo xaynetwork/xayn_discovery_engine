@@ -30,6 +30,8 @@ use crate::{
     UserFeedback,
 };
 
+use super::{NegativeCoi, PositiveCoi};
+
 pub struct Ranker(super::system::Ranker);
 
 impl Ranker {
@@ -78,6 +80,16 @@ impl Ranker {
     /// Takes the top key phrases from the positive cois, sorted in descending relevance.
     pub fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
         self.0.take_key_phrases(top)
+    }
+
+    /// Returns the positive cois.
+    pub fn positive_cois(&self) -> &[PositiveCoi] {
+        self.0.positive_cois()
+    }
+
+    /// Returns the negative cois.
+    pub fn negative_cois(&self) -> &[NegativeCoi] {
+        self.0.negative_cois()
     }
 }
 
