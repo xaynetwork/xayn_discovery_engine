@@ -479,6 +479,7 @@ fn clean_key_phrase(key_phrase: impl AsRef<str>) -> String {
 mod tests {
     use std::{mem::swap, time::Duration};
 
+    use itertools::Itertools;
     use ndarray::arr2;
     use test_utils::assert_approx_eq;
 
@@ -1104,6 +1105,94 @@ mod tests {
             key_phrases.removed[&(cois[0].id, ("BB", "bb").into())],
             ["more", "stuff"],
         );
+    }
+
+    #[test]
+    fn test_penalize() {
+        let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
+        let market = ("AA", "aa").into();
+        let key_phrases = KeyPhrases::new([
+            (cois[0].id, ("AA", "aa"), "key", [3., 1., 1.]),
+            (cois[0].id, ("AA", "aa"), "phrase", [2., 1., 1.]),
+            (cois[0].id, ("AA", "aa"), "words", [1., 1., 1.]),
+            (cois[1].id, ("AA", "aa"), "and", [1., 6., 1.]),
+            (cois[1].id, ("AA", "aa"), "more", [1., 5., 1.]),
+            (cois[1].id, ("BB", "bb"), "stuff", [1., 4., 1.]),
+            (cois[2].id, ("AA", "aa"), "still", [1., 1., 9.]),
+            (cois[2].id, ("BB", "bb"), "not", [1., 1., 8.]),
+            (cois[2].id, ("BB", "bb"), "enough", [1., 1., 7.]),
+        ]);
+        let penalty = [1., 0.8, 0.6];
+        let relevances = vec![1., 2., 3.];
+
+        let (relevances, coi_ids, key_phrases) =
+            penalize(&cois, &market, &key_phrases.selected, &penalty, relevances)
+                .into_iter()
+                .multiunzip::<(Vec<_>, Vec<_>, Vec<_>)>();
+        assert_approx_eq!(f32, relevances, [1., 0.8, 0.6, 2., 1.6, 3.]);
+        assert_eq!(
+            coi_ids,
+            [cois[0].id, cois[0].id, cois[0].id, cois[1].id, cois[1].id, cois[2].id],
+        );
+        assert_eq!(
+            key_phrases,
+            ["key", "phrase", "words", "and", "more", "still"],
+        );
+    }
+
+    #[test]
+    fn test_remove_missing() {
+        let coi_id = CoiId::mocked(1);
+        let market = ("AA", "aa").into();
+        let key_phrase = KeyPhrase::new("key", [1., 1., 1.]).unwrap();
+        let mut key_phrases = KeyPhrases::default();
+
+        let key_phrase = remove(&mut key_phrases, coi_id, &market, key_phrase);
+        assert!(key_phrases.selected.is_empty());
+        assert!(key_phrases.removed.is_empty());
+        assert_eq!(key_phrase, "key");
+    }
+
+    #[test]
+    fn test_remove_existent() {
+        let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.]]);
+        let market = ("AA", "aa").into();
+        let key_phrase = KeyPhrase::new("key", [1., 1., 1.]).unwrap();
+        let mut key_phrases = KeyPhrases::new([
+            (cois[0].id, ("AA", "aa"), "key", [1., 1., 1.]),
+            (cois[0].id, ("AA", "aa"), "phrase", [1., 1., 0.]),
+            (cois[1].id, ("AA", "aa"), "words", [0., 1., 1.]),
+        ]);
+
+        let key_phrase = remove(&mut key_phrases, cois[0].id, &market, key_phrase);
+        assert_eq!(key_phrases.selected.len(), 2);
+        assert_eq!(
+            key_phrases.selected[&(cois[0].id, market.clone())],
+            ["phrase"],
+        );
+        assert_eq!(
+            key_phrases.selected[&(cois[1].id, market.clone())],
+            ["words"],
+        );
+        assert_eq!(key_phrases.removed.len(), 1);
+        assert_eq!(key_phrases.removed[&(cois[0].id, market.clone())], ["key"]);
+        assert_eq!(key_phrase, "key");
+
+        let key_phrase = KeyPhrase::new("words", [0., 1., 1.]).unwrap();
+
+        let key_phrase = remove(&mut key_phrases, cois[1].id, &market, key_phrase);
+        assert_eq!(key_phrases.selected.len(), 1);
+        assert_eq!(
+            key_phrases.selected[&(cois[0].id, market.clone())],
+            ["phrase"],
+        );
+        assert_eq!(key_phrases.removed.len(), 2);
+        assert_eq!(key_phrases.removed[&(cois[0].id, market.clone())], ["key"]);
+        assert_eq!(
+            key_phrases.removed[&(cois[1].id, market.clone())],
+            ["words"],
+        );
+        assert_eq!(key_phrase, "words");
     }
 
     #[test]
