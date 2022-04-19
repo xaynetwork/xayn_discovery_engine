@@ -83,6 +83,10 @@ impl Ops for TrustedNews {
         stack: &[Document],
     ) -> Result<Vec<Article>, GenericError> {
         let sources = Arc::new(self.sources.read().await.clone());
+        if sources.is_empty() {
+            return Ok(Vec::new());
+        }
+
         request_min_new_items(
             self.max_requests,
             self.min_articles,
