@@ -212,12 +212,13 @@ fn unify(
     let candidates = candidates.into_par_iter();
 
     let candidates = candidates
-        .filter(|&candidate| {
+        .filter_map(|candidate| {
+            let candidate = clean_key_phrase(candidate);
             key_phrases
                 .iter()
                 .all(|key_phrase| key_phrase.words() != candidate)
+                .then(|| candidate)
         })
-        .map(clean_key_phrase)
         .collect::<HashSet<_>>()
         .into_iter()
         .filter_map(|candidate| {
@@ -234,7 +235,7 @@ fn unify(
 /// Reduces the matrix along the axis while skipping the diagonal elements.
 ///
 /// The elements can be prepared before they are reduced. The reduced result can be finalized
-/// whereas the finalization conditially depends on whether the reduced lane is part of the main
+/// whereas the finalization conditially depends on whether the reduced lane overlaps with the main
 /// square block of the matrix.
 fn reduce_without_diag(
     array: ArrayBase<impl Data<Elem = f32>, Ix2>,
@@ -490,7 +491,12 @@ mod tests {
             KeyPhrase::new("key", [1., 0., 0.], ("AA", "aa")).unwrap(),
             KeyPhrase::new("phrase", [1., 1., 0.], ("AA", "aa")).unwrap(),
         ];
-        let candidates = ["phrase".into(), "words".into(), "words".into()];
+        let candidates = [
+            "phrase".into(),
+            "phrase.".into(),
+            "words!".into(),
+            "words?".into(),
+        ];
         let market = ("AA", "aa").into();
         let smbert = |words: &str| match words {
             "phrase" => Ok([1., 1., 0.].into()),
@@ -939,6 +945,7 @@ mod tests {
             (cois[1].id, "stuff", [1., 5., 1.], ("AA", "aa")),
         ]);
         let config = Config::default();
+        assert_eq!(config.max_key_phrases(), 3);
 
         key_phrases.refresh(&cois, config.max_key_phrases(), config.gamma());
         assert_eq!(key_phrases.selected.len(), 2);
