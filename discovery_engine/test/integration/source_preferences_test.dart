@@ -45,30 +45,36 @@ void main() {
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
 
-    test('excludedSources should be updated in the engine', () async {
-      engine = await initEngine(data, server.port);
-      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
-      expect(server.lastUri?.queryParameters['not_sources'], isNull);
-      var response = await engine.addSourceToExcludedList(Source('dodo.test'));
-      expect(response, isA<ClientEventSucceeded>());
-      expect(
-        server.lastUri?.queryParameters['not_sources'],
-        equals('dodo.test'),
-      );
-      response = await engine.addSourceToExcludedList(Source('dada.test'));
-      expect(response, isA<ClientEventSucceeded>());
-      response = await engine.removeSourceFromExcludedList(Source('dodo.test'));
-      expect(response, isA<ClientEventSucceeded>());
-      response = await engine.addSourceToExcludedList(Source('so.yo.test'));
-      expect(response, isA<ClientEventSucceeded>());
-      expect(
-        server.lastUri?.queryParameters['not_sources']?.split(',').toSet(),
-        equals({
-          'dada.test',
-          'so.yo.test',
-        }),
-      );
-    });
+    test(
+      'excludedSources should be updated in the engine',
+      () async {
+        engine = await initEngine(data, server.port);
+        final nextFeedBatchResponse = await engine.requestNextFeedBatch();
+        expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
+        expect(server.lastUri?.queryParameters['not_sources'], isNull);
+        var response =
+            await engine.addSourceToExcludedList(Source('dodo.test'));
+        expect(response, isA<ClientEventSucceeded>());
+        expect(
+          server.lastUri?.queryParameters['not_sources'],
+          equals('dodo.test'),
+        );
+        response = await engine.addSourceToExcludedList(Source('dada.test'));
+        expect(response, isA<ClientEventSucceeded>());
+        response =
+            await engine.removeSourceFromExcludedList(Source('dodo.test'));
+        expect(response, isA<ClientEventSucceeded>());
+        response = await engine.addSourceToExcludedList(Source('so.yo.test'));
+        expect(response, isA<ClientEventSucceeded>());
+        expect(
+          server.lastUri?.queryParameters['not_sources']?.split(',').toSet(),
+          equals({
+            'dada.test',
+            'so.yo.test',
+          }),
+        );
+      },
+      skip: 'TY-2767',
+    );
   });
 }
