@@ -15,7 +15,7 @@ on:
 
 jobs:
   build-ios-libs:
-    runs-on: macos-11
+    runs-on: hetzner-mac-pm
     timeout-minutes: 60
     strategy:
       matrix:
@@ -23,13 +23,17 @@ jobs:
     outputs:
       artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
     steps:
+      - name: Clean up workspace
+        shell: bash
+        run: rm -rf *
+
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
 
       - name: Setup the rust CI
-        uses: ./.github/actions/setup-job
+        uses: ./.github/actions/setup-job-macos
         with:
-          rust: true
           rust-target: ${{ matrix.target }}
+          cache-key: ${{ matrix.target }}-${{ inputs.production }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build iOS library ${{ matrix.target }}

@@ -1,0 +1,103 @@
+name: 'Setup job for self-hosted macOS runner'
+description: 'Setup rust and flutter'
+inputs:
+  flutter:
+    description: 'Setup flutter'
+    default: "false"
+    required: false
+  rust-target:
+    description: 'Install an additional rust target'
+    default: ""
+    required: false
+  cache-key:
+    description: 'An optional key that is added to the automatic cache key'
+    default: ""
+    required: false
+  github_token:
+    description: 'The github token used for the `just` action to avoid exceeding API rate limits'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Clean up runner tool cache and temp dir
+      shell: bash
+      run: |
+        set -u
+
+        BASENAME=$(basename "$RUNNER_TOOL_CACHE")
+        if [ "$BASENAME" = "_tool" ]; then
+          cd "$RUNNER_TOOL_CACHE" || exit
+          rm -rf *
+        fi
+
+        BASENAME=$(basename "$RUNNER_TEMP")
+        if [ "$BASENAME" = "_temp" ]; then
+          cd "$RUNNER_TEMP" || exit
+          rm -rf *
+        fi
+
+    - name: Load .env
+      uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
+
+    - name: Install just
+      uses: extractions/setup-just@aa5d15c144db4585980a44ebfdd2cf337c4f14cb #v1.4.0
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      with:
+        just-version: ${{ env.JUST_VERSION }}
+
+    - name: Install flutter
+      if: inputs.flutter == 'true'
+      uses: subosito/flutter-action@5e1529bc12adae5b26f30f0a4046ac743d6f0c5d # v2.3.0
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+
+    - name: Setup flutter dependencies
+      if: inputs.flutter == 'true'
+      shell: bash
+      run: just flutter-deps
+
+    - if: inputs.flutter == 'true'
+      shell: bash
+      run: |
+        echo "GEM_HOME=$RUNNER_TOOL_CACHE/.gem" >> $GITHUB_ENV
+        echo "$RUNNER_TOOL_CACHE/.gem/bin" >> $GITHUB_PATH
+
+    - name: Install Cocoapods
+      if: inputs.flutter == 'true'
+      shell: bash
+      run: gem install cocoapods
+
+    - shell: bash
+      run: |
+        echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/.rustup" >> $GITHUB_ENV
+        echo "CARGO_HOME=$RUNNER_TOOL_CACHE/.cargo" >> $GITHUB_ENV
+        echo "$RUNNER_TOOL_CACHE/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install rustup
+      shell: bash
+      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+    - name: Install rust toolchain
+      working-directory: ${{ env.RUST_WORKSPACE }}
+      shell: bash
+      run: |
+          # Rustup when used will automatically install the toolchain
+          # specified in rust-toolchain.toml
+          rustup show
+
+    - name: Install rust target
+      if: inputs.rust-target != ''
+      working-directory: ${{ env.RUST_WORKSPACE }}
+      shell: bash
+      run: rustup target add ${{ inputs.rust-target }}
+
+    - uses: Swatinem/rust-cache@d12701459954fec471b2d34cdf7ea3374b026383 # v1
+      with:
+        key: ${{ inputs.cache-key }}
+        working-directory: ${{ env.RUST_WORKSPACE }}
+
+    - name: Install rust deps
+      working-directory: ${{ env.RUST_WORKSPACE }}
+      shell: bash
+      run: just rust-deps
