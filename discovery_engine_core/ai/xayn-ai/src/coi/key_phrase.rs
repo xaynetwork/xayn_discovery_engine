@@ -185,42 +185,13 @@ impl KeyPhrases {
         self.refresh(cois, market, penalty.len(), gamma);
 
         let relevances = compute_coi_relevances(cois, horizon, system_time_now());
-        let mut relevances = izip!(cois, relevances)
-            .filter_map(|(coi, relevance)| {
-                self.selected
-                    .get(&(coi.id, market.clone()))
-                    .map(move |key_phrases| {
-                        izip!(penalty, key_phrases).map(move |(&penalty, key_phrase)| {
-                            let penalized_relevance =
-                                (relevance * penalty).max(f32::MIN).min(f32::MAX);
-                            (penalized_relevance, coi.id, key_phrase.clone())
-                        })
-                    })
-            })
-            .flatten()
-            .collect::<Vec<_>>();
+        let mut relevances = penalize(cois, market, &self.selected, penalty, relevances);
         relevances.sort_by(|(this, _, _), (other, _, _)| nan_safe_f32_cmp(this, other).reverse());
 
         relevances
             .into_iter()
             .take(top)
-            .map(|(_, coi_id, key_phrase)| {
-                if let Some(key_phrases) = self.selected.get_mut(&(coi_id, market.clone())) {
-                    if let Some(index) = key_phrases
-                        .iter()
-                        .position(|kp| kp.words() == key_phrase.words())
-                    {
-                        self.removed
-                            .entry((coi_id, market.clone()))
-                            .or_default()
-                            .push(key_phrases.remove(index));
-                    }
-                    if key_phrases.is_empty() {
-                        self.selected.remove(&(coi_id, market.clone()));
-                    }
-                }
-                key_phrase
-            })
+            .map(|(_, coi_id, key_phrase)| remove(self, coi_id, market, key_phrase))
             .collect()
     }
 
@@ -434,6 +405,56 @@ fn update(
     if !key_phrases.is_empty() {
         map.insert((coi.id, market.clone()), key_phrases);
     }
+}
+
+/// Computes the penalized coi relevances for the key phrases.
+fn penalize(
+    cois: &[PositiveCoi],
+    market: &Market,
+    key_phrases: &HashMap<(CoiId, Market), Vec<KeyPhrase>>,
+    penalty: &[f32],
+    relevances: Vec<f32>,
+) -> Vec<(f32, CoiId, KeyPhrase)> {
+    debug_assert_eq!(cois.len(), relevances.len());
+    izip!(cois, relevances)
+        .filter_map(|(coi, relevance)| {
+            key_phrases
+                .get(&(coi.id, market.clone()))
+                .map(move |key_phrases| {
+                    izip!(penalty, key_phrases).map(move |(&penalty, key_phrase)| {
+                        let penalized_relevance = (relevance * penalty).max(f32::MIN).min(f32::MAX);
+                        (penalized_relevance, coi.id, key_phrase.clone())
+                    })
+                })
+        })
+        .flatten()
+        .collect()
+}
+
+/// Removes the key phrase from the selected key phrases.
+fn remove(
+    key_phrases: &mut KeyPhrases,
+    coi_id: CoiId,
+    market: &Market,
+    key_phrase: KeyPhrase,
+) -> KeyPhrase {
+    if let Some(selected) = key_phrases.selected.get_mut(&(coi_id, market.clone())) {
+        if let Some(index) = selected
+            .iter()
+            .position(|kp| kp.words() == key_phrase.words())
+        {
+            key_phrases
+                .removed
+                .entry((coi_id, market.clone()))
+                .or_default()
+                .push(selected.remove(index));
+        }
+        if selected.is_empty() {
+            key_phrases.selected.remove(&(coi_id, market.clone()));
+        }
+    }
+
+    key_phrase
 }
 
 /// Clean a key phrase from symbols and multiple spaces.
