@@ -151,6 +151,12 @@ impl Ranker {
         )
     }
 
+    /// Removes all key phrases associated to the markets.
+    pub(crate) fn remove_key_phrases(&mut self, markets: &[Market]) {
+        self.coi
+            .remove_key_phrases(markets, &mut self.state.key_phrases);
+    }
+
     /// Returns the positive cois.
     pub(crate) fn positive_cois(&self) -> &[PositiveCoi] {
         self.state.user_interests.positive.as_slice()
