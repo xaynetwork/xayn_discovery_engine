@@ -586,7 +586,12 @@ async fn update_stacks<'a>(
     let key_phrases = stacks
         .iter()
         .any(|stack| stack.ops.needs_key_phrases())
-        .then(|| ranker.take_key_phrases(take_top))
+        .then(|| {
+            ranker.take_key_phrases(
+                &("", "").into(), // TODO: TY-2758
+                take_top,
+            )
+        })
         .unwrap_or_default();
 
     let mut ready_stacks = stacks.len();

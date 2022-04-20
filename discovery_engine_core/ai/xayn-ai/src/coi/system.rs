@@ -53,20 +53,20 @@ impl CoiSystem {
     pub(crate) fn log_positive_user_reaction(
         &self,
         cois: &mut Vec<PositiveCoi>,
+        market: &Market,
         key_phrases: &mut KeyPhrases,
         embedding: &Embedding,
-        smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
         candidates: &[String],
-        market: &Market,
+        smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
     ) {
         log_positive_user_reaction(
             cois,
+            market,
             embedding,
             &self.config,
             key_phrases,
-            smbert,
             candidates,
-            market,
+            smbert,
         );
     }
 
@@ -79,15 +79,17 @@ impl CoiSystem {
         log_negative_user_reaction(cois, embedding, &self.config);
     }
 
-    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
+    /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
     pub(crate) fn take_key_phrases(
         &self,
         cois: &[PositiveCoi],
+        market: &Market,
         key_phrases: &mut KeyPhrases,
         top: usize,
     ) -> Vec<KeyPhrase> {
         key_phrases.take(
             cois,
+            market,
             top,
             self.config.horizon(),
             self.config.penalty(),
@@ -99,12 +101,12 @@ impl CoiSystem {
 /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
 fn log_positive_user_reaction(
     cois: &mut Vec<PositiveCoi>,
+    market: &Market,
     embedding: &Embedding,
     config: &Config,
     key_phrases: &mut KeyPhrases,
-    smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
     candidates: &[String],
-    market: &Market,
+    smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
 ) {
     match find_closest_coi_mut(cois, embedding) {
         // If the given embedding's similarity to the CoI is above the threshold,
@@ -112,9 +114,9 @@ fn log_positive_user_reaction(
         Some((coi, similarity)) if similarity >= config.threshold() => {
             coi.shift_point(embedding, config.shift_factor());
             coi.update_key_phrases(
+                market,
                 key_phrases,
                 candidates,
-                market,
                 smbert,
                 config.max_key_phrases(),
                 config.gamma(),
@@ -126,9 +128,9 @@ fn log_positive_user_reaction(
         _ => {
             let coi = PositiveCoi::new(Uuid::new_v4(), embedding.clone());
             coi.update_key_phrases(
+                market,
                 key_phrases,
                 candidates,
-                market,
                 smbert,
                 config.max_key_phrases(),
                 config.gamma(),
@@ -174,12 +176,12 @@ mod tests {
 
         log_positive_user_reaction(
             &mut cois,
+            &("AA", "aa").into(),
             &embedding,
             &config,
             &mut key_phrases,
-            |_| unreachable!(),
             &[],
-            &("AA", "aa").into(),
+            |_| unreachable!(),
         );
 
         assert_eq!(cois.len(), 3);
@@ -200,12 +202,12 @@ mod tests {
 
         log_positive_user_reaction(
             &mut cois,
+            &("AA", "aa").into(),
             &embedding,
             &config,
             &mut key_phrases,
-            |_| unreachable!(),
             &[],
-            &("AA", "aa").into(),
+            |_| unreachable!(),
         );
 
         assert_eq!(cois.len(), 2);

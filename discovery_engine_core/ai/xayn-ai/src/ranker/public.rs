@@ -77,9 +77,9 @@ impl Ranker {
             .log_user_reaction(user_feedback, snippet, embedding, market)
     }
 
-    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
-    pub fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
-        self.0.take_key_phrases(top)
+    /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
+    pub fn take_key_phrases(&mut self, market: &Market, top: usize) -> Vec<KeyPhrase> {
+        self.0.take_key_phrases(market, top)
     }
 
     /// Returns the positive cois.
