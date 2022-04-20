@@ -156,7 +156,7 @@ impl KeyPhrases {
                 // `removed` doesn't enforce the same sorting invariants as `selected`, hence we
                 // have to ensure this after swapping them. we only update them once after swapping
                 // to guarantee that the key phrases are fitted for the current coi point. if we
-                // were to update them everytime we take some, which would also be more expensive,
+                // were to update them every time we take some, which would also be more expensive,
                 // then the selection could be outdated once we swap them.
                 if let Some(key_phrases) = self.removed.remove(&(coi.id, market.clone())) {
                     update(
@@ -654,7 +654,7 @@ mod tests {
     }
 
     #[test]
-    fn test_similarites_single() {
+    fn test_similarities_single() {
         let key_phrases = [KeyPhrase::new("key", [1., 1., 0.]).unwrap()];
         let coi_point = [1., 0., 0.].into();
         let similarity = similarities(&key_phrases, &coi_point);
@@ -669,7 +669,7 @@ mod tests {
     }
 
     #[test]
-    fn test_similarties_multiple() {
+    fn test_similarities_multiple() {
         let key_phrases = [
             KeyPhrase::new("key", [1., 1., 0.]).unwrap(),
             KeyPhrase::new("phrase", [1., 1., 1.]).unwrap(),
