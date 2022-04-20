@@ -21,6 +21,8 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery};
+use thiserror::Error;
+use displaydoc::Display;
 
 use crate::{
     document::{dedup_documents, Document, HistoricDocument},
@@ -66,6 +68,12 @@ impl TrustedNews {
     }
 }
 
+#[derive(Error, Debug, Display)]
+enum Error {
+    /// No trusted sources available.
+    NoTrustedSources
+}
+
 #[async_trait]
 impl Ops for TrustedNews {
     fn id(&self) -> Id {
@@ -84,7 +92,7 @@ impl Ops for TrustedNews {
     ) -> Result<Vec<Article>, GenericError> {
         let sources = Arc::new(self.sources.read().await.clone());
         if sources.is_empty() {
-            return Ok(Vec::new());
+            return Err(Box::new(Error::NoTrustedSources));
         }
 
         request_min_new_items(
