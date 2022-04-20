@@ -347,6 +347,7 @@ class DiscoveryEngine {
   /// for such failure.
   Future<EngineEvent> requestSearch(String queryTerm) {
     return _trySend(() async {
+      // TODO method for requesting by topic
       final event = ClientEvent.searchRequested(queryTerm, false);
       final response = await _manager.send(event);
 

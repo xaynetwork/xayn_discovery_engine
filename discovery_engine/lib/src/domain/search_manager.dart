@@ -69,6 +69,7 @@ class SearchManager {
       );
 
   Future<List<api.Document>> _getSearchDocuments(ActiveSearch search) async {
+    // TODO handle topic searches
     final searchDocs = await _engine.activeSearch(
       search.queryTerm,
       search.requestedPageNb,
@@ -91,11 +92,11 @@ class SearchManager {
   Future<EngineEvent> searchRequested(String queryTerm, bool isTopic) async {
     await searchClosed();
 
-    // TODO handle topic search
     final search = ActiveSearch(
       queryTerm: queryTerm,
       requestedPageNb: 1,
       pageSize: _config.maxSearchDocs,
+      isTopic: isTopic,
     );
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);

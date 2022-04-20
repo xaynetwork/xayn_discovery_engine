@@ -29,6 +29,7 @@ class ActiveSearch with _$ActiveSearch {
     @HiveField(0) required String queryTerm,
     @HiveField(1) required int requestedPageNb,
     @HiveField(2) required int pageSize,
+    @HiveField(3) required bool isTopic,
   }) = _ActiveSearch;
 
   factory ActiveSearch.fromJson(Map<String, Object?> json) =>

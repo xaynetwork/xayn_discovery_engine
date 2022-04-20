@@ -148,6 +148,7 @@ Future<void> main() async {
           queryTerm: 'example query',
           requestedPageNb: 1,
           pageSize: config.maxSearchDocs,
+          isTopic: false,
         );
 
         final response = await mgr.searchRequested('example query', false);

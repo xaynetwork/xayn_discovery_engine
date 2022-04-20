@@ -32,6 +32,7 @@ Future<void> main() async {
       queryTerm: 'example search query',
       requestedPageNb: 1,
       pageSize: 10,
+      isTopic: false,
     );
 
     setUpAll(() async {

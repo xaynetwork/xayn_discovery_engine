@@ -160,4 +160,5 @@ const mockActiveSearch = ActiveSearch(
   queryTerm: queryTerm,
   requestedPageNb: 1,
   pageSize: 20,
+  isTopic: false,
 );
