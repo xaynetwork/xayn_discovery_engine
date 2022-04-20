@@ -96,6 +96,11 @@ impl CoiSystem {
             self.config.gamma(),
         )
     }
+
+    /// Removes all key phrases associated to the markets.
+    pub(crate) fn remove_key_phrases(&self, markets: &[Market], key_phrases: &mut KeyPhrases) {
+        key_phrases.remove(markets);
+    }
 }
 
 /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
