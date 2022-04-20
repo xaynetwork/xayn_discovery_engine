@@ -606,7 +606,12 @@ async fn update_stacks<'a>(
         let key_phrases = needy_stacks
             .iter()
             .any(|stack| stack.ops.needs_key_phrases())
-            .then(|| ranker.take_key_phrases(take_top))
+            .then(|| {
+                ranker.take_key_phrases(
+                    &("", "").into(), // TODO: TY-2758
+                    take_top,
+                )
+            })
             .unwrap_or_default();
 
         // Here we gather new documents for all relevant stacks, and put them into a vector.
@@ -921,7 +926,7 @@ mod tests {
         // this is essentially a no-op ranker.
         let mut ranker = ranker::MockRanker::new();
         ranker.expect_rank().returning(|_| Ok(()));
-        ranker.expect_take_key_phrases().returning(|_| vec![]);
+        ranker.expect_take_key_phrases().returning(|_, _| vec![]);
         ranker.expect_compute_smbert().returning(|_| {
             let embedding: Embedding = [0.0].into();
             Ok(embedding)

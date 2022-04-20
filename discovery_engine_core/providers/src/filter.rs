@@ -42,7 +42,7 @@ impl Filter {
 }
 
 /// Define area and language of interests.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct Market {
     /// Country code as defined in ISO 3166-1 alpha-2.
     pub country_code: String,

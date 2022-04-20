@@ -20,6 +20,7 @@ use xayn_ai::{
     DocumentId,
     UserFeedback,
 };
+use xayn_discovery_engine_providers::Market;
 
 use crate::{
     document::{Document, Id, TimeSpent, UserReacted, UserReaction},
@@ -41,8 +42,8 @@ pub trait Ranker {
     /// Logs a user's interaction.
     fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError>;
 
-    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
-    fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase>;
+    /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
+    fn take_key_phrases(&mut self, market: &Market, top: usize) -> Vec<KeyPhrase>;
 
     /// Serializes the state of the `Ranker`.
     fn serialize(&self) -> Result<Vec<u8>, GenericError>;
@@ -81,8 +82,8 @@ impl Ranker for xayn_ai::ranker::Ranker {
         Ok(())
     }
 
-    fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
-        self.take_key_phrases(top)
+    fn take_key_phrases(&mut self, market: &Market, top: usize) -> Vec<KeyPhrase> {
+        self.take_key_phrases(market, top)
     }
 
     fn serialize(&self) -> Result<Vec<u8>, GenericError> {
