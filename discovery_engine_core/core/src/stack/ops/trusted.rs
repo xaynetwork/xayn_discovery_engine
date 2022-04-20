@@ -15,14 +15,14 @@
 use std::{iter, sync::Arc};
 
 use async_trait::async_trait;
+use displaydoc::Display;
 use futures::stream::FuturesUnordered;
 use itertools::chain;
+use thiserror::Error;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery};
-use thiserror::Error;
-use displaydoc::Display;
 
 use crate::{
     document::{dedup_documents, Document, HistoricDocument},
@@ -71,7 +71,7 @@ impl TrustedNews {
 #[derive(Error, Debug, Display)]
 enum Error {
     /// No trusted sources available.
-    NoTrustedSources
+    NoTrustedSources,
 }
 
 #[async_trait]
