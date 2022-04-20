@@ -347,8 +347,28 @@ class DiscoveryEngine {
   /// for such failure.
   Future<EngineEvent> requestSearch(String queryTerm) {
     return _trySend(() async {
-      // TODO method for requesting by topic
       final event = ClientEvent.searchRequested(queryTerm, false);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        searchRequestSucceeded: true,
+        searchRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Requests for [Document]s of a specific `topic`.
+  ///
+  /// In response it can return:
+  /// - [SearchRequestSucceeded] for successful response, containing a list of
+  /// [Document]s
+  /// - [SearchRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> requestTopic(String topic) {
+    return _trySend(() async {
+      final event = ClientEvent.searchRequested(topic, true);
       final response = await _manager.send(event);
 
       return response.mapEvent(

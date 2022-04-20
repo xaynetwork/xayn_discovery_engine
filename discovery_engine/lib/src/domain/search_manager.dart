@@ -69,7 +69,11 @@ class SearchManager {
       );
 
   Future<List<api.Document>> _getSearchDocuments(ActiveSearch search) async {
-    // TODO handle topic searches
+    if (search.isTopic) {
+      // TODO handle topic searches
+      throw UnimplementedError();
+    }
+
     final searchDocs = await _engine.activeSearch(
       search.queryTerm,
       search.requestedPageNb,
