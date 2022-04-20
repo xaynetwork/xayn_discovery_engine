@@ -16,7 +16,9 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::Market;
+use xayn_discovery_engine_providers::Market;
+
+use crate::types::string::SmallString;
 
 /// Returns a pointer to the `country_code` field of a [`Market`].
 ///
@@ -25,7 +27,7 @@ use xayn_discovery_engine_core::Market;
 /// The pointer must point to a valid [`Market`] memory object, it
 /// might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn market_place_of_country_code(place: *mut Market) -> *mut String {
+pub unsafe extern "C" fn market_place_of_country_code(place: *mut Market) -> *mut SmallString {
     unsafe { addr_of_mut!((*place).country_code) }
 }
 
@@ -36,7 +38,7 @@ pub unsafe extern "C" fn market_place_of_country_code(place: *mut Market) -> *mu
 /// The pointer must point to a valid [`Market`] memory object, it
 /// might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn market_place_of_lang_code(place: *mut Market) -> *mut String {
+pub unsafe extern "C" fn market_place_of_lang_code(place: *mut Market) -> *mut SmallString {
     unsafe { addr_of_mut!((*place).lang_code) }
 }
 

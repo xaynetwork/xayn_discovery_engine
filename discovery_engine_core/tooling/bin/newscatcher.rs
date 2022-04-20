@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use anyhow::{Context, Result};
-use xayn_discovery_engine_providers::{Client, CommonQueryParts, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{Client, CommonQueryParts, HeadlinesQuery};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -28,10 +28,7 @@ async fn main() -> Result<()> {
         .context("Failed to create download directory. Does it already exist?")?;
 
     let client = Client::new(token, url);
-    let market = Market {
-        lang_code: "en".to_string(),
-        country_code: "US".to_string(),
-    };
+    let market = ("US", "en").into();
 
     // This is updated every iteration, based on the response from Newscatcher. So in reality,
     // we'll be fetching more than one page.

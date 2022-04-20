@@ -31,8 +31,6 @@
     clippy::items_after_statements
 )]
 
-pub use xayn_discovery_engine_providers::Market;
-
 pub mod document;
 mod engine;
 mod mab;

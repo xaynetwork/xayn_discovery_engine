@@ -15,6 +15,7 @@
 //! Filter the data from the provider.
 
 use serde::{Deserialize, Serialize};
+use smallstr::SmallString;
 
 use crate::expression::Expr;
 
@@ -45,16 +46,16 @@ impl Filter {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct Market {
     /// Country code as defined in ISO 3166-1 alpha-2.
-    pub country_code: String,
+    pub country_code: SmallString<[u8; 2]>,
     /// Language code as defined in ISO 639-1 — 2 letter code, e.g. 'de' or 'en'
-    pub lang_code: String,
+    pub lang_code: SmallString<[u8; 2]>,
 }
 
 impl Market {
     /// Returns the default news quality rank limit for given country.
     pub fn news_quality_rank_limit(&self) -> Option<usize> {
         #[allow(clippy::match_same_arms)]
-        Some(match &*self.country_code {
+        Some(match self.country_code.as_str() {
             "AT" => 70_000,
             "BE" => 70_000,
             "CA" => 70_000,
@@ -73,13 +74,13 @@ impl Market {
 
 impl<C, L> From<(C, L)> for Market
 where
-    C: Into<String>,
-    L: Into<String>,
+    C: AsRef<str>,
+    L: AsRef<str>,
 {
     fn from((country_code, lang_code): (C, L)) -> Self {
         Self {
-            country_code: country_code.into(),
-            lang_code: lang_code.into(),
+            country_code: country_code.as_ref().into(),
+            lang_code: lang_code.as_ref().into(),
         }
     }
 }

@@ -15,13 +15,13 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
-    show OptionStringFfi, StringFfi;
+    show OptionStringFfi, SmallStringFfi, StringFfi;
 
 void main() {
   test('reading written empty string works', () {
     const string = '';
     final place = ffi.alloc_uninitialized_string();
-    string.writeNative(place);
+    StringFfi(string).writeNative(place);
     final res = StringFfi.readNative(place);
     ffi.drop_string(place);
     expect(res, equals(string));
@@ -30,17 +30,16 @@ void main() {
   test('reading written string yields same result', () {
     const string = 'a&+KLA)&+fjw)&+f';
     final place = ffi.alloc_uninitialized_string();
-    string.writeNative(place);
+    StringFfi(string).writeNative(place);
     final res = StringFfi.readNative(place);
     ffi.drop_string(place);
     expect(res, equals(string));
   });
 
   test('reading written some string yields same result', () {
-    // ignore: unnecessary_cast
-    const String? string = 'a&+KLA)&+fjw)&+f' as String?;
+    const string = 'a&+KLA)&+fjw)&+f';
     final place = ffi.alloc_uninitialized_option_string();
-    string.writeNative(place);
+    OptionStringFfi(string).writeNative(place);
     final res = OptionStringFfi.readNative(place);
     ffi.drop_option_string(place);
     expect(res, equals(string));
@@ -53,5 +52,23 @@ void main() {
     final res = OptionStringFfi.readNative(place);
     ffi.drop_option_string(place);
     expect(res, isNull);
+  });
+
+  test('reading written non-spilled small string yields same result', () {
+    const string = 'a&';
+    final place = ffi.alloc_uninitialized_small_string();
+    SmallStringFfi(string).writeNative(place);
+    final res = SmallStringFfi.readNative(place);
+    ffi.drop_small_string(place);
+    expect(res, equals(string));
+  });
+
+  test('reading written spilled small string yields same result', () {
+    const string = 'a&+KLA)&+fjw)&+f';
+    final place = ffi.alloc_uninitialized_small_string();
+    SmallStringFfi(string).writeNative(place);
+    final res = SmallStringFfi.readNative(place);
+    ffi.drop_small_string(place);
+    expect(res, equals(string));
   });
 }

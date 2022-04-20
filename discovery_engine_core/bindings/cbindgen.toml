@@ -11,6 +11,7 @@ after_includes = """
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
 typedef struct RustNaiveDateTime RustNaiveDateTime;
+typedef struct RustSmallString RustSmallString;
 typedef struct RustUrl RustUrl;
 typedef struct RustUuid RustUuid;
 """
@@ -37,6 +38,7 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "Result_Vec_Document_____String" = "RustResultVecDocumentString"
 "Result_Vec_u8_____String" = "RustResultVecU8String"
 "SharedEngine" = "RustSharedEngine"
+"SmallString" = "RustSmallString"
 "String" = "RustString"
 "TimeSpent" = "RustTimeSpent"
 "Url" = "RustUrl"

@@ -247,10 +247,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &Market {
-            lang_code: "en".to_string(),
-            country_code: "AU".to_string(),
-        };
+        let market = &("AU", "en").into();
         let filter = &Filter::default().add_keyword("Climate change");
 
         let params = NewsQuery {
@@ -295,10 +292,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &Market {
-            lang_code: "de".to_string(),
-            country_code: "DE".to_string(),
-        };
+        let market = &("DE", "de").into();
         let filter = &Filter::default().add_keyword("Climate change");
 
         let params = NewsQuery {
@@ -340,10 +334,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &Market {
-            lang_code: "de".to_string(),
-            country_code: "DE".to_string(),
-        };
+        let market = &("DE", "de").into();
         let filter = &Filter::default()
             .add_keyword("Bill Gates")
             .add_keyword("Tim Cook");
@@ -389,13 +380,10 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = Market {
-            lang_code: "en".to_string(),
-            country_code: "US".to_string(),
-        };
+        let market = &("US", "en").into();
         let params = HeadlinesQuery {
             common: CommonQueryParts {
-                market: Some(&market),
+                market: Some(market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],

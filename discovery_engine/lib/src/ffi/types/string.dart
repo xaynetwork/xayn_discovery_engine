@@ -16,7 +16,7 @@ import 'dart:convert' show utf8;
 import 'dart:ffi' show nullptr, Pointer, Uint8, Uint8Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustOptionString, RustString, RustVecString;
+    show RustOptionString, RustSmallString, RustString, RustVecString;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/list.dart'
@@ -65,6 +65,27 @@ extension OptionStringFfi on String? {
   }
 }
 
+extension SmallStringFfi on String {
+  void writeNative(final Pointer<RustSmallString> place) {
+    final str = BoxedStr.create(this);
+    ffi.init_small_string_at(place, str.ptr, str.len);
+  }
+
+  static String readNative(
+    final Pointer<RustSmallString> place,
+  ) =>
+      BoxedStr.fromRawParts(
+        ffi.get_small_string_buffer(place),
+        ffi.get_small_string_len(place),
+      ).readNative();
+
+  Boxed<RustSmallString> allocNative() {
+    final place = ffi.alloc_uninitialized_small_string();
+    writeNative(place);
+    return Boxed(place, ffi.drop_small_string);
+  }
+}
+
 class BoxedStr {
   final Pointer<Uint8> ptr;
   final int len;
@@ -97,7 +118,7 @@ class BoxedStr {
 final _listAdapter = ListFfiAdapter<String, RustString, RustVecString>(
   alloc: ffi.alloc_uninitialized_string_slice,
   next: ffi.next_string,
-  writeNative: (string, place) => string.writeNative(place),
+  writeNative: (string, place) => StringFfi(string).writeNative(place),
   readNative: StringFfi.readNative,
   getVecLen: ffi.get_string_vec_len,
   getVecBuffer: ffi.get_string_vec_buffer,

@@ -19,7 +19,8 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustMarket;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
-import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
+    show SmallStringFfi;
 
 extension FeedMarketFfi on FeedMarket {
   void writeNative(Pointer<RustMarket> place) {
@@ -30,8 +31,9 @@ extension FeedMarketFfi on FeedMarket {
   static FeedMarket readNative(Pointer<RustMarket> market) {
     return FeedMarket(
       countryCode:
-          StringFfi.readNative(ffi.market_place_of_country_code(market)),
-      langCode: StringFfi.readNative(ffi.market_place_of_lang_code(market)),
+          SmallStringFfi.readNative(ffi.market_place_of_country_code(market)),
+      langCode:
+          SmallStringFfi.readNative(ffi.market_place_of_lang_code(market)),
     );
   }
 }

@@ -55,7 +55,7 @@ pub unsafe extern "C" fn get_string_len(string: *mut String) -> FfiUsize {
     FfiUsize::from_usize_lossy(unsafe { &*string }.len())
 }
 
-/// Returns a pointer to the underlying buffer of the given rust string.
+/// Returns a pointer to the underlying buffer of the given rust `String`.
 ///
 /// You can write valid utf8 to the buffer up to a length of the strings
 /// `capacity`, after which you can use `set_string_len` to make the written
@@ -149,6 +149,68 @@ pub extern "C" fn alloc_uninitialized_option_string() -> *mut Option<String> {
 /// The pointer must represent a valid `Box<Option<String>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_option_string(boxed: *mut Option<String>) {
+    use super::boxed::drop;
+
+    unsafe { drop(boxed) };
+}
+
+/// cbindgen:ignore
+pub(super) type SmallString = smallstr::SmallString<[u8; 2]>;
+
+/// Creates a rust `SmallString` from given `Box<str>`.
+///
+/// # Safety
+///
+/// - It must be valid to write a `SmallString` instance to given pointer,
+///   the pointer is expected to point to uninitialized memory.
+/// - The bytes `str_ptr..str_ptr+str_len` must be a sound rust string.
+#[no_mangle]
+pub unsafe extern "C" fn init_small_string_at(
+    place: *mut SmallString,
+    str_ptr: *mut u8,
+    str_len: FfiUsize,
+) {
+    let len = str_len.to_usize();
+    unsafe {
+        ptr::write(place, String::from_raw_parts(str_ptr, len, len).into());
+    }
+}
+
+/// Returns the length of a rust `SmallString` at given memory address.
+///
+/// # Safety
+///
+/// The pointer must point to a valid `SmallString` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_small_string_len(small_string: *const SmallString) -> FfiUsize {
+    FfiUsize::from_usize_lossy(unsafe { &*small_string }.len())
+}
+
+/// Returns a pointer to the underlying buffer of the given rust `SmallString`.
+///
+/// This pointer must never be written to.
+///
+/// # Safety
+///
+/// The pointer must point to a valid `SmallString` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_small_string_buffer(small_string: *const SmallString) -> *const u8 {
+    unsafe { &*small_string }.as_ptr()
+}
+
+/// Alloc an uninitialized `Box<SmallString>`, mainly used for testing.
+#[no_mangle]
+pub extern "C" fn alloc_uninitialized_small_string() -> *mut SmallString {
+    super::boxed::alloc_uninitialized()
+}
+
+/// Drops a `Box<SmallString>`, mainly used for testing.
+///
+/// # Safety
+///
+/// The pointer must represent a valid `Box<SmallString>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_small_string(boxed: *mut SmallString) {
     use super::boxed::drop;
 
     unsafe { drop(boxed) };

@@ -36,8 +36,8 @@ use xayn_discovery_engine_core::Engine;
     use xayn_discovery_engine_core::{
         document::{Document, HistoricDocument, TimeSpent, UserReacted},
         InitConfig,
-        Market,
     };
+    use xayn_discovery_engine_providers::Market;
 
     use crate::types::engine::SharedEngine;
 )]
