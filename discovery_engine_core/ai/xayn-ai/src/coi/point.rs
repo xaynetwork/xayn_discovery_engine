@@ -32,7 +32,7 @@ use crate::{
 #[obake(version("0.3.0"))]
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
-pub(crate) struct PositiveCoi {
+pub struct PositiveCoi {
     #[obake(cfg(">=0.0"))]
     pub(super) id: CoiId,
     #[obake(cfg(">=0.0"))]
@@ -90,7 +90,7 @@ impl From<PositiveCoi_v0_2_0> for PositiveCoi {
 
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
-pub(crate) struct NegativeCoi {
+pub struct NegativeCoi {
     pub(super) id: CoiId,
     pub(super) point: Embedding,
     #[derivative(PartialEq = "ignore")]
@@ -107,7 +107,7 @@ impl NegativeCoi {
     }
 }
 
-pub(crate) trait CoiPoint {
+pub trait CoiPoint {
     /// Gets the coi id.
     fn id(&self) -> CoiId;
 

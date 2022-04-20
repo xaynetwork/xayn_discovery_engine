@@ -16,7 +16,7 @@ use chrono::NaiveDateTime;
 use uuid::Uuid;
 
 use xayn_ai::{
-    ranker::{Embedding, KeyPhrase},
+    ranker::{Embedding, KeyPhrase, NegativeCoi, PositiveCoi},
     DocumentId,
     UserFeedback,
 };
@@ -45,6 +45,12 @@ pub trait Ranker {
 
     /// Computes the S-mBert embedding of the given `sequence`.
     fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError>;
+
+    /// Returns the positive cois.
+    fn positive_cois(&self) -> &[PositiveCoi];
+
+    /// Returns the negative cois.
+    fn negative_cois(&self) -> &[NegativeCoi];
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
@@ -81,6 +87,14 @@ impl Ranker for xayn_ai::ranker::Ranker {
 
     fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError> {
         self.compute_smbert(sequence).map_err(Into::into)
+    }
+
+    fn positive_cois(&self) -> &[PositiveCoi] {
+        self.positive_cois()
+    }
+
+    fn negative_cois(&self) -> &[NegativeCoi] {
+        self.negative_cois()
     }
 }
 
