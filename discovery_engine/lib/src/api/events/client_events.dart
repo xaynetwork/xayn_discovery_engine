@@ -150,9 +150,10 @@ class ClientEvent with _$ClientEvent {
   ) = UserReactionChanged;
 
   /// Event created when the user starts a new active search.
+  /// `isTopic` indicates whether `queryTerm` is a topic.
   @Implements<SearchClientEvent>()
-  @Assert('(query != "" && topic == "") || (query == "" && topic != "")')
-  const factory ClientEvent.searchRequested(String query, String topic) =
+  @Assert('queryTerm != ""')
+  const factory ClientEvent.searchRequested(String queryTerm, bool isTopic) =
       SearchRequested;
 
   /// Event created when the client asks for a next batch of documents related

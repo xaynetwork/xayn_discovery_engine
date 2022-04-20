@@ -150,7 +150,7 @@ Future<void> main() async {
           pageSize: config.maxSearchDocs,
         );
 
-        final response = await mgr.searchRequested('example query', '');
+        final response = await mgr.searchRequested('example query', false);
 
         expect(searchRepo.getCurrent(), completion(equals(newSearch)));
         expect(response, isA<SearchRequestSucceeded>());
