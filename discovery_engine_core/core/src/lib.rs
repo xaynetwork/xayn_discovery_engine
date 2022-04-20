@@ -35,6 +35,7 @@ pub use xayn_discovery_engine_providers::Market;
 
 pub mod document;
 mod engine;
+mod ex_stack;
 mod mab;
 mod ranker;
 pub mod stack;

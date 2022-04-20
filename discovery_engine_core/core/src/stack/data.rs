@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::vec::Drain;
+
 use derivative::Derivative;
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
@@ -34,12 +36,12 @@ pub(crate) enum Error {
 pub(crate) struct Data {
     /// The alpha parameter of the beta distribution.
     #[derivative(Default(value = "1."))]
-    pub(super) alpha: f32,
+    pub(crate) alpha: f32,
     /// The beta parameter of the beta distribution.
     #[derivative(Default(value = "1."))]
-    pub(super) beta: f32,
+    pub(crate) beta: f32,
     /// Documents in the [`Stack`](super::Stack).
-    pub(super) documents: Vec<Document>,
+    pub(crate) documents: Vec<Document>,
 }
 
 impl Data {
@@ -61,10 +63,12 @@ impl Data {
     }
 
     /// Retains only the top documents, given how many to keep.
-    pub(crate) fn retain_top(&mut self, keep: usize) {
+    pub(crate) fn retain_top(&mut self, keep: usize) -> Option<Drain<'_, Document>> {
         let len = self.documents.len();
         if len > keep {
-            self.documents.drain(..len - keep);
+            self.documents.drain(..len - keep).into()
+        } else {
+            None
         }
     }
 }

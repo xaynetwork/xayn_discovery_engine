@@ -45,7 +45,8 @@ use crate::{
         UserReacted,
         UserReaction,
     },
-    mab::{self, BetaSampler, SelectionIter},
+    ex_stack::ExplorationStack,
+    mab::{self, BetaSampler, Bucket, SelectionIter},
     ranker::Ranker,
     stack::{
         self,
@@ -187,6 +188,7 @@ pub struct Engine<R> {
     config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
+    exploration_stack: ExplorationStack,
     ranker: R,
     request_after: usize,
 }
@@ -250,9 +252,13 @@ where
             .map_err(Error::InvalidStack)?;
         let core_config = CoreConfig::default();
 
+        let mut exploration_stack =
+            ExplorationStack::new(StackData::default()).map_err(Error::InvalidStack)?;
+
         // we don't want to fail initialization if there are network problems
         update_stacks(
             stacks.values_mut(),
+            &mut exploration_stack,
             &mut ranker,
             history,
             core_config.take_top,
@@ -267,6 +273,7 @@ where
             config,
             core_config,
             stacks: RwLock::new(stacks),
+            exploration_stack,
             ranker,
             request_after: 0,
         })
@@ -309,8 +316,11 @@ where
         for stack in stacks.values_mut() {
             stack.data = StackData::default();
         }
+        self.exploration_stack.data = StackData::default();
+
         update_stacks(
             stacks.values_mut(),
+            &mut self.exploration_stack,
             &mut self.ranker,
             history,
             self.core_config.take_top,
@@ -333,6 +343,7 @@ where
             .unwrap_or(usize::MAX);
         update_stacks(
             stacks.values_mut(),
+            &mut self.exploration_stack,
             &mut self.ranker,
             history,
             self.core_config.take_top,
@@ -342,7 +353,14 @@ where
         .await?;
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
-        SelectionIter::new(BetaSampler, stacks.values_mut())
+        let mut all_stacks = stacks
+            .values_mut()
+            .map(|s| Box::new(s) as Box<dyn Bucket<Document>>)
+            .collect::<Vec<Box<dyn Bucket<Document>>>>();
+        let ex_stack = Box::new(&mut self.exploration_stack) as Box<dyn Bucket<Document>>;
+        all_stacks.push(ex_stack);
+
+        SelectionIter::new(BetaSampler, all_stacks.iter_mut())
             .select(max_documents as usize)
             .map_err(Into::into)
     }
@@ -351,7 +369,11 @@ where
     pub async fn time_spent(&mut self, time_spent: &TimeSpent) -> Result<(), Error> {
         self.ranker.log_document_view_time(time_spent)?;
 
-        rank_stacks(self.stacks.write().await.values_mut(), &mut self.ranker)
+        rank_stacks(
+            self.stacks.write().await.values_mut(),
+            &mut self.exploration_stack,
+            &mut self.ranker,
+        )
     }
 
     /// Process the feedback about the user reacting to a document.
@@ -366,19 +388,27 @@ where
 
         // update relevance of stack if the reacted document belongs to one
         if !reacted.stack_id.is_nil() {
-            stacks
-                .get_mut(&reacted.stack_id)
-                .ok_or(Error::InvalidStackId(reacted.stack_id))?
-                .update_relevance(reacted.reaction);
+            if let Some(stack) = stacks.get_mut(&reacted.stack_id) {
+                stack.update_relevance(reacted.reaction);
+            } else if reacted.stack_id == ExplorationStack::id() {
+                self.exploration_stack.update_relevance(reacted.reaction);
+            } else {
+                return Err(Error::InvalidStackId(reacted.stack_id));
+            }
         };
 
         self.ranker.log_user_reaction(reacted)?;
 
-        rank_stacks(stacks.values_mut(), &mut self.ranker)?;
+        rank_stacks(
+            stacks.values_mut(),
+            &mut self.exploration_stack,
+            &mut self.ranker,
+        )?;
         if let UserReaction::Positive = reacted.reaction {
             if let Some(history) = history {
                 update_stacks(
                     stacks.values_mut(),
+                    &mut self.exploration_stack,
                     &mut self.ranker,
                     history,
                     self.core_config.take_top,
@@ -469,8 +499,11 @@ where
         for stack in stacks.values_mut() {
             stack.prune_by_sources(&sources_set, false);
         }
+        self.exploration_stack.prune_by_sources(&sources_set, false);
+
         update_stacks(
             stacks.values_mut(),
+            &mut self.exploration_stack,
             &mut self.ranker,
             history,
             self.core_config.take_top,
@@ -493,9 +526,12 @@ where
         for stack in stacks.values_mut() {
             stack.prune_by_sources(&exclusion_set, true);
         }
+        self.exploration_stack
+            .prune_by_sources(&exclusion_set, true);
 
         update_stacks(
             stacks.values_mut(),
+            &mut self.exploration_stack,
             &mut self.ranker,
             history,
             self.core_config.take_top,
@@ -509,15 +545,20 @@ where
 /// The ranker could rank the documents in a different order so we update the stacks with it.
 fn rank_stacks<'a>(
     stacks: impl Iterator<Item = &'a mut Stack>,
+    exploration_stack: &mut ExplorationStack,
     ranker: &mut impl Ranker,
 ) -> Result<(), Error> {
-    let errors = stacks.fold(Vec::new(), |mut errors, stack| {
+    let mut errors = stacks.fold(Vec::new(), |mut errors, stack| {
         if let Err(error) = stack.rank(ranker) {
             errors.push(Error::StackOpFailed(error));
         }
 
         errors
     });
+
+    if let Err(error) = exploration_stack.rank(ranker) {
+        errors.push(Error::StackOpFailed(error));
+    }
 
     if errors.is_empty() {
         Ok(())
@@ -529,6 +570,7 @@ fn rank_stacks<'a>(
 /// Updates the stacks with data related to the top key phrases of the current data.
 async fn update_stacks<'a>(
     stacks: impl Iterator<Item = &'a mut Stack> + Send + Sync,
+    exploration_stack: &mut ExplorationStack,
     ranker: &mut (impl Ranker + Send + Sync),
     history: &[HistoricDocument],
     take_top: usize,
@@ -598,9 +640,21 @@ async fn update_stacks<'a>(
             error!("{}", error);
             errors.push(error);
         } else {
-            stack.data.retain_top(keep_top);
+            let discarded = stack.data.retain_top(keep_top);
+            if stack.ops.id() == BreakingNews::id() {
+                if let Some(discarded) = discarded {
+                    // don't need to check if the documents are in the history (already filtered by the breaking news stack)
+                    if let Err(error) = exploration_stack.update(discarded.as_slice(), ranker) {
+                        let error = Error::StackOpFailed(error);
+                        error!("{}", error);
+                        errors.push(error);
+                    }
+                }
+            }
         }
     }
+
+    exploration_stack.data.retain_top(keep_top);
 
     // only return an error if all stacks failed
     if !errors.is_empty() && errors.len() >= stacks.len() {

@@ -78,6 +78,27 @@ where
     }
 }
 
+impl<B, T> Bucket<T> for Box<B>
+where
+    B: Bucket<T> + ?Sized,
+{
+    fn alpha(&self) -> f32 {
+        (**self).alpha()
+    }
+
+    fn beta(&self) -> f32 {
+        (**self).beta()
+    }
+
+    fn is_empty(&self) -> bool {
+        (**self).is_empty()
+    }
+
+    fn pop(&mut self) -> Option<T> {
+        (**self).pop()
+    }
+}
+
 /// Samples the next non-empty bucket.
 fn pull_arms<'b, T>(
     beta_sampler: &impl BetaSample,
