@@ -73,8 +73,11 @@ impl XaynDiscoveryEngineAsyncFfi {
                     event!(Level::INFO, "\n\n [SQLite] trying to open DB in memory\n\n");
                     event!(Level::INFO, "\n\n [SQLite] path: {}\n\n", path);
 
-                    // let conn = Connection::open_in_memory().expect("[SQLite] failed to open database");
                     let conn = Connection::open(&path).expect("[SQLite] failed to open database");
+
+                    // conn.execute_batch("PRAGMA key = '3e30431105262861ffad1d2ada34e82c';")
+                    conn.pragma_update(None, "key", "3e30431105262861ffad1d2ada34e82c")
+                        .expect("[SQLite] pragma key failes to be set");
 
                     event!(Level::INFO, "\n\n [SQLite] DB opened!!\n\n");
 
