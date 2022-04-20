@@ -15,8 +15,10 @@
 use std::{iter, sync::Arc};
 
 use async_trait::async_trait;
+use displaydoc::Display;
 use futures::stream::FuturesUnordered;
 use itertools::chain;
+use thiserror::Error;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
@@ -66,6 +68,12 @@ impl TrustedNews {
     }
 }
 
+#[derive(Error, Debug, Display)]
+enum Error {
+    /// No trusted sources available.
+    NoTrustedSources,
+}
+
 #[async_trait]
 impl Ops for TrustedNews {
     fn id(&self) -> Id {
@@ -83,6 +91,10 @@ impl Ops for TrustedNews {
         stack: &[Document],
     ) -> Result<Vec<Article>, GenericError> {
         let sources = Arc::new(self.sources.read().await.clone());
+        if sources.is_empty() {
+            return Err(Box::new(Error::NoTrustedSources));
+        }
+
         request_min_new_items(
             self.max_requests,
             self.min_articles,
