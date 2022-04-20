@@ -17,7 +17,7 @@ jobs:
     container:
       image: xaynetci/yellow:v1
     timeout-minutes: 10
-    needs: [build-ios-libs, build-android-libs]
+    needs: [build-ios-libs]
     steps:
       - name: Clean temp directory
         working-directory: ${{ runner.temp }}
