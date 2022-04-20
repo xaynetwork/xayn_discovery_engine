@@ -22,6 +22,7 @@ use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
+use itertools::Itertools;
 use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -29,7 +30,7 @@ use tokio::sync::RwLock;
 use tracing::error;
 
 use xayn_ai::{
-    ranker::{AveragePooler, Builder, CoiSystemConfig},
+    ranker::{AveragePooler, Builder, CoiSystemConfig, KeyPhrase},
     KpeConfig,
     SMBertConfig,
 };
@@ -56,10 +57,12 @@ use crate::{
     ranker::Ranker,
     stack::{
         self,
+        filters::DuplicateFilter,
         BoxedOps,
         BreakingNews,
         Data as StackData,
         Id as StackId,
+        Id,
         NewItemsError,
         PersonalizedNews,
         Stack,
@@ -108,6 +111,7 @@ pub enum Error {
 }
 
 /// Configuration settings to initialize Discovery Engine with a [`xayn_ai::ranker::Ranker`].
+#[derive(Clone)]
 pub struct InitConfig {
     /// Key for accessing the API.
     pub api_key: String,
@@ -260,7 +264,7 @@ where
 
         // we don't want to fail initialization if there are network problems
         update_stacks(
-            stacks.values_mut(),
+            &mut stacks,
             &mut ranker,
             history,
             core_config.take_top,
@@ -318,7 +322,7 @@ where
             stack.data = StackData::default();
         }
         update_stacks(
-            stacks.values_mut(),
+            &mut stacks,
             &mut self.ranker,
             history,
             self.core_config.take_top,
@@ -339,8 +343,9 @@ where
         let request_new = (self.request_after < self.core_config.request_after)
             .then(|| self.core_config.request_new)
             .unwrap_or(usize::MAX);
+
         update_stacks(
-            stacks.values_mut(),
+            &mut stacks,
             &mut self.ranker,
             history,
             self.core_config.take_top,
@@ -386,7 +391,7 @@ where
         if let UserReaction::Positive = reacted.reaction {
             if let Some(history) = history {
                 update_stacks(
-                    stacks.values_mut(),
+                    &mut stacks,
                     &mut self.ranker,
                     history,
                     self.core_config.take_top,
@@ -512,7 +517,7 @@ where
             stack.prune_by_sources(&sources_set, false);
         }
         update_stacks(
-            stacks.values_mut(),
+            &mut stacks,
             &mut self.ranker,
             history,
             self.core_config.take_top,
@@ -537,7 +542,7 @@ where
         }
 
         update_stacks(
-            stacks.values_mut(),
+            &mut stacks,
             &mut self.ranker,
             history,
             self.core_config.take_top,
@@ -570,71 +575,77 @@ fn rank_stacks<'a>(
 
 /// Updates the stacks with data related to the top key phrases of the current data.
 async fn update_stacks<'a>(
-    stacks: impl Iterator<Item = &'a mut Stack> + Send + Sync,
+    stacks: &mut HashMap<Id, Stack>,
     ranker: &mut (impl Ranker + Send + Sync),
     history: &[HistoricDocument],
     take_top: usize,
     keep_top: usize,
     request_new: usize,
 ) -> Result<(), Error> {
-    let mut stacks: Vec<_> = stacks.filter(|stack| stack.len() <= request_new).collect();
-    // return early if there are no stacks to be updated
-    if stacks.is_empty() {
-        return Ok(());
-    }
-
-    let key_phrases = stacks
-        .iter()
-        .any(|stack| stack.ops.needs_key_phrases())
-        .then(|| ranker.take_key_phrases(take_top))
-        .unwrap_or_default();
-
     let mut ready_stacks = stacks.len();
     let mut errors = Vec::new();
-    for stack in &mut stacks {
-        let articles = match stack.new_items(&key_phrases, history).await {
-            Ok(articles) => articles,
-            Err(stack::Error::New(NewItemsError::NotReady)) => {
-                ready_stacks -= 1;
-                continue;
-            }
-            Err(error) => {
-                let error = Error::StackOpFailed(error);
-                error!("{}", error);
-                errors.push(error);
-                continue;
-            }
-        };
+    let mut all_documents: Vec<Document> = Vec::new();
 
-        let id = stack.id();
-        let articles_len = articles.len();
-        let (documents, articles_errors) = articles
-            .into_par_iter()
-            .map(|article| {
-                let embedding =
-                    ranker
-                        .compute_smbert(article.excerpt_or_title())
-                        .map_err(|error| {
-                            let error = Error::Ranker(error);
-                            error!("{}", error);
-                            error
-                        })?;
-                document_from_article(article, id, embedding).map_err(|error| {
-                    let error = Error::Document(error);
-                    error!("{}", error);
-                    error
-                })
-            })
-            .partition_map::<Vec<_>, Vec<_>, _, _, _>(|result| match result {
-                Ok(document) => Either::Left(document),
-                Err(error) => Either::Right(error),
-            });
-        // only push an error if the articles aren't empty for other reasons and all articles failed
-        if articles_len > 0 && articles_errors.len() == articles_len {
-            errors.push(Error::Errors(articles_errors));
-            continue;
+    {
+        // Needy stacks are the ones for which we want to fetch new items.
+        let mut needy_stacks: Vec<_> = stacks
+            .values_mut()
+            .filter(|stack| stack.len() <= request_new)
+            .collect();
+
+        // return early if there are no stacks to be updated
+        if needy_stacks.is_empty() {
+            return Ok(());
         }
 
+        let key_phrases = needy_stacks
+            .iter()
+            .any(|stack| stack.ops.needs_key_phrases())
+            .then(|| ranker.take_key_phrases(take_top))
+            .unwrap_or_default();
+
+        // Here we gather new documents for all relevant stacks, and put them into a vector.
+        // We don't update the stacks immediately, because we want to de-duplicate the documents
+        // across stacks first.
+        for stack in &mut needy_stacks {
+            let maybe_new_documents =
+                fetch_new_documents_for_stack(stack, ranker, &key_phrases, history).await;
+
+            match maybe_new_documents {
+                Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady))) => {
+                    ready_stacks -= 1;
+                    continue;
+                }
+                Err(error) => {
+                    error!("{}", error);
+                    errors.push(error);
+                    continue;
+                }
+                Ok(documents) => all_documents.extend(documents),
+            };
+        }
+    }
+
+    // Since we need to de-duplicate not only the newly retrieved documents among themselves,
+    // but also consider the existing documents in all stacks (not just the needy ones), we extract
+    // them into `all_documents` here.
+    for stack in stacks.values_mut() {
+        all_documents.extend(stack.drain_documents());
+    }
+
+    // Separate stack documents (via the `stack` parameter) are not needed here, since they are
+    // already contained in `all_documents`.
+    all_documents = DuplicateFilter::apply(history, &[], all_documents);
+
+    // Finally, we can update the stacks with their respective documents. To do this, we
+    // have to group the fetched documents by `stack_id`, then `update` the stacks.
+    let documents_by_stack_id = all_documents.into_iter().group_by(|doc| doc.stack_id);
+    for (stack_id, documents_group) in &documents_by_stack_id {
+        // .unwrap() is safe here, because each document is created by an existing stack, and
+        // the `stacks` HashMap contains all instantiated stacks.
+        let stack = stacks.get_mut(&stack_id).unwrap();
+
+        let documents = documents_group.collect_vec();
         if let Err(error) = stack.update(&documents, ranker) {
             let error = Error::StackOpFailed(error);
             error!("{}", error);
@@ -650,6 +661,50 @@ async fn update_stacks<'a>(
     } else {
         Ok(())
     }
+}
+
+async fn fetch_new_documents_for_stack(
+    stack: &mut Stack,
+    ranker: &mut (impl Ranker + Send + Sync),
+    key_phrases: &[KeyPhrase],
+    history: &[HistoricDocument],
+) -> Result<Vec<Document>, Error> {
+    let articles = match stack.new_items(key_phrases, history).await {
+        Ok(articles) => articles,
+        Err(error) => {
+            return Err(Error::StackOpFailed(error));
+        }
+    };
+
+    let id = stack.id();
+    let articles_len = articles.len();
+    let (documents, articles_errors) = articles
+        .into_par_iter()
+        .map(|article| {
+            let embedding = ranker
+                .compute_smbert(article.excerpt_or_title())
+                .map_err(|error| {
+                    let error = Error::Ranker(error);
+                    error!("{}", error);
+                    error
+                })?;
+            document_from_article(article, id, embedding).map_err(|error| {
+                let error = Error::Document(error);
+                error!("{}", error);
+                error
+            })
+        })
+        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|result| match result {
+            Ok(document) => Either::Left(document),
+            Err(error) => Either::Right(error),
+        });
+
+    // only push an error if the articles aren't empty for other reasons and all articles failed
+    if articles_len > 0 && articles_errors.len() == articles_len {
+        return Err(Error::Errors(articles_errors));
+    }
+
+    Ok(documents)
 }
 
 /// A discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
@@ -765,7 +820,16 @@ enum SearchBy<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::{ranker, stack::Data};
+
     use std::{error::Error, mem::size_of};
+    use wiremock::{
+        matchers::{method, path},
+        Mock,
+        MockServer,
+        ResponseTemplate,
+    };
+    use xayn_ai::ranker::Embedding;
 
     use super::*;
 
@@ -812,5 +876,158 @@ mod tests {
     #[test]
     fn test_usize_not_to_small() {
         assert!(size_of::<usize>() >= size_of::<u32>());
+    }
+
+    #[tokio::test]
+    async fn test_cross_stack_deduplication() {
+        let mock_server = MockServer::start().await;
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/_lh"))
+            .respond_with(tmpl)
+            .mount(&mock_server)
+            .await;
+
+        let asset_base = "../../discovery_engine_flutter/example/assets/";
+        let config = InitConfig {
+            api_key: "test-token".to_string(),
+            api_base_url: mock_server.uri(),
+            markets: vec![Market {
+                country_code: "US".to_string(),
+                lang_code: "en".to_string(),
+            }],
+            // This triggers the trusted sources stack to also fetch articles
+            trusted_sources: vec!["example.com".to_string()],
+            excluded_sources: vec![],
+            smbert_vocab: format!("{}/smbert_v0001/vocab.txt", asset_base),
+            smbert_model: format!("{}/smbert_v0001/smbert-mocked.onnx", asset_base),
+            kpe_vocab: format!("{}/kpe_v0001/vocab.txt", asset_base),
+            kpe_model: format!("{}/kpe_v0001/bert-mocked.onnx", asset_base),
+            kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
+            kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
+            ai_config: None,
+        };
+        let endpoint_config = config.clone().into();
+        let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
+
+        // To test de-duplication we don't really need any ranking, so this
+        // this is essentially a no-op ranker.
+        let mut ranker = ranker::MockRanker::new();
+        ranker.expect_rank().returning(|_| Ok(()));
+        ranker.expect_take_key_phrases().returning(|_| vec![]);
+        ranker.expect_compute_smbert().returning(|_| {
+            let embedding: Embedding = [0.0].into();
+            Ok(embedding)
+        });
+
+        // We assume that, if de-duplication works between two stacks, it'll work between
+        // any number of stacks. So we just create two.
+        let stack_ops = vec![
+            Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
+            Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
+        ];
+
+        let breaking_news_id = stack_ops.get(0).unwrap().id();
+        let trusted_news_id = stack_ops.get(1).unwrap().id();
+
+        let mut stacks: HashMap<Id, Stack> = stack_ops
+            .into_iter()
+            .map(|ops| {
+                let data = Data::new(1.0, 1.0, vec![]).unwrap();
+                let stack = Stack::new(data, ops).unwrap();
+                (stack.id(), stack)
+            })
+            .collect();
+
+        // Stacks should be empty before we start fetching anything
+        assert_eq!(stacks.get(&breaking_news_id).unwrap().len(), 0);
+        assert_eq!(stacks.get(&trusted_news_id).unwrap().len(), 0);
+
+        // Update stacks does a lot of things, what's relevant for us is that
+        //      a) it fetches new documents
+        //      b) it's supposed to de-duplicate between stacks
+        // in that order.
+        update_stacks(&mut stacks, &mut ranker, &[], 10, 10, 10)
+            .await
+            .unwrap();
+
+        // After calling `update_stacks` once, one of the two stacks should contain one document.
+        // Both stacks fetched the same item, but de-duplication should prevent the same document
+        // being added to both stacks.
+        assert_eq!(
+            stacks.get(&breaking_news_id).unwrap().len()
+                + stacks.get(&trusted_news_id).unwrap().len(),
+            1,
+        );
+
+        // Now we call `update_stacks` again. We do this to ensure that de-duplication also takes
+        // into account the items that are already present inside the stacks, and not only the
+        // newly fetched documents.
+        update_stacks(&mut stacks, &mut ranker, &[], 10, 10, 10)
+            .await
+            .unwrap();
+
+        // No new documents should have been added by the second `update_stacks` call.
+        assert_eq!(
+            stacks.get(&breaking_news_id).unwrap().len()
+                + stacks.get(&trusted_news_id).unwrap().len(),
+            1,
+        );
+    }
+
+    #[tokio::test]
+    async fn test_basic_engine_integration() {
+        // We need a mock server from which the initialized stacks can fetch articles
+        let mock_server = MockServer::start().await;
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/_lh"))
+            .respond_with(tmpl)
+            .mount(&mock_server)
+            .await;
+
+        // The config mostly tells the engine were to find the model assets.
+        // Here we use the mocked ones, for speed.
+        let asset_base = "../../discovery_engine_flutter/example/assets/";
+        let config = InitConfig {
+            api_key: "test-token".to_string(),
+            api_base_url: mock_server.uri(),
+            markets: vec![Market {
+                country_code: "US".to_string(),
+                lang_code: "en".to_string(),
+            }],
+            // This triggers the trusted sources stack to also fetch articles
+            trusted_sources: vec!["example.com".to_string()],
+            excluded_sources: vec![],
+            smbert_vocab: format!("{}/smbert_v0001/vocab.txt", asset_base),
+            smbert_model: format!("{}/smbert_v0001/smbert-mocked.onnx", asset_base),
+            kpe_vocab: format!("{}/kpe_v0001/vocab.txt", asset_base),
+            kpe_model: format!("{}/kpe_v0001/bert-mocked.onnx", asset_base),
+            kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
+            kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
+            ai_config: None,
+        };
+
+        // Now we can initialize the engine with no previous history or state. This should
+        // be the same as when it's initialized for the first time after the app is downloaded.
+        let state = None;
+        let history = &[];
+        let mut engine = XaynAiEngine::from_config(config, state, history)
+            .await
+            .unwrap();
+
+        // Finally, we instruct the engine to fetch some articles and check whether or not
+        // the expected articles from the mock show up in the results.
+        let res = engine.get_feed_documents(history, 2).await.unwrap();
+
+        assert_eq!(1, res.len());
+        assert_eq!(
+            res.get(0).unwrap().resource.title,
+            "Some really important article",
+        );
     }
 }

@@ -167,7 +167,7 @@ dart-test: rust-build dart-build download-assets
     dart test
 
 # Tests rust
-rust-test: _codegen-order-workaround
+rust-test: _codegen-order-workaround download-assets
     #!/usr/bin/env sh
     set -eux
     cd "$RUST_WORKSPACE";

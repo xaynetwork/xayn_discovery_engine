@@ -22,7 +22,7 @@ use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
 
 use crate::{
-    document::{dedup_documents, Document, HistoricDocument},
+    document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::{
         filters::{filter_semantically, ArticleFilter, CommonFilter, SemanticFilterConfig},
@@ -112,10 +112,8 @@ impl Ops for BreakingNews {
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
-        let mut merged = chain!(stack, new).cloned().collect();
-        dedup_documents(&mut merged);
+        let merged: Vec<Document> = chain!(stack, new).cloned().collect();
         let filtered = filter_semantically(merged, &self.semantic_filter_config);
-
         Ok(filtered)
     }
 }

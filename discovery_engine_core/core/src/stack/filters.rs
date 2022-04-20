@@ -13,9 +13,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod article;
+mod deduplication;
 mod semantic;
 
 pub(crate) use self::{
-    article::{normalize, ArticleFilter, CommonFilter},
+    article::{ArticleFilter, CommonFilter},
+    deduplication::DuplicateFilter,
     semantic::{filter_semantically, SemanticFilterConfig},
 };

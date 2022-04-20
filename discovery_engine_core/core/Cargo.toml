@@ -35,4 +35,5 @@ mockall = "0.11.0"
 rubert = { path = "../ai/rubert" }
 serde_json = "1.0.79"
 tokio = { version = "1.17.0", default-features = false, features = ["macros", "rt", "sync"] }
+wiremock = "0.5.13"
 xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }

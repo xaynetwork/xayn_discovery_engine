@@ -31,7 +31,7 @@ use uuid::Uuid;
 
 use xayn_discovery_engine_providers::{Article, Market};
 
-use crate::stack::{normalize, Id as StackId};
+use crate::stack::Id as StackId;
 
 pub use xayn_ai::ranker::Embedding;
 
@@ -223,16 +223,6 @@ pub(crate) fn document_from_article(
         smbert_embedding,
         resource: article.try_into()?,
     })
-}
-
-/// Discards documents where the title is duplicated, keeping only the top ranked.
-pub(crate) fn dedup_documents(documents: &mut Vec<Document>) {
-    documents.sort_unstable_by(|doc1, doc2| {
-        normalize(&doc1.resource.title)
-            .cmp(&normalize(&doc2.resource.title))
-            .then(doc1.resource.rank.cmp(&doc2.resource.rank))
-    });
-    documents.dedup_by_key(|doc| normalize(&doc.resource.title));
 }
 
 /// Represents a [`Document`] in the document history.
