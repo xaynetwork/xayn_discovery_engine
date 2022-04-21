@@ -15,7 +15,12 @@
 //! AI model building blocks.
 
 #![forbid(unsafe_op_in_unsafe_fn, unsafe_op_in_unsafe_fn)]
-#![deny(clippy::pedantic)]
+#![deny(
+    clippy::pedantic,
+    clippy::future_not_send,
+    noop_method_call,
+    rust_2018_idioms
+)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,

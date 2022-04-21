@@ -297,7 +297,7 @@ impl BinParamsWithScope<'_> {
         self.prefix.clone() + suffix
     }
 
-    pub fn with_scope(&mut self, scope: &str) -> BinParamsWithScope {
+    pub fn with_scope(&mut self, scope: &str) -> BinParamsWithScope<'_> {
         BinParamsWithScope {
             params: &mut *self.params,
             prefix: self.prefix.clone() + scope + "/",

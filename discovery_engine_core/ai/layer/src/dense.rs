@@ -79,7 +79,7 @@ where
     }
 
     pub fn load(
-        mut params: BinParamsWithScope,
+        mut params: BinParamsWithScope<'_>,
         activation_function: AF,
     ) -> Result<Self, LoadingLayerFailed> {
         Self::new(
@@ -90,15 +90,15 @@ where
         .map_err(Into::into)
     }
 
-    pub fn weights(&self) -> ArrayView2<f32> {
+    pub fn weights(&self) -> ArrayView2<'_, f32> {
         self.weights.view()
     }
 
-    pub fn bias(&self) -> ArrayView1<f32> {
+    pub fn bias(&self) -> ArrayView1<'_, f32> {
         self.bias.view()
     }
 
-    pub fn store_params(self, mut params: BinParamsWithScope) {
+    pub fn store_params(self, mut params: BinParamsWithScope<'_>) {
         params.insert("weights", self.weights);
         params.insert("bias", self.bias);
     }
@@ -165,8 +165,8 @@ where
     /// The `input` and `partials` arrays are expected to be c- or f-contiguous.
     pub fn gradients_from_partials_1d(
         &self,
-        input: ArrayView1<f32>,
-        partials: ArrayView1<f32>,
+        input: ArrayView1<'_, f32>,
+        partials: ArrayView1<'_, f32>,
     ) -> DenseGradientSet {
         let weights_nr_rows = self.weights.shape()[0];
         let weights_nr_columns = self.weights.shape()[1];

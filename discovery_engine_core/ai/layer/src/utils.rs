@@ -101,7 +101,7 @@ where
 ///
 /// For the good distribution we could argue similarly. An alternative choice
 /// is to return `0` if the good distributions probability is `0`.)
-pub fn kl_divergence(good_dist: ArrayView1<f32>, eval_dist: ArrayView1<f32>) -> f32 {
+pub fn kl_divergence(good_dist: ArrayView1<'_, f32>, eval_dist: ArrayView1<'_, f32>) -> f32 {
     good_dist.into_iter().zip(eval_dist.into_iter()).fold(
         0.,
         |acc, (good_dist_prob, eval_dist_prob)| {
