@@ -22,7 +22,7 @@ use crate::{
     },
     tokenizer::encoding::ValidMask,
 };
-use layer::{activation::Relu, conv::Conv1D, io::BinParams};
+use xayn_discovery_engine_layer::{activation::Relu, conv::Conv1D, io::BinParams};
 
 /// A CNN model.
 #[derive(Debug)]

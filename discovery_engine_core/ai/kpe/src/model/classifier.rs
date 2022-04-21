@@ -23,7 +23,7 @@ use crate::{
     },
     tokenizer::encoding::ActiveMask,
 };
-use layer::{activation::Linear, dense::Dense, io::BinParams};
+use xayn_discovery_engine_layer::{activation::Linear, dense::Dense, io::BinParams};
 
 /// A Classifier model.
 #[derive(Debug)]
