@@ -23,7 +23,7 @@
     rust_2021_compatibility,
     unused_qualifications
 )]
-#![warn(missing_docs)]
+#![warn(missing_docs, unreachable_pub)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
