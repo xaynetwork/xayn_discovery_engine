@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Layer utilities.
+
 use std::f32::consts::SQRT_2;
 
 use displaydoc::Display;
@@ -45,6 +47,7 @@ pub struct IncompatibleMatrices {
 }
 
 impl IncompatibleMatrices {
+    /// Creates the error.
     pub fn new(
         name_left: &'static str,
         shape_left: impl IntoDimension,

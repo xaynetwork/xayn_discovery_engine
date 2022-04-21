@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Activation layers.
+
 use ndarray::{Array, ArrayBase, Axis, Data, DataMut, DataOwned, Dimension, NdFloat, RemoveAxis};
 
 use crate::utils::softmax;

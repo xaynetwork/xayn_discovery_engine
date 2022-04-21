@@ -20,8 +20,10 @@
     clippy::future_not_send,
     noop_method_call,
     rust_2018_idioms,
-    rust_2021_compatibility
+    rust_2021_compatibility,
+    unused_qualifications
 )]
+#![warn(missing_docs)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,

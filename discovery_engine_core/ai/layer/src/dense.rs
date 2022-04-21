@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Dense layers.
+
 use std::ops::{AddAssign, DivAssign, MulAssign};
 
 use ndarray::{
@@ -51,6 +53,7 @@ impl<AF> Dense<AF>
 where
     AF: ActivationFunction<f32>,
 {
+    /// Creates a dense layer.
     pub fn new(
         weights: Array2<f32>,
         bias: Array1<f32>,
@@ -78,6 +81,7 @@ where
         })
     }
 
+    /// Loads a dense layer.
     pub fn load(
         mut params: BinParamsWithScope<'_>,
         activation_function: AF,
@@ -90,19 +94,23 @@ where
         .map_err(Into::into)
     }
 
+    /// Gets the weights.
     pub fn weights(&self) -> ArrayView2<'_, f32> {
         self.weights.view()
     }
 
+    /// Gets the bias.
     pub fn bias(&self) -> ArrayView1<'_, f32> {
         self.bias.view()
     }
 
+    /// Stores all parameters.
     pub fn store_params(self, mut params: BinParamsWithScope<'_>) {
         params.insert("weights", self.weights);
         params.insert("bias", self.bias);
     }
 
+    /// Checks the shapes against an expectation.
     pub fn check_in_out_shapes<D>(&self, mut shape: D) -> Result<D, IncompatibleMatrices>
     where
         D: Dimension,
@@ -233,6 +241,7 @@ pub struct DenseGradientSet {
 }
 
 impl DenseGradientSet {
+    /// Creates a gradient set of a dense layer.
     pub fn new(weight_gradients: Array2<f32>, bias_gradients: Array1<f32>) -> Self {
         Self {
             weight_gradients,
@@ -240,10 +249,12 @@ impl DenseGradientSet {
         }
     }
 
+    /// Gets the weight gradients.
     pub fn weight_gradients(&self) -> &Array2<f32> {
         &self.weight_gradients
     }
 
+    /// Gets the bias gradients.
     pub fn bias_gradients(&self) -> &Array1<f32> {
         &self.bias_gradients
     }
