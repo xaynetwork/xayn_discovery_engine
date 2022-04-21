@@ -86,7 +86,7 @@ macro_rules! assert_approx_eq {
             $crate::ApproxEqIter::<$t>::indexed_iter_logical_order(right, Vec::new());
         loop {
             match (left_iter.next(), right_iter.next()) {
-                (std::option::Option::Some((lidx, lv)), std::option::Option::Some((ridx, rv))) => {
+                (Some((lidx, lv)), Some((ridx, rv))) => {
                     std::assert_eq!(
                         lidx, ridx,
                         "Dimensionality mismatch when iterating in logical order: {:?} != {:?}",
@@ -100,13 +100,13 @@ macro_rules! assert_approx_eq {
                         );
                     }
                 }
-                (std::option::Option::Some(pair), std::option::Option::None) => {
+                (Some(pair), None) => {
                     std::panic!("Left input is longer starting from index {:?}", pair);
                 }
-                (std::option::Option::None, std::option::Option::Some(pair)) => {
+                (None, Some(pair)) => {
                     std::panic!("Right input is longer starting from index {:?}", pair);
                 }
-                (std::option::Option::None, std::option::Option::None) => break,
+                (None, None) => break,
             }
         }
     }};

@@ -15,7 +15,14 @@
 //! The single source of truth for all data paths and other test utilities.
 
 #![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
-#![deny(clippy::pedantic)]
+#![deny(
+    clippy::pedantic,
+    clippy::future_not_send,
+    noop_method_call,
+    rust_2018_idioms,
+    rust_2021_compatibility,
+    unused_qualifications
+)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
