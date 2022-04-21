@@ -31,7 +31,7 @@ mod tracing;
 pub mod types;
 
 use ::tracing::{event, Level};
-use rusqlite::{params, Connection, Result};
+use sqlx::{sqlite::SqliteRow, Connection, Row, SqliteConnection};
 use xayn_discovery_engine_core::Engine;
 
 #[derive(Debug)]
@@ -60,74 +60,71 @@ impl XaynDiscoveryEngineAsyncFfi {
     ) -> Box<Result<SharedEngine, String>> {
         tracing::init_tracing();
 
-        let path = &config.smbert_vocab.clone();
-        let vocab_path = "assets/smbert_v0001/vocab.txt";
-        let db_path = "discovery_engine.db3";
-        let path = path.replace(vocab_path, db_path);
+        // let path = &config.smbert_vocab.clone();
+        // let vocab_path = "assets/smbert_v0001/vocab.txt";
+        // let db_filename = "discovery_engine.db3";
+        // let path = path.replace(vocab_path, db_filename);
+        // let mut db_path = "sqlite://".to_string();
+        // db_path.push_str(&path);
+        let db_path = ":memory:";
+
+        event!(Level::INFO, "\n\n [SQLite] trying to open DB from disk\n\n");
+        event!(Level::INFO, "\n\n [SQLite] path: {}\n\n", db_path);
+
+        let mut conn = SqliteConnection::connect(&db_path)
+            .await
+            .expect("[SQLite] connection failed");
+
+        event!(Level::INFO, "\n\n [SQLite] DB opened!!\n\n");
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS person (
+            id    INTEGER PRIMARY KEY,
+            name  TEXT NOT NULL,
+            data  BLOB)",
+        )
+        .execute(&mut conn)
+        .await
+        .expect("[SQLite] table creation failed");
+
+        let me = Person {
+            id: 0,
+            name: "Steven".to_string(),
+            data: None,
+        };
+
+        sqlx::query("INSERT INTO person (name, data) VALUES (?1, ?2)")
+            .bind(&me.name)
+            .bind(&me.data)
+            .execute(&mut conn)
+            .await
+            .expect("[SQLite] insertion failed");
+
+        let person_iter = sqlx::query("SELECT id, name, data FROM person")
+            .map(|row: SqliteRow| Person {
+                id: row.get(0),
+                name: row.get(1),
+                data: row.get(2),
+            })
+            .fetch_all(&mut conn)
+            .await
+            .expect("[SQLite] query failed");
+
+        for person in person_iter {
+            event!(
+                Level::INFO,
+                "\n\n [SQLite] person from db: {:?}\n\n",
+                person
+            );
+        }
+
+        conn.close().await.expect("[SQLite] closing failed");
+        event!(Level::INFO, "\n\n [SQLite] DB closed!!\n\n");
 
         Box::new(
             Engine::from_config(*config, state.as_deref().map(Vec::as_slice), &history)
                 .await
                 .map(|engine| tokio::sync::Mutex::new(engine).into())
-                .map(|engine| {
-                    event!(Level::INFO, "\n\n [SQLite] trying to open DB in memory\n\n");
-                    event!(Level::INFO, "\n\n [SQLite] path: {}\n\n", path);
-
-                    let conn = Connection::open(&path).expect("[SQLite] failed to open database");
-
-                    // conn.execute_batch("PRAGMA key = '3e30431105262861ffad1d2ada34e82c';")
-                    conn.pragma_update(None, "key", "3e30431105262861ffad1d2ada34e82c")
-                        .expect("[SQLite] pragma key failes to be set");
-
-                    event!(Level::INFO, "\n\n [SQLite] DB opened!!\n\n");
-
-                    conn.execute(
-                        "CREATE TABLE IF NOT EXISTS person (
-                            id    INTEGER PRIMARY KEY,
-                            name  TEXT NOT NULL,
-                            data  BLOB
-                        )",
-                        [],
-                    )
-                    .expect("[SQLite] crate table failed");
-
-                    let me = Person {
-                        id: 0,
-                        name: "Steven".to_string(),
-                        data: None,
-                    };
-
-                    conn.execute(
-                        "INSERT INTO person (name, data) VALUES (?1, ?2)",
-                        params![me.name, me.data],
-                    )
-                    .expect("[SQLite] insert data into table failed");
-
-                    let mut stmt = conn
-                        .prepare("SELECT id, name, data FROM person")
-                        .expect("[SQLite] prepare statement failed");
-
-                    let person_iter = stmt
-                        .query_map([], |row| {
-                            Ok(Person {
-                                id: row.get(0)?,
-                                name: row.get(1)?,
-                                data: row.get(2)?,
-                            })
-                        })
-                        .expect("[SQLite] select query failed");
-
-                    for person in person_iter {
-                        event!(
-                            Level::INFO,
-                            "\n\n [SQLite] person from db: {:?}\n\n",
-                            person.unwrap()
-                        );
-                    }
-
-                    // return the engine
-                    engine
-                })
                 .map_err(|error| error.to_string()),
         )
     }

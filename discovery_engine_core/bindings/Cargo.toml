@@ -10,7 +10,7 @@ cfg-if = "1.0.0"
 chrono = { version = "0.4.19", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
 ndarray = "=0.15.3"
-rusqlite = { version = "0.27.0", features = ["bundled-sqlcipher-vendored-openssl"] }
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite"] }
 tokio = { version = "1.17.0", default-features = false, features = ["sync"] }
 tracing = "0.1.31"
 tracing-subscriber = "0.3.9"
