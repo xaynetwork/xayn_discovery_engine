@@ -68,6 +68,13 @@ where
     where
         D: serde::Deserializer<'de>,
     {
+        /// Helper to get a post serialization invariant check.
+        #[derive(Deserialize)]
+        struct FlattenedArrayDeserializationHelper<A> {
+            shape: Vec<Ix>,
+            data: Vec<A>,
+        }
+
         let helper = FlattenedArrayDeserializationHelper::<A>::deserialize(deserializer)?;
 
         let expected_data_len = helper.shape.iter().product::<usize>();
@@ -78,19 +85,12 @@ where
                     expected: expected_data_len,
                 },
             ));
-        } else {
-            return Ok(Self {
-                shape: helper.shape,
-                data: helper.data,
-            });
-        };
-
-        /// Helper to get a post serialization invariant check.
-        #[derive(Deserialize)]
-        struct FlattenedArrayDeserializationHelper<A> {
-            shape: Vec<Ix>,
-            data: Vec<A>,
         }
+
+        Ok(Self {
+            shape: helper.shape,
+            data: helper.data,
+        })
     }
 }
 
@@ -339,7 +339,7 @@ mod tests {
 
     #[test]
     fn ix_is_usize() {
-        let _a: Ix = 12usize;
+        let _: Ix = 12_usize;
     }
 
     #[rustfmt::skip]
@@ -370,11 +370,11 @@ mod tests {
         let mut params = HashMap::default();
         params.insert(
             "a".to_owned(),
-            FlattenedArray::from(arr2(&[[1.0f32, 2.], [3., 4.]])),
+            FlattenedArray::from(arr2(&[[1., 2.], [3., 4.]])),
         );
         params.insert(
             "b".to_owned(),
-            FlattenedArray::from(arr1(&[3.0f32, 2., 1., 4.])),
+            FlattenedArray::from(arr1(&[3., 2., 1., 4.])),
         );
         BinParams { params }
     }
@@ -391,8 +391,8 @@ mod tests {
         let array1 = loaded.take::<Array2<f32>>("a").unwrap();
         let array2 = loaded.take::<Array1<f32>>("b").unwrap();
 
-        assert_eq!(array1, arr2(&[[1.0f32, 2.], [3., 4.]]));
-        assert_eq!(array2, arr1(&[3.0f32, 2., 1., 4.]));
+        assert_eq!(array1, arr2(&[[1., 2.], [3., 4.]]));
+        assert_eq!(array2, arr1(&[3., 2., 1., 4.]));
     }
 
     #[test]
@@ -412,7 +412,7 @@ mod tests {
             bin_params.serialize_into(&mut buffer).unwrap();
             let bin_params2 = BinParams::deserialize_from(&*buffer).unwrap();
 
-            for (key, fla1) in bin_params.params.iter() {
+            for (key, fla1) in &bin_params.params {
                 let fla2 = bin_params2.params.get(key).unwrap();
                 assert_eq!(fla1.shape, fla2.shape);
                 assert_approx_eq!(f32, &fla1.data, &fla2.data, ulps = 0);
@@ -420,10 +420,10 @@ mod tests {
         }
     }
 
-    const EMPTY_BIN_PARAMS: &[u8] = &[0u8; 8];
+    const EMPTY_BIN_PARAMS: &[u8] = &[0; 8];
 
     const BIN_PARAMS_WITH_EMPTY_ARRAY_AND_KEY: &[u8] = &[
-        1u8, 0, 0, 0, 0, 0, 0, 0, // 1 entry
+        1, 0, 0, 0, 0, 0, 0, 0, // 1 entry
         0, 0, 0, 0, 0, 0, 0, 0, // empty string key
         1, 0, 0, 0, 0, 0, 0, 0, // 1 dimensional array
         0, 0, 0, 0, 0, 0, 0, 0, // the dimension is 0
@@ -431,7 +431,7 @@ mod tests {
     ];
 
     const BIN_PARAMS_WITH_SOME_KEYS: &[u8] = &[
-        2u8, 0, 0, 0, 0, 0, 0, 0, // 2 entries
+        2, 0, 0, 0, 0, 0, 0, 0, // 2 entries
         3, 0, 0, 0, 0, 0, 0, 0, b'f', b'o', b'o', // key 1
         1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // shape [0]
         0, 0, 0, 0, 0, 0, 0, 0, // and data

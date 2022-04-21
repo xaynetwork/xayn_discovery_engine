@@ -13,7 +13,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! AI model building blocks.
-#![forbid(unsafe_op_in_unsafe_fn)]
+
+#![forbid(unsafe_op_in_unsafe_fn, unsafe_op_in_unsafe_fn)]
+#![deny(clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions,
+    clippy::items_after_statements
+)]
 
 pub mod activation;
 pub mod conv;

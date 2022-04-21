@@ -104,7 +104,7 @@ impl Cnn {
         debug_assert!(valid_embeddings.iter().copied().all(f32::is_finite));
 
         let run_layer =
-            |idx: usize| self.layers[idx].run(valid_embeddings.t().slice(s![NewAxis, .., ..]));
+            |idx: usize| self.layers[idx].run(&valid_embeddings.t().slice(s![NewAxis, .., ..]));
         let features = Features(concatenate(
             Axis(1),
             &[
