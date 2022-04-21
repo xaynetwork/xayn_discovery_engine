@@ -24,14 +24,14 @@ use ndarray::{ArrayBase, Data, Dimension, IntoDimension, Ix};
 /// This can be used to compare two floating point numbers:
 ///
 /// ```
-/// use test_utils::assert_approx_eq;
-/// assert_approx_eq!(f32, 0.15039155, 0.1503916, ulps = 3);
+/// use xayn_discovery_engine_test_utils::assert_approx_eq;
+/// assert_approx_eq!(f32, 0.150_391_55, 0.150_391_6, ulps = 3);
 /// ```
 ///
 /// Or containers of such:
 ///
 /// ```
-/// use test_utils::assert_approx_eq;
+/// use xayn_discovery_engine_test_utils::assert_approx_eq;
 /// assert_approx_eq!(f32, &[[1., 2.], [3., 4.]], vec![[1., 2.], [3., 4.]])
 /// ```
 ///
@@ -39,7 +39,7 @@ use ndarray::{ArrayBase, Data, Dimension, IntoDimension, Ix};
 ///
 /// ```
 /// use ndarray::arr2;
-/// use test_utils::assert_approx_eq;
+/// use xayn_discovery_engine_test_utils::assert_approx_eq;
 /// assert_approx_eq!(
 ///     f32,
 ///     arr2(&[[1., 2.], [3., 4.]]),
