@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Path resolvers for the `KPE` assets.
+
 use std::{io::Result, path::PathBuf};
 
 use crate::asset::{resolve_path, DATA_DIR};
