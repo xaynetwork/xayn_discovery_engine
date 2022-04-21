@@ -276,8 +276,8 @@ mod tests {
 
     #[test]
     fn test_assert_approx_eq_float() {
-        assert_approx_eq!(f32, 0.15039155, 0.1503916, ulps = 3);
-        catch_unwind(|| assert_approx_eq!(f32, 0.15039155, 0.1503916, ulps = 2)).unwrap_err();
+        assert_approx_eq!(f32, 0.150_391_55, 0.150_391_6, ulps = 3);
+        catch_unwind(|| assert_approx_eq!(f32, 0.150_391_55, 0.150_391_6, ulps = 2)).unwrap_err();
     }
 
     #[test]
@@ -346,12 +346,12 @@ mod tests {
 
     #[test]
     fn test_equality_using_epsilon() {
-        assert_approx_eq!(f32, 0.125, 0.625, epsilon = 0.5)
+        assert_approx_eq!(f32, 0.125, 0.625, epsilon = 0.5);
     }
 
     #[test]
     #[should_panic(expected = "[]")]
     fn test_equality_using_epsilon_with_panic() {
-        assert_approx_eq!(f32, 0.125, 0.625, epsilon = 0.49)
+        assert_approx_eq!(f32, 0.125, 0.625, epsilon = 0.49);
     }
 }

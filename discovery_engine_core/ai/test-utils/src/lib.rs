@@ -13,7 +13,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! The single source of truth for all data paths and other test utilities.
-#![forbid(unsafe_op_in_unsafe_fn)]
+
+#![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
+#![deny(clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions,
+    clippy::items_after_statements
+)]
 
 mod approx_eq;
 mod asset;
