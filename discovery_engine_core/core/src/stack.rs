@@ -40,7 +40,12 @@ pub use self::ops::Ops;
 pub(crate) use self::{
     data::Data,
     filters::normalize,
-    ops::{breaking::BreakingNews, personalized::PersonalizedNews, trusted::TrustedNews},
+    ops::{
+        breaking::BreakingNews,
+        personalized::PersonalizedNews,
+        trusted::TrustedNews,
+        NewItemsError,
+    },
 };
 
 /// Errors that could occur while manipulating a stack.
@@ -63,7 +68,7 @@ pub enum Error {
     },
 
     /// Failed to get new items: {0}.
-    New(#[source] GenericError),
+    New(#[source] NewItemsError),
 
     /// Failed to filter: {0}.
     Filter(#[source] GenericError),

@@ -15,10 +15,8 @@
 use std::{iter, sync::Arc};
 
 use async_trait::async_trait;
-use displaydoc::Display;
 use futures::stream::FuturesUnordered;
 use itertools::chain;
-use thiserror::Error;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
@@ -33,7 +31,7 @@ use crate::{
     },
 };
 
-use super::{common::request_min_new_items, Ops};
+use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for trusted news.
 pub(crate) struct TrustedNews {
@@ -68,12 +66,6 @@ impl TrustedNews {
     }
 }
 
-#[derive(Error, Debug, Display)]
-enum Error {
-    /// No trusted sources available.
-    NoTrustedSources,
-}
-
 #[async_trait]
 impl Ops for TrustedNews {
     fn id(&self) -> Id {
@@ -89,10 +81,10 @@ impl Ops for TrustedNews {
         _key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
-    ) -> Result<Vec<Article>, GenericError> {
+    ) -> Result<Vec<Article>, NewItemsError> {
         let sources = Arc::new(self.sources.read().await.clone());
         if sources.is_empty() {
-            return Err(Box::new(Error::NoTrustedSources));
+            return Err(NewItemsError::NotReady);
         }
 
         request_min_new_items(
@@ -111,6 +103,7 @@ impl Ops for TrustedNews {
             |articles| Self::filter_articles(history, stack, articles),
         )
         .await
+        .map_err(Into::into)
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {

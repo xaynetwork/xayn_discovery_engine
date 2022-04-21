@@ -12,12 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub(crate) mod breaking;
-mod common;
-pub(crate) mod personalized;
-pub(crate) mod trusted;
-
 use async_trait::async_trait;
+use displaydoc::Display;
+#[cfg(test)]
+use mockall::automock;
+use thiserror::Error;
+
+use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::Article;
 
 use crate::{
@@ -25,10 +26,21 @@ use crate::{
     engine::GenericError,
     stack::Id,
 };
-use xayn_ai::ranker::KeyPhrase;
 
-#[cfg(test)]
-use mockall::automock;
+pub(crate) mod breaking;
+mod common;
+pub(crate) mod personalized;
+pub(crate) mod trusted;
+
+/// When asking for new articles the stack could be in a not ready state
+/// to ask for them.
+#[derive(Error, Debug, Display)]
+pub enum NewItemsError {
+    /// The stack is not ready to retrieve new items.
+    NotReady,
+    /// Retrieving new items error: {0}
+    Error(#[from] GenericError),
+}
 
 /// Operations to customize the behaviour of a stack.
 ///
@@ -52,7 +64,7 @@ pub trait Ops {
         key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
-    ) -> Result<Vec<Article>, GenericError>;
+    ) -> Result<Vec<Article>, NewItemsError>;
 
     /// Returns if `[new_items]` needs the key phrases to work.
     fn needs_key_phrases(&self) -> bool;
