@@ -14,7 +14,7 @@
 
 use kpe::{Config, Pipeline};
 
-use test_utils::kpe::*;
+use xayn_discovery_engine_test_utils::kpe::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config =

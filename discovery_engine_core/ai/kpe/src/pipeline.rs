@@ -84,7 +84,7 @@ impl Pipeline {
 mod tests {
     use std::{collections::HashSet, error::Error};
 
-    use test_utils::kpe::{bert, classifier, cnn, vocab};
+    use xayn_discovery_engine_test_utils::kpe::{bert, classifier, cnn, vocab};
 
     use super::*;
 

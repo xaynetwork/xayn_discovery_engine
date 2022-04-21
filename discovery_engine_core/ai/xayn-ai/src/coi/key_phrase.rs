@@ -423,7 +423,7 @@ mod tests {
     use std::time::Duration;
 
     use ndarray::arr2;
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use crate::coi::{config::Config, utils::tests::create_pos_cois};
 

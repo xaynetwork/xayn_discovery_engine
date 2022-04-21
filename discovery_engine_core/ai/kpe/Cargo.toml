@@ -16,7 +16,7 @@ tract-onnx = "0.16.1"
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["html_reports"] }
-test-utils = { path = "../test-utils" }
+xayn-discovery-engine-test-utils = { path = "../test-utils" }
 
 [[bench]]
 name = "kpe"

@@ -23,7 +23,7 @@ onnxruntime = { version = "0.0.13", optional = true }
 rayon = { version = "1.5.1", optional = true }
 
 [dev-dependencies]
-test-utils = { path = "../test-utils" }
+xayn-discovery-engine-test-utils = { path = "../test-utils" }
 
 [features]
 bench = ["criterion", "onnxruntime", "rayon"]

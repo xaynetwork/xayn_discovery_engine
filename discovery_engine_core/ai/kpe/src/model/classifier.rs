@@ -97,7 +97,7 @@ mod tests {
     use ndarray::Array2;
 
     use super::*;
-    use test_utils::kpe::classifier;
+    use xayn_discovery_engine_test_utils::kpe::classifier;
 
     #[test]
     fn test_model_empty() {

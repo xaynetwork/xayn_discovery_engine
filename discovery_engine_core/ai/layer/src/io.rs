@@ -333,7 +333,7 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     use crate::utils::he_normal_weights_init;
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
 

@@ -124,7 +124,7 @@ pub(crate) fn compute_coi_decay_factor(
 #[cfg(test)]
 mod tests {
     use crate::coi::{config::Config, utils::tests::create_pos_cois};
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
 

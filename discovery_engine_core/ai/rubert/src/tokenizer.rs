@@ -108,7 +108,7 @@ mod tests {
     use std::{fs::File, io::BufReader};
 
     use rubert_tokenizer::{ModelError, PaddingError, PostTokenizerError};
-    use test_utils::smbert::vocab;
+    use xayn_discovery_engine_test_utils::smbert::vocab;
 
     use super::*;
 
