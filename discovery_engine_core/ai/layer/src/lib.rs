@@ -19,7 +19,8 @@
     clippy::pedantic,
     clippy::future_not_send,
     noop_method_call,
-    rust_2018_idioms
+    rust_2018_idioms,
+    rust_2021_compatibility
 )]
 #![allow(
     clippy::missing_errors_doc,
