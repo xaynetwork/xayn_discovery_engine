@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart';
@@ -149,11 +150,12 @@ class ClientEvent with _$ClientEvent {
     UserReaction userReaction,
   ) = UserReactionChanged;
 
-  /// Event created when the user starts a new active search.
-  /// `isTopic` indicates whether `queryTerm` is a topic.
+  /// Event created when the user starts a new active search. `searchBy`
+  /// determines what `term` is, e.g. [SearchBy.query] indicates that `term` is
+  /// a query term.
   @Implements<SearchClientEvent>()
-  @Assert('queryTerm != ""')
-  const factory ClientEvent.searchRequested(String queryTerm, bool isTopic) =
+  @Assert('term != ""')
+  const factory ClientEvent.searchRequested(String term, SearchBy searchBy) =
       SearchRequested;
 
   /// Event created when the client asks for a next batch of documents related

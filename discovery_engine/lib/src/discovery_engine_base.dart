@@ -46,6 +46,8 @@ import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     as entry_point show main;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -347,7 +349,7 @@ class DiscoveryEngine {
   /// for such failure.
   Future<EngineEvent> requestSearch(String queryTerm) {
     return _trySend(() async {
-      final event = ClientEvent.searchRequested(queryTerm, false);
+      final event = ClientEvent.searchRequested(queryTerm, SearchBy.query);
       final response = await _manager.send(event);
 
       return response.mapEvent(
@@ -368,7 +370,7 @@ class DiscoveryEngine {
   /// for such failure.
   Future<EngineEvent> requestTopic(String topic) {
     return _trySend(() async {
-      final event = ClientEvent.searchRequested(topic, true);
+      final event = ClientEvent.searchRequested(topic, SearchBy.topic);
       final response = await _manager.send(event);
 
       return response.mapEvent(

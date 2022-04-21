@@ -28,3 +28,4 @@ const setSourceTypeId = 12;
 const sourceTypeId = 13;
 const sourceFilterTypeId = 14;
 const sourceFilterModeTypeId = 15;
+const searchByTypeId = 16;

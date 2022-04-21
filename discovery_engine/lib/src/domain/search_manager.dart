@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
     show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch;
+    show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
@@ -69,7 +69,7 @@ class SearchManager {
       );
 
   Future<List<api.Document>> _getSearchDocuments(ActiveSearch search) async {
-    if (search.isTopic) {
+    if (search.searchBy == SearchBy.topic) {
       // TODO handle topic searches
       throw UnimplementedError();
     }
@@ -93,14 +93,14 @@ class SearchManager {
   }
 
   /// Obtain the first batch of search documents and persist to repositories.
-  Future<EngineEvent> searchRequested(String queryTerm, bool isTopic) async {
+  Future<EngineEvent> searchRequested(String queryTerm, SearchBy searchBy) async {
     await searchClosed();
 
     final search = ActiveSearch(
       queryTerm: queryTerm,
       requestedPageNb: 1,
       pageSize: _config.maxSearchDocs,
-      isTopic: isTopic,
+      searchBy: searchBy,
     );
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);

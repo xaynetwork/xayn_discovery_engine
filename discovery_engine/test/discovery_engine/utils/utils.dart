@@ -23,7 +23,7 @@ import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show Manifest;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch;
+    show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -160,5 +160,5 @@ const mockActiveSearch = ActiveSearch(
   queryTerm: queryTerm,
   requestedPageNb: 1,
   pageSize: 20,
-  isTopic: false,
+  searchBy: SearchBy.query,
 );
