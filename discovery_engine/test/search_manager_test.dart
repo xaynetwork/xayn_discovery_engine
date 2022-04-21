@@ -151,7 +151,8 @@ Future<void> main() async {
           searchBy: SearchBy.query,
         );
 
-        final response = await mgr.searchRequested('example query', SearchBy.query);
+        final response =
+            await mgr.searchRequested('example query', SearchBy.query);
 
         expect(searchRepo.getCurrent(), completion(equals(newSearch)));
         expect(response, isA<SearchRequestSucceeded>());

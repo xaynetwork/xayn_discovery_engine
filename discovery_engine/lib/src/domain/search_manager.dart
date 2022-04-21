@@ -93,7 +93,8 @@ class SearchManager {
   }
 
   /// Obtain the first batch of search documents and persist to repositories.
-  Future<EngineEvent> searchRequested(String queryTerm, SearchBy searchBy) async {
+  Future<EngineEvent> searchRequested(
+      String queryTerm, SearchBy searchBy) async {
     await searchClosed();
 
     final search = ActiveSearch(

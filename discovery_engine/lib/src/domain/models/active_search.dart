@@ -38,6 +38,8 @@ class ActiveSearch with _$ActiveSearch {
 
 @HiveType(typeId: searchByTypeId)
 enum SearchBy {
-  @HiveField(0) query,
-  @HiveField(1) topic,
+  @HiveField(0)
+  query,
+  @HiveField(1)
+  topic,
 }
