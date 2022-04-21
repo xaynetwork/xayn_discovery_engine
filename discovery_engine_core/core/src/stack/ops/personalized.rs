@@ -39,6 +39,7 @@ use crate::{
 
 use super::{
     common::{create_requests_for_markets, request_min_new_items},
+    NewItemsError,
     Ops,
 };
 
@@ -92,9 +93,9 @@ impl Ops for PersonalizedNews {
         key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
-    ) -> Result<Vec<Article>, GenericError> {
+    ) -> Result<Vec<Article>, NewItemsError> {
         if key_phrases.is_empty() {
-            return Ok(vec![]);
+            return Err(NewItemsError::NotReady);
         }
 
         let filter = Arc::new(key_phrases.iter().fold(Filter::default(), |filter, kp| {
@@ -122,6 +123,7 @@ impl Ops for PersonalizedNews {
             |articles| Self::filter_articles(history, stack, articles),
         )
         .await
+        .map_err(Into::into)
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {

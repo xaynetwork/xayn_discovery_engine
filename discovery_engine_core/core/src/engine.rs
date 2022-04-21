@@ -53,6 +53,7 @@ use crate::{
         BreakingNews,
         Data as StackData,
         Id as StackId,
+        NewItemsError,
         PersonalizedNews,
         Stack,
         TrustedNews,
@@ -546,16 +547,16 @@ async fn update_stacks<'a>(
         .any(|stack| stack.ops.needs_key_phrases())
         .then(|| ranker.take_key_phrases(take_top))
         .unwrap_or_default();
-    if key_phrases.is_empty() {
-        // only stacks which don't need key phrases remain. eventually, if they all fail, then an
-        // error is returned. if there are no stacks left to be updated, then a success is returned.
-        stacks.retain(|stack| !stack.ops.needs_key_phrases());
-    }
 
+    let mut ready_stacks = stacks.len();
     let mut errors = Vec::new();
     for stack in &mut stacks {
         let articles = match stack.new_items(&key_phrases, history).await {
             Ok(articles) => articles,
+            Err(stack::Error::New(NewItemsError::NotReady)) => {
+                ready_stacks -= 1;
+                continue;
+            }
             Err(error) => {
                 let error = Error::StackOpFailed(error);
                 error!("{}", error);
@@ -602,8 +603,8 @@ async fn update_stacks<'a>(
         }
     }
 
-    // only return an error if all stacks failed
-    if !errors.is_empty() && errors.len() >= stacks.len() {
+    // only return an error if all stacks that were ready to get new items failed
+    if !errors.is_empty() && errors.len() >= ready_stacks {
         Err(Error::Errors(errors))
     } else {
         Ok(())

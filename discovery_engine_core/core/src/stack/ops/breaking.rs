@@ -32,6 +32,7 @@ use crate::{
 
 use super::{
     common::{create_requests_for_markets, request_min_new_items},
+    NewItemsError,
     Ops,
 };
 
@@ -85,7 +86,7 @@ impl Ops for BreakingNews {
         _key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
-    ) -> Result<Vec<Article>, GenericError> {
+    ) -> Result<Vec<Article>, NewItemsError> {
         let markets = self.markets.read().await.clone();
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
 
@@ -107,6 +108,7 @@ impl Ops for BreakingNews {
             |articles| Self::filter_articles(history, stack, articles),
         )
         .await
+        .map_err(Into::into)
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
