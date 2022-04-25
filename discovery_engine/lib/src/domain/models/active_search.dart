@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
-    show searchTypeId;
+    show searchTypeId, searchByTypeId;
 
 part 'active_search.freezed.dart';
 part 'active_search.g.dart';
@@ -29,8 +29,17 @@ class ActiveSearch with _$ActiveSearch {
     @HiveField(0) required String queryTerm,
     @HiveField(1) required int requestedPageNb,
     @HiveField(2) required int pageSize,
+    @HiveField(3) required SearchBy searchBy,
   }) = _ActiveSearch;
 
   factory ActiveSearch.fromJson(Map<String, Object?> json) =>
       _$ActiveSearchFromJson(json);
+}
+
+@HiveType(typeId: searchByTypeId)
+enum SearchBy {
+  @HiveField(0)
+  query,
+  @HiveField(1)
+  topic,
 }

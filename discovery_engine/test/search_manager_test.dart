@@ -34,7 +34,7 @@ import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch;
+    show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -148,9 +148,11 @@ Future<void> main() async {
           queryTerm: 'example query',
           requestedPageNb: 1,
           pageSize: config.maxSearchDocs,
+          searchBy: SearchBy.query,
         );
 
-        final response = await mgr.searchRequested('example query');
+        final response =
+            await mgr.searchRequested('example query', SearchBy.query);
 
         expect(searchRepo.getCurrent(), completion(equals(newSearch)));
         expect(response, isA<SearchRequestSucceeded>());

@@ -17,7 +17,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:hive/hive.dart' show Box, Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch;
+    show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
     show searchBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
@@ -32,6 +32,7 @@ Future<void> main() async {
       queryTerm: 'example search query',
       requestedPageNb: 1,
       pageSize: 10,
+      searchBy: SearchBy.query,
     );
 
     setUpAll(() async {
