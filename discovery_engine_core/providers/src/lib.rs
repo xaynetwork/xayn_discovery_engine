@@ -51,4 +51,3 @@ pub use filter::{Filter, Market};
 mod seal {
     pub trait Seal {}
 }
-

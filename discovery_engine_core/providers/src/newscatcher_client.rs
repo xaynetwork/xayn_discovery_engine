@@ -26,6 +26,8 @@ use crate::{
     seal::Seal,
 };
 
+const TRUSTED_SOURCES_ENDPOINT: &str = "trusted-sources";
+
 /// Represents a Query to Newscatcher.
 pub trait NewscatcherQuery: Seal + Sync {
     /// Sets query specific parameters on given Newscatcher base URL.
@@ -119,7 +121,7 @@ pub struct HeadlinesQuery<'a> {
 
 impl NewscatcherQuery for HeadlinesQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_lh")?;
+        self.common.setup_url(url, TRUSTED_SOURCES_ENDPOINT)?;
 
         let mut query = url.query_pairs_mut();
         if !self.trusted_sources.is_empty() {
@@ -372,7 +374,7 @@ mod tests {
         ));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path(TRUSTED_SOURCES_ENDPOINT))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))

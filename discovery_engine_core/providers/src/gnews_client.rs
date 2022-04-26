@@ -24,6 +24,9 @@ use crate::{
     gnews::{Article, Response},
 };
 
+const LATEST_HEADLINE_ENDPOINT: &str = "latest-headlines";
+const SEARCH_NEWS_ENDPOINT: &str = "search-news";
+
 /// Query parameters for the news search query
 pub struct NewsQuery<'a> {
     /// Market of news.
@@ -120,7 +123,7 @@ impl Client {
 
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
-            .push("_sn");
+            .push(SEARCH_NEWS_ENDPOINT);
 
         {
             let mut query = url.query_pairs_mut();
@@ -147,7 +150,7 @@ impl Client {
 
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
-            .push("_lh");
+            .push(LATEST_HEADLINE_ENDPOINT);
 
         {
             let mut query = url.query_pairs_mut();
@@ -192,7 +195,7 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/gnews/climate-change.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path(SEARCH_NEWS_ENDPOINT))
             .and(query_param("q", "\"Climate change\""))
             .and(query_param("sortby", "relevance"))
             .and(query_param("lang", "en"))
