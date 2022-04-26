@@ -134,7 +134,7 @@ impl Client {
             if let Some(market) = &params.market {
                 query
                     .append_pair("lang", &market.lang_code)
-                    .append_pair("country", &market.country_code);
+                    .append_pair("country", &market.country_code.to_lowercase());
             }
 
             query
@@ -163,7 +163,7 @@ impl Client {
             if let Some(market) = &params.market {
                 query
                     .append_pair("lang", &market.lang_code)
-                    .append_pair("country", &market.country_code);
+                    .append_pair("country", &market.country_code.to_lowercase());
             }
 
             query
@@ -199,7 +199,7 @@ mod tests {
             .and(query_param("q", "\"Climate change\""))
             .and(query_param("sortby", "relevance"))
             .and(query_param("lang", "en"))
-            .and(query_param("country", "AU"))
+            .and(query_param("country", "au"))
             .and(query_param("max", "2"))
             .and(query_param("page", "1"))
             .and(header("Authorization", "Bearer test-token"))
