@@ -30,9 +30,9 @@ mod client;
 mod expression;
 mod filter;
 mod gnews;
-mod gnews_client;
+pub mod gnews_client;
 mod newscatcher;
-mod newscatcher_client;
+pub mod newscatcher_client;
 mod utils;
 
 pub use client::{Article, Client, Error};
@@ -52,8 +52,3 @@ mod seal {
     pub trait Seal {}
 }
 
-#[cfg(feature = "direct_news_client_access")]
-pub use crate::{
-    gnews_client::Client as GnewsClient,
-    newscatcher_client::Client as NewscatcherClient,
-};

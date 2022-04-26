@@ -18,14 +18,14 @@ use anyhow::{Context, Result};
 use std::{env, time::Duration};
 use tokio::time::sleep;
 use xayn_discovery_engine_providers::{
+    gnews_client,
+    newscatcher_client,
     CommonQueryParts,
     Filter,
-    GnewsClient,
     GnewsHeadlinesQuery,
     GnewsNewsQuery,
     HeadlinesQuery,
     Market,
-    NewscatcherClient,
 };
 
 #[tokio::main]
@@ -52,7 +52,7 @@ async fn query_gnews(url: &str, token: &str, headlines: bool) -> Result<()> {
         .await
         .context("Failed to create download directory. Does it already exist?")?;
 
-    let client = GnewsClient::new(token, url);
+    let client = gnews_client::Client::new(token, url);
     let market = Market {
         lang_code: "en".to_string(),
         country_code: "US".to_string(),
@@ -103,7 +103,7 @@ async fn query_newscatcher(url: &str, token: &str) -> Result<()> {
         .await
         .context("Failed to create download directory. Does it already exist?")?;
 
-    let client = NewscatcherClient::new(token, url);
+    let client = newscatcher_client::Client::new(token, url);
     let market = Market {
         lang_code: "en".to_string(),
         country_code: "US".to_string(),
