@@ -39,8 +39,7 @@ pub struct Article {
     #[serde(deserialize_with = "deserialize_null_default")]
     pub source: Source,
 
-    #[serde(rename(deserialize = "publishedAt"))]
-    pub published_at: DateTime<Utc>,
+    pub date_published: DateTime<Utc>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
