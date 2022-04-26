@@ -13,10 +13,9 @@ mod schema {
 }
 
 use schema::posts;
-use schema::posts::published;
 
 #[derive(Queryable, Debug)]
-struct Post {
+pub(crate) struct Post {
     id: i32,
     title: String,
     body: String,
@@ -43,8 +42,24 @@ pub(crate) fn run_database_demo(db_path: &String) {
     create_post(&conn, "Hello world", "What a strange world it is");
     event!(Level::INFO, "\n\n [SQLite] Insert post successful!!\n\n");
 
-    show_posts(&conn);
-    event!(Level::INFO, "\n\n [SQLite] Show post successful!!\n\n");
+    let results = show_posts(&conn, true);
+    event!(
+        Level::INFO,
+        "\n\n [SQLite] Found {} published posts!!\n\n",
+        results.len()
+    );
+
+    let results = show_posts(&conn, false);
+    for post in results {
+        publish_posts(&conn, post.id);
+    }
+
+    let results = show_posts(&conn, true);
+    event!(
+        Level::INFO,
+        "\n\n [SQLite] Found {} published posts!!\n\n",
+        results.len()
+    );
 }
 
 pub(crate) fn establish_connection(db_path: &String) -> SqliteConnection {
@@ -80,22 +95,30 @@ pub(crate) fn create_post(conn: &SqliteConnection, title: &str, body: &str) -> u
         .expect("Error saving new post")
 }
 
-pub(crate) fn show_posts(conn: &SqliteConnection) {
-    use posts::dsl::posts;
+pub(crate) fn publish_posts(conn: &SqliteConnection, id: i32) {
+    use self::posts::dsl::{posts, published};
+
+    let _ = diesel::update(posts.find(id))
+        .set(published.eq(true))
+        .execute(conn)
+        .unwrap_or_else(|_| panic!("Unable to find post {}", id));
+
+    let post: Post = posts
+        .find(id)
+        .first(conn)
+        .unwrap_or_else(|_| panic!("Unable to find post {}", id));
+
+    event!(Level::INFO, "\n\n [SQLite] Published post: {:#?}\n\n", post);
+}
+
+pub(crate) fn show_posts(conn: &SqliteConnection, published_status: bool) -> Vec<Post> {
+    use self::posts::dsl::{posts, published};
 
     let results = posts
-        .filter(published.eq(false))
+        .filter(published.eq(published_status))
         .limit(5)
         .load::<Post>(conn)
         .expect("Error loading posts");
 
-    event!(
-        Level::INFO,
-        "\n\n [SQLite] Displaying {} posts!!\n\n",
-        results.len()
-    );
-
-    for post in results {
-        event!(Level::INFO, "\n\n [SQLite] Post from db: {:#?}\n\n", post);
-    }
+    results
 }
