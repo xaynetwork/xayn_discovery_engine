@@ -39,7 +39,7 @@ torch.onnx.export(
     model,
     (input_ids, attention_mask),
     model_path,
-    opset_version=15,
+    opset_version=12,
     input_names=["input_ids", "attention_mask"],
     output_names=["last_hidden_state"],
     dynamic_axes={
