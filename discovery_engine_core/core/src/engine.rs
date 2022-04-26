@@ -33,7 +33,14 @@ use xayn_ai::{
     KpeConfig,
     SMBertConfig,
 };
-use xayn_discovery_engine_providers::{Client, CommonQueryParts, Filter, Market, NewsQuery};
+use xayn_discovery_engine_providers::{
+    Client,
+    CommonQueryParts,
+    Filter,
+    HeadlinesQuery,
+    Market,
+    NewsQuery,
+};
 
 use crate::{
     document::{
@@ -93,8 +100,8 @@ pub enum Error {
     /// Error while querying with client: {0}.
     Client(#[source] GenericError),
 
-    /// Invalid search query.
-    InvalidQuery,
+    /// Invalid search term.
+    InvalidTerm,
 
     /// List of errors/warnings. {0:?}
     Errors(Vec<Error>),
@@ -397,7 +404,7 @@ where
         }
     }
 
-    /// Perform an active search with the given query parameters.
+    /// Perform an active search by query.
     pub async fn active_search(
         &mut self,
         query: &str,
@@ -405,7 +412,7 @@ where
         page_size: u32,
     ) -> Result<Vec<Document>, Error> {
         if query.trim().is_empty() {
-            return Err(Error::InvalidQuery);
+            return Err(Error::InvalidTerm);
         }
 
         let mut errors = Vec::new();
@@ -424,6 +431,66 @@ where
                     excluded_sources: &excluded_sources,
                 },
                 filter,
+            };
+            match self.client.query_articles(&news_query).await {
+                Ok(batch) => articles.extend(batch),
+                Err(err) => errors.push(Error::Client(err.into())),
+            };
+        }
+
+        let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
+        let mut documents = articles
+            .into_iter()
+            .filter_map(|article| {
+                self.ranker
+                    .compute_smbert(article.excerpt_or_title())
+                    .map_err(Error::Ranker)
+                    .and_then(|embedding| {
+                        document_from_article(article, stack_id, embedding).map_err(Error::Document)
+                    })
+                    .map_err(|e| errors.push(e))
+                    .ok()
+            })
+            .collect::<Vec<_>>();
+
+        if let Err(err) = self.ranker.rank(&mut documents) {
+            errors.push(Error::Ranker(err));
+        };
+        if documents.is_empty() && !errors.is_empty() {
+            Err(Error::Errors(errors))
+        } else {
+            documents.truncate(page_size as usize);
+            Ok(documents)
+        }
+    }
+
+    /// Perform an active search by topic.
+    pub async fn topic_search(
+        &mut self,
+        topic: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<Vec<Document>, Error> {
+        if topic.trim().is_empty() {
+            return Err(Error::InvalidTerm);
+        }
+
+        let mut errors = Vec::new();
+        let mut articles = Vec::new();
+
+        let markets = self.config.markets.read().await;
+        let scaled_page_size = page_size as usize / markets.len() + 1;
+        let excluded_sources = self.config.excluded_sources.read().await.clone();
+        for market in markets.iter() {
+            let news_query = HeadlinesQuery {
+                common: CommonQueryParts {
+                    market: Some(market),
+                    page_size: scaled_page_size,
+                    page: page as usize,
+                    excluded_sources: &excluded_sources,
+                },
+                trusted_sources: &[],
+                topic: Some(topic),
             };
             match self.client.query_articles(&news_query).await {
                 Ok(batch) => articles.extend(batch),
