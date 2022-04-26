@@ -134,7 +134,7 @@ impl From<GnewsArticle> for Article {
             snippet: source.description,
             url: source.url,
             source_domain,
-            date_published: source.date_published.naive_local(),
+            date_published: source.published_at.naive_local(),
             image: source.image,
             rank: 0,
             score: None,
