@@ -29,7 +29,7 @@ struct NewPost<'a> {
     body: &'a str,
 }
 
-pub(crate) fn run_database_demo(db_path: &String) {
+pub(crate) fn run_database_demo(db_path: &str) {
     event!(Level::INFO, "\n\n [SQLite] trying to open DB\n\n");
     event!(Level::INFO, "\n\n [SQLite] path: {}\n\n", db_path);
 
@@ -62,8 +62,8 @@ pub(crate) fn run_database_demo(db_path: &String) {
     );
 }
 
-pub(crate) fn establish_connection(db_path: &String) -> SqliteConnection {
-    SqliteConnection::establish(&db_path)
+pub(crate) fn establish_connection(db_path: &str) -> SqliteConnection {
+    SqliteConnection::establish(db_path)
         .unwrap_or_else(|_| panic!("Error connecting to {}", db_path))
 }
 
@@ -114,11 +114,9 @@ pub(crate) fn publish_posts(conn: &SqliteConnection, id: i32) {
 pub(crate) fn show_posts(conn: &SqliteConnection, published_status: bool) -> Vec<Post> {
     use self::posts::dsl::{posts, published};
 
-    let results = posts
+    posts
         .filter(published.eq(published_status))
         .limit(5)
         .load::<Post>(conn)
-        .expect("Error loading posts");
-
-    results
+        .expect("Error loading posts")
 }
