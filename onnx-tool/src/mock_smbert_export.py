@@ -5,9 +5,9 @@ import onnxruntime as rt
 import numpy as np
 
 
-class MockOnnxModel(nn.Module):
+class MockSMBertModel(nn.Module):
     def __init__(self):
-        super(MockOnnxModel, self).__init__()
+        super(MockSMBertModel, self).__init__()
 
     def forward(self, input_ids: Tensor, attention_mask: Tensor, token_type_ids: Tensor):
         embed_size = 128
@@ -34,13 +34,13 @@ class MockOnnxModel(nn.Module):
         return output_0, output_1
 
 
-model = MockOnnxModel()
+model = MockSMBertModel()
 
 input_ids = torch.randint(10, (1, 64))
 attention_mask = torch.randint(10, (1, 64))
 token_type_ids = torch.randint(10, (1, 64))
 
-model_path = "mocked.onnx"
+model_path = "smbert-mocked.onnx"
 torch.onnx.export(
     model,
     (input_ids, attention_mask, token_type_ids),
