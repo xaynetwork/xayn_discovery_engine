@@ -120,8 +120,6 @@ impl Client {
 
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
-            .push("news")
-            .push("v2")
             .push("_sn");
 
         {
@@ -149,8 +147,6 @@ impl Client {
 
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
-            .push("news")
-            .push("v2")
             .push("_lh");
 
         {
@@ -196,7 +192,7 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/gnews/climate-change.json"));
 
         Mock::given(method("GET"))
-            .and(path("/news/v2/_sn"))
+            .and(path("/_sn"))
             .and(query_param("q", "\"Climate change\""))
             .and(query_param("sortby", "relevance"))
             .and(query_param("lang", "en"))
