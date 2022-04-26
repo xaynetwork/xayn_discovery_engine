@@ -5,35 +5,37 @@ import onnxruntime as rt
 import numpy as np
 
 
-class NeuralNetwork(nn.Module):
+class MockOnnxModel(nn.Module):
     def __init__(self):
-        super(NeuralNetwork, self).__init__()
-        self.flatten = nn.Flatten()
-        self.linear = nn.Linear(64*3, 64*128 + 128)
+        super(MockOnnxModel, self).__init__()
 
     def forward(self, input_ids: Tensor, attention_mask: Tensor, token_type_ids: Tensor):
-        batch, seq = input_ids.shape[:2]
-        seq_x_2 = seq * 2
+        embed_size = 128
+        batch, seq = attention_mask.shape
 
-        x = self.flatten(input_ids.float())
-        y = self.flatten(attention_mask.float())
-        z = self.flatten(token_type_ids.float())
+        indices = input_ids.nonzero(as_tuple=True)[1]
+        indices = indices.unsqueeze(0)
 
-        input = torch.cat([x, y, z], dim=1)
-        output_0_size = (batch * seq * seq_x_2)
-        output_1_size = (batch * seq_x_2)
+        output_0 = torch.gather(input_ids, 1, indices)
+        output_0 = output_0.repeat(batch, seq, embed_size)
+        output_0 = output_0[:, :, 0:embed_size].float()
 
-        output: Tensor = self.linear(input)
-        output_0, output_1 = torch.split(
-            output, [output_0_size, output_1_size], dim=1)
+        max = torch.max(output_0)
+        std = torch.std(output_0)
+        mean = torch.mean(output_0)
+        output_0 = (output_0 - mean) / std
+        output_0 = output_0 + (mean / max)
 
-        output_0 = output_0.view(batch, seq, seq_x_2)
-        output_1 = output_1.view(batch, seq_x_2)
+        first_val_of_mask = attention_mask[0][0]
+        first_val_of_token_type = token_type_ids[0][0]
+        to_repeat = first_val_of_mask + first_val_of_token_type
+        output_1 = to_repeat.repeat(batch, embed_size).float()
 
         return output_0, output_1
 
 
-model = NeuralNetwork()
+model = MockOnnxModel()
+
 input_ids = torch.randint(10, (1, 64))
 attention_mask = torch.randint(10, (1, 64))
 token_type_ids = torch.randint(10, (1, 64))
