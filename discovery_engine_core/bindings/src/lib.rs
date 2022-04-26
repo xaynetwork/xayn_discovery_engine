@@ -26,20 +26,16 @@
 #![warn(missing_docs, unreachable_pub)]
 #![allow(clippy::must_use_candidate, clippy::module_name_repetitions)]
 
+#[macro_use]
+extern crate diesel;
+
 pub mod async_bindings;
+mod database;
 mod tracing;
 pub mod types;
 
-use ::tracing::{event, Level};
-use sqlx::{sqlite::SqliteRow, Connection, Row, SqliteConnection};
+use crate::database::run_database_demo;
 use xayn_discovery_engine_core::Engine;
-
-#[derive(Debug)]
-struct Person {
-    id: i32,
-    name: String,
-    data: Option<Vec<u8>>,
-}
 
 #[async_bindgen::api(
     use xayn_discovery_engine_core::{
@@ -60,66 +56,11 @@ impl XaynDiscoveryEngineAsyncFfi {
     ) -> Box<Result<SharedEngine, String>> {
         tracing::init_tracing();
 
-        // let path = &config.smbert_vocab.clone();
-        // let vocab_path = "assets/smbert_v0001/vocab.txt";
-        // let db_filename = "discovery_engine.db3";
-        // let path = path.replace(vocab_path, db_filename);
-        // let mut db_path = "sqlite://".to_string();
-        // db_path.push_str(&path);
-        let db_path = ":memory:";
-
-        event!(Level::INFO, "\n\n [SQLite] trying to open DB from disk\n\n");
-        event!(Level::INFO, "\n\n [SQLite] path: {}\n\n", db_path);
-
-        let mut conn = SqliteConnection::connect(&db_path)
-            .await
-            .expect("[SQLite] connection failed");
-
-        event!(Level::INFO, "\n\n [SQLite] DB opened!!\n\n");
-
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS person (
-            id    INTEGER PRIMARY KEY,
-            name  TEXT NOT NULL,
-            data  BLOB)",
-        )
-        .execute(&mut conn)
-        .await
-        .expect("[SQLite] table creation failed");
-
-        let me = Person {
-            id: 0,
-            name: "Steven".to_string(),
-            data: None,
-        };
-
-        sqlx::query("INSERT INTO person (name, data) VALUES (?1, ?2)")
-            .bind(&me.name)
-            .bind(&me.data)
-            .execute(&mut conn)
-            .await
-            .expect("[SQLite] insertion failed");
-
-        let person_iter = sqlx::query("SELECT id, name, data FROM person")
-            .map(|row: SqliteRow| Person {
-                id: row.get(0),
-                name: row.get(1),
-                data: row.get(2),
-            })
-            .fetch_all(&mut conn)
-            .await
-            .expect("[SQLite] query failed");
-
-        for person in person_iter {
-            event!(
-                Level::INFO,
-                "\n\n [SQLite] person from db: {:?}\n\n",
-                person
-            );
-        }
-
-        conn.close().await.expect("[SQLite] closing failed");
-        event!(Level::INFO, "\n\n [SQLite] DB closed!!\n\n");
+        let path = &config.smbert_vocab.clone();
+        let vocab_path = "assets/smbert_v0001/vocab.txt";
+        let db_filename = "discovery_engine.db3";
+        let path = path.replace(vocab_path, db_filename);
+        run_database_demo(&path);
 
         Box::new(
             Engine::from_config(*config, state.as_deref().map(Vec::as_slice), &history)
