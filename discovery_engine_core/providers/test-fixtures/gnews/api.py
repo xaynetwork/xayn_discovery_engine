@@ -9,7 +9,7 @@ headers = {
 }
 
 
-url = "https://api-gw.xaynet.dev/news/v2/_sn"
+url = "https://api-gw.xaynet.dev/news/v2/search-news"
 
 
 queries = {
@@ -18,7 +18,7 @@ queries = {
         "sortby": "publishedAt",
         "page_size": "10",
         "lang": "en",
-        "countries": "AU",
+        "country": "au",
 
     },
     "msft-vs-aapl": {
@@ -26,14 +26,16 @@ queries = {
         "sortby": "publishedAt",
         "page_size": "2",
         "lang": "de",
-        "countries": "DE",
+        "country": "de",
     },
 }
 
 for (key, params) in queries.items():
+    print(headers, params)
     response = requests.request("GET", url, headers=headers, params=params)
     data = json.loads(response.text)
 
+    print(data)
     for article in data["articles"]:
         article["url"] = "https://example.com/path/to/article/"
         article["image"] = "https://uploads.example.com/image.png"

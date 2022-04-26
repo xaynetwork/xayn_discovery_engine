@@ -39,7 +39,7 @@ pub struct Article {
     #[serde(deserialize_with = "deserialize_null_default")]
     pub source: Source,
 
-    #[serde(rename(deserialize = "publishedAt"))]
+    #[serde(rename(deserialize = "publishedAt"), alias="date_published")]
     pub published_at: DateTime<Utc>,
 }
 
