@@ -30,7 +30,7 @@ use xayn_discovery_engine_providers::{
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let url = "https://api-gw.xaynet.dev".to_string();
+    let url = "https://api-gw.xaynet.dev/news/v2".to_string();
     let token = std::env::var("NEWSCATCHER_DEV_BEARER_AUTH_TOKEN").context(
         "Please provide the NEWSCATCHER_DEV_BEARER_AUTH_TOKEN environment variable for the dev environment. \
                   The token can be found in 1Password",
