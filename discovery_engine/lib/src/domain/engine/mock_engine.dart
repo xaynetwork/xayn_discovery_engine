@@ -147,12 +147,50 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> activeSearch(
+  Future<List<DocumentWithActiveData>> searchByQuery(
     String query,
     int page,
     int pageSize,
   ) async {
     _incrementCount('activeSearch');
+
+    final stackId = StackId.fromBytes(Uint8List.fromList(List.filled(16, 0)));
+    final doc0 = Document(
+      documentId: DocumentId(),
+      stackId: stackId,
+      batchIndex: 0,
+      resource: resource,
+      isSearched: true,
+    );
+    doc1 = Document(
+      documentId: DocumentId(),
+      stackId: stackId,
+      batchIndex: 1,
+      resource: resource,
+      isSearched: true,
+    );
+    active1 = ActiveDocumentData(Embedding.fromList([0]));
+    active0 = ActiveDocumentData(Embedding.fromList([1, 3]));
+
+    if (pageSize < 1) {
+      return [];
+    } else if (pageSize == 1) {
+      return [DocumentWithActiveData(doc0, active0)];
+    } else {
+      return [
+        DocumentWithActiveData(doc0, active0),
+        DocumentWithActiveData(doc1, active1),
+      ];
+    }
+  }
+
+  @override
+  Future<List<DocumentWithActiveData>> searchByTopic(
+    String topic,
+    int page,
+    int pageSize,
+  ) async {
+    _incrementCount('searchByTopic');
 
     final stackId = StackId.fromBytes(Uint8List.fromList(List.filled(16, 0)));
     final doc0 = Document(

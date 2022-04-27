@@ -144,8 +144,8 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Perform an active search with the given query parameters.
-    pub async fn active_search(
+    /// Perform an active search by query.
+    pub async fn search_by_query(
         engine: &SharedEngine,
         query: Box<String>,
         page: u32,
@@ -156,7 +156,25 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .active_search(query.as_ref(), page, page_size)
+                .search_by_query(query.as_ref(), page, page_size)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Perform an active search by topic.
+    pub async fn search_by_topic(
+        engine: &SharedEngine,
+        topic: Box<String>,
+        page: u32,
+        page_size: u32,
+    ) -> Box<Result<Vec<Document>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .search_by_topic(topic.as_ref(), page, page_size)
                 .await
                 .map_err(|error| error.to_string()),
         )

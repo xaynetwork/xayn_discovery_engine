@@ -157,7 +157,7 @@ final mockNewsResource = NewsResource(
 const queryTerm = 'example';
 
 const mockActiveSearch = ActiveSearch(
-  queryTerm: queryTerm,
+  searchTerm: queryTerm,
   requestedPageNb: 1,
   pageSize: 20,
   searchBy: SearchBy.query,

@@ -33,7 +33,14 @@ use xayn_ai::{
     KpeConfig,
     SMBertConfig,
 };
-use xayn_discovery_engine_providers::{Client, CommonQueryParts, Filter, Market, NewsQuery};
+use xayn_discovery_engine_providers::{
+    Client,
+    CommonQueryParts,
+    Filter,
+    HeadlinesQuery,
+    Market,
+    NewsQuery,
+};
 
 use crate::{
     document::{
@@ -93,8 +100,8 @@ pub enum Error {
     /// Error while querying with client: {0}.
     Client(#[source] GenericError),
 
-    /// Invalid search query.
-    InvalidQuery,
+    /// Invalid search term.
+    InvalidTerm,
 
     /// List of errors/warnings. {0:?}
     Errors(Vec<Error>),
@@ -397,38 +404,72 @@ where
         }
     }
 
-    /// Perform an active search with the given query parameters.
-    pub async fn active_search(
+    /// Perform an active search by query.
+    pub async fn search_by_query(
         &mut self,
         query: &str,
         page: u32,
         page_size: u32,
     ) -> Result<Vec<Document>, Error> {
         if query.trim().is_empty() {
-            return Err(Error::InvalidQuery);
+            return Err(Error::InvalidTerm);
         }
+        let filter = &Filter::default().add_keyword(query);
+        self.active_search(SearchBy::Query(filter), page, page_size)
+            .await
+    }
 
+    /// Perform an active search by topic.
+    pub async fn search_by_topic(
+        &mut self,
+        topic: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<Vec<Document>, Error> {
+        if topic.trim().is_empty() {
+            return Err(Error::InvalidTerm);
+        }
+        self.active_search(SearchBy::Topic(topic), page, page_size)
+            .await
+    }
+
+    async fn active_search(
+        &mut self,
+        by: SearchBy<'_>,
+        page: u32,
+        page_size: u32,
+    ) -> Result<Vec<Document>, Error> {
         let mut errors = Vec::new();
         let mut articles = Vec::new();
-        let filter = &Filter::default().add_keyword(query);
 
         let markets = self.config.markets.read().await;
         let scaled_page_size = page_size as usize / markets.len() + 1;
         let excluded_sources = self.config.excluded_sources.read().await.clone();
         for market in markets.iter() {
-            let news_query = NewsQuery {
-                common: CommonQueryParts {
-                    market: Some(market),
-                    page_size: scaled_page_size,
-                    page: page as usize,
-                    excluded_sources: &excluded_sources,
-                },
-                filter,
+            let common = CommonQueryParts {
+                market: Some(market),
+                page_size: scaled_page_size,
+                page: page as usize,
+                excluded_sources: &excluded_sources,
             };
-            match self.client.query_articles(&news_query).await {
-                Ok(batch) => articles.extend(batch),
-                Err(err) => errors.push(Error::Client(err.into())),
+            let query_result = match by {
+                SearchBy::Query(filter) => {
+                    let news_query = NewsQuery { common, filter };
+                    self.client.query_articles(&news_query).await
+                }
+                SearchBy::Topic(topic) => {
+                    let headlines_query = HeadlinesQuery {
+                        common,
+                        trusted_sources: &[],
+                        topic: Some(topic),
+                    };
+                    self.client.query_articles(&headlines_query).await
+                }
             };
+            query_result.map_or_else(
+                |err| errors.push(Error::Client(err.into())),
+                |batch| articles.extend(batch),
+            );
         }
 
         let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
@@ -712,6 +753,14 @@ struct State {
     engine: StackState,
     /// The serialized ranker state.
     ranker: RankerState,
+}
+
+/// Active search mode.
+enum SearchBy<'a> {
+    /// Search by query.
+    Query(&'a Filter),
+    /// Search by topic.
+    Topic(&'a str),
 }
 
 #[cfg(test)]

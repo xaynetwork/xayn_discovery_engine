@@ -145,7 +145,7 @@ Future<void> main() async {
         await docRepo.updateMany([doc1, doc2]);
 
         final newSearch = ActiveSearch(
-          queryTerm: 'example query',
+          searchTerm: 'example query',
           requestedPageNb: 1,
           pageSize: config.maxSearchDocs,
           searchBy: SearchBy.query,
@@ -305,7 +305,7 @@ Future<void> main() async {
         expect(response, isA<SearchTermRequestSucceeded>());
         expect(
           (response as SearchTermRequestSucceeded).searchTerm,
-          mockActiveSearch.queryTerm,
+          mockActiveSearch.searchTerm,
         );
       });
     });

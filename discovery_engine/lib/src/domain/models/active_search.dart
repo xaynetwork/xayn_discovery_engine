@@ -26,7 +26,7 @@ part 'active_search.g.dart';
 class ActiveSearch with _$ActiveSearch {
   @HiveType(typeId: searchTypeId)
   const factory ActiveSearch({
-    @HiveField(0) required String queryTerm,
+    @HiveField(0) required String searchTerm,
     @HiveField(1) required int requestedPageNb,
     @HiveField(2) required int pageSize,
     @HiveField(3, defaultValue: SearchBy.query) required SearchBy searchBy,

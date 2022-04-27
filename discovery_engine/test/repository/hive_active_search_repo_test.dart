@@ -29,7 +29,7 @@ Future<void> main() async {
     late HiveActiveSearchRepository repo;
 
     const search = ActiveSearch(
-      queryTerm: 'example search query',
+      searchTerm: 'example search query',
       requestedPageNb: 1,
       pageSize: 10,
       searchBy: SearchBy.query,
