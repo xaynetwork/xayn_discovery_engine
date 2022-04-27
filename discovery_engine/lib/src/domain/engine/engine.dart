@@ -72,9 +72,16 @@ abstract class Engine {
     UserReacted userReacted,
   );
 
-  /// Perform an active search with the given query parameters.
+  /// Perform an active search by query.
   Future<List<DocumentWithActiveData>> activeSearch(
     String query,
+    int page,
+    int pageSize,
+  );
+
+  /// Perform an active search by topic.
+  Future<List<DocumentWithActiveData>> searchByTopic(
+    String topic,
     int page,
     int pageSize,
   );

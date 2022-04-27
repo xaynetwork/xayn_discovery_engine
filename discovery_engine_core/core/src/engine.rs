@@ -465,7 +465,7 @@ where
     }
 
     /// Perform an active search by topic.
-    pub async fn topic_search(
+    pub async fn search_by_topic(
         &mut self,
         topic: &str,
         page: u32,

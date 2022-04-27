@@ -187,7 +187,7 @@ class DiscoveryEngineFfi implements Engine {
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
-  /// Performs an active search.
+  /// Performs an active search by query.
   @override
   Future<List<DocumentWithActiveData>> activeSearch(
     String query,
@@ -198,6 +198,25 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.activeSearch(
       _engine.ref,
       boxedQuery.move(),
+      page,
+      pageSize,
+    );
+
+    return resultVecDocumentStringFfiAdapter
+        .consumeNative(result)
+        .toDocumentListWithActiveData(isSearched: true);
+  }
+
+  @override
+  Future<List<DocumentWithActiveData>> searchByTopic(
+    String topic,
+    int page,
+    int pageSize,
+  ) async {
+    final boxedTopic = topic.allocNative();
+    final result = await asyncFfi.searchByTopic(
+      _engine.ref,
+      boxedTopic.move(),
       page,
       pageSize,
     );
