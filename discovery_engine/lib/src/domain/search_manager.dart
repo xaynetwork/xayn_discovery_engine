@@ -76,14 +76,14 @@ class SearchManager {
     switch (search.searchBy) {
       case SearchBy.query:
         searchDocs = await _engine.activeSearch(
-          search.queryTerm,
+          search.searchTerm,
           search.requestedPageNb,
           search.pageSize,
         );
         break;
       case SearchBy.topic:
         searchDocs = await _engine.searchByTopic(
-          search.queryTerm,
+          search.searchTerm,
           search.requestedPageNb,
           search.pageSize,
         );
@@ -113,7 +113,7 @@ class SearchManager {
     await searchClosed();
 
     final search = ActiveSearch(
-      queryTerm: queryTerm,
+      searchTerm: queryTerm,
       requestedPageNb: 1,
       pageSize: _config.maxSearchDocs,
       searchBy: searchBy,
@@ -182,7 +182,7 @@ class SearchManager {
       return const EngineEvent.searchTermRequestFailed(reason);
     }
 
-    return EngineEvent.searchTermRequestSucceeded(search.queryTerm);
+    return EngineEvent.searchTermRequestSucceeded(search.searchTerm);
   }
 
   /// Clear the active search and deactivate interacted search documents.
