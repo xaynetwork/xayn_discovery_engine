@@ -260,7 +260,7 @@ class ActiveSearchesRequestFailed extends EngineEvent {
 
 ### SearchesClosed
 
-Event created when a search and related Documents can't be accessed again by the user from the UI. Usualy it happens when the users closes a tab/tabs, so all searches within these tabs are also closed.
+Event created when a search and related Documents can't be accessed again by the user from the UI. Usually it happens when the users closes a tab/tabs, so all searches within these tabs are also closed.
 
 ```dart
 class SearchesClosed extends ClientEvent {

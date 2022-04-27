@@ -121,7 +121,7 @@ where
                     shape,
                     name_right,
                     shape_right,
-                    "input matrix can't be dot multipled with weight matrix",
+                    "input matrix can't be dot multiplied with weight matrix",
                 ))
             }
         } else {

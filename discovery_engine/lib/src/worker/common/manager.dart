@@ -149,7 +149,7 @@ abstract class Manager<Request extends Object, Response extends Object> {
   /// and returns a Future with a [Response].
   ///
   /// [Request] is serialized via provided [Converter] to a format suitable
-  /// for transfering across the boundary between [Manager] and Worker.
+  /// for transferring across the boundary between [Manager] and Worker.
   /// To keep track of sent [Request] a [Oneshot] channel is created
   /// and the request is wrapped together with Sender's port in a [OneshotRequest].
   ///

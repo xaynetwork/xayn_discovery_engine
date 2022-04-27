@@ -38,7 +38,7 @@ class Sender<T extends SendingPort> {
   T? _port;
   Sender(this._port);
 
-  /// Creates a Sender from `port` passed with the message. Ment to be used
+  /// Creates a Sender from `port` passed with the message. Meant to be used
   /// during message deserialization process.
   Sender.fromPlatformPort(Object port)
       : _port = createPlatformSendingPort(port) as T?;

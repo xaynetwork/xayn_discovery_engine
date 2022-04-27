@@ -122,7 +122,7 @@ abstract class Worker<Request extends Object, Response extends Object> {
   void send(Response event, [Sender? sender]) {
     final message = responseConverter.convert(event);
 
-    // If [Sender] is available send the reponse message using it, otherwise
+    // If [Sender] is available send the response message using it, otherwise
     // use the main platform channel
     (sender?.send ?? _worker.send).call(message);
   }

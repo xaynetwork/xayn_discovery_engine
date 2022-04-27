@@ -144,13 +144,13 @@ mod tests {
         let a = Expr::Value("a".to_string());
         let b = Expr::Value("b".to_string());
         let c = Expr::Value("c".to_string());
-        let expexted = Expr::And(btreeset![a.clone(), b.clone(), c.clone()]);
+        let expected = Expr::And(btreeset![a.clone(), b.clone(), c.clone()]);
 
         // a /\ (b /\ c) => a /\ b /\ c
-        assert_eq!(expexted, a.clone().and(b.clone().and(c.clone())));
+        assert_eq!(expected, a.clone().and(b.clone().and(c.clone())));
 
         // (a /\ b) /\ c => a /\ b /\ c
-        assert_eq!(expexted, a.and(b).and(c));
+        assert_eq!(expected, a.and(b).and(c));
     }
 
     #[test]

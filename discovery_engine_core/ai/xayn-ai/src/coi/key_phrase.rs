@@ -630,7 +630,7 @@ mod tests {
     }
 
     #[test]
-    fn test_similarites_single() {
+    fn test_similarities_single() {
         let key_phrases = [KeyPhrase::new("key", [1., 1., 0.], ("AA", "aa")).unwrap()];
         let coi_point = [1., 0., 0.].into();
         let similarity = similarities(&key_phrases, &coi_point);
