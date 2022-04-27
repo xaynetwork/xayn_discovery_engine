@@ -21,6 +21,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
     show EventConfig;
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
+    show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -69,19 +71,30 @@ class SearchManager {
       );
 
   Future<List<api.Document>> _getSearchDocuments(ActiveSearch search) async {
-    if (search.searchBy == SearchBy.topic) {
-      // TODO handle topic searches
-      throw UnimplementedError();
+    final List<DocumentWithActiveData> searchDocs;
+
+    switch (search.searchBy) {
+      case SearchBy.query:
+        searchDocs = await _engine.activeSearch(
+          search.queryTerm,
+          search.requestedPageNb,
+          search.pageSize,
+        );
+        break;
+      case SearchBy.topic:
+        searchDocs = await _engine.searchByTopic(
+          search.queryTerm,
+          search.requestedPageNb,
+          search.pageSize,
+        );
+        break;
+      default:
+        throw UnsupportedError('Unknown SearchBy value');
     }
 
-    final searchDocs = await _engine.activeSearch(
-      search.queryTerm,
-      search.requestedPageNb,
-      search.pageSize,
-    );
     await _engineStateRepo.save(await _engine.serialize());
-
     await _docRepo.updateMany(searchDocs.map((e) => e.document));
+
     for (final docWithData in searchDocs) {
       final id = docWithData.document.documentId;
       await _activeRepo.update(id, docWithData.data);
