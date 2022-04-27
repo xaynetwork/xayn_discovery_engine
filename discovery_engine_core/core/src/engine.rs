@@ -482,7 +482,7 @@ where
         let scaled_page_size = page_size as usize / markets.len() + 1;
         let excluded_sources = self.config.excluded_sources.read().await.clone();
         for market in markets.iter() {
-            let news_query = HeadlinesQuery {
+            let headlines_query = HeadlinesQuery {
                 common: CommonQueryParts {
                     market: Some(market),
                     page_size: scaled_page_size,
@@ -492,7 +492,7 @@ where
                 trusted_sources: &[],
                 topic: Some(topic),
             };
-            match self.client.query_articles(&news_query).await {
+            match self.client.query_articles(&headlines_query).await {
                 Ok(batch) => articles.extend(batch),
                 Err(err) => errors.push(Error::Client(err.into())),
             };
