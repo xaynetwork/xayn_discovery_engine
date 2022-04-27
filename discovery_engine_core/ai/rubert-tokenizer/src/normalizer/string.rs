@@ -107,9 +107,9 @@ where
                 });
 
             match (start, end) {
-                // Targeting inexistent beginning
+                // Targeting non-existent beginning
                 (Some(s), None) => Some(s..s),
-                // Targeting inexistent end
+                // Targeting non-existent end
                 (None, Some(e)) => Some(e..e),
                 // Found the range
                 (Some(s), Some(e)) => Some(s..e),
