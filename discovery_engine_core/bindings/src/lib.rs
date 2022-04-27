@@ -145,7 +145,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Perform an active search by query.
-    pub async fn active_search(
+    pub async fn search_by_query(
         engine: &SharedEngine,
         query: Box<String>,
         page: u32,
@@ -156,7 +156,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .active_search(query.as_ref(), page, page_size)
+                .search_by_query(query.as_ref(), page, page_size)
                 .await
                 .map_err(|error| error.to_string()),
         )

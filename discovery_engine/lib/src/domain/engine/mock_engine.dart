@@ -147,7 +147,7 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> activeSearch(
+  Future<List<DocumentWithActiveData>> searchByQuery(
     String query,
     int page,
     int pageSize,

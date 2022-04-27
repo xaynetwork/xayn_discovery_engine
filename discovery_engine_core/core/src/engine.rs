@@ -405,7 +405,7 @@ where
     }
 
     /// Perform an active search by query.
-    pub async fn active_search(
+    pub async fn search_by_query(
         &mut self,
         query: &str,
         page: u32,
@@ -414,54 +414,9 @@ where
         if query.trim().is_empty() {
             return Err(Error::InvalidTerm);
         }
-
-        let mut errors = Vec::new();
-        let mut articles = Vec::new();
         let filter = &Filter::default().add_keyword(query);
-
-        let markets = self.config.markets.read().await;
-        let scaled_page_size = page_size as usize / markets.len() + 1;
-        let excluded_sources = self.config.excluded_sources.read().await.clone();
-        for market in markets.iter() {
-            let news_query = NewsQuery {
-                common: CommonQueryParts {
-                    market: Some(market),
-                    page_size: scaled_page_size,
-                    page: page as usize,
-                    excluded_sources: &excluded_sources,
-                },
-                filter,
-            };
-            match self.client.query_articles(&news_query).await {
-                Ok(batch) => articles.extend(batch),
-                Err(err) => errors.push(Error::Client(err.into())),
-            };
-        }
-
-        let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
-        let mut documents = articles
-            .into_iter()
-            .filter_map(|article| {
-                self.ranker
-                    .compute_smbert(article.excerpt_or_title())
-                    .map_err(Error::Ranker)
-                    .and_then(|embedding| {
-                        document_from_article(article, stack_id, embedding).map_err(Error::Document)
-                    })
-                    .map_err(|e| errors.push(e))
-                    .ok()
-            })
-            .collect::<Vec<_>>();
-
-        if let Err(err) = self.ranker.rank(&mut documents) {
-            errors.push(Error::Ranker(err));
-        };
-        if documents.is_empty() && !errors.is_empty() {
-            Err(Error::Errors(errors))
-        } else {
-            documents.truncate(page_size as usize);
-            Ok(documents)
-        }
+        self.active_search(SearchBy::Query(filter), page, page_size)
+            .await
     }
 
     /// Perform an active search by topic.
@@ -474,7 +429,16 @@ where
         if topic.trim().is_empty() {
             return Err(Error::InvalidTerm);
         }
+        self.active_search(SearchBy::Topic(topic), page, page_size)
+            .await
+    }
 
+    async fn active_search(
+        &mut self,
+        by: SearchBy<'_>,
+        page: u32,
+        page_size: u32,
+    ) -> Result<Vec<Document>, Error> {
         let mut errors = Vec::new();
         let mut articles = Vec::new();
 
@@ -482,20 +446,30 @@ where
         let scaled_page_size = page_size as usize / markets.len() + 1;
         let excluded_sources = self.config.excluded_sources.read().await.clone();
         for market in markets.iter() {
-            let headlines_query = HeadlinesQuery {
-                common: CommonQueryParts {
-                    market: Some(market),
-                    page_size: scaled_page_size,
-                    page: page as usize,
-                    excluded_sources: &excluded_sources,
-                },
-                trusted_sources: &[],
-                topic: Some(topic),
+            let common = CommonQueryParts {
+                market: Some(market),
+                page_size: scaled_page_size,
+                page: page as usize,
+                excluded_sources: &excluded_sources,
             };
-            match self.client.query_articles(&headlines_query).await {
-                Ok(batch) => articles.extend(batch),
-                Err(err) => errors.push(Error::Client(err.into())),
+            let query_result = match by {
+                SearchBy::Query(filter) => {
+                    let news_query = NewsQuery { common, filter };
+                    self.client.query_articles(&news_query).await
+                }
+                SearchBy::Topic(topic) => {
+                    let headlines_query = HeadlinesQuery {
+                        common,
+                        trusted_sources: &[],
+                        topic: Some(topic),
+                    };
+                    self.client.query_articles(&headlines_query).await
+                }
             };
+            query_result.map_or_else(
+                |err| errors.push(Error::Client(err.into())),
+                |batch| articles.extend(batch),
+            );
         }
 
         let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
@@ -779,6 +753,14 @@ struct State {
     engine: StackState,
     /// The serialized ranker state.
     ranker: RankerState,
+}
+
+/// Active search mode.
+enum SearchBy<'a> {
+    /// Search by query.
+    Query(&'a Filter),
+    /// Search by topic.
+    Topic(&'a str),
 }
 
 #[cfg(test)]

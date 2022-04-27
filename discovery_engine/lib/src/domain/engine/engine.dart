@@ -73,7 +73,7 @@ abstract class Engine {
   );
 
   /// Perform an active search by query.
-  Future<List<DocumentWithActiveData>> activeSearch(
+  Future<List<DocumentWithActiveData>> searchByQuery(
     String query,
     int page,
     int pageSize,

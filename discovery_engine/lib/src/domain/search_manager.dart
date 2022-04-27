@@ -75,7 +75,7 @@ class SearchManager {
 
     switch (search.searchBy) {
       case SearchBy.query:
-        searchDocs = await _engine.activeSearch(
+        searchDocs = await _engine.searchByQuery(
           search.searchTerm,
           search.requestedPageNb,
           search.pageSize,
