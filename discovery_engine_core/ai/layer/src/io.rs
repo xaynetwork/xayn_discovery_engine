@@ -122,8 +122,8 @@ where
     fn try_from(array: FlattenedArray<S::Elem>) -> Result<Self, Self::Error> {
         let shape = D::try_from(&array.shape)?;
 
-        let flattend = ArrayBase::<S, Ix1>::from(array.data);
-        let output = flattend.into_shape(shape);
+        let flattened = ArrayBase::<S, Ix1>::from(array.data);
+        let output = flattened.into_shape(shape);
         // This can only fail if the FlattenedArray invariant is violated, which
         // we do check when deserializing it!
         Ok(output.unwrap_or_else(|_| unreachable!()))

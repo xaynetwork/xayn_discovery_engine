@@ -41,7 +41,7 @@ class WebWorkerManager extends PlatformManager {
   Stream<Object> get errors => _worker.onError.map<Object>((event) {
         final e = event as ErrorEvent;
         // this is to align with messages that come from Isolate error stream
-        return [e.message ?? e.error ?? 'Unknown error occured', ''];
+        return [e.message ?? e.error ?? 'Unknown error occurred', ''];
       });
 
   @override

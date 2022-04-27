@@ -58,7 +58,7 @@ void main() {
     });
   });
 
-  group('Manager\'s converter throws on message convertion:', () {
+  group('Manager\'s converter throws on message conversion:', () {
     late Manager manager;
 
     tearDown(() async {
@@ -80,7 +80,7 @@ void main() {
     });
   });
 
-  group('Worker\'s converter throws on message convertion:', () {
+  group('Worker\'s converter throws on message conversion:', () {
     late Manager manager;
 
     tearDown(() async {

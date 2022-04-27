@@ -24,7 +24,7 @@ pub struct PostTokenizer<N> {
     pub(crate) sep_token: SmallString,
 }
 
-/// The potential erros of the post-tokenizer.
+/// The potential errors of the post-tokenizer.
 #[derive(Debug, Display, Error, PartialEq)]
 pub enum PostTokenizerError {
     /// Missing the class token in the vocabulary

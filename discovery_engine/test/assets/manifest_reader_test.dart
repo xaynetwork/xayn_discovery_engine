@@ -28,7 +28,7 @@ void main() {
   group('ManifestReader', () {
     group('read', () {
       test(
-          'when given a properly formated manifest file it should read it '
+          'when given a properly formatted manifest file it should read it '
           'without throwing Exceptions', () async {
         final manifestReader = createManifestReader();
         final manifest = await manifestReader.read();
