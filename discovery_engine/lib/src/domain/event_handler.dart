@@ -323,7 +323,14 @@ class EventHandler {
     await Future.wait([
       _openDbBox<Document>(documentBox),
       _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
-      _openDbBox<Uint8List>(engineStateBox),
+
+      /// See TY-2799
+      /// Hive usually compact our boxes automatically. However, with the default
+      /// strategy, compaction is triggered after 60 deleted entries. This leads
+      /// to the problem that our engine state is constantly growing because we
+      /// are only overwriting it and not deleting it. Therefore we call it with
+      /// `compact: true`.
+      _openDbBox<Uint8List>(engineStateBox, compact: true),
       _openDbBox<ActiveSearch>(searchBox),
       _openDbBox<Set<Source>>(trustedSourcesBox),
       _openDbBox<Set<Source>>(excludedSourcesBox),
@@ -332,9 +339,13 @@ class EventHandler {
   }
 
   /// Tries to open a box persisted on disk. In case of failure opens it in memory.
-  static Future<void> _openDbBox<T>(String name) async {
+  static Future<void> _openDbBox<T>(String name, {bool compact = false}) async {
     try {
-      await Hive.openBox<T>(name);
+      final box = await Hive.openBox<T>(name);
+
+      if (compact) {
+        await box.compact();
+      }
     } catch (e) {
       /// Some browsers (e.g. Firefox) are not allowing the use of IndexedDB
       /// in `Private Mode`, so we need to use Hive in-memory instead
