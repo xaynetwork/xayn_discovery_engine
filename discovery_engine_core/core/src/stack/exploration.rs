@@ -234,8 +234,8 @@ mod tests {
     use ndarray::{arr1, ArrayBase, FixedInitializer};
     use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
-    use test_utils::{assert_approx_eq, uuid::mock_uuid};
     use xayn_ai::CoiId;
+    use xayn_discovery_engine_test_utils::{assert_approx_eq, uuid::mock_uuid};
 
     use crate::document::Id;
 

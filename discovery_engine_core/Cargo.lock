@@ -3381,7 +3381,9 @@ dependencies = [
  "itertools",
  "kodama",
  "mockall",
+ "ndarray",
  "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "rand_distr",
  "rayon",
  "rubert",
@@ -3442,6 +3444,7 @@ dependencies = [
  "ndarray",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]
