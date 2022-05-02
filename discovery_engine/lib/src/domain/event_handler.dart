@@ -339,6 +339,8 @@ class EventHandler {
   }
 
   /// Tries to open a box persisted on disk. In case of failure opens it in memory.
+  /// If `compact` is set to `true`, compaction of the box will be triggered
+  /// after opening.
   static Future<void> _openDbBox<T>(String name, {bool compact = false}) async {
     try {
       final box = await Hive.openBox<T>(name);
