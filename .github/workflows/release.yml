@@ -7,6 +7,11 @@ permissions:
   contents: read
 
 jobs:
+  build-android-libs:
+    uses: ./.github/workflows/_reusable.build-android.yml
+    with:
+      production: true
+
   build-ios-libs:
     uses: ./.github/workflows/_reusable.build-ios.yml
     with:
