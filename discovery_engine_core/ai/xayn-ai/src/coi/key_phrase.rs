@@ -244,6 +244,7 @@ fn reduce_without_diag(
     reduce: impl Fn(f32, f32) -> f32,
     finalize: impl Fn(f32, bool) -> f32,
 ) -> Array2<f32> {
+    let reduce = &reduce;
     array
         .lanes(axis)
         .into_iter()
@@ -252,7 +253,7 @@ fn reduce_without_diag(
             lane.iter()
                 .enumerate()
                 .filter_map(|(j, element)| (i != j).then(|| prepare(*element)))
-                .reduce(|x, y| reduce(x, y))
+                .reduce(reduce)
                 .map(|reduced| finalize(reduced, i < lane.len()))
                 .unwrap_or(f32::NAN)
         })
@@ -605,7 +606,7 @@ mod tests {
             |reduced, is_within_square| {
                 is_within_square
                     .then(|| reduced / 2.)
-                    .unwrap_or_else(|| reduced / 3.)
+                    .unwrap_or(reduced / 3.)
                     .sqrt()
             },
         );

@@ -181,7 +181,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the trusted sources and updates the stacks based on that.
-    #[allow(clippy::box_vec)]
+    #[allow(clippy::box_collection)]
     pub async fn set_trusted_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
