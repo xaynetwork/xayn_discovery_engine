@@ -275,7 +275,7 @@ mod tests {
 
     use super::*;
     use crate::activation::Linear;
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     #[test]
     fn test_conv1d_nonsingleton_kernel() {

@@ -147,7 +147,7 @@ mod tests {
     use ndarray::{arr3, Axis};
 
     use super::*;
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     #[test]
     fn test_relu_activation_function_works() {

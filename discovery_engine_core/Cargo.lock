@@ -1192,9 +1192,9 @@ dependencies = [
  "layer",
  "ndarray",
  "rubert-tokenizer",
- "test-utils",
  "thiserror",
  "tract-onnx",
+ "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -1216,8 +1216,8 @@ dependencies = [
  "rand 0.8.5",
  "rand_distr",
  "serde",
- "test-utils",
  "thiserror",
+ "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -2178,9 +2178,9 @@ dependencies = [
  "rayon",
  "rubert-tokenizer",
  "serde",
- "test-utils",
  "thiserror",
  "tract-onnx",
+ "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -2532,16 +2532,6 @@ name = "termtree"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "507e9898683b6c43a9aa55b64259b721b52ba226e0f3779137e50ad114a4c90b"
-
-[[package]]
-name = "test-utils"
-version = "0.1.0"
-dependencies = [
- "float-cmp",
- "ndarray",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "textwrap"
@@ -3335,10 +3325,10 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "smallvec",
- "test-utils",
  "thiserror",
  "uuid",
  "xayn-discovery-engine-providers",
+ "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -3409,7 +3399,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
- "test-utils",
  "thiserror",
  "tokio",
  "tracing",
@@ -3417,6 +3406,7 @@ dependencies = [
  "uuid",
  "xayn-ai",
  "xayn-discovery-engine-providers",
+ "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -3438,6 +3428,16 @@ dependencies = [
  "tokio",
  "url",
  "wiremock",
+]
+
+[[package]]
+name = "xayn-discovery-engine-test-utils"
+version = "0.1.0"
+dependencies = [
+ "float-cmp",
+ "ndarray",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

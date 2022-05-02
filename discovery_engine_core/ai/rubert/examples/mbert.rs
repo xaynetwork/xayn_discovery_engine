@@ -17,7 +17,7 @@
 //! - `qa` for QAMBert
 
 use rubert::{Config, FirstPooler, Pipeline, SMBertConfig};
-use test_utils::smbert;
+use xayn_discovery_engine_test_utils::smbert;
 
 fn main() {
     let (embedding, size) = match std::env::args().nth(1).unwrap().as_str() {

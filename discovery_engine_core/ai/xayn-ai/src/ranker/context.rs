@@ -145,7 +145,7 @@ pub(super) fn compute_score_for_docs(
 #[cfg(test)]
 mod tests {
     use ndarray::arr1;
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use crate::{
         coi::{create_neg_cois, create_pos_cois},

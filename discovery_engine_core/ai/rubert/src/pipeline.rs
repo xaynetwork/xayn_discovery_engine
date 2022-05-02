@@ -131,7 +131,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use test_utils::smbert::{model, vocab};
+    use xayn_discovery_engine_test_utils::smbert::{model, vocab};
 
     use super::*;
     use crate::{

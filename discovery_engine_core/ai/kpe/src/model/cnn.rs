@@ -141,7 +141,7 @@ mod tests {
     use tract_onnx::prelude::IntoArcTensor;
 
     use super::*;
-    use test_utils::kpe::cnn;
+    use xayn_discovery_engine_test_utils::kpe::cnn;
 
     #[test]
     fn test_model_shapes() {

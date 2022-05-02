@@ -24,14 +24,14 @@ use ndarray::{ArrayBase, Data, Dimension, IntoDimension, Ix};
 /// This can be used to compare two floating point numbers:
 ///
 /// ```
-/// use test_utils::assert_approx_eq;
-/// assert_approx_eq!(f32, 0.15039155, 0.1503916, ulps = 3);
+/// use xayn_discovery_engine_test_utils::assert_approx_eq;
+/// assert_approx_eq!(f32, 0.150_391_55, 0.150_391_6, ulps = 3);
 /// ```
 ///
 /// Or containers of such:
 ///
 /// ```
-/// use test_utils::assert_approx_eq;
+/// use xayn_discovery_engine_test_utils::assert_approx_eq;
 /// assert_approx_eq!(f32, &[[1., 2.], [3., 4.]], vec![[1., 2.], [3., 4.]])
 /// ```
 ///
@@ -39,7 +39,7 @@ use ndarray::{ArrayBase, Data, Dimension, IntoDimension, Ix};
 ///
 /// ```
 /// use ndarray::arr2;
-/// use test_utils::assert_approx_eq;
+/// use xayn_discovery_engine_test_utils::assert_approx_eq;
 /// assert_approx_eq!(
 ///     f32,
 ///     arr2(&[[1., 2.], [3., 4.]]),
@@ -86,7 +86,7 @@ macro_rules! assert_approx_eq {
             $crate::ApproxEqIter::<$t>::indexed_iter_logical_order(right, Vec::new());
         loop {
             match (left_iter.next(), right_iter.next()) {
-                (std::option::Option::Some((lidx, lv)), std::option::Option::Some((ridx, rv))) => {
+                (Some((lidx, lv)), Some((ridx, rv))) => {
                     std::assert_eq!(
                         lidx, ridx,
                         "Dimensionality mismatch when iterating in logical order: {:?} != {:?}",
@@ -100,13 +100,13 @@ macro_rules! assert_approx_eq {
                         );
                     }
                 }
-                (std::option::Option::Some(pair), std::option::Option::None) => {
+                (Some(pair), None) => {
                     std::panic!("Left input is longer starting from index {:?}", pair);
                 }
-                (std::option::Option::None, std::option::Option::Some(pair)) => {
+                (None, Some(pair)) => {
                     std::panic!("Right input is longer starting from index {:?}", pair);
                 }
-                (std::option::Option::None, std::option::Option::None) => break,
+                (None, None) => break,
             }
         }
     }};
@@ -276,8 +276,8 @@ mod tests {
 
     #[test]
     fn test_assert_approx_eq_float() {
-        assert_approx_eq!(f32, 0.15039155, 0.1503916, ulps = 3);
-        catch_unwind(|| assert_approx_eq!(f32, 0.15039155, 0.1503916, ulps = 2)).unwrap_err();
+        assert_approx_eq!(f32, 0.150_391_55, 0.150_391_6, ulps = 3);
+        catch_unwind(|| assert_approx_eq!(f32, 0.150_391_55, 0.150_391_6, ulps = 2)).unwrap_err();
     }
 
     #[test]
@@ -346,12 +346,12 @@ mod tests {
 
     #[test]
     fn test_equality_using_epsilon() {
-        assert_approx_eq!(f32, 0.125, 0.625, epsilon = 0.5)
+        assert_approx_eq!(f32, 0.125, 0.625, epsilon = 0.5);
     }
 
     #[test]
     #[should_panic(expected = "[]")]
     fn test_equality_using_epsilon_with_panic() {
-        assert_approx_eq!(f32, 0.125, 0.625, epsilon = 0.49)
+        assert_approx_eq!(f32, 0.125, 0.625, epsilon = 0.49);
     }
 }

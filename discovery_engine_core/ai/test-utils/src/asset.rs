@@ -23,11 +23,11 @@ use std::{
 use serde::Deserialize;
 use serde_json::from_reader;
 
-pub const DATA_DIR: &str = "../discovery_engine_flutter/example/assets/";
-pub const ASSET_MANIFEST: &str = "../discovery_engine/lib/assets/asset_manifest.json";
+pub(crate) const DATA_DIR: &str = "../discovery_engine_flutter/example/assets/";
+const ASSET_MANIFEST: &str = "../discovery_engine/lib/assets/asset_manifest.json";
 
 /// Resolves the path to the requested data relative to the workspace directory.
-pub fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
+pub(crate) fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
     let manifest = var_os("CARGO_MANIFEST_DIR")
         .ok_or_else(|| Error::new(ErrorKind::NotFound, "missing CARGO_MANIFEST_DIR"))?;
 
@@ -70,7 +70,7 @@ fn read_assets() -> Result<HashMap<String, PathBuf>> {
 }
 
 /// Resolves the path to the requested asset relative to the workspace directory.
-pub fn resolve_asset(asset: &str) -> Result<PathBuf> {
+pub(crate) fn resolve_asset(asset: &str) -> Result<PathBuf> {
     resolve_path(&[read_assets()?
         .get(asset)
         .ok_or_else(|| Error::new(ErrorKind::NotFound, format!("missing asset '{}'", asset)))?])

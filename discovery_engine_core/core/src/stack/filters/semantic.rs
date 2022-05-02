@@ -189,11 +189,11 @@ mod tests {
 
     use chrono::NaiveDateTime;
     use rubert::SMBert;
-    use test_utils::{assert_approx_eq, smbert};
     use xayn_ai::{
         ranker::{AveragePooler, Embedding},
         SMBertConfig,
     };
+    use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
 
     use crate::document::NewsResource;
 

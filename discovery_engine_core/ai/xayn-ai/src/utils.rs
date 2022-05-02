@@ -111,7 +111,7 @@ mod tests {
     use serde_json::{from_str, to_string};
 
     use super::*;
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     #[test]
     fn test_nan_safe_f32_cmp_sorts_in_the_right_order() {

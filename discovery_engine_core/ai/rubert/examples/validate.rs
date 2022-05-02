@@ -35,7 +35,7 @@ use rubert::{
     NonePooler,
 };
 use rubert_tokenizer::{Builder as TokenizerBuilder, Padding, Tokenizer, Truncation};
-use test_utils::{example::validate::transcripts, smbert};
+use xayn_discovery_engine_test_utils::{example::validate::transcripts, smbert};
 
 fn main() {
     ValidatorConfig {

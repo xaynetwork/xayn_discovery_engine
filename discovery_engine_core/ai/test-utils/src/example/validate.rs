@@ -12,13 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Path resolvers for validation example assets.
+
 use std::{io::Result, path::PathBuf};
 
 use crate::asset::{resolve_path, DATA_DIR};
 
 const ASSET: &str = "ted_talk_transcripts.csv";
 
-/// Resolves the path to the MBert validation transcripts.
+/// Resolves the path to the `MBert` validation transcripts.
 pub fn transcripts() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, ASSET])
 }

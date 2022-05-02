@@ -12,16 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Path resolvers for the `SMBert` assets.
+
 use std::{io::Result, path::PathBuf};
 
 use crate::asset::resolve_asset;
 
-/// Resolves the path to the SMBert vocabulary.
+/// Resolves the path to the `SMBert` vocabulary.
 pub fn vocab() -> Result<PathBuf> {
     resolve_asset("smbertVocab")
 }
 
-/// Resolves the path to the SMBert model.
+/// Resolves the path to the `SMBert` model.
 pub fn model() -> Result<PathBuf> {
     resolve_asset("smbertModel")
 }

@@ -98,7 +98,7 @@ mod tests {
     use ndarray::{arr1, arr2};
 
     use super::*;
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     #[test]
     fn test_l2_norm() {

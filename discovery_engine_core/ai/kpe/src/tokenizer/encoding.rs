@@ -209,7 +209,7 @@ mod tests {
     use ndarray::ArrayView2;
 
     use super::*;
-    use test_utils::smbert::vocab;
+    use xayn_discovery_engine_test_utils::smbert::vocab;
 
     /// Tokens: This embedd ##ing fit ##s perfect ##ly .
     const EXACT_SEQUENCE: &str = "This embedding fits perfectly.";

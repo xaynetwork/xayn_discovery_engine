@@ -139,7 +139,7 @@ mod tests {
     use tract_onnx::prelude::IntoArcTensor;
 
     use super::*;
-    use test_utils::kpe::bert;
+    use xayn_discovery_engine_test_utils::kpe::bert;
 
     #[test]
     fn test_embeddings_collect_full() {

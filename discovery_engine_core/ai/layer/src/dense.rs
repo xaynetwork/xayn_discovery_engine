@@ -291,7 +291,7 @@ mod tests {
     use ndarray::{arr1, arr2, Array1, Array2, IntoDimension};
 
     use crate::activation::{Linear, Relu};
-    use test_utils::assert_approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
 

@@ -161,7 +161,7 @@ mod tests {
     use ndarray::Array2;
     use std::{fs::File, io::BufReader};
 
-    use test_utils::smbert::model;
+    use xayn_discovery_engine_test_utils::smbert::model;
 
     use super::*;
 
