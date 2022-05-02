@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Convolutional layers.
+
 use displaydoc::Display;
 use ndarray::{
     azip,
@@ -161,7 +163,7 @@ where
 
     /// Loads a 1-dimensional convolutional layer from a binary.
     pub fn load(
-        mut params: BinParamsWithScope,
+        mut params: BinParamsWithScope<'_>,
         activation: AF,
         stride: usize,
         padding: usize,
@@ -181,14 +183,14 @@ where
     /// Gets the weights.
     ///
     /// The weights are of shape `(channel_out_size, channel_grouped_size * kernel_size)`.
-    pub fn weights(&self) -> ArrayView2<f32> {
+    pub fn weights(&self) -> ArrayView2<'_, f32> {
         self.weights.view()
     }
 
     /// Gets the bias.
     ///
     /// The bias is of shape `(1, bias_size, 1)`.
-    pub fn bias(&self) -> ArrayView3<f32> {
+    pub fn bias(&self) -> ArrayView3<'_, f32> {
         self.bias.view()
     }
 
@@ -211,9 +213,12 @@ where
     ///
     /// The input is of shape `(batch_size, channel_in_size, input_size)` and the output is of shape
     /// `(batch_size, channel_out_size, output_size)`.
+    ///
+    /// # Panics
+    /// Panics if certain unimplemented edge cases are encountered.
     pub fn run(
         &self,
-        input: ArrayBase<impl Data<Elem = f32>, Ix3>,
+        input: &ArrayBase<impl Data<Elem = f32>, Ix3>,
     ) -> Result<Array3<f32>, ConvError> {
         let input_shape = input.shape();
         let batch_size = input_shape[0];
@@ -241,7 +246,7 @@ where
 
         let mut output = Array3::default([batch_size, self.channel_out_size, output_size]);
         azip!((mut output in output.outer_iter_mut(), input in input.outer_iter()) {
-            let input = self.unfold(input, output_size);
+            let input = self.unfold(&input, output_size);
             output.assign(&self.weights.dot(&input));
         });
         let output = self.activation.apply_to(output + &self.bias);
@@ -255,7 +260,7 @@ where
     /// `(channel_in_size * kernel_size, output_size)`.
     fn unfold(
         &self,
-        input: ArrayBase<impl Data<Elem = f32>, Ix2>,
+        input: &ArrayBase<impl Data<Elem = f32>, Ix2>,
         output_size: usize,
     ) -> Array2<f32> {
         if self.padding > 0 {
@@ -284,7 +289,7 @@ mod tests {
         let input = Array1::range(0., 30., 1.).into_shape((2, 3, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 1, 0, 1, 1)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[
             [[312., 348., 384.], [798., 915., 1032.]],
@@ -300,7 +305,7 @@ mod tests {
         let input = Array1::range(0., 30., 1.).into_shape((2, 3, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 1, 0, 1, 1)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[
             [[25., 28., 31., 34., 37.], [70., 82., 94., 106., 118.]],
@@ -316,7 +321,7 @@ mod tests {
         let input = Array1::range(0., 30., 1.).into_shape((2, 3, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 1, 0, 1, 1)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[
             [[312., 348., 384.], [799., 916., 1033.]],
@@ -332,7 +337,7 @@ mod tests {
         let input = Array1::range(0., 30., 1.).into_shape((2, 3, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 2, 0, 1, 1)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[
             [[312., 384.], [798., 1032.]],
@@ -348,7 +353,7 @@ mod tests {
         let input = Array1::range(0., 30., 1.).into_shape((2, 3, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 2, 0, 1, 1)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[
             [[25., 31., 37.], [70., 94., 118.]],
@@ -365,7 +370,7 @@ mod tests {
         let input = Array1::range(0., 30., 1.).into_shape((2, 3, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 1, 1, 1, 1)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[
             [
@@ -388,7 +393,7 @@ mod tests {
         let input = Array1::range(0., 30., 1.).into_shape((2, 3, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 1, 1, 1, 1)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[
             [
@@ -411,7 +416,7 @@ mod tests {
         let input = Array1::range(0., 30., 1.).into_shape((2, 3, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 1, 0, 2, 1)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[[[354.], [921.]], [[894.], [2676.]]]);
         assert_approx_eq!(f32, output, expected);
@@ -425,7 +430,7 @@ mod tests {
         let input = Array1::range(0., 80., 1.).into_shape((2, 8, 5)).unwrap();
         let output = Conv1D::new(weights, bias, Linear, 1, 0, 1, 2)
             .unwrap()
-            .run(input)
+            .run(&input)
             .unwrap();
         let expected = arr3(&[
             [[794., 860., 926.], [6218., 6428., 6638.]],

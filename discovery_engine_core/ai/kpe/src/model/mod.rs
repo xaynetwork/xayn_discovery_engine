@@ -23,7 +23,7 @@ use ndarray::ShapeError;
 use thiserror::Error;
 use tract_onnx::prelude::TractError;
 
-use layer::{conv::ConvError, io::LoadingLayerFailed};
+use xayn_discovery_engine_layer::{conv::ConvError, io::LoadingLayerFailed};
 
 /// The potential errors of the models.
 #[derive(Debug, Display, Error)]

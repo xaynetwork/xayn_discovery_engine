@@ -13,8 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use displaydoc::Display;
-use layer::io::{BinParams, LoadingBinParamsFailed};
 use thiserror::Error;
+use xayn_discovery_engine_layer::io::{BinParams, LoadingBinParamsFailed};
 
 use crate::{
     config::Config,

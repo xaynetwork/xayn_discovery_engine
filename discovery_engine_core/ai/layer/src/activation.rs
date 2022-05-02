@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Activation layers.
+
 use ndarray::{Array, ArrayBase, Axis, Data, DataMut, DataOwned, Dimension, NdFloat, RemoveAxis};
 
 use crate::utils::softmax;
@@ -59,11 +61,11 @@ where
 }
 
 impl Relu {
-    /// Calculates the partial derivatives of reLU at given input.
+    /// Calculates the partial derivatives of relu at given input.
     ///
     /// I.e. it returns an array where for all values in the input an 1 is included
     /// if the value is positive or a 0 is included else wise.
-    pub fn partial_derivatives_at<S, D>(input: ArrayBase<S, D>) -> Array<f32, D>
+    pub fn partial_derivatives_at<S, D>(input: &ArrayBase<S, D>) -> Array<f32, D>
     where
         S: Data<Elem = f32>,
         D: Dimension,
@@ -108,6 +110,7 @@ where
     /// with an relative axis index of 10 on an array which
     /// is 2-dimensional (and as such only has support the
     /// relative axis indices 0,1,-1,-2).
+    #[allow(clippy::cast_sign_loss)] // negative case is handled before the cast
     fn apply_to<S, D>(&self, input: ArrayBase<S, D>) -> ArrayBase<S, D>
     where
         S: DataOwned<Elem = A> + DataMut<Elem = A>,
@@ -153,14 +156,14 @@ mod tests {
     fn test_relu_activation_function_works() {
         let relu = Relu;
         let array = arr3(&[
-            [[-1.0f32, 2.], [3.5, -4.0]],
-            [[3.0, 2.4], [-3.0, -1.2]],
-            [[-12.0, -2.0], [2.0, 12.0]],
+            [[-1., 2.], [3.5, -4.]],
+            [[3., 2.4], [-3., -1.2]],
+            [[-12., -2.], [2., 12.]],
         ]);
         let expected = arr3(&[
-            [[0.0f32, 2.], [3.5, 0.0]],
-            [[3.0, 2.4], [0.0, 0.0]],
-            [[0.0, 0.0], [2.0, 12.0]],
+            [[0., 2.], [3.5, 0.]],
+            [[3., 2.4], [0., 0.]],
+            [[0., 0.], [2., 12.]],
         ]);
         let output = relu.apply_to(array);
         assert_approx_eq!(f32, output, expected);
@@ -170,9 +173,9 @@ mod tests {
     fn test_linear_activation_function_works() {
         let relu = Linear;
         let array = arr3(&[
-            [[-1.0f32, 2.], [3.5, -4.0]],
-            [[3.0, 2.4], [-3.0, -1.2]],
-            [[-12.0, -2.0], [2.0, 12.0]],
+            [[-1., 2.], [3.5, -4.]],
+            [[3., 2.4], [-3., -1.2]],
+            [[-12., -2.], [2., 12.]],
         ]);
         let expected = array.clone();
         let output = relu.apply_to(array);
@@ -183,9 +186,9 @@ mod tests {
     fn test_softmax_activation_function_works() {
         let relu = Softmax::new(-2);
         let array = arr3(&[
-            [[-1.0f32, 2.], [3.5, -4.0]],
-            [[3.0, 2.4], [-3.0, -1.2]],
-            [[-12.0, -2.0], [2.0, 12.0]],
+            [[-1., 2.], [3.5, -4.]],
+            [[3., 2.4], [-3., -1.2]],
+            [[-12., -2.], [2., 12.]],
         ]);
         let expected = softmax(array.clone(), Axis(1));
         let output = relu.apply_to(array);

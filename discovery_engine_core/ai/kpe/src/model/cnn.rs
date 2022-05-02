@@ -22,7 +22,7 @@ use crate::{
     },
     tokenizer::encoding::ValidMask,
 };
-use layer::{activation::Relu, conv::Conv1D, io::BinParams};
+use xayn_discovery_engine_layer::{activation::Relu, conv::Conv1D, io::BinParams};
 
 /// A CNN model.
 #[derive(Debug)]
@@ -104,7 +104,7 @@ impl Cnn {
         debug_assert!(valid_embeddings.iter().copied().all(f32::is_finite));
 
         let run_layer =
-            |idx: usize| self.layers[idx].run(valid_embeddings.t().slice(s![NewAxis, .., ..]));
+            |idx: usize| self.layers[idx].run(&valid_embeddings.t().slice(s![NewAxis, .., ..]));
         let features = Features(concatenate(
             Axis(1),
             &[

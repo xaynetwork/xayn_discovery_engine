@@ -23,7 +23,7 @@ use crate::{
     },
     tokenizer::encoding::ActiveMask,
 };
-use layer::{activation::Linear, dense::Dense, io::BinParams};
+use xayn_discovery_engine_layer::{activation::Linear, dense::Dense, io::BinParams};
 
 /// A Classifier model.
 #[derive(Debug)]
@@ -66,7 +66,7 @@ impl Classifier {
         debug_assert_eq!(features.shape()[1], active_mask.shape()[1]);
         debug_assert!(features.is_valid());
         debug_assert!(active_mask.is_valid());
-        let (scores, _) = self.layer.run(features.t(), false);
+        let (scores, _) = self.layer.run(&features.t(), false);
         debug_assert_eq!(scores.shape(), [features.shape()[1], 1]);
         debug_assert!(scores.iter().copied().all(f32::is_finite));
 

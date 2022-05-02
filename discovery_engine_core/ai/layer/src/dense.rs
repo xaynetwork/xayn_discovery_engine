@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Dense layers.
+
 use std::ops::{AddAssign, DivAssign, MulAssign};
 
 use ndarray::{
@@ -51,6 +53,7 @@ impl<AF> Dense<AF>
 where
     AF: ActivationFunction<f32>,
 {
+    /// Creates a dense layer.
     pub fn new(
         weights: Array2<f32>,
         bias: Array1<f32>,
@@ -78,8 +81,9 @@ where
         })
     }
 
+    /// Loads a dense layer.
     pub fn load(
-        mut params: BinParamsWithScope,
+        mut params: BinParamsWithScope<'_>,
         activation_function: AF,
     ) -> Result<Self, LoadingLayerFailed> {
         Self::new(
@@ -90,19 +94,23 @@ where
         .map_err(Into::into)
     }
 
-    pub fn weights(&self) -> ArrayView2<f32> {
+    /// Gets the weights.
+    pub fn weights(&self) -> ArrayView2<'_, f32> {
         self.weights.view()
     }
 
-    pub fn bias(&self) -> ArrayView1<f32> {
+    /// Gets the bias.
+    pub fn bias(&self) -> ArrayView1<'_, f32> {
         self.bias.view()
     }
 
-    pub fn store_params(self, mut params: BinParamsWithScope) {
+    /// Stores all parameters.
+    pub fn store_params(self, mut params: BinParamsWithScope<'_>) {
         params.insert("weights", self.weights);
         params.insert("bias", self.bias);
     }
 
+    /// Checks the shapes against an expectation.
     pub fn check_in_out_shapes<D>(&self, mut shape: D) -> Result<D, IncompatibleMatrices>
     where
         D: Dimension,
@@ -142,7 +150,7 @@ where
     /// was applied. If not then `None` is returned instead.
     pub fn run<S, D>(
         &self,
-        input: ArrayBase<S, D>,
+        input: &ArrayBase<S, D>,
         for_back_propagation: bool,
     ) -> (Array<f32, D>, Option<Array<f32, D>>)
     where
@@ -165,8 +173,8 @@ where
     /// The `input` and `partials` arrays are expected to be c- or f-contiguous.
     pub fn gradients_from_partials_1d(
         &self,
-        input: ArrayView1<f32>,
-        partials: ArrayView1<f32>,
+        input: ArrayView1<'_, f32>,
+        partials: ArrayView1<'_, f32>,
     ) -> DenseGradientSet {
         let weights_nr_rows = self.weights.shape()[0];
         let weights_nr_columns = self.weights.shape()[1];
@@ -233,6 +241,7 @@ pub struct DenseGradientSet {
 }
 
 impl DenseGradientSet {
+    /// Creates a gradient set of a dense layer.
     pub fn new(weight_gradients: Array2<f32>, bias_gradients: Array1<f32>) -> Self {
         Self {
             weight_gradients,
@@ -240,10 +249,12 @@ impl DenseGradientSet {
         }
     }
 
+    /// Gets the weight gradients.
     pub fn weight_gradients(&self) -> &Array2<f32> {
         &self.weight_gradients
     }
 
+    /// Gets the bias gradients.
     pub fn bias_gradients(&self) -> &Array1<f32> {
         &self.bias_gradients
     }
@@ -309,7 +320,7 @@ mod tests {
     #[test]
     fn test_dense_matrix_for_2d_input() {
         // (features, units) = (3, 2)
-        let weights = arr2(&[[1.0f32, 2.], [4., 8.], [3., 0.]]);
+        let weights = arr2(&[[1., 2.], [4., 8.], [3., 0.]]);
         // (units,) = (2,)
         let bias = arr1(&[0.5, 2.0]);
         let dense = Dense::new(weights, bias, Linear).unwrap();
@@ -317,25 +328,25 @@ mod tests {
         // (..., features) = (2, 3);
         let inputs = arr2(&[[10., 1., -10.], [0., 10., 0.]]);
         let expected = arr2(&[[-15.5, 30.], [40.5, 82.]]);
-        let (res, _) = dense.run(inputs, false);
+        let (res, _) = dense.run(&inputs, false);
         assert_approx_eq!(f32, res, expected);
 
         // (..., features) = (1, 3);
         let inputs = arr2(&[[0.5, 1.0, -0.5]]);
         let expected = arr2(&[[3.5, 11.]]);
-        let (res, _) = dense.run(inputs, false);
+        let (res, _) = dense.run(&inputs, false);
         assert_approx_eq!(f32, res, expected);
     }
 
     #[test]
     fn test_activation_function_is_called() {
-        let weights = arr2(&[[1.0f32, 2.], [4., 8.], [3., 0.]]);
+        let weights = arr2(&[[1., 2.], [4., 8.], [3., 0.]]);
         let bias = arr1(&[0.5, 2.0]);
         let dense = Dense::new(weights, bias, Relu).unwrap();
 
         let inputs = arr2(&[[10., 1., -10.], [0., 10., 0.]]);
         let expected = arr2(&[[0.0, 30.], [40.5, 82.]]);
-        let (res, _) = dense.run(inputs, false);
+        let (res, _) = dense.run(&inputs, false);
         assert_approx_eq!(f32, res, expected);
     }
 
@@ -349,7 +360,7 @@ mod tests {
     #[test]
     fn test_dense_matrix_for_1d_input() {
         // (features, units) = (3, 2)
-        let weights = arr2(&[[1.0f32, 2.], [4., 8.], [3., 0.]]);
+        let weights = arr2(&[[1., 2.], [4., 8.], [3., 0.]]);
         // (units,) = (2,)
         let bias = arr1(&[0.5, 2.0]);
         let dense = Dense::new(weights, bias, Linear).unwrap();
@@ -357,13 +368,13 @@ mod tests {
         // (..., features) = (2, 3);
         let inputs = arr1(&[10., 1., -10.]);
         let expected = arr1(&[-15.5, 30.]);
-        let (res, _) = dense.run(inputs, false);
+        let (res, _) = dense.run(&inputs, false);
         assert_approx_eq!(f32, res, expected);
 
         // (..., features) = (1, 3);
         let inputs = arr1(&[0.5, 1.0, -0.5]);
         let expected = arr1(&[3.5, 11.]);
-        let (res, _) = dense.run(inputs, false);
+        let (res, _) = dense.run(&inputs, false);
         assert_approx_eq!(f32, res, expected);
     }
 
@@ -393,13 +404,13 @@ mod tests {
 
     #[test]
     fn returns_z_out_if_needed() {
-        let weights = arr2(&[[1.0f32, 2.], [4., 8.], [3., 0.]]);
+        let weights = arr2(&[[1., 2.], [4., 8.], [3., 0.]]);
         let bias = arr1(&[0.5, 2.0]);
         let dense = Dense::new(weights, bias, Relu).unwrap();
 
         let inputs = arr2(&[[10., 1., -10.], [0., 10., 0.]]);
 
-        let (y_out, z_out) = dense.run(inputs, true);
+        let (y_out, z_out) = dense.run(&inputs, true);
 
         assert_approx_eq!(f32, y_out, arr2(&[[0.0, 30.], [40.5, 82.]]));
         assert_approx_eq!(f32, z_out.unwrap(), arr2(&[[-15.5, 30.], [40.5, 82.]]));

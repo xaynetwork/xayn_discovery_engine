@@ -1189,11 +1189,11 @@ dependencies = [
  "criterion",
  "derive_more",
  "displaydoc",
- "layer",
  "ndarray",
  "rubert-tokenizer",
  "thiserror",
  "tract-onnx",
+ "xayn-discovery-engine-layer",
  "xayn-discovery-engine-test-utils",
 ]
 
@@ -1204,20 +1204,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b310ccceade8121d7d77fee406160e457c2f4e7c7982d589da3499bc7ea4526"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "layer"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "displaydoc",
- "ndarray",
- "rand 0.8.5",
- "rand_distr",
- "serde",
- "thiserror",
- "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -3308,7 +3294,6 @@ dependencies = [
  "itertools",
  "js-sys",
  "kpe",
- "layer",
  "lazy_static",
  "mockall",
  "ndarray",
@@ -3327,6 +3312,7 @@ dependencies = [
  "smallvec",
  "thiserror",
  "uuid",
+ "xayn-discovery-engine-layer",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
 ]
@@ -3406,6 +3392,20 @@ dependencies = [
  "uuid",
  "xayn-ai",
  "xayn-discovery-engine-providers",
+ "xayn-discovery-engine-test-utils",
+]
+
+[[package]]
+name = "xayn-discovery-engine-layer"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "displaydoc",
+ "ndarray",
+ "rand 0.8.5",
+ "rand_distr",
+ "serde",
+ "thiserror",
  "xayn-discovery-engine-test-utils",
 ]
 

@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Layer utilities.
+
 use std::f32::consts::SQRT_2;
 
 use displaydoc::Display;
@@ -30,11 +32,12 @@ use ndarray::{
     RemoveAxis,
 };
 use rand::Rng;
-use rand_distr::{Distribution, Normal};
+use rand_distr::{num_traits::Float, Distribution, Normal};
 use thiserror::Error;
 
 /// Can't combine {name_left}({shape_left:?}) with {name_right}({shape_right:?}): {hint}
 #[derive(Debug, Display, Error)]
+#[allow(clippy::doc_markdown)] // false positive in combination with displaydoc
 pub struct IncompatibleMatrices {
     name_left: &'static str,
     shape_left: IxDyn,
@@ -44,6 +47,7 @@ pub struct IncompatibleMatrices {
 }
 
 impl IncompatibleMatrices {
+    /// Creates the error.
     pub fn new(
         name_left: &'static str,
         shape_left: impl IntoDimension,
@@ -81,7 +85,7 @@ where
     array -= &max;
 
     // Standard 3step softmax, 1) exp(x), 2) sum up, 3) divide through sum
-    array.mapv_inplace(|v| v.exp());
+    array.mapv_inplace(Float::exp);
     let sum = array.sum_axis(axis).insert_axis(axis);
     array /= &sum;
     array
@@ -100,9 +104,9 @@ where
 ///
 /// For the good distribution we could argue similarly. An alternative choice
 /// is to return `0` if the good distributions probability is `0`.)
-pub fn kl_divergence(good_dist: ArrayView1<f32>, eval_dist: ArrayView1<f32>) -> f32 {
+pub fn kl_divergence(good_dist: ArrayView1<'_, f32>, eval_dist: ArrayView1<'_, f32>) -> f32 {
     good_dist.into_iter().zip(eval_dist.into_iter()).fold(
-        0f32,
+        0.,
         |acc, (good_dist_prob, eval_dist_prob)| {
             let good_dist_prob = good_dist_prob.clamp(f32::EPSILON, 1.);
             let eval_dist_prob = eval_dist_prob.clamp(f32::EPSILON, 1.);
@@ -129,6 +133,8 @@ pub fn kl_divergence(good_dist: ArrayView1<f32>, eval_dist: ArrayView1<f32>) -> 
 ///
 /// - [Website](https://www.cv-foundation.org/openaccess/content_iccv_2015/html/He_Delving_Deep_into_ICCV_2015_paper.html)
 /// - [Pdf](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/He_Delving_Deep_into_ICCV_2015_paper.pdf)
+#[allow(clippy::cast_precision_loss)] // our integers are small enough
+#[allow(clippy::missing_panics_doc)] // edge cases are handled before unwrapping
 pub fn he_normal_weights_init(
     rng: &mut (impl Rng + ?Sized),
     dim: impl IntoDimension<Dim = Ix2>,
@@ -162,15 +168,15 @@ mod tests {
 
     #[test]
     fn test_softmax_1d() {
-        let arr = arr1(&[-1_f32, 0., 1., 2., 3.]);
+        let arr = arr1(&[-1., 0., 1., 2., 3.]);
 
         // axis 0
         let res = arr1(&[
-            0.011656231_f32,
-            0.03168492,
-            0.08612854,
-            0.23412167,
-            0.6364086,
+            0.011_656_231,
+            0.031_684_92,
+            0.086_128_54,
+            0.234_121_67,
+            0.636_408_6,
         ]);
         assert_approx_eq!(f32, softmax(arr, Axis(0)), res);
     }
@@ -178,7 +184,7 @@ mod tests {
     #[test]
     fn test_softmax_2d() {
         let arr = arr2(&[
-            [-1_f32, 0., 1., 2., 3.],
+            [-1., 0., 1., 2., 3.],
             [9., 8., 7., 6., 5.],
             [1., -1., 1., -1., 1.],
         ])
@@ -187,19 +193,25 @@ mod tests {
         // axis 0
         let res = arr2(&[
             [
-                0.000045382647_f32,
-                0.00033530878,
-                0.0024665247,
-                0.017970119,
-                0.11731042,
+                0.000_045_382_647,
+                0.000_335_308_78,
+                0.002_466_524_7,
+                0.017_970_119,
+                0.117_310_42,
             ],
-            [0.99961925, 0.9995414, 0.995067, 0.9811352, 0.8668133],
             [
-                0.00033533492,
-                0.00012335321,
-                0.0024665247,
-                0.0008946795,
-                0.01587624,
+                0.999_619_25,
+                0.999_541_4,
+                0.995_067,
+                0.981_135_2,
+                0.866_813_3,
+            ],
+            [
+                0.000_335_334_92,
+                0.000_123_353_21,
+                0.002_466_524_7,
+                0.000_894_679_5,
+                0.015_876_24,
             ],
         ]);
         assert_approx_eq!(f32, softmax(arr.clone(), Axis(0)), res);
@@ -207,23 +219,36 @@ mod tests {
         // axis 1
         let res = arr2(&[
             [
-                0.011656231_f32,
-                0.03168492,
-                0.08612854,
-                0.23412167,
-                0.6364086,
+                0.011_656_231,
+                0.031_684_92,
+                0.086_128_54,
+                0.234_121_67,
+                0.636_408_6,
             ],
-            [0.6364086, 0.23412167, 0.08612854, 0.03168492, 0.011656231],
-            [0.3057477, 0.04137845, 0.3057477, 0.04137845, 0.3057477],
+            [
+                0.636_408_6,
+                0.234_121_67,
+                0.086_128_54,
+                0.031_684_92,
+                0.011_656_231,
+            ],
+            [
+                0.305_747_7,
+                0.041_378_45,
+                0.305_747_7,
+                0.041_378_45,
+                0.305_747_7,
+            ],
         ]);
         assert_approx_eq!(f32, softmax(arr, Axis(1)), res);
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_softmax_3d() {
         let arr = arr3(&[
             [
-                [-1_f32, 0., 1., 2., 3.],
+                [-1., 0., 1., 2., 3.],
                 [9., 8., 7., 6., 5.],
                 [1., -1., 1., -1., 1.],
             ],
@@ -238,20 +263,32 @@ mod tests {
         // axis 0
         let res = arr3(&[
             [
-                [0.11920292_f32, 0.26894143, 0.5, 0.7310586, 0.880797],
-                [0.999089, 0.9975274, 0.9933072, 0.98201376, 0.95257413],
-                [0.11920292, 0.01798621, 0.11920292, 0.01798621, 0.11920292],
+                [0.119_202_92, 0.268_941_43, 0.5, 0.731_058_6, 0.880_797],
+                [
+                    0.999_089,
+                    0.997_527_4,
+                    0.993_307_2,
+                    0.982_013_76,
+                    0.952_574_13,
+                ],
+                [
+                    0.119_202_92,
+                    0.017_986_21,
+                    0.119_202_92,
+                    0.017_986_21,
+                    0.119_202_92,
+                ],
             ],
             [
-                [0.880797, 0.7310586, 0.5, 0.26894143, 0.11920292],
+                [0.880_797, 0.731_058_6, 0.5, 0.268_941_43, 0.119_202_92],
                 [
-                    0.00091105123,
-                    0.0024726233,
-                    0.006692851,
-                    0.01798621,
-                    0.047425874,
+                    0.000_911_051_23,
+                    0.002_472_623_3,
+                    0.006_692_851,
+                    0.017_986_21,
+                    0.047_425_874,
                 ],
-                [0.880797, 0.98201376, 0.880797, 0.98201376, 0.880797],
+                [0.880_797, 0.982_013_76, 0.880_797, 0.982_013_76, 0.880_797],
             ],
         ]);
         assert_approx_eq!(f32, softmax(arr.clone(), Axis(0)), res);
@@ -260,25 +297,49 @@ mod tests {
         let res = arr3(&[
             [
                 [
-                    0.000045382647_f32,
-                    0.00033530878,
-                    0.0024665247,
-                    0.017970119,
-                    0.11731042,
+                    0.000_045_382_647,
+                    0.000_335_308_78,
+                    0.002_466_524_7,
+                    0.017_970_119,
+                    0.117_310_42,
                 ],
-                [0.99961925, 0.9995414, 0.995067, 0.9811352, 0.8668133],
                 [
-                    0.00033533492,
-                    0.00012335321,
-                    0.0024665247,
-                    0.0008946795,
-                    0.01587624,
+                    0.999_619_25,
+                    0.999_541_4,
+                    0.995_067,
+                    0.981_135_2,
+                    0.866_813_3,
+                ],
+                [
+                    0.000_335_334_92,
+                    0.000_123_353_21,
+                    0.002_466_524_7,
+                    0.000_894_679_5,
+                    0.015_876_24,
                 ],
             ],
             [
-                [0.09003057, 0.09003057, 0.09003057, 0.09003057, 0.09003057],
-                [0.24472848, 0.24472848, 0.24472848, 0.24472848, 0.24472848],
-                [0.66524094, 0.66524094, 0.66524094, 0.66524094, 0.66524094],
+                [
+                    0.090_030_57,
+                    0.090_030_57,
+                    0.090_030_57,
+                    0.090_030_57,
+                    0.090_030_57,
+                ],
+                [
+                    0.244_728_48,
+                    0.244_728_48,
+                    0.244_728_48,
+                    0.244_728_48,
+                    0.244_728_48,
+                ],
+                [
+                    0.665_240_94,
+                    0.665_240_94,
+                    0.665_240_94,
+                    0.665_240_94,
+                    0.665_240_94,
+                ],
             ],
         ]);
         assert_approx_eq!(f32, softmax(arr.clone(), Axis(1)), res);
@@ -287,14 +348,26 @@ mod tests {
         let res = arr3(&[
             [
                 [
-                    0.011656232_f32,
-                    0.03168492,
-                    0.08612854,
-                    0.23412167,
-                    0.6364086,
+                    0.011_656_232,
+                    0.031_684_92,
+                    0.086_128_54,
+                    0.234_121_67,
+                    0.636_408_6,
                 ],
-                [0.6364086, 0.23412167, 0.08612854, 0.03168492, 0.011656231],
-                [0.3057477, 0.04137845, 0.3057477, 0.04137845, 0.3057477],
+                [
+                    0.636_408_6,
+                    0.234_121_67,
+                    0.086_128_54,
+                    0.031_684_92,
+                    0.011_656_231,
+                ],
+                [
+                    0.305_747_7,
+                    0.041_378_45,
+                    0.305_747_7,
+                    0.041_378_45,
+                    0.305_747_7,
+                ],
             ],
             [
                 [0.2, 0.2, 0.2, 0.2, 0.2],
@@ -308,36 +381,36 @@ mod tests {
     #[test]
     fn test_softmax_edgecases() {
         // 2D axis 0
-        let arr = arr2(&[[-1_f32, 0., 1., 2., 3.]]);
-        let res = arr2(&[[1_f32, 1., 1., 1., 1.]]);
+        let arr = arr2(&[[-1., 0., 1., 2., 3.]]);
+        let res = arr2(&[[1., 1., 1., 1., 1.]]);
         assert_approx_eq!(f32, softmax(arr, Axis(0)), res);
 
         // 2D axis 1
-        let arr = arr2(&[[-1_f32], [9.], [1.]]);
-        let res = arr2(&[[1_f32], [1.], [1.]]);
+        let arr = arr2(&[[-1.], [9.], [1.]]);
+        let res = arr2(&[[1.], [1.], [1.]]);
         assert_approx_eq!(f32, softmax(arr, Axis(1)), res);
 
         // 3D axis 0
         let arr = arr3(&[[
-            [-1_f32, 0., 1., 2., 3.],
+            [-1., 0., 1., 2., 3.],
             [9., 8., 7., 6., 5.],
             [1., -1., 1., -1., 1.],
         ]]);
         let res = arr3(&[[
-            [1_f32, 1., 1., 1., 1.],
+            [1., 1., 1., 1., 1.],
             [1., 1., 1., 1., 1.],
             [1., 1., 1., 1., 1.],
         ]]);
         assert_approx_eq!(f32, softmax(arr, Axis(0)), res);
 
         // 3D axis 1
-        let arr = arr3(&[[[-1_f32, 0., 1., 2., 3.]], [[1., 1., 1., 1., 1.]]]);
-        let res = arr3(&[[[1_f32, 1., 1., 1., 1.]], [[1., 1., 1., 1., 1.]]]);
+        let arr = arr3(&[[[-1., 0., 1., 2., 3.]], [[1., 1., 1., 1., 1.]]]);
+        let res = arr3(&[[[1., 1., 1., 1., 1.]], [[1., 1., 1., 1., 1.]]]);
         assert_approx_eq!(f32, softmax(arr, Axis(1)), res);
 
         // 3D axis 2
-        let arr = arr3(&[[[-1_f32], [9.], [1.]], [[1.], [2.], [3.]]]);
-        let res = arr3(&[[[1_f32], [1.], [1.]], [[1.], [1.], [1.]]]);
+        let arr = arr3(&[[[-1.], [9.], [1.]], [[1.], [2.], [3.]]]);
+        let res = arr3(&[[[1.], [1.], [1.]], [[1.], [1.], [1.]]]);
         assert_approx_eq!(f32, softmax(arr, Axis(2)), res);
     }
 
@@ -366,16 +439,17 @@ mod tests {
         let mut rng = rand::thread_rng();
         assert_eq!(
             he_normal_weights_init(&mut rng, (0, 200)).shape(),
-            &[0, 200]
+            &[0, 200],
         );
         assert_eq!(
             he_normal_weights_init(&mut rng, (300, 0)).shape(),
-            &[300, 0]
+            &[300, 0],
         );
         assert_eq!(he_normal_weights_init(&mut rng, (0, 0)).shape(), &[0, 0]);
     }
 
     #[test]
+    #[allow(clippy::cast_precision_loss)] // our integers are small enough
     fn test_he_normal_weight_init() {
         let mut rng = rand::thread_rng();
         let weights = he_normal_weights_init(&mut rng, (300, 200));
