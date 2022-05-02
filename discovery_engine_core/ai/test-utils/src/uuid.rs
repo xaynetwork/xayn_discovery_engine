@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -15,7 +15,7 @@
 use uuid::Uuid;
 
 /// Creates an UUID by combining `fcb6a685-eb92-4d36-8686-XXXXXXXXXXXX` with the given `sub_id`.
-pub(crate) const fn mock_uuid(sub_id: usize) -> Uuid {
+pub const fn mock_uuid(sub_id: usize) -> Uuid {
     const BASE_UUID: u128 = 0xfcb6a685eb924d368686000000000000;
     Uuid::from_u128(BASE_UUID | (sub_id as u128))
 }

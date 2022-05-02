@@ -36,6 +36,7 @@ mod asset;
 pub mod example;
 pub mod kpe;
 pub mod smbert;
+pub mod uuid;
 
 pub use crate::approx_eq::ApproxEqIter;
 #[doc(hidden)] // required for standalone export of assert_approx_eq!

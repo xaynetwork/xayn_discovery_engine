@@ -49,7 +49,7 @@ pub struct PositiveCoi {
 }
 
 impl PositiveCoi {
-    pub(crate) fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
+    pub fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
         Self {
             id: id.into(),
             point: point.into(),
@@ -98,7 +98,7 @@ pub struct NegativeCoi {
 }
 
 impl NegativeCoi {
-    pub(crate) fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
+    pub fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
         Self {
             id: id.into(),
             point: point.into(),
