@@ -7,8 +7,13 @@ edition = "2018"
 name = "newscatcher"
 path = "bin/newscatcher.rs"
 
+[[bin]]
+name = "clean_sources"
+path = "bin/clean_sources.rs"
+
 [dependencies]
 anyhow = "1.0.55"
+csv = "1.1.6"
 serde_json = "1.0.79"
 serde_path_to_error = "0.1"
 tokio = { version = "1.17.0", features = ["full"] }
