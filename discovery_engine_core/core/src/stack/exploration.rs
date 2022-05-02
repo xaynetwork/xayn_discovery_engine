@@ -150,7 +150,7 @@ where
 /// Returns the indices that would sort an array.
 fn argsort(arr: &[f32]) -> Vec<usize> {
     let mut indices: Vec<usize> = (0..arr.len()).collect();
-    indices.sort_unstable_by(move |&i, &j| nan_safe_f32_cmp(&arr[i], &arr[j]));
+    indices.sort_unstable_by(|&i, &j| nan_safe_f32_cmp(&arr[i], &arr[j]));
     indices
 }
 
