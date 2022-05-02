@@ -325,7 +325,7 @@ class EventHandler {
       _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
 
       /// See TY-2799
-      /// Hive usually compact our boxes automatically. However, with the default
+      /// Hive usually compacts our boxes automatically. However, with the default
       /// strategy, compaction is triggered after 60 deleted entries. This leads
       /// to the problem that our engine state is constantly growing because we
       /// are only overwriting it and not deleting it. Therefore we call it with
