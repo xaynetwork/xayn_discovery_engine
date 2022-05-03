@@ -32,6 +32,8 @@ import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
+import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
+    show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -220,6 +222,13 @@ class MockEngine implements Engine {
         DocumentWithActiveData(doc1, active1),
       ];
     }
+  }
+
+  @override
+  Future<List<TrendingTopic>> getTrendingTopics() async {
+    _incrementCount('getTrendingTopics');
+    // TODO: implement mock response
+    return [];
   }
 
   @override

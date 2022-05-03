@@ -29,6 +29,8 @@ import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
+import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
+    show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
@@ -85,6 +87,9 @@ abstract class Engine {
     int page,
     int pageSize,
   );
+
+  /// Returns the currently trending topics.
+  Future<List<TrendingTopic>> getTrendingTopics();
 
   /// Disposes the engine.
   Future<void> dispose();
