@@ -22,8 +22,13 @@ part 'trending_topic.g.dart';
 @freezed
 class TrendingTopic with _$TrendingTopic {
   const factory TrendingTopic({
+    /// Description of a topic.
     required String name,
+
+    /// Query that can/should be used to perform a new search.
     required String query,
+
+    /// Image representation of a topic.
     required Uri? image,
   }) = _TrendingTopic;
 
