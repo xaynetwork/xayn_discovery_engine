@@ -24,7 +24,7 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source, ToStringListExt;
+    show AvailableSource, Source, ToStringListExt;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -143,6 +143,14 @@ class DiscoveryEngineFfi implements Engine {
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
+  /// Retrieves the available sources related to the search term.
+  @override
+  Future<List<AvailableSource>> getAvailableSources(
+    String fuzzySearchTerm,
+  ) async {
+    throw UnimplementedError('TODO: TY-2749');
   }
 
   /// Gets feed documents.

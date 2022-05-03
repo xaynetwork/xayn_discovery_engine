@@ -132,6 +132,12 @@ class ClientEvent with _$ClientEvent {
   const factory ClientEvent.trustedSourcesListRequested() =
       TrustedSourcesListRequested;
 
+  /// Event created when a client requests for list of available sources.
+  @Implements<FeedClientEvent>()
+  const factory ClientEvent.availableSourcesListRequested(
+    String fuzzySearchTerm,
+  ) = AvailableSourcesListRequested;
+
   /// Event created when a [Document] has been viewed in a certain mode for
   /// the given amount of time in seconds.
   @Implements<DocumentClientEvent>()
