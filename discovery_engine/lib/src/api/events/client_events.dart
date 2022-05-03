@@ -178,6 +178,9 @@ class ClientEvent with _$ClientEvent {
   @Implements<SearchClientEvent>()
   const factory ClientEvent.searchClosed() = SearchClosed;
 
+  @Implements<SearchClientEvent>()
+  const factory ClientEvent.trendingTopicsRequested() = TrendingTopicsRequested;
+
   /// Converts json Map to [ClientEvent].
   factory ClientEvent.fromJson(Map<String, Object?> json) =>
       _$ClientEventFromJson(json);
