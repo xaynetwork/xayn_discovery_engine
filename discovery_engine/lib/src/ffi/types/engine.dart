@@ -229,6 +229,7 @@ class DiscoveryEngineFfi implements Engine {
         .toDocumentListWithActiveData(isSearched: true);
   }
 
+  /// Returns the currently trending topics.
   @override
   Future<List<TrendingTopic>> getTrendingTopics() async {
     // TODO: implement engine call
