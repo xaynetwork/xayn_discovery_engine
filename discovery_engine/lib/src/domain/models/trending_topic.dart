@@ -17,12 +17,14 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'trending_topic.freezed.dart';
 part 'trending_topic.g.dart';
 
+/// [TrendingTopic] class is used to represent topics that are currently
+/// trending, and can be used as a basis for performing a new search.
 @freezed
 class TrendingTopic with _$TrendingTopic {
   const factory TrendingTopic({
     required String name,
     required String query,
-    required Uri image,
+    required Uri? image,
   }) = _TrendingTopic;
 
   factory TrendingTopic.fromJson(Map<String, Object?> json) =>
