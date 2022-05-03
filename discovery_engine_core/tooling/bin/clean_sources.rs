@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
+    env::args,
     fs::{remove_file, File},
     io::{BufRead, BufReader, BufWriter, Write},
     path::Path,
@@ -22,12 +23,12 @@ use anyhow::{bail, Result};
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 
 fn main() -> Result<()> {
-    let in_file = "sources_filled.csv";
-    let tmp_file = "sources_fixed.csv";
-    let out_file = "sources_cleaned.csv";
+    let in_file = args().nth(1).unwrap();
+    let tmp_file = Path::new(&in_file).with_extension("tmp");
+    let out_file = args().nth(2).unwrap();
 
-    fix_sources(in_file, tmp_file)?;
-    clean_sources(tmp_file, out_file)?;
+    fix_sources(in_file, &tmp_file)?;
+    clean_sources(&tmp_file, &out_file)?;
     check_sources(out_file)?;
     remove_file(tmp_file)?;
 
@@ -42,16 +43,21 @@ fn fix_sources(in_file: impl AsRef<Path>, out_file: impl AsRef<Path>) -> Result<
     let mut broken_line = String::new();
     for line in reader.lines() {
         let line = line?;
-        if line.split(';').count() == 4 {
-            writer.write_all(line.as_bytes())?;
-            writer.write_all(&[b'\n'])?;
-        } else {
-            broken_line.push_str(&line);
+        if !broken_line.is_empty() || line.split(';').count() != 4 {
+            if broken_line.is_empty() {
+                broken_line = line;
+            } else {
+                broken_line.push(' ');
+                broken_line.push_str(&line);
+            }
             if broken_line.split(';').count() == 4 {
                 writer.write_all(broken_line.as_bytes())?;
                 writer.write_all(&[b'\n'])?;
                 broken_line.clear();
             }
+        } else {
+            writer.write_all(line.as_bytes())?;
+            writer.write_all(&[b'\n'])?;
         }
     }
 
