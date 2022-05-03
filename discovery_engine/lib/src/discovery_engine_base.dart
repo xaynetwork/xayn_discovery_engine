@@ -41,7 +41,10 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         RestoreSearchFailed,
         RestoreFeedFailed,
         RestoreFeedSucceeded,
-        UserReaction;
+        UserReaction,
+        TrendingTopic,
+        TrendingTopicsRequestSucceeded,
+        TrendingTopicsRequestFailed;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -462,6 +465,27 @@ class DiscoveryEngine {
 
       return response.mapEvent(
         clientEventSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Requests for the currently [TrendingTopic]s.
+  ///
+  /// In response it can return:
+  /// - [TrendingTopicsRequestSucceeded] for successful response, containing a list of
+  /// [TrendingTopic]s
+  /// - [TrendingTopicsRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> requestTrendingTopics() {
+    return _trySend(() async {
+      const event = ClientEvent.trendingTopicsRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        trendingTopicsRequestSucceeded: true,
+        trendingTopicsRequestFailed: true,
         engineExceptionRaised: true,
       );
     });
