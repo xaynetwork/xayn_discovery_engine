@@ -41,7 +41,10 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         RestoreSearchFailed,
         RestoreFeedFailed,
         RestoreFeedSucceeded,
-        UserReaction;
+        UserReaction,
+        TrendingTopic,
+        TrendingTopicsRequestSucceeded,
+        TrendingTopicsRequestFailed;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -467,6 +470,27 @@ class DiscoveryEngine {
     });
   }
 
+  /// Requests for the current [TrendingTopic]s.
+  ///
+  /// In response it can return:
+  /// - [TrendingTopicsRequestSucceeded] for successful response, containing a list of
+  /// [TrendingTopic]s
+  /// - [TrendingTopicsRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> requestTrendingTopics() {
+    return _trySend(() async {
+      const event = ClientEvent.trendingTopicsRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        trendingTopicsRequestSucceeded: true,
+        trendingTopicsRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
   /// Send a [ClientEvent] to the [DiscoveryEngine] and wait for a response.
   Future<EngineEvent> send(ClientEvent event) =>
       _trySend(() => _manager.send(event));
@@ -527,6 +551,8 @@ extension _MapEvent on EngineEvent {
     bool? restoreSearchFailed,
     bool? searchTermRequestSucceeded,
     bool? searchTermRequestFailed,
+    bool? trendingTopicsRequestSucceeded,
+    bool? trendingTopicsRequestFailed,
     bool? trustedSourcesListRequestSucceeded,
     bool? trustedSourcesListRequestFailed,
   }) =>
@@ -559,6 +585,10 @@ extension _MapEvent on EngineEvent {
         searchTermRequestSucceeded:
             _maybePassThrough(searchTermRequestSucceeded),
         searchTermRequestFailed: _maybePassThrough(searchTermRequestFailed),
+        trendingTopicsRequestSucceeded:
+            _maybePassThrough(trendingTopicsRequestSucceeded),
+        trendingTopicsRequestFailed:
+            _maybePassThrough(trendingTopicsRequestFailed),
         trustedSourcesListRequestSucceeded:
             _maybePassThrough(trustedSourcesListRequestSucceeded),
         trustedSourcesListRequestFailed:

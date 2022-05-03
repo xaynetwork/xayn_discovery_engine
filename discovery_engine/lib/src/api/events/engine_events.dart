@@ -17,6 +17,7 @@ import 'package:xayn_discovery_engine/src/api/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
+import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart';
 
 part 'engine_events.freezed.dart';
 part 'engine_events.g.dart';
@@ -244,6 +245,20 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.searchTermRequestFailed(
     SearchFailureReason reason,
   ) = SearchTermRequestFailed;
+
+  /// Event created as a success response to TrendingTopicsRequested event.
+  /// Passes a list of [TrendingTopic] entities back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.trendingTopicsRequestSucceeded(
+    List<TrendingTopic> topics,
+  ) = TrendingTopicsRequestSucceeded;
+
+  /// Event created as a failure response to TrendingTopicsRequested event.
+  /// Passes a failure reason back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.trendingTopicsRequestFailed(
+    SearchFailureReason reason,
+  ) = TrendingTopicsRequestFailed;
 
   /// Converts json Map to [EngineEvent].
   factory EngineEvent.fromJson(Map<String, Object?> json) =>

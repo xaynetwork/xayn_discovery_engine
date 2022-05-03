@@ -33,7 +33,8 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         NextSearchBatchRequested,
         RestoreSearchRequested,
         SearchTermRequested,
-        SearchClosed;
+        SearchClosed,
+        TrendingTopicsRequested;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
         EngineEvent,
@@ -56,6 +57,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         SearchTermRequestSucceeded,
         SearchTermRequestFailed,
         SearchFailureReason,
+        TrendingTopicsRequestSucceeded,
+        TrendingTopicsRequestFailed,
         AssetsStatusEngineEvent,
         FetchingAssetsStarted,
         FetchingAssetsProgressed,
@@ -78,6 +81,8 @@ export 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 export 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
+export 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
+    show TrendingTopic;
 export 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 export 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
