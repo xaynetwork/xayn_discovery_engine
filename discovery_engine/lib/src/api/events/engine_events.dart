@@ -246,11 +246,15 @@ class EngineEvent with _$EngineEvent {
     SearchFailureReason reason,
   ) = SearchTermRequestFailed;
 
+  /// Event created as a success response to TrendingTopicsRequested event.
+  /// Passes a list of [TrendingTopic] entities back to the client.
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.trendingTopicsRequestSucceeded(
     List<TrendingTopic> topics,
   ) = TrendingTopicsRequestSucceeded;
 
+  /// Event created as a failure response to TrendingTopicsRequested event.
+  /// Passes a failure reason back to the client.
   @Implements<SearchEngineEvent>()
   const factory EngineEvent.trendingTopicsRequestFailed(
     SearchFailureReason reason,
