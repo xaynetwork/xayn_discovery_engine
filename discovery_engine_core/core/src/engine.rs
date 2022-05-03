@@ -14,6 +14,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    mem::replace,
     sync::Arc,
 };
 
@@ -339,16 +340,10 @@ where
         history: &[HistoricDocument],
         new_markets: Vec<Market>,
     ) -> Result<(), Error> {
-        let new_markets_set = new_markets.iter().collect::<HashSet<_>>();
         let mut markets_guard = self.config.markets.write().await;
-        let removed = markets_guard
-            .iter()
-            .filter_map(|market| (!new_markets_set.contains(market)).then(|| market.clone()))
-            .collect::<Vec<_>>();
-
-        *markets_guard = new_markets;
-
-        self.ranker.remove_key_phrases(&removed);
+        let mut old_markets = replace(&mut *markets_guard, new_markets);
+        old_markets.retain(|market| !markets_guard.contains(market));
+        self.ranker.remove_key_phrases(&old_markets);
         drop(markets_guard);
 
         let mut stacks_guard = self.stacks.write().await;
