@@ -12,20 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
-import 'package:hive/hive.dart' show Box, Hive;
+import 'dart:io' show Directory;
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show searchBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
     show HiveActiveSearchRepository;
 
 Future<void> main() async {
   group('HiveActiveSearchRepository', () {
-    late Box<ActiveSearch> box;
     late HiveActiveSearchRepository repo;
 
     const search = ActiveSearch(
@@ -36,15 +34,17 @@ Future<void> main() async {
     );
 
     setUpAll(() async {
-      box = await Hive.openBox<ActiveSearch>(searchBox, bytes: Uint8List(0));
+      EventHandler.registerHiveAdapters();
     });
 
     setUp(() async {
+      final dir = Directory.systemTemp.createTempSync('hive-test');
+      await EventHandler.initDatabase(dir.path);
       repo = HiveActiveSearchRepository();
     });
 
     tearDown(() async {
-      await box.clear();
+      await Hive.deleteFromDisk();
     });
 
     group('"getCurrent" method', () {
@@ -55,7 +55,7 @@ Future<void> main() async {
       });
 
       test('when the box has some data it will return that data', () async {
-        await box.put(HiveActiveSearchRepository.stateKey, search);
+        await repo.box.put(HiveActiveSearchRepository.stateKey, search);
 
         final state = await repo.getCurrent();
 
@@ -68,14 +68,14 @@ Future<void> main() async {
         final clearFuture = repo.clear();
         expect(clearFuture, completion(isNull));
         await clearFuture;
-        expect(box.isEmpty, isTrue);
+        expect(repo.box.isEmpty, isTrue);
       });
 
       test('when the box is NOT empty it should clear it', () async {
         await repo.save(search);
 
         await repo.clear();
-        expect(box.isEmpty, isTrue);
+        expect(repo.box.isEmpty, isTrue);
       });
     });
 
@@ -83,9 +83,9 @@ Future<void> main() async {
       test('when the box is empty it should persist data into it', () async {
         await repo.save(search);
 
-        expect(box.isNotEmpty, isTrue);
-        expect(box.values.first, equals(search));
-        expect(box.values.length, equals(1));
+        expect(repo.box.isNotEmpty, isTrue);
+        expect(repo.box.values.first, equals(search));
+        expect(repo.box.values.length, equals(1));
       });
 
       test('when the box is NOT empty it should override previous data',
@@ -95,9 +95,9 @@ Future<void> main() async {
         final search2 = search.copyWith(requestedPageNb: 2);
         await repo.save(search2);
 
-        expect(box.isNotEmpty, isTrue);
-        expect(box.values.first, equals(search2));
-        expect(box.values.length, equals(1));
+        expect(repo.box.isNotEmpty, isTrue);
+        expect(repo.box.values.first, equals(search2));
+        expect(repo.box.values.length, equals(1));
       });
     });
   });
