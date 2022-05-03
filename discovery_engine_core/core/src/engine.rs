@@ -341,12 +341,11 @@ where
     ) -> Result<(), Error> {
         *self.config.markets.write().await = markets;
 
-        {
-            let mut stacks = self.stacks.write().await;
-            for stack in stacks.values_mut() {
-                stack.data = StackData::default();
-            }
+        let mut stacks_guard = self.stacks.write().await;
+        for stack in stacks_guard.values_mut() {
+            stack.data = StackData::default();
         }
+        drop(stacks_guard);
 
         self.update_stacks_for_all_markets(history, self.core_config.request_new)
             .await
