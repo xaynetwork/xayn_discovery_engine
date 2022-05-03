@@ -227,8 +227,7 @@ class MockEngine implements Engine {
   @override
   Future<List<TrendingTopic>> getTrendingTopics() async {
     _incrementCount('getTrendingTopics');
-    // TODO: implement mock response
-    throw UnimplementedError('TODO: implement mock response');
+    return [];
   }
 
   @override

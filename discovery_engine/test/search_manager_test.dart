@@ -26,7 +26,9 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         SearchFailureReason,
         SearchRequestSucceeded,
         SearchTermRequestFailed,
-        SearchTermRequestSucceeded;
+        SearchTermRequestSucceeded,
+        TrendingTopicsRequestFailed,
+        TrendingTopicsRequestSucceeded;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -39,6 +41,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
+import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
+    show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
@@ -310,6 +314,43 @@ Future<void> main() async {
       });
     });
 
+    group('trendingTopicsRequested', () {
+      test(
+          'when there are no topics found it should return '
+          '"TrendingTopicsRequestFailed" event with "noResultsAvailable" reason',
+          () async {
+        final response = await mgr.trendingTopicsRequested();
+
+        expect(response, isA<TrendingTopicsRequestFailed>());
+        expect(
+          (response as TrendingTopicsRequestFailed).reason,
+          SearchFailureReason.noResultsAvailable,
+        );
+      });
+
+      test(
+          'if active search is available it should return '
+          '"SearchTermRequestSucceeded" event with the current search term',
+          () async {
+        final engine = _TrendingMockEngine();
+        final mgr = SearchManager(
+          engine,
+          config,
+          searchRepo,
+          docRepo,
+          activeRepo,
+          engineStateRepo,
+        );
+        final response = await mgr.trendingTopicsRequested();
+
+        expect(response, isA<TrendingTopicsRequestSucceeded>());
+        expect(
+          (response as TrendingTopicsRequestSucceeded).topics,
+          [_mockTrendingTopic],
+        );
+      });
+    });
+
     group('searchClosed', () {
       test(
           'when there are no search documents it should return '
@@ -374,3 +415,18 @@ Future<void> main() async {
     });
   });
 }
+
+class _TrendingMockEngine extends MockEngine {
+  _TrendingMockEngine() : super();
+
+  @override
+  Future<List<TrendingTopic>> getTrendingTopics() async {
+    return [_mockTrendingTopic];
+  }
+}
+
+const _mockTrendingTopic = TrendingTopic(
+  name: 'Not from Antarctic',
+  query: 'Penguins Australia New Zealand',
+  image: null,
+);
