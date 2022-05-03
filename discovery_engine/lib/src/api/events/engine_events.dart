@@ -151,10 +151,11 @@ class EngineEvent with _$EngineEvent {
       TrustedSourcesListRequestFailed;
 
   /// Event created as a success response to AvailableSourcesListRequested event.
-  /// Passes a set of [AvailableSource] of available sources back to the client.
+  /// Passes a list of [AvailableSource] of available sources back to the client.
+  /// The list is sorted by decreasing match score.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.availableSourcesListRequestSucceeded(
-    Set<AvailableSource> availableSources,
+    List<AvailableSource> availableSources,
   ) = AvailableSourcesListRequestSucceeded;
 
   /// Event created as a failure response to AvailableSourcesListRequested event.

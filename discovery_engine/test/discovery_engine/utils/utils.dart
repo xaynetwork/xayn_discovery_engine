@@ -100,7 +100,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
         availableSourcesListRequestedResponse =
             availableSourcesListRequestedResponse ??
                 EngineEvent.availableSourcesListRequestSucceeded(
-                  {AvailableSource(name: 'Example', domain: 'example.com')},
+                  [AvailableSource(name: 'Example', domain: 'example.com')],
                 ),
         super(initialMessage);
 
