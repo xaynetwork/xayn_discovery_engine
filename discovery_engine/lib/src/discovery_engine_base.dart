@@ -470,7 +470,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Requests for the currently [TrendingTopic]s.
+  /// Requests for the current [TrendingTopic]s.
   ///
   /// In response it can return:
   /// - [TrendingTopicsRequestSucceeded] for successful response, containing a list of

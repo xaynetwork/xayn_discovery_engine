@@ -233,7 +233,7 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<List<TrendingTopic>> getTrendingTopics() async {
     // TODO: implement engine call
-    throw UnimplementedError();
+    throw UnimplementedError('TODO: implement engine call');
   }
 
   /// Disposes the engine.
