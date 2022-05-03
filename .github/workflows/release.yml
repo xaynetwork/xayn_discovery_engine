@@ -55,6 +55,10 @@ jobs:
         run: |
           cp -R ${{ needs.build-ios-libs.outputs.artifact-dir-base }}-*/* ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/ios
 
+          ANDROID_LIBS_DIR=${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/android/src/main/jniLibs
+          mkdir -p $ANDROID_LIBS_DIR
+          cp -R ${{ needs.build-android-libs.outputs.artifact-dir-base }}-*/* $ANDROID_LIBS_DIR
+
       - name: Generate Files
         shell: bash
         run: just dart-build
