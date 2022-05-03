@@ -27,7 +27,8 @@ import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source, ToStringListExt;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
-import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart';
+import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
+    show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
