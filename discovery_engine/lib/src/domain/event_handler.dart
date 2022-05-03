@@ -46,7 +46,7 @@ import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData, ActiveDocumentDataAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch, ActiveSearchAdapter;
+    show ActiveSearch, ActiveSearchAdapter, SearchByAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -308,6 +308,7 @@ class EventHandler {
     Hive.registerAdapter(UriAdapter());
     Hive.registerAdapter(EmbeddingAdapter());
     Hive.registerAdapter(FeedMarketAdapter());
+    Hive.registerAdapter(SearchByAdapter());
     Hive.registerAdapter(ActiveSearchAdapter());
     Hive.registerAdapter(SourceAdapter());
     Hive.registerAdapter(SetSourceAdapter());
