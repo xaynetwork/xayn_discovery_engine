@@ -52,6 +52,9 @@ pub trait Ranker {
 
     /// Returns the negative cois.
     fn negative_cois(&self) -> &[NegativeCoi];
+
+    /// Removes all data associated with given market.
+    fn remove_key_phrases(&mut self, markets: &[Market]);
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
@@ -96,6 +99,10 @@ impl Ranker for xayn_ai::ranker::Ranker {
 
     fn negative_cois(&self) -> &[NegativeCoi] {
         self.negative_cois()
+    }
+
+    fn remove_key_phrases(&mut self, markets: &[Market]) {
+        self.remove_key_phrases(markets)
     }
 }
 

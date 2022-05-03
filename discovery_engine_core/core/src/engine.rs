@@ -337,9 +337,19 @@ where
     pub async fn set_markets(
         &mut self,
         history: &[HistoricDocument],
-        markets: Vec<Market>,
+        new_markets: Vec<Market>,
     ) -> Result<(), Error> {
-        *self.config.markets.write().await = markets;
+        let new_markets_set = new_markets.iter().collect::<HashSet<_>>();
+        let mut markets_guard = self.config.markets.write().await;
+        let removed = markets_guard
+            .iter()
+            .filter_map(|market| (!new_markets_set.contains(market)).then(|| market.clone()))
+            .collect::<Vec<_>>();
+
+        *markets_guard = new_markets;
+
+        self.ranker.remove_key_phrases(&removed);
+        drop(markets_guard);
 
         let mut stacks_guard = self.stacks.write().await;
         for stack in stacks_guard.values_mut() {
