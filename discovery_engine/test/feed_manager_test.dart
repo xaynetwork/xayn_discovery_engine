@@ -34,7 +34,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show AvailableSource, AvailableSources, Source;
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
     show SourcePreference;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -80,6 +80,9 @@ Future<void> main() async {
   final activeRepo = HiveActiveDocumentDataRepository();
   final engineStateRepo = HiveEngineStateRepository();
   final sourcePreferenceRepo = HiveSourcePreferenceRepository();
+  final availableSources = AvailableSources(
+    [AvailableSource(name: 'Example', domain: 'example.com')],
+  );
 
   final mgr = FeedManager(
     engine,
@@ -88,6 +91,7 @@ Future<void> main() async {
     activeRepo,
     engineStateRepo,
     sourcePreferenceRepo,
+    availableSources,
   );
 
   group('FeedManager', () {

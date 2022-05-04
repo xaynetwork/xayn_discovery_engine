@@ -14,6 +14,7 @@
 
 import 'package:equatable/equatable.dart' show Equatable;
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:fuzzy/fuzzy.dart' show Fuzzy, FuzzyOptions;
 import 'package:meta/meta.dart' show protected;
 
 part 'source.freezed.dart';
@@ -70,4 +71,21 @@ class AvailableSource with _$AvailableSource {
 
   factory AvailableSource.fromJson(Map<String, Object?> json) =>
       _$AvailableSourceFromJson(json);
+}
+
+class AvailableSources extends Fuzzy<AvailableSource> {
+  AvailableSources(List<AvailableSource> availableSources)
+      : super(
+          availableSources,
+          options: FuzzyOptions(
+            findAllMatches: false,
+            isCaseSensitive: false,
+            minMatchCharLength: 3,
+            minTokenCharLength: 3,
+            shouldNormalize: false,
+            shouldSort: true,
+            threshold: 0.2,
+            tokenize: true,
+          ),
+        );
 }

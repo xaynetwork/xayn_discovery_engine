@@ -29,7 +29,7 @@ import 'package:xayn_discovery_engine/src/domain/models/history.dart'
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show AvailableSource, Source;
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -114,14 +114,6 @@ class MockEngine implements Engine {
   ) async {
     _incrementCount('setTrustedSources');
     trustedSources = sources;
-  }
-
-  @override
-  Future<List<AvailableSource>> getAvailableSources(
-    String fuzzySearchTerm,
-  ) async {
-    _incrementCount('getAvailableSources');
-    throw UnimplementedError('TODO: TY-2749');
   }
 
   @override

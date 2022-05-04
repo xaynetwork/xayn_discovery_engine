@@ -23,7 +23,7 @@ import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show AvailableSources, Source;
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
     show SourcePreference, PreferenceMode;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -45,6 +45,7 @@ class FeedManager {
   final ActiveDocumentDataRepository _activeRepo;
   final EngineStateRepository _engineStateRepo;
   final SourcePreferenceRepository _sourcePreferenceRepository;
+  final AvailableSources _availableSources;
 
   FeedManager(
     this._engine,
@@ -53,6 +54,7 @@ class FeedManager {
     this._activeRepo,
     this._engineStateRepo,
     this._sourcePreferenceRepository,
+    this._availableSources,
   );
 
   /// Handle the given feed client event.
@@ -69,6 +71,7 @@ class FeedManager {
         trustedSourceAdded: addTrustedSource,
         trustedSourceRemoved: removeTrustedSource,
         trustedSourcesListRequested: getTrustedSourcesList,
+        availableSourcesListRequested: getAvailableSourcesList,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -203,5 +206,18 @@ class FeedManager {
   Future<EngineEvent> getTrustedSourcesList() async {
     final sources = await _sourcePreferenceRepository.getTrusted();
     return EngineEvent.trustedSourcesListRequestSucceeded(sources);
+  }
+
+  Future<EngineEvent> getAvailableSourcesList(String fuzzySearchTerm) async {
+    final sources = _availableSources
+        .search(fuzzySearchTerm)
+        .map((source) => source.item)
+        .toList(growable: false);
+
+    if (sources.isEmpty) {
+      return const EngineEvent.availableSourcesListRequestFailed();
+    }
+
+    return EngineEvent.availableSourcesListRequestSucceeded(sources);
   }
 }
