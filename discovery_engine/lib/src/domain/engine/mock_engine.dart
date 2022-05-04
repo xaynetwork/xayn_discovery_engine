@@ -121,7 +121,7 @@ class MockEngine implements Engine {
     String fuzzySearchTerm,
   ) async {
     _incrementCount('getAvailableSources');
-    throw UnimplementedError('TODO: TY-2749');
+    return [AvailableSource(name: 'Example', domain: 'example.com')];
   }
 
   @override

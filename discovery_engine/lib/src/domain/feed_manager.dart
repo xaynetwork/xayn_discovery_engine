@@ -69,6 +69,7 @@ class FeedManager {
         trustedSourceAdded: addTrustedSource,
         trustedSourceRemoved: removeTrustedSource,
         trustedSourcesListRequested: getTrustedSourcesList,
+        availableSourcesListRequested: getAvailableSourcesList,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -203,5 +204,10 @@ class FeedManager {
   Future<EngineEvent> getTrustedSourcesList() async {
     final sources = await _sourcePreferenceRepository.getTrusted();
     return EngineEvent.trustedSourcesListRequestSucceeded(sources);
+  }
+
+  Future<EngineEvent> getAvailableSourcesList(String fuzzySearchTerm) async {
+    final sources = await _engine.getAvailableSources(fuzzySearchTerm);
+    return EngineEvent.availableSourcesListRequestSucceeded(sources);
   }
 }

@@ -15,6 +15,8 @@
 import 'dart:ffi' show nullptr;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:fuzzy/fuzzy.dart' show Fuzzy, FuzzyOptions;
+
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -63,8 +65,9 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_prov
 /// A handle to the discovery engine.
 class DiscoveryEngineFfi implements Engine {
   final Boxed<RustSharedEngine> _engine;
+  final Fuzzy<AvailableSource> _availableSources;
 
-  const DiscoveryEngineFfi._(final this._engine);
+  const DiscoveryEngineFfi._(final this._engine, final this._availableSources);
 
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(
@@ -90,7 +93,22 @@ class DiscoveryEngineFfi implements Engine {
       initializer.history.allocNative().move(),
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
-    return DiscoveryEngineFfi._(boxedEngine);
+
+    final availableSources = Fuzzy<AvailableSource>(
+      <AvailableSource>[], // TODO: TY-2746
+      options: FuzzyOptions(
+        findAllMatches: false,
+        isCaseSensitive: false,
+        minMatchCharLength: 3,
+        minTokenCharLength: 3,
+        shouldNormalize: false,
+        shouldSort: true,
+        threshold: 0.2,
+        tokenize: true,
+      ),
+    );
+
+    return DiscoveryEngineFfi._(boxedEngine, availableSources);
   }
 
   /// Serializes the engine.
@@ -150,7 +168,10 @@ class DiscoveryEngineFfi implements Engine {
   Future<List<AvailableSource>> getAvailableSources(
     String fuzzySearchTerm,
   ) async {
-    throw UnimplementedError('TODO: TY-2749');
+    return _availableSources
+        .search(fuzzySearchTerm)
+        .map((source) => source.item)
+        .toList(growable: false);
   }
 
   /// Gets feed documents.

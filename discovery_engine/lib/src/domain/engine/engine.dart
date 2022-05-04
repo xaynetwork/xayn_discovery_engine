@@ -132,5 +132,13 @@ class EngineInitializer with EquatableMixin {
   });
 
   @override
-  List<Object?> get props => [config, setupData, engineState, history];
+  List<Object?> get props => [
+        config,
+        setupData,
+        engineState,
+        history,
+        aiConfig,
+        trustedSources,
+        excludedSources,
+      ];
 }
