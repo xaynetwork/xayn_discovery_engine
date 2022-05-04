@@ -82,7 +82,7 @@ fn document_selection_with_rng<R>(
 where
     R: Rng + ?Sized,
 {
-    if positive_cois.len() + negative_cois.len() == 0 {
+    if positive_cois.is_empty() && negative_cois.is_empty() {
         return Err(Error::NotEnoughCois);
     }
 
