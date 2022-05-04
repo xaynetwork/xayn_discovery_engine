@@ -30,7 +30,7 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         TrendingTopicsRequestFailed,
         TrendingTopicsRequestSucceeded;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
-    show MockEngine;
+    show MockEngine, mockTrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
     show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -319,6 +319,15 @@ Future<void> main() async {
           'when there are no topics found it should return '
           '"TrendingTopicsRequestFailed" event with "noResultsAvailable" reason',
           () async {
+        final engine = _NoTrendingTopicsMockEngine();
+        final mgr = SearchManager(
+          engine,
+          config,
+          searchRepo,
+          docRepo,
+          activeRepo,
+          engineStateRepo,
+        );
         final response = await mgr.trendingTopicsRequested();
 
         expect(response, isA<TrendingTopicsRequestFailed>());
@@ -332,21 +341,12 @@ Future<void> main() async {
           'if active search is available it should return '
           '"SearchTermRequestSucceeded" event with the current search term',
           () async {
-        final engine = _TrendingMockEngine();
-        final mgr = SearchManager(
-          engine,
-          config,
-          searchRepo,
-          docRepo,
-          activeRepo,
-          engineStateRepo,
-        );
         final response = await mgr.trendingTopicsRequested();
 
         expect(response, isA<TrendingTopicsRequestSucceeded>());
         expect(
           (response as TrendingTopicsRequestSucceeded).topics,
-          [_mockTrendingTopic],
+          [mockTrendingTopic],
         );
       });
     });
@@ -416,17 +416,7 @@ Future<void> main() async {
   });
 }
 
-class _TrendingMockEngine extends MockEngine {
-  _TrendingMockEngine() : super();
-
+class _NoTrendingTopicsMockEngine extends MockEngine {
   @override
-  Future<List<TrendingTopic>> getTrendingTopics() async {
-    return [_mockTrendingTopic];
-  }
+  Future<List<TrendingTopic>> getTrendingTopics() async => [];
 }
-
-const _mockTrendingTopic = TrendingTopic(
-  name: 'Not from Antarctic',
-  query: 'Penguins Australia New Zealand',
-  image: null,
-);
