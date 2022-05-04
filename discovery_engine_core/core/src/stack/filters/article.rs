@@ -301,7 +301,7 @@ mod tests {
         assert_eq!(articles.len(), 4);
 
         // all 4 articles have source domain example.com
-        let filtered1 = SourcesFilter::apply(articles, &["bbc.com".to_string()]);
+        let filtered1 = SourcesFilter::apply(articles, &["example.org".to_string()]);
         assert_eq!(filtered1.len(), 4);
 
         let filtered2 = SourcesFilter::apply(filtered1, &["example.com".to_string()]);
