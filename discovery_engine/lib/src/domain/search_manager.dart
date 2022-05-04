@@ -66,6 +66,7 @@ class SearchManager {
         restoreSearchRequested: restoreSearchRequested,
         searchClosed: searchClosed,
         searchTermRequested: searchTermRequested,
+        trendingTopicsRequested: trendingTopicsRequested,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -183,6 +184,21 @@ class SearchManager {
     }
 
     return EngineEvent.searchTermRequestSucceeded(search.searchTerm);
+  }
+
+  /// Return the current trending topics.
+  Future<EngineEvent> trendingTopicsRequested() async {
+    final topics = await _engine.getTrendingTopics();
+
+    // TODO: do we need to persist the engine state??
+    await _engineStateRepo.save(await _engine.serialize());
+
+    if (topics.isEmpty) {
+      const reason = SearchFailureReason.noResultsAvailable;
+      return const EngineEvent.trendingTopicsRequestFailed(reason);
+    }
+
+    return EngineEvent.trendingTopicsRequestSucceeded(topics);
   }
 
   /// Clear the active search and deactivate interacted search documents.

@@ -235,8 +235,7 @@ class MockEngine implements Engine {
   @override
   Future<List<TrendingTopic>> getTrendingTopics() async {
     _incrementCount('getTrendingTopics');
-    // TODO: implement mock response
-    throw UnimplementedError('TODO: implement mock response');
+    return [mockTrendingTopic];
   }
 
   @override
@@ -261,3 +260,9 @@ final resource = NewsResource.fromJson(const <String, Object>{
   'language': 'en',
   'topic': 'news',
 });
+
+const mockTrendingTopic = TrendingTopic(
+  name: 'Not from Antarctic',
+  query: 'Penguins Australia New Zealand',
+  image: null,
+);
