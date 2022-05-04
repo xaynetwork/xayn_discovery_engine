@@ -95,9 +95,9 @@ where
     let neg_cois = negative_cois.iter().map(|coi| coi.point().view());
 
     let cois = chain!(pos_cois, neg_cois).collect_vec();
-    // find_nearest_coi_for_docs can't panic because we make sure beforehand
+    // max_cosine_similarity can't panic because we make sure beforehand
     // that both positive and negative cois aren't empty
-    let nearest_coi_for_docs = find_nearest_coi_for_docs(&document_embeddings, &cois);
+    let nearest_coi_for_docs = max_cosine_similarity(&document_embeddings, &cois);
     let doc_similarities = pairwise_cosine_similarity(document_embeddings.into_iter());
 
     let selected = select_by_randomization_with_threshold(
@@ -157,10 +157,7 @@ fn argsort(arr: &[f32]) -> Vec<usize> {
 ///
 /// # Panics
 /// Panics if `cois` is empty.
-fn find_nearest_coi_for_docs(
-    docs: &[ArrayView1<'_, f32>],
-    cois: &[ArrayView1<'_, f32>],
-) -> Vec<f32> {
+fn max_cosine_similarity(docs: &[ArrayView1<'_, f32>], cois: &[ArrayView1<'_, f32>]) -> Vec<f32> {
     // creates a cosine similarity matrix (docs x cois)
     // |      | coi1                  | coi2                  |
     // | doc1 | `cos_sim(doc1, coi1)` | `cos_sim(doc1, coi2)` |
@@ -196,9 +193,10 @@ fn select_initial_candidates(
     }
 
     let mut indices = argsort(nearest_coi_for_docs);
+    // number_of_candidates - 1 is safe because we check before that number_of_candidates != 0
     let threshold = nearest_coi_for_docs[indices[number_of_candidates - 1]];
     let candidates = indices.drain(..number_of_candidates).collect();
-    (*threshold, candidates)
+    (threshold, candidates)
 }
 
 /// Retains the documents that have been selected.
@@ -273,14 +271,14 @@ mod tests {
     }
 
     #[test]
-    fn test_find_nearest_coi_for_docs() {
+    fn test_max_cosine_similarity() {
         let cois = vec![
             arr1(&[1., 4., 0.]),
             arr1(&[3., 1., 0.]),
             arr1(&[4., 1., 0.]),
         ];
         let documents = vec![arr1(&[1., 1., 0.]), arr1(&[-1., 1., 0.])];
-        let max = find_nearest_coi_for_docs(
+        let max = max_cosine_similarity(
             &documents.iter().map(ArrayBase::view).collect_vec(),
             &cois.iter().map(ArrayBase::view).collect_vec(),
         );
@@ -290,16 +288,16 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_find_nearest_coi_for_docs_no_cois() {
-        find_nearest_coi_for_docs(
+    fn test_max_cosine_similarity_no_cois() {
+        max_cosine_similarity(
             &[arr1(&[1., 1., 0.]).view()],
             &[] as &[ArrayView1<'_, f32>; 0],
         );
     }
 
     #[test]
-    fn test_find_nearest_coi_for_docs_no_docs() {
-        let max = find_nearest_coi_for_docs(
+    fn test_max_cosine_similarity_no_docs() {
+        let max = max_cosine_similarity(
             &[] as &[ArrayView1<'_, f32>; 0],
             &[arr1(&[1., 1., 0.]).view()],
         );
