@@ -134,8 +134,7 @@ where
         // remove all docs that have a similarity to chosen_doc >= threshold
         let to_remove = doc_similarities
             .row(chosen_doc)
-            .iter()
-            .enumerate()
+            .indexed_iter()
             .filter(|(_, doc_sim)| **doc_sim >= threshold)
             .map(|(idx, _)| idx)
             .collect();
