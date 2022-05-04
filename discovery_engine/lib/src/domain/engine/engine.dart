@@ -26,7 +26,7 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show AvailableSource, Source;
+    show Source;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -56,9 +56,6 @@ abstract class Engine {
     List<HistoricDocument> history,
     Set<Source> sources,
   );
-
-  /// Retrieves the available sources related to the search term.
-  Future<List<AvailableSource>> getAvailableSources(String fuzzySearchTerm);
 
   /// Retrieves at most [maxDocuments] feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(

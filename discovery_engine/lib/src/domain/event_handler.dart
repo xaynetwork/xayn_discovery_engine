@@ -56,7 +56,7 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show AvailableSources, Source;
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
     show SourcePreference, SourcePreferenceAdapter, PreferenceModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -227,6 +227,7 @@ class EventHandler {
     final history = await documentRepository.fetchHistory();
     final trustedSources = await sourcePreferenceRepository.getTrusted();
     final excludedSources = await sourcePreferenceRepository.getExcluded();
+    final availableSources = AvailableSources([]); // TODO: TY-2746
 
     final engine = await _initializeEngine(
       EngineInitializer(
@@ -259,6 +260,7 @@ class EventHandler {
       activeDataRepository,
       engineStateRepository,
       sourcePreferenceRepository,
+      availableSources,
     );
     _searchManager = SearchManager(
       engine,

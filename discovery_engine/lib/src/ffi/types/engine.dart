@@ -15,8 +15,6 @@
 import 'dart:ffi' show nullptr;
 import 'dart:typed_data' show Uint8List;
 
-import 'package:fuzzy/fuzzy.dart' show Fuzzy, FuzzyOptions;
-
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -26,7 +24,7 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show AvailableSource, Source, ToStringListExt;
+    show Source, ToStringListExt;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -65,9 +63,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_prov
 /// A handle to the discovery engine.
 class DiscoveryEngineFfi implements Engine {
   final Boxed<RustSharedEngine> _engine;
-  final Fuzzy<AvailableSource> _availableSources;
 
-  const DiscoveryEngineFfi._(final this._engine, final this._availableSources);
+  const DiscoveryEngineFfi._(final this._engine);
 
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(
@@ -94,21 +91,7 @@ class DiscoveryEngineFfi implements Engine {
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
 
-    final availableSources = Fuzzy<AvailableSource>(
-      <AvailableSource>[], // TODO: TY-2746
-      options: FuzzyOptions(
-        findAllMatches: false,
-        isCaseSensitive: false,
-        minMatchCharLength: 3,
-        minTokenCharLength: 3,
-        shouldNormalize: false,
-        shouldSort: true,
-        threshold: 0.2,
-        tokenize: true,
-      ),
-    );
-
-    return DiscoveryEngineFfi._(boxedEngine, availableSources);
+    return DiscoveryEngineFfi._(boxedEngine);
   }
 
   /// Serializes the engine.
@@ -161,17 +144,6 @@ class DiscoveryEngineFfi implements Engine {
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
-  }
-
-  /// Retrieves the available sources related to the search term.
-  @override
-  Future<List<AvailableSource>> getAvailableSources(
-    String fuzzySearchTerm,
-  ) async {
-    return _availableSources
-        .search(fuzzySearchTerm)
-        .map((source) => source.item)
-        .toList(growable: false);
   }
 
   /// Gets feed documents.
