@@ -171,12 +171,9 @@ fn find_nearest_coi_for_docs(
     // finds the nearest coi for each document
     // [doc1(max(cos_sim1, cos_sim2, ...)), doc2(max(cos_sim1, cos_sim2, ...)), ...]
     docs.iter()
-        .cartesian_product(cois)
-        .map(|(a, b)| cosine_similarity(*a, *b))
-        .chunks(cois.len())
-        .into_iter()
-        .map(|similarities_for_doc| {
-            similarities_for_doc
+        .map(|&doc| {
+            cois.iter()
+                .map(|&coi| cosine_similarity(doc, coi))
                 .max_by(nan_safe_f32_cmp)
                 .unwrap_or_default()
         })
