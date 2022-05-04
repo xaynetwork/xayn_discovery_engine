@@ -138,6 +138,19 @@ impl ArticleFilter for CommonFilter {
     }
 }
 
+pub(crate) struct SourcesFilter;
+
+impl SourcesFilter {
+    #[allow(unused)]
+    /// Filter out any articles with an excluded source domain.
+    fn apply(articles: Vec<Article>, excluded_sources: &[String]) -> Vec<Article> {
+        articles
+            .into_iter()
+            .filter(|art| !excluded_sources.contains(&art.source_domain))
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{convert::TryInto, iter::FromIterator};
