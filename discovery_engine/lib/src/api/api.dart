@@ -14,6 +14,7 @@
 
 export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show
+        AvailableSourcesListRequested,
         ClientEvent,
         SystemClientEvent,
         Init,
@@ -37,6 +38,8 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         TrendingTopicsRequested;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
+        AvailableSourcesListRequestSucceeded,
+        AvailableSourcesListRequestFailed,
         EngineEvent,
         FeedEngineEvent,
         RestoreFeedSucceeded,

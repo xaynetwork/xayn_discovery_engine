@@ -13,7 +13,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:equatable/equatable.dart' show Equatable;
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:meta/meta.dart' show protected;
+
+part 'source.freezed.dart';
+part 'source.g.dart';
 
 /// A source of news/headlines/articles.
 class Source extends Equatable {
@@ -53,4 +57,17 @@ class Source extends Equatable {
 
 extension ToStringListExt on Set<Source> {
   List<String> toStringList() => map((s) => s._repr).toList();
+}
+
+@freezed
+class AvailableSource with _$AvailableSource {
+  @Assert('name.isNotEmpty')
+  @Assert('domain.isNotEmpty')
+  factory AvailableSource({
+    required String name,
+    required String domain,
+  }) = _AvailableSource;
+
+  factory AvailableSource.fromJson(Map<String, Object?> json) =>
+      _$AvailableSourceFromJson(json);
 }

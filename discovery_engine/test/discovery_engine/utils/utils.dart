@@ -27,7 +27,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show AvailableSource, Source;
 
 import '../../assets/utils/mock_manifest_reader.dart';
 
@@ -45,6 +45,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent trustedSourceAddedResponse;
   final EngineEvent trustedSourceRemovedResponse;
   final EngineEvent trustedSourcesListRequestedResponse;
+  final EngineEvent availableSourcesListRequestedResponse;
   final EngineEvent userReactionChangedResponse;
   final EngineEvent documentTimeLoggedResponse;
   final EngineEvent searchRequestedResponse;
@@ -85,6 +86,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     EngineEvent? trustedSourcesListRequestedResponse,
     this.trendingTopicsRequestedResponse =
         const EngineEvent.trendingTopicsRequestSucceeded([]),
+    EngineEvent? availableSourcesListRequestedResponse,
   })  : excludedSourcesListRequestedResponse =
             excludedSourcesListRequestedResponse ??
                 EngineEvent.excludedSourcesListRequestSucceeded(
@@ -94,6 +96,11 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
             trustedSourcesListRequestedResponse ??
                 EngineEvent.trustedSourcesListRequestSucceeded(
                   {Source('example.com')},
+                ),
+        availableSourcesListRequestedResponse =
+            availableSourcesListRequestedResponse ??
+                EngineEvent.availableSourcesListRequestSucceeded(
+                  [AvailableSource(name: 'Example', domain: 'example.com')],
                 ),
         super(initialMessage);
 
@@ -111,6 +118,8 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       trustedSourceAdded: (_) => trustedSourceAddedResponse,
       trustedSourceRemoved: (_) => trustedSourceRemovedResponse,
       trustedSourcesListRequested: (_) => trustedSourcesListRequestedResponse,
+      availableSourcesListRequested: (_) =>
+          availableSourcesListRequestedResponse,
       userReactionChanged: (_) => userReactionChangedResponse,
       documentTimeSpent: (_) => documentTimeLoggedResponse,
       searchRequested: (_) => searchRequestedResponse,

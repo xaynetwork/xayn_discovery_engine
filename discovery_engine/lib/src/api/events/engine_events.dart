@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/api/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show AvailableSource, Source;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart';
 
 part 'engine_events.freezed.dart';
@@ -149,6 +149,19 @@ class EngineEvent with _$EngineEvent {
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.trustedSourcesListRequestFailed() =
       TrustedSourcesListRequestFailed;
+
+  /// Event created as a success response to AvailableSourcesListRequested event.
+  /// Passes a list of [AvailableSource] of available sources back to the client.
+  /// The list is sorted by decreasing match score.
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.availableSourcesListRequestSucceeded(
+    List<AvailableSource> availableSources,
+  ) = AvailableSourcesListRequestSucceeded;
+
+  /// Event created as a failure response to AvailableSourcesListRequested event.
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.availableSourcesListRequestFailed() =
+      AvailableSourcesListRequestFailed;
 
   /// Event created when fetching of AI assets has started.
   @Implements<AssetsStatusEngineEvent>()

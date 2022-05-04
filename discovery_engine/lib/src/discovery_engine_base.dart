@@ -18,6 +18,8 @@ import 'package:universal_platform/universal_platform.dart'
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         AssetsStatusEngineEvent,
+        AvailableSourcesListRequestSucceeded,
+        AvailableSourcesListRequestFailed,
         ClientEvent,
         ClientEventSucceeded,
         Configuration,
@@ -293,6 +295,27 @@ class DiscoveryEngine {
     });
   }
 
+  /// Returns a [Set<AvailableSource>] with available sources.
+  ///
+  /// In response it can return:
+  /// - [AvailableSourcesListRequestSucceeded] indicating a successful operation,
+  /// containing a set of available sources.
+  /// - [AvailableSourcesListRequestFailed] indicating a failed operation
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
+  Future<EngineEvent> getAvailableSourcesList(String fuzzySearchTerm) {
+    return _trySend(() async {
+      final event = ClientEvent.availableSourcesListRequested(fuzzySearchTerm);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        availableSourcesListRequestSucceeded: true,
+        availableSourcesListRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
   /// Logs the time in seconds spent by a user on a [Document] in a certain
   /// mode.
   ///
@@ -555,6 +578,8 @@ extension _MapEvent on EngineEvent {
     bool? trendingTopicsRequestFailed,
     bool? trustedSourcesListRequestSucceeded,
     bool? trustedSourcesListRequestFailed,
+    bool? availableSourcesListRequestSucceeded,
+    bool? availableSourcesListRequestFailed,
   }) =>
       map(
         restoreFeedSucceeded: _maybePassThrough(restoreFeedSucceeded),
@@ -593,6 +618,10 @@ extension _MapEvent on EngineEvent {
             _maybePassThrough(trustedSourcesListRequestSucceeded),
         trustedSourcesListRequestFailed:
             _maybePassThrough(trustedSourcesListRequestFailed),
+        availableSourcesListRequestSucceeded:
+            _maybePassThrough(availableSourcesListRequestSucceeded),
+        availableSourcesListRequestFailed:
+            _maybePassThrough(availableSourcesListRequestFailed),
       );
 
   EngineEvent Function(EngineEvent) _maybePassThrough(bool? condition) {
