@@ -135,8 +135,7 @@ where
         let to_remove = doc_similarities
             .row(chosen_doc)
             .indexed_iter()
-            .filter(|(_, doc_sim)| **doc_sim >= threshold)
-            .map(|(idx, _)| idx)
+            .filter_map(|(idx, doc_sim)| (*doc_sim >= threshold).then(|| idx))
             .collect();
         candidates = &candidates - &to_remove;
 
@@ -197,10 +196,7 @@ fn select_initial_candidates(
     }
 
     let mut indices = argsort(nearest_coi_for_docs);
-    let threshold = indices
-        .get(number_of_candidates - 1 /* safe because we check before that number_of_candidates != 0 */)
-        .map(|idx| nearest_coi_for_docs.get(*idx).unwrap(/* safe because it's an index from the argsort of nearest_coi_for_docs */))
-        .unwrap(/* safe because number_of_candidates <= nearest_coi_for_docs.len() */);
+    let threshold = nearest_coi_for_docs[indices[number_of_candidates - 1]];
     let candidates = indices.drain(..number_of_candidates).collect();
     (*threshold, candidates)
 }
