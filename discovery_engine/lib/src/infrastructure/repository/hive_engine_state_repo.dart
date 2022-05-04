@@ -31,4 +31,9 @@ class HiveEngineStateRepository implements EngineStateRepository {
 
   @override
   Future<void> save(Uint8List bytes) => box.put(stateKey, bytes);
+
+  @override
+  Future<void> clear() async {
+    await box.clear();
+  }
 }

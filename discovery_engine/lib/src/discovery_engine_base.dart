@@ -317,7 +317,7 @@ class DiscoveryEngine {
   ///
   /// [UserReaction] variants are defined as:
   /// - [UserReaction.positive] indicates that the [Document] was **liked**
-  /// - [UserReaction.negative] indicates that the [Document] was **diliked**
+  /// - [UserReaction.negative] indicates that the [Document] was **disliked**
   /// - [UserReaction.neutral] as a default **neutral** state of the [Document].
   ///
   /// In response it can return:
