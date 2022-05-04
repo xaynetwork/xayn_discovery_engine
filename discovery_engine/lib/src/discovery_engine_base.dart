@@ -56,7 +56,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show AvailableSource, Source;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 import 'package:xayn_discovery_engine/src/worker/worker.dart'
     show
@@ -295,7 +295,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Returns a [Set<AvailableSource>] with available sources.
+  /// Returns a list of [AvailableSource]s.
   ///
   /// In response it can return:
   /// - [AvailableSourcesListRequestSucceeded] indicating a successful operation,
