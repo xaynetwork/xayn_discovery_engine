@@ -12,6 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Cleans csv files of available sources.
+//!
+//! Required arguments:
+//! 1. path to input file
+//! 2. path to output file
+
 use std::{
     env::args,
     fs::{remove_file, File},
@@ -41,6 +47,7 @@ fn fix_sources(in_file: impl AsRef<Path>, out_file: impl AsRef<Path>) -> Result<
     let mut writer = BufWriter::new(File::create(out_file)?);
 
     let mut broken_line = String::new();
+    let mut count = 0;
     for line in reader.lines() {
         let line = line?;
         if !broken_line.is_empty() || line.split(';').count() != 4 {
@@ -54,11 +61,18 @@ fn fix_sources(in_file: impl AsRef<Path>, out_file: impl AsRef<Path>) -> Result<
                 writer.write_all(broken_line.as_bytes())?;
                 writer.write_all(&[b'\n'])?;
                 broken_line.clear();
+                count += 1;
             }
         } else {
             writer.write_all(line.as_bytes())?;
             writer.write_all(&[b'\n'])?;
         }
+    }
+
+    if count > 0 {
+        println!("Fixed {} records with broken lines.", count);
+    } else {
+        println!("No broken lines to be fixed for any record.");
     }
 
     Ok(())
@@ -77,6 +91,7 @@ fn clean_sources(in_file: impl AsRef<Path>, out_file: impl AsRef<Path>) -> Resul
         .quote_style(QuoteStyle::Never)
         .from_path(out_file)?;
 
+    let mut count = 0;
     for record in reader.into_records() {
         let record = record?;
 
@@ -91,10 +106,18 @@ fn clean_sources(in_file: impl AsRef<Path>, out_file: impl AsRef<Path>) -> Resul
         if let Some(name) = record.get(0) {
             if !name.is_empty() {
                 writer.write_byte_record(&[name, domain].as_ref().into())?;
+            } else {
+                count += 1;
             }
         } else {
             bail!("missing name field at {:?}", record.position());
         };
+    }
+
+    if count > 0 {
+        println!("Cleansed {} records with empty names.", count);
+    } else {
+        println!("No empty names to be cleansed for any record.");
     }
 
     Ok(())
