@@ -102,7 +102,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
     }
 
     fn remove_key_phrases(&mut self, markets: &[Market]) {
-        self.remove_key_phrases(markets)
+        self.remove_key_phrases(markets);
     }
 }
 
