@@ -32,7 +32,7 @@ use crate::{
     document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::{
-        filters::{filter_semantically, ArticleFilter, CommonFilter, SemanticFilterConfig},
+        filters::{ArticleFilter, CommonFilter},
         Id,
     },
 };
@@ -49,7 +49,6 @@ pub(crate) struct BreakingNews {
     markets: Arc<RwLock<Vec<Market>>>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
-    semantic_filter_config: SemanticFilterConfig,
     max_requests: u32,
     min_articles: usize,
 }
@@ -62,7 +61,6 @@ impl BreakingNews {
             markets: config.markets.clone(),
             excluded_sources: config.excluded_sources.clone(),
             page_size: config.page_size,
-            semantic_filter_config: SemanticFilterConfig::default(),
             max_requests: config.max_requests,
             min_articles: config.min_articles,
         }
@@ -119,9 +117,7 @@ impl Ops for BreakingNews {
     }
 
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
-        let merged: Vec<Document> = chain!(stack, new).cloned().collect();
-        let filtered = filter_semantically(merged, &self.semantic_filter_config);
-        Ok(filtered)
+        Ok(chain!(stack, new).cloned().collect())
     }
 }
 
