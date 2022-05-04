@@ -173,7 +173,7 @@ fn find_nearest_coi_for_docs(
             cois.iter()
                 .map(|&coi| cosine_similarity(doc, coi))
                 .max_by(nan_safe_f32_cmp)
-                .unwrap_or_default()
+                .unwrap()
         })
         .collect()
 }
