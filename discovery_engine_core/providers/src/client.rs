@@ -16,6 +16,7 @@
 
 use std::{ops::Deref, time::Duration};
 
+use chrono::Utc;
 use displaydoc::Display as DisplayDoc;
 use thiserror::Error;
 use url::Url;
@@ -103,6 +104,10 @@ pub struct NewsQuery<'a, F> {
     pub common: CommonQueryParts<'a>,
     /// News filter.
     pub filter: F,
+    /// Starting point in time from which to start the search.
+    /// The format is YYYY/mm/dd. Default timezone is UTC.
+    /// Defaults to the last week.
+    pub from: Option<String>,
 }
 
 impl<F> Query for NewsQuery<'_, F>
@@ -116,6 +121,10 @@ where
         query
             .append_pair("sort_by", "relevancy")
             .append_pair("q", &self.filter.build());
+
+        if let Some(from) = &self.from {
+            query.append_pair("from", from);
+        }
 
         Ok(())
     }
@@ -131,6 +140,10 @@ pub struct HeadlinesQuery<'a> {
     pub trusted_sources: &'a [String],
     /// Headlines topic.
     pub topic: Option<&'a str>,
+    /// The time period you want to get the latest headlines for.
+    /// Can be specified in days (e.g. 3d) or hours (e.g. 24h).
+    /// Defaults to all data available for the subscriptions.
+    pub when: Option<&'a str>,
 }
 
 impl Query for HeadlinesQuery<'_> {
@@ -144,7 +157,9 @@ impl Query for HeadlinesQuery<'_> {
         if let Some(topic) = self.topic {
             query.append_pair("topic", topic);
         }
-
+        if let Some(when) = self.when {
+            query.append_pair("when", when);
+        }
         Ok(())
     }
 }
@@ -212,6 +227,15 @@ impl Client {
     }
 }
 
+/// Default `from` value for newscatcher news queries
+pub fn default_from() -> String {
+    let from = Utc::today() - chrono::Duration::days(3);
+    from.format("%Y/%m/%d").to_string()
+}
+
+/// Default `when` value for newscatcher headline queries
+pub const DEFAULT_WHEN: Option<&'static str> = Some("3d");
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,6 +285,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
+            from: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -309,6 +334,7 @@ mod tests {
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
             },
             filter,
+            from: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -334,6 +360,7 @@ mod tests {
             .and(query_param("lang", "de"))
             .and(query_param("countries", "DE"))
             .and(query_param("page_size", "2"))
+            .and(query_param("from", default_from()))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -356,6 +383,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
+            from: default_from().into(),
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -382,6 +410,7 @@ mod tests {
             .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
+            .and(query_param("when", "3d"))
             .and(query_param("sources", "dodo.com,dada.net"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
@@ -402,6 +431,7 @@ mod tests {
             },
             trusted_sources: &["dodo.com".into(), "dada.net".into()],
             topic: None,
+            when: DEFAULT_WHEN,
         };
 
         let docs = client.query_articles(&params).await.unwrap();

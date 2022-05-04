@@ -454,7 +454,11 @@ where
             };
             let query_result = match by {
                 SearchBy::Query(filter) => {
-                    let news_query = NewsQuery { common, filter };
+                    let news_query = NewsQuery {
+                        common,
+                        filter,
+                        from: None,
+                    };
                     self.client.query_articles(&news_query).await
                 }
                 SearchBy::Topic(topic) => {
@@ -462,6 +466,7 @@ where
                         common,
                         trusted_sources: &[],
                         topic: Some(topic),
+                        when: None,
                     };
                     self.client.query_articles(&headlines_query).await
                 }

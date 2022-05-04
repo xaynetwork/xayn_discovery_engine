@@ -19,7 +19,14 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{
+    Article,
+    Client,
+    CommonQueryParts,
+    HeadlinesQuery,
+    Market,
+    DEFAULT_WHEN,
+};
 
 use crate::{
     document::{dedup_documents, Document, HistoricDocument},
@@ -138,6 +145,7 @@ fn spawn_headlines_request(
             },
             trusted_sources: &[],
             topic: None,
+            when: DEFAULT_WHEN,
         };
         client.query_articles(&query).await.map_err(Into::into)
     })

@@ -20,6 +20,7 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{
+    default_from,
     Article,
     Client,
     CommonQueryParts,
@@ -153,6 +154,7 @@ fn spawn_news_request(
                 excluded_sources: &excluded_sources,
             },
             filter,
+            from: default_from().into(),
         };
         client.query_articles(&query).await.map_err(Into::into)
     })
