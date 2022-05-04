@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Reverse, collections::BTreeSet};
+use std::collections::{BTreeSet, HashSet};
 
 use displaydoc::Display;
 use itertools::{chain, Itertools};
@@ -108,7 +108,7 @@ where
         rng,
     );
 
-    Ok(retain_documents_by_indices(selected, documents))
+    Ok(retain_documents_by_indices(&selected, documents))
 }
 
 fn select_by_randomization_with_threshold<R>(
@@ -117,14 +117,14 @@ fn select_by_randomization_with_threshold<R>(
     number_of_candidates: usize,
     max_selected_docs: usize,
     rng: &mut R,
-) -> Vec<usize>
+) -> HashSet<usize>
 where
     R: Rng + ?Sized,
 {
     let (threshold, mut candidates) =
         select_initial_candidates(nearest_coi_for_docs, number_of_candidates);
 
-    let mut selected = Vec::new();
+    let mut selected = HashSet::new();
     while !candidates.is_empty() && selected.len() < max_selected_docs {
         let chosen_doc = *candidates
             .iter()
@@ -139,7 +139,7 @@ where
             .collect();
         candidates = &candidates - &to_remove;
 
-        selected.push(chosen_doc);
+        selected.insert(chosen_doc);
     }
 
     selected
@@ -201,20 +201,14 @@ fn select_initial_candidates(
 
 /// Retains the documents that have been selected.
 fn retain_documents_by_indices(
-    mut selected: Vec<usize>,
+    selected: &HashSet<usize>,
     documents: Vec<Document>,
 ) -> Vec<Document> {
-    selected.sort_unstable_by_key(|w| Reverse(*w));
-    let mut retain = Vec::with_capacity(selected.len());
-    for (idx, doc) in documents.into_iter().enumerate() {
-        if selected.is_empty() {
-            break;
-        } else if idx == *selected.last().unwrap(/* can't be empty because of the check above */) {
-            retain.push(doc);
-            selected.pop();
-        }
-    }
-    retain
+    documents
+        .into_iter()
+        .enumerate()
+        .filter_map(|(idx, doc)| selected.contains(&idx).then(|| doc))
+        .collect()
 }
 
 #[cfg(test)]
@@ -371,7 +365,7 @@ mod tests {
     fn test_retain_documents_by_indices() {
         let docs = vec![new_doc(), new_doc(), new_doc(), new_doc(), new_doc()];
         let expected = vec![docs[0].id, docs[2].id, docs[4].id];
-        let retained = retain_documents_by_indices(vec![4, 2, 0], docs);
+        let retained = retain_documents_by_indices(&HashSet::from_iter([4, 2, 0]), docs);
 
         assert_eq!(retained[0].id, expected[0]);
         assert_eq!(retained[1].id, expected[1]);
@@ -381,13 +375,13 @@ mod tests {
     #[test]
     fn test_retain_documents_by_indices_non_selected() {
         let docs = vec![new_doc(), new_doc(), new_doc()];
-        let retained = retain_documents_by_indices(vec![], docs);
+        let retained = retain_documents_by_indices(&HashSet::new(), docs);
         assert!(retained.is_empty());
     }
 
     #[test]
     fn test_retain_documents_by_indices_no_docs() {
-        let retained = retain_documents_by_indices(vec![4, 2, 0], vec![]);
+        let retained = retain_documents_by_indices(&HashSet::from_iter([4, 2, 0]), vec![]);
         assert!(retained.is_empty());
     }
 
