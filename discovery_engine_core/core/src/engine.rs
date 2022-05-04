@@ -241,13 +241,13 @@ where
 
     async fn from_stack_data(
         config: EndpointConfig,
-        mut ranker: R,
+        ranker: R,
         history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
     ) -> Result<Self, Error> {
-        let mut stacks = stack_ops
+        let stacks = stack_ops
             .into_iter()
             .map(|ops| {
                 let id = ops.id();
@@ -259,25 +259,53 @@ where
         let core_config = CoreConfig::default();
 
         // we don't want to fail initialization if there are network problems
-        update_stacks(
-            stacks.values_mut(),
-            &mut ranker,
-            history,
-            core_config.take_top,
-            core_config.keep_top,
-            usize::MAX,
-        )
-        .await
-        .ok();
-
-        Ok(Self {
+        let mut engine = Self {
             client,
             config,
             core_config,
             stacks: RwLock::new(stacks),
             ranker,
             request_after: 0,
-        })
+        };
+
+        engine
+            .update_stacks_for_all_markets(history, usize::MAX)
+            .await
+            .ok();
+
+        Ok(engine)
+    }
+
+    async fn update_stacks_for_all_markets(
+        &mut self,
+        history: &[HistoricDocument],
+        request_new: usize,
+    ) -> Result<(), Error> {
+        let markets = self.config.markets.read().await;
+        let mut stacks = self.stacks.write().await;
+
+        let mut errors = vec![];
+        for market in markets.iter() {
+            if let Err(error) = update_stacks(
+                stacks.values_mut(),
+                &mut self.ranker,
+                history,
+                self.core_config.take_top,
+                self.core_config.keep_top,
+                request_new,
+                market,
+            )
+            .await
+            {
+                errors.push(error);
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::Errors(errors))
+        }
     }
 
     /// Serializes the state of the `Engine` and `Ranker` state.
@@ -313,19 +341,14 @@ where
     ) -> Result<(), Error> {
         *self.config.markets.write().await = markets;
 
-        let mut stacks = self.stacks.write().await;
-        for stack in stacks.values_mut() {
+        let mut stacks_guard = self.stacks.write().await;
+        for stack in stacks_guard.values_mut() {
             stack.data = StackData::default();
         }
-        update_stacks(
-            stacks.values_mut(),
-            &mut self.ranker,
-            history,
-            self.core_config.take_top,
-            self.core_config.keep_top,
-            self.core_config.request_new,
-        )
-        .await
+        drop(stacks_guard);
+
+        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+            .await
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
@@ -334,22 +357,16 @@ where
         history: &[HistoricDocument],
         max_documents: u32,
     ) -> Result<Vec<Document>, Error> {
-        let mut stacks = self.stacks.write().await;
-
         let request_new = (self.request_after < self.core_config.request_after)
             .then(|| self.core_config.request_new)
             .unwrap_or(usize::MAX);
-        update_stacks(
-            stacks.values_mut(),
-            &mut self.ranker,
-            history,
-            self.core_config.take_top,
-            self.core_config.keep_top,
-            request_new,
-        )
-        .await?;
+
+        self.update_stacks_for_all_markets(history, request_new)
+            .await?;
+
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
+        let mut stacks = self.stacks.write().await;
         SelectionIter::new(BetaSampler, stacks.values_mut())
             .select(max_documents as usize)
             .map_err(Into::into)
@@ -392,6 +409,7 @@ where
                     self.core_config.take_top,
                     self.core_config.keep_top,
                     usize::MAX,
+                    &reacted.market,
                 )
                 .await?;
                 self.request_after = 0;
@@ -507,19 +525,15 @@ where
         let sources_set = sources.iter().cloned().collect::<HashSet<_>>();
         *self.config.trusted_sources.write().await = sources;
 
-        let mut stacks = self.stacks.write().await;
-        for stack in stacks.values_mut() {
-            stack.prune_by_sources(&sources_set, false);
+        {
+            let mut stacks = self.stacks.write().await;
+            for stack in stacks.values_mut() {
+                stack.prune_by_sources(&sources_set, false);
+            }
         }
-        update_stacks(
-            stacks.values_mut(),
-            &mut self.ranker,
-            history,
-            self.core_config.take_top,
-            self.core_config.keep_top,
-            self.core_config.request_new,
-        )
-        .await
+
+        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+            .await
     }
 
     /// Sets a new list of excluded sources
@@ -531,20 +545,15 @@ where
         let exclusion_set = excluded_sources.iter().cloned().collect::<HashSet<_>>();
         *self.config.excluded_sources.write().await = excluded_sources;
 
-        let mut stacks = self.stacks.write().await;
-        for stack in stacks.values_mut() {
-            stack.prune_by_sources(&exclusion_set, true);
+        {
+            let mut stacks = self.stacks.write().await;
+            for stack in stacks.values_mut() {
+                stack.prune_by_sources(&exclusion_set, true);
+            }
         }
 
-        update_stacks(
-            stacks.values_mut(),
-            &mut self.ranker,
-            history,
-            self.core_config.take_top,
-            self.core_config.keep_top,
-            self.core_config.request_new,
-        )
-        .await
+        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+            .await
     }
 }
 
@@ -576,6 +585,7 @@ async fn update_stacks<'a>(
     take_top: usize,
     keep_top: usize,
     request_new: usize,
+    market: &Market,
 ) -> Result<(), Error> {
     let mut stacks: Vec<_> = stacks.filter(|stack| stack.len() <= request_new).collect();
     // return early if there are no stacks to be updated
@@ -586,12 +596,7 @@ async fn update_stacks<'a>(
     let key_phrases = stacks
         .iter()
         .any(|stack| stack.ops.needs_key_phrases())
-        .then(|| {
-            ranker.take_key_phrases(
-                &("", "").into(), // TODO: TY-2758
-                take_top,
-            )
-        })
+        .then(|| ranker.take_key_phrases(market, take_top))
         .unwrap_or_default();
 
     let mut ready_stacks = stacks.len();
