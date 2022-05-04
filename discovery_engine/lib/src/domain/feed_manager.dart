@@ -208,6 +208,11 @@ class FeedManager {
 
   Future<EngineEvent> getAvailableSourcesList(String fuzzySearchTerm) async {
     final sources = await _engine.getAvailableSources(fuzzySearchTerm);
+
+    if (sources.isEmpty) {
+      return const EngineEvent.availableSourcesListRequestFailed();
+    }
+
     return EngineEvent.availableSourcesListRequestSucceeded(sources);
   }
 }
