@@ -141,13 +141,11 @@ impl ArticleFilter for CommonFilter {
 pub(crate) struct SourcesFilter;
 
 impl SourcesFilter {
-    #[allow(unused)]
-    /// Filter out any articles with an excluded source domain.
-    fn apply(articles: Vec<Article>, excluded_sources: &[String]) -> Vec<Article> {
+    #[allow(unused)] // TEMP
+    /// Discard articles with an excluded source domain.
+    pub(crate) fn apply(mut articles: Vec<Article>, excluded_sources: &[String]) -> Vec<Article> {
+        articles.retain(|art| !excluded_sources.contains(&art.source_domain));
         articles
-            .into_iter()
-            .filter(|art| !excluded_sources.contains(&art.source_domain))
-            .collect()
     }
 }
 
@@ -293,6 +291,21 @@ mod tests {
 
         let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_filter_sources() {
+        let articles: Vec<Article> =
+            serde_json::from_str(include_str!("../../../test-fixtures/articles-valid.json"))
+                .unwrap();
+        assert_eq!(articles.len(), 4);
+
+        // all 4 articles have source domain example.com
+        let filtered1 = SourcesFilter::apply(articles, &["bbc.com".to_string()]);
+        assert_eq!(filtered1.len(), 4);
+
+        let filtered2 = SourcesFilter::apply(filtered1, &["example.com".to_string()]);
+        assert!(filtered2.is_empty());
     }
 
     #[test]
