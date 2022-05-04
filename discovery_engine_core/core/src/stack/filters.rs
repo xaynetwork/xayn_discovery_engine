@@ -17,7 +17,7 @@ mod deduplication;
 mod semantic;
 
 pub(crate) use self::{
-    article::{ArticleFilter, CommonFilter},
+    article::{ArticleFilter, CommonFilter, SourcesFilter},
     deduplication::DuplicateFilter,
     semantic::{filter_semantically, SemanticFilterConfig},
 };

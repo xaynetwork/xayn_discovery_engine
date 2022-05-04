@@ -32,7 +32,7 @@ use crate::{
     document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::{
-        filters::{ArticleFilter, CommonFilter},
+        filters::{ArticleFilter, CommonFilter, SourcesFilter},
         Id,
     },
 };
@@ -141,6 +141,10 @@ fn spawn_headlines_request(
             topic: None,
             when: DEFAULT_WHEN,
         };
-        client.query_articles(&query).await.map_err(Into::into)
+        client
+            .query_articles(&query)
+            .await
+            .map(|arts| SourcesFilter::apply(arts, &excluded_sources))
+            .map_err(Into::into)
     })
 }

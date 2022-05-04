@@ -68,7 +68,6 @@ impl ArticleFilter for CommonFilter {
 pub(crate) struct SourcesFilter;
 
 impl SourcesFilter {
-    #[allow(unused)] // TEMP
     /// Discard articles with an excluded source domain.
     pub(crate) fn apply(mut articles: Vec<Article>, excluded_sources: &[String]) -> Vec<Article> {
         articles.retain(|art| !excluded_sources.contains(&art.source_domain));
