@@ -33,6 +33,7 @@ use crate::{
 };
 
 mod data;
+mod exploration;
 pub(crate) mod filters;
 mod ops;
 

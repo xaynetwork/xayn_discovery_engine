@@ -33,7 +33,7 @@ use uuid::Uuid;
 
 use crate::embedding::utils::Embedding;
 #[cfg(test)]
-use crate::tests::mock_uuid;
+use xayn_discovery_engine_test_utils::uuid::mock_uuid;
 
 #[repr(transparent)] // needed for FFI
 #[derive(
