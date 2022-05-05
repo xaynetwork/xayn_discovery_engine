@@ -245,13 +245,13 @@ where
 
     async fn from_stack_data(
         config: EndpointConfig,
-        mut ranker: R,
+        ranker: R,
         history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
     ) -> Result<Self, Error> {
-        let mut stacks = stack_ops
+        let stacks = stack_ops
             .into_iter()
             .map(|ops| {
                 let id = ops.id();
@@ -263,25 +263,53 @@ where
         let core_config = CoreConfig::default();
 
         // we don't want to fail initialization if there are network problems
-        update_stacks(
-            &mut stacks,
-            &mut ranker,
-            history,
-            core_config.take_top,
-            core_config.keep_top,
-            usize::MAX,
-        )
-        .await
-        .ok();
-
-        Ok(Self {
+        let mut engine = Self {
             client,
             config,
             core_config,
             stacks: RwLock::new(stacks),
             ranker,
             request_after: 0,
-        })
+        };
+
+        engine
+            .update_stacks_for_all_markets(history, usize::MAX)
+            .await
+            .ok();
+
+        Ok(engine)
+    }
+
+    async fn update_stacks_for_all_markets(
+        &mut self,
+        history: &[HistoricDocument],
+        request_new: usize,
+    ) -> Result<(), Error> {
+        let markets = self.config.markets.read().await;
+        let mut stacks = self.stacks.write().await;
+
+        let mut errors = vec![];
+        for market in markets.iter() {
+            if let Err(error) = update_stacks(
+                &mut stacks,
+                &mut self.ranker,
+                history,
+                self.core_config.take_top,
+                self.core_config.keep_top,
+                request_new,
+                market,
+            )
+            .await
+            {
+                errors.push(error);
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::Errors(errors))
+        }
     }
 
     /// Serializes the state of the `Engine` and `Ranker` state.
@@ -321,15 +349,10 @@ where
         for stack in stacks.values_mut() {
             stack.data = StackData::default();
         }
-        update_stacks(
-            &mut stacks,
-            &mut self.ranker,
-            history,
-            self.core_config.take_top,
-            self.core_config.keep_top,
-            self.core_config.request_new,
-        )
-        .await
+        drop(stacks); // guard
+
+        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+            .await
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
@@ -338,23 +361,16 @@ where
         history: &[HistoricDocument],
         max_documents: u32,
     ) -> Result<Vec<Document>, Error> {
-        let mut stacks = self.stacks.write().await;
-
         let request_new = (self.request_after < self.core_config.request_after)
             .then(|| self.core_config.request_new)
             .unwrap_or(usize::MAX);
 
-        update_stacks(
-            &mut stacks,
-            &mut self.ranker,
-            history,
-            self.core_config.take_top,
-            self.core_config.keep_top,
-            request_new,
-        )
-        .await?;
+        self.update_stacks_for_all_markets(history, request_new)
+            .await?;
+
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
+        let mut stacks = self.stacks.write().await;
         SelectionIter::new(BetaSampler, stacks.values_mut())
             .select(max_documents as usize)
             .map_err(Into::into)
@@ -397,6 +413,7 @@ where
                     self.core_config.take_top,
                     self.core_config.keep_top,
                     usize::MAX,
+                    &reacted.market,
                 )
                 .await?;
                 self.request_after = 0;
@@ -521,15 +538,10 @@ where
         for stack in stacks.values_mut() {
             stack.prune_by_sources(&sources_set, false);
         }
-        update_stacks(
-            &mut stacks,
-            &mut self.ranker,
-            history,
-            self.core_config.take_top,
-            self.core_config.keep_top,
-            self.core_config.request_new,
-        )
-        .await
+        drop(stacks); // guard
+
+        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+            .await
     }
 
     /// Sets a new list of excluded sources
@@ -545,16 +557,10 @@ where
         for stack in stacks.values_mut() {
             stack.prune_by_sources(&exclusion_set, true);
         }
+        drop(stacks); // guard
 
-        update_stacks(
-            &mut stacks,
-            &mut self.ranker,
-            history,
-            self.core_config.take_top,
-            self.core_config.keep_top,
-            self.core_config.request_new,
-        )
-        .await
+        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+            .await
     }
 }
 
@@ -586,54 +592,48 @@ async fn update_stacks<'a>(
     take_top: usize,
     keep_top: usize,
     request_new: usize,
+    market: &Market,
 ) -> Result<(), Error> {
     let mut ready_stacks = stacks.len();
     let mut errors = Vec::new();
-    let mut all_documents: Vec<Document> = Vec::new();
+    let mut all_documents = Vec::new();
 
-    {
-        // Needy stacks are the ones for which we want to fetch new items.
-        let mut needy_stacks: Vec<_> = stacks
-            .values_mut()
-            .filter(|stack| stack.len() <= request_new)
-            .collect();
+    // Needy stacks are the ones for which we want to fetch new items.
+    let mut needy_stacks = stacks
+        .values_mut()
+        .filter(|stack| stack.len() <= request_new)
+        .collect_vec();
 
-        // return early if there are no stacks to be updated
-        if needy_stacks.is_empty() {
-            return Ok(());
-        }
+    // return early if there are no stacks to be updated
+    if needy_stacks.is_empty() {
+        return Ok(());
+    }
 
-        let key_phrases = needy_stacks
-            .iter()
-            .any(|stack| stack.ops.needs_key_phrases())
-            .then(|| {
-                ranker.take_key_phrases(
-                    &("", "").into(), // TODO: TY-2758
-                    take_top,
-                )
-            })
-            .unwrap_or_default();
+    let key_phrases = needy_stacks
+        .iter()
+        .any(|stack| stack.ops.needs_key_phrases())
+        .then(|| ranker.take_key_phrases(market, take_top))
+        .unwrap_or_default();
 
-        // Here we gather new documents for all relevant stacks, and put them into a vector.
-        // We don't update the stacks immediately, because we want to de-duplicate the documents
-        // across stacks first.
-        for stack in &mut needy_stacks {
-            let maybe_new_documents =
-                fetch_new_documents_for_stack(stack, ranker, &key_phrases, history).await;
+    // Here we gather new documents for all relevant stacks, and put them into a vector.
+    // We don't update the stacks immediately, because we want to de-duplicate the documents
+    // across stacks first.
+    for stack in &mut needy_stacks {
+        let maybe_new_documents =
+            fetch_new_documents_for_stack(stack, ranker, &key_phrases, history).await;
 
-            match maybe_new_documents {
-                Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady))) => {
-                    ready_stacks -= 1;
-                    continue;
-                }
-                Err(error) => {
-                    error!("{}", error);
-                    errors.push(error);
-                    continue;
-                }
-                Ok(documents) => all_documents.extend(documents),
-            };
-        }
+        match maybe_new_documents {
+            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady))) => {
+                ready_stacks -= 1;
+                continue;
+            }
+            Err(error) => {
+                error!("{}", error);
+                errors.push(error);
+                continue;
+            }
+            Ok(documents) => all_documents.extend(documents),
+        };
     }
 
     // Since we need to de-duplicate not only the newly retrieved documents among themselves,
@@ -901,13 +901,11 @@ mod tests {
             .await;
 
         let asset_base = "../../discovery_engine_flutter/example/assets/";
+        let market = ("US", "en");
         let config = InitConfig {
             api_key: "test-token".to_string(),
             api_base_url: mock_server.uri(),
-            markets: vec![Market {
-                country_code: "US".to_string(),
-                lang_code: "en".to_string(),
-            }],
+            markets: vec![market.into()],
             // This triggers the trusted sources stack to also fetch articles
             trusted_sources: vec!["example.com".to_string()],
             excluded_sources: vec![],
@@ -959,7 +957,7 @@ mod tests {
         //      a) it fetches new documents
         //      b) it's supposed to de-duplicate between stacks
         // in that order.
-        update_stacks(&mut stacks, &mut ranker, &[], 10, 10, 10)
+        update_stacks(&mut stacks, &mut ranker, &[], 10, 10, 10, &market.into())
             .await
             .unwrap();
 
@@ -975,7 +973,7 @@ mod tests {
         // Now we call `update_stacks` again. We do this to ensure that de-duplication also takes
         // into account the items that are already present inside the stacks, and not only the
         // newly fetched documents.
-        update_stacks(&mut stacks, &mut ranker, &[], 10, 10, 10)
+        update_stacks(&mut stacks, &mut ranker, &[], 10, 10, 10, &market.into())
             .await
             .unwrap();
 
