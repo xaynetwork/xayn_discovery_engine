@@ -85,6 +85,8 @@ enum EngineExceptionReason {
   engineDisposed,
   @JsonValue(7)
   failedToGetAssets,
+  @JsonValue(8)
+  invalidEngineState,
   // other possible errors will be added below
 }
 

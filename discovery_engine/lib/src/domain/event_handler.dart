@@ -163,9 +163,14 @@ class EventHandler {
         );
       } catch (e, st) {
         logger.e('failed to initialize the engine', e, st);
-        final reason = e is AssetFetcherException
-            ? EngineExceptionReason.failedToGetAssets
-            : EngineExceptionReason.genericError;
+        final EngineExceptionReason reason;
+        if (e is AssetFetcherException) {
+          reason = EngineExceptionReason.failedToGetAssets;
+        } else if (e is InvalidEngineStateException) {
+          reason = EngineExceptionReason.invalidEngineState;
+        } else {
+          reason = EngineExceptionReason.genericError;
+        }
         return EngineEvent.engineExceptionRaised(
           reason,
           message: '$e',
@@ -229,17 +234,26 @@ class EventHandler {
     final excludedSources = await sourcePreferenceRepository.getExcluded();
     final availableSources = AvailableSources([]); // TODO: TY-2746
 
-    final engine = await _initializeEngine(
-      EngineInitializer(
-        config: config,
-        setupData: setupData,
-        engineState: engineState,
-        history: history,
-        aiConfig: aiConfig,
-        trustedSources: trustedSources,
-        excludedSources: excludedSources,
-      ),
-    );
+    final Engine engine;
+    try {
+      engine = await _initializeEngine(
+        EngineInitializer(
+          config: config,
+          setupData: setupData,
+          engineState: engineState,
+          history: history,
+          aiConfig: aiConfig,
+          trustedSources: trustedSources,
+          excludedSources: excludedSources,
+        ),
+      );
+    } catch (e) {
+      if ('$e'.contains('Unsupported serialized data.')) {
+        await engineStateRepository.clear();
+        throw InvalidEngineStateException('$e');
+      }
+      rethrow;
+    }
 
     // init managers
     final eventConfig = EventConfig(
@@ -357,4 +371,15 @@ class EventHandler {
       await Hive.openBox<T>(name, bytes: Uint8List(0));
     }
   }
+}
+
+/// Thrown when the engine cannot be recovered from the given state.
+class InvalidEngineStateException implements Exception {
+  final String message;
+
+  InvalidEngineStateException(this.message);
+
+  @override
+  String toString() =>
+      'InvalidEngineStateException: $message. Try to restart the engine.';
 }
