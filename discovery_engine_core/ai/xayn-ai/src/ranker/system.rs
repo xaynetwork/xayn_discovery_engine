@@ -127,11 +127,11 @@ impl Ranker {
                 let key_phrases = self.kpe.run(snippet).unwrap_or_default();
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
+                    market,
                     &mut self.state.key_phrases,
                     embedding,
-                    |words| smbert.run(words).map_err(Into::into),
                     key_phrases.as_slice(),
-                    market,
+                    |words| smbert.run(words).map_err(Into::into),
                 )
             }
             UserFeedback::Irrelevant => self
@@ -141,13 +141,20 @@ impl Ranker {
         }
     }
 
-    /// Takes the top key phrases from the positive cois, sorted in descending relevance.
-    pub(crate) fn take_key_phrases(&mut self, top: usize) -> Vec<KeyPhrase> {
+    /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
+    pub(crate) fn take_key_phrases(&mut self, market: &Market, top: usize) -> Vec<KeyPhrase> {
         self.coi.take_key_phrases(
             &self.state.user_interests.positive,
+            market,
             &mut self.state.key_phrases,
             top,
         )
+    }
+
+    /// Removes all key phrases associated to the markets.
+    pub(crate) fn remove_key_phrases(&mut self, markets: &[Market]) {
+        self.coi
+            .remove_key_phrases(markets, &mut self.state.key_phrases);
     }
 
     /// Returns the positive cois.
