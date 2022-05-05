@@ -14,6 +14,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    mem::replace,
     sync::Arc,
 };
 
@@ -341,9 +342,13 @@ where
     pub async fn set_markets(
         &mut self,
         history: &[HistoricDocument],
-        markets: Vec<Market>,
+        new_markets: Vec<Market>,
     ) -> Result<(), Error> {
-        *self.config.markets.write().await = markets;
+        let mut markets_guard = self.config.markets.write().await;
+        let mut old_markets = replace(&mut *markets_guard, new_markets);
+        old_markets.retain(|market| !markets_guard.contains(market));
+        self.ranker.remove_key_phrases(&old_markets);
+        drop(markets_guard);
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
