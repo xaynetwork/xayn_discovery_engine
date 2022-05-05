@@ -34,7 +34,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show AvailableSource, AvailableSources, Source;
+    show mockedAvailableSources, Source;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
@@ -61,10 +61,6 @@ Future<void> main() async {
   final engine = MockEngine();
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
 
-  final availableSources = AvailableSources(
-    [AvailableSource(name: 'Example', domain: 'example.com')],
-  );
-
   EventHandler.registerHiveAdapters();
 
   group('FeedManager', () {
@@ -88,7 +84,7 @@ Future<void> main() async {
         activeRepo,
         engineStateRepo,
         sourcePreferenceRepo,
-        availableSources,
+        mockedAvailableSources,
       );
 
       data = ActiveDocumentData(Embedding.fromList([44]));
@@ -207,7 +203,7 @@ Future<void> main() async {
         activeRepo,
         engineStateRepo,
         sourcePreferenceRepo,
-        availableSources,
+        mockedAvailableSources,
       );
       engine.resetCallCounter();
     });

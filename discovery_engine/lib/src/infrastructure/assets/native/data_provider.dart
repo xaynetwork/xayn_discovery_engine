@@ -26,6 +26,8 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         Manifest,
         SetupData,
         tmpFileExt;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show AvailableSources;
 
 class NativeDataProvider extends DataProvider {
   @override
@@ -151,6 +153,10 @@ class NativeSetupData extends SetupData {
     required this.kpeClassifier,
     required this.availableSources,
   });
+
+  @override
+  Future<AvailableSources> getAvailableSources() async =>
+      AvailableSources.fromBytes(File(availableSources).openRead());
 }
 
 DataProvider createDataProvider(

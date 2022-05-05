@@ -12,6 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:convert' show utf8;
+
+import 'package:csv/csv.dart' show CsvToListConverter;
 import 'package:equatable/equatable.dart' show Equatable;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:fuzzy/fuzzy.dart' show Fuzzy, FuzzyOptions;
@@ -88,4 +91,31 @@ class AvailableSources extends Fuzzy<AvailableSource> {
             tokenize: true,
           ),
         );
+
+  static Future<AvailableSources> fromBytes(Stream<List<int>> bytes) async {
+    const converter = CsvToListConverter(
+      fieldDelimiter: ';',
+      textDelimiter: '\b',
+      textEndDelimiter: '\b',
+      eol: '\n',
+      shouldParseNumbers: false,
+      allowInvalid: false,
+    );
+    final sources =
+        await bytes.transform(utf8.decoder).transform(converter).toList();
+
+    return AvailableSources(
+      sources
+          .map(
+            (source) => AvailableSource(
+              name: source[0] as String,
+              domain: source[1] as String,
+            ),
+          )
+          .toList(),
+    );
+  }
 }
+
+final mockedAvailableSources =
+    AvailableSources([AvailableSource(name: 'Example', domain: 'example.com')]);

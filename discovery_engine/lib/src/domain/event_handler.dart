@@ -56,7 +56,7 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show AvailableSources, Source;
+    show mockedAvailableSources, Source;
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
     show SourcePreference, SourcePreferenceAdapter, PreferenceModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -232,7 +232,9 @@ class EventHandler {
     final history = await documentRepository.fetchHistory();
     final trustedSources = await sourcePreferenceRepository.getTrusted();
     final excludedSources = await sourcePreferenceRepository.getExcluded();
-    final availableSources = AvailableSources([]); // TODO: TY-2746
+    final availableSources = config.isMocked()
+        ? mockedAvailableSources
+        : await setupData.getAvailableSources();
 
     final Engine engine;
     try {
@@ -291,13 +293,10 @@ class EventHandler {
     return const EngineEvent.clientEventSucceeded();
   }
 
-  Future<Engine> _initializeEngine(EngineInitializer initializer) async {
-    if (initializer.config.apiKey == 'use-mock-engine' &&
-        initializer.config.apiBaseUrl == 'https://use-mock-engine.test') {
-      return MockEngine(initializer);
-    }
-    return DiscoveryEngineFfi.initialize(initializer);
-  }
+  Future<Engine> _initializeEngine(EngineInitializer initializer) async =>
+      initializer.config.isMocked()
+          ? MockEngine(initializer)
+          : await DiscoveryEngineFfi.initialize(initializer);
 
   Future<SetupData> _fetchAssets(Configuration config) async {
     final appDir = config.applicationDirectoryPath;
