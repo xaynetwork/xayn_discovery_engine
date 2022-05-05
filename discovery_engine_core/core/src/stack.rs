@@ -33,7 +33,7 @@ use crate::{
 };
 
 mod data;
-mod exploration;
+pub(crate) mod exploration;
 pub(crate) mod filters;
 mod ops;
 
@@ -75,6 +75,9 @@ pub enum Error {
 
     /// Missing the document history to update a stack.
     NoHistory,
+
+    /// Failed to select new items: {0}.
+    Selection(#[from] exploration::Error),
 }
 
 /// Convenience type that boxes an [`ops::Ops`] and adds [`Send`] and [`Sync`].

@@ -54,10 +54,11 @@ use crate::{
         UserReacted,
         UserReaction,
     },
-    mab::{self, BetaSampler, SelectionIter},
+    mab::{self, BetaSampler, Bucket, SelectionIter},
     ranker::Ranker,
     stack::{
         self,
+        exploration,
         filters::{filter_semantically, DuplicateFilter, SemanticFilterConfig},
         BoxedOps,
         BreakingNews,
@@ -200,6 +201,7 @@ pub struct Engine<R> {
     config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
+    exploration_stack: exploration::Stack,
     ranker: R,
     request_after: usize,
 }
@@ -263,12 +265,17 @@ where
             .map_err(Error::InvalidStack)?;
         let core_config = CoreConfig::default();
 
+        // TODO TY-2756
+        let exploration_stack =
+            exploration::Stack::new(StackData::default()).map_err(Error::InvalidStack)?;
+
         // we don't want to fail initialization if there are network problems
         let mut engine = Self {
             client,
             config,
             core_config,
             stacks: RwLock::new(stacks),
+            exploration_stack,
             ranker,
             request_after: 0,
         };
@@ -293,6 +300,7 @@ where
         for market in markets.iter() {
             if let Err(error) = update_stacks(
                 &mut stacks,
+                &mut self.exploration_stack,
                 &mut self.ranker,
                 history,
                 self.core_config.take_top,
@@ -355,6 +363,7 @@ where
             stack.data = StackData::default();
         }
         drop(stacks); // guard
+        self.exploration_stack.data = StackData::default();
 
         self.update_stacks_for_all_markets(history, self.core_config.request_new)
             .await
@@ -376,7 +385,14 @@ where
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
         let mut stacks = self.stacks.write().await;
-        SelectionIter::new(BetaSampler, stacks.values_mut())
+        let mut all_stacks = stacks
+            .values_mut()
+            .map(|s| Box::new(s) as Box<dyn Bucket<Document>>)
+            .collect::<Vec<Box<dyn Bucket<Document>>>>();
+        let exploration_stack = Box::new(&mut self.exploration_stack) as Box<dyn Bucket<Document>>;
+        all_stacks.push(exploration_stack);
+
+        SelectionIter::new(BetaSampler, all_stacks.iter_mut())
             .select(max_documents as usize)
             .map_err(Into::into)
     }
@@ -385,7 +401,11 @@ where
     pub async fn time_spent(&mut self, time_spent: &TimeSpent) -> Result<(), Error> {
         self.ranker.log_document_view_time(time_spent)?;
 
-        rank_stacks(self.stacks.write().await.values_mut(), &mut self.ranker)
+        rank_stacks(
+            self.stacks.write().await.values_mut(),
+            &mut self.exploration_stack,
+            &mut self.ranker,
+        )
     }
 
     /// Process the feedback about the user reacting to a document.
@@ -400,19 +420,27 @@ where
 
         // update relevance of stack if the reacted document belongs to one
         if !reacted.stack_id.is_nil() {
-            stacks
-                .get_mut(&reacted.stack_id)
-                .ok_or(Error::InvalidStackId(reacted.stack_id))?
-                .update_relevance(reacted.reaction);
+            if let Some(stack) = stacks.get_mut(&reacted.stack_id) {
+                stack.update_relevance(reacted.reaction);
+            } else if reacted.stack_id == exploration::Stack::id() {
+                self.exploration_stack.update_relevance(reacted.reaction);
+            } else {
+                return Err(Error::InvalidStackId(reacted.stack_id));
+            }
         };
 
         self.ranker.log_user_reaction(reacted)?;
 
-        rank_stacks(stacks.values_mut(), &mut self.ranker)?;
+        rank_stacks(
+            stacks.values_mut(),
+            &mut self.exploration_stack,
+            &mut self.ranker,
+        )?;
         if let UserReaction::Positive = reacted.reaction {
             if let Some(history) = history {
                 update_stacks(
                     &mut stacks,
+                    &mut self.exploration_stack,
                     &mut self.ranker,
                     history,
                     self.core_config.take_top,
@@ -544,6 +572,7 @@ where
             stack.prune_by_sources(&sources_set, false);
         }
         drop(stacks); // guard
+        self.exploration_stack.prune_by_sources(&sources_set, false);
 
         self.update_stacks_for_all_markets(history, self.core_config.request_new)
             .await
@@ -563,6 +592,8 @@ where
             stack.prune_by_sources(&exclusion_set, true);
         }
         drop(stacks); // guard
+        self.exploration_stack
+            .prune_by_sources(&exclusion_set, true);
 
         self.update_stacks_for_all_markets(history, self.core_config.request_new)
             .await
@@ -572,15 +603,20 @@ where
 /// The ranker could rank the documents in a different order so we update the stacks with it.
 fn rank_stacks<'a>(
     stacks: impl Iterator<Item = &'a mut Stack>,
+    exploration_stack: &mut exploration::Stack,
     ranker: &mut impl Ranker,
 ) -> Result<(), Error> {
-    let errors = stacks.fold(Vec::new(), |mut errors, stack| {
+    let mut errors = stacks.fold(Vec::new(), |mut errors, stack| {
         if let Err(error) = stack.rank(ranker) {
             errors.push(Error::StackOpFailed(error));
         }
 
         errors
     });
+
+    if let Err(error) = exploration_stack.rank(ranker) {
+        errors.push(Error::StackOpFailed(error));
+    }
 
     if errors.is_empty() {
         Ok(())
@@ -590,8 +626,10 @@ fn rank_stacks<'a>(
 }
 
 /// Updates the stacks with data related to the top key phrases of the current data.
+#[allow(clippy::too_many_arguments)]
 async fn update_stacks<'a>(
     stacks: &mut HashMap<Id, Stack>,
+    exploration_stack: &mut exploration::Stack,
     ranker: &mut (impl Ranker + Send + Sync),
     history: &[HistoricDocument],
     take_top: usize,
@@ -647,28 +685,46 @@ async fn update_stacks<'a>(
     for stack in stacks.values_mut() {
         all_documents.extend(stack.drain_documents());
     }
+    all_documents.extend(exploration_stack.drain_documents());
 
     // Separate stack documents (via the `stack` parameter) are not needed here, since they are
     // already contained in `all_documents`.
     all_documents = DuplicateFilter::apply(history, &[], all_documents);
     all_documents = filter_semantically(all_documents, &SemanticFilterConfig::default());
 
+    // Filter the exploration stack documents from the other documents, in order
+    // to keep the loop below simple.
+    let (mut exploration_docs, other_docs): (Vec<Document>, Vec<Document>) = all_documents
+        .into_iter()
+        .partition(|doc| doc.stack_id == exploration::Stack::id());
+
     // Finally, we can update the stacks with their respective documents. To do this, we
     // have to group the fetched documents by `stack_id`, then `update` the stacks.
-    let documents_by_stack_id = all_documents.into_iter().group_by(|doc| doc.stack_id);
-    for (stack_id, documents_group) in &documents_by_stack_id {
-        // .unwrap() is safe here, because each document is created by an existing stack, and
-        // the `stacks` HashMap contains all instantiated stacks.
+    let documents_by_stack_id = other_docs.into_iter().into_group_map_by(|doc| doc.stack_id);
+    for (stack_id, documents_group) in documents_by_stack_id {
+        // .unwrap() is safe here, because each document is created by an existing stack,
+        // the `stacks` HashMap contains all instantiated stacks, and the documents that belong
+        // to the exploration stack have been filtered before.
         let stack = stacks.get_mut(&stack_id).unwrap();
 
-        let documents = documents_group.collect_vec();
-        if let Err(error) = stack.update(&documents, ranker) {
+        if let Err(error) = stack.update(&documents_group, ranker) {
             let error = Error::StackOpFailed(error);
             error!("{}", error);
             errors.push(error);
         } else {
-            stack.data.retain_top(keep_top);
+            let is_breaking_news = stack.id() == BreakingNews::id();
+            if let (true, Some(documents)) = (is_breaking_news, stack.data.retain_top(keep_top)) {
+                exploration_docs.extend(documents);
+            }
         }
+    }
+
+    if let Err(error) = exploration_stack.update(&exploration_docs, ranker) {
+        let error = Error::StackOpFailed(error);
+        error!("{}", error);
+        errors.push(error);
+    } else {
+        exploration_stack.data.retain_top(keep_top);
     }
 
     // only return an error if all stacks that were ready to get new items failed
@@ -935,6 +991,8 @@ mod tests {
             let embedding: Embedding = [0.0].into();
             Ok(embedding)
         });
+        ranker.expect_positive_cois().return_const(vec![]);
+        ranker.expect_negative_cois().return_const(vec![]);
 
         // We assume that, if de-duplication works between two stacks, it'll work between
         // any number of stacks. So we just create two.
@@ -955,6 +1013,8 @@ mod tests {
             })
             .collect();
 
+        let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
+
         // Stacks should be empty before we start fetching anything
         assert_eq!(stacks.get(&breaking_news_id).unwrap().len(), 0);
         assert_eq!(stacks.get(&trusted_news_id).unwrap().len(), 0);
@@ -963,9 +1023,18 @@ mod tests {
         //      a) it fetches new documents
         //      b) it's supposed to de-duplicate between stacks
         // in that order.
-        update_stacks(&mut stacks, &mut ranker, &[], 10, 10, 10, &market.into())
-            .await
-            .unwrap();
+        update_stacks(
+            &mut stacks,
+            &mut exploration_stack,
+            &mut ranker,
+            &[],
+            10,
+            10,
+            10,
+            &market.into(),
+        )
+        .await
+        .unwrap();
 
         // After calling `update_stacks` once, one of the two stacks should contain one document.
         // Both stacks fetched the same item, but de-duplication should prevent the same document
@@ -979,9 +1048,18 @@ mod tests {
         // Now we call `update_stacks` again. We do this to ensure that de-duplication also takes
         // into account the items that are already present inside the stacks, and not only the
         // newly fetched documents.
-        update_stacks(&mut stacks, &mut ranker, &[], 10, 10, 10, &market.into())
-            .await
-            .unwrap();
+        update_stacks(
+            &mut stacks,
+            &mut exploration_stack,
+            &mut ranker,
+            &[],
+            10,
+            10,
+            10,
+            &market.into(),
+        )
+        .await
+        .unwrap();
 
         // No new documents should have been added by the second `update_stacks` call.
         assert_eq!(
