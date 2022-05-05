@@ -50,6 +50,7 @@ void main() {
       kpeModel: '',
       kpeCnn: '',
       kpeClassifier: '',
+      availableSources: '',
     );
     expect(
       DiscoveryEngineFfi.initialize(

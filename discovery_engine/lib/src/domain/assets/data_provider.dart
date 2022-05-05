@@ -29,10 +29,18 @@ abstract class SetupData with EquatableMixin {
   Object get kpeModel;
   Object get kpeCnn;
   Object get kpeClassifier;
+  Object get availableSources;
 
   @override
-  List<Object?> get props =>
-      [smbertVocab, smbertModel, kpeVocab, kpeModel, kpeCnn, kpeClassifier];
+  List<Object?> get props => [
+        smbertVocab,
+        smbertModel,
+        kpeVocab,
+        kpeModel,
+        kpeCnn,
+        kpeClassifier,
+        availableSources,
+      ];
 }
 
 /// Reads the assets manifest and provides the [SetupData] to further use.

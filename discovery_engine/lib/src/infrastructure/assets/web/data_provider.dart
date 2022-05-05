@@ -57,6 +57,7 @@ class WebDataProvider extends DataProvider {
       kpeModel: fetched[AssetType.kpeModel]!,
       kpeCnn: fetched[AssetType.kpeCnn]!,
       kpeClassifier: fetched[AssetType.kpeClassifier]!,
+      availableSources: fetched[AssetType.availableSources]!,
     );
   }
 }
@@ -74,6 +75,8 @@ class WebSetupData extends SetupData {
   final Uint8List kpeCnn;
   @override
   final Uint8List kpeClassifier;
+  @override
+  final Uint8List availableSources;
 
   WebSetupData({
     required this.smbertVocab,
@@ -82,6 +85,7 @@ class WebSetupData extends SetupData {
     required this.kpeModel,
     required this.kpeCnn,
     required this.kpeClassifier,
+    required this.availableSources,
   });
 }
 

@@ -43,6 +43,7 @@ final goodJson = {
     'kpeModel',
     'kpeCnn',
     'kpeClassifier',
+    'availableSources',
   ]
       .map(
         (id) => {

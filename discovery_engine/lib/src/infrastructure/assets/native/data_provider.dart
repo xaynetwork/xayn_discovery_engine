@@ -59,6 +59,7 @@ class NativeDataProvider extends DataProvider {
       kpeModel: paths[AssetType.kpeModel]!,
       kpeCnn: paths[AssetType.kpeCnn]!,
       kpeClassifier: paths[AssetType.kpeClassifier]!,
+      availableSources: paths[AssetType.availableSources]!,
     );
   }
 
@@ -138,6 +139,8 @@ class NativeSetupData extends SetupData {
   final String kpeCnn;
   @override
   final String kpeClassifier;
+  @override
+  final String availableSources;
 
   NativeSetupData({
     required this.smbertVocab,
@@ -146,6 +149,7 @@ class NativeSetupData extends SetupData {
     required this.kpeModel,
     required this.kpeCnn,
     required this.kpeClassifier,
+    required this.availableSources,
   });
 }
 

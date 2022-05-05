@@ -35,6 +35,12 @@
       "url_suffix": "kpe_v0001/classifier.binparams",
       "checksum": "cd78be076b246d3065c7a646fe1ca19b57c1c670424f093ce1bd5211fa21082c",
       "fragments": []
+    },
+    {
+      "id": "availableSources",
+      "url_suffix": "sources_v0000/available_sources.csv",
+      "checksum": "e28996c4bb59ea358f6310835fc93b5b390eed99fab15cfae42f5bed0528742c",
+      "fragments": []
     }
   ]
 }

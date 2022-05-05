@@ -48,6 +48,7 @@ void main() {
         kpeModel: '$outputPath/kpeModel',
         kpeClassifier: '$outputPath/kpeClassifier',
         kpeCnn: '$outputPath/kpeCnn',
+        availableSources: '$outputPath/availableSources',
       );
       final tmpSetupData = NativeSetupData(
         smbertVocab: '$outputPath/smbertVocab.$tmpFileExt',
@@ -56,6 +57,7 @@ void main() {
         kpeModel: '$outputPath/kpeModel.$tmpFileExt',
         kpeClassifier: '$outputPath/kpeClassifier.$tmpFileExt',
         kpeCnn: '$outputPath/kpeCnn.$tmpFileExt',
+        availableSources: '$outputPath/availableSources.$tmpFileExt',
       );
 
       late LocalAssetServer server;
@@ -92,7 +94,7 @@ void main() {
 
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
-        expect(assetFetcher.callCount, equals(8));
+        expect(assetFetcher.callCount, equals(9));
       });
 
       test(
@@ -131,7 +133,7 @@ void main() {
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
         expect(allSetupDataFilesExist(tmpSetupData), isFalse);
-        expect(assetFetcher.callCount, equals(8));
+        expect(assetFetcher.callCount, equals(9));
       });
 
       test(
@@ -153,8 +155,8 @@ void main() {
 
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
-        expect(server.callCountSum, equals(8));
-        expect(assetFetcher.callCount, equals(8));
+        expect(server.callCountSum, equals(9));
+        expect(assetFetcher.callCount, equals(9));
       });
     });
   });
@@ -185,6 +187,7 @@ bool allSetupDataFilesExist(NativeSetupData setupData) {
     File(setupData.kpeModel).existsSync(),
     File(setupData.kpeCnn).existsSync(),
     File(setupData.kpeClassifier).existsSync(),
+    File(setupData.availableSources).existsSync(),
   ];
   return list.any((it) => it == false) == false;
 }

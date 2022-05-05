@@ -70,6 +70,7 @@ enum AssetType {
   kpeModel,
   kpeCnn,
   kpeClassifier,
+  availableSources,
 }
 
 /// A fragment of an asset.
