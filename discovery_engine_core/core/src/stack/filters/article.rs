@@ -12,13 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
-
 use url::Url;
 
 use crate::{
-    document::{Document, HistoricDocument, NewsResource},
+    document::{Document, HistoricDocument},
     engine::GenericError,
+    stack::filters::DuplicateFilter,
 };
 use xayn_discovery_engine_providers::Article;
 
@@ -28,78 +27,6 @@ pub(crate) trait ArticleFilter {
         stack: &[Document],
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError>;
-}
-
-struct DuplicateFilter;
-
-impl ArticleFilter for DuplicateFilter {
-    fn apply(
-        history: &[HistoricDocument],
-        stack: &[Document],
-        mut articles: Vec<Article>,
-    ) -> Result<Vec<Article>, GenericError> {
-        // discard dups in the title keeping only the best ranked
-        articles.sort_unstable_by(|art1, art2| {
-            normalize(&art1.title)
-                .cmp(&normalize(&art2.title))
-                .then(art1.rank.cmp(&art2.rank))
-        });
-        articles.dedup_by_key(|art| normalize(&art.title));
-
-        // discard dups in the link (such dups assumed to have the same rank)
-        articles.sort_unstable_by(|art1, art2| art1.link.cmp(&art2.link));
-        articles.dedup_by(|art1, art2| art1.link == art2.link);
-
-        let (hist_urls, hist_titles) = history
-            .iter()
-            .map(|doc| (doc.url.as_str(), normalize(&doc.title)))
-            .unzip::<_, _, HashSet<_>, HashSet<_>>();
-
-        // discard dups of historical documents
-        articles.retain(|art| {
-            !hist_urls.contains(art.link.as_str()) && !hist_titles.contains(&normalize(&art.title))
-        });
-
-        let stack_urls = stack
-            .iter()
-            .map(|doc| doc.resource.url.as_str())
-            .collect::<HashSet<_>>();
-
-        let stack_titles = stack
-            .iter()
-            .map(|doc| {
-                let NewsResource { title, rank, .. } = &doc.resource;
-                (normalize(title), *rank)
-            })
-            .fold(HashMap::new(), |mut titles, (title, rank)| {
-                titles
-                    .entry(title)
-                    .and_modify(|best_rank| {
-                        if rank < *best_rank {
-                            *best_rank = rank;
-                        }
-                    })
-                    .or_insert(rank);
-                titles
-            });
-
-        // discard worse-ranked dups of stack documents; more precisely, discard:
-        // * dups of stack documents in the url
-        // * dups of stack documents in the title when the rank is no better
-        articles.retain(|art| {
-            !stack_urls.contains(art.link.as_str())
-                && stack_titles
-                    .get(&normalize(&art.title))
-                    .map_or(true, |doc_rank| &art.rank < doc_rank)
-        });
-
-        Ok(articles)
-    }
-}
-
-/// Normalizes `text` to a trimmed lowercase string.
-pub(crate) fn normalize(text: &str) -> String {
-    text.trim().to_lowercase()
 }
 
 struct MalformedFilter;
@@ -134,7 +61,7 @@ impl ArticleFilter for CommonFilter {
         articles: Vec<Article>,
     ) -> Result<Vec<Article>, GenericError> {
         MalformedFilter::apply(history, stack, articles)
-            .and_then(|articles| DuplicateFilter::apply(history, stack, articles))
+            .map(|articles| DuplicateFilter::apply(history, stack, articles))
     }
 }
 
@@ -151,7 +78,7 @@ impl SourcesFilter {
 
 #[cfg(test)]
 mod tests {
-    use std::{convert::TryInto, iter::FromIterator};
+    use std::{collections::HashMap, convert::TryInto, iter::FromIterator};
 
     use crate::document::{document_from_article, Document};
     use itertools::Itertools;

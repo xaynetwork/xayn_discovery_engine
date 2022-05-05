@@ -26,7 +26,11 @@ use crate::{
     engine::GenericError,
 };
 
+#[cfg(test)]
+use mockall::automock;
+
 /// Provides a method for ranking a slice of [`Document`] items.
+#[cfg_attr(test, automock)]
 pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
     fn rank(&mut self, items: &mut [Document]) -> Result<(), GenericError>;

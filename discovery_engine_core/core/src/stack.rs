@@ -33,13 +33,12 @@ use crate::{
 };
 
 mod data;
-mod filters;
+pub(crate) mod filters;
 mod ops;
 
 pub use self::ops::Ops;
 pub(crate) use self::{
     data::Data,
-    filters::normalize,
     ops::{
         breaking::BreakingNews,
         personalized::PersonalizedNews,
@@ -199,6 +198,10 @@ impl Stack {
         self.data
             .documents
             .retain(|doc| sources.contains(&doc.resource.source_domain) ^ exclude);
+    }
+
+    pub(crate) fn drain_documents(&mut self) -> std::vec::Drain<'_, Document> {
+        self.data.documents.drain(..)
     }
 }
 
