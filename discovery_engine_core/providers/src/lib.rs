@@ -31,7 +31,16 @@ mod expression;
 mod filter;
 mod newscatcher;
 
-pub use client::{Client, CommonQueryParts, Error, HeadlinesQuery, NewsQuery, Query};
+pub use client::{
+    default_from,
+    Client,
+    CommonQueryParts,
+    Error,
+    HeadlinesQuery,
+    NewsQuery,
+    Query,
+    DEFAULT_WHEN,
+};
 pub use filter::{Filter, Market};
 pub use newscatcher::{Article, Response, Topic};
 
