@@ -82,6 +82,11 @@ impl Ranker {
         self.0.take_key_phrases(market, top)
     }
 
+    /// Removes all key phrases associated to the markets.
+    pub fn remove_key_phrases(&mut self, markets: &[Market]) {
+        self.0.remove_key_phrases(markets);
+    }
+
     /// Returns the positive cois.
     pub fn positive_cois(&self) -> &[PositiveCoi] {
         self.0.positive_cois()
