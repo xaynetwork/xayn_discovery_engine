@@ -57,7 +57,7 @@ use crate::{
     ranker::Ranker,
     stack::{
         self,
-        filters::DuplicateFilter,
+        filters::{filter_semantically, DuplicateFilter, SemanticFilterConfig},
         BoxedOps,
         BreakingNews,
         Data as StackData,
@@ -641,6 +641,7 @@ async fn update_stacks<'a>(
     // Separate stack documents (via the `stack` parameter) are not needed here, since they are
     // already contained in `all_documents`.
     all_documents = DuplicateFilter::apply(history, &[], all_documents);
+    all_documents = filter_semantically(all_documents, &SemanticFilterConfig::default());
 
     // Finally, we can update the stacks with their respective documents. To do this, we
     // have to group the fetched documents by `stack_id`, then `update` the stacks.
