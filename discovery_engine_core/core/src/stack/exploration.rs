@@ -14,9 +14,11 @@
 
 use std::{cmp::Reverse, collections::BTreeSet};
 
+use displaydoc::Display;
 use itertools::{chain, Itertools};
 use ndarray::{Array2, ArrayView1};
 use rand::{prelude::IteratorRandom, Rng};
+use thiserror::Error;
 use xayn_ai::{
     cosine_similarity,
     ranker::{pairwise_cosine_similarity, CoiPoint, NegativeCoi, PositiveCoi},
@@ -24,8 +26,15 @@ use xayn_ai::{
 
 use crate::{document::Document, utils::nan_safe_f32_cmp};
 
+#[derive(Error, Debug, Display)]
+pub(crate) enum Error {
+    /// Not enough cois
+    NotEnoughCois,
+}
+
 /// Configurations for the exploration stack.
 pub(crate) struct Config {
+    /// The number of candidates.
     number_of_candidates: usize,
     /// The maximum number of documents to keep.
     max_selected_docs: usize,
@@ -34,18 +43,26 @@ pub(crate) struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            number_of_candidates: 10,
+            number_of_candidates: 40,
             max_selected_docs: 20,
         }
     }
 }
 
+/// Selects documents by randomization with a threshold.
+///
+/// <https://xainag.atlassian.net/wiki/spaces/M2D/pages/2376663041/Exploration+Stack#2.-Pick-a-random-article-and-delete-articles-more-similar-to-it-than-a-threshold>
+/// outlines how the selection works.
+///
+/// # Errors
+/// Fails if both positive and negative cois are empty.
+#[allow(dead_code)]
 pub(crate) fn document_selection(
     positive_cois: &[PositiveCoi],
     negative_cois: &[NegativeCoi],
     documents: Vec<Document>,
     config: &Config,
-) -> Vec<Document> {
+) -> Result<Vec<Document>, Error> {
     document_selection_with_rng(
         positive_cois,
         negative_cois,
@@ -61,10 +78,14 @@ fn document_selection_with_rng<R>(
     documents: Vec<Document>,
     config: &Config,
     rng: &mut R,
-) -> Vec<Document>
+) -> Result<Vec<Document>, Error>
 where
     R: Rng + ?Sized,
 {
+    if positive_cois.len() + negative_cois.len() == 0 {
+        return Err(Error::NotEnoughCois);
+    }
+
     let document_embeddings = documents
         .iter()
         .map(|document| document.smbert_embedding.view())
@@ -74,11 +95,11 @@ where
     let neg_cois = negative_cois.iter().map(|coi| coi.point().view());
 
     let cois = chain!(pos_cois, neg_cois).collect_vec();
-    // #TODO Panic
+    // find_nearest_coi_for_docs can't panic because we make sure beforehand
+    // that both positive and negative cois aren't empty
     let nearest_coi_for_docs = find_nearest_coi_for_docs(&document_embeddings, &cois);
     let doc_similarities = pairwise_cosine_similarity(document_embeddings.into_iter());
 
-    // #TODO Panic
     let selected = select_by_randomization_with_threshold(
         &doc_similarities,
         &nearest_coi_for_docs,
@@ -87,7 +108,7 @@ where
         rng,
     );
 
-    retain_documents_by_indexes(selected, documents)
+    Ok(retain_documents_by_indices(selected, documents))
 }
 
 fn select_by_randomization_with_threshold<R>(
@@ -100,7 +121,6 @@ fn select_by_randomization_with_threshold<R>(
 where
     R: Rng + ?Sized,
 {
-    // #TODO Panic
     let (threshold, mut candidates) =
         select_initial_candidates(nearest_coi_for_docs, number_of_candidates);
 
@@ -111,12 +131,12 @@ where
             .choose(rng)
             .unwrap(/* the condition of the `while` ensures that `candidates` can't be empty */);
 
-        // remove all docs that have a similarity to chosen doc >= threshold
+        // remove all docs that have a similarity to chosen_doc >= threshold
         let to_remove = doc_similarities
             .row(chosen_doc)
             .iter()
             .enumerate()
-            .filter(|(_, doc_sim)| *doc_sim >= &threshold)
+            .filter(|(_, doc_sim)| **doc_sim >= threshold)
             .map(|(idx, _)| idx)
             .collect();
         candidates = &candidates - &to_remove;
@@ -148,7 +168,7 @@ fn find_nearest_coi_for_docs(
     // | doc1 | `cos_sim(doc1, coi1)` | `cos_sim(doc1, coi2)` |
     // | doc2 | `cos_sim(doc2, coi1)` | `cos_sim(doc2, coi2)` |
     //
-    // finds the nearest coi for each document.
+    // finds the nearest coi for each document
     // [doc1(max(cos_sim1, cos_sim2, ...)), doc2(max(cos_sim1, cos_sim2, ...)), ...]
     docs.iter()
         .cartesian_product(cois)
@@ -163,25 +183,34 @@ fn find_nearest_coi_for_docs(
         .collect()
 }
 
-/// Determines the threshold and returns it together with the indexes of the documents
+/// Determines the threshold and returns it together with the indices of the documents
 /// that are below that threshold.
 ///
-/// # Panics
-/// Panics if `number_of_candidates >= nearest_cois_for_docs.len()`
+/// If `number_of_candidates > nearest_coi_for_docs.len()`, `number_of_candidates`
+/// will be the value of `nearest_coi_for_docs.len()`.
+///
+/// If `number_of_candidates` or `nearest_coi_for_docs.len()` equals `0`, the function will
+/// return a threshold of `0.` and an empty set of candidates.
 fn select_initial_candidates(
     nearest_coi_for_docs: &[f32],
     number_of_candidates: usize,
 ) -> (f32, BTreeSet<usize>) {
-    let mut idxs = argsort(nearest_coi_for_docs);
-    let threshold = idxs
-        .get(number_of_candidates)
-        .map(|idx| nearest_coi_for_docs.get(*idx).unwrap())
-        .unwrap();
-    let selectable_idxs = idxs.drain(..number_of_candidates).collect();
-    (*threshold, selectable_idxs)
+    let number_of_candidates = number_of_candidates.min(nearest_coi_for_docs.len());
+    if number_of_candidates == 0 {
+        return (0., BTreeSet::new());
+    }
+
+    let mut indices = argsort(nearest_coi_for_docs);
+    let threshold = indices
+        .get(number_of_candidates - 1 /* safe because we check before that number_of_candidates != 0 */)
+        .map(|idx| nearest_coi_for_docs.get(*idx).unwrap(/* safe because it's an index from the argsort of nearest_coi_for_docs */))
+        .unwrap(/* safe because number_of_candidates <= nearest_coi_for_docs.len() */);
+    let candidates = indices.drain(..number_of_candidates).collect();
+    (*threshold, candidates)
 }
 
-fn retain_documents_by_indexes(
+/// Retains the documents that have been selected.
+fn retain_documents_by_indices(
     mut selected: Vec<usize>,
     documents: Vec<Document>,
 ) -> Vec<Document> {
@@ -252,6 +281,22 @@ mod tests {
     }
 
     #[test]
+    fn test_find_nearest_coi_for_docs() {
+        let cois = vec![
+            arr1(&[1., 4., 0.]),
+            arr1(&[3., 1., 0.]),
+            arr1(&[4., 1., 0.]),
+        ];
+        let documents = vec![arr1(&[1., 1., 0.]), arr1(&[-1., 1., 0.])];
+        let max = find_nearest_coi_for_docs(
+            &documents.iter().map(ArrayBase::view).collect_vec(),
+            &cois.iter().map(ArrayBase::view).collect_vec(),
+        );
+
+        assert_approx_eq!(f32, max, [0.894_427_2, 0.514_495_8]);
+    }
+
+    #[test]
     #[should_panic]
     fn test_find_nearest_coi_for_docs_no_cois() {
         find_nearest_coi_for_docs(
@@ -268,22 +313,6 @@ mod tests {
         );
 
         assert!(max.is_empty());
-    }
-
-    #[test]
-    fn test_find_nearest_coi_for_docs() {
-        let cois = vec![
-            arr1(&[1., 4., 0.]),
-            arr1(&[3., 1., 0.]),
-            arr1(&[4., 1., 0.]),
-        ];
-        let documents = vec![arr1(&[1., 1., 0.]), arr1(&[-1., 1., 0.])];
-        let max = find_nearest_coi_for_docs(
-            &documents.iter().map(ArrayBase::view).collect_vec(),
-            &cois.iter().map(ArrayBase::view).collect_vec(),
-        );
-
-        assert_approx_eq!(f32, max, [0.894_427_2, 0.514_495_8]);
     }
 
     #[test]
@@ -311,21 +340,48 @@ mod tests {
     }
 
     #[test]
+    fn test_argsort_empty() {
+        let idxs = argsort(&[]);
+        assert!(idxs.is_empty());
+    }
+
+    #[test]
     fn test_select_initial_candidates() {
-        let (threshold, idxs) = select_initial_candidates(&[3., 4., 2., 0.], 3);
+        let (threshold, idxs) = select_initial_candidates(&[3., 4., 2., 0.], 2);
+        assert_approx_eq!(f32, threshold, 2.);
+        assert_eq!(idxs, BTreeSet::from_iter([3, 2]));
+    }
+
+    #[test]
+    fn test_select_initial_candidates_all() {
+        let (threshold, idxs) = select_initial_candidates(&[3., 4., 2., 0.], 4);
+        assert_approx_eq!(f32, threshold, 4.);
+        assert_eq!(idxs, BTreeSet::from_iter([3, 2, 0, 1]));
+    }
+
+    #[test]
+    fn test_select_initial_candidates_none() {
+        let (threshold, idxs) = select_initial_candidates(&[3., 4., 2., -1.], 0);
+        assert_approx_eq!(f32, threshold, 0.);
+        assert_eq!(idxs, BTreeSet::new());
+    }
+
+    #[test]
+    fn test_select_initial_candidates_too_many() {
+        let (threshold, idxs) = select_initial_candidates(&[3., 4., 2., -1.], 5);
         assert_approx_eq!(f32, threshold, 4.);
         assert_eq!(idxs, BTreeSet::from_iter([3, 2, 0, 1]));
 
-        let (threshold_, idxs) = select_initial_candidates(&[3., 4., 2., 0.], 0);
+        let (threshold_, idxs) = select_initial_candidates(&[], 5);
         assert_approx_eq!(f32, threshold_, 0.);
         assert_eq!(idxs, BTreeSet::new());
     }
 
     #[test]
-    fn test_retain_documents_by_indexes() {
+    fn test_retain_documents_by_indices() {
         let docs = vec![new_doc(), new_doc(), new_doc(), new_doc(), new_doc()];
         let expected = vec![docs[0].id, docs[2].id, docs[4].id];
-        let retained = retain_documents_by_indexes(vec![4, 2, 0], docs);
+        let retained = retain_documents_by_indices(vec![4, 2, 0], docs);
 
         assert_eq!(retained[0].id, expected[0]);
         assert_eq!(retained[1].id, expected[1]);
@@ -333,15 +389,15 @@ mod tests {
     }
 
     #[test]
-    fn test_retain_documents_by_indexes_non_selected() {
+    fn test_retain_documents_by_indices_non_selected() {
         let docs = vec![new_doc(), new_doc(), new_doc()];
-        let retained = retain_documents_by_indexes(vec![], docs);
+        let retained = retain_documents_by_indices(vec![], docs);
         assert!(retained.is_empty());
     }
 
     #[test]
-    fn test_retain_documents_by_indexes_no_docs() {
-        let retained = retain_documents_by_indexes(vec![4, 2, 0], vec![]);
+    fn test_retain_documents_by_indices_no_docs() {
+        let retained = retain_documents_by_indices(vec![4, 2, 0], vec![]);
         assert!(retained.is_empty());
     }
 
@@ -351,7 +407,7 @@ mod tests {
         // doc2 is close to pos_coi0
         // doc1 and 3 should be selected
         let docs =
-            new_docs_with_embeddings(&[[3., 1., 0.], [-1., 0., 0.], [2., 3., 0.], [-3., 7., 0.]]);
+            new_docs_with_embeddings(&[[3., 1., 0.], [-1., -3., 0.], [2., 3., 0.], [-3., 7., 0.]]);
 
         let expected = vec![docs[1].id, docs[3].id];
 
@@ -360,11 +416,13 @@ mod tests {
 
         let config = Config {
             number_of_candidates: 2,
-            max_selected_docs: 10,
+            ..Config::default()
         };
         let mut rng = ChaCha8Rng::seed_from_u64(1);
-        let docs = document_selection_with_rng(&pos_cois, &neg_cois, docs, &config, &mut rng);
+        let docs =
+            document_selection_with_rng(&pos_cois, &neg_cois, docs, &config, &mut rng).unwrap();
 
+        assert_eq!(docs.len(), 2);
         assert_eq!(docs[0].id, expected[0]);
         assert_eq!(docs[1].id, expected[1]);
     }
@@ -373,8 +431,9 @@ mod tests {
     fn test_document_selection_close_document() {
         // doc0 is close to neg_coi0
         // doc2 is close to pos_coi0
-        // doc4 is close to doc3 but doc3 is further away from pos_coi0 then doc4
-        // doc1 and 3 should be selected although number_of_candidates is 3
+        // doc3 and doc4 are far away from pos_coi0 but doc3 is further away from pos_coi0 then doc4
+        // doc4 is close to doc3 and should be removed
+        // doc1 and 3 should be selected
         let docs = new_docs_with_embeddings(&[
             [3., 1., 0.],
             [-1., 0., 0.],
@@ -390,12 +449,82 @@ mod tests {
 
         let config = Config {
             number_of_candidates: 3,
-            max_selected_docs: 10,
+            ..Config::default()
         };
         let mut rng = ChaCha8Rng::seed_from_u64(1);
-        let docs = document_selection_with_rng(&pos_cois, &neg_cois, docs, &config, &mut rng);
+        let docs =
+            document_selection_with_rng(&pos_cois, &neg_cois, docs, &config, &mut rng).unwrap();
 
         assert_eq!(docs.len(), 2);
+        assert_eq!(docs[0].id, expected[0]);
+        assert_eq!(docs[1].id, expected[1]);
+    }
+
+    #[test]
+    fn test_document_selection_close_no_documents() {
+        let pos_cois = create_pos_cois(&[[4., 4., 0.]]);
+        let config = Config {
+            number_of_candidates: 10,
+            ..Config::default()
+        };
+        let docs = document_selection(&pos_cois, &[], vec![], &config).unwrap();
+        assert_eq!(docs.len(), 0);
+    }
+
+    #[test]
+    fn test_document_selection_close_no_candidates() {
+        let docs = new_docs_with_embeddings(&[[3., 1., 0.]]);
+        let pos_cois = create_pos_cois(&[[4., 4., 0.]]);
+        let config = Config {
+            number_of_candidates: 0,
+            ..Config::default()
+        };
+        let docs = document_selection(&pos_cois, &[], docs, &config).unwrap();
+        assert_eq!(docs.len(), 0);
+    }
+
+    #[test]
+    fn test_document_selection_close_all_documents() {
+        let docs =
+            new_docs_with_embeddings(&[[3., 1., 0.], [-1., 0., 0.], [2., 3., 0.], [-3., 7., 0.]]);
+        let pos_cois = create_pos_cois(&[[4., 4., 0.]]);
+        let config = Config {
+            number_of_candidates: 4,
+            ..Config::default()
+        };
+        let docs = document_selection(&pos_cois, &[], docs, &config).unwrap();
+        assert_eq!(docs.len(), 4);
+    }
+
+    #[test]
+    fn test_document_selection_close_no_cois() {
+        let res = document_selection(&[], &[], vec![], &Config::default());
+        assert!(matches!(res.unwrap_err(), Error::NotEnoughCois));
+    }
+
+    #[test]
+    fn test_document_selection_close_more_than_max() {
+        let docs = new_docs_with_embeddings(&[
+            [3., 3., 1.],
+            [-3., -3., 1.],
+            [-3., 3., 1.],
+            [3., -3., 1.],
+            [3., 0., 1.],
+            [-3., 0., 1.],
+            [0., 3., 1.],
+            [0., -3., 1.],
+        ]);
+        let expected = vec![docs[4].id, docs[5].id];
+        let pos_cois = create_pos_cois(&[[0., 0., 1.]]);
+        let config = Config {
+            number_of_candidates: 8,
+            max_selected_docs: 2,
+        };
+        let mut rng = ChaCha8Rng::seed_from_u64(1);
+        // with max_selected_docs > 3, it will select 4, 5, 6, 7
+        let docs = document_selection_with_rng(&pos_cois, &[], docs, &config, &mut rng).unwrap();
+        assert_eq!(docs.len(), 2);
+
         assert_eq!(docs[0].id, expected[0]);
         assert_eq!(docs[1].id, expected[1]);
     }

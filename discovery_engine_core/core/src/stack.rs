@@ -33,9 +33,9 @@ use crate::{
 };
 
 mod data;
+mod exploration;
 pub(crate) mod filters;
 mod ops;
-mod exploration;
 
 pub use self::ops::Ops;
 pub(crate) use self::{
