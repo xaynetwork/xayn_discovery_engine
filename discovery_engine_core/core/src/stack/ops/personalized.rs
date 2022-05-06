@@ -72,7 +72,9 @@ impl PersonalizedNews {
         history: &[HistoricDocument],
         stack: &[Document],
         articles: Vec<Article>,
+        excluded_sources: &[String],
     ) -> Result<Vec<Article>, GenericError> {
+        let articles = SourcesFilter::apply(articles, &excluded_sources);
         CommonFilter::apply(history, stack, articles)
     }
 }
@@ -119,7 +121,7 @@ impl Ops for PersonalizedNews {
                     )
                 })
             },
-            |articles| Self::filter_articles(history, stack, articles),
+            |articles| Self::filter_articles(history, stack, articles, &excluded_sources),
         )
         .await
         .map_err(Into::into)
@@ -150,10 +152,6 @@ fn spawn_news_request(
             filter,
             from: default_from().into(),
         };
-        client
-            .query_articles(&query)
-            .await
-            .map(|arts| SourcesFilter::apply(arts, &excluded_sources))
-            .map_err(Into::into)
+        client.query_articles(&query).await.map_err(Into::into)
     })
 }
