@@ -16,7 +16,12 @@ import 'dart:io' show Directory;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show ClientEventSucceeded, DiscoveryEngine, NextFeedBatchRequestSucceeded;
+    show
+        ClientEventSucceeded,
+        DiscoveryEngine,
+        NextFeedBatchRequestSucceeded,
+        NextFeedBatchRequestFailed,
+        FeedFailureReason;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
 
@@ -45,36 +50,47 @@ void main() {
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
 
-    test(
-      'excludedSources should be updated in the engine',
-      () async {
-        engine = await initEngine(data, server.port);
-        final nextFeedBatchResponse = await engine.requestNextFeedBatch();
-        expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
-        expect(server.lastUri?.queryParameters['not_sources'], isNull);
-        var response =
-            await engine.addSourceToExcludedList(Source('dodo.test'));
-        expect(response, isA<ClientEventSucceeded>());
-        expect(
-          server.lastUri?.queryParameters['not_sources'],
-          equals('dodo.test'),
-        );
-        response = await engine.addSourceToExcludedList(Source('dada.test'));
-        expect(response, isA<ClientEventSucceeded>());
-        response =
-            await engine.removeSourceFromExcludedList(Source('dodo.test'));
-        expect(response, isA<ClientEventSucceeded>());
-        response = await engine.addSourceToExcludedList(Source('so.yo.test'));
-        expect(response, isA<ClientEventSucceeded>());
-        expect(
-          server.lastUri?.queryParameters['not_sources']?.split(',').toSet(),
-          equals({
-            'dada.test',
-            'so.yo.test',
-          }),
-        );
-      },
-      skip: 'TY-2767',
-    );
+    test('addSourceToExcludedList adds excluded source', () async {
+      engine = await initEngine(data, server.port);
+
+      var response =
+          await engine.addSourceToExcludedList(Source('example.com'));
+      expect(response, isA<ClientEventSucceeded>());
+
+      response = await engine.requestNextFeedBatch();
+      expect(response, isA<NextFeedBatchRequestFailed>());
+      expect(
+        (response as NextFeedBatchRequestFailed).reason,
+        FeedFailureReason.noNewsForMarket,
+      );
+    });
+
+    test('removeSourceFromExcludedList removes the added excluded source',
+        () async {
+      engine = await initEngine(data, server.port);
+
+      var response =
+          await engine.addSourceToExcludedList(Source('example.com'));
+      expect(response, isA<ClientEventSucceeded>());
+      response =
+          await engine.removeSourceFromExcludedList(Source('example.com'));
+      expect(response, isA<ClientEventSucceeded>());
+
+      response = await engine.requestNextFeedBatch();
+      expect(response, isA<NextFeedBatchRequestSucceeded>());
+      expect((response as NextFeedBatchRequestSucceeded).items, isNotEmpty);
+    });
+
+    test('non-existent excluded source should have no effect', () async {
+      engine = await initEngine(data, server.port);
+
+      var response =
+          await engine.addSourceToExcludedList(Source('example.org'));
+      expect(response, isA<ClientEventSucceeded>());
+
+      response = await engine.requestNextFeedBatch();
+      expect(response, isA<NextFeedBatchRequestSucceeded>());
+      expect((response as NextFeedBatchRequestSucceeded).items, isNotEmpty);
+    });
   });
 }
