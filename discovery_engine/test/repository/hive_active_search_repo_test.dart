@@ -38,7 +38,8 @@ Future<void> main() async {
     });
 
     setUp(() async {
-      final dir = Directory.systemTemp.createTempSync('hive-test');
+      final dir =
+          Directory.systemTemp.createTempSync('HiveActiveSearchRepository');
       await EventHandler.initDatabase(dir.path);
       repo = HiveActiveSearchRepository();
     });
