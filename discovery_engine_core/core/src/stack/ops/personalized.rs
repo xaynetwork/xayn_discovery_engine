@@ -33,7 +33,7 @@ use crate::{
     document::{Document, HistoricDocument},
     engine::{EndpointConfig, GenericError},
     stack::{
-        filters::{ArticleFilter, CommonFilter},
+        filters::{ArticleFilter, CommonFilter, SourcesFilter},
         Id,
     },
 };
@@ -72,7 +72,9 @@ impl PersonalizedNews {
         history: &[HistoricDocument],
         stack: &[Document],
         articles: Vec<Article>,
+        excluded_sources: &[String],
     ) -> Result<Vec<Article>, GenericError> {
+        let articles = SourcesFilter::apply(articles, &excluded_sources);
         CommonFilter::apply(history, stack, articles)
     }
 }
@@ -119,7 +121,7 @@ impl Ops for PersonalizedNews {
                     )
                 })
             },
-            |articles| Self::filter_articles(history, stack, articles),
+            |articles| Self::filter_articles(history, stack, articles, &excluded_sources),
         )
         .await
         .map_err(Into::into)
