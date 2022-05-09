@@ -12,29 +12,30 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
+import 'dart:io' show Directory;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
+import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
+    show DocumentsUpdated;
 import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart'
     show ChangedDocumentsReporter;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
     show DocumentManager;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show DocumentAdapter, Document, UserReaction;
+    show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show activeDocumentDataBox, documentBox, engineStateBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -48,20 +49,10 @@ import 'logging.dart' show setupLogging;
 Future<void> main() async {
   setupLogging();
 
-  Hive.registerAdapter(DocumentAdapter());
-
-  final docBox = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
-  final activeBox = await Hive.openBox<ActiveDocumentData>(
-    activeDocumentDataBox,
-    bytes: Uint8List(0),
-  );
-  final stateBox =
-      await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
-
-  final engine = MockEngine();
-  final docRepo = HiveDocumentRepository();
-  final activeRepo = HiveActiveDocumentDataRepository();
-  final engineStateRepo = HiveEngineStateRepository();
+  late MockEngine engine;
+  late HiveDocumentRepository docRepo;
+  late HiveActiveDocumentDataRepository activeRepo;
+  late HiveEngineStateRepository engineStateRepo;
 
   group('DocumentManager', () {
     final data = ActiveDocumentData(Embedding.fromList([4, 1]));
@@ -87,7 +78,18 @@ Future<void> main() async {
     late ChangedDocumentsReporter changedDocsReporter;
     late DocumentManager mgr;
 
+    setUpAll(() async {
+      EventHandler.registerHiveAdapters();
+    });
+
     setUp(() async {
+      final dir = Directory.systemTemp.createTempSync('DocumentManager');
+      await EventHandler.initDatabase(dir.path);
+
+      engine = MockEngine();
+      docRepo = HiveDocumentRepository();
+      activeRepo = HiveActiveDocumentDataRepository();
+      engineStateRepo = HiveEngineStateRepository();
       changedDocsReporter = ChangedDocumentsReporter();
       mgr = DocumentManager(
         engine,
@@ -107,9 +109,7 @@ Future<void> main() async {
     tearDown(() async {
       await changedDocsReporter.close();
 
-      await docBox.clear();
-      await activeBox.clear();
-      await stateBox.clear();
+      await Hive.deleteFromDisk();
 
       // reset test data
       doc1.isActive = true;
@@ -164,14 +164,14 @@ Future<void> main() async {
 
       expect(engine.getCallCount('userReacted'), equals(1));
       expect(
-        docBox.values,
+        docRepo.box.values,
         unorderedEquals(<Document>[doc1..userReaction = newReaction, doc2]),
       );
       // serialize should be called and state saved
       expect(engine.getCallCount('serialize'), equals(1));
-      expect(stateBox.isNotEmpty, isTrue);
+      expect(engineStateRepo.box.isNotEmpty, isTrue);
       // other repos unchanged
-      expect(activeBox, hasLength(1));
+      expect(activeRepo.box, hasLength(1));
       expect(await activeRepo.fetchById(id1), equals(data));
     });
 
@@ -216,11 +216,11 @@ Future<void> main() async {
       // add 5 seconds to id1
       await mgr.addActiveDocumentTime(id1, mode, 5);
 
-      expect(activeBox, hasLength(1));
+      expect(activeRepo.box, hasLength(1));
 
       // serialize should be called and state saved
       expect(engine.getCallCount('serialize'), equals(1));
-      expect(stateBox.isNotEmpty, isTrue);
+      expect(engineStateRepo.box.isNotEmpty, isTrue);
 
       var dataUpdated = await activeRepo.fetchById(id1);
       expect(dataUpdated, isNotNull);
@@ -233,7 +233,7 @@ Future<void> main() async {
       // add a further 3 seconds
       await mgr.addActiveDocumentTime(id1, mode, 3);
 
-      expect(activeBox, hasLength(1));
+      expect(activeRepo.box, hasLength(1));
       expect(engine.getCallCount('serialize'), equals(2));
       dataUpdated = await activeRepo.fetchById(id1);
       expect(dataUpdated, isNotNull);
