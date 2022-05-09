@@ -12,9 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:io' show Directory;
 import 'dart:typed_data' show Uint8List;
 
-import 'package:hive/hive.dart' show Hive, Box;
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
@@ -32,7 +33,7 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine, mockTrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig;
+    show EventConfig, EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
@@ -47,8 +48,6 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
     show SearchManager;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show documentBox, activeDocumentDataBox, engineStateBox, searchBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
@@ -66,27 +65,14 @@ Future<void> main() async {
   group('SearchManager', () {
     setupLogging();
 
-    late Box<Document> docBox;
-    late Box<ActiveSearch> activeSearchBox;
-    late Box<ActiveDocumentData> activeBox;
-    late Box<Uint8List> stateBox;
+    late HiveDocumentRepository docRepo;
+    late HiveActiveSearchRepository searchRepo;
+    late HiveActiveDocumentDataRepository activeRepo;
+    late HiveEngineStateRepository engineStateRepo;
+    late SearchManager mgr;
 
     final engine = MockEngine();
     final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
-    final docRepo = HiveDocumentRepository();
-    final searchRepo = HiveActiveSearchRepository();
-    final activeRepo = HiveActiveDocumentDataRepository();
-    final engineStateRepo = HiveEngineStateRepository();
-
-    final mgr = SearchManager(
-      engine,
-      config,
-      searchRepo,
-      docRepo,
-      activeRepo,
-      engineStateRepo,
-    );
-
     final data = ActiveDocumentData(Embedding.fromList([44]));
     final stackId = StackId.fromBytes(Uint8List.fromList(List.filled(16, 0)));
     var doc1 = Document(
@@ -103,14 +89,26 @@ Future<void> main() async {
     );
 
     setUpAll(() async {
-      docBox = await Hive.openBox(documentBox, bytes: Uint8List(0));
-      activeSearchBox = await Hive.openBox(searchBox, bytes: Uint8List(0));
-      activeBox =
-          await Hive.openBox(activeDocumentDataBox, bytes: Uint8List(0));
-      stateBox = await Hive.openBox(engineStateBox, bytes: Uint8List(0));
+      EventHandler.registerHiveAdapters();
     });
 
     setUp(() async {
+      final dir = Directory.systemTemp.createTempSync('SearchManager');
+      await EventHandler.initDatabase(dir.path);
+
+      docRepo = HiveDocumentRepository();
+      searchRepo = HiveActiveSearchRepository();
+      activeRepo = HiveActiveDocumentDataRepository();
+      engineStateRepo = HiveEngineStateRepository();
+      mgr = SearchManager(
+        engine,
+        config,
+        searchRepo,
+        docRepo,
+        activeRepo,
+        engineStateRepo,
+      );
+
       doc1 = doc1
         ..isSearched = true
         ..isActive = true;
@@ -125,18 +123,8 @@ Future<void> main() async {
     });
 
     tearDown(() async {
+      await Hive.deleteFromDisk();
       engine.resetCallCounter();
-
-      await Future.wait([
-        docBox.clear(),
-        activeSearchBox.clear(),
-        activeBox.clear(),
-        stateBox.clear(),
-      ]);
-    });
-
-    tearDownAll(() async {
-      await Hive.close();
     });
 
     group('searchRequested', () {
@@ -165,16 +153,22 @@ Future<void> main() async {
 
         final savedDocs = response.items
             // lets look for the docs in the document box
-            .map((doc) => docBox.get('${doc.documentId}'))
+            .map((doc) => docRepo.box.get('${doc.documentId}'))
             .map((doc) => doc!.toApiDocument())
             .toList();
 
         expect(response.items, equals(savedDocs));
         // we have 2 more documents in the database
-        expect(docBox.length, equals(4));
+        expect(docRepo.box.length, equals(4));
         // we have 2 document data entries in active box under proper ids
-        expect(activeBox.get('${response.items.first.documentId}'), isNotNull);
-        expect(activeBox.get('${response.items.last.documentId}'), isNotNull);
+        expect(
+          activeRepo.box.get('${response.items.first.documentId}'),
+          isNotNull,
+        );
+        expect(
+          activeRepo.box.get('${response.items.last.documentId}'),
+          isNotNull,
+        );
         expect(engine.getCallCount('activeSearch'), equals(1));
         expect(engine.getCallCount('serialize'), equals(1));
       });
@@ -214,16 +208,22 @@ Future<void> main() async {
 
         final savedDocs = response.items
             // lets look for the docs in the document box
-            .map((doc) => docBox.get('${doc.documentId}'))
+            .map((doc) => docRepo.box.get('${doc.documentId}'))
             .map((doc) => doc!.toApiDocument())
             .toList();
 
         expect(response.items, equals(savedDocs));
         // we have 2 more documents in the database
-        expect(docBox.length, equals(4));
+        expect(docRepo.box.length, equals(4));
         // we have 2 document data entries in active box under proper ids
-        expect(activeBox.get('${response.items.first.documentId}'), isNotNull);
-        expect(activeBox.get('${response.items.last.documentId}'), isNotNull);
+        expect(
+          activeRepo.box.get('${response.items.first.documentId}'),
+          isNotNull,
+        );
+        expect(
+          activeRepo.box.get('${response.items.last.documentId}'),
+          isNotNull,
+        );
         expect(engine.getCallCount('activeSearch'), equals(1));
         expect(engine.getCallCount('serialize'), equals(1));
       });
@@ -363,9 +363,9 @@ Future<void> main() async {
         final response = await mgr.searchClosed();
 
         expect(response, isA<ClientEventSucceeded>());
-        expect(activeSearchBox.isEmpty, isTrue);
-        expect(activeBox.length, equals(2));
-        expect(docBox.length, equals(2));
+        expect(searchRepo.box.isEmpty, isTrue);
+        expect(activeRepo.box.length, equals(2));
+        expect(docRepo.box.length, equals(2));
         expect(doc1.isActive, isTrue);
         expect(doc2.isActive, isTrue);
       });
@@ -398,11 +398,11 @@ Future<void> main() async {
         final response = await mgr.searchClosed();
 
         expect(response, isA<ClientEventSucceeded>());
-        expect(activeSearchBox.isEmpty, isTrue);
+        expect(searchRepo.box.isEmpty, isTrue);
         // only doc1 should be left in the active data and changed doc boxes
-        expect(activeBox.length, equals(1));
-        expect(activeBox.get('${doc1.documentId}'), equals(data));
-        expect(docBox.length, equals(3));
+        expect(activeRepo.box.length, equals(1));
+        expect(activeRepo.box.get('${doc1.documentId}'), equals(data));
+        expect(docRepo.box.length, equals(3));
         // doc1 wasn't searched so it should stay active
         expect(doc1.isActive, isTrue);
         // doc2 and doc3 were searched but non-neutral so they should be kept
@@ -410,7 +410,7 @@ Future<void> main() async {
         expect(doc2.isActive, isFalse);
         expect(doc3.isActive, isFalse);
         // doc4 was searched but neutral so it should be removed from db
-        expect(docBox.get('${doc4.documentId}'), isNull);
+        expect(docRepo.box.get('${doc4.documentId}'), isNull);
       });
     });
   });

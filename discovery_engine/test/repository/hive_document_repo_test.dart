@@ -53,7 +53,6 @@ Future<void> main() async {
     setUp(() async {
       final dir = Directory.systemTemp.createTempSync('HiveDocumentRepository');
       await EventHandler.initDatabase(dir.path);
-      // box = await Hive.openBox<Document>(documentBox);
       repo = HiveDocumentRepository();
     });
 
