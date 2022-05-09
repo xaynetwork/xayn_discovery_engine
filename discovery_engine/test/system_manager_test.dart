@@ -12,24 +12,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
+import 'dart:io' show Directory;
 
-import 'package:hive/hive.dart';
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig;
+    show EventConfig, EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentAdapter;
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/system_manager.dart'
     show SystemManager;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show documentBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 
@@ -39,18 +37,24 @@ import 'logging.dart' show setupLogging;
 Future<void> main() async {
   setupLogging();
 
-  Hive.registerAdapter(DocumentAdapter());
-
-  final docBox = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
-
-  final engine = MockEngine();
-  final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
-  final docRepo = HiveDocumentRepository();
-
-  final mgr = SystemManager(engine, config, docRepo);
-
   group('SystemManager', () {
+    late HiveDocumentRepository docRepo;
+    late SystemManager mgr;
+
+    final engine = MockEngine();
+    final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
+
+    setUpAll(() async {
+      EventHandler.registerHiveAdapters();
+    });
+
     setUp(() async {
+      final dir = Directory.systemTemp.createTempSync('SystemManager');
+      await EventHandler.initDatabase(dir.path);
+
+      docRepo = HiveDocumentRepository();
+      mgr = SystemManager(engine, config, docRepo);
+
       final stackId = StackId();
       final doc2 = Document(
         documentId: DocumentId(),
@@ -72,7 +76,7 @@ Future<void> main() async {
     });
 
     tearDown(() async {
-      await docBox.clear();
+      await Hive.deleteFromDisk();
     });
 
     test('change configuration feedMarkets', () async {
