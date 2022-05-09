@@ -18,7 +18,6 @@ import 'package:csv/csv.dart' show CsvToListConverter;
 import 'package:equatable/equatable.dart' show Equatable;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:fuzzy/fuzzy.dart' show Fuzzy, FuzzyOptions;
-import 'package:meta/meta.dart' show protected;
 
 part 'source.freezed.dart';
 part 'source.g.dart';
