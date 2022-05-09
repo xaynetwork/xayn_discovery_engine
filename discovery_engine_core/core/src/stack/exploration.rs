@@ -35,8 +35,7 @@ mod selection;
 
 pub(crate) use self::selection::Error;
 
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 pub(crate) struct Stack {
     pub(crate) data: Data,
 }

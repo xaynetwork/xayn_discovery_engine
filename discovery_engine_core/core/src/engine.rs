@@ -385,12 +385,11 @@ where
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
         let mut stacks = self.stacks.write().await;
-        let mut all_stacks = stacks
-            .values_mut()
-            .map(|s| Box::new(s) as Box<dyn Bucket<Document>>)
-            .collect::<Vec<Box<dyn Bucket<Document>>>>();
-        let exploration_stack = Box::new(&mut self.exploration_stack) as Box<dyn Bucket<Document>>;
-        all_stacks.push(exploration_stack);
+        let mut all_stacks = chain!(
+            stacks.values_mut().map(|s| s as _),
+            once(&mut self.exploration_stack as _),
+        )
+        .collect::<Vec<&mut dyn Bucket<_>>>();
 
         SelectionIter::new(BetaSampler, all_stacks.iter_mut())
             .select(max_documents as usize)
