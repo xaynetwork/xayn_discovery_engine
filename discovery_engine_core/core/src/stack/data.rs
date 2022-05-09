@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::vec::Drain;
+
 use derivative::Derivative;
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
@@ -61,11 +63,9 @@ impl Data {
     }
 
     /// Retains only the top documents, given how many to keep.
-    pub(crate) fn retain_top(&mut self, keep: usize) {
+    pub(crate) fn retain_top(&mut self, keep: usize) -> Option<Drain<'_, Document>> {
         let len = self.documents.len();
-        if len > keep {
-            self.documents.drain(..len - keep);
-        }
+        (len > keep).then(move || self.documents.drain(..len - keep))
     }
 }
 

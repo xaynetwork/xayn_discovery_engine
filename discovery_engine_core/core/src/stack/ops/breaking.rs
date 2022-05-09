@@ -66,6 +66,10 @@ impl BreakingNews {
         }
     }
 
+    pub(crate) fn id() -> Id {
+        Id(Uuid::parse_str("1ce442c8-8a96-433e-91db-c0bee37e5a83").unwrap(/* valid uuid */))
+    }
+
     /// Filter `articles` based on `stack` documents.
     fn filter_articles(
         history: &[HistoricDocument],
@@ -81,7 +85,7 @@ impl BreakingNews {
 #[async_trait]
 impl Ops for BreakingNews {
     fn id(&self) -> Id {
-        Id(Uuid::parse_str("1ce442c8-8a96-433e-91db-c0bee37e5a83").unwrap(/* valid uuid */))
+        BreakingNews::id()
     }
 
     fn needs_key_phrases(&self) -> bool {

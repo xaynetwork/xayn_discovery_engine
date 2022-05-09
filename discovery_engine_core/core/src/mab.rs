@@ -59,7 +59,7 @@ pub(crate) trait Bucket<T> {
 
 impl<B, T> Bucket<T> for &mut B
 where
-    B: Bucket<T>,
+    B: Bucket<T> + ?Sized,
 {
     fn alpha(&self) -> f32 {
         (**self).alpha()
