@@ -67,12 +67,9 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.feedDocumentsClosedResponse = const EngineEvent.clientEventSucceeded(),
     this.userReactionChangedResponse = const EngineEvent.clientEventSucceeded(),
     this.documentTimeLoggedResponse = const EngineEvent.clientEventSucceeded(),
-    this.searchRequestedResponse =
-        const EngineEvent.searchRequestSucceeded(mockActiveSearch, []),
-    this.nextSearchBatchRequestedResponse =
-        const EngineEvent.nextSearchBatchRequestSucceeded(mockActiveSearch, []),
-    this.restoreSearchResponse =
-        const EngineEvent.restoreSearchSucceeded(mockActiveSearch, []),
+    EngineEvent? searchRequestedResponse,
+    EngineEvent? nextSearchBatchRequestedResponse,
+    EngineEvent? restoreSearchResponse,
     this.searchClosedResponse = const EngineEvent.clientEventSucceeded(),
     this.searchTermRequestedResponse =
         const EngineEvent.searchTermRequestSucceeded(queryTerm),
@@ -87,7 +84,20 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.trendingTopicsRequestedResponse =
         const EngineEvent.trendingTopicsRequestSucceeded([]),
     EngineEvent? availableSourcesListRequestedResponse,
-  })  : excludedSourcesListRequestedResponse =
+  })  : searchRequestedResponse = EngineEvent.searchRequestSucceeded(
+          mockActiveSearch.toApiRepr(),
+          [],
+        ),
+        nextSearchBatchRequestedResponse =
+            EngineEvent.nextSearchBatchRequestSucceeded(
+          mockActiveSearch.toApiRepr(),
+          [],
+        ),
+        restoreSearchResponse = EngineEvent.restoreSearchSucceeded(
+          mockActiveSearch.toApiRepr(),
+          [],
+        ),
+        excludedSourcesListRequestedResponse =
             excludedSourcesListRequestedResponse ??
                 EngineEvent.excludedSourcesListRequestSucceeded(
                   {Source('example.com')},

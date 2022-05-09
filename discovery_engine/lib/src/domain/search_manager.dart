@@ -121,7 +121,7 @@ class SearchManager {
     );
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
-    return EngineEvent.searchRequestSucceeded(search, docs);
+    return EngineEvent.searchRequestSucceeded(search.toApiRepr(), docs);
   }
 
   /// Obtain the next batch of search documents and persist to repositories.
@@ -134,10 +134,13 @@ class SearchManager {
     }
 
     // lets update active search params
-    search = search.copyWith(requestedPageNb: search.requestedPageNb + 1);
+    search = search.nextPageSearch();
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
-    return EngineEvent.nextSearchBatchRequestSucceeded(search, docs);
+    return EngineEvent.nextSearchBatchRequestSucceeded(
+      search.toApiRepr(),
+      docs,
+    );
   }
 
   /// Returns the list of active search documents, ordered by their global rank.
@@ -171,7 +174,7 @@ class SearchManager {
 
     final docs = searchDocs.map((doc) => doc.toApiDocument()).toList();
 
-    return EngineEvent.restoreSearchSucceeded(search, docs);
+    return EngineEvent.restoreSearchSucceeded(search.toApiRepr(), docs);
   }
 
   /// Return the active search term.

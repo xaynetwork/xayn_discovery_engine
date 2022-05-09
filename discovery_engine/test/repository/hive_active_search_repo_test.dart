@@ -93,7 +93,7 @@ Future<void> main() async {
           () async {
         await repo.save(search);
 
-        final search2 = search.copyWith(requestedPageNb: 2);
+        final search2 = search.nextPageSearch();
         await repo.save(search2);
 
         expect(repo.box.isNotEmpty, isTrue);

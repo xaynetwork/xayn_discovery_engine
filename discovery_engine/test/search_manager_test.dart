@@ -148,7 +148,10 @@ Future<void> main() async {
 
         expect(searchRepo.getCurrent(), completion(equals(newSearch)));
         expect(response, isA<SearchRequestSucceeded>());
-        expect((response as SearchRequestSucceeded).search, equals(newSearch));
+        expect(
+          (response as SearchRequestSucceeded).search,
+          equals(newSearch.toApiRepr()),
+        );
         expect(response.items.length, equals(2));
 
         final savedDocs = response.items
@@ -199,11 +202,8 @@ Future<void> main() async {
             (response as NextSearchBatchRequestSucceeded).search;
 
         expect(response, isA<NextSearchBatchRequestSucceeded>());
-        expect(
-          updateSearch.requestedPageNb,
-          equals(mockActiveSearch.requestedPageNb + 1),
-        );
-        expect(searchRepo.getCurrent(), completion(equals(updateSearch)));
+        final current = await searchRepo.getCurrent();
+        expect(current?.toApiRepr(), equals(updateSearch));
         expect(response.items.length, equals(2));
 
         final savedDocs = response.items
@@ -273,7 +273,7 @@ Future<void> main() async {
           response,
           equals(
             RestoreSearchSucceeded(
-              mockActiveSearch,
+              mockActiveSearch.toApiRepr(),
               [doc1.toApiDocument(), doc2.toApiDocument()],
             ),
           ),
