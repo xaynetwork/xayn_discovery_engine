@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
+import 'dart:io' show Directory;
 
-import 'package:hive/hive.dart';
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
@@ -24,27 +24,19 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig;
+    show EventConfig, EventHandler;
 import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
     show FeedManager;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentAdapter;
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show AvailableSource, AvailableSources, Source;
-import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
-    show SourcePreference;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show
-        activeDocumentDataBox,
-        documentBox,
-        engineStateBox,
-        sourcePreferenceBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -60,39 +52,20 @@ import 'logging.dart' show setupLogging;
 Future<void> main() async {
   setupLogging();
 
-  Hive.registerAdapter(DocumentAdapter());
-
-  final docBox = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
-  final activeBox = await Hive.openBox<ActiveDocumentData>(
-    activeDocumentDataBox,
-    bytes: Uint8List(0),
-  );
-  final stateBox =
-      await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
-  final sourceBox = await Hive.openBox<SourcePreference>(
-    sourcePreferenceBox,
-    bytes: Uint8List(0),
-  );
+  late HiveDocumentRepository docRepo;
+  late HiveActiveDocumentDataRepository activeRepo;
+  late HiveEngineStateRepository engineStateRepo;
+  late HiveSourcePreferenceRepository sourcePreferenceRepo;
+  late FeedManager mgr;
 
   final engine = MockEngine();
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
-  final docRepo = HiveDocumentRepository();
-  final activeRepo = HiveActiveDocumentDataRepository();
-  final engineStateRepo = HiveEngineStateRepository();
-  final sourcePreferenceRepo = HiveSourcePreferenceRepository();
+
   final availableSources = AvailableSources(
     [AvailableSource(name: 'Example', domain: 'example.com')],
   );
 
-  final mgr = FeedManager(
-    engine,
-    config,
-    docRepo,
-    activeRepo,
-    engineStateRepo,
-    sourcePreferenceRepo,
-    availableSources,
-  );
+  EventHandler.registerHiveAdapters();
 
   group('FeedManager', () {
     late ActiveDocumentData data;
@@ -101,6 +74,23 @@ Future<void> main() async {
     final id = DocumentId();
 
     setUp(() async {
+      final dir = Directory.systemTemp.createTempSync('FeedManager');
+      await EventHandler.initDatabase(dir.path);
+
+      docRepo = HiveDocumentRepository();
+      activeRepo = HiveActiveDocumentDataRepository();
+      engineStateRepo = HiveEngineStateRepository();
+      sourcePreferenceRepo = HiveSourcePreferenceRepository();
+      mgr = FeedManager(
+        engine,
+        config,
+        docRepo,
+        activeRepo,
+        engineStateRepo,
+        sourcePreferenceRepo,
+        availableSources,
+      );
+
       data = ActiveDocumentData(Embedding.fromList([44]));
       final stackId = StackId();
       doc2 = Document(
@@ -128,10 +118,7 @@ Future<void> main() async {
     });
 
     tearDown(() async {
-      await docBox.clear();
-      await activeBox.clear();
-      await stateBox.clear();
-      await sourceBox.clear();
+      await Hive.deleteFromDisk();
     });
 
     test('deactivate documents', () async {
@@ -139,10 +126,10 @@ Future<void> main() async {
       expect(evt is ClientEventSucceeded, isTrue);
 
       // id2 should be removed from active and changed repos
-      expect(activeBox, isEmpty);
+      expect(activeRepo.box, isEmpty);
 
       // id2 should now be deactivated, id3 still inactive
-      expect(docBox, hasLength(2));
+      expect(docRepo.box, hasLength(2));
       final docs = await docRepo.fetchByIds({id2, id3});
       expect(docs, hasLength(2));
       expect(docs[0].isActive, isFalse);
@@ -165,16 +152,16 @@ Future<void> main() async {
       );
 
       // check repositories are updated
-      expect(docBox, hasLength(4));
-      expect(docBox.values, contains(engine.doc0));
-      expect(docBox.values, contains(engine.doc1));
-      expect(activeBox, hasLength(3));
-      expect(activeBox.values, contains(engine.active0));
-      expect(activeBox.values, contains(engine.active1));
+      expect(docRepo.box, hasLength(4));
+      expect(docRepo.box.values, contains(engine.doc0));
+      expect(docRepo.box.values, contains(engine.doc1));
+      expect(activeRepo.box, hasLength(3));
+      expect(activeRepo.box.values, contains(engine.active0));
+      expect(activeRepo.box.values, contains(engine.active1));
 
       // serialize should be called and state saved
       expect(engine.getCallCount('serialize'), equals(1));
-      expect(stateBox.isNotEmpty, isTrue);
+      expect(engineStateRepo.box.isNotEmpty, isTrue);
     });
 
     test('restore feed', () async {
@@ -185,7 +172,7 @@ Future<void> main() async {
       await docRepo.update(engine.doc0..timestamp = later);
       await docRepo.update(engine.doc1..timestamp = earlier);
 
-      expect(docBox, hasLength(4));
+      expect(docRepo.box, hasLength(4));
 
       final evt = await mgr.restoreFeed();
       final feed = evt.whenOrNull(restoreFeedSucceeded: (docs) => docs);
@@ -205,9 +192,28 @@ Future<void> main() async {
   });
 
   group('Source preferences', () {
-    tearDown(() async {
-      await sourceBox.clear();
+    setUp(() async {
+      final dir = Directory.systemTemp.createTempSync('SourcePreferences');
+      await EventHandler.initDatabase(dir.path);
+
+      docRepo = HiveDocumentRepository();
+      activeRepo = HiveActiveDocumentDataRepository();
+      engineStateRepo = HiveEngineStateRepository();
+      sourcePreferenceRepo = HiveSourcePreferenceRepository();
+      mgr = FeedManager(
+        engine,
+        config,
+        docRepo,
+        activeRepo,
+        engineStateRepo,
+        sourcePreferenceRepo,
+        availableSources,
+      );
       engine.resetCallCounter();
+    });
+
+    tearDown(() async {
+      await Hive.deleteFromDisk();
     });
 
     test('addExcludedSource', () async {

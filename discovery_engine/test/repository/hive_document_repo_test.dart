@@ -12,16 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
-import 'package:hive/hive.dart' show Box, Hive;
+import 'dart:io' show Directory;
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show documentBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 
@@ -31,9 +30,9 @@ import '../logging.dart' show setupLogging;
 Future<void> main() async {
   setupLogging();
 
-  group('DocumentRepository', () {
-    late Box<Document> box;
+  group('HiveDocumentRepository', () {
     late HiveDocumentRepository repo;
+
     final stackId = StackId();
     final doc1 = Document(
       documentId: DocumentId(),
@@ -49,15 +48,17 @@ Future<void> main() async {
     );
 
     setUpAll(() async {
-      box = await Hive.openBox<Document>(documentBox, bytes: Uint8List(0));
+      EventHandler.registerHiveAdapters();
     });
 
     setUp(() async {
+      final dir = Directory.systemTemp.createTempSync('HiveDocumentRepository');
+      await EventHandler.initDatabase(dir.path);
       repo = HiveDocumentRepository();
     });
 
     tearDown(() async {
-      await box.clear();
+      await Hive.deleteFromDisk();
 
       // reset test docs
       doc1.isActive = true;
@@ -68,10 +69,10 @@ Future<void> main() async {
 
     group('empty box', () {
       test('add new', () async {
-        expect(box, isEmpty);
+        expect(repo.box, isEmpty);
         await repo.update(doc1);
-        expect(box, hasLength(1));
-        expect(box.values.first, equals(doc1));
+        expect(repo.box, hasLength(1));
+        expect(repo.box.values.first, equals(doc1));
       });
 
       test('fetch all from none', () async {
@@ -88,10 +89,10 @@ Future<void> main() async {
       });
 
       test('add new multiple', () async {
-        expect(box, isEmpty);
+        expect(repo.box, isEmpty);
         await repo.updateMany([doc1, doc2]);
-        expect(box, hasLength(2));
-        expect(box.values, containsAll(<Document>[doc1, doc2]));
+        expect(repo.box, hasLength(2));
+        expect(repo.box.values, containsAll(<Document>[doc1, doc2]));
       });
     });
 
@@ -105,14 +106,14 @@ Future<void> main() async {
 
         await repo.update(doc1..isActive = false);
 
-        expect(box, hasLength(1));
-        expect(box.values.first.isActive, isFalse);
+        expect(repo.box, hasLength(1));
+        expect(repo.box.values.first.isActive, isFalse);
       });
 
       test('add new', () async {
         await repo.update(doc2);
-        expect(box, hasLength(2));
-        expect(box.values, containsAll(<Document>[doc1, doc2]));
+        expect(repo.box, hasLength(2));
+        expect(repo.box.values, containsAll(<Document>[doc1, doc2]));
       });
 
       test('fetch present then absent', () async {
@@ -140,13 +141,13 @@ Future<void> main() async {
       });
 
       test('update existing and add new', () async {
-        expect(box.values.first.isActive, isTrue);
+        expect(repo.box.values.first.isActive, isTrue);
 
         doc1.isActive = false;
         await repo.updateMany([doc1, doc2]);
 
-        expect(box, hasLength(2));
-        expect(box.values, containsAll(<Document>[doc1, doc2]));
+        expect(repo.box, hasLength(2));
+        expect(repo.box.values, containsAll(<Document>[doc1, doc2]));
       });
 
       test('remove documents by ids, keep rest', () async {
@@ -158,11 +159,11 @@ Future<void> main() async {
         );
 
         await repo.updateMany([doc1, doc2, doc3]);
-        expect(box, hasLength(3));
+        expect(repo.box, hasLength(3));
 
         await repo.removeByIds({doc1.documentId, doc3.documentId});
-        expect(box, hasLength(1));
-        expect(box.values, containsAll(<Document>[doc2]));
+        expect(repo.box, hasLength(1));
+        expect(repo.box.values, containsAll(<Document>[doc2]));
       });
     });
   });

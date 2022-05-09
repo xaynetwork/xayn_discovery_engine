@@ -12,10 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Float32List, Uint8List;
+import 'dart:io' show Directory;
+import 'dart:typed_data' show Float32List;
 
-import 'package:hive/hive.dart' show Box, Hive;
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -24,8 +27,6 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show activeDocumentDataBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 
@@ -35,25 +36,24 @@ Future<void> main() async {
   setupLogging();
 
   group('ActiveDocumentDataRepository', () {
-    late Box<ActiveDocumentData> box;
     late HiveActiveDocumentDataRepository repo;
     final data = ActiveDocumentData(Embedding(Float32List(0)));
     final id1 = DocumentId();
     final id2 = DocumentId();
 
     setUpAll(() async {
-      box = await Hive.openBox<ActiveDocumentData>(
-        activeDocumentDataBox,
-        bytes: Uint8List(0),
-      );
+      EventHandler.registerHiveAdapters();
     });
 
-    setUp(() {
+    setUp(() async {
+      final dir =
+          Directory.systemTemp.createTempSync('ActiveDocumentDataRepository');
+      await EventHandler.initDatabase(dir.path);
       repo = HiveActiveDocumentDataRepository();
     });
 
     tearDown(() async {
-      await box.clear();
+      await Hive.deleteFromDisk();
     });
 
     group('empty box', () {
@@ -65,8 +65,8 @@ Future<void> main() async {
         const duration = Duration(seconds: 3);
         data.addViewTime(DocumentViewMode.web, duration);
         await repo.update(id1, data);
-        expect(box, hasLength(1));
-        expect(box.values.first, equals(data));
+        expect(repo.box, hasLength(1));
+        expect(repo.box.values.first, equals(data));
       });
 
       test('fetch none', () async {
@@ -75,7 +75,7 @@ Future<void> main() async {
 
       test('remove by ids', () async {
         await repo.removeByIds([id1]);
-        expect(box.values, isEmpty);
+        expect(repo.box.values, isEmpty);
       });
     });
 
@@ -92,7 +92,7 @@ Future<void> main() async {
       test('smbert embedding of updated existing', () async {
         final embUpdated = Embedding.fromList([9.25]);
         await repo.update(id1, ActiveDocumentData(embUpdated));
-        expect(box, hasLength(1));
+        expect(repo.box, hasLength(1));
         expect(await repo.smbertEmbeddingById(id1), equals(embUpdated));
       });
 
@@ -103,15 +103,15 @@ Future<void> main() async {
 
       test('remove absent then present', () async {
         await repo.removeByIds([id2]);
-        expect(box, hasLength(1));
+        expect(repo.box, hasLength(1));
 
         await repo.removeByIds([id1]);
-        expect(box, isEmpty);
+        expect(repo.box, isEmpty);
       });
 
       test('remove absent and present', () async {
         await repo.removeByIds([id1, id2]);
-        expect(box, isEmpty);
+        expect(repo.box, isEmpty);
       });
     });
   });
