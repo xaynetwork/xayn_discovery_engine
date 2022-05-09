@@ -7,7 +7,7 @@ jobs:
   flutter-analyze:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:91c362e
+      image: xaynetci/yellow:v2
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -24,7 +24,7 @@ jobs:
   flutter-test:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:91c362e
+      image: xaynetci/yellow:v2
     timeout-minutes: 15
     steps:
       - name: Checkout repository
