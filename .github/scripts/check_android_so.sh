@@ -30,7 +30,7 @@ function check_so() {
     fi
 
     if [ "$(readelf --dynamic "$SO_FILE" | grep SONAME)" = "" ]; then
-        error "NO SONAME in: '$SO_FILE'"
+        warn "NO SONAME in: '$SO_FILE'"
     fi
 
     if [ "$OLD_ERROR_COUNT" = "$ERROR_COUNT" ]; then
