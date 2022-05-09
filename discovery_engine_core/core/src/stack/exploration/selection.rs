@@ -33,6 +33,7 @@ pub enum Error {
 }
 
 /// Configurations for the exploration stack.
+#[derive(Debug)]
 pub(crate) struct Config {
     /// The number of candidates.
     number_of_candidates: usize,
@@ -56,7 +57,6 @@ impl Default for Config {
 ///
 /// # Errors
 /// Fails if both positive and negative cois are empty.
-#[allow(dead_code)]
 pub(crate) fn document_selection(
     positive_cois: &[PositiveCoi],
     negative_cois: &[NegativeCoi],

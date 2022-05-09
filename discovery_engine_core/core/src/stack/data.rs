@@ -65,11 +65,7 @@ impl Data {
     /// Retains only the top documents, given how many to keep.
     pub(crate) fn retain_top(&mut self, keep: usize) -> Option<Drain<'_, Document>> {
         let len = self.documents.len();
-        if len > keep {
-            self.documents.drain(..len - keep).into()
-        } else {
-            None
-        }
+        (len > keep).then(move || self.documents.drain(..len - keep))
     }
 }
 

@@ -14,7 +14,6 @@
 
 //! Exploration stack.
 
-use derivative::Derivative;
 use itertools::chain;
 use std::collections::HashSet;
 use uuid::Uuid;
@@ -38,14 +37,15 @@ pub(crate) use self::selection::Error;
 #[derive(Debug)]
 pub(crate) struct Stack {
     pub(crate) data: Data,
+    config: Config,
 }
 
 impl Stack {
     /// Create a new `Stack` with the given [`Data`].
     pub(crate) fn new(data: Data) -> Result<Self, stack::Error> {
         Self::validate_documents_stack_id(&data.documents, Stack::id())?;
-
-        Ok(Self { data })
+        let config = Config::default();
+        Ok(Self { data, config })
     }
 
     /// [`Id`] of this `Stack`.
@@ -73,7 +73,7 @@ impl Stack {
             ranker.positive_cois(),
             ranker.negative_cois(),
             documents,
-            &Config::default(),
+            &self.config,
         )?;
         ranker.rank(&mut items).map_err(stack::Error::Ranking)?;
         self.data.documents = items;

@@ -14,6 +14,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    iter::once,
     mem::replace,
     sync::Arc,
 };
@@ -23,7 +24,7 @@ use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
