@@ -313,7 +313,7 @@ mod tests {
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("not_sources", "dodo.com,dada.net"))
-            .and(query_param("to_rank", "12000"))
+            .and(query_param("to_rank", "9000"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
