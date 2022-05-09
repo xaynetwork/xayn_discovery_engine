@@ -12,31 +12,33 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:io' show Directory;
 import 'dart:typed_data' show Uint8List;
 
-import 'package:hive/hive.dart' show Box, Hive;
+import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show engineStateBox;
+import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
     show HiveEngineStateRepository;
 
 Future<void> main() async {
   group('HiveEngineStateRepository', () {
-    late Box<Uint8List> box;
     late HiveEngineStateRepository repo;
 
     setUpAll(() async {
-      box = await Hive.openBox<Uint8List>(engineStateBox, bytes: Uint8List(0));
+      EventHandler.registerHiveAdapters();
     });
 
     setUp(() async {
+      final dir =
+          Directory.systemTemp.createTempSync('HiveEngineStateRepository');
+      await EventHandler.initDatabase(dir.path);
       repo = HiveEngineStateRepository();
     });
 
     tearDown(() async {
-      await box.clear();
+      await Hive.deleteFromDisk();
     });
 
     group('"load" method', () {
@@ -47,7 +49,7 @@ Future<void> main() async {
       });
 
       test('when the box has some data it will return that data', () async {
-        await box.put(
+        await repo.box.put(
           HiveEngineStateRepository.stateKey,
           Uint8List.fromList([1, 2, 3, 4]),
         );
@@ -62,7 +64,7 @@ Future<void> main() async {
       test('when we save some data it will be present in the box', () async {
         await repo.save(Uint8List.fromList([5, 6, 7, 8]));
 
-        expect(box.values.first, equals(Uint8List.fromList([5, 6, 7, 8])));
+        expect(repo.box.values.first, equals(Uint8List.fromList([5, 6, 7, 8])));
       });
 
       test(
@@ -72,8 +74,8 @@ Future<void> main() async {
         await repo.save(Uint8List.fromList([5, 6, 7, 8]));
         await repo.save(Uint8List.fromList([0, 1, 0, 1]));
 
-        expect(box.values.first, equals(Uint8List.fromList([0, 1, 0, 1])));
-        expect(box.values.length, equals(1));
+        expect(repo.box.values.first, equals(Uint8List.fromList([0, 1, 0, 1])));
+        expect(repo.box.values.length, equals(1));
       });
     });
   });
