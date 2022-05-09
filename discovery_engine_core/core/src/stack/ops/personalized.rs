@@ -74,7 +74,7 @@ impl PersonalizedNews {
         articles: Vec<Article>,
         excluded_sources: &[String],
     ) -> Result<Vec<Article>, GenericError> {
-        let articles = SourcesFilter::apply(articles, &excluded_sources);
+        let articles = SourcesFilter::apply(articles, excluded_sources);
         CommonFilter::apply(history, stack, articles)
     }
 }
