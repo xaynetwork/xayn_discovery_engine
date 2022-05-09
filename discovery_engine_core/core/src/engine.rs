@@ -221,7 +221,16 @@ where
     ) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
-        Self::from_stack_data(config, ranker, history, stack_data, stack_ops, client).await
+        Self::from_stack_data(
+            config,
+            ranker,
+            history,
+            stack_data,
+            StackData::default(),
+            stack_ops,
+            client,
+        )
+        .await
     }
 
     /// Creates a new `Engine` from serialized state and stack operations.
@@ -242,9 +251,21 @@ where
 
         let mut stack_data = bincode::deserialize::<HashMap<StackId, _>>(&state.0)
             .map_err(Error::Deserialization)?;
+        let exploration_stack_data = stack_data
+            .remove(&exploration::Stack::id())
+            .unwrap_or_default();
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
-        Self::from_stack_data(config, ranker, history, stack_data, stack_ops, client).await
+        Self::from_stack_data(
+            config,
+            ranker,
+            history,
+            stack_data,
+            exploration_stack_data,
+            stack_ops,
+            client,
+        )
+        .await
     }
 
     async fn from_stack_data(
@@ -252,6 +273,7 @@ where
         ranker: R,
         history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
+        exploration_stack_data: StackData,
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
     ) -> Result<Self, Error> {
@@ -266,9 +288,8 @@ where
             .map_err(Error::InvalidStack)?;
         let core_config = CoreConfig::default();
 
-        // TODO TY-2756
         let exploration_stack =
-            exploration::Stack::new(StackData::default()).map_err(Error::InvalidStack)?;
+            exploration::Stack::new(exploration_stack_data).map_err(Error::InvalidStack)?;
 
         // we don't want to fail initialization if there are network problems
         let mut engine = Self {
@@ -325,10 +346,12 @@ where
     /// Serializes the state of the `Engine` and `Ranker` state.
     pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
         let stacks = self.stacks.read().await;
-        let stacks_data = stacks
+        let mut stacks_data = stacks
             .iter()
             .map(|(id, stack)| (id, &stack.data))
             .collect::<HashMap<_, _>>();
+        let exploration_stack_id = exploration::Stack::id();
+        stacks_data.insert(&exploration_stack_id, &self.exploration_stack.data);
 
         let engine = bincode::serialize(&stacks_data)
             .map(StackState)
