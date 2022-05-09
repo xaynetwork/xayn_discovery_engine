@@ -7,7 +7,7 @@ jobs:
   cargo-format:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:05fb457
+      image: xaynetci/yellow:91c362e
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -23,7 +23,7 @@ jobs:
   cargo-clippy:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:05fb457
+      image: xaynetci/yellow:91c362e
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -40,7 +40,7 @@ jobs:
   cargo-test:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:05fb457
+      image: xaynetci/yellow:91c362e
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
@@ -59,7 +59,7 @@ jobs:
   cargo-doc:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:05fb457
+      image: xaynetci/yellow:91c362e
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
