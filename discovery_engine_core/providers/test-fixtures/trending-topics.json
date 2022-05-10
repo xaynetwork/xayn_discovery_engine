@@ -2,10 +2,10 @@
   "_type": "TrendingTopics",
   "value": [
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Baby+formula+shortage+40&form=TNSA01&filters=tnTID%3a%22A6BA2BF8-6FD1-489a-8017-CCD9B749ACEA%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%220%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "40% out of stock",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_ildnXqRe3r7p7lENtkUnVg&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -17,13 +17,13 @@
       "query": {
         "text": "Baby formula shortage 40"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Baby+formula+shortage+40&form=TNSA02&filters=tnTID%3a%22A6BA2BF8-6FD1-489a-8017-CCD9B749ACEA%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%220%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=10+vaquitas&form=TNSA01&filters=tnTID%3a%2275F99201-548B-4193-9E88-44B75AB4E14A%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%221%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Only 10 vaquitas left",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_vkweEUy8FwnCf0E1COaXZQ&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -35,13 +35,13 @@
       "query": {
         "text": "10 vaquitas"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=10+vaquitas&form=TNSA02&filters=tnTID%3a%2275F99201-548B-4193-9E88-44B75AB4E14A%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%221%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Ruby+Taverner+homicide&form=TNSA01&filters=tnTID%3a%22A0EFF114-66C8-47c6-B13B-B8DE912ED444%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%222%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Suspect found dead",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_KIqb5Sg1pSvwaQBGPUqtvA&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -53,13 +53,13 @@
       "query": {
         "text": "Ruby Taverner homicide"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Ruby+Taverner+homicide&form=TNSA02&filters=tnTID%3a%22A0EFF114-66C8-47c6-B13B-B8DE912ED444%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%222%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Ecuador+prison+riot&form=TNSA01&filters=tnTID%3a%220FEC33E3-8BAF-43d4-A904-4A5435791517%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%223%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Dozens dead after riot",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_5sgWF8Fej12qv_IAqVL0HA&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -71,13 +71,13 @@
       "query": {
         "text": "Ecuador prison riot"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Ecuador+prison+riot&form=TNSA02&filters=tnTID%3a%220FEC33E3-8BAF-43d4-A904-4A5435791517%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%223%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Keir+Starmer+quit+if+fined&form=TNSA01&filters=tnTID%3a%22B8586E31-E95E-4dce-B036-FF343C8A87D5%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%224%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Will quit if fined",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_yp7A8eS-ZK2e9-Y0Jp-l_Q&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -89,13 +89,13 @@
       "query": {
         "text": "Keir Starmer quit if fined"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Keir+Starmer+quit+if+fined&form=TNSA02&filters=tnTID%3a%22B8586E31-E95E-4dce-B036-FF343C8A87D5%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%224%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Biden+signs+Ukraine+bill&form=TNSA01&filters=tnTID%3a%2276FF2C16-7B25-4aaf-9038-A7BDC9FEE6F3%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%225%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Expedites military aid",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_tnMboDo1g1CWsszx7Semgw&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -107,13 +107,13 @@
       "query": {
         "text": "Biden signs Ukraine bill"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Biden+signs+Ukraine+bill&form=TNSA02&filters=tnTID%3a%2276FF2C16-7B25-4aaf-9038-A7BDC9FEE6F3%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%225%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Britney+Spears+wedding+date&form=TNSA01&filters=tnTID%3a%2237FF92B3-963E-410f-B84F-306FB66ABCB1%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%226%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Keeping date a secret",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_TW7ZSmnvhG8S7jassXys7g&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -125,13 +125,13 @@
       "query": {
         "text": "Britney Spears wedding date"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Britney+Spears+wedding+date&form=TNSA02&filters=tnTID%3a%2237FF92B3-963E-410f-B84F-306FB66ABCB1%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%226%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Eviction+protection+program+doubles&form=TNSA01&filters=tnTID%3a%22360956EB-0D11-4f41-B9EC-C926795DD15D%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%227%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Eviction help doubled",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_S6u9sdj9Xl7EeJGR2xPSkg&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -143,13 +143,13 @@
       "query": {
         "text": "Eviction protection program doubles"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Eviction+protection+program+doubles&form=TNSA02&filters=tnTID%3a%22360956EB-0D11-4f41-B9EC-C926795DD15D%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%227%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Dennis+Waterman+actor&form=TNSA01&filters=tnTID%3a%2216860F98-7CE9-4bea-8A51-5E6B58D16C4D%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%228%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "English actor-singer",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_5yOZUlwXzxYa9i_rXVudOw&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -161,13 +161,13 @@
       "query": {
         "text": "Dennis Waterman actor"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Dennis+Waterman+actor&form=TNSA02&filters=tnTID%3a%2216860F98-7CE9-4bea-8A51-5E6B58D16C4D%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%228%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Monty+Williams+coach+of+the+year&form=TNSA01&filters=tnTID%3a%22E2EE16AB-1E87-4f35-8CC9-FDA029A1C175%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%229%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "NBA Coach of the Year",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_lQGwlSBPWTFw6BouLEfBJA&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -179,13 +179,13 @@
       "query": {
         "text": "Monty Williams coach of the year"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Monty+Williams+coach+of+the+year&form=TNSA02&filters=tnTID%3a%22E2EE16AB-1E87-4f35-8CC9-FDA029A1C175%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%229%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Warhol+Marilyn+portrait+auction&form=TNSA01&filters=tnTID%3a%2205EC83D6-E3E3-4496-A1AC-57A20E84BA2F%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2210%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Portrait fetches $195M",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_ChecARDYhpKST_OuBPsdhQ&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -197,13 +197,13 @@
       "query": {
         "text": "Warhol Marilyn portrait auction"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Warhol+Marilyn+portrait+auction&form=TNSA02&filters=tnTID%3a%2205EC83D6-E3E3-4496-A1AC-57A20E84BA2F%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2210%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Xbox+streaming+stick&form=TNSA01&filters=tnTID%3a%22C2DD71DD-9CD3-4226-ACC5-04460409528B%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2211%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Xbox streaming stick",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_JCJo8uYTiqBiO0K4IcXT3g&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -215,13 +215,13 @@
       "query": {
         "text": "Xbox streaming stick"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Xbox+streaming+stick&form=TNSA02&filters=tnTID%3a%22C2DD71DD-9CD3-4226-ACC5-04460409528B%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2211%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Zhoushan+blood+red+sky&form=TNSA01&filters=tnTID%3a%2294B38DED-92CC-4c25-9641-1CFB754C3DA7%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2212%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Blood red sky in China",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_8q7OMwpNNIM6dXzWNb3eBw&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -233,13 +233,13 @@
       "query": {
         "text": "Zhoushan blood red sky"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Zhoushan+blood+red+sky&form=TNSA02&filters=tnTID%3a%2294B38DED-92CC-4c25-9641-1CFB754C3DA7%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2212%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Ginsburg+items+auction&form=TNSA01&filters=tnTID%3a%22AFC9DB1F-1C2C-4c48-9AB7-A248045B27B3%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2213%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Items raise $800K",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_SZAzAPdvi_fUWheOJrQcPw&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -251,13 +251,13 @@
       "query": {
         "text": "Ginsburg items auction"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Ginsburg+items+auction&form=TNSA02&filters=tnTID%3a%22AFC9DB1F-1C2C-4c48-9AB7-A248045B27B3%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2213%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Casey+Vicky+White&form=TNSA01&filters=tnTID%3a%22F15C46F1-F548-44d9-9D7C-64BFE44015CE%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2214%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Manhunt ends in Ind.",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_AtccE5BT9O-mpbQqhIsY8A&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -269,13 +269,13 @@
       "query": {
         "text": "Casey Vicky White"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Casey+Vicky+White&form=TNSA02&filters=tnTID%3a%22F15C46F1-F548-44d9-9D7C-64BFE44015CE%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2214%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=White+House+Supreme+Court+protests&form=TNSA01&filters=tnTID%3a%229AFE5901-B454-4224-952A-6952F9983498%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2215%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Protest warning issued",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_nNORY6SeLJGj2jd5CyLrCA&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -287,13 +287,13 @@
       "query": {
         "text": "White House Supreme Court protests"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=White+House+Supreme+Court+protests&form=TNSA02&filters=tnTID%3a%229AFE5901-B454-4224-952A-6952F9983498%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2215%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Susan+Rice+positive&form=TNSA01&filters=tnTID%3a%2248276414-5E9B-4415-8730-BDA733E91A93%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2216%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Adviser tests positive",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_dMGH5GEXJsSgTYPTSjnX8g&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -305,13 +305,13 @@
       "query": {
         "text": "Susan Rice positive"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Susan+Rice+positive&form=TNSA02&filters=tnTID%3a%2248276414-5E9B-4415-8730-BDA733E91A93%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2216%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Hyundai+Georgia+electric+vehicle+plant&form=TNSA01&filters=tnTID%3a%2276BEEB7F-0B6F-44c2-9D52-2452334A7EB2%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2217%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "EV plant in Georgia?",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_pGvRkBab84J0uo-ZfXB6AQ&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -323,13 +323,13 @@
       "query": {
         "text": "Hyundai Georgia electric vehicle plant"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Hyundai+Georgia+electric+vehicle+plant&form=TNSA02&filters=tnTID%3a%2276BEEB7F-0B6F-44c2-9D52-2452334A7EB2%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2217%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Marcos+Jr.+Philippines&form=TNSA01&filters=tnTID%3a%223651C7CA-2C72-442f-84C3-6C367E8A1D6D%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2218%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Landslide victory",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_fnkRgETm_Yv5VAhPPCwo5w&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -341,13 +341,13 @@
       "query": {
         "text": "Marcos Jr. Philippines"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Marcos+Jr.+Philippines&form=TNSA02&filters=tnTID%3a%223651C7CA-2C72-442f-84C3-6C367E8A1D6D%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2218%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=2022+Pulitzer+winners&form=TNSA01&filters=tnTID%3a%224ED72423-DF72-4bd5-99B5-2B1C1E059510%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2219%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "2022 Pulitzer winners",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_DzGlOrI-6FPrjfVw567rYg&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -359,13 +359,13 @@
       "query": {
         "text": "2022 Pulitzer winners"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=2022+Pulitzer+winners&form=TNSA02&filters=tnTID%3a%224ED72423-DF72-4bd5-99B5-2B1C1E059510%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2219%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Ashley+Nissenberg+dead&form=TNSA01&filters=tnTID%3a%2285E988E5-8C8B-41c1-AF41-BE1E509A62C6%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2220%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Hollywood attorney",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_Z-kztWGqlyfiLZn7Y1LJJw&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -377,13 +377,13 @@
       "query": {
         "text": "Ashley Nissenberg dead"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Ashley+Nissenberg+dead&form=TNSA02&filters=tnTID%3a%2285E988E5-8C8B-41c1-AF41-BE1E509A62C6%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2220%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Victoria+Woodhull&form=TNSA01&filters=tnTID%3a%227E2710AB-3355-4045-A7BE-A77B1EE1475B%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2221%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Today in history: 1872",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_dYvvPvSl8q28Qy5GIXDKaQ&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -395,13 +395,13 @@
       "query": {
         "text": "Victoria Woodhull"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Victoria+Woodhull&form=TNSA02&filters=tnTID%3a%227E2710AB-3355-4045-A7BE-A77B1EE1475B%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2221%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Soros+Stacey+Abrams+donation&form=TNSA01&filters=tnTID%3a%22C49DFA04-F4A5-4785-B35E-0C512DAE81FC%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2222%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Soros donates $1M",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_AqIPokW5BxZZE-aFTl2JpA&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -413,13 +413,13 @@
       "query": {
         "text": "Soros Stacey Abrams donation"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Soros+Stacey+Abrams+donation&form=TNSA02&filters=tnTID%3a%22C49DFA04-F4A5-4785-B35E-0C512DAE81FC%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2222%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=Mars+claw+marks&form=TNSA01&filters=tnTID%3a%22A8553997-3973-4e25-ACF4-2B5ADE843726%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2223%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Puzzling ‘claw marks’",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_V-C09ckuMOzkN161gZLAhw&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -431,13 +431,13 @@
       "query": {
         "text": "Mars claw marks"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=Mars+claw+marks&form=TNSA02&filters=tnTID%3a%22A8553997-3973-4e25-ACF4-2B5ADE843726%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2223%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     },
     {
-      "webSearchUrl": "https:\/\/www.bing.com\/search?q=July+4+drone+fire+threat&form=TNSA01&filters=tnTID%3a%22703BF551-BA2D-455c-A78A-F7C4D71CDC07%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2224%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22",
+      "webSearchUrl": "https://example.com/search?q=example",
       "name": "Fireworks alternative",
       "image": {
-        "url": "https:\/\/www.bing.com\/th?id=OPN.RTNews_OpPgBJXmBBTROFTQ3cFlRQ&c=14&rs=2&qlt=80&pcl=f9f9f9&pid=News",
+        "url": "https://example.com/image.jpg",
         "provider": [
           {
             "_type": "Organization",
@@ -449,7 +449,7 @@
       "query": {
         "text": "July 4 drone fire threat"
       },
-      "newsSearchUrl": "https:\/\/www.bing.com\/news\/search?q=July+4+drone+fire+threat&form=TNSA02&filters=tnTID%3a%22703BF551-BA2D-455c-A78A-F7C4D71CDC07%22+tnVersion%3a%224569133%22+Segment%3a%22popularnow.carousel%22+tnCol%3a%2224%22+tnScenario%3a%22TrendingTopicsAPI%22+tnOrder%3a%22b0c91862-e0b2-41fc-b45a-2249b7a044dc%22"
+      "newsSearchUrl": "https://example.com/search?q=example+news"
     }
   ]
 }
