@@ -333,6 +333,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_normalized_distance() {
         fn new_doc(smbert_embedding: Embedding, secs: i64) -> Document {
             Document {
