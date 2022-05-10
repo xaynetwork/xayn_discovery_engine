@@ -166,10 +166,7 @@ impl<N> Encoding<N> {
 
     /// Gets the number of combined sequences.
     pub fn sequences_len(&self) -> usize {
-        self.sequence_ranges
-            .as_ref()
-            .map(|sequence_ranges| sequence_ranges.len())
-            .unwrap_or(1)
+        self.sequence_ranges.as_ref().map_or(1, HashMap::len)
     }
 
     /// Gets the ids.
@@ -213,6 +210,7 @@ impl<N> Encoding<N> {
     }
 
     /// Merges with another encoding.
+    #[must_use]
     pub fn merge_with(mut self, other: Encoding<N>, growing_offsets: bool) -> Self
     where
         N: Copy,

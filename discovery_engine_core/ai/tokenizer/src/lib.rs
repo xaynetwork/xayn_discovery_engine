@@ -27,11 +27,24 @@
 //! - A padding strategy.
 //!
 //! ```no_run
-//! use xayn_discovery_engine_tokenizer::{Builder, Padding, Truncation};
+//! use xayn_discovery_engine_tokenizer::{
+//!     AccentChars,
+//!     Builder,
+//!     CaseChars,
+//!     ChineseChars,
+//!     ControlChars,
+//!     Padding,
+//!     Truncation,
+//! };
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let tokenizer = Builder::<u32>::from_file("vocab.txt")?
-//!         .with_normalizer(true, true, false, true)
+//!         .with_normalizer(
+//!             ControlChars::Cleanse,
+//!             ChineseChars::Separate,
+//!             AccentChars::Cleanse,
+//!             CaseChars::Lower,
+//!         )
 //!         .with_model("[UNK]", "##", 100)
 //!         .with_post_tokenizer("[CLS]", "[SEP]")
 //!         .with_truncation(Truncation::fixed(128, 0))
@@ -50,6 +63,13 @@
 //! [`FromPrimitive`]: num_traits::FromPrimitive
 
 #![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
+#![deny(clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions,
+    clippy::items_after_statements
+)]
 
 mod builder;
 mod model;
@@ -61,7 +81,7 @@ mod tokenizer;
 pub use crate::{
     builder::{Builder, BuilderError},
     model::ModelError,
-    normalizer::string::Offsets,
+    normalizer::{string::Offsets, AccentChars, CaseChars, ChineseChars, ControlChars},
     post_tokenizer::{
         encoding::Encoding,
         padding::{Padding, PaddingError},

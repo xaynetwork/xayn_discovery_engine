@@ -3399,6 +3399,7 @@ dependencies = [
  "xayn-ai",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
+ "xayn-discovery-engine-tokenizer",
 ]
 
 [[package]]

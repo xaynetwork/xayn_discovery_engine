@@ -27,6 +27,7 @@ use rubert::{
     Pipeline,
 };
 use xayn_discovery_engine_test_utils::{qambert, smbert};
+use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 const BATCH_SIZE: usize = 16;
 const TOKEN_SIZE: usize = 64;
@@ -43,8 +44,8 @@ macro_rules! mbert {
     ($kind:ty, $vocab:expr, $model:expr $(,)?) => {{
         let config = Config::<$kind, _>::from_files($vocab.unwrap(), $model.unwrap())
             .unwrap()
-            .with_accents(false)
-            .with_lowercase(true)
+            .with_accents(AccentChars::Cleanse)
+            .with_case(CaseChars::Lower)
             .with_token_size(TOKEN_SIZE)
             .unwrap()
             .with_pooling(AveragePooler);

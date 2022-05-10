@@ -114,6 +114,7 @@ where
                 .map(|encoding| self.post_tokenize(encoding))
                 .collect()
         });
+        #[allow(clippy::range_plus_one)] // type mismatch
         let sequence_ranges = Some(once((0, 1..len + 1)).collect());
 
         Encoding {

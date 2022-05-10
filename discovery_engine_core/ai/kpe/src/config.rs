@@ -22,6 +22,7 @@ use displaydoc::Display;
 use thiserror::Error;
 
 use crate::model::bert::Bert;
+use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[derive(Debug, Display, Error)]
 pub enum ConfigError {
@@ -40,8 +41,8 @@ pub struct Config<'a> {
     pub(crate) model: Box<dyn Read + Send + 'a>,
     pub(crate) cnn: Box<dyn Read + Send + 'a>,
     pub(crate) classifier: Box<dyn Read + Send + 'a>,
-    pub(crate) accents: bool,
-    pub(crate) lowercase: bool,
+    pub(crate) accents: AccentChars,
+    pub(crate) case: CaseChars,
     pub(crate) token_size: usize,
     pub(crate) key_phrase_max_count: Option<usize>,
     pub(crate) key_phrase_min_score: Option<f32>,
@@ -59,8 +60,8 @@ impl<'a> Config<'a> {
             model,
             cnn,
             classifier,
-            accents: false,
-            lowercase: true,
+            accents: AccentChars::Cleanse,
+            case: CaseChars::Lower,
             token_size: *Bert::TOKEN_RANGE.end(),
             key_phrase_max_count: None,
             key_phrase_min_score: None,
@@ -82,17 +83,17 @@ impl<'a> Config<'a> {
 
     /// Whether the tokenizer keeps accents.
     ///
-    /// Defaults to `false`.
-    pub fn with_accents(mut self, accents: bool) -> Self {
+    /// Defaults to `AccentChars::Cleanse`.
+    pub fn with_accents(mut self, accents: AccentChars) -> Self {
         self.accents = accents;
         self
     }
 
     /// Whether the tokenizer lowercases.
     ///
-    /// Defaults to `true`.
-    pub fn with_lowercase(mut self, lowercase: bool) -> Self {
-        self.lowercase = lowercase;
+    /// Defaults to `CaseChars::Lower`.
+    pub fn with_case(mut self, case: CaseChars) -> Self {
+        self.case = case;
         self
     }
 

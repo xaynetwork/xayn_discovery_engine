@@ -51,7 +51,7 @@ impl Pipeline {
         let tokenizer = Tokenizer::new(
             config.vocab,
             config.accents,
-            config.lowercase,
+            config.case,
             config.token_size,
             config.key_phrase_max_count,
             config.key_phrase_min_score,
@@ -85,6 +85,7 @@ mod tests {
     use std::{collections::HashSet, error::Error};
 
     use xayn_discovery_engine_test_utils::kpe::{bert, classifier, cnn, vocab};
+    use xayn_discovery_engine_tokenizer::CaseChars;
 
     use super::*;
 
@@ -92,7 +93,7 @@ mod tests {
     fn test_run_unique() -> Result<(), Box<dyn Error>> {
         let config = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
             .with_token_size(8)?
-            .with_lowercase(false);
+            .with_case(CaseChars::Keep);
 
         let actual = Pipeline::from(config)?
             .run("A b c d e.")?
@@ -127,7 +128,7 @@ mod tests {
     fn test_run_duplicate() -> Result<(), Box<dyn Error>> {
         let config = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
             .with_token_size(7)?
-            .with_lowercase(false);
+            .with_case(CaseChars::Keep);
 
         let actual = Pipeline::from(config)?
             .run("A a A a A")?

@@ -36,7 +36,11 @@ use rubert::{
 };
 use xayn_discovery_engine_test_utils::{example::validate::transcripts, smbert};
 use xayn_discovery_engine_tokenizer::{
+    AccentChars,
     Builder as TokenizerBuilder,
+    CaseChars,
+    ChineseChars,
+    ControlChars,
     Padding,
     Tokenizer,
     Truncation,
@@ -45,8 +49,8 @@ use xayn_discovery_engine_tokenizer::{
 fn main() {
     ValidatorConfig {
         tokenizer: TokenizerConfig {
-            accents: false,
-            lowercase: true,
+            accents: AccentChars::Cleanse,
+            case: CaseChars::Lower,
             token_size: 90,
         },
         source: ModelConfig {
@@ -83,9 +87,9 @@ enum ModelKind {
 /// Tokenizer configurations.
 struct TokenizerConfig {
     /// Whether to keep the accents on characters.
-    accents: bool,
+    accents: AccentChars,
     /// Whether to lowercase words.
-    lowercase: bool,
+    case: CaseChars,
     /// The number of tokens for truncation/padding.
     token_size: usize,
 }
@@ -150,7 +154,12 @@ impl Pipeline {
             ModelKind::OnnxMBert => {
                 let tokenizer = TokenizerBuilder::from_file(model.vocab.as_path())
                     .unwrap()
-                    .with_normalizer(true, false, tokenizer.accents, tokenizer.lowercase)
+                    .with_normalizer(
+                        ControlChars::Cleanse,
+                        ChineseChars::Keep,
+                        tokenizer.accents,
+                        tokenizer.case,
+                    )
                     .with_model("[UNK]", "##", 100)
                     .with_post_tokenizer("[CLS]", "[SEP]")
                     .with_truncation(Truncation::fixed(tokenizer.token_size, 0))
@@ -185,7 +194,7 @@ impl Pipeline {
                 let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
                     .unwrap()
                     .with_accents(tokenizer.accents)
-                    .with_lowercase(tokenizer.lowercase)
+                    .with_case(tokenizer.case)
                     .with_token_size(tokenizer.token_size)
                     .unwrap()
                     .with_pooling(NonePooler);
@@ -196,7 +205,7 @@ impl Pipeline {
                 let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
                     .unwrap()
                     .with_accents(tokenizer.accents)
-                    .with_lowercase(tokenizer.lowercase)
+                    .with_case(tokenizer.case)
                     .with_token_size(tokenizer.token_size)
                     .unwrap()
                     .with_pooling(NonePooler);

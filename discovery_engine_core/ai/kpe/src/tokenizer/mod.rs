@@ -20,8 +20,12 @@ use std::io::BufRead;
 use displaydoc::Display;
 use thiserror::Error;
 use xayn_discovery_engine_tokenizer::{
+    AccentChars,
     Builder,
     BuilderError,
+    CaseChars,
+    ChineseChars,
+    ControlChars,
     Padding,
     Tokenizer as BertTokenizer,
     Truncation,
@@ -53,14 +57,14 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
     /// threshold for the scores of returned key phrases.
     pub fn new(
         vocab: impl BufRead,
-        accents: bool,
-        lowercase: bool,
+        accents: AccentChars,
+        case: CaseChars,
         token_size: usize,
         key_phrase_max_count: Option<usize>,
         key_phrase_min_score: Option<f32>,
     ) -> Result<Self, TokenizerError> {
         let tokenizer = Builder::new(vocab)?
-            .with_normalizer(true, false, accents, lowercase)
+            .with_normalizer(ControlChars::Cleanse, ChineseChars::Keep, accents, case)
             .with_model("[UNK]", "##", 100)
             .with_post_tokenizer("[CLS]", "[SEP]")
             .with_truncation(Truncation::fixed(token_size, 0))
