@@ -18,7 +18,7 @@ use derive_more::{Deref, From};
 use ndarray::{Array1, Array2, Axis};
 
 use crate::tokenizer::{key_phrase::KeyPhrases, Tokenizer};
-use rubert_tokenizer::{Encoding as BertEncoding, Offsets};
+use xayn_discovery_engine_tokenizer::{Encoding as BertEncoding, Offsets};
 
 /// The token ids of the encoded sequence.
 ///

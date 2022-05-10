@@ -16,10 +16,15 @@ use std::io::BufRead;
 
 use derive_more::{Deref, From};
 use displaydoc::Display;
-use rubert_tokenizer::{Builder, BuilderError, Padding, Tokenizer as BertTokenizer, Truncation};
-use thiserror::Error;
-
 use ndarray::{Array1, Array2, Axis};
+use thiserror::Error;
+use xayn_discovery_engine_tokenizer::{
+    Builder,
+    BuilderError,
+    Padding,
+    Tokenizer as BertTokenizer,
+    Truncation,
+};
 
 /// A pre-configured Bert tokenizer.
 #[derive(Debug)]
@@ -107,8 +112,8 @@ mod tests {
     use ndarray::ArrayView;
     use std::{fs::File, io::BufReader};
 
-    use rubert_tokenizer::{ModelError, PaddingError, PostTokenizerError};
     use xayn_discovery_engine_test_utils::smbert::vocab;
+    use xayn_discovery_engine_tokenizer::{ModelError, PaddingError, PostTokenizerError};
 
     use super::*;
 

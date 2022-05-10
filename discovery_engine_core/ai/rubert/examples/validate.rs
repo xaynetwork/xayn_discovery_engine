@@ -34,8 +34,13 @@ use rubert::{
     Embedding2,
     NonePooler,
 };
-use rubert_tokenizer::{Builder as TokenizerBuilder, Padding, Tokenizer, Truncation};
 use xayn_discovery_engine_test_utils::{example::validate::transcripts, smbert};
+use xayn_discovery_engine_tokenizer::{
+    Builder as TokenizerBuilder,
+    Padding,
+    Tokenizer,
+    Truncation,
+};
 
 fn main() {
     ValidatorConfig {

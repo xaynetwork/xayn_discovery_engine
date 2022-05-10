@@ -1195,11 +1195,11 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "ndarray",
- "rubert-tokenizer",
  "thiserror",
  "tract-onnx",
  "xayn-discovery-engine-layer",
  "xayn-discovery-engine-test-utils",
+ "xayn-discovery-engine-tokenizer",
 ]
 
 [[package]]
@@ -2171,25 +2171,11 @@ dependencies = [
  "ndarray",
  "onnxruntime",
  "rayon",
- "rubert-tokenizer",
  "serde",
  "thiserror",
  "tract-onnx",
  "xayn-discovery-engine-test-utils",
-]
-
-[[package]]
-name = "rubert-tokenizer"
-version = "0.1.0"
-dependencies = [
- "displaydoc",
- "num-traits",
- "regex",
- "regex-syntax",
- "smallstr",
- "thiserror",
- "unicode-normalization-alignments",
- "unicode_categories",
+ "xayn-discovery-engine-tokenizer",
 ]
 
 [[package]]
@@ -3459,6 +3445,20 @@ dependencies = [
  "serde",
  "serde_json",
  "uuid",
+]
+
+[[package]]
+name = "xayn-discovery-engine-tokenizer"
+version = "0.1.0"
+dependencies = [
+ "displaydoc",
+ "num-traits",
+ "regex",
+ "regex-syntax",
+ "smallstr",
+ "thiserror",
+ "unicode-normalization-alignments",
+ "unicode_categories",
 ]
 
 [[package]]

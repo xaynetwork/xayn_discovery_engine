@@ -18,8 +18,14 @@ pub mod key_phrase;
 use std::io::BufRead;
 
 use displaydoc::Display;
-use rubert_tokenizer::{Builder, BuilderError, Padding, Tokenizer as BertTokenizer, Truncation};
 use thiserror::Error;
+use xayn_discovery_engine_tokenizer::{
+    Builder,
+    BuilderError,
+    Padding,
+    Tokenizer as BertTokenizer,
+    Truncation,
+};
 
 /// A pre-configured Bert tokenizer for key phrase extraction.
 #[derive(Debug)]
