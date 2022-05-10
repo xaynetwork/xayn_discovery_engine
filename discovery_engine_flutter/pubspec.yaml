@@ -12,10 +12,11 @@ dependencies:
   flutter:
     sdk: flutter
   xayn_discovery_engine:
-    git:
-      url: https://gitlab.com/xayn/xayn_discovery_engine_release
-      ref: change_me_to_commit_ref
-      path: discovery_engine
+    path: "../discovery_engine"
+    #    git:
+    #  url: https://gitlab.com/xayn/xayn_discovery_engine_release
+    #  ref: change_me_to_commit_ref
+    #  path: discovery_engine
 
 dev_dependencies:
   flutter_test:
