@@ -12,15 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:io' show Directory;
+import 'dart:io' show Directory, File;
 
 import 'package:test/test.dart';
 
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
-        DiscoveryEngine,
         AvailableSourcesListRequestFailed,
-        AvailableSourcesListRequestSucceeded;
+        AvailableSourcesListRequestSucceeded,
+        DiscoveryEngine;
+import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
+    show AssetType, kAssetsPath;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -53,12 +55,17 @@ void main() {
         emitsInOrder(<Matcher>[isA<AvailableSourcesListRequestSucceeded>()]),
       );
       final response = await engine.getAvailableSourcesList('');
+      final lines = await File(
+        '${data.applicationDirectoryPath}/$kAssetsPath/${data.manifest.assets.firstWhere(
+              (asset) => asset.id == AssetType.availableSources,
+            ).urlSuffix}',
+      ).readAsLines();
       expect(response, isA<AvailableSourcesListRequestSucceeded>());
       expect(
         (response as AvailableSourcesListRequestSucceeded)
             .availableSources
             .length,
-        equals(27221),
+        equals(lines.length),
       );
     });
 
@@ -81,7 +88,7 @@ void main() {
       expect(response, isA<AvailableSourcesListRequestSucceeded>());
       final availableSources =
           (response as AvailableSourcesListRequestSucceeded).availableSources;
-      expect(availableSources.length, equals(4));
+      expect(availableSources, isNotEmpty);
       for (final availableSource in availableSources) {
         expect(availableSource.name.toLowerCase(), contains(fuzzySearchTerm));
       }
