@@ -30,8 +30,7 @@ function check_so() {
     fi
 
     if [ "$(readelf --dynamic "$SO_FILE" | grep SONAME)" = "" ]; then
-        warn "AUTO-FIXED: NO SONAME in: '$SO_FILE'"
-        patchelf --set-soname "$(basename "$SO_FILE")" "$SO_FILE"
+        warn "NO SONAME in: '$SO_FILE'"
     fi
 
     if [ "$OLD_ERROR_COUNT" = "$ERROR_COUNT" ]; then
