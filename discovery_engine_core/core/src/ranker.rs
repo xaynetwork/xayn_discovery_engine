@@ -36,6 +36,9 @@ pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
     fn rank(&mut self, items: &mut [Document]) -> Result<(), GenericError>;
 
+    /// Performs the ranking of [`TrendTopic`] items.
+    fn rank_topics(&mut self, items: &mut [TrendTopic]) -> Result<(), GenericError>;
+
     /// Logs the time a user spent on a document.
     fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError>;
 
@@ -63,6 +66,10 @@ pub trait Ranker {
 
 impl Ranker for xayn_ai::ranker::Ranker {
     fn rank(&mut self, items: &mut [Document]) -> Result<(), GenericError> {
+        self.rank(items).map_err(Into::into)
+    }
+
+    fn rank_topics(&mut self, items: &mut [TrendTopic]) -> Result<(), GenericError> {
         self.rank(items).map_err(Into::into)
     }
 
