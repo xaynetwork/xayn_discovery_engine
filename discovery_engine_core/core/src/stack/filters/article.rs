@@ -224,9 +224,10 @@ mod tests {
 
     #[test]
     fn test_filter_sources() {
-        let articles: Vec<Article> =
-            serde_json::from_str(include_str!("../../../test-fixtures/articles-valid.json"))
-                .unwrap();
+        let articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-valid.json"),
+        )
+        .unwrap();
         assert_eq!(articles.len(), 4);
 
         // all 4 articles have source domain example.com

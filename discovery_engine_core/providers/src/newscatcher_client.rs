@@ -85,6 +85,10 @@ pub struct NewsQuery<'a, F> {
     pub common: CommonQueryParts<'a>,
     /// News filter.
     pub filter: F,
+    /// Starting point in time from which to start the search.
+    /// The format is YYYY/mm/dd. Default timezone is UTC.
+    /// Defaults to the last week.
+    pub from: Option<String>,
 }
 
 impl<F> NewscatcherQuery for NewsQuery<'_, F>
@@ -98,6 +102,10 @@ where
         query
             .append_pair("sort_by", "relevancy")
             .append_pair("q", &self.filter.build());
+
+        if let Some(from) = &self.from {
+            query.append_pair("from", from);
+        }
 
         Ok(())
     }
@@ -130,7 +138,9 @@ impl NewscatcherQuery for HeadlinesQuery<'_> {
         if let Some(topic) = self.topic {
             query.append_pair("topic", topic);
         }
-
+        if let Some(when) = self.when {
+            query.append_pair("when", when);
+        }
         Ok(())
     }
 }
@@ -255,6 +265,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
+            from: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -304,6 +315,7 @@ mod tests {
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
             },
             filter,
+            from: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -352,6 +364,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
+            from: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
