@@ -1008,7 +1008,7 @@ mod tests {
         // To test de-duplication we don't really need any ranking, so this
         // this is essentially a no-op ranker.
         let mut ranker = ranker::MockRanker::new();
-        ranker.expect_rank().returning(|_| Ok(()));
+        ranker.expect_rank().returning(|_: &mut [Document]| Ok(()));
         ranker.expect_take_key_phrases().returning(|_, _| vec![]);
         ranker.expect_compute_smbert().returning(|_| {
             let embedding: Embedding = [0.0].into();

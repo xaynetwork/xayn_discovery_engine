@@ -23,7 +23,7 @@ use xayn_ai::{
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    document::{Document, Id, TimeSpent, UserReacted, UserReaction},
+    document::{Document, Id, TimeSpent, TrendingTopic, UserReacted, UserReaction},
     engine::GenericError,
 };
 
@@ -34,7 +34,9 @@ use mockall::automock;
 #[cfg_attr(test, automock)]
 pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
-    fn rank(&mut self, items: &mut [Document]) -> Result<(), GenericError>;
+    fn rank<T>(&mut self, items: &mut [T]) -> Result<(), GenericError>
+    where
+        T: xayn_ai::ranker::Document + 'static;
 
     /// Logs the time a user spent on a document.
     fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError>;
@@ -62,7 +64,10 @@ pub trait Ranker {
 }
 
 impl Ranker for xayn_ai::ranker::Ranker {
-    fn rank(&mut self, items: &mut [Document]) -> Result<(), GenericError> {
+    fn rank<T>(&mut self, items: &mut [T]) -> Result<(), GenericError>
+    where
+        T: xayn_ai::ranker::Document + 'static,
+    {
         self.rank(items).map_err(Into::into)
     }
 
@@ -121,6 +126,21 @@ impl xayn_ai::ranker::Document for Document {
 
     fn date_published(&self) -> NaiveDateTime {
         self.resource.date_published
+    }
+}
+
+impl xayn_ai::ranker::Document for TrendingTopic {
+    fn id(&self) -> DocumentId {
+        self.id.into()
+    }
+
+    fn smbert_embedding(&self) -> &Embedding {
+        &self.smbert_embedding
+    }
+
+    fn date_published(&self) -> NaiveDateTime {
+        // return a default value as there is no `date_published` for trending topics
+        chrono::naive::MIN_DATETIME
     }
 }
 

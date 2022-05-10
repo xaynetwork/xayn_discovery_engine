@@ -238,6 +238,20 @@ pub struct HistoricDocument {
     pub title: String,
 }
 
+/// A trending topic.
+pub struct TrendingTopic {
+    /// Id of the topic.
+    pub id: Id,
+    /// Precomputed S-mBert of the topic.
+    pub smbert_embedding: Embedding,
+    /// Title of the topic.
+    pub name: String,
+    /// Query term that returns this topic.
+    pub query: String,
+    /// Link to a related image.
+    pub image: Option<Url>,
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
