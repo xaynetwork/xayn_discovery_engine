@@ -44,9 +44,7 @@ abstract class SetupData with EquatableMixin {
         availableSources,
       ];
 
-  Future<AvailableSources> getAvailableSources() {
-    throw UnsupportedError('Unsupported plattform.');
-  }
+  Future<AvailableSources> getAvailableSources();
 }
 
 /// Reads the assets manifest and provides the [SetupData] to further use.
@@ -54,9 +52,7 @@ abstract class DataProvider {
   AssetFetcher get assetFetcher;
   AssetReporter get assetReporter;
 
-  Future<SetupData> getSetupData(Manifest manifest) {
-    throw UnsupportedError('Unsupported platform.');
-  }
+  Future<SetupData> getSetupData(Manifest manifest);
 
   static String joinPaths(List<String> paths) {
     return paths.where((e) => e.isNotEmpty).join('/');

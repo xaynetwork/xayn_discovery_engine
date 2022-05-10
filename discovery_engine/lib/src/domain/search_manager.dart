@@ -89,8 +89,6 @@ class SearchManager {
           search.pageSize,
         );
         break;
-      default:
-        throw UnsupportedError('Unknown SearchBy value');
     }
 
     await _engineStateRepo.save(await _engine.serialize());
