@@ -36,7 +36,7 @@ mod newscatcher_client;
 mod utils;
 
 pub use client::{Article, Client, Error};
-pub use gnews_client::NewsQuery as GnewsNewsQuery;
+pub use gnews_client::{HeadlinesQuery as GnewsHeadlinesQuery, NewsQuery as GnewsNewsQuery};
 pub use newscatcher_client::{
     default_from,
     CommonQueryParts,

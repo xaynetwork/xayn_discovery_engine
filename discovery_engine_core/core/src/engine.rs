@@ -43,7 +43,6 @@ use xayn_discovery_engine_providers::{
     GnewsNewsQuery,
     HeadlinesQuery,
     Market,
-    NewsQuery,
 };
 
 use crate::{
@@ -533,11 +532,9 @@ where
                         page: page as usize,
                         excluded_sources: &excluded_sources,
                         filter,
-                        // from: None
                     };
                     self.client.query_articles(&news_query).await
                 }
-                // TODO check if Gnews
                 SearchBy::Topic(topic) => {
                     let common = CommonQueryParts {
                         market: Some(market),

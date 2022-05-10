@@ -26,6 +26,7 @@ use crate::{
     gnews_client::{Client as GnewsClient, NewsQuery as GnewsNewsQuery},
     newscatcher::Article as NewscatcherArticle,
     newscatcher_client::Client as NewscatcherClient,
+    GnewsHeadlinesQuery,
     NewscatcherQuery,
 };
 
@@ -165,6 +166,17 @@ impl Client {
     pub async fn query_articles(&self, query: &GnewsNewsQuery<'_>) -> Result<Vec<Article>, Error> {
         self.gnews
             .query_articles(query)
+            .await
+            .map(|articles| articles.into_iter().map_into().collect())
+    }
+
+    /// Run a query for fetching `Article`s.
+    pub async fn query_headlines(
+        &self,
+        query: &GnewsHeadlinesQuery<'_>,
+    ) -> Result<Vec<Article>, Error> {
+        self.gnews
+            .query_headlines(query)
             .await
             .map(|articles| articles.into_iter().map_into().collect())
     }

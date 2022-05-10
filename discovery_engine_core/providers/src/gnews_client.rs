@@ -40,6 +40,22 @@ pub struct NewsQuery<'a> {
     pub filter: &'a Filter,
 }
 
+/// Query parameters for the headlines query
+pub struct HeadlinesQuery<'a> {
+    /// Market of news.
+    pub market: Option<&'a Market>,
+    /// How many articles to return (per page).
+    pub page_size: usize,
+    /// The number of the page which should be returned.
+    ///
+    /// Paging starts with `1`.
+    pub page: usize,
+    /// Exclude given sources.
+    pub excluded_sources: &'a [String],
+    /// Search filter for selecting the results
+    pub filter: Option<&'a Filter>,
+}
+
 /// Client that can provide documents.
 pub struct Client {
     token: String,
@@ -70,13 +86,18 @@ impl Client {
 
     /// Run a query for fetching `Article`s
     pub async fn query_articles(&self, query: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
-        self.query_gnews(query).await.map(|news| news.articles)
+        let url = self.build_news_url(query)?;
+        self.query(url).await.map(|news| news.articles)
+    }
+
+    /// Run a query for fetching `Article`s
+    pub async fn query_headlines(&self, query: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
+        let url = self.build_headlines_url(query)?;
+        self.query(url).await.map(|news| news.articles)
     }
 
     /// Run a query against the gnews API.
-    pub async fn query_gnews(&self, query: &NewsQuery<'_>) -> Result<Response, Error> {
-        let url = self.build_url(query)?;
-
+    pub async fn query(&self, url: Url) -> Result<Response, Error> {
         let response = self
             .client
             .get(url)
@@ -94,7 +115,7 @@ impl Client {
             .map_err(|error| Error::DecodingAtPath(error.path().to_string(), error))
     }
 
-    fn build_url(&self, search: &NewsQuery<'_>) -> Result<Url, Error> {
+    fn build_news_url(&self, params: &NewsQuery<'_>) -> Result<Url, Error> {
         let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
 
         url.path_segments_mut()
@@ -107,17 +128,48 @@ impl Client {
             let mut query = url.query_pairs_mut();
             query
                 .append_pair("sortby", "relevance")
-                .append_pair("q", &search.filter.build());
+                .append_pair("q", &params.filter.build());
 
-            if let Some(market) = &search.market {
+            if let Some(market) = &params.market {
                 query
                     .append_pair("lang", &market.lang_code)
                     .append_pair("country", &market.country_code);
             }
 
             query
-                .append_pair("max", &search.page_size.to_string())
-                .append_pair("page", &search.page.to_string());
+                .append_pair("max", &params.page_size.to_string())
+                .append_pair("page", &params.page.to_string());
+        }
+
+        Ok(url)
+    }
+
+    fn build_headlines_url(&self, params: &HeadlinesQuery<'_>) -> Result<Url, Error> {
+        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
+
+        url.path_segments_mut()
+            .map_err(|_| Error::InvalidUrlBase(None))?
+            .push("news")
+            .push("v2")
+            .push("_lh");
+
+        {
+            let mut query = url.query_pairs_mut();
+            query.append_pair("sortby", "relevance");
+
+            if let Some(filter) = &params.filter {
+                query.append_pair("q", &filter.build());
+            }
+
+            if let Some(market) = &params.market {
+                query
+                    .append_pair("lang", &market.lang_code)
+                    .append_pair("country", &market.country_code);
+            }
+
+            query
+                .append_pair("max", &params.page_size.to_string())
+                .append_pair("page", &params.page.to_string());
         }
 
         Ok(url)

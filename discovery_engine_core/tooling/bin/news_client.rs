@@ -21,6 +21,7 @@ use xayn_discovery_engine_providers::{
     CommonQueryParts,
     Filter,
     GnewsClient,
+    GnewsHeadlinesQuery,
     GnewsNewsQuery,
     HeadlinesQuery,
     Market,
@@ -40,12 +41,13 @@ async fn main() -> Result<()> {
 
     match mode.as_str() {
         "newscatcher" => query_newscatcher(&url, &token).await,
-        "gnews" => query_gnews(&url, &token).await,
+        "gnews_search" => query_gnews(&url, &token, false).await,
+        "gnews_headlines" => query_gnews(&url, &token, true).await,
         _ => panic!("Unknown mode {}", mode),
     }
 }
 
-async fn query_gnews(url: &str, token: &str) -> Result<()> {
+async fn query_gnews(url: &str, token: &str, headlines: bool) -> Result<()> {
     tokio::fs::create_dir("./gnews_download")
         .await
         .context("Failed to create download directory. Does it already exist?")?;
@@ -60,18 +62,31 @@ async fn query_gnews(url: &str, token: &str) -> Result<()> {
     let mut page = 1;
     while page <= total_pages {
         println!("Fetching page {} of {}", page, total_pages);
-        let filter = Filter::default().add_keyword("clouds");
 
-        let params = GnewsNewsQuery {
-            market: Some(&market),
-            page_size: 2,
-            page,
-            excluded_sources: &[],
-            filter: &filter,
+        let content = if headlines {
+            let params = GnewsHeadlinesQuery {
+                market: Some(&market),
+                page_size: 10,
+                page,
+                excluded_sources: &[],
+                filter: None,
+            };
+            let response = client.query_headlines(&params).await.unwrap();
+            serde_json::to_string_pretty(&response)?
+        } else {
+            let filter = Filter::default().add_keyword("clouds");
+            let params = GnewsNewsQuery {
+                market: Some(&market),
+                page_size: 10,
+                page,
+                excluded_sources: &[],
+                filter: &filter,
+            };
+
+            let response = client.query_articles(&params).await.unwrap();
+            serde_json::to_string_pretty(&response)?
         };
 
-        let response = client.query_articles(&params).await.unwrap();
-        let content = serde_json::to_string_pretty(&response)?;
         tokio::fs::write(format!("./gnews_download/page_{:03}.json", page), content).await?;
 
         page += 1;
