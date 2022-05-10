@@ -16,6 +16,8 @@ import 'dart:isolate' show SendPort;
 
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show Configuration, EngineEvent, FeedMarket;
+import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
+    show ActiveSearchApiConversion;
 import 'package:xayn_discovery_engine/src/discovery_engine_base.dart'
     show DiscoveryEngine;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -179,7 +181,7 @@ final mockNewsResource = NewsResource(
 
 const queryTerm = 'example';
 
-const mockActiveSearch = ActiveSearch(
+final mockActiveSearch = ActiveSearch(
   searchTerm: queryTerm,
   requestedPageNb: 1,
   pageSize: 20,

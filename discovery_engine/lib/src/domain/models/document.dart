@@ -69,6 +69,8 @@ class Document {
     this.isSearched = false,
   }) : timestamp = DateTime.now().toUtc();
 
+  //FIXME move this conversion to `api/models/document.dart` e.g. as an
+  //      extension on this type.
   api.Document toApiDocument() => api.Document(
         documentId: documentId,
         resource: resource,

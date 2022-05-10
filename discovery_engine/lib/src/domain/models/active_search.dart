@@ -15,7 +15,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
-import 'package:xayn_discovery_engine/src/api/models/active_search.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show searchTypeId, searchByTypeId;
 
@@ -27,28 +26,25 @@ class ActiveSearch with EquatableMixin {
   @HiveField(0)
   final String searchTerm;
   @HiveField(1)
-  final int requestedPageNb;
+  int requestedPageNb;
   @HiveField(2)
   final int pageSize;
   @HiveField(3, defaultValue: SearchBy.query)
   final SearchBy searchBy;
 
-  const ActiveSearch({
+  ActiveSearch({
     required this.searchTerm,
     required this.requestedPageNb,
     required this.pageSize,
     required this.searchBy,
   });
 
-  ActiveSearch nextPageSearch() => ActiveSearch(
+  ActiveSearch nextPage() => ActiveSearch(
         searchTerm: searchTerm,
         requestedPageNb: requestedPageNb + 1,
         pageSize: pageSize,
         searchBy: searchBy,
       );
-
-  api.ActiveSearch toApiRepr() =>
-      api.ActiveSearch(searchBy: searchBy, searchTerm: searchTerm);
 
   @override
   List<Object?> get props => [searchTerm, requestedPageNb, pageSize, searchBy];

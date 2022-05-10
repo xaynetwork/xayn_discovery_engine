@@ -26,7 +26,7 @@ Future<void> main() async {
   group('HiveActiveSearchRepository', () {
     late HiveActiveSearchRepository repo;
 
-    const search = ActiveSearch(
+    final search = ActiveSearch(
       searchTerm: 'example search query',
       requestedPageNb: 1,
       pageSize: 10,
@@ -93,7 +93,12 @@ Future<void> main() async {
           () async {
         await repo.save(search);
 
-        final search2 = search.nextPageSearch();
+        final search2 = ActiveSearch(
+          searchTerm: 'foobar',
+          requestedPageNb: 123,
+          pageSize: 10,
+          searchBy: SearchBy.query,
+        );
         await repo.save(search2);
 
         expect(repo.box.isNotEmpty, isTrue);

@@ -30,6 +30,8 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         SearchTermRequestSucceeded,
         TrendingTopicsRequestFailed,
         TrendingTopicsRequestSucceeded;
+import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
+    show ActiveSearchApiConversion;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine, mockTrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'

@@ -13,7 +13,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    as domain;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show SearchBy;
+
+// Re-export public parts of `domain/` to avoid juggling multiple `active_search.dart`
+// imports in the same file.
+export 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show SearchBy;
 
 part 'active_search.freezed.dart';
 part 'active_search.g.dart';
@@ -28,4 +36,10 @@ class ActiveSearch with _$ActiveSearch {
 
   factory ActiveSearch.fromJson(Map<String, Object?> json) =>
       _$ActiveSearchFromJson(json);
+}
+
+@protected
+extension ActiveSearchApiConversion on domain.ActiveSearch {
+  ActiveSearch toApiRepr() =>
+      ActiveSearch(searchTerm: searchTerm, searchBy: searchBy);
 }

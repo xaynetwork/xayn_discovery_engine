@@ -73,10 +73,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         EngineExceptionRaised,
         EngineExceptionReason;
 export 'package:xayn_discovery_engine/src/api/models/active_search.dart'
-    show ActiveSearch;
+    hide ActiveSearchApiConversion;
 export 'package:xayn_discovery_engine/src/api/models/document.dart';
-export 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show SearchBy;
 export 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
 export 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
