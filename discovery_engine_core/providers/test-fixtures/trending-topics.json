@@ -1,0 +1,455 @@
+{
+  "_type": "TrendingTopics",
+  "value": [
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "40% out of stock",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Scott Olson\/Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Baby formula shortage 40"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Only 10 vaquitas left",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Paula Olson\/NOAA\/AP"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "10 vaquitas"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Suspect found dead",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Rebecca Cook\/Reuters"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Ruby Taverner homicide"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Dozens dead after riot",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Dolores Ochoa\/AP"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Ecuador prison riot"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Will quit if fined",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Yui Mok\/PA\/Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Keir Starmer quit if fined"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Expedites military aid",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Manuel Balce Ceneta\/AP"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Biden signs Ukraine bill"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Keeping date a secret",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Matt Winkelmeyer\/Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Britney Spears wedding date"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Eviction help doubled",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Nicholas Kamm\/AFP\/Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Eviction protection program doubles"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "English actor-singer",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Jules Annan\/Avalon\/Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Dennis Waterman actor"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "NBA Coach of the Year",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Glenn James\/NBAE via Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Monty Williams coach of the year"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Portrait fetches $195M",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Miguel Medina\/AFP via Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Warhol Marilyn portrait auction"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Xbox streaming stick",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Matt Slocum\/AP"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Xbox streaming stick"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Blood red sky in China",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "​Courtesy of Moneycontrol"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Zhoushan blood red sky"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Items raise $800K",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Nathan Ellgren\/File\/AP Photo"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Ginsburg items auction"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Manhunt ends in Ind.",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© U.S. Marshals Service\/Lauderdale County Sheriff's Office\/File via AP"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Casey Vicky White"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Protest warning issued",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Evelyn Hockstein\/Reuters"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "White House Supreme Court protests"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Adviser tests positive",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Drew Angerer\/Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Susan Rice positive"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "EV plant in Georgia?",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Beata Zawrzel\/NurPhoto\/Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Hyundai Georgia electric vehicle plant"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Landslide victory",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Aaron Favila\/AP Photo"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Marcos Jr. Philippines"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "2022 Pulitzer winners",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Olivia Obineme\/Better Government Association\/Courtesy of Chicago Tribune\/AP"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "2022 Pulitzer winners"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Hollywood attorney",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Provided by TheWrap"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Ashley Nissenberg dead"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Today in history: 1872",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Everett\/Shutterstock"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Victoria Woodhull"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Soros donates $1M",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Elijah Nouvelage for The Washington Post via Getty Images"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Soros Stacey Abrams donation"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Puzzling ‘claw marks’",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "​© European Space Agency"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "Mars claw marks"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    },
+    {
+      "webSearchUrl": "https://example.com/search?q=example",
+      "name": "Fireworks alternative",
+      "image": {
+        "url": "https://example.com/image.jpg",
+        "provider": [
+          {
+            "_type": "Organization",
+            "name": "© Sky Elements Drone Shows\/Reuters"
+          }
+        ]
+      },
+      "isBreakingNews": false,
+      "query": {
+        "text": "July 4 drone fire threat"
+      },
+      "newsSearchUrl": "https://example.com/search?q=example+news"
+    }
+  ]
+}
