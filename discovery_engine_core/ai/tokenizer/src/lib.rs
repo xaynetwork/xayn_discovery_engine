@@ -48,11 +48,8 @@
 //! [huggingface's `tokenizers`]: https://crates.io/crates/tokenizers
 //! [`Num`]: num_traits::Num
 //! [`FromPrimitive`]: num_traits::FromPrimitive
-#![cfg_attr(
-    doc,
-    forbid(rustdoc::broken_intra_doc_links, rustdoc::private_intra_doc_links)
-)]
-#![forbid(unsafe_op_in_unsafe_fn)]
+
+#![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
 
 mod builder;
 mod model;

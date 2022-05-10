@@ -326,11 +326,7 @@ impl NormalizedString {
             .collect::<String>();
 
         self.alignments.splice(n_range.clone(), alignments);
-        unsafe {
-            self.normalized
-                .as_mut_vec()
-                .splice(n_range, normalized.bytes());
-        }
+        self.normalized.replace_range(n_range, &normalized);
 
         self
     }
