@@ -41,69 +41,81 @@ pub enum Topic {
     Unrecognized,
 }
 
+impl Default for Topic {
+    fn default() -> Self {
+        Topic::Unrecognized
+    }
+}
+
 /// A news article
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Article {
     /// Newscatcher API's unique identifier for each news article.
     #[serde(
+        default,
         rename(deserialize = "_id"),
         deserialize_with = "deserialize_null_default"
     )]
     pub id: String,
 
     /// The title of the article.
-    #[serde(deserialize_with = "deserialize_null_default")]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub title: String,
 
     /// How well the article is matching your search criteria.
     #[serde(
+        default,
         rename(deserialize = "_score"),
         deserialize_with = "deserialize_null_default"
     )]
     pub score: Option<f32>,
 
     /// The page rank of the source website.
-    #[serde(deserialize_with = "deserialize_rank")]
+    #[serde(default, deserialize_with = "deserialize_rank")]
     pub rank: u64,
 
     /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
     #[serde(
+        default,
         rename(deserialize = "clean_url"),
         deserialize_with = "deserialize_null_default"
     )]
     pub source_domain: String,
 
     /// Short summary of the article provided by the publisher.
-    #[serde(deserialize_with = "deserialize_null_default")]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub excerpt: String,
 
     /// Full URL where the article was originally published.
-    #[serde(deserialize_with = "deserialize_null_default")]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub link: String,
 
     /// A link to a thumbnail image of the article.
-    #[serde(deserialize_with = "deserialize_null_default")]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub media: String,
 
     /// The main topic of the news publisher.
     /// Important: This parameter is not deducted on a per-article level:
     /// it is deducted on the per-publisher level.
-    #[serde(deserialize_with = "deserialize_topic")]
+    #[serde(default, deserialize_with = "deserialize_topic")]
     pub topic: Topic,
 
     /// The country of the publisher.
-    #[serde(deserialize_with = "deserialize_null_default")]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub country: String,
 
     /// The language of the article.
-    #[serde(deserialize_with = "deserialize_null_default")]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub language: String,
 
     /// While Newscatcher claims to have some sort of timezone support in their
     /// [API][<https://docs.newscatcherapi.com/api-docs/endpoints/search-news>] (via the
     /// `published_date_precision` attribute), in practice they do not seem to be supplying any
     /// sort of timezone information. As a result, we provide NaiveDateTime for now.
-    #[serde(deserialize_with = "deserialize_naive_date_time_from_str")]
+    #[serde(
+        default = "default_published_date",
+        deserialize_with = "deserialize_naive_date_time_from_str"
+    )]
     pub published_date: NaiveDateTime,
 }
 
@@ -114,6 +126,10 @@ impl Article {
             .then(|| &self.excerpt)
             .unwrap_or(&self.title)
     }
+}
+
+fn default_published_date() -> NaiveDateTime {
+    chrono::naive::MIN_DATETIME
 }
 
 // Taken from https://github.com/serde-rs/serde/issues/1098#issuecomment-760711617
@@ -166,4 +182,18 @@ pub struct Response {
     pub articles: Vec<Article>,
     /// Total pages of content available
     pub total_pages: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // In order to make sure that our API clients don't throw errors if some articles
+    // are malformed (missing fields, null fields) we are very liberal in what we
+    // accept as articles, and will filter out malformed ones further down the processing
+    // chain.
+    fn test_deserialize_article_where_all_fields_should_fall_back_to_default() {
+        let _article: Article = serde_json::from_str("{}").unwrap();
+    }
 }
