@@ -27,7 +27,7 @@
 //! - A padding strategy.
 //!
 //! ```no_run
-//! use rubert_tokenizer::{Builder, Padding, Truncation};
+//! use xayn_discovery_engine_tokenizer::{Builder, Padding, Truncation};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let tokenizer = Builder::<u32>::from_file("vocab.txt")?

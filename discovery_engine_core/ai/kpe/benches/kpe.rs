@@ -17,7 +17,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use kpe::{Config, Pipeline};
-use test_utils::kpe::{bert, classifier, cnn, vocab};
+use xayn_discovery_engine_test_utils::kpe::{bert, classifier, cnn, vocab};
 
 fn bench_kpe(manager: &mut Criterion) {
     let config = Config::from_files(

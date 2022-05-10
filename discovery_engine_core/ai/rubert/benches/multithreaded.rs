@@ -26,7 +26,7 @@ use rubert::{
     Config,
     Pipeline,
 };
-use test_utils::{qambert, smbert};
+use xayn_discovery_engine_test_utils::{qambert, smbert};
 
 const BATCH_SIZE: usize = 16;
 const TOKEN_SIZE: usize = 64;

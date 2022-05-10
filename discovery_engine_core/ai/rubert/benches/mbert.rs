@@ -29,8 +29,8 @@ use rubert::{
     NonePooler,
     Pipeline,
 };
-use rubert_tokenizer::{Builder as TokenizerBuilder, Padding, Truncation};
-use test_utils::{qambert, smbert};
+use xayn_discovery_engine_test_utils::{qambert, smbert};
+use xayn_discovery_engine_tokenizer::{Builder as TokenizerBuilder, Padding, Truncation};
 
 const TOKEN_SIZE: usize = 64;
 const SEQUENCE: &str = "This is a sequence.";

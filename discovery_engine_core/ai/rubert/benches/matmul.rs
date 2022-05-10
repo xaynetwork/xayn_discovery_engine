@@ -21,7 +21,7 @@ use ndarray::Array2;
 use onnxruntime::{environment::Environment, GraphOptimizationLevel, LoggingLevel};
 use tract_onnx::prelude::{tvec, Datum, Framework, InferenceFact, InferenceModelExt};
 
-use test_utils::bench::matmul::data_dir;
+use xayn_discovery_engine_test_utils::bench::matmul::data_dir;
 
 fn bench_tract(manager: &mut Criterion, name: &str, model: impl AsRef<Path>) {
     let mut model = BufReader::new(File::open(data_dir().unwrap().join(model)).unwrap());
