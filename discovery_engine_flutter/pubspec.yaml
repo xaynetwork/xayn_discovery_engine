@@ -5,17 +5,18 @@ homepage: https://github.com/xaynetwork/xayn_discovery_engine/
 publish_to: none
 
 environment:
-  sdk: ">=2.14.2 <3.0.0"
-  flutter: ">=2.5.0"
+  sdk: ">=2.16.0 <3.0.0"
+  flutter: ">=2.10.0"
 
 dependencies:
   flutter:
     sdk: flutter
   xayn_discovery_engine:
-    git:
-      url: https://gitlab.com/xayn/xayn_discovery_engine_release
-      ref: change_me_to_commit_ref
-      path: discovery_engine
+    path: "../discovery_engine"
+    #    git:
+    #  url: https://gitlab.com/xayn/xayn_discovery_engine_release
+    #  ref: change_me_to_commit_ref
+    #  path: discovery_engine
 
 dev_dependencies:
   flutter_test:

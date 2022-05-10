@@ -5,7 +5,7 @@ homepage: https://github.com/xaynetwork/xayn_discovery_engine/
 publish_to: none
 
 environment:
-  sdk: '>=2.14.2 <3.0.0'
+  sdk: '>=2.16.0 <3.0.0'
 
 dependencies:
   async: ^2.8.1
