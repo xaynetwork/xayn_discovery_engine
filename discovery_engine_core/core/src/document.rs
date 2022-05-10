@@ -239,7 +239,7 @@ pub struct HistoricDocument {
 }
 
 /// A trending topic.
-pub struct TrendTopic {
+pub struct TrendingTopic {
     /// Id of the topic.
     pub id: Id,
     /// Precomputed S-mBert of the topic.
