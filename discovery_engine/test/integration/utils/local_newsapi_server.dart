@@ -34,6 +34,7 @@ class LocalNewsApiServer {
   bool _returnError = false;
   String _snFile = 'climate-change.json';
   String _lhFile = 'latest-headlines.json';
+  String _ttFile = 'trending-topics.json';
   Uri? lastUri;
 
   LocalNewsApiServer._(this._server) {
@@ -53,6 +54,9 @@ class LocalNewsApiServer {
           case '/_lh':
             await _replyWithData(request, _lhFile);
             break;
+          case '/_tt':
+            await _replyWithData(request, _ttFile);
+            break;
           case '/_health':
             _replyWithOk(request);
             break;
@@ -70,6 +74,8 @@ class LocalNewsApiServer {
   set snFile(String filename) => _snFile = filename;
 
   set lhFile(String filename) => _lhFile = filename;
+
+  set ttFile(String filename) => _ttFile = filename;
 
   int get port => _server.port;
 
