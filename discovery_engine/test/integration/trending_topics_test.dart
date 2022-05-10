@@ -18,7 +18,11 @@ import 'dart:io' show Directory;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show TrendingTopicsRequestSucceeded;
+    show
+        DiscoveryEngine,
+        SearchFailureReason,
+        TrendingTopicsRequestFailed,
+        TrendingTopicsRequestSucceeded;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -33,20 +37,21 @@ void main() {
     () {
       late LocalNewsApiServer server;
       late TestEngineData data;
+      late DiscoveryEngine engine;
 
       setUp(() async {
-        data = await setupTestEngineData();
         server = await LocalNewsApiServer.start();
+        data = await setupTestEngineData();
+        engine = await initEngine(data, server.port);
       });
 
       tearDown(() async {
+        await engine.dispose();
         await server.close();
         await Directory(data.applicationDirectoryPath).delete(recursive: true);
       });
 
       test('requestTrendingTopics should return trending topics', () async {
-        final engine = await initEngine(data, server.port);
-
         expect(
           engine.engineEvents,
           emitsInOrder(<Matcher>[
@@ -59,6 +64,25 @@ void main() {
         expect(
           (trendingTopicsResponse as TrendingTopicsRequestSucceeded).topics,
           isNotEmpty,
+        );
+      });
+
+      test(
+          'requestTrendingTopics should return failed event if no topics found',
+          () async {
+        expect(
+          engine.engineEvents,
+          emitsInOrder(<Matcher>[
+            isA<TrendingTopicsRequestFailed>(),
+          ]),
+        );
+
+        server.replyWithError = true;
+        final trendingTopicsResponse = await engine.requestTrendingTopics();
+        expect(trendingTopicsResponse, isA<TrendingTopicsRequestFailed>());
+        expect(
+          (trendingTopicsResponse as TrendingTopicsRequestFailed).reason,
+          equals(SearchFailureReason.noResultsAvailable),
         );
       });
     },
