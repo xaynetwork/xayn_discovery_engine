@@ -17,7 +17,7 @@ import 'dart:convert' show utf8;
 import 'package:csv/csv.dart' show CsvToListConverter;
 import 'package:equatable/equatable.dart' show Equatable;
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:fuzzy/fuzzy.dart' show Fuzzy, FuzzyOptions;
+import 'package:fuzzy/fuzzy.dart' show Fuzzy, FuzzyOptions, WeightedKey;
 
 part 'source.freezed.dart';
 part 'source.g.dart';
@@ -82,6 +82,18 @@ class AvailableSources extends Fuzzy<AvailableSource> {
           options: FuzzyOptions(
             findAllMatches: false,
             isCaseSensitive: false,
+            keys: [
+              WeightedKey(
+                name: 'name',
+                getter: (availableSource) => availableSource.name,
+                weight: 1.0,
+              ),
+              WeightedKey(
+                name: 'domain',
+                getter: (availableSource) => availableSource.domain,
+                weight: 1.0,
+              ),
+            ],
             minMatchCharLength: 3,
             minTokenCharLength: 3,
             shouldNormalize: false,
