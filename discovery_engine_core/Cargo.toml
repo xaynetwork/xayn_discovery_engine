@@ -6,7 +6,6 @@ members = [
     "providers",
     "tooling",
 ]
-resolver = "2"
 
 [patch.crates-io.async-bindgen]
 git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
@@ -23,10 +22,6 @@ branch = "main"
 [patch.crates-io.xayn-dart-api-dl-sys]
 git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
 branch = "main"
-
-[patch.crates-io.tract-linalg]
-git = "https://github.com/xaynetwork/tract.git"
-branch = "android-relocation-patch"
 
 [profile.dev.package.tract-core]
 opt-level = 3

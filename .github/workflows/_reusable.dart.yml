@@ -7,7 +7,7 @@ jobs:
   dart-format:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v1
+      image: xaynetci/yellow:v2
     timeout-minutes: 10
     steps:
       - name: Checkout repository
@@ -24,7 +24,7 @@ jobs:
   dart-analyze:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v1
+      image: xaynetci/yellow:v2
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -42,7 +42,7 @@ jobs:
   dart-test:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v1
+      image: xaynetci/yellow:v2
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -60,7 +60,7 @@ jobs:
   dart-doc:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v1
+      image: xaynetci/yellow:v2
     timeout-minutes: 15
     steps:
       - name: Checkout repository

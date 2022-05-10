@@ -68,10 +68,9 @@ pub unsafe extern "C" fn get_embedding_buffer(embedding: *const Embedding) -> *c
 // change this interface, e.g. to support reading a buffer with strides.
 #[no_mangle]
 pub unsafe extern "C" fn get_embedding_buffer_len(embedding: *mut Embedding) -> FfiUsize {
-    let len = unsafe { &*embedding }
-        .as_slice()
-        .unwrap_or_else(|| abort())
-        .len();
+    let embedding = unsafe { &*embedding }.as_slice();
+    #[allow(clippy::redundant_closure)] // there is a type mismatch if we remove the closure
+    let len = embedding.unwrap_or_else(|| abort()).len();
 
     FfiUsize::from_usize_lossy(len)
 }

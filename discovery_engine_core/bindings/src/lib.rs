@@ -19,7 +19,6 @@
     clippy::future_not_send,
     noop_method_call,
     rust_2018_idioms,
-    rust_2021_compatibility,
     unused_qualifications,
     unsafe_op_in_unsafe_fn
 )]
@@ -43,7 +42,7 @@ use xayn_discovery_engine_core::Engine;
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
-    #[allow(clippy::box_vec)]
+    #[allow(clippy::box_collection)]
     pub async fn initialize(
         config: Box<InitConfig>,
         state: Option<Box<Vec<u8>>>,
@@ -73,7 +72,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the markets.
-    #[allow(clippy::box_vec)]
+    #[allow(clippy::box_collection)]
     pub async fn set_markets(
         engine: &SharedEngine,
         markets: Box<Vec<Market>>,
@@ -91,7 +90,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Gets feed documents.
-    #[allow(clippy::box_vec)]
+    #[allow(clippy::box_collection)]
     pub async fn get_feed_documents(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
@@ -127,7 +126,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Processes user reaction.
     ///
     /// The history is only required for positive reactions.
-    #[allow(clippy::box_vec)]
+    #[allow(clippy::box_collection)]
     pub async fn user_reacted(
         engine: &SharedEngine,
         history: Option<Box<Vec<HistoricDocument>>>,
@@ -181,7 +180,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the trusted sources and updates the stacks based on that.
-    #[allow(clippy::box_vec)]
+    #[allow(clippy::box_collection)]
     pub async fn set_trusted_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
@@ -199,7 +198,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the excluded sources and updates the stacks based on that.
-    #[allow(clippy::box_vec)]
+    #[allow(clippy::box_collection)]
     pub async fn set_excluded_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,

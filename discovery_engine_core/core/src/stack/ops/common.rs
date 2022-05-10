@@ -88,7 +88,7 @@ pub(super) fn create_requests_for_markets<I>(
 ) -> Requests<I> {
     markets
         .into_iter()
-        .map(|market| request_fn(market))
+        .map(request_fn)
         .collect::<FuturesUnordered<_>>()
 }
 

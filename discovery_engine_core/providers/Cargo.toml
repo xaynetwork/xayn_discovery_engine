@@ -2,7 +2,7 @@
 name = "xayn-discovery-engine-providers"
 version = "0.1.0"
 license = "AGPL-3.0-only"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 chrono = { version = "0.4.19", default_features = false, features = ["clock"] }
