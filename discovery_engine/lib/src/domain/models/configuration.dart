@@ -38,4 +38,10 @@ class Configuration with _$Configuration {
 
   factory Configuration.fromJson(Map<String, Object?> json) =>
       _$ConfigurationFromJson(json);
+
+  const Configuration._();
+
+  bool isMocked() =>
+      apiKey == 'use-mock-engine' &&
+      apiBaseUrl == 'https://use-mock-engine.test';
 }

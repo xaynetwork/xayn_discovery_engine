@@ -22,6 +22,8 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
         DataProvider,
         Manifest,
         SetupData;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show AvailableSources;
 
 class WebDataProvider extends DataProvider {
   @override
@@ -57,6 +59,7 @@ class WebDataProvider extends DataProvider {
       kpeModel: fetched[AssetType.kpeModel]!,
       kpeCnn: fetched[AssetType.kpeCnn]!,
       kpeClassifier: fetched[AssetType.kpeClassifier]!,
+      availableSources: fetched[AssetType.availableSources]!,
     );
   }
 }
@@ -74,6 +77,8 @@ class WebSetupData extends SetupData {
   final Uint8List kpeCnn;
   @override
   final Uint8List kpeClassifier;
+  @override
+  final Uint8List availableSources;
 
   WebSetupData({
     required this.smbertVocab,
@@ -82,7 +87,12 @@ class WebSetupData extends SetupData {
     required this.kpeModel,
     required this.kpeCnn,
     required this.kpeClassifier,
+    required this.availableSources,
   });
+
+  @override
+  Future<AvailableSources> getAvailableSources() async =>
+      AvailableSources.fromBytes(Stream.value(availableSources.toList()));
 }
 
 DataProvider createDataProvider(

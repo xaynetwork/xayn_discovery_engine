@@ -15,6 +15,8 @@
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show AssetFetcher, AssetReporter, Manifest;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart'
+    show AvailableSources;
 
 const _kEnginePath = 'engine_data';
 const kAssetsPath = '$_kEnginePath/assets';
@@ -29,10 +31,22 @@ abstract class SetupData with EquatableMixin {
   Object get kpeModel;
   Object get kpeCnn;
   Object get kpeClassifier;
+  Object get availableSources;
 
   @override
-  List<Object?> get props =>
-      [smbertVocab, smbertModel, kpeVocab, kpeModel, kpeCnn, kpeClassifier];
+  List<Object?> get props => [
+        smbertVocab,
+        smbertModel,
+        kpeVocab,
+        kpeModel,
+        kpeCnn,
+        kpeClassifier,
+        availableSources,
+      ];
+
+  Future<AvailableSources> getAvailableSources() {
+    throw UnsupportedError('Unsupported plattform.');
+  }
 }
 
 /// Reads the assets manifest and provides the [SetupData] to further use.

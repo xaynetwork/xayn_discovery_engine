@@ -62,6 +62,7 @@ void main() {
         'kpeModel',
         'kpeCnn',
         'kpeClassifier',
+        'availableSources',
       ]
           .map(
             (id) => {

@@ -27,7 +27,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show AvailableSource, Source;
+    show mockedAvailableSources, Source;
 
 import '../../assets/utils/mock_manifest_reader.dart';
 
@@ -100,7 +100,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
         availableSourcesListRequestedResponse =
             availableSourcesListRequestedResponse ??
                 EngineEvent.availableSourcesListRequestSucceeded(
-                  [AvailableSource(name: 'Example', domain: 'example.com')],
+                  mockedAvailableSources.list,
                 ),
         super(initialMessage);
 

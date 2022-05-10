@@ -22,6 +22,7 @@ const bytesMap = {
   'kpeModel': _bytes,
   'kpeCnn': _bytes,
   'kpeClassifier': _bytes,
+  'availableSources': _bytes,
 };
 
 class LocalAssetServer {
