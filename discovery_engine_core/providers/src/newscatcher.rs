@@ -50,14 +50,6 @@ impl Default for Topic {
 /// A news article
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Article {
-    /// Newscatcher API's unique identifier for each news article.
-    #[serde(
-        default,
-        rename(deserialize = "_id"),
-        deserialize_with = "deserialize_null_default"
-    )]
-    pub id: String,
-
     /// The title of the article.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub title: String,

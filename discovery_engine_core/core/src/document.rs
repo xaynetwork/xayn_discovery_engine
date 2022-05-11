@@ -285,7 +285,6 @@ mod tests {
 
     fn mock_article() -> Article {
         Article {
-            id: "id".to_string(),
             title: "title".to_string(),
             score: Some(0.75),
             rank: 10,
