@@ -59,7 +59,7 @@ macro_rules! bench_tract {
                 .with_lowercase(true)
                 .with_token_size(TOKEN_SIZE)
                 .unwrap()
-                .with_pooling($pooler);
+                .with_pooling::<$pooler>();
             let pipeline = Pipeline::from(config).unwrap();
             group.bench_function($name, |bencher| {
                 bencher.iter(|| pipeline.run(black_box(SEQUENCE)).unwrap())

@@ -363,7 +363,7 @@ mod tests {
                 .unwrap()
                 .with_accents(AccentChars::Cleanse)
                 .with_case(CaseChars::Lower)
-                .with_pooling(AveragePooler);
+                .with_pooling::<AveragePooler>();
 
         let smbert = SMBert::from(smbert_config).unwrap();
 

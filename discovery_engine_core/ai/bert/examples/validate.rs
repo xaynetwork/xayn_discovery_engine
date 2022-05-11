@@ -198,7 +198,7 @@ impl Pipeline {
                     .with_case(tokenizer.case)
                     .with_token_size(tokenizer.token_size)
                     .unwrap()
-                    .with_pooling(NonePooler);
+                    .with_pooling::<NonePooler>();
 
                 Self::TractSMBert(BertPipeline::from(config).unwrap())
             }
@@ -209,7 +209,7 @@ impl Pipeline {
                     .with_case(tokenizer.case)
                     .with_token_size(tokenizer.token_size)
                     .unwrap()
-                    .with_pooling(NonePooler);
+                    .with_pooling::<NonePooler>();
 
                 Self::TractQAMBert(BertPipeline::from(config).unwrap())
             }

@@ -825,7 +825,7 @@ impl XaynAiEngine {
             .map_err(|err| Error::Ranker(err.into()))?
             .with_accents(AccentChars::Cleanse)
             .with_case(CaseChars::Lower)
-            .with_pooling(AveragePooler);
+            .with_pooling::<AveragePooler>();
 
         let kpe_config = KpeConfig::from_files(
             &config.kpe_vocab,

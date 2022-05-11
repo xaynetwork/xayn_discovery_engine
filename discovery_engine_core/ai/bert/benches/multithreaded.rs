@@ -48,7 +48,7 @@ macro_rules! mbert {
             .with_case(CaseChars::Lower)
             .with_token_size(TOKEN_SIZE)
             .unwrap()
-            .with_pooling(AveragePooler);
+            .with_pooling::<AveragePooler>();
         Pipeline::from(config).unwrap()
     }};
 }

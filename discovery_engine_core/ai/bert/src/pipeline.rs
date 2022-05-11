@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::marker::PhantomData;
+
 use displaydoc::Display;
 use thiserror::Error;
 
@@ -33,7 +35,7 @@ use crate::{
 pub struct Pipeline<K, P> {
     pub(crate) tokenizer: Tokenizer,
     pub(crate) model: Model<K>,
-    pub(crate) pooler: P,
+    pooler: PhantomData<P>,
 }
 
 /// The potential errors of the [`Pipeline`].
@@ -79,7 +81,7 @@ where
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding2, PipelineError> {
         let encoding = self.tokenizer.encode(sequence);
         let prediction = self.model.predict(encoding)?;
-        self.pooler.pool(prediction).map_err(Into::into)
+        NonePooler::pool(&prediction).map_err(Into::into)
     }
 }
 
@@ -91,7 +93,7 @@ where
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence);
         let prediction = self.model.predict(encoding)?;
-        self.pooler.pool(prediction).map_err(Into::into)
+        FirstPooler::pool(&prediction).map_err(Into::into)
     }
 }
 
@@ -104,9 +106,7 @@ where
         let encoding = self.tokenizer.encode(sequence);
         let attention_mask = encoding.attention_mask.clone();
         let prediction = self.model.predict(encoding)?;
-        self.pooler
-            .pool(prediction, attention_mask)
-            .map_err(Into::into)
+        AveragePooler::pool(&prediction, &attention_mask).map_err(Into::into)
     }
 }
 
@@ -120,7 +120,7 @@ where
     }
 
     /// Gets the embedding size.
-    pub fn embedding_size(&self) -> usize {
+    pub fn embedding_size() -> usize {
         K::EMBEDDING_SIZE
     }
 }
@@ -135,50 +135,50 @@ mod tests {
         pooler::{AveragePooler, FirstPooler, NonePooler},
     };
 
-    fn pipeline<P>(pooler: P) -> Pipeline<SMBert, P> {
+    fn pipeline<P>() -> Pipeline<SMBert, P> {
         let config = Config::from_files(vocab().unwrap(), model().unwrap())
             .unwrap()
-            .with_pooling(pooler);
+            .with_pooling();
 
         Pipeline::from(config).unwrap()
     }
 
     #[test]
     fn test_pipeline_none() {
-        let pipeline = pipeline(NonePooler);
+        let pipeline = pipeline::<NonePooler>();
+        let shape = [
+            pipeline.token_size(),
+            Pipeline::<SMBert, NonePooler>::embedding_size(),
+        ];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
-        assert_eq!(
-            embeddings.shape(),
-            &[pipeline.token_size(), pipeline.embedding_size()],
-        );
+        assert_eq!(embeddings.shape(), shape);
 
         let embeddings = pipeline.run("").unwrap();
-        assert_eq!(
-            embeddings.shape(),
-            &[pipeline.token_size(), pipeline.embedding_size()],
-        );
+        assert_eq!(embeddings.shape(), shape);
     }
 
     #[test]
     fn test_pipeline_first() {
-        let pipeline = pipeline(FirstPooler);
+        let pipeline = pipeline::<FirstPooler>();
+        let shape = [Pipeline::<SMBert, FirstPooler>::embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
-        assert_eq!(embeddings.shape(), &[pipeline.embedding_size()]);
+        assert_eq!(embeddings.shape(), shape);
 
         let embeddings = pipeline.run("").unwrap();
-        assert_eq!(embeddings.shape(), &[pipeline.embedding_size()]);
+        assert_eq!(embeddings.shape(), shape);
     }
 
     #[test]
     fn test_pipeline_average() {
-        let pipeline = pipeline(AveragePooler);
+        let pipeline = pipeline::<AveragePooler>();
+        let shape = [crate::SMBert::embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
-        assert_eq!(embeddings.shape(), &[pipeline.embedding_size()]);
+        assert_eq!(embeddings.shape(), shape);
 
         let embeddings = pipeline.run("").unwrap();
-        assert_eq!(embeddings.shape(), &[pipeline.embedding_size()]);
+        assert_eq!(embeddings.shape(), shape);
     }
 }

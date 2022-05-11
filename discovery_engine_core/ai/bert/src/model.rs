@@ -38,7 +38,7 @@ use tract_onnx::prelude::{
 use crate::tokenizer::Encoding;
 
 pub mod kinds {
-    //! Types [SMBert] and [QAMBert] represent the kind of model that we want.
+    //! Types [`SMBert`] and [`QAMBert`] represent the kind of model that we want.
     //! It must be passed together with `vocab` and `model` parameters.
     //! Passing the wrong kind with respect to the model can lead to a wrong output of the pipeline.
 

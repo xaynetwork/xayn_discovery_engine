@@ -33,6 +33,7 @@ pub enum ConfigError {
     DataFile(#[from] std::io::Error),
 }
 
+#[must_use]
 pub struct Config<'a, K, P> {
     pub(crate) model_kind: PhantomData<K>,
     pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
@@ -40,7 +41,7 @@ pub struct Config<'a, K, P> {
     pub(crate) accents: AccentChars,
     pub(crate) case: CaseChars,
     pub(crate) token_size: usize,
-    pub(crate) pooler: P,
+    pub(crate) pooler: PhantomData<P>,
 }
 
 impl<'a, K: BertModel> Config<'a, K, NonePooler> {
@@ -49,13 +50,13 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
         model: Box<dyn Read + Send + 'a>,
     ) -> Self {
         Config {
-            model_kind: Default::default(),
+            model_kind: PhantomData,
             vocab,
             model,
             accents: AccentChars::Cleanse,
             case: CaseChars::Lower,
             token_size: 128,
-            pooler: NonePooler,
+            pooler: PhantomData,
         }
     }
 
@@ -104,7 +105,7 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
     /// Sets pooling for the model.
     ///
     /// Defaults to `NonePooler`.
-    pub fn with_pooling<NP>(self, pooler: NP) -> Config<'a, K, NP> {
+    pub fn with_pooling<NP>(self) -> Config<'a, K, NP> {
         Config {
             vocab: self.vocab,
             model: self.model,
@@ -112,7 +113,7 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
             accents: self.accents,
             case: self.case,
             token_size: self.token_size,
-            pooler,
+            pooler: PhantomData,
         }
     }
 }
