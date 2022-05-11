@@ -47,7 +47,7 @@ pub enum PipelineError {
 }
 
 impl Pipeline {
-    pub fn from(config: Config) -> Result<Self, PipelineError> {
+    pub fn from(config: Config<'_>) -> Result<Self, PipelineError> {
         let tokenizer = Tokenizer::new(
             config.vocab,
             config.accents,

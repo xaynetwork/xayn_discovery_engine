@@ -17,7 +17,13 @@
 //! See `examples/` for a usage example.
 
 #![forbid(unsafe_op_in_unsafe_fn)]
-#![deny(clippy::pedantic, clippy::future_not_send, unsafe_code)]
+#![deny(
+    clippy::pedantic,
+    clippy::future_not_send,
+    noop_method_call,
+    rust_2018_idioms,
+    unsafe_code
+)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
