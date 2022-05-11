@@ -18,6 +18,8 @@ import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show DocumentsUpdated;
+import 'package:xayn_discovery_engine/src/api/models/document.dart'
+    show DocumentApiConversion;
 import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart'
     show ChangedDocumentsReporter;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
@@ -153,7 +155,7 @@ Future<void> main() async {
 
     test('update active document user reaction', () async {
       const newReaction = UserReaction.positive;
-      final updatedDoc = (doc1..userReaction = newReaction).toApiDocument();
+      final updatedDoc = (doc1..userReaction = newReaction).toApiRepr();
 
       expect(
         changedDocsReporter.changedDocuments,

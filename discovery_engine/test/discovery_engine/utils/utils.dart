@@ -16,6 +16,8 @@ import 'dart:isolate' show SendPort;
 
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show Configuration, EngineEvent, FeedMarket;
+import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
+    show ActiveSearchApiConversion;
 import 'package:xayn_discovery_engine/src/discovery_engine_base.dart'
     show DiscoveryEngine;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -67,12 +69,9 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.feedDocumentsClosedResponse = const EngineEvent.clientEventSucceeded(),
     this.userReactionChangedResponse = const EngineEvent.clientEventSucceeded(),
     this.documentTimeLoggedResponse = const EngineEvent.clientEventSucceeded(),
-    this.searchRequestedResponse =
-        const EngineEvent.searchRequestSucceeded(mockActiveSearch, []),
-    this.nextSearchBatchRequestedResponse =
-        const EngineEvent.nextSearchBatchRequestSucceeded(mockActiveSearch, []),
-    this.restoreSearchResponse =
-        const EngineEvent.restoreSearchSucceeded(mockActiveSearch, []),
+    EngineEvent? searchRequestedResponse,
+    EngineEvent? nextSearchBatchRequestedResponse,
+    EngineEvent? restoreSearchResponse,
     this.searchClosedResponse = const EngineEvent.clientEventSucceeded(),
     this.searchTermRequestedResponse =
         const EngineEvent.searchTermRequestSucceeded(queryTerm),
@@ -87,7 +86,20 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.trendingTopicsRequestedResponse =
         const EngineEvent.trendingTopicsRequestSucceeded([]),
     EngineEvent? availableSourcesListRequestedResponse,
-  })  : excludedSourcesListRequestedResponse =
+  })  : searchRequestedResponse = EngineEvent.searchRequestSucceeded(
+          mockActiveSearch.toApiRepr(),
+          [],
+        ),
+        nextSearchBatchRequestedResponse =
+            EngineEvent.nextSearchBatchRequestSucceeded(
+          mockActiveSearch.toApiRepr(),
+          [],
+        ),
+        restoreSearchResponse = EngineEvent.restoreSearchSucceeded(
+          mockActiveSearch.toApiRepr(),
+          [],
+        ),
+        excludedSourcesListRequestedResponse =
             excludedSourcesListRequestedResponse ??
                 EngineEvent.excludedSourcesListRequestSucceeded(
                   {Source('example.com')},
@@ -169,7 +181,7 @@ final mockNewsResource = NewsResource(
 
 const queryTerm = 'example';
 
-const mockActiveSearch = ActiveSearch(
+final mockActiveSearch = ActiveSearch(
   searchTerm: queryTerm,
   requestedPageNb: 1,
   pageSize: 20,

@@ -30,6 +30,10 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         SearchTermRequestSucceeded,
         TrendingTopicsRequestFailed,
         TrendingTopicsRequestSucceeded;
+import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
+    show ActiveSearchApiConversion;
+import 'package:xayn_discovery_engine/src/api/models/document.dart'
+    show DocumentApiConversion;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine, mockTrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -148,13 +152,16 @@ Future<void> main() async {
 
         expect(searchRepo.getCurrent(), completion(equals(newSearch)));
         expect(response, isA<SearchRequestSucceeded>());
-        expect((response as SearchRequestSucceeded).search, equals(newSearch));
+        expect(
+          (response as SearchRequestSucceeded).search,
+          equals(newSearch.toApiRepr()),
+        );
         expect(response.items.length, equals(2));
 
         final savedDocs = response.items
             // lets look for the docs in the document box
             .map((doc) => docRepo.box.get('${doc.documentId}'))
-            .map((doc) => doc!.toApiDocument())
+            .map((doc) => doc!.toApiRepr())
             .toList();
 
         expect(response.items, equals(savedDocs));
@@ -199,17 +206,14 @@ Future<void> main() async {
             (response as NextSearchBatchRequestSucceeded).search;
 
         expect(response, isA<NextSearchBatchRequestSucceeded>());
-        expect(
-          updateSearch.requestedPageNb,
-          equals(mockActiveSearch.requestedPageNb + 1),
-        );
-        expect(searchRepo.getCurrent(), completion(equals(updateSearch)));
+        final current = await searchRepo.getCurrent();
+        expect(current?.toApiRepr(), equals(updateSearch));
         expect(response.items.length, equals(2));
 
         final savedDocs = response.items
             // lets look for the docs in the document box
             .map((doc) => docRepo.box.get('${doc.documentId}'))
-            .map((doc) => doc!.toApiDocument())
+            .map((doc) => doc!.toApiRepr())
             .toList();
 
         expect(response.items, equals(savedDocs));
@@ -273,8 +277,8 @@ Future<void> main() async {
           response,
           equals(
             RestoreSearchSucceeded(
-              mockActiveSearch,
-              [doc1.toApiDocument(), doc2.toApiDocument()],
+              mockActiveSearch.toApiRepr(),
+              [doc1.toApiRepr(), doc2.toApiRepr()],
             ),
           ),
         );

@@ -16,6 +16,8 @@ import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show SearchClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show EngineEvent, SearchFailureReason;
+import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
+    show ActiveSearchApiConversion;
 import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
@@ -100,7 +102,7 @@ class SearchManager {
     }
 
     return searchDocs
-        .map((docWithData) => docWithData.document.toApiDocument())
+        .map((docWithData) => docWithData.document.toApiRepr())
         .toList();
   }
 
@@ -119,12 +121,12 @@ class SearchManager {
     );
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
-    return EngineEvent.searchRequestSucceeded(search, docs);
+    return EngineEvent.searchRequestSucceeded(search.toApiRepr(), docs);
   }
 
   /// Obtain the next batch of search documents and persist to repositories.
   Future<EngineEvent> nextSearchBatchRequested() async {
-    var search = await _searchRepo.getCurrent();
+    final search = await _searchRepo.getCurrent();
 
     if (search == null) {
       const reason = SearchFailureReason.noActiveSearch;
@@ -132,10 +134,13 @@ class SearchManager {
     }
 
     // lets update active search params
-    search = search.copyWith(requestedPageNb: search.requestedPageNb + 1);
+    search.requestedPageNb += 1;
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
-    return EngineEvent.nextSearchBatchRequestSucceeded(search, docs);
+    return EngineEvent.nextSearchBatchRequestSucceeded(
+      search.toApiRepr(),
+      docs,
+    );
   }
 
   /// Returns the list of active search documents, ordered by their global rank.
@@ -167,9 +172,9 @@ class SearchManager {
           : timeOrd;
     });
 
-    final docs = searchDocs.map((doc) => doc.toApiDocument()).toList();
+    final docs = searchDocs.map((doc) => doc.toApiRepr()).toList();
 
-    return EngineEvent.restoreSearchSucceeded(search, docs);
+    return EngineEvent.restoreSearchSucceeded(search.toApiRepr(), docs);
   }
 
   /// Return the active search term.

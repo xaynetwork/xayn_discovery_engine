@@ -13,7 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart';

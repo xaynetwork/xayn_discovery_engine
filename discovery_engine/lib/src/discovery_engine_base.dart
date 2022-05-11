@@ -46,13 +46,12 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         UserReaction,
         TrendingTopic,
         TrendingTopicsRequestSucceeded,
-        TrendingTopicsRequestFailed;
+        TrendingTopicsRequestFailed,
+        SearchBy;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     as entry_point show main;
-import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'

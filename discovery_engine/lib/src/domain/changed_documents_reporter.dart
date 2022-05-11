@@ -13,8 +13,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async' show StreamController;
+
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show EngineEvent, DocumentsUpdated;
+import 'package:xayn_discovery_engine/src/api/models/document.dart'
+    show DocumentApiConversion;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 
@@ -24,7 +27,7 @@ class ChangedDocumentsReporter {
   Stream<EngineEvent> get changedDocuments => _changedDocsCtrl.stream;
 
   void notifyChanged(List<Document> documents) {
-    final payload = documents.map((it) => it.toApiDocument()).toList();
+    final payload = documents.map((it) => it.toApiRepr()).toList();
     final event = DocumentsUpdated(payload);
     _changedDocsCtrl.add(event);
   }
