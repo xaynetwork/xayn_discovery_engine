@@ -25,8 +25,8 @@ use xayn_discovery_engine_providers::{
     CommonQueryParts,
     HeadlinesQuery,
     Market,
-    DEFAULT_WHEN,
 };
+
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -128,17 +128,19 @@ fn spawn_headlines_request(
 ) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
+
         let query = HeadlinesQuery {
             common: CommonQueryParts {
                 market: Some(&market),
                 page_size,
                 page,
-                excluded_sources: &excluded_sources,
+                excluded_sources: excluded_sources.as_slice(),
             },
             trusted_sources: &[],
             topic: None,
-            when: DEFAULT_WHEN,
+            when: None,
         };
-        client.query_articles(&query).await.map_err(Into::into)
+
+        client.query_newscatcher(&query).await.map_err(Into::into)
     })
 }

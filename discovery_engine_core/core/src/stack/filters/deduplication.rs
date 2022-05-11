@@ -38,7 +38,7 @@ impl Deduplicable for Article {
     }
 
     fn url(&self) -> &str {
-        self.link.as_str()
+        self.url.as_str()
     }
 }
 

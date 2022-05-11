@@ -17,7 +17,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
-use crate::{seal::Seal, Client, Error, Market, Query};
+use crate::{Client, Error, Market};
 
 const URL_SUFFIX: &str = "_tt";
 
@@ -27,40 +27,33 @@ pub struct TrendingQuery<'a> {
     pub market: &'a Market,
 }
 
-impl Query for TrendingQuery<'_> {
-    fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push(URL_SUFFIX);
-
-        let query = &mut url.query_pairs_mut();
-
-        let lang = &self.market.lang_code;
-        let country = &self.market.country_code;
-        query.append_pair("mkt", &format!("{}-{}", lang, country));
-
-        Ok(())
-    }
-}
-
-impl Seal for TrendingQuery<'_> {}
 
 impl Client {
     /// Run query for fetching trending topics from Bing.
-    pub async fn query_trending(&self, query: &impl Query) -> Result<Vec<TrendingTopic>, Error> {
+    pub async fn query_trending(&self, query: &TrendingQuery<'_>) -> Result<Vec<TrendingTopic>, Error> {
         self.query_bing(query).await.map(|trending| trending.value)
     }
 
     /// Run a query against Bing.
-    pub async fn query_bing(&self, query: &impl Query) -> Result<Response, Error> {
-        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
-        query.setup_url(&mut url)?;
+    pub async fn query_bing(&self, query: &TrendingQuery<'_>) -> Result<Response, Error> {
+        let mut url = Url::parse(&self.newscatcher.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
 
-        let response = self
+        url.path_segments_mut()
+            .map_err(|_| Error::InvalidUrlBase(None))?
+            .push(URL_SUFFIX);
+
+        {
+            let mut query_mut = url.query_pairs_mut();
+            let lang = &query.market.lang_code;
+            let country = &query.market.country_code;
+            query_mut.append_pair("mkt", &format!("{}-{}", lang, country));
+        }
+
+        let response = self.newscatcher
             .client
             .get(url)
-            .timeout(self.timeout)
-            .bearer_auth(&self.token)
+            .timeout(self.newscatcher.timeout)
+            .bearer_auth(&self.newscatcher.token)
             .send()
             .await
             .map_err(Error::RequestExecution)?
@@ -150,7 +143,8 @@ mod tests {
         let client = Client::new("test-token", mock_server.uri());
 
         let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/trending-topics.json"));
+            //FIXME move out of newscatcher after full rebase
+            .set_body_string(include_str!("../test-fixtures/newscatcher/trending-topics.json"));
 
         Mock::given(method("GET"))
             .and(path("/_tt"))

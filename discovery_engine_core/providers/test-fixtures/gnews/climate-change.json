@@ -1,0 +1,29 @@
+{
+  "totalArticles": 18519,
+  "articles": [
+    {
+      "title": "As Consumer Prices Rise, Coffee is Canary in the Climate Change Coal Mine | Opinion",
+      "description": "Over the past few years, COVID-19, climate events and new political conflicts have demonstrated that global shocks are becoming the new normal. Agricultural industries like coffee need a strong",
+      "content": "Consumers are paying more for almost everything these days, and our grocery store bills are one area where we're being hit the hardest. Food and beverage prices have risen dramatically in the U.S. and around the world, with COVID-19, supply chain and... [6571 chars]",
+      "url": "https://example.com/path/to/article/",
+      "image": "https://uploads.example.com/image.png",
+      "publishedAt": "2022-04-12T12:00:01Z",
+      "source": {
+        "name": "example.com",
+        "url": "https://example.com"
+      }
+    },
+    {
+      "title": "[WATCH] #StoryOfTheNation: Environment, climate change, and the 2022 polls",
+      "description": "To capture the #StoryOfTheNation, MovePH and its partners ask Filipinos about environment and climate change issues that they think the next set of leaders should act on",
+      "content": "To capture the #StoryOfTheNation, MovePH and its partners ask Filipinos about environment and climate change issues that they think the next set of leaders should act on\nWhat issues about the environment and climate change would you want the next lea... [1195 chars]",
+      "url": "https://example.com/path/to/article/",
+      "image": "https://uploads.example.com/image.png",
+      "publishedAt": "2022-04-12T07:46:52Z",
+      "source": {
+        "name": "example.com",
+        "url": "https://example.com"
+      }
+    }
+  ]
+}

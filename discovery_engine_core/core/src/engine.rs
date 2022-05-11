@@ -547,29 +547,36 @@ where
         let scaled_page_size = page_size as usize / markets.len() + 1;
         let excluded_sources = self.config.excluded_sources.read().await.clone();
         for market in markets.iter() {
-            let common = CommonQueryParts {
-                market: Some(market),
-                page_size: scaled_page_size,
-                page: page as usize,
-                excluded_sources: &excluded_sources,
-            };
             let query_result = match by {
                 SearchBy::Query(filter) => {
                     let news_query = NewsQuery {
-                        common,
+                        common: CommonQueryParts {
+                            market: Some(market),
+                            page_size: scaled_page_size,
+                            page: page as usize,
+                            excluded_sources: &excluded_sources,
+                        },
                         filter,
+                        //FIXME it's not clear if this should be set if supported
                         from: None,
                     };
-                    self.client.query_articles(&news_query).await
+
+                    self.client.query_newscatcher(&news_query).await
                 }
                 SearchBy::Topic(topic) => {
+                    let common = CommonQueryParts {
+                        market: Some(market),
+                        page_size: scaled_page_size,
+                        page: page as usize,
+                        excluded_sources: &excluded_sources,
+                    };
                     let headlines_query = HeadlinesQuery {
                         common,
                         trusted_sources: &[],
                         topic: Some(topic),
                         when: None,
                     };
-                    self.client.query_articles(&headlines_query).await
+                    self.client.query_newscatcher(&headlines_query).await
                 }
             };
             query_result.map_or_else(
@@ -631,7 +638,7 @@ where
 
         let articles = self
             .client
-            .query_articles(&query)
+            .query_newscatcher(&query)
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
@@ -935,7 +942,7 @@ fn documentify_articles(
         .into_par_iter()
         .map(|article| {
             let embedding = ranker
-                .compute_smbert(article.excerpt_or_title())
+                .compute_smbert(article.snippet_or_title())
                 .map_err(|error| {
                     let error = Error::Ranker(error);
                     error!("{}", error);
@@ -1088,6 +1095,7 @@ mod tests {
     };
 
     use std::mem::size_of;
+    use chrono::NaiveDateTime;
     use wiremock::{
         matchers::{method, path},
         Mock,
@@ -1149,7 +1157,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("/latest-headlines"))
+            .respond_with(tmpl.clone())
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/trusted-sources"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1356,7 +1370,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("/latest-headlines"))
+            .respond_with(tmpl.clone())
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/trusted-sources"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1427,7 +1447,19 @@ mod tests {
     }
 
     fn new_mock_article() -> Article {
-        serde_json::from_str(r#"{"link": "https://xayn.com"}"#).unwrap()
+        Article {
+            title: Default::default(),
+            snippet: Default::default(),
+            url: "https://xayn.com".into(),
+            source_domain: Default::default(),
+            date_published: NaiveDateTime::from_timestamp(0, 0),
+            image: Default::default(),
+            rank: Default::default(),
+            score: Default::default(),
+            country: Default::default(),
+            language: Default::default(),
+            topic: "unrecognized".into(),
+        }
     }
 
     fn new_mock_stack_ops() -> MockOps {

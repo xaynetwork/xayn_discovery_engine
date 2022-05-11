@@ -30,28 +30,101 @@
     clippy::must_use_candidate
 )]
 
+use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use displaydoc::Display as DisplayDoc;
+
 mod bing;
 mod clean_query;
 mod client;
 mod expression;
 mod filter;
-mod newscatcher;
+pub mod gnews;
+pub mod newscatcher;
+mod utils;
 
 pub use bing::{TrendingQuery, TrendingTopic};
 pub use clean_query::clean_query;
-pub use client::{
+pub use client::Client;
+pub use gnews::{HeadlinesQuery as GnewsHeadlinesQuery, NewsQuery as GnewsNewsQuery};
+pub use newscatcher::{
     default_from,
-    Client,
     CommonQueryParts,
-    Error,
     HeadlinesQuery,
     NewsQuery,
-    Query,
+    NewscatcherQuery,
     DEFAULT_WHEN,
 };
+
 pub use filter::{Filter, Market};
-pub use newscatcher::{Article, Response, Topic};
 
 mod seal {
     pub trait Seal {}
+}
+
+/// Client errors.
+#[derive(Error, Debug, DisplayDoc)]
+pub enum Error {
+    /// Invalid API Url base
+    InvalidUrlBase(Option<url::ParseError>),
+    /// Failed to execute the HTTP request: {0}
+    RequestExecution(#[source] reqwest::Error),
+    /// Server returned a non-successful status code: {0}
+    StatusCode(#[source] reqwest::Error),
+    /// Failed to fetch from the server: {0}
+    Fetching(#[source] reqwest::Error),
+    /// Failed to decode the server's response: {0}
+    Decoding(#[source] serde_json::Error),
+    /// Failed to decode the server's response at JSON path {1}: {0}
+    DecodingAtPath(
+        String,
+        #[source] serde_path_to_error::Error<serde_json::Error>,
+    ),
+}
+
+/// A news article
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Article {
+    /// Title of the resource.
+    pub title: String,
+
+    /// Snippet of the resource.
+    pub snippet: String,
+
+    /// Url to reach the resource.
+    pub url: String,
+
+    /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
+    pub source_domain: String,
+
+    /// Publishing date.
+    pub date_published: NaiveDateTime,
+
+    /// Image attached to the news.
+    pub image: String,
+
+    /// The rank of the domain of the source,
+    pub rank: u64,
+
+    /// How much the article match the query.
+    pub score: Option<f32>,
+
+    /// The country of the publisher.
+    pub country: String,
+
+    /// The language of the article.
+    pub language: String,
+
+    /// Main topic of the publisher.
+    pub topic: String,
+}
+
+impl Article {
+    /// Gets the snippet or falls back to the title if the snippet is empty.
+    pub fn snippet_or_title(&self) -> &str {
+        (!self.snippet.is_empty())
+            .then(|| &self.snippet)
+            .unwrap_or(&self.title)
+    }
 }

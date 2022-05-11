@@ -28,7 +28,7 @@ final _adapter = ListFfiAdapter<DocumentFfi, RustDocument, RustVecDocument>(
   alloc: ffi.alloc_uninitialized_document_slice,
   next: ffi.next_document,
   writeNative: (document, place) => document.writeNative(place),
-  readNative: DocumentFfi.readNative,
+  readNative: (place) => DocumentFfi.readNative(place),
   getVecLen: ffi.get_document_vec_len,
   getVecBuffer: ffi.get_document_vec_buffer,
   writeNativeVec: ffi.init_document_vec_at,
