@@ -22,8 +22,10 @@
     clippy::future_not_send,
     noop_method_call,
     rust_2018_idioms,
+    unused_qualifications,
     unsafe_code
 )]
+#![warn(missing_docs)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,

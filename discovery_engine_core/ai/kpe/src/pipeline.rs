@@ -47,6 +47,7 @@ pub enum PipelineError {
 }
 
 impl Pipeline {
+    /// Creates a `KPE` pipeline from a configuration.
     pub fn from(config: Config<'_>) -> Result<Self, PipelineError> {
         let tokenizer = Tokenizer::new(
             config.vocab,
