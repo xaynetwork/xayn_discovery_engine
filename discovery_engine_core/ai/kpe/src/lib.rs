@@ -25,7 +25,7 @@
     unused_qualifications,
     unsafe_code
 )]
-#![warn(missing_docs)]
+#![warn(missing_docs, unreachable_pub)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,

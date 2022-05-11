@@ -34,7 +34,7 @@ use crate::{
 
 /// A Bert onnx model.
 #[derive(Debug)]
-pub struct Bert {
+pub(crate) struct Bert {
     plan: TypedSimplePlan<TypedModel>,
     token_size: usize,
 }
@@ -43,11 +43,11 @@ pub struct Bert {
 ///
 /// The embeddings are of shape `(1, token_size, embedding_size = 768)`.
 #[derive(Clone, Debug, Deref, From)]
-pub struct Embeddings(pub Arc<Tensor>);
+pub(crate) struct Embeddings(pub(crate) Arc<Tensor>);
 
 impl Embeddings {
     /// Checks if the embeddings are valid, i.e. finite.
-    pub fn is_valid(&self) -> bool {
+    pub(crate) fn is_valid(&self) -> bool {
         self.to_array_view::<f32>()
             .unwrap()
             .iter()
@@ -58,15 +58,15 @@ impl Embeddings {
 
 impl Bert {
     /// The range of token sizes.
-    pub const TOKEN_RANGE: RangeInclusive<usize> = 2..=512;
+    pub(crate) const TOKEN_RANGE: RangeInclusive<usize> = 2..=512;
 
     /// The number of values per embedding.
-    pub const EMBEDDING_SIZE: usize = 768;
+    pub(crate) const EMBEDDING_SIZE: usize = 768;
 
     /// Creates a model from an onnx model file.
     ///
     /// Requires the maximum number of tokens per tokenized sequence.
-    pub fn new(mut model: impl Read, token_size: usize) -> Result<Self, ModelError> {
+    pub(crate) fn new(mut model: impl Read, token_size: usize) -> Result<Self, ModelError> {
         if !Self::TOKEN_RANGE.contains(&token_size) {
             return Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into());
         }
@@ -89,7 +89,7 @@ impl Bert {
     }
 
     /// Runs the model on the encoded sequence to compute the embeddings.
-    pub fn run(
+    pub(crate) fn run(
         &self,
         token_ids: TokenIds,
         attention_mask: AttentionMask,
@@ -113,7 +113,7 @@ impl Bert {
 
 impl Embeddings {
     /// Collects the valid embeddings according to the mask.
-    pub fn collect(&self, valid_mask: &ValidMask) -> Result<Array2<f32>, ModelError> {
+    pub(crate) fn collect(&self, valid_mask: &ValidMask) -> Result<Array2<f32>, ModelError> {
         debug_assert_eq!(self.shape()[0], 1);
         debug_assert_eq!(self.shape()[2], Bert::EMBEDDING_SIZE);
         valid_mask

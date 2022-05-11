@@ -26,7 +26,7 @@ use xayn_discovery_engine_layer::{activation::Relu, conv::Conv1D, io::BinParams}
 
 /// A CNN model.
 #[derive(Debug)]
-pub struct Cnn {
+pub(crate) struct Cnn {
     layers: [Conv1D<Relu>; Self::KEY_PHRASE_SIZE],
 }
 
@@ -34,24 +34,24 @@ pub struct Cnn {
 ///
 /// The features are of shape `(channel_out_size = 512, sum(sum(valid_ids) - kernel_size + 1))`.
 #[derive(Clone, Debug, Deref, From)]
-pub struct Features(pub Array2<f32>);
+pub(crate) struct Features(pub(crate) Array2<f32>);
 
 impl Features {
     /// Checks if the features are valid, i.e. finite.
-    pub fn is_valid(&self) -> bool {
+    pub(crate) fn is_valid(&self) -> bool {
         self.iter().copied().all(f32::is_finite)
     }
 }
 
 impl Cnn {
     /// The maximum number of words per key phrase.
-    pub const KEY_PHRASE_SIZE: usize = 5;
+    pub(crate) const KEY_PHRASE_SIZE: usize = 5;
 
     /// The number of channels going out of the CNN layers.
-    pub const CHANNEL_OUT_SIZE: usize = 512;
+    pub(crate) const CHANNEL_OUT_SIZE: usize = 512;
 
     /// Creates a model from a binary parameters file.
-    pub fn new(mut params: BinParams) -> Result<Self, ModelError> {
+    pub(crate) fn new(mut params: BinParams) -> Result<Self, ModelError> {
         let mut new_layer = |scope| Conv1D::load(params.with_scope(scope), Relu, 1, 0, 1, 1);
         let layers = [
             new_layer("conv_1")?,
@@ -82,7 +82,7 @@ impl Cnn {
     }
 
     /// Runs the model on the valid embeddings to compute the convolved features.
-    pub fn run(
+    pub(crate) fn run(
         &self,
         embeddings: &Embeddings,
         valid_mask: &ValidMask,

@@ -12,8 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod encoding;
-pub mod key_phrase;
+pub(crate) mod encoding;
+pub(crate) mod key_phrase;
 
 use std::io::BufRead;
 
@@ -33,7 +33,7 @@ use xayn_discovery_engine_tokenizer::{
 
 /// A pre-configured Bert tokenizer for key phrase extraction.
 #[derive(Debug)]
-pub struct Tokenizer<const KEY_PHRASE_SIZE: usize> {
+pub(crate) struct Tokenizer<const KEY_PHRASE_SIZE: usize> {
     tokenizer: BertTokenizer<i64>,
     key_phrase_max_count: Option<usize>,
     key_phrase_min_score: Option<f32>,
@@ -55,7 +55,7 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
     ///
     /// Optionally takes an upper count for the number of returned key phrases as well as a lower
     /// threshold for the scores of returned key phrases.
-    pub fn new(
+    pub(crate) fn new(
         vocab: impl BufRead,
         accents: AccentChars,
         case: CaseChars,

@@ -21,7 +21,7 @@ use crate::{model::classifier::Scores, tokenizer::encoding::ActiveMask};
 
 /// The collection of all potential key phrases.
 #[derive(Default)]
-pub struct KeyPhrases<const KEY_PHRASE_SIZE: usize> {
+pub(crate) struct KeyPhrases<const KEY_PHRASE_SIZE: usize> {
     choices: Vec<String>,
     mentions: Vec<i64>,
     max_count: Option<usize>,
@@ -37,7 +37,7 @@ impl<const KEY_PHRASE_SIZE: usize> KeyPhrases<KEY_PHRASE_SIZE> {
     ///
     /// Each key phrase contains at most `KEY_PHRASE_SIZE` words. At most `count` key phrases with
     /// at least `score` will be ranked.
-    pub fn collect(
+    pub(crate) fn collect(
         words: &[impl Borrow<str>],
         max_count: Option<usize>,
         min_score: Option<f32>,
@@ -79,7 +79,7 @@ impl<const KEY_PHRASE_SIZE: usize> KeyPhrases<KEY_PHRASE_SIZE> {
     }
 
     /// Creates the mask of active/mentioned key phrases for each unique key phrase.
-    pub fn active_mask(&self) -> ActiveMask {
+    pub(crate) fn active_mask(&self) -> ActiveMask {
         Array2::from_shape_fn((self.choices.len(), self.mentions.len()), |(i, j)| {
             i as i64 == self.mentions[j]
         })
@@ -87,7 +87,7 @@ impl<const KEY_PHRASE_SIZE: usize> KeyPhrases<KEY_PHRASE_SIZE> {
     }
 
     /// Ranks the key phrases in descending order according to the scores.
-    pub fn rank(self, scores: Scores) -> RankedKeyPhrases {
+    pub(crate) fn rank(self, scores: Scores) -> RankedKeyPhrases {
         debug_assert_eq!(self.choices.len(), scores.len());
         debug_assert!(scores.is_valid());
         let min_score = self.min_score.as_ref();
