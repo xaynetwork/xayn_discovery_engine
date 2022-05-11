@@ -20,7 +20,7 @@ use rayon::{
     join,
 };
 
-use rubert::{
+use xayn_discovery_engine_bert::{
     kinds::{QAMBert, SMBert},
     AveragePooler,
     Config,

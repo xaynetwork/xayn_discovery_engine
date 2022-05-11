@@ -2159,26 +2159,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rubert"
-version = "0.1.0"
-dependencies = [
- "criterion",
- "csv",
- "derive_more",
- "displaydoc",
- "float-cmp",
- "indicatif",
- "ndarray",
- "onnxruntime",
- "rayon",
- "serde",
- "thiserror",
- "tract-onnx",
- "xayn-discovery-engine-test-utils",
- "xayn-discovery-engine-tokenizer",
-]
-
-[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3308,13 +3288,13 @@ dependencies = [
  "regex",
  "rstest",
  "rstest_reuse",
- "rubert",
  "serde",
  "serde_json",
  "serde_repr",
  "smallvec",
  "thiserror",
  "uuid",
+ "xayn-discovery-engine-bert",
  "xayn-discovery-engine-layer",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
@@ -3341,6 +3321,26 @@ dependencies = [
  "cc",
  "hermit-abi",
  "semver",
+]
+
+[[package]]
+name = "xayn-discovery-engine-bert"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "csv",
+ "derive_more",
+ "displaydoc",
+ "float-cmp",
+ "indicatif",
+ "ndarray",
+ "onnxruntime",
+ "rayon",
+ "serde",
+ "thiserror",
+ "tract-onnx",
+ "xayn-discovery-engine-test-utils",
+ "xayn-discovery-engine-tokenizer",
 ]
 
 [[package]]
@@ -3387,7 +3387,6 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rand_distr",
  "rayon",
- "rubert",
  "serde",
  "serde_json",
  "serde_repr",
@@ -3398,6 +3397,7 @@ dependencies = [
  "uuid",
  "wiremock",
  "xayn-ai",
+ "xayn-discovery-engine-bert",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
  "xayn-discovery-engine-tokenizer",

@@ -28,11 +28,12 @@ use indicatif::ProgressBar;
 use ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use onnxruntime::{environment::Environment, session::Session, GraphOptimizationLevel};
 
-use rubert::{
+use xayn_discovery_engine_bert::{
     kinds::{QAMBert, SMBert},
     Config,
     Embedding2,
     NonePooler,
+    Pipeline as BertPipeline,
 };
 use xayn_discovery_engine_test_utils::{example::validate::transcripts, smbert};
 use xayn_discovery_engine_tokenizer::{
@@ -137,9 +138,9 @@ enum Pipeline {
         _environment: Pin<Box<(Environment, PhantomPinned)>>,
     },
     /// A SMBert model pipeline for the tract runtime.
-    TractSMBert(rubert::Pipeline<SMBert, NonePooler>),
+    TractSMBert(BertPipeline<SMBert, NonePooler>),
     /// A QAMBert model pipeline for the tract runtime.
-    TractQAMBert(rubert::Pipeline<QAMBert, NonePooler>),
+    TractQAMBert(BertPipeline<QAMBert, NonePooler>),
 }
 
 // prevent moving out of the pipeline, since we can't pin the session together with the environment
@@ -199,7 +200,7 @@ impl Pipeline {
                     .unwrap()
                     .with_pooling(NonePooler);
 
-                Self::TractSMBert(rubert::Pipeline::from(config).unwrap())
+                Self::TractSMBert(BertPipeline::from(config).unwrap())
             }
             ModelKind::TractQAMBert => {
                 let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
@@ -210,7 +211,7 @@ impl Pipeline {
                     .unwrap()
                     .with_pooling(NonePooler);
 
-                Self::TractQAMBert(rubert::Pipeline::from(config).unwrap())
+                Self::TractQAMBert(BertPipeline::from(config).unwrap())
             }
         }
     }

@@ -17,9 +17,9 @@ use std::time::Duration;
 use displaydoc::Display;
 
 use kpe::Pipeline as KPE;
-use rubert::SMBert;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use xayn_discovery_engine_bert::SMBert;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{

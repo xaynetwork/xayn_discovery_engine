@@ -32,10 +32,10 @@ use tokio::sync::RwLock;
 use tracing::error;
 
 use xayn_ai::{
-    ranker::{AveragePooler, Builder, CoiSystemConfig, KeyPhrase},
+    ranker::{Builder, CoiSystemConfig, KeyPhrase},
     KpeConfig,
-    SMBertConfig,
 };
+use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_providers::{
     Client,
     CommonQueryParts,

@@ -12,10 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::ops::RangeInclusive;
+
 use itertools::Itertools;
 use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
-use rubert::Embedding1;
-use std::ops::RangeInclusive;
+use xayn_discovery_engine_bert::Embedding1;
 
 pub type Embedding = Embedding1;
 

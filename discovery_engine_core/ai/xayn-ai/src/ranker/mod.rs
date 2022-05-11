@@ -30,4 +30,3 @@ pub use crate::{
     embedding::utils::{cosine_similarity, pairwise_cosine_similarity, Embedding},
     DocumentId,
 };
-pub use rubert::AveragePooler;

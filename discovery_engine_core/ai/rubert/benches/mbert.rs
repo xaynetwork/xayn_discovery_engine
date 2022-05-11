@@ -20,7 +20,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ndarray::{s, Array1, Axis};
 use onnxruntime::{environment::Environment, GraphOptimizationLevel};
 
-use rubert::{
+use xayn_discovery_engine_bert::{
     kinds::{QAMBert, SMBert},
     AveragePooler,
     Config,

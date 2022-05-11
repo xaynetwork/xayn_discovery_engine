@@ -16,7 +16,7 @@
 //! - `s` for SMBert
 //! - `qa` for QAMBert
 
-use rubert::{Config, FirstPooler, Pipeline, SMBertConfig};
+use xayn_discovery_engine_bert::{Config, FirstPooler, Pipeline, SMBertConfig};
 use xayn_discovery_engine_test_utils::smbert;
 
 fn main() {
