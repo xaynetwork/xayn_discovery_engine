@@ -40,6 +40,7 @@ use xayn_discovery_engine_providers::{
     Client,
     CommonQueryParts,
     Filter,
+    GnewsNewsQuery,
     HeadlinesQuery,
     Market,
     NewsQuery,
@@ -524,29 +525,33 @@ where
         let scaled_page_size = page_size as usize / markets.len() + 1;
         let excluded_sources = self.config.excluded_sources.read().await.clone();
         for market in markets.iter() {
-            let common = CommonQueryParts {
-                market: Some(market),
-                page_size: scaled_page_size,
-                page: page as usize,
-                excluded_sources: &excluded_sources,
-            };
             let query_result = match by {
                 SearchBy::Query(filter) => {
-                    let news_query = NewsQuery {
-                        common,
+                    let news_query = GnewsNewsQuery {
+                        market: Some(market),
+                        page_size: scaled_page_size,
+                        page: page as usize,
+                        excluded_sources: &excluded_sources,
                         filter,
-                        from: None,
+                        // from: None
                     };
                     self.client.query_articles(&news_query).await
                 }
+                // TODO check if Gnews
                 SearchBy::Topic(topic) => {
+                    let common = CommonQueryParts {
+                        market: Some(market),
+                        page_size: scaled_page_size,
+                        page: page as usize,
+                        excluded_sources: &excluded_sources,
+                    };
                     let headlines_query = HeadlinesQuery {
                         common,
                         trusted_sources: &[],
                         topic: Some(topic),
                         when: None,
                     };
-                    self.client.query_articles(&headlines_query).await
+                    self.client.query_newscatcher(&headlines_query).await
                 }
             };
             query_result.map_or_else(
@@ -560,7 +565,7 @@ where
             .into_iter()
             .filter_map(|article| {
                 self.ranker
-                    .compute_smbert(article.excerpt_or_title())
+                    .compute_smbert(article.snippet_or_title())
                     .map_err(Error::Ranker)
                     .and_then(|embedding| {
                         document_from_article(article, stack_id, embedding).map_err(Error::Document)
@@ -777,7 +782,7 @@ async fn fetch_new_documents_for_stack(
         .into_par_iter()
         .map(|article| {
             let embedding = ranker
-                .compute_smbert(article.excerpt_or_title())
+                .compute_smbert(article.snippet_or_title())
                 .map_err(|error| {
                     let error = Error::Ranker(error);
                     error!("{}", error);

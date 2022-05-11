@@ -147,6 +147,6 @@ fn spawn_headlines_request(
             topic: None,
             when: DEFAULT_WHEN,
         };
-        client.query_articles(&query).await.map_err(Into::into)
+        client.query_newscatcher(&query).await.map_err(Into::into)
     })
 }

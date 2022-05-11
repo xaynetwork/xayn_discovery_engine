@@ -20,6 +20,7 @@
     clippy::future_not_send,
     noop_method_call,
     rust_2018_idioms,
+    rust_2021_compatibility,
     unused_qualifications
 )]
 #![warn(missing_docs, unreachable_pub)]
@@ -28,21 +29,31 @@
 mod client;
 mod expression;
 mod filter;
+mod gnews;
+mod gnews_client;
 mod newscatcher;
+mod newscatcher_client;
+mod utils;
 
-pub use client::{
+pub use client::{Article, Client, Error};
+pub use gnews_client::NewsQuery as GnewsNewsQuery;
+pub use newscatcher_client::{
     default_from,
-    Client,
     CommonQueryParts,
-    Error,
     HeadlinesQuery,
     NewsQuery,
-    Query,
+    NewscatcherQuery,
     DEFAULT_WHEN,
 };
+
 pub use filter::{Filter, Market};
-pub use newscatcher::{Article, Response, Topic};
 
 mod seal {
     pub trait Seal {}
 }
+
+#[cfg(feature = "direct_news_client_access")]
+pub use crate::{
+    gnews_client::Client as GnewsClient,
+    newscatcher_client::Client as NewscatcherClient,
+};

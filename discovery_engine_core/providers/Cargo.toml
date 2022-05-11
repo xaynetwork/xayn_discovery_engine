@@ -4,6 +4,9 @@ version = "0.1.0"
 license = "AGPL-3.0-only"
 edition = "2021"
 
+[features]
+direct_news_client_access = []
+
 [dependencies]
 chrono = { version = "0.4.19", default_features = false, features = ["clock", "serde"] }
 derive_more = { version = "0.99.17", default-features = false, features = ["display"] }

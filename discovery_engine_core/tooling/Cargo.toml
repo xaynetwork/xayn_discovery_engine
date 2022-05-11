@@ -6,7 +6,7 @@ edition = "2021"
 
 [[bin]]
 name = "newscatcher"
-path = "bin/newscatcher.rs"
+path = "bin/news_client.rs"
 
 [[bin]]
 name = "clean_sources"
@@ -18,4 +18,4 @@ csv = "1.1.6"
 serde_json = "1.0.79"
 serde_path_to_error = "0.1"
 tokio = { version = "1.17.0", features = ["full"] }
-xayn-discovery-engine-providers = { path = "../providers" }
+xayn-discovery-engine-providers = { path = "../providers", features = ["direct_news_client_access"] }

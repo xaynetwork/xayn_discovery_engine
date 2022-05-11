@@ -16,6 +16,8 @@ use chrono::NaiveDateTime;
 use derive_more::Display;
 use serde::{de, Deserialize, Deserializer, Serialize};
 
+use crate::utils::deserialize_null_default;
+
 /// Topic of the publisher.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Display)]
 #[serde(rename_all = "lowercase")]
@@ -111,27 +113,8 @@ pub struct Article {
     pub published_date: NaiveDateTime,
 }
 
-impl Article {
-    /// Gets the excerpt or falls back to the title if the excerpt is empty.
-    pub fn excerpt_or_title(&self) -> &str {
-        (!self.excerpt.is_empty())
-            .then(|| &self.excerpt)
-            .unwrap_or(&self.title)
-    }
-}
-
 fn default_published_date() -> NaiveDateTime {
     chrono::naive::MIN_DATETIME
-}
-
-// Taken from https://github.com/serde-rs/serde/issues/1098#issuecomment-760711617
-fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    T: Default + Deserialize<'de>,
-    D: Deserializer<'de>,
-{
-    let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or_default())
 }
 
 /// Null-value tolerant deserialization of `NaiveDateTime`
