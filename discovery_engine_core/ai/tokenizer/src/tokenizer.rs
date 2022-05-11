@@ -16,7 +16,6 @@ use crate::{
 #[derive(Debug)]
 pub struct Tokenizer<N> {
     pub(crate) normalizer: Normalizer,
-    pub(crate) pre_tokenizer: PreTokenizer,
     pub(crate) model: Model<N>,
     pub(crate) post_tokenizer: PostTokenizer<N>,
     pub(crate) truncation: Truncation,
@@ -30,7 +29,7 @@ impl<N> Tokenizer<N> {
         N: Num + FromPrimitive + Copy,
     {
         let sequence = self.normalizer.normalize(sequence);
-        let sequence = self.pre_tokenizer.pre_tokenize(sequence);
+        let sequence = PreTokenizer::pre_tokenize(sequence);
         let sequence = self.model.tokenize(sequence);
 
         let encoding = self.truncation.truncate(sequence.into());

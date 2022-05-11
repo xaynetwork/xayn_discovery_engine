@@ -18,7 +18,7 @@ use derive_more::{Deref, From};
 use ndarray::{Array1, Array2, Axis};
 
 use crate::tokenizer::{key_phrase::KeyPhrases, Tokenizer};
-use rubert_tokenizer::{Encoding as BertEncoding, Offsets};
+use xayn_discovery_engine_tokenizer::{Encoding as BertEncoding, Offsets};
 
 /// The token ids of the encoded sequence.
 ///
@@ -210,6 +210,7 @@ mod tests {
 
     use super::*;
     use xayn_discovery_engine_test_utils::smbert::vocab;
+    use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
     /// Tokens: This embedd ##ing fit ##s perfect ##ly .
     const EXACT_SEQUENCE: &str = "This embedding fits perfectly.";
@@ -220,15 +221,15 @@ mod tests {
 
     fn tokenizer(token_size: usize) -> Tokenizer<3> {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
-        let accents = false;
-        let lowercase = true;
+        let accents = AccentChars::Cleanse;
+        let case = CaseChars::Lower;
         let key_phrase_count = None;
         let key_phrase_score = None;
 
         Tokenizer::new(
             vocab,
             accents,
-            lowercase,
+            case,
             token_size,
             key_phrase_count,
             key_phrase_score,

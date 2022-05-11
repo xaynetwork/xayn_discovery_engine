@@ -29,8 +29,16 @@ use rubert::{
     NonePooler,
     Pipeline,
 };
-use rubert_tokenizer::{Builder as TokenizerBuilder, Padding, Truncation};
-use test_utils::{qambert, smbert};
+use xayn_discovery_engine_test_utils::{qambert, smbert};
+use xayn_discovery_engine_tokenizer::{
+    AccentChars,
+    Builder as TokenizerBuilder,
+    CaseChars,
+    ChineseChars,
+    ControlChars,
+    Padding,
+    Truncation,
+};
 
 const TOKEN_SIZE: usize = 64;
 const SEQUENCE: &str = "This is a sequence.";
@@ -68,7 +76,12 @@ fn bench_onnx(
 ) {
     let tokenizer = TokenizerBuilder::from_file(vocab.unwrap())
         .unwrap()
-        .with_normalizer(true, false, false, true)
+        .with_normalizer(
+            ControlChars::Cleanse,
+            ChineseChars::Keep,
+            AccentChars::Cleanse,
+            CaseChars::Lower,
+        )
         .with_model("[UNK]", "##", 100)
         .with_post_tokenizer("[CLS]", "[SEP]")
         .with_truncation(Truncation::fixed(TOKEN_SIZE, 0))

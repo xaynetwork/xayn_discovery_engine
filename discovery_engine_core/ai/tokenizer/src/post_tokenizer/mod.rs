@@ -1,6 +1,6 @@
-pub mod encoding;
-pub mod padding;
-pub mod truncation;
+pub(crate) mod encoding;
+pub(crate) mod padding;
+pub(crate) mod truncation;
 
 use std::iter::once;
 
@@ -17,7 +17,7 @@ use crate::{
 
 /// A Bert post-tokenizer.
 #[derive(Debug)]
-pub struct PostTokenizer<N> {
+pub(crate) struct PostTokenizer<N> {
     cls_id: N,
     pub(crate) cls_token: SmallString,
     sep_id: N,
@@ -34,7 +34,7 @@ pub enum PostTokenizerError {
 }
 
 /// The number of added special tokens.
-pub const ADDED_TOKENS: usize = 2;
+pub(crate) const ADDED_TOKENS: usize = 2;
 
 impl<N> PostTokenizer<N>
 where
@@ -114,6 +114,7 @@ where
                 .map(|encoding| self.post_tokenize(encoding))
                 .collect()
         });
+        #[allow(clippy::range_plus_one)] // type mismatch
         let sequence_ranges = Some(once((0, 1..len + 1)).collect());
 
         Encoding {

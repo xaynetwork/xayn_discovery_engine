@@ -28,6 +28,7 @@ url = { version = "2.2.2", features = ["serde"] }
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
 xayn-ai = { path = "../ai/xayn-ai", features = ["multithreaded"] }
 xayn-discovery-engine-providers = { path = "../providers" }
+xayn-discovery-engine-tokenizer = { path = "../ai/tokenizer" }
 
 [dev-dependencies]
 claim = "0.5.0"

@@ -194,6 +194,7 @@ mod tests {
         SMBertConfig,
     };
     use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
+    use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
     use crate::document::NewsResource;
 
@@ -363,8 +364,8 @@ mod tests {
                 .unwrap()
                 .with_token_size(52)
                 .unwrap()
-                .with_accents(false)
-                .with_lowercase(true)
+                .with_accents(AccentChars::Cleanse)
+                .with_case(CaseChars::Lower)
                 .with_pooling(AveragePooler);
 
         let smbert = SMBert::from(smbert_config).unwrap();

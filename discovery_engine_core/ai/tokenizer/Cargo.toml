@@ -1,9 +1,8 @@
 [package]
-name = "rubert-tokenizer"
+name = "xayn-discovery-engine-tokenizer"
 version = "0.1.0"
-authors = ["Xayn Engineering <engineering@xaynet.dev>"]
-edition = "2021"
 license = "Apache-2.0"
+edition = "2021"
 
 [dependencies]
 displaydoc = "0.2.3"

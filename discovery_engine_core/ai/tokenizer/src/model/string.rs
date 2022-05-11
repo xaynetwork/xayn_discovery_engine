@@ -55,7 +55,7 @@ where
                     id: model.unk_id,
                     value: model.unk_token.to_string(),
                     offsets: Offsets(0, len),
-                }]
+                }];
             } else {
                 let mut start = 0;
                 while start < len {
@@ -83,9 +83,8 @@ where
                                 offsets: Offsets(start, end),
                             });
                             break end;
-                        } else {
-                            end -= sub_str.chars().last().map_or(1, |c| c.len_utf8());
                         }
+                        end -= sub_str.chars().last().map_or(1, char::len_utf8);
                     }
                 }
             };

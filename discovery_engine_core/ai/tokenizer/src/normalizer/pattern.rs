@@ -2,7 +2,7 @@ use regex::Regex;
 
 use crate::normalizer::string::Offsets;
 
-/// A pattern used to split a NormalizedString.
+/// A pattern used to split a `NormalizedString`.
 pub trait Pattern {
     /// Slices the sequence in a list of pattern match positions.
     ///
@@ -92,7 +92,7 @@ impl Pattern for Regex {
             prev = m.end();
         }
         if prev != inside.len() {
-            matches.push((Offsets(prev, inside.len()), false))
+            matches.push((Offsets(prev, inside.len()), false));
         }
 
         matches

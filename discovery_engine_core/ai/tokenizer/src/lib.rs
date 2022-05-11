@@ -27,11 +27,24 @@
 //! - A padding strategy.
 //!
 //! ```no_run
-//! use rubert_tokenizer::{Builder, Padding, Truncation};
+//! use xayn_discovery_engine_tokenizer::{
+//!     AccentChars,
+//!     Builder,
+//!     CaseChars,
+//!     ChineseChars,
+//!     ControlChars,
+//!     Padding,
+//!     Truncation,
+//! };
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let tokenizer = Builder::<u32>::from_file("vocab.txt")?
-//!         .with_normalizer(true, true, false, true)
+//!         .with_normalizer(
+//!             ControlChars::Cleanse,
+//!             ChineseChars::Separate,
+//!             AccentChars::Cleanse,
+//!             CaseChars::Lower,
+//!         )
 //!         .with_model("[UNK]", "##", 100)
 //!         .with_post_tokenizer("[CLS]", "[SEP]")
 //!         .with_truncation(Truncation::fixed(128, 0))
@@ -48,11 +61,22 @@
 //! [huggingface's `tokenizers`]: https://crates.io/crates/tokenizers
 //! [`Num`]: num_traits::Num
 //! [`FromPrimitive`]: num_traits::FromPrimitive
-#![cfg_attr(
-    doc,
-    forbid(rustdoc::broken_intra_doc_links, rustdoc::private_intra_doc_links)
+
+#![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
+#![deny(
+    clippy::pedantic,
+    clippy::future_not_send,
+    noop_method_call,
+    rust_2018_idioms,
+    unused_qualifications
 )]
-#![forbid(unsafe_op_in_unsafe_fn)]
+#![warn(missing_docs, unreachable_pub)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions,
+    clippy::items_after_statements
+)]
 
 mod builder;
 mod model;
@@ -64,7 +88,7 @@ mod tokenizer;
 pub use crate::{
     builder::{Builder, BuilderError},
     model::ModelError,
-    normalizer::string::Offsets,
+    normalizer::{string::Offsets, AccentChars, CaseChars, ChineseChars, ControlChars},
     post_tokenizer::{
         encoding::Encoding,
         padding::{Padding, PaddingError},

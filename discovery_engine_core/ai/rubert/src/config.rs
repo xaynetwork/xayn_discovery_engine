@@ -23,6 +23,7 @@ use displaydoc::Display;
 use thiserror::Error;
 
 use crate::{model::BertModel, NonePooler};
+use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[derive(Debug, Display, Error)]
 pub enum ConfigError {
@@ -36,8 +37,8 @@ pub struct Config<'a, K, P> {
     pub(crate) model_kind: PhantomData<K>,
     pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
     pub(crate) model: Box<dyn Read + Send + 'a>,
-    pub(crate) accents: bool,
-    pub(crate) lowercase: bool,
+    pub(crate) accents: AccentChars,
+    pub(crate) case: CaseChars,
     pub(crate) token_size: usize,
     pub(crate) pooler: P,
 }
@@ -51,8 +52,8 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
             model_kind: Default::default(),
             vocab,
             model,
-            accents: false,
-            lowercase: true,
+            accents: AccentChars::Cleanse,
+            case: CaseChars::Lower,
             token_size: 128,
             pooler: NonePooler,
         }
@@ -71,17 +72,17 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
 impl<'a, K: BertModel, P> Config<'a, K, P> {
     /// Whether the tokenizer keeps accents.
     ///
-    /// Defaults to `false`.
-    pub fn with_accents(mut self, accents: bool) -> Self {
+    /// Defaults to `AccentChars::Cleanse`.
+    pub fn with_accents(mut self, accents: AccentChars) -> Self {
         self.accents = accents;
         self
     }
 
     /// Whether the tokenizer lowercases.
     ///
-    /// Defaults to `true`.
-    pub fn with_lowercase(mut self, lowercase: bool) -> Self {
-        self.lowercase = lowercase;
+    /// Defaults to `CaseChars::Lower`.
+    pub fn with_case(mut self, case: CaseChars) -> Self {
+        self.case = case;
         self
     }
 
@@ -109,7 +110,7 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
             model: self.model,
             model_kind: self.model_kind,
             accents: self.accents,
-            lowercase: self.lowercase,
+            case: self.case,
             token_size: self.token_size,
             pooler,
         }

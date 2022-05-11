@@ -10,25 +10,25 @@ use thiserror::Error;
 
 use crate::{
     model::{Model, ModelError, Vocab},
-    normalizer::Normalizer,
+    normalizer::{AccentChars, CaseChars, ChineseChars, ControlChars, Normalizer},
     post_tokenizer::{
         padding::{Padding, PaddingError},
         truncation::{Truncation, TruncationError},
         PostTokenizer,
         PostTokenizerError,
     },
-    pre_tokenizer::PreTokenizer,
     tokenizer::Tokenizer,
     SmallString,
 };
 
 /// A builder to create a Bert tokenizer.
+#[must_use]
 pub struct Builder<N> {
     // normalizer
-    cleanup: bool,
-    chinese: bool,
-    accents: bool,
-    lowercase: bool,
+    control: ControlChars,
+    chinese: ChineseChars,
+    accents: AccentChars,
+    case: CaseChars,
     // model
     vocab: Vocab<N>,
     unk: SmallString,
@@ -65,10 +65,10 @@ impl<N> Builder<N> {
     {
         Ok(Self {
             // normalizer
-            cleanup: true,
-            chinese: true,
-            accents: false,
-            lowercase: true,
+            control: ControlChars::Cleanse,
+            chinese: ChineseChars::Separate,
+            accents: AccentChars::Cleanse,
+            case: CaseChars::Lower,
             // model
             vocab: Model::parse_vocab(vocab)?,
             unk: "[UNK]".into(),
@@ -96,22 +96,23 @@ impl<N> Builder<N> {
     /// Configures the normalizer.
     ///
     /// Configurable by:
-    /// - Cleans any control characters and replaces all sorts of whitespace by ` `. Defaults to
-    /// `true`.
-    /// - Separates Chinese characters by whitespace so they get split. Defaults to `true`.
-    /// - Keeps accents of characters. Defaults to `false`.
-    /// - Lowercases characters. Defaults to `true`.
+    /// - Cleanses any control characters and replaces all sorts of whitespace by ` `. Defaults to
+    /// `ControlChars::Cleanse`.
+    /// - Separates Chinese characters by whitespace so they get split. Defaults to
+    /// `ChineseChars::Separate`.
+    /// - Keeps accents of characters. Defaults to `AccentChars::Cleanse`.
+    /// - Lowercases characters. Defaults to `CaseChars::Lower`.
     pub fn with_normalizer(
         mut self,
-        cleanup: bool,
-        chinese: bool,
-        accents: bool,
-        lowercase: bool,
+        control: ControlChars,
+        chinese: ChineseChars,
+        accents: AccentChars,
+        case: CaseChars,
     ) -> Self {
-        self.cleanup = cleanup;
+        self.control = control;
         self.chinese = chinese;
         self.accents = accents;
-        self.lowercase = lowercase;
+        self.case = case;
         self
     }
 
@@ -168,8 +169,7 @@ impl<N> Builder<N> {
     where
         N: Copy,
     {
-        let normalizer = Normalizer::new(self.cleanup, self.chinese, self.accents, self.lowercase);
-        let pre_tokenizer = PreTokenizer;
+        let normalizer = Normalizer::new(self.control, self.chinese, self.accents, self.case);
         let model = Model::new(self.vocab, self.unk, self.prefix, self.max_chars)?;
         let post_tokenizer = PostTokenizer::new(self.cls, self.sep, &model.vocab)?;
         let truncation = self.trunc.validate()?;
@@ -177,7 +177,6 @@ impl<N> Builder<N> {
 
         Ok(Tokenizer {
             normalizer,
-            pre_tokenizer,
             model,
             post_tokenizer,
             truncation,

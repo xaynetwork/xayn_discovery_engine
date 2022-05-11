@@ -44,6 +44,7 @@ use xayn_discovery_engine_providers::{
     Market,
     NewsQuery,
 };
+use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::{
     document::{
@@ -821,8 +822,8 @@ impl XaynAiEngine {
                     .map_err(|err| Error::Ranker(err.into()))?,
             )
             .map_err(|err| Error::Ranker(err.into()))?
-            .with_accents(false)
-            .with_lowercase(true)
+            .with_accents(AccentChars::Cleanse)
+            .with_case(CaseChars::Lower)
             .with_pooling(AveragePooler);
 
         let kpe_config = KpeConfig::from_files(
@@ -838,8 +839,8 @@ impl XaynAiEngine {
                 .map_err(|err| Error::Ranker(err.into()))?,
         )
         .map_err(|err| Error::Ranker(err.into()))?
-        .with_accents(false)
-        .with_lowercase(false);
+        .with_accents(AccentChars::Cleanse)
+        .with_case(CaseChars::Keep);
 
         let coi_system_config = ai_config
             .extract()

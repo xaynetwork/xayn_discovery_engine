@@ -56,13 +56,9 @@ where
     K: BertModel,
 {
     pub fn from(config: Config<K, P>) -> Result<Self, PipelineError> {
-        let tokenizer = Tokenizer::new(
-            config.vocab,
-            config.accents,
-            config.lowercase,
-            config.token_size,
-        )
-        .map_err(PipelineError::TokenizerBuild)?;
+        let tokenizer =
+            Tokenizer::new(config.vocab, config.accents, config.case, config.token_size)
+                .map_err(PipelineError::TokenizerBuild)?;
 
         let model =
             Model::new(config.model, config.token_size).map_err(PipelineError::ModelBuild)?;

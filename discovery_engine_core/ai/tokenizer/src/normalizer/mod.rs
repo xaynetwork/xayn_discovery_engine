@@ -1,33 +1,74 @@
-pub mod pattern;
-pub mod string;
+pub(crate) mod pattern;
+pub(crate) mod string;
 
 use unicode_categories::UnicodeCategories;
 
 use crate::normalizer::string::NormalizedString;
 
+/// Whether or not to cleanse control characters.
+#[derive(Clone, Copy, Debug)]
+pub enum ControlChars {
+    /// Keeps control characters.
+    Keep,
+    /// Cleanses control characters.
+    Cleanse,
+}
+
+/// Whether or not to separate chinese characters.
+#[derive(Clone, Copy, Debug)]
+pub enum ChineseChars {
+    /// Keeps chinese characters as given.
+    Keep,
+    /// Separates chinese characters with whitespace.
+    Separate,
+}
+
+/// Whether or not to cleanse accents.
+#[derive(Clone, Copy, Debug)]
+pub enum AccentChars {
+    /// Keeps accents as given.
+    Keep,
+    /// Cleanses accents from characters.
+    Cleanse,
+}
+
+/// Whether or not to lowercase characters.
+#[derive(Clone, Copy, Debug)]
+pub enum CaseChars {
+    /// Keeps case of characters as given.
+    Keep,
+    /// Lowercases characters.
+    Lower,
+}
+
 /// A Bert normalizer.
 #[derive(Debug)]
-pub struct Normalizer {
-    cleanup: bool,
-    chinese: bool,
-    accents: bool,
-    lowercase: bool,
+pub(crate) struct Normalizer {
+    control: ControlChars,
+    chinese: ChineseChars,
+    accents: AccentChars,
+    case: CaseChars,
 }
 
 impl Normalizer {
     /// Creates a Bert normalizer.
-    pub(crate) fn new(cleanup: bool, chinese: bool, accents: bool, lowercase: bool) -> Self {
+    pub(crate) fn new(
+        control: ControlChars,
+        chinese: ChineseChars,
+        accents: AccentChars,
+        case: CaseChars,
+    ) -> Self {
         Self {
-            cleanup,
+            control,
             chinese,
             accents,
-            lowercase,
+            case,
         }
     }
 
     /// Cleans the sequence from control characters.
     fn clean(&self, sequence: NormalizedString) -> NormalizedString {
-        if self.cleanup {
+        if let ControlChars::Cleanse = self.control {
             sequence
                 .filter(|c| {
                     c != '\0'
@@ -51,7 +92,7 @@ impl Normalizer {
 
     /// Separates Chinese characters in the sequence by whitespace.
     fn separate_chinese(&self, sequence: NormalizedString) -> NormalizedString {
-        if self.chinese {
+        if let ChineseChars::Separate = self.chinese {
             let mut new_chars: Vec<(char, isize)> = vec![];
             sequence.for_each_char(|c| {
                 // Checks whether a character is Chinese
@@ -85,16 +126,16 @@ impl Normalizer {
 
     /// Strips accents from the sequence.
     fn strip_accents(&self, sequence: NormalizedString) -> NormalizedString {
-        if self.accents {
-            sequence
-        } else {
+        if let AccentChars::Cleanse = self.accents {
             sequence.nfd().filter(|c| !c.is_mark_nonspacing())
+        } else {
+            sequence
         }
     }
 
     /// Lowercases the sequence.
     fn lowercase(&self, sequence: NormalizedString) -> NormalizedString {
-        if self.lowercase {
+        if let CaseChars::Lower = self.case {
             sequence.lowercase()
         } else {
             sequence

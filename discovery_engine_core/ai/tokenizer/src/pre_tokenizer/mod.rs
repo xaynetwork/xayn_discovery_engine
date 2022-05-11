@@ -1,4 +1,4 @@
-pub mod string;
+pub(crate) mod string;
 
 use unicode_categories::UnicodeCategories;
 
@@ -9,11 +9,11 @@ use crate::{
 
 /// A Bert pre-tokenizer.
 #[derive(Debug)]
-pub struct PreTokenizer;
+pub(crate) struct PreTokenizer;
 
 impl PreTokenizer {
     /// Pre-tokenizes the sequence.
-    pub(crate) fn pre_tokenize(&self, sequence: NormalizedString) -> PreTokenizedString {
+    pub(crate) fn pre_tokenize(sequence: NormalizedString) -> PreTokenizedString {
         PreTokenizedString::from(sequence)
             .split(|_, sequence| sequence.split(char::is_whitespace, SplitDelimiter::Remove))
             .split(|_, sequence| {
@@ -30,10 +30,10 @@ mod tests {
     use super::*;
     use crate::normalizer::string::Offsets;
 
-    fn assert_eq(actual: PreTokenizedString, expected: Vec<(&str, Offsets)>) {
+    fn assert_eq(actual: &PreTokenizedString, expected: &[(&str, Offsets)]) {
         assert_eq!(actual.splits.len(), expected.len());
         for (split, (word, offset)) in actual.splits.iter().zip(expected) {
-            assert_eq!(split.normalized, word);
+            assert_eq!(split.normalized, *word);
             assert_eq!(split.offset + split.alignments.first().unwrap().0, offset.0);
             assert_eq!(split.offset + split.alignments.last().unwrap().1, offset.1);
         }
@@ -41,8 +41,8 @@ mod tests {
 
     #[test]
     fn test_basic() {
-        let pre_tokenized = PreTokenizer.pre_tokenize("Hey friend!     How are you?!?".into());
-        let expected = vec![
+        let pre_tokenized = PreTokenizer::pre_tokenize("Hey friend!     How are you?!?".into());
+        let expected = [
             ("Hey", Offsets(0, 3)),
             ("friend", Offsets(4, 10)),
             ("!", Offsets(10, 11)),
@@ -53,7 +53,7 @@ mod tests {
             ("!", Offsets(28, 29)),
             ("?", Offsets(29, 30)),
         ];
-        assert_eq(pre_tokenized, expected);
+        assert_eq(&pre_tokenized, &expected);
     }
 
     #[test]
@@ -69,8 +69,8 @@ mod tests {
             }),
             0,
         );
-        let pre_tokenized = PreTokenizer.pre_tokenize(normalized);
-        let expected = vec![
+        let pre_tokenized = PreTokenizer::pre_tokenize(normalized);
+        let expected = [
             ("野", Offsets(0, 3)),
             ("口", Offsets(3, 6)),
             ("里", Offsets(6, 9)),
@@ -78,6 +78,6 @@ mod tests {
             ("Noguchi", Offsets(13, 20)),
             ("Rika", Offsets(21, 25)),
         ];
-        assert_eq(pre_tokenized, expected);
+        assert_eq(&pre_tokenized, &expected);
     }
 }

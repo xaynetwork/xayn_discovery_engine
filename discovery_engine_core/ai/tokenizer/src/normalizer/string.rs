@@ -34,8 +34,7 @@ where
 {
     fn inner(&self) -> &R {
         match self {
-            Range::Original(range) => range,
-            Range::Normalized(range) => range,
+            Range::Original(range) | Range::Normalized(range) => range,
         }
     }
 
@@ -275,48 +274,46 @@ impl NormalizedString {
             .into_iter();
         let initial_removed: usize = (&mut replaced_normalized)
             .take(offset)
-            .map(|c| c.len_utf8())
+            .map(char::len_utf8)
             .sum();
 
-        let mut offset = (initial_removed + n_range.start) as isize;
+        let mut offset = initial_removed + n_range.start;
         let mut alignments = Vec::with_capacity(n_range.len());
         let normalized = iter
             .into_iter()
             .map(|(c, changes)| {
-                let idx = offset as usize;
                 let align = if changes.is_positive() {
-                    if idx < 1 {
+                    if offset < 1 {
                         Offsets(0, 0)
                     } else {
                         // This is a newly inserted character, so it shares the same alignment
                         // than the previous one
-                        self.alignments[idx - 1]
+                        self.alignments[offset - 1]
                     }
                 } else {
-                    self.alignments[idx]
+                    self.alignments[offset]
                 };
 
                 // If we are replacing a character, find it and compute the change in size
-                let replaced_char = if !changes.is_positive() {
-                    replaced_normalized.next()
-                } else {
-                    None
-                };
-                let replaced_char_size = replaced_char.map_or(0, |c| c.len_utf8());
+                let replaced_char = (!changes.is_positive())
+                    .then(|| replaced_normalized.next())
+                    .flatten();
+                let replaced_char_size = replaced_char.map_or(0, char::len_utf8);
 
                 // If we are removing some characters, find them too
                 let total_bytes_to_remove = if changes.is_negative() {
+                    #[allow(clippy::cast_sign_loss)] // sign is checked before
                     (&mut replaced_normalized)
                         .take(-changes as usize)
-                        .map(|c| c.len_utf8())
+                        .map(char::len_utf8)
                         .sum()
                 } else {
                     0
                 };
 
                 // Keep track of the changes for next offsets
-                offset += replaced_char_size as isize;
-                offset += total_bytes_to_remove as isize;
+                offset += replaced_char_size;
+                offset += total_bytes_to_remove;
 
                 alignments.extend((0..c.len_utf8()).map(|_| align));
 
@@ -326,11 +323,7 @@ impl NormalizedString {
             .collect::<String>();
 
         self.alignments.splice(n_range.clone(), alignments);
-        unsafe {
-            self.normalized
-                .as_mut_vec()
-                .splice(n_range, normalized.bytes());
-        }
+        self.normalized.replace_range(n_range, &normalized);
 
         self
     }
@@ -367,6 +360,7 @@ impl NormalizedString {
                     Some(lc) => {
                         transforms.push((lc, -removed));
                     }
+                    #[allow(clippy::cast_sign_loss)] // always non-negative
                     None => {
                         removed_start = removed as usize;
                     }
@@ -404,12 +398,13 @@ impl NormalizedString {
         self.for_each_char(|c| {
             c.to_lowercase().enumerate().for_each(|(index, c)| {
                 new_chars.push((c, if index > 0 { 1 } else { 0 }));
-            })
+            });
         });
         self.transform(new_chars, 0)
     }
 
     /// Splits wrt the pattern and handles the delimiter.
+    #[allow(clippy::needless_pass_by_value)] // many patterns are Copy
     pub fn split(&self, pattern: impl Pattern, behavior: SplitDelimiter) -> Vec<NormalizedString> {
         let matches = pattern.find_matches(&self.normalized);
 
@@ -426,14 +421,10 @@ impl NormalizedString {
         splits
             .into_iter()
             .filter_map(|(offsets, remove)| {
-                if !remove {
-                    Some(
-                        self.slice_char(Range::Normalized(offsets.0..offsets.1))
-                            .expect("NormalizedString bad split"),
-                    )
-                } else {
-                    None
-                }
+                (!remove).then(|| {
+                    self.slice_char(Range::Normalized(offsets.0..offsets.1))
+                        .expect("NormalizedString bad split")
+                })
             })
             .collect()
     }
@@ -468,9 +459,7 @@ mod tests {
                 } else {
                     // This is a new group
                     let start = alignment.0;
-                    if start < last.1 {
-                        panic!("We can't have overlapping ranges.");
-                    }
+                    assert!(start >= last.1, "We can't have overlapping ranges.");
 
                     // Add the old group
                     alignments_original
@@ -857,6 +846,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_transform_range_single_bytes() {
         let sequence = "Hello friend";
 
@@ -1226,6 +1216,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_transform_range_multiple_bytes() {
         let sequence = "𝔾𝕠𝕠𝕕";
 

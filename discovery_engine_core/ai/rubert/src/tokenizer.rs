@@ -16,10 +16,19 @@ use std::io::BufRead;
 
 use derive_more::{Deref, From};
 use displaydoc::Display;
-use rubert_tokenizer::{Builder, BuilderError, Padding, Tokenizer as BertTokenizer, Truncation};
-use thiserror::Error;
-
 use ndarray::{Array1, Array2, Axis};
+use thiserror::Error;
+use xayn_discovery_engine_tokenizer::{
+    AccentChars,
+    Builder,
+    BuilderError,
+    CaseChars,
+    ChineseChars,
+    ControlChars,
+    Padding,
+    Tokenizer as BertTokenizer,
+    Truncation,
+};
 
 /// A pre-configured Bert tokenizer.
 #[derive(Debug)]
@@ -68,12 +77,12 @@ impl Tokenizer {
     pub fn new(
         // `BufRead` instead of `AsRef<Path>` is needed for wasm
         vocab: impl BufRead,
-        accents: bool,
-        lowercase: bool,
+        accents: AccentChars,
+        case: CaseChars,
         token_size: usize,
     ) -> Result<Self, TokenizerError> {
         let tokenizer = Builder::new(vocab)?
-            .with_normalizer(true, false, accents, lowercase)
+            .with_normalizer(ControlChars::Cleanse, ChineseChars::Keep, accents, case)
             .with_model("[UNK]", "##", 100)
             .with_post_tokenizer("[CLS]", "[SEP]")
             .with_truncation(Truncation::fixed(token_size, 0))
@@ -107,15 +116,21 @@ mod tests {
     use ndarray::ArrayView;
     use std::{fs::File, io::BufReader};
 
-    use rubert_tokenizer::{ModelError, PaddingError, PostTokenizerError};
     use xayn_discovery_engine_test_utils::smbert::vocab;
+    use xayn_discovery_engine_tokenizer::{ModelError, PaddingError, PostTokenizerError};
 
     use super::*;
 
     #[test]
     fn test_vocab_empty() {
         assert_eq!(
-            Tokenizer::new(Vec::new().as_slice(), true, true, 10).unwrap_err(),
+            Tokenizer::new(
+                Vec::new().as_slice(),
+                AccentChars::Keep,
+                CaseChars::Lower,
+                10
+            )
+            .unwrap_err(),
             TokenizerError::Builder(BuilderError::Model(ModelError::EmptyVocab)),
         );
     }
@@ -124,7 +139,7 @@ mod tests {
     fn test_vocab_missing_cls() {
         let vocab = ["[SEP]", "[PAD]", "[UNK]", "a", "##b"].join("\n");
         assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), true, true, 10).unwrap_err(),
+            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
             TokenizerError::Builder(BuilderError::PostTokenizer(PostTokenizerError::ClsToken)),
         );
     }
@@ -133,7 +148,7 @@ mod tests {
     fn test_vocab_missing_sep() {
         let vocab = ["[CLS]", "[PAD]", "[UNK]", "a", "##b"].join("\n");
         assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), true, true, 10).unwrap_err(),
+            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
             TokenizerError::Builder(BuilderError::PostTokenizer(PostTokenizerError::SepToken)),
         );
     }
@@ -142,7 +157,7 @@ mod tests {
     fn test_vocab_missing_pad() {
         let vocab = ["[CLS]", "[SEP]", "[UNK]", "a", "##b"].join("\n");
         assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), true, true, 10).unwrap_err(),
+            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
             TokenizerError::Builder(BuilderError::Padding(PaddingError::PadToken)),
         );
     }
@@ -151,7 +166,7 @@ mod tests {
     fn test_vocab_missing_unk() {
         let vocab = ["[CLS]", "[SEP]", "[PAD]", "a", "##b"].join("\n");
         assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), true, true, 10).unwrap_err(),
+            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
             TokenizerError::Builder(BuilderError::Model(ModelError::UnkToken)),
         );
     }
@@ -160,16 +175,16 @@ mod tests {
     fn test_vocab_missing_prefix() {
         let vocab = ["[CLS]", "[SEP]", "[PAD]", "[UNK]", "a##b"].join("\n");
         assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), true, true, 10).unwrap_err(),
+            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
             TokenizerError::Builder(BuilderError::Model(ModelError::SubwordPrefix)),
         );
     }
 
     fn tokenizer(token_size: usize) -> Tokenizer {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
-        let accents = false;
-        let lowercase = true;
-        Tokenizer::new(vocab, accents, lowercase, token_size).unwrap()
+        let accents = AccentChars::Cleanse;
+        let case = CaseChars::Lower;
+        Tokenizer::new(vocab, accents, case, token_size).unwrap()
     }
 
     #[test]
