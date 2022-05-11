@@ -16,7 +16,7 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::Market;
+use xayn_discovery_engine_providers::Market;
 
 /// Returns a pointer to the `country_code` field of a [`Market`].
 ///

@@ -18,10 +18,8 @@ use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
 
-use xayn_discovery_engine_core::{
-    document::{Embedding, UserReacted, UserReaction},
-    Market,
-};
+use xayn_discovery_engine_core::document::{Embedding, UserReacted, UserReaction};
+use xayn_discovery_engine_providers::Market;
 
 /// Returns a pointer to the `id` field of an [`UserReacted`].
 ///

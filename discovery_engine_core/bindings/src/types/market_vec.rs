@@ -14,7 +14,7 @@
 
 //! FFI functions for handling slices and vectors of [`Market`] instance.
 
-use xayn_discovery_engine_core::Market;
+use xayn_discovery_engine_providers::Market;
 
 use crate::types::{
     slice::{alloc_uninitialized_slice, boxed_slice_from_raw_parts, next_element},

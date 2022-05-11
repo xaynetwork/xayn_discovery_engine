@@ -3362,6 +3362,7 @@ dependencies = [
  "url",
  "uuid",
  "xayn-discovery-engine-core",
+ "xayn-discovery-engine-providers",
 ]
 
 [[package]]
