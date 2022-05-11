@@ -48,7 +48,6 @@ pub mod kinds {
 
     /// Sentence (Embedding) Multilingual Bert
     #[derive(Debug)]
-    #[allow(clippy::upper_case_acronyms)]
     pub struct SMBert;
 
     impl BertModel for SMBert {
@@ -58,7 +57,6 @@ pub mod kinds {
 
     /// Question Answering (Embedding) Multilingual Bert
     #[derive(Debug)]
-    #[allow(clippy::upper_case_acronyms)]
     pub struct QAMBert;
 
     impl BertModel for QAMBert {

@@ -57,6 +57,7 @@ impl<K, P> Pipeline<K, P>
 where
     K: BertModel,
 {
+    /// Creates a `BertModel` pipeline from a configuration.
     pub fn from(config: Config<'_, K, P>) -> Result<Self, PipelineError> {
         let tokenizer =
             Tokenizer::new(config.vocab, config.accents, config.case, config.token_size)

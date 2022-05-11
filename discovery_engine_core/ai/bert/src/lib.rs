@@ -25,8 +25,10 @@
     clippy::future_not_send,
     noop_method_call,
     rust_2018_idioms,
-    unsafe_code
+    unsafe_code,
+    unused_qualifications
 )]
+#![warn(missing_docs)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
@@ -48,13 +50,15 @@ pub use crate::{
 };
 
 /// A sentence (embedding) multilingual Bert pipeline.
-#[allow(clippy::upper_case_acronyms)]
 pub type SMBert = Pipeline<kinds::SMBert, AveragePooler>;
+
+/// A sentence (embedding) multilingual Bert configuration.
 pub type SMBertConfig<'a, P> = Config<'a, kinds::SMBert, P>;
 
 /// A question answering (embedding) multilingual Bert pipeline.
-#[allow(clippy::upper_case_acronyms)]
 pub type QAMBert = Pipeline<kinds::QAMBert, AveragePooler>;
+
+/// A question answering (embedding) multilingual Bert configuration.
 pub type QAMBertConfig<'a, P> = Config<'a, kinds::QAMBert, P>;
 
 #[cfg(doc)]

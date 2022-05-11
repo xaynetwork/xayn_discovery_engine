@@ -25,6 +25,7 @@ use thiserror::Error;
 use crate::{model::BertModel, NonePooler};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
+/// `BertModel` configuration errors.
 #[derive(Debug, Display, Error)]
 pub enum ConfigError {
     /// The token size must be greater than two to allow for special tokens
@@ -33,6 +34,7 @@ pub enum ConfigError {
     DataFile(#[from] std::io::Error),
 }
 
+/// A `BertModel` configuration.
 #[must_use]
 pub struct Config<'a, K, P> {
     pub(crate) model_kind: PhantomData<K>,
@@ -45,6 +47,7 @@ pub struct Config<'a, K, P> {
 }
 
 impl<'a, K: BertModel> Config<'a, K, NonePooler> {
+    /// Creates a `BertModel` configuration from readables.
     pub fn from_readers(
         vocab: Box<dyn BufRead + Send + 'a>,
         model: Box<dyn Read + Send + 'a>,
@@ -60,6 +63,7 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
         }
     }
 
+    /// Creates a `BertModel` configuration from files.
     pub fn from_files(
         vocab: impl AsRef<Path>,
         model: impl AsRef<Path>,
