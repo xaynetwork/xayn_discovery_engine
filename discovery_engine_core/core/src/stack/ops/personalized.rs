@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use std::{borrow::Borrow, sync::Arc};
 
 use async_trait::async_trait;
 use itertools::chain;
@@ -20,7 +20,6 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{
-    default_from,
     Article,
     Client,
     CommonQueryParts,
@@ -142,16 +141,19 @@ fn spawn_news_request(
 ) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
+
         let query = NewsQuery {
             common: CommonQueryParts {
                 market: Some(&market),
                 page_size,
                 page,
-                excluded_sources: &excluded_sources,
+                excluded_sources: excluded_sources.as_slice(),
             },
-            filter,
-            from: default_from().into(),
+            filter: filter.borrow(),
+            //FIXME pass in appropriate from value
+            from: None,
         };
-        client.query_articles(&query).await.map_err(Into::into)
+
+        client.query_newscatcher(&query).await.map_err(Into::into)
     })
 }

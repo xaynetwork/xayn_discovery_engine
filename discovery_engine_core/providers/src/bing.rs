@@ -17,7 +17,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
-use crate::{seal::Seal, Client, Error, Market, Query};
+use crate::{seal::Seal, Client, Error, Market, NewscatcherQuery};
 
 const URL_SUFFIX: &str = "_tt";
 
@@ -27,7 +27,9 @@ pub struct TrendingQuery<'a> {
     pub market: &'a Market,
 }
 
-impl Query for TrendingQuery<'_> {
+//TODO[TY-2810] somehow we ended up with bing queries implementing the newscatcher query trait,
+//              but passing them to `query_newscatcher` wouldn't work. So this needs to change.
+impl NewscatcherQuery for TrendingQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
@@ -47,20 +49,25 @@ impl Seal for TrendingQuery<'_> {}
 
 impl Client {
     /// Run query for fetching trending topics from Bing.
-    pub async fn query_trending(&self, query: &impl Query) -> Result<Vec<TrendingTopic>, Error> {
+    pub async fn query_trending(
+        &self,
+        query: &impl NewscatcherQuery,
+    ) -> Result<Vec<TrendingTopic>, Error> {
         self.query_bing(query).await.map(|trending| trending.value)
     }
 
     /// Run a query against Bing.
-    pub async fn query_bing(&self, query: &impl Query) -> Result<Response, Error> {
-        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
+    pub async fn query_bing(&self, query: &impl NewscatcherQuery) -> Result<Response, Error> {
+        let mut url =
+            Url::parse(&self.newscatcher.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
         query.setup_url(&mut url)?;
 
         let response = self
+            .newscatcher
             .client
             .get(url)
-            .timeout(self.timeout)
-            .bearer_auth(&self.token)
+            .timeout(self.newscatcher.timeout)
+            .bearer_auth(&self.newscatcher.token)
             .send()
             .await
             .map_err(Error::RequestExecution)?
@@ -149,8 +156,9 @@ mod tests {
         let mock_server = MockServer::start().await;
         let client = Client::new("test-token", mock_server.uri());
 
-        let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/trending-topics.json"));
+        let tmpl = ResponseTemplate::new(200).set_body_string(include_str!(
+            "../test-fixtures/newscatcher/trending-topics.json"
+        ));
 
         Mock::given(method("GET"))
             .and(path("/_tt"))

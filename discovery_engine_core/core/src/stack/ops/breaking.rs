@@ -136,17 +136,20 @@ fn spawn_headlines_request(
 ) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
+
         let query = HeadlinesQuery {
             common: CommonQueryParts {
                 market: Some(&market),
                 page_size,
                 page,
-                excluded_sources: &excluded_sources,
+                excluded_sources: excluded_sources.as_slice(),
             },
+            //TODO pass in trusted sources if available
             trusted_sources: &[],
             topic: None,
             when: DEFAULT_WHEN,
         };
-        client.query_articles(&query).await.map_err(Into::into)
+
+        client.query_newscatcher(&query).await.map_err(Into::into)
     })
 }

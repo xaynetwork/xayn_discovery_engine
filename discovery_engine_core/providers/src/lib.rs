@@ -35,22 +35,19 @@ mod clean_query;
 mod client;
 mod expression;
 mod filter;
+mod gnews;
+pub mod gnews_client;
 mod newscatcher;
+pub mod newscatcher_client;
+mod utils;
 
 pub use bing::TrendingQuery;
 pub use clean_query::clean_query;
-pub use client::{
-    default_from,
-    Client,
-    CommonQueryParts,
-    Error,
-    HeadlinesQuery,
-    NewsQuery,
-    Query,
-    DEFAULT_WHEN,
-};
+pub use client::{default_from, Article, Client, Error, DEFAULT_WHEN};
+pub use gnews_client::{HeadlinesQuery as GnewsHeadlinesQuery, NewsQuery as GnewsNewsQuery};
+pub use newscatcher_client::{CommonQueryParts, HeadlinesQuery, NewsQuery, NewscatcherQuery};
+
 pub use filter::{Filter, Market};
-pub use newscatcher::{Article, Response, Topic};
 
 mod seal {
     pub trait Seal {}

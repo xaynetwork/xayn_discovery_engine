@@ -38,9 +38,9 @@ enum ReplyWith {
 class LocalNewsApiServer {
   final HttpServer _server;
   ReplyWith _replyWith = ReplyWith.data;
-  String _snFile = 'climate-change.json';
-  String _lhFile = 'latest-headlines.json';
-  String _ttFile = 'trending-topics.json';
+  String _snFile = 'newscatcher/climate-change.json';
+  String _lhFile = 'newscatcher/latest-headlines.json';
+  String _ttFile = 'newscatcher/trending-topics.json';
   Uri? lastUri;
 
   LocalNewsApiServer._(this._server) {
@@ -59,10 +59,21 @@ class LocalNewsApiServer {
           break;
         case ReplyWith.data:
           switch (request.uri.path) {
+            //TODO make sure only one search-news path is used
             case '/_sn':
               await _replyWithData(request, _snFile);
               break;
+            case '/search-news':
+              await _replyWithData(request, _snFile);
+              break;
+            case '/trusted-sources':
+              await _replyWithData(request, _snFile);
+              break;
+            //TODO make sure only one latest-headline path is used
             case '/_lh':
+              await _replyWithData(request, _lhFile);
+              break;
+            case '/latest-headlines':
               await _replyWithData(request, _lhFile);
               break;
             case '/_tt':

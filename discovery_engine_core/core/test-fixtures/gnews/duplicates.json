@@ -1,0 +1,17 @@
+{
+  "totalArticles": 997,
+  "articles": [
+    {
+      "title": "Some really important article",
+      "description": "Some children and youth find the effects of climate change are traumatic. Taking a trauma-informed approach to education can nurture resilience.",
+      "url": "https://example.com",
+      "publishedAt": "2022-01-27T19:30:00Z",
+      "image": "https://uploads.example.com/image.png",
+      "content": "this content is currently not used",
+      "source": {
+          "name": "Source is not used",
+          "url": "https://example.com"
+      }
+    }
+  ]
+}
