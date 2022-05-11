@@ -1,4 +1,4 @@
-pub mod string;
+pub(crate) mod string;
 
 use unicode_categories::UnicodeCategories;
 
@@ -9,7 +9,7 @@ use crate::{
 
 /// A Bert pre-tokenizer.
 #[derive(Debug)]
-pub struct PreTokenizer;
+pub(crate) struct PreTokenizer;
 
 impl PreTokenizer {
     /// Pre-tokenizes the sequence.

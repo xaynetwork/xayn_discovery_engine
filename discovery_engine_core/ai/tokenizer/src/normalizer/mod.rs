@@ -1,5 +1,5 @@
-pub mod pattern;
-pub mod string;
+pub(crate) mod pattern;
+pub(crate) mod string;
 
 use unicode_categories::UnicodeCategories;
 
@@ -43,7 +43,7 @@ pub enum CaseChars {
 
 /// A Bert normalizer.
 #[derive(Debug)]
-pub struct Normalizer {
+pub(crate) struct Normalizer {
     control: ControlChars,
     chinese: ChineseChars,
     accents: AccentChars,

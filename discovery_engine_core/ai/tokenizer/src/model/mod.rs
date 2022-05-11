@@ -1,4 +1,4 @@
-pub mod string;
+pub(crate) mod string;
 
 use std::{
     collections::HashMap,
@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// A vocabulary mapping tokens to ids.
-pub type Vocab<N> = HashMap<String, N>;
+pub(crate) type Vocab<N> = HashMap<String, N>;
 
 /// A Bert word piece model.
 #[derive(Debug)]
