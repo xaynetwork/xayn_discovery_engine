@@ -32,7 +32,7 @@ use xayn_discovery_engine_tokenizer::{
 
 /// A pre-configured Bert tokenizer.
 #[derive(Debug)]
-pub struct Tokenizer {
+pub(crate) struct Tokenizer {
     tokenizer: BertTokenizer<i64>,
 }
 
@@ -47,25 +47,25 @@ pub enum TokenizerError {
 ///
 /// The token ids are of shape `(1, token_size)`.
 #[derive(Clone, Deref, From)]
-pub struct TokenIds(pub Array2<i64>);
+pub(crate) struct TokenIds(pub(crate) Array2<i64>);
 
 /// The attention mask of the encoded sequence.
 ///
 /// The attention mask is of shape `(1, token_size)`.
 #[derive(Clone, Deref, From)]
-pub struct AttentionMask(pub Array2<i64>);
+pub(crate) struct AttentionMask(pub(crate) Array2<i64>);
 
 /// The type ids of the encoded sequence.
 ///
 /// The type ids are of shape `(1, token_size)`.
 #[derive(Clone, Deref, From)]
-pub struct TypeIds(pub Array2<i64>);
+pub(crate) struct TypeIds(pub(crate) Array2<i64>);
 
 /// The encoded sequence.
-pub struct Encoding {
-    pub token_ids: TokenIds,
-    pub attention_mask: AttentionMask,
-    pub type_ids: TypeIds,
+pub(crate) struct Encoding {
+    pub(crate) token_ids: TokenIds,
+    pub(crate) attention_mask: AttentionMask,
+    pub(crate) type_ids: TypeIds,
 }
 
 impl Tokenizer {
@@ -74,7 +74,7 @@ impl Tokenizer {
     /// Can be set to keep accents and to lowercase the sequences. Requires the maximum number of
     /// tokens per tokenized sequence, which applies to padding and truncation and includes special
     /// tokens as well.
-    pub fn new(
+    pub(crate) fn new(
         // `BufRead` instead of `AsRef<Path>` is needed for wasm
         vocab: impl BufRead,
         accents: AccentChars,
@@ -95,7 +95,7 @@ impl Tokenizer {
     /// Encodes the sequence.
     ///
     /// The encoding is in correct shape for the model.
-    pub fn encode(&self, sequence: impl AsRef<str>) -> Encoding {
+    pub(crate) fn encode(&self, sequence: impl AsRef<str>) -> Encoding {
         let encoding = self.tokenizer.encode(sequence);
         let (token_ids, type_ids, _, _, _, _, attention_mask, _) = encoding.into();
 

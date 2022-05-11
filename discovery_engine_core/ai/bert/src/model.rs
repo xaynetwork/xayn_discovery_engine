@@ -67,7 +67,7 @@ pub mod kinds {
 
 /// A Bert onnx model.
 #[derive(Debug)]
-pub struct Model<K> {
+pub(crate) struct Model<K> {
     plan: TypedSimplePlan<TypedModel>,
     pub(crate) token_size: usize,
     _kind: PhantomData<K>,
@@ -97,7 +97,7 @@ pub trait BertModel: Sized {
 ///
 /// The prediction is of shape `(1, token_size, embedding_size)`.
 #[derive(Clone, Deref, From)]
-pub struct Prediction(Arc<Tensor>);
+pub(crate) struct Prediction(Arc<Tensor>);
 
 impl<K> Model<K>
 where
@@ -106,7 +106,7 @@ where
     /// Creates a model from an onnx model file.
     ///
     /// Requires the maximum number of tokens per tokenized sequence.
-    pub fn new(
+    pub(crate) fn new(
         // `Read` instead of `AsRef<Path>` is needed for wasm
         mut model: impl Read,
         token_size: usize,
@@ -138,7 +138,7 @@ where
     }
 
     /// Runs prediction on the encoded sequence.
-    pub fn predict(&self, encoding: Encoding) -> Result<Prediction, ModelError> {
+    pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction, ModelError> {
         debug_assert_eq!(encoding.token_ids.shape(), [1, self.token_size]);
         debug_assert_eq!(encoding.attention_mask.shape(), [1, self.token_size]);
         debug_assert_eq!(encoding.type_ids.shape(), [1, self.token_size]);
