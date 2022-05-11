@@ -18,7 +18,7 @@ use displaydoc::Display;
 use mockall::automock;
 use thiserror::Error;
 
-use xayn_ai::ranker::KeyPhrase;
+use xayn_discovery_engine_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::Article;
 
 use crate::{

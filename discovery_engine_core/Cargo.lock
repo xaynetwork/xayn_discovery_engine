@@ -3249,7 +3249,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "xayn-ai"
+name = "xayn-dart-api-dl"
+version = "0.3.0+2.0.0"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#3917690c9cfb65bb0877f3ad364b58a03555abb5"
+dependencies = [
+ "displaydoc",
+ "once_cell",
+ "static_assertions",
+ "thiserror",
+ "xayn-dart-api-dl-sys",
+]
+
+[[package]]
+name = "xayn-dart-api-dl-sys"
+version = "0.3.0+2.0.0"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#3917690c9cfb65bb0877f3ad364b58a03555abb5"
+dependencies = [
+ "bindgen",
+ "cc",
+ "hermit-abi",
+ "semver",
+]
+
+[[package]]
+name = "xayn-discovery-engine-ai"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -3283,29 +3306,6 @@ dependencies = [
  "xayn-discovery-engine-layer",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
-]
-
-[[package]]
-name = "xayn-dart-api-dl"
-version = "0.3.0+2.0.0"
-source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#3917690c9cfb65bb0877f3ad364b58a03555abb5"
-dependencies = [
- "displaydoc",
- "once_cell",
- "static_assertions",
- "thiserror",
- "xayn-dart-api-dl-sys",
-]
-
-[[package]]
-name = "xayn-dart-api-dl-sys"
-version = "0.3.0+2.0.0"
-source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#3917690c9cfb65bb0877f3ad364b58a03555abb5"
-dependencies = [
- "bindgen",
- "cc",
- "hermit-abi",
- "semver",
 ]
 
 [[package]]
@@ -3381,7 +3381,7 @@ dependencies = [
  "url",
  "uuid",
  "wiremock",
- "xayn-ai",
+ "xayn-discovery-engine-ai",
  "xayn-discovery-engine-bert",
  "xayn-discovery-engine-kpe",
  "xayn-discovery-engine-providers",

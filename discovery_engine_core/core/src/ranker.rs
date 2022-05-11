@@ -15,7 +15,7 @@
 use chrono::NaiveDateTime;
 use uuid::Uuid;
 
-use xayn_ai::{
+use xayn_discovery_engine_ai::{
     ranker::{Embedding, KeyPhrase, NegativeCoi, PositiveCoi},
     DocumentId,
     UserFeedback,
@@ -36,7 +36,7 @@ pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
     fn rank<T>(&mut self, items: &mut [T]) -> Result<(), GenericError>
     where
-        T: xayn_ai::ranker::Document + 'static;
+        T: xayn_discovery_engine_ai::ranker::Document + 'static;
 
     /// Logs the time a user spent on a document.
     fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError>;
@@ -63,10 +63,10 @@ pub trait Ranker {
     fn remove_key_phrases(&mut self, markets: &[Market]);
 }
 
-impl Ranker for xayn_ai::ranker::Ranker {
+impl Ranker for xayn_discovery_engine_ai::ranker::Ranker {
     fn rank<T>(&mut self, items: &mut [T]) -> Result<(), GenericError>
     where
-        T: xayn_ai::ranker::Document + 'static,
+        T: xayn_discovery_engine_ai::ranker::Document + 'static,
     {
         self.rank(items).map_err(Into::into)
     }
@@ -115,7 +115,7 @@ impl Ranker for xayn_ai::ranker::Ranker {
     }
 }
 
-impl xayn_ai::ranker::Document for Document {
+impl xayn_discovery_engine_ai::ranker::Document for Document {
     fn id(&self) -> DocumentId {
         self.id.into()
     }
@@ -129,7 +129,7 @@ impl xayn_ai::ranker::Document for Document {
     }
 }
 
-impl xayn_ai::ranker::Document for TrendingTopic {
+impl xayn_discovery_engine_ai::ranker::Document for TrendingTopic {
     fn id(&self) -> DocumentId {
         self.id.into()
     }
