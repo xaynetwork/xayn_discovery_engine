@@ -8,28 +8,36 @@ use crate::normalizer::string::NormalizedString;
 /// Whether or not to cleanse control characters.
 #[derive(Clone, Copy, Debug)]
 pub enum ControlChars {
+    /// Keeps control characters.
     Keep,
+    /// Cleanses control characters.
     Cleanse,
 }
 
 /// Whether or not to separate chinese characters.
 #[derive(Clone, Copy, Debug)]
 pub enum ChineseChars {
+    /// Keeps chinese characters as given.
     Keep,
+    /// Separates chinese characters with whitespace.
     Separate,
 }
 
 /// Whether or not to cleanse accents.
 #[derive(Clone, Copy, Debug)]
 pub enum AccentChars {
+    /// Keeps accents as given.
     Keep,
+    /// Cleanses accents from characters.
     Cleanse,
 }
 
 /// Whether or not to lowercase characters.
 #[derive(Clone, Copy, Debug)]
 pub enum CaseChars {
+    /// Keeps case of characters as given.
     Keep,
+    /// Lowercases characters.
     Lower,
 }
 

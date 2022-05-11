@@ -70,6 +70,7 @@
     rust_2018_idioms,
     unused_qualifications
 )]
+#![warn(missing_docs)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
