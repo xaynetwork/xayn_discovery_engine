@@ -39,13 +39,6 @@ class ActiveSearch with EquatableMixin {
     required this.searchBy,
   });
 
-  ActiveSearch nextPage() => ActiveSearch(
-        searchTerm: searchTerm,
-        requestedPageNb: requestedPageNb + 1,
-        pageSize: pageSize,
-        searchBy: searchBy,
-      );
-
   @override
   List<Object?> get props => [searchTerm, requestedPageNb, pageSize, searchBy];
 }
