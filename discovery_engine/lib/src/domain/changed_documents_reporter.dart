@@ -21,7 +21,6 @@ import 'package:xayn_discovery_engine/src/api/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 
-
 /// Class that manages a stream of [DocumentsUpdated] events.
 class ChangedDocumentsReporter {
   final _changedDocsCtrl = StreamController<EngineEvent>.broadcast();
