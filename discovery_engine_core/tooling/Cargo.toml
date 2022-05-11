@@ -6,7 +6,7 @@ edition = "2021"
 
 [[bin]]
 name = "newscatcher"
-path = "bin/newscatcher.rs"
+path = "bin/news_client.rs"
 
 [[bin]]
 name = "clean_sources"

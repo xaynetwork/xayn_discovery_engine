@@ -8,7 +8,7 @@ headers = {
     "Authorization": "Bearer " + os.environ["API_GATEWAY_TOKEN"],
 }
 
-url = "https://api-gw.xaynet.dev/_sn"
+url = "https://api-gw.xaynet.dev/newscatcher/v1/search-news"
 
 queries = {
     "climate-change": {

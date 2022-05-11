@@ -1,0 +1,29 @@
+{
+  "totalArticles": 756,
+  "articles": [
+    {
+      "title": "Klima-Labor: Mit Geo-Engineering in der Klimakrise die Erde k\u00fchlen? Nebenwirkungen teils gef\u00e4hrlich",
+      "description": "\"Die Simpsons\" haben sich an Geo-Engineering versucht, Microsoft-Gr\u00fcnder Bill Gates ist auch daf\u00fcr, aber viele Wissenschaftler sind strikt dagegen. Auch Mark Lawrence hofft, dass wir in der Klimakrise nicht darauf angewiesen sind. Dennoch will der Atmosph\u00e4renwissenschaftler die Techniken erforschen.",
+      "content": "Die Sonne abdunkeln, daran denken die meisten Menschen bei solarem Geo-Engineering. Tats\u00e4chlich betreffen die meisten Ideen Ver\u00e4nderungen der Erdoberfl\u00e4che oder unserer Atmosph\u00e4re.\n\"Die Simpsons\" haben sich an Geo-Engineering versucht, Microsoft-Gr\u00fcn... [13372 chars]",
+      "url": "https://example.com/path/to/article/",
+      "image": "https://uploads.example.com/image.png",
+      "publishedAt": "2022-04-07T07:59:43Z",
+      "source": {
+        "name": "example.com",
+        "url": "https://example.com"
+      }
+    },
+    {
+      "title": "Geo-Engineering im \"Klima-Labor\": K\u00fchleffekt mit starken Nebenwirkungen",
+      "description": "\"Die Simpsons\" haben sich an Geo-Engineering versucht, Microsoft-Gr\u00fcnder Bill Gates ist auch daf\u00fcr, aber viele Wissenschaftler sind strikt dagegen. Auch Mark Lawrence hofft, dass wir in der Klimakrise nicht darauf angewiesen sind. Dennoch will der Atmosph\u00e4renwissenschaftler die Techniken erforschen.",
+      "content": "Die Sonne abdunkeln, daran denken die meisten Menschen bei solarem Geo-Engineering. Tats\u00e4chlich betreffen die meisten Ideen Ver\u00e4nderungen der Erdoberfl\u00e4che oder unserer Atmosph\u00e4re.\n\"Die Simpsons\" haben sich an Geo-Engineering versucht, Microsoft-Gr\u00fcn... [13284 chars]",
+      "url": "https://example.com/path/to/article/",
+      "image": "https://uploads.example.com/image.png",
+      "publishedAt": "2022-04-07T07:59:43Z",
+      "source": {
+        "name": "example.com",
+        "url": "https://example.com"
+      }
+    }
+  ]
+}
