@@ -420,7 +420,6 @@ mod tests {
 
         let doc = docs.get(1).unwrap();
         let expected = Article {
-            id: "0251ae9f73ec12f4d3eced9c4dc9ccc8".to_string(),
             title: "Jerusalem blanketed in white after rare snowfall".to_string(),
             score: None,
             rank: 6510,
