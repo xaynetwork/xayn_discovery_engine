@@ -63,7 +63,13 @@
 //! [`FromPrimitive`]: num_traits::FromPrimitive
 
 #![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
-#![deny(clippy::pedantic)]
+#![deny(
+    clippy::pedantic,
+    clippy::future_not_send,
+    noop_method_call,
+    rust_2018_idioms,
+    unused_qualifications
+)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,

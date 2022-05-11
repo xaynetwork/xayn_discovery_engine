@@ -31,7 +31,7 @@ pub struct Encoding<N> {
     pub(crate) overflowing: Option<Vec<Encoding<N>>>,
 }
 
-impl<N> std::iter::FromIterator<Encoding<N>> for Encoding<N>
+impl<N> FromIterator<Encoding<N>> for Encoding<N>
 where
     N: Copy,
 {
