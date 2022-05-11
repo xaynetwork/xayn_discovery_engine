@@ -16,7 +16,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use kpe::{Config, Pipeline};
+use xayn_discovery_engine_kpe::{Config, Pipeline};
 use xayn_discovery_engine_test_utils::kpe::{bert, classifier, cnn, vocab};
 
 fn bench_kpe(manager: &mut Criterion) {

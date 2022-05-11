@@ -38,10 +38,6 @@ pub use crate::{
     error::Error,
 };
 
-// We need to re-export these, since they encapsulate the arguments
-// required for pipeline construction, and are passed to builders.
-pub use kpe::Config as KpeConfig;
-
 // we need to export rstest_reuse from the root for it to work.
 // `use rstest_reuse` will trigger `clippy::single_component_path_imports`
 // which is not possible to silence.

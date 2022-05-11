@@ -31,11 +31,9 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::error;
 
-use xayn_ai::{
-    ranker::{Builder, CoiSystemConfig, KeyPhrase},
-    KpeConfig,
-};
+use xayn_ai::ranker::{Builder, CoiSystemConfig, KeyPhrase};
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
+use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
     Client,
     CommonQueryParts,
