@@ -104,7 +104,7 @@ class SearchManager {
     }
 
     return searchDocs
-        .map((docWithData) => docWithData.document.toApiDocument())
+        .map((docWithData) => docWithData.document.toApiRepr())
         .toList();
   }
 
@@ -174,7 +174,7 @@ class SearchManager {
           : timeOrd;
     });
 
-    final docs = searchDocs.map((doc) => doc.toApiDocument()).toList();
+    final docs = searchDocs.map((doc) => doc.toApiRepr()).toList();
 
     return EngineEvent.restoreSearchSucceeded(search.toApiRepr(), docs);
   }

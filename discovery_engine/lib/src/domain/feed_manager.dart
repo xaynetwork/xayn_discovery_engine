@@ -16,6 +16,8 @@ import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show EngineEvent, FeedFailureReason;
+import 'package:xayn_discovery_engine/src/api/models/document.dart'
+    show DocumentApiConversion;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -96,7 +98,7 @@ class FeedManager {
                   : timeOrd;
             });
 
-          final feed = sortedActives.map((doc) => doc.toApiDocument()).toList();
+          final feed = sortedActives.map((doc) => doc.toApiRepr()).toList();
           return EngineEvent.restoreFeedSucceeded(feed);
         },
       );
@@ -123,7 +125,7 @@ class FeedManager {
     }
 
     final feed = feedDocs
-        .map((docWithData) => docWithData.document.toApiDocument())
+        .map((docWithData) => docWithData.document.toApiRepr())
         .toList();
 
     if (feed.isEmpty) {

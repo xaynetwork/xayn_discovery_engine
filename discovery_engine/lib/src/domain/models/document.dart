@@ -16,7 +16,6 @@ import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:json_annotation/json_annotation.dart'
     show $enumDecode, JsonEnum, JsonValue;
-import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -68,15 +67,6 @@ class Document {
     this.isActive = true,
     this.isSearched = false,
   }) : timestamp = DateTime.now().toUtc();
-
-  //FIXME move this conversion to `api/models/document.dart` e.g. as an
-  //      extension on this type.
-  api.Document toApiDocument() => api.Document(
-        documentId: documentId,
-        resource: resource,
-        userReaction: userReaction,
-        batchIndex: batchIndex,
-      );
 }
 
 /// [UserReaction] indicates user's "sentiment" towards the document,

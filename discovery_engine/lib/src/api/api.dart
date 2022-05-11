@@ -74,10 +74,9 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         EngineExceptionReason;
 export 'package:xayn_discovery_engine/src/api/models/active_search.dart'
     hide ActiveSearchApiConversion;
-export 'package:xayn_discovery_engine/src/api/models/document.dart';
+export 'package:xayn_discovery_engine/src/api/models/document.dart'
+    hide DocumentApiConversion;
 export 'package:xayn_discovery_engine/src/domain/models/configuration.dart';
-export 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show UserReaction;
 export 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 export 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'

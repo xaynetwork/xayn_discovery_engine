@@ -32,6 +32,8 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         TrendingTopicsRequestSucceeded;
 import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
     show ActiveSearchApiConversion;
+import 'package:xayn_discovery_engine/src/api/models/document.dart'
+    show DocumentApiConversion;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine, mockTrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -159,7 +161,7 @@ Future<void> main() async {
         final savedDocs = response.items
             // lets look for the docs in the document box
             .map((doc) => docRepo.box.get('${doc.documentId}'))
-            .map((doc) => doc!.toApiDocument())
+            .map((doc) => doc!.toApiRepr())
             .toList();
 
         expect(response.items, equals(savedDocs));
@@ -211,7 +213,7 @@ Future<void> main() async {
         final savedDocs = response.items
             // lets look for the docs in the document box
             .map((doc) => docRepo.box.get('${doc.documentId}'))
-            .map((doc) => doc!.toApiDocument())
+            .map((doc) => doc!.toApiRepr())
             .toList();
 
         expect(response.items, equals(savedDocs));
@@ -276,7 +278,7 @@ Future<void> main() async {
           equals(
             RestoreSearchSucceeded(
               mockActiveSearch.toApiRepr(),
-              [doc1.toApiDocument(), doc2.toApiDocument()],
+              [doc1.toApiRepr(), doc2.toApiRepr()],
             ),
           ),
         );

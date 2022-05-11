@@ -14,10 +14,15 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    as domain;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
+
+export 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show UserReaction;
 
 part 'document.freezed.dart';
 part 'document.g.dart';
@@ -38,4 +43,14 @@ class Document with _$Document {
   /// Converts json Map to [Document].
   factory Document.fromJson(Map<String, Object?> json) =>
       _$DocumentFromJson(json);
+}
+
+@protected
+extension DocumentApiConversion on domain.Document {
+  Document toApiRepr() => Document(
+        documentId: documentId,
+        resource: resource,
+        userReaction: userReaction,
+        batchIndex: batchIndex,
+      );
 }
