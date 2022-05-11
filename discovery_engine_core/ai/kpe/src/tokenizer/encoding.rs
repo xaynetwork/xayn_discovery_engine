@@ -29,7 +29,7 @@ pub struct TokenIds(pub Array2<i64>);
 impl TokenIds {
     /// Checks if the token ids are valid, i.e. in the interval `[0, vocab_size)`.
     pub fn is_valid(&self, vocab_size: usize) -> bool {
-        debug_assert!(vocab_size as u64 <= i64::MAX as u64);
+        debug_assert!(i64::try_from(vocab_size as u64).is_ok());
         self.iter()
             .copied()
             .all(|token_id| 0 <= token_id && token_id < vocab_size as i64)

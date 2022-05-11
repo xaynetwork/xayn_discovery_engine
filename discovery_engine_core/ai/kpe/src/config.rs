@@ -36,6 +36,7 @@ pub enum ConfigError {
     DataFile(#[from] std::io::Error),
 }
 
+#[must_use]
 pub struct Config<'a> {
     pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
     pub(crate) model: Box<dyn Read + Send + 'a>,

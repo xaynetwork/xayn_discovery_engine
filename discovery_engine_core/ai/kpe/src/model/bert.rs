@@ -113,7 +113,7 @@ impl Bert {
 
 impl Embeddings {
     /// Collects the valid embeddings according to the mask.
-    pub fn collect(self, valid_mask: ValidMask) -> Result<Array2<f32>, ModelError> {
+    pub fn collect(&self, valid_mask: &ValidMask) -> Result<Array2<f32>, ModelError> {
         debug_assert_eq!(self.shape()[0], 1);
         debug_assert_eq!(self.shape()[2], Bert::EMBEDDING_SIZE);
         valid_mask
@@ -146,7 +146,10 @@ mod tests {
         let token_size = 10;
         let embeddings = Embeddings(
             (1..=token_size)
-                .flat_map(|e| vec![e as f32; Bert::EMBEDDING_SIZE])
+                .flat_map(
+                    #[allow(clippy::cast_precision_loss)] // values are small enough
+                    |e| vec![e as f32; Bert::EMBEDDING_SIZE],
+                )
                 .collect::<Array1<_>>()
                 .into_shape((1, token_size, Bert::EMBEDDING_SIZE))
                 .unwrap()
@@ -154,11 +157,14 @@ mod tests {
         );
         let valid_mask = vec![true; token_size].into();
         let valid_embeddings = (1..=token_size)
-            .flat_map(|e| vec![e as f32; Bert::EMBEDDING_SIZE])
+            .flat_map(
+                #[allow(clippy::cast_precision_loss)] // values are small enough
+                |e| vec![e as f32; Bert::EMBEDDING_SIZE],
+            )
             .collect::<Array1<_>>()
             .into_shape((token_size, Bert::EMBEDDING_SIZE))
             .unwrap();
-        assert_eq!(embeddings.collect(valid_mask).unwrap(), valid_embeddings);
+        assert_eq!(embeddings.collect(&valid_mask).unwrap(), valid_embeddings);
     }
 
     #[test]
@@ -166,7 +172,10 @@ mod tests {
         let token_size = 10;
         let embeddings = Embeddings(
             (1..=token_size)
-                .flat_map(|e| vec![e as f32; Bert::EMBEDDING_SIZE])
+                .flat_map(
+                    #[allow(clippy::cast_precision_loss)] // values are small enough
+                    |e| vec![e as f32; Bert::EMBEDDING_SIZE],
+                )
                 .collect::<Array1<_>>()
                 .into_shape((1, token_size, Bert::EMBEDDING_SIZE))
                 .unwrap()
@@ -178,12 +187,17 @@ mod tests {
             .collect::<Vec<_>>()
             .into();
         let valid_embeddings = (1..=token_size)
-            .filter_map(|e| (e % 2 == 0).then(|| vec![e as f32; Bert::EMBEDDING_SIZE]))
+            .filter_map(|e| {
+                (e % 2 == 0).then(
+                    #[allow(clippy::cast_precision_loss)] // values are small enough
+                    || vec![e as f32; Bert::EMBEDDING_SIZE],
+                )
+            })
             .flatten()
             .collect::<Array1<_>>()
             .into_shape((token_size / 2, Bert::EMBEDDING_SIZE))
             .unwrap();
-        assert_eq!(embeddings.collect(valid_mask).unwrap(), valid_embeddings);
+        assert_eq!(embeddings.collect(&valid_mask).unwrap(), valid_embeddings);
     }
 
     #[test]
@@ -191,7 +205,10 @@ mod tests {
         let token_size = 10;
         let embeddings = Embeddings(
             (1..=token_size)
-                .flat_map(|e| vec![e as f32; Bert::EMBEDDING_SIZE])
+                .flat_map(
+                    #[allow(clippy::cast_precision_loss)] // values are small enough
+                    |e| vec![e as f32; Bert::EMBEDDING_SIZE],
+                )
                 .collect::<Array1<_>>()
                 .into_shape((1, token_size, Bert::EMBEDDING_SIZE))
                 .unwrap()
@@ -199,7 +216,7 @@ mod tests {
         );
         let valid_mask = vec![false; token_size].into();
         let valid_embeddings = Array2::<f32>::default((0, Bert::EMBEDDING_SIZE));
-        assert_eq!(embeddings.collect(valid_mask).unwrap(), valid_embeddings);
+        assert_eq!(embeddings.collect(&valid_mask).unwrap(), valid_embeddings);
     }
 
     #[test]

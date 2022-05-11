@@ -56,7 +56,7 @@ impl<const KEY_PHRASE_SIZE: usize> KeyPhrases<KEY_PHRASE_SIZE> {
             let max_key_phrases = num_words - n;
             let mut key_phrase_idx = HashMap::with_capacity(max_key_phrases);
             for i in 0..max_key_phrases {
-                let key_phrase = words[i..i + n + 1].join(" ");
+                let key_phrase = words[i..=i + n].join(" ");
                 let idx = *key_phrase_idx.entry(key_phrase.clone()).or_insert_with(|| {
                     choices.push(key_phrase);
                     choices.len() as i64 - 1

@@ -73,8 +73,8 @@ impl Pipeline {
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<RankedKeyPhrases, PipelineError> {
         let (encoding, key_phrases) = self.tokenizer.encode(sequence);
         let embeddings = self.bert.run(encoding.token_ids, encoding.attention_mask)?;
-        let features = self.cnn.run(embeddings, encoding.valid_mask)?;
-        let scores = self.classifier.run(features, encoding.active_mask)?;
+        let features = self.cnn.run(&embeddings, &encoding.valid_mask)?;
+        let scores = self.classifier.run(&features, &encoding.active_mask);
 
         Ok(key_phrases.rank(scores))
     }
