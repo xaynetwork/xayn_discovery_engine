@@ -17,7 +17,7 @@
     forbid(rustdoc::broken_intra_doc_links, rustdoc::private_intra_doc_links)
 )]
 #![forbid(unsafe_op_in_unsafe_fn)]
-//! The RuBert pipeline computes embeddings of sequences.
+//! The Bert pipelines compute embeddings of sequences.
 //!
 //! Sequences are anything string-like and can also be single words or snippets. The embeddings are
 //! f32-arrays and their shape depends on the pooling strategy.

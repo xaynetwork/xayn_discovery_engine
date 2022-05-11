@@ -27,7 +27,7 @@ tracing = "0.1.31"
 url = { version = "2.2.2", features = ["serde"] }
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
 xayn-ai = { path = "../ai/xayn-ai", features = ["multithreaded"] }
-xayn-discovery-engine-bert = { path = "../ai/rubert" }
+xayn-discovery-engine-bert = { path = "../ai/bert" }
 xayn-discovery-engine-providers = { path = "../providers" }
 xayn-discovery-engine-tokenizer = { path = "../ai/tokenizer" }
 
