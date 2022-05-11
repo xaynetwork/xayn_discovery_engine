@@ -118,7 +118,7 @@ where
     {
         let ndim = input.ndim();
         let axis = if self.rel_axis_idx < 0 {
-            let idx = self.rel_axis_idx.abs() as usize;
+            let idx = self.rel_axis_idx.unsigned_abs();
             ndim - idx
         } else {
             self.rel_axis_idx as usize
