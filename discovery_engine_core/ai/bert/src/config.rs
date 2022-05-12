@@ -25,6 +25,7 @@ use thiserror::Error;
 use crate::{model::BertModel, NonePooler};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
+/// `BertModel` configuration errors.
 #[derive(Debug, Display, Error)]
 pub enum ConfigError {
     /// The token size must be greater than two to allow for special tokens
@@ -33,6 +34,8 @@ pub enum ConfigError {
     DataFile(#[from] std::io::Error),
 }
 
+/// A `BertModel` configuration.
+#[must_use]
 pub struct Config<'a, K, P> {
     pub(crate) model_kind: PhantomData<K>,
     pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
@@ -40,25 +43,27 @@ pub struct Config<'a, K, P> {
     pub(crate) accents: AccentChars,
     pub(crate) case: CaseChars,
     pub(crate) token_size: usize,
-    pub(crate) pooler: P,
+    pub(crate) pooler: PhantomData<P>,
 }
 
 impl<'a, K: BertModel> Config<'a, K, NonePooler> {
+    /// Creates a `BertModel` configuration from readables.
     pub fn from_readers(
         vocab: Box<dyn BufRead + Send + 'a>,
         model: Box<dyn Read + Send + 'a>,
     ) -> Self {
         Config {
-            model_kind: Default::default(),
+            model_kind: PhantomData,
             vocab,
             model,
             accents: AccentChars::Cleanse,
             case: CaseChars::Lower,
             token_size: 128,
-            pooler: NonePooler,
+            pooler: PhantomData,
         }
     }
 
+    /// Creates a `BertModel` configuration from files.
     pub fn from_files(
         vocab: impl AsRef<Path>,
         model: impl AsRef<Path>,
@@ -104,7 +109,7 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
     /// Sets pooling for the model.
     ///
     /// Defaults to `NonePooler`.
-    pub fn with_pooling<NP>(self, pooler: NP) -> Config<'a, K, NP> {
+    pub fn with_pooling<NP>(self) -> Config<'a, K, NP> {
         Config {
             vocab: self.vocab,
             model: self.model,
@@ -112,7 +117,7 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
             accents: self.accents,
             case: self.case,
             token_size: self.token_size,
-            pooler,
+            pooler: PhantomData,
         }
     }
 }

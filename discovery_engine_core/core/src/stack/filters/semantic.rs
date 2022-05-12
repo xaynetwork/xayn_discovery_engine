@@ -188,11 +188,8 @@ mod tests {
     use std::iter::repeat_with;
 
     use chrono::NaiveDateTime;
-    use rubert::SMBert;
-    use xayn_ai::{
-        ranker::{AveragePooler, Embedding},
-        SMBertConfig,
-    };
+    use xayn_ai::ranker::Embedding;
+    use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
     use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
@@ -366,7 +363,7 @@ mod tests {
                 .unwrap()
                 .with_accents(AccentChars::Cleanse)
                 .with_case(CaseChars::Lower)
-                .with_pooling(AveragePooler);
+                .with_pooling::<AveragePooler>();
 
         let smbert = SMBert::from(smbert_config).unwrap();
 

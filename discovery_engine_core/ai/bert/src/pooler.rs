@@ -125,7 +125,7 @@ pub struct NonePooler;
 
 impl NonePooler {
     /// Passes through the prediction.
-    pub(crate) fn pool(&self, prediction: Prediction) -> Result<Embedding2, PoolerError> {
+    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding2, PoolerError> {
         Ok(prediction
             .to_array_view()?
             .slice(s![0, .., ..])
@@ -141,7 +141,7 @@ pub struct FirstPooler;
 
 impl FirstPooler {
     /// Pools the prediction over its first token.
-    pub(crate) fn pool(&self, prediction: Prediction) -> Result<Embedding1, PoolerError> {
+    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding1, PoolerError> {
         Ok(prediction
             .to_array_view()?
             .slice(s![0, 0, ..])
@@ -158,11 +158,13 @@ pub struct AveragePooler;
 impl AveragePooler {
     /// Pools the prediction over its averaged, active tokens.
     pub(crate) fn pool(
-        &self,
-        prediction: Prediction,
-        attention_mask: AttentionMask,
+        prediction: &Prediction,
+        attention_mask: &AttentionMask,
     ) -> Result<Embedding1, PoolerError> {
-        let attention_mask: Array1<f32> = attention_mask.slice(s![0, ..]).mapv(|mask| mask as f32);
+        let attention_mask: Array1<f32> = attention_mask.slice(s![0, ..]).mapv(
+            #[allow(clippy::cast_precision_loss)] // values are only 0 or 1
+            |mask| mask as f32,
+        );
         let count = attention_mask.sum();
 
         let average = if count > 0. {
@@ -187,7 +189,7 @@ mod tests {
         let prediction = arr3::<f32, _, _>(&[[[1., 2., 3.], [4., 5., 6.]]])
             .into_arc_tensor()
             .into();
-        let embedding = NonePooler.pool(prediction).unwrap();
+        let embedding = NonePooler::pool(&prediction).unwrap();
         assert_eq!(embedding, arr2(&[[1., 2., 3.], [4., 5., 6.]]));
     }
 
@@ -196,7 +198,7 @@ mod tests {
         let prediction = arr3::<f32, _, _>(&[[[1., 2., 3.], [4., 5., 6.]]])
             .into_arc_tensor()
             .into();
-        let embedding = FirstPooler.pool(prediction).unwrap();
+        let embedding = FirstPooler::pool(&prediction).unwrap();
         assert_eq!(embedding, arr1(&[1., 2., 3.]));
     }
 
@@ -205,19 +207,19 @@ mod tests {
         let prediction = arr3::<f32, _, _>(&[[[1., 2., 3.], [4., 5., 6.]]]).into_arc_tensor();
 
         let mask = arr2(&[[0, 0]]).into();
-        let embedding = AveragePooler.pool(prediction.clone().into(), mask).unwrap();
+        let embedding = AveragePooler::pool(&prediction.clone().into(), &mask).unwrap();
         assert_eq!(embedding, arr1(&[0., 0., 0.]));
 
         let mask = arr2(&[[0, 1]]).into();
-        let embedding = AveragePooler.pool(prediction.clone().into(), mask).unwrap();
+        let embedding = AveragePooler::pool(&prediction.clone().into(), &mask).unwrap();
         assert_eq!(embedding, arr1(&[4., 5., 6.]));
 
         let mask = arr2(&[[1, 0]]).into();
-        let embedding = AveragePooler.pool(prediction.clone().into(), mask).unwrap();
+        let embedding = AveragePooler::pool(&prediction.clone().into(), &mask).unwrap();
         assert_eq!(embedding, arr1(&[1., 2., 3.]));
 
         let mask = arr2(&[[1, 1]]).into();
-        let embedding = AveragePooler.pool(prediction.into(), mask).unwrap();
+        let embedding = AveragePooler::pool(&prediction.into(), &mask).unwrap();
         assert_eq!(embedding, arr1(&[2.5, 3.5, 4.5]));
     }
 }

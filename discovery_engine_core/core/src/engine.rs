@@ -32,10 +32,10 @@ use tokio::sync::RwLock;
 use tracing::error;
 
 use xayn_ai::{
-    ranker::{AveragePooler, Builder, CoiSystemConfig, KeyPhrase},
+    ranker::{Builder, CoiSystemConfig, KeyPhrase},
     KpeConfig,
-    SMBertConfig,
 };
+use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_providers::{
     Client,
     CommonQueryParts,
@@ -825,7 +825,7 @@ impl XaynAiEngine {
             .map_err(|err| Error::Ranker(err.into()))?
             .with_accents(AccentChars::Cleanse)
             .with_case(CaseChars::Lower)
-            .with_pooling(AveragePooler);
+            .with_pooling::<AveragePooler>();
 
         let kpe_config = KpeConfig::from_files(
             &config.kpe_vocab,

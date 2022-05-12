@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use kpe::Config as KpeConfig;
-use rubert::{AveragePooler, SMBertConfig};
+use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -159,7 +159,7 @@ impl<'a> Builder<'a, AveragePooler> {
     /// Fails if the SMBert or KPE cannot be initialized. For example because
     /// reading from a file failed or the bytes read are have an unexpected format.
     pub fn build(self) -> Result<Ranker, Error> {
-        let smbert = rubert::Pipeline::from(self.smbert_config)?;
+        let smbert = xayn_discovery_engine_bert::Pipeline::from(self.smbert_config)?;
         let coi = CoiSystem::new(self.coi_config);
         let kpe = kpe::Pipeline::from(self.kpe_config)?;
 

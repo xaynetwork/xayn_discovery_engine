@@ -16,7 +16,7 @@
 //! - `s` for SMBert
 //! - `qa` for QAMBert
 
-use rubert::{Config, FirstPooler, Pipeline, SMBertConfig};
+use xayn_discovery_engine_bert::{Config, FirstPooler, Pipeline, SMBert, SMBertConfig};
 use xayn_discovery_engine_test_utils::smbert;
 
 fn main() {
@@ -25,14 +25,14 @@ fn main() {
             let config: SMBertConfig<_> =
                 Config::from_files(smbert::vocab().unwrap(), smbert::model().unwrap())
                     .unwrap()
-                    .with_pooling(FirstPooler)
+                    .with_pooling::<FirstPooler>()
                     .with_token_size(64)
                     .unwrap();
 
             let mbert = Pipeline::from(config).unwrap();
             (
                 mbert.run("This is a sequence.").unwrap(),
-                mbert.embedding_size(),
+                SMBert::embedding_size(),
             )
         }
         _ => panic!("unknown MBert kind"),

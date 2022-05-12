@@ -12,17 +12,29 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg_attr(
-    doc,
-    forbid(rustdoc::broken_intra_doc_links, rustdoc::private_intra_doc_links)
-)]
-#![forbid(unsafe_op_in_unsafe_fn)]
-//! The RuBert pipeline computes embeddings of sequences.
+//! The Bert pipelines compute embeddings of sequences.
 //!
 //! Sequences are anything string-like and can also be single words or snippets. The embeddings are
 //! f32-arrays and their shape depends on the pooling strategy.
 //!
 //! See the example in this crate for usage details.
+
+#![forbid(unsafe_op_in_unsafe_fn)]
+#![deny(
+    clippy::future_not_send,
+    clippy::pedantic,
+    noop_method_call,
+    rust_2018_idioms,
+    unsafe_code,
+    unused_qualifications
+)]
+#![warn(missing_docs, unreachable_pub)]
+#![allow(
+    clippy::items_after_statements,
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate
+)]
 
 mod config;
 mod model;
@@ -38,13 +50,15 @@ pub use crate::{
 };
 
 /// A sentence (embedding) multilingual Bert pipeline.
-#[allow(clippy::upper_case_acronyms)]
 pub type SMBert = Pipeline<kinds::SMBert, AveragePooler>;
+
+/// A sentence (embedding) multilingual Bert configuration.
 pub type SMBertConfig<'a, P> = Config<'a, kinds::SMBert, P>;
 
 /// A question answering (embedding) multilingual Bert pipeline.
-#[allow(clippy::upper_case_acronyms)]
 pub type QAMBert = Pipeline<kinds::QAMBert, AveragePooler>;
+
+/// A question answering (embedding) multilingual Bert configuration.
 pub type QAMBertConfig<'a, P> = Config<'a, kinds::QAMBert, P>;
 
 #[cfg(doc)]
