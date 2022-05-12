@@ -36,6 +36,7 @@ use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
     clean_query,
+    Article,
     Client,
     CommonQueryParts,
     Filter,
@@ -46,15 +47,7 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::{
-    document::{
-        self,
-        document_from_article,
-        Document,
-        HistoricDocument,
-        TimeSpent,
-        UserReacted,
-        UserReaction,
-    },
+    document::{self, Document, HistoricDocument, TimeSpent, UserReacted, UserReaction},
     mab::{self, BetaSampler, Bucket, SelectionIter},
     ranker::Ranker,
     stack::{
@@ -557,20 +550,12 @@ where
             );
         }
 
-        let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
-        let mut documents = articles
-            .into_iter()
-            .filter_map(|article| {
-                self.ranker
-                    .compute_smbert(article.excerpt_or_title())
-                    .map_err(Error::Ranker)
-                    .and_then(|embedding| {
-                        document_from_article(article, stack_id, embedding).map_err(Error::Document)
-                    })
-                    .map_err(|e| errors.push(e))
-                    .ok()
-            })
-            .collect::<Vec<_>>();
+        let (mut documents, article_errors) = parallel_articles_into_documents(
+            StackId::nil(), // these documents are not associated with a stack
+            &self.ranker,
+            articles,
+        );
+        errors.extend(article_errors);
 
         if let Err(err) = self.ranker.rank(&mut documents) {
             errors.push(Error::Ranker(err));
@@ -773,10 +758,22 @@ async fn fetch_new_documents_for_stack(
             return Err(Error::StackOpFailed(error));
         }
     };
+    let (documents, errors) = parallel_articles_into_documents(stack.id(), ranker, articles);
 
-    let id = stack.id();
-    let articles_len = articles.len();
-    let (documents, articles_errors) = articles
+    // only return an error if all articles failed
+    if documents.is_empty() && !errors.is_empty() {
+        Err(Error::Errors(errors))
+    } else {
+        Ok(documents)
+    }
+}
+
+fn parallel_articles_into_documents(
+    stack_id: StackId,
+    ranker: &(impl Ranker + Send + Sync),
+    articles: Vec<Article>,
+) -> (Vec<Document>, Vec<Error>) {
+    articles
         .into_par_iter()
         .map(|article| {
             let embedding = ranker
@@ -786,23 +783,16 @@ async fn fetch_new_documents_for_stack(
                     error!("{}", error);
                     error
                 })?;
-            document_from_article(article, id, embedding).map_err(|error| {
+            (article, stack_id, embedding).try_into().map_err(|error| {
                 let error = Error::Document(error);
                 error!("{}", error);
                 error
             })
         })
-        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|result| match result {
+        .partition_map(|result| match result {
             Ok(document) => Either::Left(document),
             Err(error) => Either::Right(error),
-        });
-
-    // only push an error if the articles aren't empty for other reasons and all articles failed
-    if articles_len > 0 && articles_errors.len() == articles_len {
-        return Err(Error::Errors(articles_errors));
-    }
-
-    Ok(documents)
+        })
 }
 
 /// A discovery engine with [`xayn_discovery_engine_ai::ranker::Ranker`] as a ranker.
