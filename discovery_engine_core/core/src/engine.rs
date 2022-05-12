@@ -725,6 +725,7 @@ async fn update_stacks<'a>(
     // Finally, we can update the stacks with their respective documents. To do this, we
     // have to group the fetched documents by `stack_id`, then `update` the stacks.
     let documents_by_stack_id = other_docs.into_iter().into_group_map_by(|doc| doc.stack_id);
+
     for (stack_id, documents_group) in documents_by_stack_id {
         // .unwrap() is safe here, because each document is created by an existing stack,
         // the `stacks` HashMap contains all instantiated stacks, and the documents that belong
@@ -916,7 +917,10 @@ enum SearchBy<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ranker, stack::Data};
+    use crate::{
+        ranker,
+        stack::{ops::MockOps, Data},
+    };
 
     use std::{error::Error, mem::size_of};
     use wiremock::{
@@ -926,6 +930,7 @@ mod tests {
         ResponseTemplate,
     };
     use xayn_ai::ranker::Embedding;
+    use xayn_discovery_engine_providers::Article;
 
     use super::*;
 
@@ -1006,18 +1011,6 @@ mod tests {
         let endpoint_config = config.clone().into();
         let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
 
-        // To test de-duplication we don't really need any ranking, so this
-        // this is essentially a no-op ranker.
-        let mut ranker = ranker::MockRanker::new();
-        ranker.expect_rank().returning(|_: &mut [Document]| Ok(()));
-        ranker.expect_take_key_phrases().returning(|_, _| vec![]);
-        ranker.expect_compute_smbert().returning(|_| {
-            let embedding: Embedding = [0.0].into();
-            Ok(embedding)
-        });
-        ranker.expect_positive_cois().return_const(vec![]);
-        ranker.expect_negative_cois().return_const(vec![]);
-
         // We assume that, if de-duplication works between two stacks, it'll work between
         // any number of stacks. So we just create two.
         let stack_ops = vec![
@@ -1028,15 +1021,10 @@ mod tests {
         let breaking_news_id = stack_ops.get(0).unwrap().id();
         let trusted_news_id = stack_ops.get(1).unwrap().id();
 
-        let mut stacks: HashMap<Id, Stack> = stack_ops
-            .into_iter()
-            .map(|ops| {
-                let data = Data::new(1.0, 1.0, vec![]).unwrap();
-                let stack = Stack::new(data, ops).unwrap();
-                (stack.id(), stack)
-            })
-            .collect();
-
+        // To test de-duplication we don't really need any ranking, so this
+        // this is essentially a no-op ranker.
+        let mut no_op_ranker = new_no_op_ranker();
+        let mut stacks = create_stacks_from_stack_ops(stack_ops);
         let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
 
         // Stacks should be empty before we start fetching anything
@@ -1050,7 +1038,7 @@ mod tests {
         update_stacks(
             &mut stacks,
             &mut exploration_stack,
-            &mut ranker,
+            &mut no_op_ranker,
             &[],
             10,
             10,
@@ -1075,7 +1063,7 @@ mod tests {
         update_stacks(
             &mut stacks,
             &mut exploration_stack,
-            &mut ranker,
+            &mut no_op_ranker,
             &[],
             10,
             10,
@@ -1091,6 +1079,110 @@ mod tests {
                 + stacks.get(&trusted_news_id).unwrap().len(),
             1,
         );
+    }
+
+    #[tokio::test]
+    async fn test_update_stack_no_error_when_no_stack_is_ready() {
+        let mut mock_ops = new_mock_stack_ops();
+        mock_ops
+            .expect_new_items()
+            .returning(|_, _, _| Err(NewItemsError::NotReady));
+
+        let stack_ops = vec![Box::new(mock_ops) as BoxedOps];
+        let mut stacks = create_stacks_from_stack_ops(stack_ops);
+
+        let market = ("US", "en");
+        let mut no_op_ranker = new_no_op_ranker();
+        let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
+
+        let result = update_stacks(
+            &mut stacks,
+            &mut exploration_stack,
+            &mut no_op_ranker,
+            &[],
+            10,
+            10,
+            10,
+            &market.into(),
+        )
+        .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_stack_no_error_when_one_stack_is_successful() {
+        let mut mock_ops_ok = new_mock_stack_ops();
+        mock_ops_ok
+            .expect_new_items()
+            .returning(|_, _, _| Ok(vec![new_mock_article()]));
+
+        let mut mock_ops_failed = new_mock_stack_ops();
+        mock_ops_failed
+            .expect_new_items()
+            .returning(|_, _, _| Err(NewItemsError::Error("mock_ops_failed_error".into())));
+
+        let stack_ops = vec![
+            Box::new(mock_ops_ok) as BoxedOps,
+            Box::new(mock_ops_failed) as BoxedOps,
+        ];
+        let mut stacks = create_stacks_from_stack_ops(stack_ops);
+
+        let market = ("US", "en");
+        let mut no_op_ranker = new_no_op_ranker();
+        let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
+
+        let result = update_stacks(
+            &mut stacks,
+            &mut exploration_stack,
+            &mut no_op_ranker,
+            &[],
+            10,
+            10,
+            10,
+            &market.into(),
+        )
+        .await;
+
+        result.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_update_stack_should_error_when_all_stacks_fail() {
+        let mut mock_ops_failed = new_mock_stack_ops();
+        mock_ops_failed
+            .expect_new_items()
+            .returning(|_, _, _| Err(NewItemsError::Error("mock_ops_failed_error".into())));
+
+        let stack_ops = vec![Box::new(mock_ops_failed) as BoxedOps];
+        let mut stacks = create_stacks_from_stack_ops(stack_ops);
+
+        let market = ("US", "en");
+        let mut no_op_ranker = new_no_op_ranker();
+        let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
+
+        let result = update_stacks(
+            &mut stacks,
+            &mut exploration_stack,
+            &mut no_op_ranker,
+            &[],
+            10,
+            10,
+            10,
+            &market.into(),
+        )
+        .await;
+
+        if let Err(crate::Error::Errors(errors)) = result {
+            match &errors.as_slice() {
+                &[crate::Error::StackOpFailed(stack::Error::New(NewItemsError::Error(msg)))] => {
+                    assert_eq!(msg.to_string(), "mock_ops_failed_error".to_string());
+                }
+                x => panic!("Wrong result returned: {:?}", x),
+            }
+        } else {
+            panic!("Wrong error structure");
+        }
     }
 
     #[tokio::test]
@@ -1145,5 +1237,44 @@ mod tests {
             res.get(0).unwrap().resource.title,
             "Some really important article",
         );
+    }
+
+    fn new_no_op_ranker() -> impl Ranker {
+        let mut ranker = ranker::MockRanker::new();
+        ranker.expect_rank().returning(|_: &mut [Document]| Ok(()));
+        ranker.expect_take_key_phrases().returning(|_, _| vec![]);
+        ranker.expect_positive_cois().return_const(vec![]);
+        ranker.expect_negative_cois().return_const(vec![]);
+        ranker.expect_compute_smbert().returning(|_| {
+            let embedding: Embedding = [0.0].into();
+            Ok(embedding)
+        });
+        ranker
+    }
+
+    fn create_stacks_from_stack_ops(stack_ops: Vec<BoxedOps>) -> HashMap<Id, Stack> {
+        stack_ops
+            .into_iter()
+            .map(|ops| {
+                let data = Data::new(1.0, 1.0, vec![]).unwrap();
+                let stack = Stack::new(data, ops).unwrap();
+                (stack.id(), stack)
+            })
+            .collect()
+    }
+
+    fn new_mock_article() -> Article {
+        serde_json::from_str(r#"{"link": "https://xayn.com"}"#).unwrap()
+    }
+
+    fn new_mock_stack_ops() -> MockOps {
+        let stack_id = Id::new_random();
+        let mut mock_ops = MockOps::new();
+        mock_ops.expect_id().returning(move || stack_id);
+        mock_ops.expect_needs_key_phrases().returning(|| true);
+        mock_ops
+            .expect_merge()
+            .returning(|stack, new| Ok(chain!(stack, new).cloned().collect()));
+        mock_ops
     }
 }

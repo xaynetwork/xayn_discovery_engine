@@ -35,7 +35,7 @@ use crate::{
 mod data;
 pub(crate) mod exploration;
 pub(crate) mod filters;
-mod ops;
+pub(crate) mod ops;
 
 pub use self::ops::Ops;
 pub(crate) use self::{
@@ -92,6 +92,11 @@ pub type BoxedOps = Box<dyn Ops + Send + Sync>;
 pub struct Id(Uuid);
 
 impl Id {
+    #[cfg(test)]
+    pub fn new_random() -> Self {
+        Id(Uuid::new_v4())
+    }
+
     pub(crate) fn is_nil(&self) -> bool {
         self.0.is_nil()
     }
