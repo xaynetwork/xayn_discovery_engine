@@ -39,6 +39,8 @@ void main() {
     late TestEngineData data;
     late DiscoveryEngine engine;
 
+    final exclude = Source('example.com');
+
     setUp(() async {
       server = await LocalNewsApiServer.start();
       data = await setupTestEngineData();
@@ -52,10 +54,6 @@ void main() {
     });
 
     test('addSourceToExcludedList adds excluded source', () async {
-      engine = await initEngine(data, server.port);
-
-      final exclude = Source('example.com');
-
       var response = await engine.addSourceToExcludedList(exclude);
       expect(response, isA<ClientEventSucceeded>());
 
@@ -81,21 +79,17 @@ void main() {
 
     test('removeSourceFromExcludedList removes the added excluded source',
         () async {
-      engine = await initEngine(data, server.port);
-
-      var response =
-          await engine.addSourceToExcludedList(Source('example.com'));
+      var response = await engine.addSourceToExcludedList(exclude);
       expect(response, isA<ClientEventSucceeded>());
 
       var excluded = await engine.getExcludedSourcesList();
       expect(excluded, isA<ExcludedSourcesListRequestSucceeded>());
       expect(
         (excluded as ExcludedSourcesListRequestSucceeded).excludedSources,
-        equals({Source('example.com')}),
+        equals({exclude}),
       );
 
-      response =
-          await engine.removeSourceFromExcludedList(Source('example.com'));
+      response = await engine.removeSourceFromExcludedList(exclude);
       expect(response, isA<ClientEventSucceeded>());
 
       excluded = await engine.getExcludedSourcesList();
@@ -117,8 +111,6 @@ void main() {
     });
 
     test('non-existent excluded source should have no effect', () async {
-      engine = await initEngine(data, server.port);
-
       var response =
           await engine.addSourceToExcludedList(Source('example.org'));
       expect(response, isA<ClientEventSucceeded>());
