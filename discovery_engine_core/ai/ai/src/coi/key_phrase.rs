@@ -243,7 +243,7 @@ fn unify(
 /// The elements can be prepared before they are reduced. The reduced result can be finalized
 /// whereas the finalization conditially depends on whether the reduced lane overlaps with the main
 /// square block of the matrix.
-#[allow(clippy::needless_pass_by_value)] // arrayview instead of reference
+#[allow(clippy::needless_pass_by_value)] // pass by value needed for ArrayView
 fn reduce_without_diag(
     array: ArrayBase<impl Data<Elem = f32>, Ix2>,
     axis: Axis,
@@ -328,7 +328,7 @@ fn similarities(key_phrases: &[KeyPhrase], coi_point: &Embedding) -> Array2<f32>
 }
 
 /// Determines which key phrases should be selected.
-#[allow(clippy::needless_pass_by_value)] // arrayview instead of reference
+#[allow(clippy::needless_pass_by_value)] // pass by value needed for ArrayView
 fn is_selected(
     similarity: ArrayBase<impl Data<Elem = f32>, Ix2>,
     max_key_phrases: usize,
@@ -372,7 +372,7 @@ fn is_selected(
 }
 
 /// Selects the determined key phrases.
-#[allow(clippy::needless_pass_by_value)] // arrayview instead of reference
+#[allow(clippy::needless_pass_by_value)] // pass by value needed for ArrayView
 fn select(
     key_phrases: Vec<KeyPhrase>,
     selected: Vec<bool>,
