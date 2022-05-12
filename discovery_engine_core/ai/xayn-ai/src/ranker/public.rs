@@ -15,8 +15,8 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use kpe::Config as KpeConfig;
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
+use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -161,7 +161,7 @@ impl<'a> Builder<'a, AveragePooler> {
     pub fn build(self) -> Result<Ranker, Error> {
         let smbert = xayn_discovery_engine_bert::Pipeline::from(self.smbert_config)?;
         let coi = CoiSystem::new(self.coi_config);
-        let kpe = kpe::Pipeline::from(self.kpe_config)?;
+        let kpe = xayn_discovery_engine_kpe::Pipeline::from(self.kpe_config)?;
 
         Ok(Ranker(super::system::Ranker::new(
             smbert, coi, kpe, self.state,

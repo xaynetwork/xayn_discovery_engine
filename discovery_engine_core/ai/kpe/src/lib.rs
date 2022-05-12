@@ -15,11 +15,23 @@
 //! The KPE pipeline extracts key phrases from a sequence.
 //!
 //! See `examples/` for a usage example.
-#![cfg_attr(
-    doc,
-    forbid(rustdoc::broken_intra_doc_links, rustdoc::private_intra_doc_links)
-)]
+
 #![forbid(unsafe_op_in_unsafe_fn)]
+#![deny(
+    clippy::future_not_send,
+    clippy::pedantic,
+    noop_method_call,
+    rust_2018_idioms,
+    unsafe_code,
+    unused_qualifications
+)]
+#![warn(missing_docs, unreachable_pub)]
+#![allow(
+    clippy::items_after_statements,
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate
+)]
 
 mod config;
 mod model;

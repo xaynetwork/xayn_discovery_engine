@@ -24,6 +24,7 @@ use thiserror::Error;
 use crate::model::bert::Bert;
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
+/// `KPE` configuration errors.
 #[derive(Debug, Display, Error)]
 pub enum ConfigError {
     /// The token size must be at least two to allow for special tokens
@@ -36,6 +37,8 @@ pub enum ConfigError {
     DataFile(#[from] std::io::Error),
 }
 
+/// A `KPE` configuration.
+#[must_use]
 pub struct Config<'a> {
     pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
     pub(crate) model: Box<dyn Read + Send + 'a>,
@@ -49,6 +52,7 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
+    /// Creates a `KPE` configuration from readables.
     pub fn from_readers(
         vocab: Box<dyn BufRead + Send + 'a>,
         model: Box<dyn Read + Send + 'a>,
@@ -68,6 +72,7 @@ impl<'a> Config<'a> {
         }
     }
 
+    /// Creates a `KPE` configuration from files.
     pub fn from_files(
         vocab: impl AsRef<Path>,
         model: impl AsRef<Path>,

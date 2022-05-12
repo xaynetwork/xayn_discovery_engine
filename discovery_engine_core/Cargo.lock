@@ -1188,21 +1188,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kpe"
-version = "0.1.0"
-dependencies = [
- "criterion",
- "derive_more",
- "displaydoc",
- "ndarray",
- "thiserror",
- "tract-onnx",
- "xayn-discovery-engine-layer",
- "xayn-discovery-engine-test-utils",
- "xayn-discovery-engine-tokenizer",
-]
-
-[[package]]
 name = "kstring"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3276,7 +3261,6 @@ dependencies = [
  "displaydoc",
  "itertools",
  "js-sys",
- "kpe",
  "lazy_static",
  "mockall",
  "ndarray",
@@ -3295,6 +3279,7 @@ dependencies = [
  "thiserror",
  "uuid",
  "xayn-discovery-engine-bert",
+ "xayn-discovery-engine-kpe",
  "xayn-discovery-engine-layer",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
@@ -3398,7 +3383,23 @@ dependencies = [
  "wiremock",
  "xayn-ai",
  "xayn-discovery-engine-bert",
+ "xayn-discovery-engine-kpe",
  "xayn-discovery-engine-providers",
+ "xayn-discovery-engine-test-utils",
+ "xayn-discovery-engine-tokenizer",
+]
+
+[[package]]
+name = "xayn-discovery-engine-kpe"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "derive_more",
+ "displaydoc",
+ "ndarray",
+ "thiserror",
+ "tract-onnx",
+ "xayn-discovery-engine-layer",
  "xayn-discovery-engine-test-utils",
  "xayn-discovery-engine-tokenizer",
 ]

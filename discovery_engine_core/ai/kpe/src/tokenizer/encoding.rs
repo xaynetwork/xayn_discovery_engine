@@ -24,12 +24,12 @@ use xayn_discovery_engine_tokenizer::{Encoding as BertEncoding, Offsets};
 ///
 /// The token ids are of shape `(1, token_size)`.
 #[derive(Clone, Debug, Deref, From)]
-pub struct TokenIds(pub Array2<i64>);
+pub(crate) struct TokenIds(pub(crate) Array2<i64>);
 
 impl TokenIds {
     /// Checks if the token ids are valid, i.e. in the interval `[0, vocab_size)`.
-    pub fn is_valid(&self, vocab_size: usize) -> bool {
-        debug_assert!(vocab_size as u64 <= i64::MAX as u64);
+    pub(crate) fn is_valid(&self, vocab_size: usize) -> bool {
+        debug_assert!(i64::try_from(vocab_size as u64).is_ok());
         self.iter()
             .copied()
             .all(|token_id| 0 <= token_id && token_id < vocab_size as i64)
@@ -40,11 +40,11 @@ impl TokenIds {
 ///
 /// The attention mask is of shape `(1, token_size)`.
 #[derive(Clone, Debug, Deref, From)]
-pub struct AttentionMask(pub Array2<i64>);
+pub(crate) struct AttentionMask(pub(crate) Array2<i64>);
 
 impl AttentionMask {
     /// Checks if the attention mask is valid, i.e. either `0` or `1`.
-    pub fn is_valid(&self) -> bool {
+    pub(crate) fn is_valid(&self) -> bool {
         self.iter()
             .copied()
             .all(|attention| attention == 0 || attention == 1)
@@ -55,16 +55,16 @@ impl AttentionMask {
 ///
 /// The valid mask is of shape `(token_size,)`.
 #[derive(Clone, Debug, Deref, From)]
-pub struct ValidMask(pub Vec<bool>);
+pub(crate) struct ValidMask(pub(crate) Vec<bool>);
 
 impl ValidMask {
     /// Counts the number of valid entries in the mask.
-    pub fn count(&self) -> usize {
+    pub(crate) fn count(&self) -> usize {
         self.iter().filter(|valid| **valid).count()
     }
 
     /// Checks if the valid mask is valid, i.e. at least `key_phrase_size` valid entries.
-    pub fn is_valid(&self, key_phrase_size: usize) -> bool {
+    pub(crate) fn is_valid(&self, key_phrase_size: usize) -> bool {
         self.count() >= key_phrase_size
     }
 }
@@ -73,11 +73,11 @@ impl ValidMask {
 ///
 /// The active mask is of shape `(key_phrase_choices, key_phrase_mentions)`.
 #[derive(Clone, Debug, Deref, From)]
-pub struct ActiveMask(pub Array2<bool>);
+pub(crate) struct ActiveMask(pub(crate) Array2<bool>);
 
 impl ActiveMask {
     /// Checks if the active mask is valid, i.e. at least one mention per choice.
-    pub fn is_valid(&self) -> bool {
+    pub(crate) fn is_valid(&self) -> bool {
         self.rows()
             .into_iter()
             .all(|mentions| mentions.iter().copied().any(|active| active))
@@ -86,16 +86,16 @@ impl ActiveMask {
 
 /// The encoded sequence.
 #[derive(Clone, Debug)]
-pub struct Encoding {
-    pub token_ids: TokenIds,
-    pub attention_mask: AttentionMask,
-    pub valid_mask: ValidMask,
-    pub active_mask: ActiveMask,
+pub(crate) struct Encoding {
+    pub(crate) token_ids: TokenIds,
+    pub(crate) attention_mask: AttentionMask,
+    pub(crate) valid_mask: ValidMask,
+    pub(crate) active_mask: ActiveMask,
 }
 
 impl Encoding {
     /// Checks if all parts of the encoding are valid.
-    pub fn is_valid(&self, vocab_size: usize, key_phrase_size: usize) -> bool {
+    pub(crate) fn is_valid(&self, vocab_size: usize, key_phrase_size: usize) -> bool {
         self.token_ids.is_valid(vocab_size)
             && self.attention_mask.is_valid()
             && self.valid_mask.is_valid(key_phrase_size)
@@ -107,7 +107,10 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
     /// Encodes the sequence.
     ///
     /// The encoding is in correct shape for the models.
-    pub fn encode(&self, sequence: impl AsRef<str>) -> (Encoding, KeyPhrases<KEY_PHRASE_SIZE>) {
+    pub(crate) fn encode(
+        &self,
+        sequence: impl AsRef<str>,
+    ) -> (Encoding, KeyPhrases<KEY_PHRASE_SIZE>) {
         let sequence = sequence.as_ref();
         let encoding = self.tokenizer.encode(sequence);
         let (token_ids, _, _, _, ref offsets, _, attention_mask, overflowing) = encoding.into();

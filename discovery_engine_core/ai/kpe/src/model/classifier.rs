@@ -27,7 +27,7 @@ use xayn_discovery_engine_layer::{activation::Linear, dense::Dense, io::BinParam
 
 /// A Classifier model.
 #[derive(Debug)]
-pub struct Classifier {
+pub(crate) struct Classifier {
     layer: Dense<Linear>,
 }
 
@@ -35,18 +35,18 @@ pub struct Classifier {
 ///
 /// The scores are of shape `(len(key_phrase_choices),)`.
 #[derive(Clone, Debug, Deref, From)]
-pub struct Scores(pub Vec<f32>);
+pub(crate) struct Scores(pub(crate) Vec<f32>);
 
 impl Scores {
     /// Checks if the scores are valid, i.e. finite.
-    pub fn is_valid(&self) -> bool {
+    pub(crate) fn is_valid(&self) -> bool {
         self.iter().copied().all(f32::is_finite)
     }
 }
 
 impl Classifier {
     /// Creates a model from a binary parameters file.
-    pub fn new(mut params: BinParams) -> Result<Self, ModelError> {
+    pub(crate) fn new(mut params: BinParams) -> Result<Self, ModelError> {
         let layer = Dense::load(params.with_scope("dense"), Linear)?;
         if !params.is_empty() {
             return Err(ModelError::UnusedParams(
@@ -62,7 +62,7 @@ impl Classifier {
     }
 
     /// Runs the model on the convolved features to compute the scores.
-    pub fn run(&self, features: Features, active_mask: ActiveMask) -> Result<Scores, ModelError> {
+    pub(crate) fn run(&self, features: &Features, active_mask: &ActiveMask) -> Scores {
         debug_assert_eq!(features.shape()[1], active_mask.shape()[1]);
         debug_assert!(features.is_valid());
         debug_assert!(active_mask.is_valid());
@@ -88,7 +88,7 @@ impl Classifier {
         debug_assert_eq!(scores.len(), active_mask.shape()[0]);
         debug_assert!(scores.is_valid());
 
-        Ok(scores)
+        scores
     }
 }
 
@@ -115,7 +115,7 @@ mod tests {
                 .unwrap();
         let features = Array2::default((Cnn::CHANNEL_OUT_SIZE, output_size)).into();
         let active_mask = Array2::from_elem((output_size, output_size), true).into();
-        assert_eq!(model.run(features, active_mask).unwrap().len(), output_size);
+        assert_eq!(model.run(&features, &active_mask).len(), output_size);
     }
 
     #[test]
@@ -126,9 +126,6 @@ mod tests {
                 .unwrap();
         let features = Array2::default((Cnn::CHANNEL_OUT_SIZE, output_size)).into();
         let active_mask = Array2::from_elem((output_size / 2, output_size), true).into();
-        assert_eq!(
-            model.run(features, active_mask).unwrap().len(),
-            output_size / 2,
-        );
+        assert_eq!(model.run(&features, &active_mask).len(), output_size / 2);
     }
 }

@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod bert;
-pub mod classifier;
-pub mod cnn;
+pub(crate) mod bert;
+pub(crate) mod classifier;
+pub(crate) mod cnn;
 
 use std::io::Error as IoError;
 
