@@ -13,7 +13,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #![forbid(unsafe_op_in_unsafe_fn)]
-#![deny(clippy::pedantic, unsafe_code)]
+#![deny(
+    clippy::pedantic,
+    clippy::future_not_send,
+    noop_method_call,
+    rust_2018_idioms,
+    unsafe_code
+)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::must_use_candidate,

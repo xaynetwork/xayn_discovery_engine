@@ -91,7 +91,7 @@ where
 /// Computes the cosine similarity of two vectors.
 ///
 /// See [`pairwise_cosine_similarity`] for details.
-pub fn cosine_similarity(a: ArrayView1<f32>, b: ArrayView1<f32>) -> f32 {
+pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
     pairwise_cosine_similarity([a.view(), b.view()])[[0, 1]]
 }
 
@@ -129,7 +129,7 @@ mod tests {
     fn test_pairwise_cosine_similarity_empty() {
         assert_approx_eq!(
             f32,
-            pairwise_cosine_similarity([] as [ArrayView1<f32>; 0]),
+            pairwise_cosine_similarity([] as [ArrayView1<'_, f32>; 0]),
             arr2(&[[]]),
         );
     }
