@@ -20,6 +20,7 @@ use xayn_discovery_engine_ai::{
     DocumentId,
     UserFeedback,
 };
+use xayn_discovery_engine_kpe::RankedKeyPhrases;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -52,6 +53,9 @@ pub trait Ranker {
 
     /// Computes the S-mBert embedding of the given `sequence`.
     fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError>;
+
+    /// Extracts the key phrases of the given `sequence`.
+    fn extract_key_phrases(&self, sequence: &str) -> Result<RankedKeyPhrases, GenericError>;
 
     /// Returns the positive cois.
     fn positive_cois(&self) -> &[PositiveCoi];
@@ -101,6 +105,10 @@ impl Ranker for xayn_discovery_engine_ai::ranker::Ranker {
 
     fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError> {
         self.compute_smbert(sequence).map_err(Into::into)
+    }
+
+    fn extract_key_phrases(&self, sequence: &str) -> Result<RankedKeyPhrases, GenericError> {
+        self.extract_key_phrases(sequence).map_err(Into::into)
     }
 
     fn positive_cois(&self) -> &[PositiveCoi] {
