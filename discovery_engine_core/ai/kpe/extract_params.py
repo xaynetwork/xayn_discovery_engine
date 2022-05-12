@@ -1,7 +1,7 @@
 """
 Call like `python3 extract_params.py model_in_path [params_out_dir]`.
 
-See `xayn_ai/extract_listnet_parameters.py` for constraints.
+See `ai/extract_listnet_parameters.py` for constraints.
 """
 
 from pathlib import Path
