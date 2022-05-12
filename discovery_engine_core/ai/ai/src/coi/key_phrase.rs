@@ -213,7 +213,8 @@ fn unify(
         return key_phrases;
     }
 
-    let candidates = candidates.into_par_iter()
+    let candidates = candidates
+        .into_par_iter()
         .filter_map(|candidate| {
             let candidate = clean_key_phrase(candidate);
             key_phrases
