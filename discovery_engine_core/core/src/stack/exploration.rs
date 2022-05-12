@@ -15,7 +15,7 @@
 //! Exploration stack.
 
 use std::collections::HashSet;
-use uuid::Uuid;
+use uuid::uuid;
 
 use crate::{
     document::{Document, UserReaction},
@@ -49,7 +49,7 @@ impl Stack {
 
     /// [`Id`] of this `Stack`.
     pub(crate) fn id() -> Id {
-        Uuid::parse_str("77cf9280-bb93-4158-b660-8732927e0dcc").unwrap(/* valid uuid */).into()
+        Id(uuid!("77cf9280-bb93-4158-b660-8732927e0dcc"))
     }
 
     /// Updates the internal documents with the new one and returns an updated [`Stack`].

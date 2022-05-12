@@ -17,7 +17,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
-use uuid::Uuid;
+use uuid::uuid;
 use xayn_discovery_engine_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{
     default_from,
@@ -82,7 +82,7 @@ impl PersonalizedNews {
 #[async_trait]
 impl Ops for PersonalizedNews {
     fn id(&self) -> Id {
-        Id(Uuid::parse_str("311dc7eb-5fc7-4aa4-8232-e119f7e80e76").unwrap(/* valid uuid */))
+        Id(uuid!("311dc7eb-5fc7-4aa4-8232-e119f7e80e76"))
     }
 
     fn needs_key_phrases(&self) -> bool {
