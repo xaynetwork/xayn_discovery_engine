@@ -18,6 +18,22 @@
 //! 1. path to input file
 //! 2. path to output file
 
+#![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
+#![deny(
+    clippy::future_not_send,
+    clippy::pedantic,
+    noop_method_call,
+    rust_2018_idioms,
+    unused_qualifications
+)]
+#![warn(missing_docs, unreachable_pub)]
+#![allow(
+    clippy::items_after_statements,
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate
+)]
+
 use std::{
     env::args,
     fs::{remove_file, File},
@@ -104,10 +120,10 @@ fn clean_sources(in_file: impl AsRef<Path>, out_file: impl AsRef<Path>) -> Resul
             bail!("missing domain field at {:?}", record.position());
         };
         if let Some(name) = record.get(0) {
-            if !name.is_empty() {
-                writer.write_byte_record(&[name, domain].as_ref().into())?;
-            } else {
+            if name.is_empty() {
                 count += 1;
+            } else {
+                writer.write_byte_record(&[name, domain].as_ref().into())?;
             }
         } else {
             bail!("missing name field at {:?}", record.position());
