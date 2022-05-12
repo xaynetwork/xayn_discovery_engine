@@ -20,7 +20,7 @@ use xayn_discovery_engine_bert::Embedding1;
 
 /// A 1-dimensional sequence embedding.
 ///
-/// The embedding is of shape (embedding_size,).
+/// The embedding is of shape `(embedding_size,)`.
 pub type Embedding = Embedding1;
 
 /// Computes the l2 norm (euclidean metric) of a vector.
@@ -28,7 +28,7 @@ pub type Embedding = Embedding1;
 /// # Panics
 /// Panics if the vector doesn't consist solely of real values.
 #[allow(clippy::needless_pass_by_value)] // arrayview instead of reference
-pub fn l2_norm<S>(a: ArrayBase<S, Ix1>) -> f32
+pub(crate) fn l2_norm<S>(a: ArrayBase<S, Ix1>) -> f32
 where
     S: Data<Elem = f32>,
 {
@@ -43,10 +43,10 @@ where
 }
 
 /// See [`pairwise_cosine_similarity`] for details.
-pub const MAXIMUM_COSINE_SIMILARITY: f32 = 1.0;
+pub(crate) const MAXIMUM_COSINE_SIMILARITY: f32 = 1.0;
 
 /// See [`pairwise_cosine_similarity`] for details.
-pub const MINIMUM_COSINE_SIMILARITY: f32 = -1.0;
+pub(crate) const MINIMUM_COSINE_SIMILARITY: f32 = -1.0;
 
 /// See [`pairwise_cosine_similarity`] for details.
 pub const COSINE_SIMILARITY_RANGE: RangeInclusive<f32> =

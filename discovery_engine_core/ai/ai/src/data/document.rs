@@ -28,7 +28,7 @@ use crate::Error;
 pub struct DocumentId(pub Uuid);
 
 impl DocumentId {
-    /// Creates a DocumentId from a 128bit value in big-endian order.
+    /// Creates a `DocumentId` from a 128bit value in big-endian order.
     pub fn from_u128(id: u128) -> Self {
         DocumentId(Uuid::from_u128(id))
     }
