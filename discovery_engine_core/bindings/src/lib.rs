@@ -20,6 +20,7 @@
     clippy::pedantic,
     noop_method_call,
     rust_2018_idioms,
+    unsafe_code,
     unused_qualifications
 )]
 #![warn(missing_docs, unreachable_pub)]

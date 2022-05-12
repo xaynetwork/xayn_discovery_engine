@@ -14,6 +14,8 @@
 
 //! Modules containing FFI glue for various types.
 
+#![allow(unsafe_code)]
+
 mod boxed;
 pub mod date_time;
 pub mod document;
