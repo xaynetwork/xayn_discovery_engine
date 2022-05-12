@@ -16,6 +16,7 @@ use chrono::NaiveDateTime;
 
 use crate::{embedding::utils::Embedding, DocumentId};
 
+/// Common document properties.
 pub trait Document {
     /// Gets the document id.
     fn id(&self) -> DocumentId;

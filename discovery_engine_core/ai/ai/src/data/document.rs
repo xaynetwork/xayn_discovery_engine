@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 use crate::Error;
 
+/// A unique identifier of a document.
 #[repr(transparent)]
 #[cfg_attr(test, derive(Default))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
@@ -27,7 +28,7 @@ use crate::Error;
 pub struct DocumentId(pub Uuid);
 
 impl DocumentId {
-    //// Creates a DocumentId from a 128bit value in big-endian order.
+    /// Creates a DocumentId from a 128bit value in big-endian order.
     pub fn from_u128(id: u128) -> Self {
         DocumentId(Uuid::from_u128(id))
     }
@@ -41,6 +42,7 @@ impl TryFrom<&str> for DocumentId {
     }
 }
 
+/// A unique identifier of a session.
 #[repr(transparent)]
 #[cfg_attr(test, derive(Default))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
@@ -62,6 +64,7 @@ impl TryFrom<&str> for SessionId {
     }
 }
 
+/// A unique identifier of a query.
 #[repr(transparent)]
 #[cfg_attr(test, derive(Default))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
@@ -139,11 +142,15 @@ pub struct DocumentHistory {
     pub user_action: UserAction,
 }
 
+/// The various kinds of user feedback.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum UserFeedback {
+    /// The user considers this as relevant.
     Relevant = 0,
+    /// The user considers this as irrelevant.
     Irrelevant = 1,
+    /// The user doesn't give feedback.
     NotGiven = 2,
 }
 
@@ -153,31 +160,47 @@ impl Default for UserFeedback {
     }
 }
 
+/// The relevance of a document.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Relevance {
+    /// The document is of low relevance.
     Low = 0,
+    /// The document is of medium relevance.
     Medium = 1,
+    /// The document is of high relevance.
     High = 2,
 }
 
+/// The action of the user on a document.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum UserAction {
+    /// The user missed the document.
     Miss = 0,
+    /// The user skipped the document.
     Skip = 1,
+    /// The user clicked the document.
     Click = 2,
 }
 
+/// The day of the week.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum DayOfWeek {
+    /// Monday.
     Mon = 0,
+    /// Tuesday.
     Tue = 1,
+    /// Wednesday.
     Wed = 2,
+    /// Thursday.
     Thu = 3,
+    /// Friday.
     Fri = 4,
+    /// Saturday.
     Sat = 5,
+    /// Sunday.
     Sun = 6,
 }
 

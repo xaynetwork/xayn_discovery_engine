@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#![allow(unused_macros)] // obake
+#![allow(missing_docs, unused_macros)] // obake
 
 use std::time::SystemTime;
 
@@ -88,6 +88,7 @@ impl From<PositiveCoi_v0_2_0> for PositiveCoi {
     }
 }
 
+/// A negative `CoI`.
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
 pub struct NegativeCoi {
@@ -98,6 +99,7 @@ pub struct NegativeCoi {
 }
 
 impl NegativeCoi {
+    /// Creates a negative `CoI`.
     pub fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
         Self {
             id: id.into(),
@@ -107,6 +109,7 @@ impl NegativeCoi {
     }
 }
 
+/// Common `CoI` properties and functionality.
 pub trait CoiPoint {
     /// Gets the coi id.
     fn id(&self) -> CoiId;

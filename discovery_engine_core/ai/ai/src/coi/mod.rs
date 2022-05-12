@@ -35,6 +35,7 @@ use crate::embedding::utils::Embedding;
 #[cfg(test)]
 use xayn_discovery_engine_test_utils::uuid::mock_uuid;
 
+/// A unique identifier of a `CoI`.
 #[repr(transparent)] // needed for FFI
 #[derive(
     Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize, From,

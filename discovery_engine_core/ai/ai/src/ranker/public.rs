@@ -32,6 +32,7 @@ use crate::{
 
 use super::{NegativeCoi, PositiveCoi};
 
+/// The ranker.
 pub struct Ranker(super::system::Ranker);
 
 impl Ranker {
@@ -94,6 +95,7 @@ impl Ranker {
     }
 }
 
+/// A builder for a [`Ranker`].
 #[must_use]
 pub struct Builder<'a, P> {
     smbert_config: SMBertConfig<'a, P>,
@@ -103,6 +105,7 @@ pub struct Builder<'a, P> {
 }
 
 impl<'a> Builder<'a, AveragePooler> {
+    /// Creates a builder from sub-configurations.
     pub fn from(smbert: SMBertConfig<'a, AveragePooler>, kpe: KpeConfig<'a>) -> Self {
         Builder {
             smbert_config: smbert,
