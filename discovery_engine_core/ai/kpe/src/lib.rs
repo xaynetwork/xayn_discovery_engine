@@ -18,19 +18,19 @@
 
 #![forbid(unsafe_op_in_unsafe_fn)]
 #![deny(
-    clippy::pedantic,
     clippy::future_not_send,
+    clippy::pedantic,
     noop_method_call,
     rust_2018_idioms,
-    unused_qualifications,
-    unsafe_code
+    unsafe_code,
+    unused_qualifications
 )]
 #![warn(missing_docs, unreachable_pub)]
 #![allow(
+    clippy::items_after_statements,
     clippy::missing_errors_doc,
-    clippy::must_use_candidate,
     clippy::module_name_repetitions,
-    clippy::items_after_statements
+    clippy::must_use_candidate
 )]
 
 mod config;
