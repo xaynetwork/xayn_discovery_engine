@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     coi::point::{NegativeCoi, PositiveCoi},
-    utils::{system_time_now, SECONDS_PER_DAY},
+    utils::{system_time_now, SECONDS_PER_DAY_F32},
 };
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -83,6 +83,7 @@ pub(crate) fn compute_coi_relevances(
     horizon: Duration,
     now: SystemTime,
 ) -> Vec<f32> {
+    #[allow(clippy::cast_precision_loss)] // small values
     let counts = cois.iter().map(|coi| coi.stats.view_count).sum::<usize>() as f32 + f32::EPSILON;
     let times = cois
         .iter()
@@ -93,6 +94,7 @@ pub(crate) fn compute_coi_relevances(
 
     cois.iter()
         .map(|coi| {
+            #[allow(clippy::cast_precision_loss)] // small values
             let count = coi.stats.view_count as f32 / counts;
             let time = coi.stats.view_time.as_secs_f32() / times;
             let last = compute_coi_decay_factor(horizon, now, coi.stats.last_view);
@@ -102,20 +104,20 @@ pub(crate) fn compute_coi_relevances(
         .collect()
 }
 
-/// Computes the time decay factor for a coi based on its last_view stat.
+/// Computes the time decay factor for a coi based on its `last_view` stat.
 pub(crate) fn compute_coi_decay_factor(
     horizon: Duration,
     now: SystemTime,
     last_view: SystemTime,
 ) -> f32 {
     const DAYS_SCALE: f32 = -0.1;
-    let horizon = (horizon.as_secs_f32() * DAYS_SCALE / SECONDS_PER_DAY).exp();
+    let horizon = (horizon.as_secs_f32() * DAYS_SCALE / SECONDS_PER_DAY_F32).exp();
     let days = (now
         .duration_since(last_view)
         .unwrap_or_default()
         .as_secs_f32()
         * DAYS_SCALE
-        / SECONDS_PER_DAY)
+        / SECONDS_PER_DAY_F32)
         .exp();
 
     ((horizon - days) / (horizon - 1. - f32::EPSILON)).max(0.)
@@ -151,13 +153,13 @@ mod tests {
         let mut cois = create_pos_cois(&[[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]]);
         cois[1].stats.view_count += 1;
         cois[2].stats.view_count += 2;
-        let config = Config::default().with_horizon(Duration::from_secs_f32(SECONDS_PER_DAY));
+        let config = Config::default().with_horizon(Duration::from_secs_f32(SECONDS_PER_DAY_F32));
 
         let relevances = compute_coi_relevances(&cois, config.horizon(), system_time_now());
         assert_approx_eq!(
             f32,
             relevances,
-            [0.16666646, 0.33333293, 0.49999937],
+            [0.166_666_46, 0.333_332_93, 0.499_999_37],
             epsilon = 1e-6,
         );
     }
@@ -167,13 +169,13 @@ mod tests {
         let mut cois = create_pos_cois(&[[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]]);
         cois[1].stats.view_time += Duration::from_secs(10);
         cois[2].stats.view_time += Duration::from_secs(20);
-        let config = Config::default().with_horizon(Duration::from_secs_f32(SECONDS_PER_DAY));
+        let config = Config::default().with_horizon(Duration::from_secs_f32(SECONDS_PER_DAY_F32));
 
         let relevances = compute_coi_relevances(&cois, config.horizon(), system_time_now());
         assert_approx_eq!(
             f32,
             relevances,
-            [0.33333293, 0.6666667, 0.99999875],
+            [0.333_332_93, 0.666_666_7, 0.999_998_75],
             epsilon = 1e-6,
         );
     }
@@ -181,33 +183,34 @@ mod tests {
     #[test]
     fn test_compute_relevances_last() {
         let mut cois = create_pos_cois(&[[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]]);
-        cois[0].stats.last_view -= Duration::from_secs_f32(0.5 * SECONDS_PER_DAY);
-        cois[1].stats.last_view -= Duration::from_secs_f32(1.5 * SECONDS_PER_DAY);
-        cois[2].stats.last_view -= Duration::from_secs_f32(2.5 * SECONDS_PER_DAY);
-        let config = Config::default().with_horizon(Duration::from_secs_f32(2. * SECONDS_PER_DAY));
+        cois[0].stats.last_view -= Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32);
+        cois[1].stats.last_view -= Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32);
+        cois[2].stats.last_view -= Duration::from_secs_f32(2.5 * SECONDS_PER_DAY_F32);
+        let config =
+            Config::default().with_horizon(Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32));
 
         let relevances = compute_coi_relevances(&cois, config.horizon(), system_time_now());
         assert_approx_eq!(
             f32,
             relevances,
-            [0.24364972, 0.07719126, 0.],
+            [0.243_649_72, 0.077_191_26, 0.],
             epsilon = 1e-6,
         );
     }
 
     #[test]
     fn test_compute_coi_decay_factor() {
-        let horizon = Duration::from_secs_f32(30. * SECONDS_PER_DAY);
+        let horizon = Duration::from_secs_f32(30. * SECONDS_PER_DAY_F32);
 
         let epoch = SystemTime::UNIX_EPOCH;
         let factor = compute_coi_decay_factor(horizon, epoch, epoch);
         assert_approx_eq!(f32, factor, 1.);
 
-        let now = epoch + Duration::from_secs_f32(5. * SECONDS_PER_DAY);
+        let now = epoch + Duration::from_secs_f32(5. * SECONDS_PER_DAY_F32);
         let factor = compute_coi_decay_factor(horizon, now, epoch);
-        assert_approx_eq!(f32, factor, 0.5859145);
+        assert_approx_eq!(f32, factor, 0.585_914_5);
 
-        let now = epoch + Duration::from_secs_f32(30. * SECONDS_PER_DAY);
+        let now = epoch + Duration::from_secs_f32(30. * SECONDS_PER_DAY_F32);
         let factor = compute_coi_decay_factor(horizon, now, epoch);
         assert_approx_eq!(f32, factor, 0.);
     }

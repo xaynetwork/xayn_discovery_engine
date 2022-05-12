@@ -231,7 +231,7 @@ fn unify(
         .into_iter()
         .filter_map(|candidate| {
             smbert(&candidate)
-                .and_then(|point| KeyPhrase::new(candidate, point).map_err(|e| e.into()))
+                .and_then(|point| KeyPhrase::new(candidate, point).map_err(Into::into))
                 .ok()
         });
 
@@ -243,6 +243,7 @@ fn unify(
 /// The elements can be prepared before they are reduced. The reduced result can be finalized
 /// whereas the finalization conditially depends on whether the reduced lane overlaps with the main
 /// square block of the matrix.
+#[allow(clippy::needless_pass_by_value)] // arrayview instead of reference
 fn reduce_without_diag(
     array: ArrayBase<impl Data<Elem = f32>, Ix2>,
     axis: Axis,
@@ -260,8 +261,7 @@ fn reduce_without_diag(
                 .enumerate()
                 .filter_map(|(j, element)| (i != j).then(|| prepare(*element)))
                 .reduce(reduce)
-                .map(|reduced| finalize(reduced, i < lane.len()))
-                .unwrap_or(f32::NAN)
+                .map_or(f32::NAN, |reduced| finalize(reduced, i < lane.len()))
         })
         .collect::<Array1<_>>()
         .insert_axis(axis)
@@ -304,6 +304,7 @@ fn similarities(key_phrases: &[KeyPhrase], coi_point: &Embedding) -> Array2<f32>
         Axis(0),
         identity,
         |reduced, element| reduced + element,
+        #[allow(clippy::cast_precision_loss)] // small values
         |reduced, is_within_square| {
             reduced / is_within_square.then(|| len - 1).unwrap_or(len) as f32
         },
@@ -313,6 +314,7 @@ fn similarities(key_phrases: &[KeyPhrase], coi_point: &Embedding) -> Array2<f32>
         Axis(0),
         |element| element.powi(2),
         |reduced, element| reduced + element,
+        #[allow(clippy::cast_precision_loss)] // small values
         |reduced, is_within_square| {
             (reduced / is_within_square.then(|| len - 1).unwrap_or(len) as f32).sqrt()
         },
@@ -326,6 +328,7 @@ fn similarities(key_phrases: &[KeyPhrase], coi_point: &Embedding) -> Array2<f32>
 }
 
 /// Determines which key phrases should be selected.
+#[allow(clippy::needless_pass_by_value)] // arrayview instead of reference
 fn is_selected(
     similarity: ArrayBase<impl Data<Elem = f32>, Ix2>,
     max_key_phrases: usize,
@@ -369,6 +372,7 @@ fn is_selected(
 }
 
 /// Selects the determined key phrases.
+#[allow(clippy::needless_pass_by_value)] // arrayview instead of reference
 fn select(
     key_phrases: Vec<KeyPhrase>,
     selected: Vec<bool>,

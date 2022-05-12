@@ -24,6 +24,7 @@ pub type Embedding = Embedding1;
 ///
 /// # Panics
 /// Panics if the vector doesn't consist solely of real values.
+#[allow(clippy::needless_pass_by_value)] // arrayview instead of reference
 pub fn l2_norm<S>(a: ArrayBase<S, Ix1>) -> f32
 where
     S: Data<Elem = f32>,
@@ -103,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_l2_norm() {
-        assert_approx_eq!(f32, l2_norm(arr1(&[1., 2., 3.])), 3.7416575);
+        assert_approx_eq!(f32, l2_norm(arr1(&[1., 2., 3.])), 3.741_657_5);
     }
 
     #[test]
@@ -147,7 +148,7 @@ mod tests {
         assert_approx_eq!(
             f32,
             pairwise_cosine_similarity([arr1(&[1., 2., 3.]).view(), arr1(&[4., 5., 6.]).view()]),
-            arr2(&[[1., 0.97463185], [0.97463185, 1.]]),
+            arr2(&[[1., 0.974_631_85], [0.974_631_85, 1.]]),
         );
     }
 

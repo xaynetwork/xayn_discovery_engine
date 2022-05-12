@@ -149,7 +149,7 @@ mod tests {
 
     use crate::{
         coi::{create_neg_cois, create_pos_cois},
-        utils::SECONDS_PER_DAY,
+        utils::SECONDS_PER_DAY_F32,
     };
 
     use super::*;
@@ -168,25 +168,25 @@ mod tests {
         let embedding = arr1(&[1., 4., 4.]).into();
 
         let epoch = SystemTime::UNIX_EPOCH;
-        let now = epoch + Duration::from_secs_f32(2. * SECONDS_PER_DAY);
+        let now = epoch + Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
 
         let mut positive = create_pos_cois(&[[62., 55., 11.], [76., 30., 80.]]);
-        positive[0].stats.last_view -= Duration::from_secs_f32(0.5 * SECONDS_PER_DAY);
-        positive[1].stats.last_view -= Duration::from_secs_f32(1.5 * SECONDS_PER_DAY);
+        positive[0].stats.last_view -= Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32);
+        positive[1].stats.last_view -= Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32);
 
         let mut negative = create_neg_cois(&[[6., 61., 6.]]);
         negative[0].last_view = epoch;
         let user_interests = UserInterests { positive, negative };
 
-        let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY);
+        let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
 
         let score = compute_score_for_embedding(&embedding, &user_interests, horizon, now).unwrap();
 
-        let pos_similarity = 0.78551644;
-        let pos_decay = 0.99999934;
-        let neg_similarity = 0.7744656;
+        let pos_similarity = 0.785_516_44;
+        let pos_decay = 0.999_999_34;
+        let neg_similarity = 0.774_465_6;
         let neg_decay = 0.;
-        let relevance = 0.49999967;
+        let relevance = 0.499_999_67;
         let expected = pos_similarity * pos_decay + relevance - neg_similarity * neg_decay;
         assert_approx_eq!(f32, score, expected, epsilon = 1e-6);
     }
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn test_compute_score_for_embedding_no_cois() {
         let embedding = arr1(&[0., 0., 0.]).into();
-        let horizon = Duration::from_secs_f32(SECONDS_PER_DAY);
+        let horizon = Duration::from_secs_f32(SECONDS_PER_DAY_F32);
 
         let res = compute_score_for_embedding(
             &embedding,

@@ -184,8 +184,15 @@ pub enum DayOfWeek {
 impl DayOfWeek {
     /// Crates a `DayOfWeek` based on a wrap-around offset from `Mon`.
     pub fn from_day_offset(day_offset: usize) -> DayOfWeek {
-        use DayOfWeek::*;
-        static DAYS: &[DayOfWeek] = &[Mon, Tue, Wed, Thu, Fri, Sat, Sun];
+        static DAYS: &[DayOfWeek] = &[
+            DayOfWeek::Mon,
+            DayOfWeek::Tue,
+            DayOfWeek::Wed,
+            DayOfWeek::Thu,
+            DayOfWeek::Fri,
+            DayOfWeek::Sat,
+            DayOfWeek::Sun,
+        ];
         DAYS[day_offset % 7]
     }
 }

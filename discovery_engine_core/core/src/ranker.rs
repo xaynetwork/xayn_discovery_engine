@@ -68,7 +68,8 @@ impl Ranker for xayn_discovery_engine_ai::ranker::Ranker {
     where
         T: xayn_discovery_engine_ai::ranker::Document + 'static,
     {
-        self.rank(items).map_err(Into::into)
+        self.rank(items);
+        Ok(())
     }
 
     fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError> {

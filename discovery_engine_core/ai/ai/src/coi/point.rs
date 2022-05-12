@@ -199,7 +199,7 @@ impl From<UserInterests_v0_2_0> for UserInterests {
     }
 }
 
-/// Finds the most similar centre of interest (CoI) for the given embedding.
+/// Finds the most similar centre of interest (`CoI`) for the given embedding.
 pub(super) fn find_closest_coi_index(
     cois: &[impl CoiPoint],
     embedding: &Embedding,
@@ -218,7 +218,7 @@ pub(super) fn find_closest_coi_index(
     Some(similarities[0])
 }
 
-/// Finds the most similar centre of interest (CoI) for the given embedding.
+/// Finds the most similar centre of interest (`CoI`) for the given embedding.
 pub(crate) fn find_closest_coi<'coi, CP>(
     cois: &'coi [CP],
     embedding: &Embedding,
@@ -229,7 +229,7 @@ where
     find_closest_coi_index(cois, embedding).map(|(index, similarity)| (&cois[index], similarity))
 }
 
-/// Finds the most similar centre of interest (CoI) for the given embedding.
+/// Finds the most similar centre of interest (`CoI`) for the given embedding.
 pub(super) fn find_closest_coi_mut<'coi, CP>(
     cois: &'coi mut [CP],
     embedding: &Embedding,
@@ -322,7 +322,7 @@ pub(crate) mod tests {
         let (index, similarity) = find_closest_coi_index(&cois, &embedding).unwrap();
 
         assert_eq!(index, 0);
-        assert_approx_eq!(f32, similarity, 0.98181057);
+        assert_approx_eq!(f32, similarity, 0.981_810_57);
     }
 
     #[test]

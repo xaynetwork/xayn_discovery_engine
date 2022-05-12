@@ -83,18 +83,14 @@ impl Ranker {
         serialize_with_version(&self.state, STATE_VERSION)
     }
 
-    /// Computes the SMBert embedding of the given `sequence`.
+    /// Computes the `SMBert` embedding of the given `sequence`.
     pub(crate) fn compute_smbert(&self, sequence: &str) -> Result<Embedding, Error> {
         self.smbert.run(sequence).map_err(Into::into)
     }
 
     /// Ranks the given documents based on the learned user interests.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the scores of the documents cannot be computed.
-    pub(crate) fn rank(&mut self, documents: &mut [impl Document]) -> Result<(), Error> {
-        rank(documents, &self.state.user_interests, &self.coi.config)
+    pub(crate) fn rank(&mut self, documents: &mut [impl Document]) {
+        rank(documents, &self.state.user_interests, &self.coi.config);
     }
 
     /// Logs the document view time and updates the user interests based on the given information.
@@ -105,11 +101,11 @@ impl Ranker {
         viewed: Duration,
     ) {
         if let UserFeedback::Relevant | UserFeedback::NotGiven = user_feedback {
-            self.coi.log_document_view_time(
+            CoiSystem::log_document_view_time(
                 &mut self.state.user_interests.positive,
                 embedding,
                 viewed,
-            )
+            );
         }
     }
 
@@ -132,12 +128,12 @@ impl Ranker {
                     embedding,
                     key_phrases.as_slice(),
                     |words| smbert.run(words).map_err(Into::into),
-                )
+                );
             }
             UserFeedback::Irrelevant => self
                 .coi
                 .log_negative_user_reaction(&mut self.state.user_interests.negative, embedding),
-            _ => (),
+            UserFeedback::NotGiven => {}
         }
     }
 
@@ -153,8 +149,7 @@ impl Ranker {
 
     /// Removes all key phrases associated to the markets.
     pub(crate) fn remove_key_phrases(&mut self, markets: &[Market]) {
-        self.coi
-            .remove_key_phrases(markets, &mut self.state.key_phrases);
+        CoiSystem::remove_key_phrases(markets, &mut self.state.key_phrases);
     }
 
     /// Returns the positive cois.
@@ -168,13 +163,9 @@ impl Ranker {
     }
 }
 
-fn rank(
-    documents: &mut [impl Document],
-    user_interests: &UserInterests,
-    config: &Config,
-) -> Result<(), Error> {
+fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config: &Config) {
     if documents.len() < 2 {
-        return Ok(());
+        return;
     }
 
     if let Ok(score_for_docs) = compute_score_for_docs(documents, user_interests, config) {
@@ -189,8 +180,6 @@ fn rank(
             this.date_published().cmp(&other.date_published()).reverse()
         });
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -224,9 +213,8 @@ mod tests {
 
         let user_interests = UserInterests { positive, negative };
 
-        let res = rank(&mut documents, &user_interests, &config);
+        rank(&mut documents, &user_interests, &config);
 
-        assert!(res.is_ok());
         assert_eq!(documents[0].id(), DocumentId::from_u128(0));
         assert_eq!(documents[1].id(), DocumentId::from_u128(1));
         assert_eq!(documents[2].id(), DocumentId::from_u128(2));
@@ -242,20 +230,20 @@ mod tests {
 
         let config = Config::default().with_min_positive_cois(1).unwrap();
 
-        let res = rank(&mut documents, &UserInterests::default(), &config);
+        rank(&mut documents, &UserInterests::default(), &config);
 
-        assert!(res.is_ok());
         assert_eq!(documents[0].id(), DocumentId::from_u128(1));
         assert_eq!(documents[1].id(), DocumentId::from_u128(0));
     }
 
     #[test]
     fn test_rank_no_documents() {
-        let res = rank(
-            &mut [] as &mut [TestDocument],
+        let mut documents = Vec::<TestDocument>::new();
+        rank(
+            &mut documents,
             &UserInterests::default(),
             &Config::default(),
         );
-        assert!(res.is_ok());
+        assert!(documents.is_empty());
     }
 }

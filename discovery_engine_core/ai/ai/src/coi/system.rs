@@ -41,7 +41,6 @@ impl CoiSystem {
 
     /// Updates the view time of the positive coi closest to the embedding.
     pub(crate) fn log_document_view_time(
-        &self,
         cois: &mut [PositiveCoi],
         embedding: &Embedding,
         viewed: Duration,
@@ -98,7 +97,7 @@ impl CoiSystem {
     }
 
     /// Removes all key phrases associated to the markets.
-    pub(crate) fn remove_key_phrases(&self, markets: &[Market], key_phrases: &mut KeyPhrases) {
+    pub(crate) fn remove_key_phrases(markets: &[Market], key_phrases: &mut KeyPhrases) {
         key_phrases.remove(markets);
     }
 }
