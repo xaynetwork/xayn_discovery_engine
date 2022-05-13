@@ -129,10 +129,10 @@ fn spawn_trusted_request(
                 page,
                 excluded_sources: &[],
             },
-            trusted_sources: &sources,
+            trusted_sources: sources.as_slice(),
             topic: None,
             when: DEFAULT_WHEN,
         };
-        client.query_articles(&query).await.map_err(Into::into)
+        client.query_newscatcher(&query).await.map_err(Into::into)
     })
 }

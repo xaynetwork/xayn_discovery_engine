@@ -28,20 +28,24 @@
 mod client;
 mod expression;
 mod filter;
+mod gnews;
+pub mod gnews_client;
 mod newscatcher;
+pub mod newscatcher_client;
+mod utils;
 
-pub use client::{
+pub use client::{Article, Client, Error};
+pub use gnews_client::{HeadlinesQuery as GnewsHeadlinesQuery, NewsQuery as GnewsNewsQuery};
+pub use newscatcher_client::{
     default_from,
-    Client,
     CommonQueryParts,
-    Error,
     HeadlinesQuery,
     NewsQuery,
-    Query,
+    NewscatcherQuery,
     DEFAULT_WHEN,
 };
+
 pub use filter::{Filter, Market};
-pub use newscatcher::{Article, Response, Topic};
 
 mod seal {
     pub trait Seal {}

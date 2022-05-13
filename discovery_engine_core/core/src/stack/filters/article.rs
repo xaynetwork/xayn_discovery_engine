@@ -19,6 +19,7 @@ use crate::{
     engine::GenericError,
     stack::filters::DuplicateFilter,
 };
+
 use xayn_discovery_engine_providers::Article;
 
 pub(crate) trait ArticleFilter {
@@ -35,9 +36,9 @@ impl MalformedFilter {
     fn is_valid(article: &Article) -> bool {
         !article.title.is_empty()
             && !article.source_domain.is_empty()
-            && !article.excerpt.is_empty()
-            && Url::parse(&article.media).is_ok()
-            && Url::parse(&article.link).is_ok()
+            && !article.snippet.is_empty()
+            && Url::parse(&article.image).is_ok()
+            && Url::parse(&article.url).is_ok()
     }
 }
 
@@ -87,9 +88,10 @@ mod tests {
 
     #[test]
     fn test_filter_duplicate_stack() {
-        let valid_articles: Vec<Article> =
-            serde_json::from_str(include_str!("../../../test-fixtures/articles-valid.json"))
-                .unwrap();
+        let valid_articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-valid.json"),
+        )
+        .unwrap();
         assert_eq!(valid_articles.len(), 4);
 
         let documents = valid_articles
@@ -116,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_filter_duplicate_history() {
-        let valid_articles = serde_json::from_str::<Vec<Article>>(include_str!(
+        let valid_articles = Article::load_from_newscatcher_json_representation(include_str!(
             "../../../test-fixtures/articles-valid.json"
         ))
         .unwrap();
@@ -146,12 +148,13 @@ mod tests {
     #[test]
     fn test_filter_media() {
         let documents: Vec<Document> = vec![];
-        let valid_articles: Vec<Article> =
-            serde_json::from_str(include_str!("../../../test-fixtures/articles-valid.json"))
-                .unwrap();
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
-            "../../../test-fixtures/articles-some-malformed-media-urls.json"
-        ))
+        let valid_articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-valid.json"),
+        )
+        .unwrap();
+        let malformed_articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-some-malformed-media-urls.json"),
+        )
         .unwrap();
 
         let input: Vec<Article> = valid_articles
@@ -173,9 +176,9 @@ mod tests {
 
     #[test]
     fn test_filter_title() {
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
-            "../../../test-fixtures/articles-invalid-title.json"
-        ))
+        let malformed_articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-invalid-title.json"),
+        )
         .unwrap();
         assert_eq!(malformed_articles.len(), 2);
 
@@ -185,9 +188,9 @@ mod tests {
 
     #[test]
     fn test_filter_link() {
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
-            "../../../test-fixtures/articles-invalid-link.json"
-        ))
+        let malformed_articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-invalid-link.json"),
+        )
         .unwrap();
         assert_eq!(malformed_articles.len(), 3);
 
@@ -197,9 +200,9 @@ mod tests {
 
     #[test]
     fn test_filter_excerpt() {
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
-            "../../../test-fixtures/articles-invalid-excerpt.json"
-        ))
+        let malformed_articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-invalid-excerpt.json"),
+        )
         .unwrap();
         assert_eq!(malformed_articles.len(), 2);
 
@@ -209,9 +212,9 @@ mod tests {
 
     #[test]
     fn test_filter_clean_url() {
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
-            "../../../test-fixtures/articles-invalid-clean-url.json"
-        ))
+        let malformed_articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-invalid-clean-url.json"),
+        )
         .unwrap();
         assert_eq!(malformed_articles.len(), 2);
 
@@ -221,9 +224,10 @@ mod tests {
 
     #[test]
     fn test_filter_sources() {
-        let articles: Vec<Article> =
-            serde_json::from_str(include_str!("../../../test-fixtures/articles-valid.json"))
-                .unwrap();
+        let articles: Vec<Article> = Article::load_from_newscatcher_json_representation(
+            include_str!("../../../test-fixtures/articles-valid.json"),
+        )
+        .unwrap();
         assert_eq!(articles.len(), 4);
 
         // all 4 articles have source domain example.com
@@ -236,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_dedup_articles_them_self() {
-        let valid_articles = serde_json::from_str::<Vec<Article>>(include_str!(
+        let valid_articles = Article::load_from_newscatcher_json_representation(include_str!(
             "../../../test-fixtures/articles-valid.json"
         ))
         .unwrap();
@@ -249,7 +253,7 @@ mod tests {
         articles.push(valid_articles[0].clone());
         articles.push({
             let mut article = valid_articles[1].clone();
-            article.link = "https://with_same_link.test".to_owned();
+            article.url = "https://with_same_link.test".to_owned();
             article.rank = u64::MAX;
             article
         });
@@ -260,7 +264,7 @@ mod tests {
         });
         articles.push({
             let mut article = valid_articles[3].clone();
-            article.link = "https://unique.test".to_owned();
+            article.url = "https://unique.test".to_owned();
             article.title = "Unique".to_owned();
             article
         });
