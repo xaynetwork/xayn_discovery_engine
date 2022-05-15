@@ -201,6 +201,15 @@ class ClientEvent with _$ClientEvent {
   @Implements<SearchClientEvent>()
   const factory ClientEvent.trendingTopicsRequested() = TrendingTopicsRequested;
 
+  /// Resets the AI state of the engine.
+  ///
+  /// This does clear the history.
+  ///
+  /// This does not reset configurations like markets, excluded and
+  /// trusted sources.
+  @Implements<SystemClientEvent>()
+  const factory ClientEvent.resetAI() = ResetAIRequested;
+
   /// Converts json Map to [ClientEvent].
   factory ClientEvent.fromJson(Map<String, Object?> json) =>
       _$ClientEventFromJson(json);

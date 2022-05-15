@@ -46,6 +46,7 @@ class SystemManager {
   Future<EngineEvent> handleSystemClientEvent(SystemClientEvent event) =>
       event.maybeWhen(
         configurationChanged: changeConfiguration,
+        resetAI: resetAI,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -75,6 +76,13 @@ class SystemManager {
       _config.maxSearchDocs = maxItemsPerSearchBatch;
     }
 
+    return const EngineEvent.clientEventSucceeded();
+  }
+
+  Future<EngineEvent> resetAI() async {
+    // TODO implement
+    //  - check all repositories and clear all which need clearing
+    //  - call rust engine reset
     return const EngineEvent.clientEventSucceeded();
   }
 }
