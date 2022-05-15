@@ -564,6 +564,7 @@ extension _MapEvent on EngineEvent {
     bool? fetchingAssetsProgressed,
     bool? fetchingAssetsFinished,
     bool? clientEventSucceeded,
+    bool? resetAISucceeded,
     bool? engineExceptionRaised,
     bool? documentsUpdated,
     bool? activeSearchRequestSucceeded,
@@ -599,6 +600,7 @@ extension _MapEvent on EngineEvent {
         fetchingAssetsProgressed: _maybePassThrough(fetchingAssetsProgressed),
         fetchingAssetsFinished: _maybePassThrough(fetchingAssetsFinished),
         clientEventSucceeded: _maybePassThrough(clientEventSucceeded),
+        resetAISucceeded: _maybePassThrough(resetAISucceeded),
         engineExceptionRaised: _maybePassThrough(engineExceptionRaised),
         documentsUpdated: _maybePassThrough(documentsUpdated),
         activeSearchRequestSucceeded:

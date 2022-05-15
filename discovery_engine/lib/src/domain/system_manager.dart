@@ -83,6 +83,6 @@ class SystemManager {
     // TODO implement
     //  - check all repositories and clear all which need clearing
     //  - call rust engine reset
-    return const EngineEvent.clientEventSucceeded();
+    return const EngineEvent.resetAISucceeded();
   }
 }
