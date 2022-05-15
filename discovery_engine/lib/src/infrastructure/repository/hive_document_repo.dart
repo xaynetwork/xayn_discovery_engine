@@ -52,4 +52,7 @@ class HiveDocumentRepository extends DocumentRepository {
     final keys = ids.map((id) => id.toString());
     await box.deleteAll(keys);
   }
+
+  @override
+  Future<void> clearAIState() => box.clear();
 }

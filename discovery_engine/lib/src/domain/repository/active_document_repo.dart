@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:xayn_discovery_engine/src/domain/ai_state_holder.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -20,7 +21,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 
 /// Repository interface for additional data relating to active documents.
-abstract class ActiveDocumentDataRepository {
+abstract class ActiveDocumentDataRepository implements AIStateHolder {
   /// Fetch active document data by id.
   Future<ActiveDocumentData?> fetchById(DocumentId id);
 

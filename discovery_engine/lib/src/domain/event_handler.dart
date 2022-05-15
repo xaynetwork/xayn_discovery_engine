@@ -225,6 +225,12 @@ class EventHandler {
     final activeDataRepository = HiveActiveDocumentDataRepository();
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
+    final aiStateHolders = [
+      documentRepository,
+      activeDataRepository,
+      activeSearchRepository,
+      engineStateRepository
+    ];
     final sourcePreferenceRepository = HiveSourcePreferenceRepository();
 
     final setupData = await _fetchAssets(config);
@@ -286,7 +292,12 @@ class EventHandler {
       activeDataRepository,
       engineStateRepository,
     );
-    _systemManager = SystemManager(engine, eventConfig, documentRepository);
+    _systemManager = SystemManager(
+      engine,
+      eventConfig,
+      documentRepository,
+      aiStateHolders,
+    );
 
     _engine = engine;
 

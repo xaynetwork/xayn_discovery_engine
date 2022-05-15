@@ -14,8 +14,10 @@
 
 import 'dart:typed_data' show Uint8List;
 
+import 'package:xayn_discovery_engine/src/domain/ai_state_holder.dart';
+
 /// Repository interface for serialized engine state.
-abstract class EngineStateRepository {
+abstract class EngineStateRepository implements AIStateHolder {
   /// Fetch the current state of the engine.
   Future<Uint8List?> load();
 

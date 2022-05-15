@@ -16,6 +16,7 @@ import 'dart:io' show Directory;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -53,7 +54,12 @@ Future<void> main() async {
       await EventHandler.initDatabase(dir.path);
 
       docRepo = HiveDocumentRepository();
-      mgr = SystemManager(engine, config, docRepo);
+      mgr = SystemManager(
+        engine,
+        config,
+        docRepo,
+        [docRepo],
+      );
 
       final stackId = StackId();
       final doc2 = Document(
@@ -99,6 +105,13 @@ Future<void> main() async {
       final evt = await mgr.changeConfiguration(null, null, maxDocs + 1);
       expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
       expect(mgr.maxSearchDocs, maxDocs + 1);
+    });
+
+    test('resetAI resets all AI state holders', () async {
+      expect(docRepo.box.isEmpty, isFalse);
+      final res = await mgr.resetAI();
+      expect(res, isA<ClientEventSucceeded>());
+      expect(docRepo.box.isEmpty, isTrue);
     });
   });
 }

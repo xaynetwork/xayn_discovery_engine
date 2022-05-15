@@ -17,6 +17,7 @@ import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show SystemClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show EngineEvent, EngineExceptionReason;
+import 'package:xayn_discovery_engine/src/domain/ai_state_holder.dart';
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -31,8 +32,14 @@ class SystemManager {
   final Engine _engine;
   final EventConfig _config;
   final DocumentRepository _docRepo;
+  final List<AIStateHolder> _aiStateHolders;
 
-  SystemManager(this._engine, this._config, this._docRepo);
+  SystemManager(
+    this._engine,
+    this._config,
+    this._docRepo,
+    this._aiStateHolders,
+  );
 
   @visibleForTesting
   int get maxFeedDocs => _config.maxFeedDocs;
@@ -80,8 +87,10 @@ class SystemManager {
   }
 
   Future<EngineEvent> resetAi() async {
+    for (final holder in _aiStateHolders) {
+      await holder.clearAIState();
+    }
     // TODO implement
-    //  - check all repositories and clear all which need clearing
     //  - call rust engine reset
     return const EngineEvent.resetAiSucceeded();
   }
