@@ -262,6 +262,20 @@ class EngineEvent with _$EngineEvent {
     SearchFailureReason reason,
   ) = ActiveSearchTermRequestFailed;
 
+  /// Event created as a success response to DeepSearchRequested event.
+  /// Passes a list of [Document] entities back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.deepSearchRequestSucceeded(
+    List<Document> items,
+  ) = DeepSearchRequestSucceeded;
+
+  /// Event created as a failure response to DeepSearchRequested event.
+  /// Passes a failure reason back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.deepSearchRequestFailed(
+    SearchFailureReason reason,
+  ) = DeepSearchRequestFailed;
+
   /// Event created as a success response to TrendingTopicsRequested event.
   /// Passes a list of [TrendingTopic] entities back to the client.
   @Implements<SearchEngineEvent>()

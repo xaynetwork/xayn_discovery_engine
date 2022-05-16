@@ -35,6 +35,7 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         RestoreActiveSearchRequested,
         ActiveSearchTermRequested,
         ActiveSearchClosed,
+        DeepSearchRequested,
         TrendingTopicsRequested;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
@@ -59,6 +60,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         RestoreActiveSearchFailed,
         ActiveSearchTermRequestSucceeded,
         ActiveSearchTermRequestFailed,
+        DeepSearchRequestSucceeded,
+        DeepSearchRequestFailed,
         SearchFailureReason,
         TrendingTopicsRequestSucceeded,
         TrendingTopicsRequestFailed,

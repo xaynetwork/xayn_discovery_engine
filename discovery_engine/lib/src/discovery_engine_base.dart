@@ -574,6 +574,8 @@ extension _MapEvent on EngineEvent {
     bool? restoreActiveSearchFailed,
     bool? activeSearchTermRequestSucceeded,
     bool? activeSearchTermRequestFailed,
+    bool? deepSearchRequestSucceeded,
+    bool? deepSearchRequestFailed,
     bool? trendingTopicsRequestSucceeded,
     bool? trendingTopicsRequestFailed,
     bool? trustedSourcesListRequestSucceeded,
@@ -613,6 +615,9 @@ extension _MapEvent on EngineEvent {
             _maybePassThrough(activeSearchTermRequestSucceeded),
         activeSearchTermRequestFailed:
             _maybePassThrough(activeSearchTermRequestFailed),
+        deepSearchRequestSucceeded:
+            _maybePassThrough(deepSearchRequestSucceeded),
+        deepSearchRequestFailed: _maybePassThrough(deepSearchRequestFailed),
         trendingTopicsRequestSucceeded:
             _maybePassThrough(trendingTopicsRequestSucceeded),
         trendingTopicsRequestFailed:

@@ -63,6 +63,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent restoreActiveSearchResponse;
   final EngineEvent activeSearchClosedResponse;
   final EngineEvent activeSearchTermRequestedResponse;
+  final EngineEvent deepSearchRequestedResponse;
   final EngineEvent trendingTopicsRequestedResponse;
 
   MockDiscoveryEngineWorker(
@@ -83,6 +84,8 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.activeSearchClosedResponse = const EngineEvent.clientEventSucceeded(),
     this.activeSearchTermRequestedResponse =
         const EngineEvent.activeSearchTermRequestSucceeded(queryTerm),
+    this.deepSearchRequestedResponse =
+        const EngineEvent.deepSearchRequestSucceeded([]),
     this.excludedSourceAddedResponse = const EngineEvent.clientEventSucceeded(),
     this.excludedSourceRemovedResponse =
         const EngineEvent.clientEventSucceeded(),
@@ -149,6 +152,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       restoreActiveSearchRequested: (_) => restoreActiveSearchResponse,
       activeSearchClosed: (_) => activeSearchClosedResponse,
       activeSearchTermRequested: (_) => activeSearchTermRequestedResponse,
+      deepSearchRequested: (_) => deepSearchRequestedResponse,
       trendingTopicsRequested: (_) => trendingTopicsRequestedResponse,
     );
     return send(response, request.sender);

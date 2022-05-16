@@ -189,6 +189,14 @@ class ClientEvent with _$ClientEvent {
   @Implements<SearchClientEvent>()
   const factory ClientEvent.activeSearchClosed() = ActiveSearchClosed;
 
+  /// Event created when the user starts a new deep search.
+  @Implements<SearchClientEvent>()
+  @Assert('term != ""')
+  const factory ClientEvent.deepSearchRequested(
+    String term,
+    FeedMarket market,
+  ) = DeepSearchRequested;
+
   /// Event created when the client asks for the currently trending topics.
   @Implements<SearchClientEvent>()
   const factory ClientEvent.trendingTopicsRequested() = TrendingTopicsRequested;
