@@ -1,5 +1,5 @@
 [package]
-name = "tooling"
+name = "xayn-discovery-engine-tooling"
 version = "0.1.0"
 license = "AGPL-3.0-only"
 edition = "2021"

@@ -2636,18 +2636,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tooling"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "csv",
- "serde_json",
- "serde_path_to_error",
- "tokio",
- "xayn-discovery-engine-providers",
-]
-
-[[package]]
 name = "tower-service"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3462,6 +3450,18 @@ dependencies = [
  "thiserror",
  "unicode-normalization-alignments",
  "unicode_categories",
+]
+
+[[package]]
+name = "xayn-discovery-engine-tooling"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "csv",
+ "serde_json",
+ "serde_path_to_error",
+ "tokio",
+ "xayn-discovery-engine-providers",
 ]
 
 [[package]]
