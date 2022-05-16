@@ -46,7 +46,7 @@ class SystemManager {
   Future<EngineEvent> handleSystemClientEvent(SystemClientEvent event) =>
       event.maybeWhen(
         configurationChanged: changeConfiguration,
-        resetAI: resetAI,
+        resetAi: resetAi,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -79,10 +79,10 @@ class SystemManager {
     return const EngineEvent.clientEventSucceeded();
   }
 
-  Future<EngineEvent> resetAI() async {
+  Future<EngineEvent> resetAi() async {
     // TODO implement
     //  - check all repositories and clear all which need clearing
     //  - call rust engine reset
-    return const EngineEvent.resetAISucceeded();
+    return const EngineEvent.resetAiSucceeded();
   }
 }

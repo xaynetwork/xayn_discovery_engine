@@ -208,7 +208,7 @@ class ClientEvent with _$ClientEvent {
   /// This does not reset configurations like markets, excluded and
   /// trusted sources.
   @Implements<SystemClientEvent>()
-  const factory ClientEvent.resetAI() = ResetAIRequested;
+  const factory ClientEvent.resetAi() = ResetAiRequested;
 
   /// Converts json Map to [ClientEvent].
   factory ClientEvent.fromJson(Map<String, Object?> json) =>
