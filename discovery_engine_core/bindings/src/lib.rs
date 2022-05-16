@@ -185,6 +185,23 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
+    /// Performs a deep search regarding a document.
+    pub async fn deep_search(
+        engine: &SharedEngine,
+        term: Box<String>,
+        market: Box<Market>,
+    ) -> Box<Result<Vec<Document>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .deep_search(term.as_ref(), market.as_ref())
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
     /// Sets the trusted sources and updates the stacks based on that.
     #[allow(clippy::box_collection)]
     pub async fn set_trusted_sources(
