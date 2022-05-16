@@ -14,16 +14,22 @@
 
 //! FFI and logic bindings to `discovery_engine_core`.
 
+#![forbid(unsafe_op_in_unsafe_fn)]
 #![deny(
-    clippy::pedantic,
     clippy::future_not_send,
+    clippy::pedantic,
     noop_method_call,
     rust_2018_idioms,
-    unused_qualifications,
-    unsafe_op_in_unsafe_fn
+    unsafe_code,
+    unused_qualifications
 )]
 #![warn(missing_docs, unreachable_pub)]
-#![allow(clippy::must_use_candidate, clippy::module_name_repetitions)]
+#![allow(
+    clippy::items_after_statements,
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate
+)]
 
 pub mod async_bindings;
 mod tracing;
