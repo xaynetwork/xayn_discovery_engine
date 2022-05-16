@@ -31,7 +31,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::error;
 
-use xayn_ai::ranker::{Builder, CoiSystemConfig, KeyPhrase};
+use xayn_discovery_engine_ai::ranker::{Builder, CoiSystemConfig, KeyPhrase};
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
@@ -112,7 +112,8 @@ pub enum Error {
     Errors(Vec<Error>),
 }
 
-/// Configuration settings to initialize Discovery Engine with a [`xayn_ai::ranker::Ranker`].
+/// Configuration settings to initialize Discovery Engine with a
+/// [`xayn_discovery_engine_ai::ranker::Ranker`].
 #[derive(Clone)]
 pub struct InitConfig {
     /// Key for accessing the API.
@@ -802,11 +803,11 @@ async fn fetch_new_documents_for_stack(
     Ok(documents)
 }
 
-/// A discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
-pub type XaynAiEngine = Engine<xayn_ai::ranker::Ranker>;
+/// A discovery engine with [`xayn_discovery_engine_ai::ranker::Ranker`] as a ranker.
+pub type XaynAiEngine = Engine<xayn_discovery_engine_ai::ranker::Ranker>;
 
 impl XaynAiEngine {
-    /// Creates a discovery engine with [`xayn_ai::ranker::Ranker`] as a ranker.
+    /// Creates a discovery engine with [`xayn_discovery_engine_ai::ranker::Ranker`] as a ranker.
     pub async fn from_config(
         config: InitConfig,
         state: Option<&[u8]>,
@@ -927,7 +928,7 @@ mod tests {
         MockServer,
         ResponseTemplate,
     };
-    use xayn_ai::ranker::Embedding;
+    use xayn_discovery_engine_ai::ranker::Embedding;
     use xayn_discovery_engine_providers::Article;
 
     use super::*;

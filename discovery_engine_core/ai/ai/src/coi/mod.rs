@@ -35,6 +35,7 @@ use crate::embedding::utils::Embedding;
 #[cfg(test)]
 use xayn_discovery_engine_test_utils::uuid::mock_uuid;
 
+/// A unique identifier of a `CoI`.
 #[repr(transparent)] // needed for FFI
 #[derive(
     Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize, From,
@@ -43,7 +44,7 @@ pub struct CoiId(Uuid);
 
 #[cfg(test)]
 impl CoiId {
-    /// Creates a mocked CoI id from a mocked UUID, cf. [`mock_uuid()`].
+    /// Creates a mocked `CoI` id from a mocked UUID, cf. [`mock_uuid()`].
     pub(crate) const fn mocked(sub_id: usize) -> Self {
         Self(mock_uuid(sub_id))
     }

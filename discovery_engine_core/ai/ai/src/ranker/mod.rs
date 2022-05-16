@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,4 +12,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod document;
+//! The ranker of the discovery engine.
+
+mod context;
+mod document;
+mod public;
+mod system;
+
+pub use self::{
+    document::Document,
+    public::{Builder, Ranker},
+};
+pub use crate::{
+    coi::{
+        config::{Config as CoiSystemConfig, Error as CoiSystemConfigError},
+        key_phrase::KeyPhrase,
+        point::{CoiPoint, NegativeCoi, PositiveCoi},
+    },
+    embedding::utils::{cosine_similarity, pairwise_cosine_similarity, Embedding},
+    DocumentId,
+};

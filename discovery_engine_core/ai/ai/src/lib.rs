@@ -12,7 +12,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! The AI of the discovery engine.
+
 #![forbid(unsafe_op_in_unsafe_fn)]
+#![deny(
+    clippy::future_not_send,
+    clippy::pedantic,
+    noop_method_call,
+    rust_2018_idioms,
+    unsafe_code,
+    unused_qualifications
+)]
+#![warn(missing_docs, unreachable_pub)]
+#![allow(
+    clippy::items_after_statements,
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate
+)]
 
 mod coi;
 mod data;

@@ -22,6 +22,7 @@ use crate::Error;
 ///
 /// `NaN` is treated as the lowest possible value if `nan_min`, similar to what [`f32::max`] does.
 /// Otherwise it is treated as the highest possible value, similar to what [`f32::min`] does.
+#[allow(clippy::trivially_copy_pass_by_ref)] // required by calling functions
 pub(crate) fn nan_safe_f32_cmp_base(a: &f32, b: &f32, nan_min: bool) -> Ordering {
     a.partial_cmp(b).unwrap_or_else(|| {
         // if `partial_cmp` returns None we have at least one `NaN`,
@@ -50,12 +51,14 @@ pub(crate) fn nan_safe_f32_cmp_base(a: &f32, b: &f32, nan_min: bool) -> Ordering
 ///
 /// By switching the input parameters around this can be used to create a
 /// descending sorted order, like e.g.: `[2.0, 1.5, 0.5, NaN]`.
+#[allow(clippy::trivially_copy_pass_by_ref)] // required by calling functions
 pub(crate) fn nan_safe_f32_cmp(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp_base(a, b, true)
 }
 
 /// `nan_safe_f32_cmp_desc(a,b)` is syntax suggar for `nan_safe_f32_cmp(b, a)`
 #[inline]
+#[allow(clippy::trivially_copy_pass_by_ref)] // required by calling functions
 pub(crate) fn nan_safe_f32_cmp_desc(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp(b, a)
 }
@@ -63,6 +66,7 @@ pub(crate) fn nan_safe_f32_cmp_desc(a: &f32, b: &f32) -> Ordering {
 /// Serializes the given data, tagged with the given version number.
 pub(crate) fn serialize_with_version(data: &impl Serialize, version: u8) -> Result<Vec<u8>, Error> {
     let size = bincode::serialized_size(data)? + 1;
+    #[allow(clippy::cast_possible_truncation)] // bounded by architecture
     let mut serialized = Vec::with_capacity(size as usize);
     // version is encoded in the first byte
     serialized.push(version);
@@ -72,7 +76,10 @@ pub(crate) fn serialize_with_version(data: &impl Serialize, version: u8) -> Resu
 }
 
 /// The number of seconds per day (without leap seconds).
-pub(crate) const SECONDS_PER_DAY: f32 = 86400.;
+pub(crate) const SECONDS_PER_DAY_F32: f32 = 86400.;
+
+/// The number of seconds per day (without leap seconds).
+pub(crate) const SECONDS_PER_DAY_U64: u64 = 86400;
 
 /// Gets the current system time depending on the target architecture.
 #[inline]
@@ -85,21 +92,20 @@ pub(crate) mod serde_duration_as_days {
 
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    use crate::utils::SECONDS_PER_DAY;
+    use crate::utils::SECONDS_PER_DAY_U64;
 
     pub(crate) fn serialize<S>(horizon: &Duration, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        (horizon.as_secs() / SECONDS_PER_DAY as u64).serialize(serializer)
+        (horizon.as_secs() / SECONDS_PER_DAY_U64).serialize(serializer)
     }
 
     pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
     where
         D: Deserializer<'de>,
     {
-        u64::deserialize(deserializer)
-            .map(|days| Duration::from_secs(SECONDS_PER_DAY as u64 * days))
+        u64::deserialize(deserializer).map(|days| Duration::from_secs(SECONDS_PER_DAY_U64 * days))
     }
 }
 
@@ -155,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_less() -> Result<(), Box<dyn Error>> {
-        let duration = Duration::from_secs(SECONDS_PER_DAY as u64 - 1);
+        let duration = Duration::from_secs(SECONDS_PER_DAY_U64 - 1);
         let serialized = to_string(&Days(duration))?;
         assert_eq!(serialized, "0");
         let deserialized = from_str::<Days>(&serialized)?.0;
@@ -165,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_equal() -> Result<(), Box<dyn Error>> {
-        let duration = Duration::from_secs(SECONDS_PER_DAY as u64);
+        let duration = Duration::from_secs(SECONDS_PER_DAY_U64);
         let serialized = to_string(&Days(duration))?;
         assert_eq!(serialized, "1");
         let deserialized = from_str::<Days>(&serialized)?.0;
@@ -175,11 +181,11 @@ mod tests {
 
     #[test]
     fn test_greater() -> Result<(), Box<dyn Error>> {
-        let duration = Duration::from_secs(SECONDS_PER_DAY as u64 + 1);
+        let duration = Duration::from_secs(SECONDS_PER_DAY_U64 + 1);
         let serialized = to_string(&Days(duration))?;
         assert_eq!(serialized, "1");
         let deserialized = from_str::<Days>(&serialized)?.0;
-        assert_eq!(deserialized, Duration::from_secs(SECONDS_PER_DAY as u64));
+        assert_eq!(deserialized, Duration::from_secs(SECONDS_PER_DAY_U64));
         Ok(())
     }
 }

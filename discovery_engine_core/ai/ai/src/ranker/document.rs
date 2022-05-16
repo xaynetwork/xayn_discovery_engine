@@ -16,11 +16,12 @@ use chrono::NaiveDateTime;
 
 use crate::{embedding::utils::Embedding, DocumentId};
 
+/// Common document properties.
 pub trait Document {
     /// Gets the document id.
     fn id(&self) -> DocumentId;
 
-    /// Gets the SMBert embedding of the document.
+    /// Gets the `SMBert` embedding of the document.
     fn smbert_embedding(&self) -> &Embedding;
 
     /// Gets the publishing date.

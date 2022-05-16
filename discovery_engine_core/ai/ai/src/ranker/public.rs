@@ -32,6 +32,7 @@ use crate::{
 
 use super::{NegativeCoi, PositiveCoi};
 
+/// The ranker.
 pub struct Ranker(super::system::Ranker);
 
 impl Ranker {
@@ -40,18 +41,14 @@ impl Ranker {
         self.0.serialize()
     }
 
-    /// Computes the SMBert embedding of the given `sequence`.
+    /// Computes the `SMBert` embedding of the given `sequence`.
     pub fn compute_smbert(&self, sequence: &str) -> Result<Embedding, Error> {
         self.0.compute_smbert(sequence)
     }
 
     /// Ranks the given documents based on the learned user interests.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the scores of the documents cannot be computed.
-    pub fn rank(&mut self, items: &mut [impl Document]) -> Result<(), Error> {
-        self.0.rank(items)
+    pub fn rank(&mut self, items: &mut [impl Document]) {
+        self.0.rank(items);
     }
 
     /// Logs the document view time and updates the user interests based on the given information.
@@ -62,7 +59,7 @@ impl Ranker {
         viewed: Duration,
     ) {
         self.0
-            .log_document_view_time(user_feedback, embedding, viewed)
+            .log_document_view_time(user_feedback, embedding, viewed);
     }
 
     /// Logs the user reaction and updates the user interests based on the given information.
@@ -74,7 +71,7 @@ impl Ranker {
         market: &Market,
     ) {
         self.0
-            .log_user_reaction(user_feedback, snippet, embedding, market)
+            .log_user_reaction(user_feedback, snippet, embedding, market);
     }
 
     /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
@@ -98,6 +95,8 @@ impl Ranker {
     }
 }
 
+/// A builder for a [`Ranker`].
+#[must_use]
 pub struct Builder<'a, P> {
     smbert_config: SMBertConfig<'a, P>,
     coi_config: CoiSystemConfig,
@@ -106,6 +105,7 @@ pub struct Builder<'a, P> {
 }
 
 impl<'a> Builder<'a, AveragePooler> {
+    /// Creates a builder from sub-configurations.
     pub fn from(smbert: SMBertConfig<'a, AveragePooler>, kpe: KpeConfig<'a>) -> Self {
         Builder {
             smbert_config: smbert,
@@ -156,7 +156,7 @@ impl<'a> Builder<'a, AveragePooler> {
     ///
     /// # Errors
     ///
-    /// Fails if the SMBert or KPE cannot be initialized. For example because
+    /// Fails if the `SMBert` or `KPE` cannot be initialized. For example because
     /// reading from a file failed or the bytes read are have an unexpected format.
     pub fn build(self) -> Result<Ranker, Error> {
         let smbert = xayn_discovery_engine_bert::Pipeline::from(self.smbert_config)?;

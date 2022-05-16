@@ -20,7 +20,7 @@ use thiserror::Error;
 
 use crate::{
     embedding::utils::COSINE_SIMILARITY_RANGE,
-    utils::{nan_safe_f32_cmp_desc, serde_duration_as_days, SECONDS_PER_DAY},
+    utils::{nan_safe_f32_cmp_desc, serde_duration_as_days, SECONDS_PER_DAY_U64},
 };
 
 /// The configuration of the cois.
@@ -61,7 +61,7 @@ impl Eq for KPEConfig {}
 impl Default for KPEConfig {
     fn default() -> Self {
         Self {
-            horizon: Duration::from_secs(SECONDS_PER_DAY as u64 * 30),
+            horizon: Duration::from_secs(SECONDS_PER_DAY_U64 * 30),
             gamma: 0.9,
             penalty: vec![1., 0.75, 0.66],
         }
@@ -70,6 +70,7 @@ impl Default for KPEConfig {
 
 /// The configuration of the coi system.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[must_use]
 pub struct Config {
     coi: CoiConfig,
     kpe: KPEConfig,

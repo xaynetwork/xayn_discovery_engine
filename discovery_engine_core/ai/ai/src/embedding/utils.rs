@@ -18,13 +18,17 @@ use itertools::Itertools;
 use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
 use xayn_discovery_engine_bert::Embedding1;
 
+/// A 1-dimensional sequence embedding.
+///
+/// The embedding is of shape `(embedding_size,)`.
 pub type Embedding = Embedding1;
 
 /// Computes the l2 norm (euclidean metric) of a vector.
 ///
 /// # Panics
 /// Panics if the vector doesn't consist solely of real values.
-pub fn l2_norm<S>(a: ArrayBase<S, Ix1>) -> f32
+#[allow(clippy::needless_pass_by_value)] // pass by value needed for ArrayView
+pub(crate) fn l2_norm<S>(a: ArrayBase<S, Ix1>) -> f32
 where
     S: Data<Elem = f32>,
 {
@@ -38,9 +42,13 @@ where
     norm
 }
 
-/// See [`pairwise_cosine_similarity`] for details
-pub const MAXIMUM_COSINE_SIMILARITY: f32 = 1.0;
-pub const MINIMUM_COSINE_SIMILARITY: f32 = -1.0;
+/// See [`pairwise_cosine_similarity`] for details.
+pub(crate) const MAXIMUM_COSINE_SIMILARITY: f32 = 1.0;
+
+/// See [`pairwise_cosine_similarity`] for details.
+pub(crate) const MINIMUM_COSINE_SIMILARITY: f32 = -1.0;
+
+/// See [`pairwise_cosine_similarity`] for details.
 pub const COSINE_SIMILARITY_RANGE: RangeInclusive<f32> =
     MINIMUM_COSINE_SIMILARITY..=MAXIMUM_COSINE_SIMILARITY;
 
@@ -90,7 +98,7 @@ where
 /// Computes the cosine similarity of two vectors.
 ///
 /// See [`pairwise_cosine_similarity`] for details.
-pub fn cosine_similarity(a: ArrayView1<f32>, b: ArrayView1<f32>) -> f32 {
+pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
     pairwise_cosine_similarity([a.view(), b.view()])[[0, 1]]
 }
 
@@ -103,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_l2_norm() {
-        assert_approx_eq!(f32, l2_norm(arr1(&[1., 2., 3.])), 3.7416575);
+        assert_approx_eq!(f32, l2_norm(arr1(&[1., 2., 3.])), 3.741_657_5);
     }
 
     #[test]
@@ -128,7 +136,7 @@ mod tests {
     fn test_pairwise_cosine_similarity_empty() {
         assert_approx_eq!(
             f32,
-            pairwise_cosine_similarity([] as [ArrayView1<f32>; 0]),
+            pairwise_cosine_similarity([] as [ArrayView1<'_, f32>; 0]),
             arr2(&[[]]),
         );
     }
@@ -147,7 +155,7 @@ mod tests {
         assert_approx_eq!(
             f32,
             pairwise_cosine_similarity([arr1(&[1., 2., 3.]).view(), arr1(&[4., 5., 6.]).view()]),
-            arr2(&[[1., 0.97463185], [0.97463185, 1.]]),
+            arr2(&[[1., 0.974_631_85], [0.974_631_85, 1.]]),
         );
     }
 
