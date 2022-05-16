@@ -677,6 +677,11 @@ where
         self.exploration_stack =
             exploration::Stack::new(StackData::default()).map_err(Error::InvalidStack)?;
         self.ranker.reset_ai();
+
+        self.update_stacks_for_all_markets(&[], self.core_config.request_new)
+            .await
+            .ok();
+
         Ok(())
     }
 }
