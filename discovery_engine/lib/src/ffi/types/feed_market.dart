@@ -19,6 +19,7 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustMarket;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 
 extension FeedMarketFfi on FeedMarket {
@@ -33,5 +34,11 @@ extension FeedMarketFfi on FeedMarket {
           StringFfi.readNative(ffi.market_place_of_country_code(market)),
       langCode: StringFfi.readNative(ffi.market_place_of_lang_code(market)),
     );
+  }
+
+  Boxed<RustMarket> allocNative() {
+    final place = ffi.alloc_uninitialized_market();
+    writeNative(place);
+    return Boxed(place, ffi.drop_market);
   }
 }

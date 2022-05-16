@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarkets;
+    show FeedMarket, FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -41,6 +41,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
+    show FeedMarketFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/history.dart'
@@ -228,6 +230,23 @@ class DiscoveryEngineFfi implements Engine {
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
         .toDocumentListWithActiveData(isSearched: true);
+  }
+
+  /// Performs a deep search regarding a document.
+  @override
+  Future<List<DocumentWithActiveData>> deepSearch(
+    String term,
+    FeedMarket market,
+  ) async {
+    final result = await asyncFfi.deepSearch(
+      _engine.ref,
+      term.allocNative().move(),
+      market.allocNative().move(),
+    );
+
+    return resultVecDocumentStringFfiAdapter
+        .consumeNative(result)
+        .toDocumentListWithActiveData();
   }
 
   /// Returns the currently trending topics.

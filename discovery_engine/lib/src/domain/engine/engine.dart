@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarkets;
+    show FeedMarket, FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -86,6 +86,12 @@ abstract class Engine {
     String topic,
     int page,
     int pageSize,
+  );
+
+  /// Performs a deep search regarding a document.
+  Future<List<DocumentWithActiveData>> deepSearch(
+    String term,
+    FeedMarket market,
   );
 
   /// Returns the currently trending topics.
