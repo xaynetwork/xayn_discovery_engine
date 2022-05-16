@@ -20,14 +20,14 @@ import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
         ClientEventSucceeded,
-        NextSearchBatchRequestFailed,
-        NextSearchBatchRequestSucceeded,
-        RestoreSearchFailed,
-        RestoreSearchSucceeded,
+        NextActiveSearchBatchRequestFailed,
+        NextActiveSearchBatchRequestSucceeded,
+        RestoreActiveSearchFailed,
+        RestoreActiveSearchSucceeded,
         SearchFailureReason,
-        SearchRequestSucceeded,
-        SearchTermRequestFailed,
-        SearchTermRequestSucceeded,
+        ActiveSearchRequestSucceeded,
+        ActiveSearchTermRequestFailed,
+        ActiveSearchTermRequestSucceeded,
         TrendingTopicsRequestFailed,
         TrendingTopicsRequestSucceeded;
 import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
@@ -152,9 +152,9 @@ Future<void> main() async {
             await mgr.searchRequested('example query', SearchBy.query);
 
         expect(searchRepo.getCurrent(), completion(equals(newSearch)));
-        expect(response, isA<SearchRequestSucceeded>());
+        expect(response, isA<ActiveSearchRequestSucceeded>());
         expect(
-          (response as SearchRequestSucceeded).search,
+          (response as ActiveSearchRequestSucceeded).search,
           equals(newSearch.toApiRepr()),
         );
         expect(response.items.length, equals(2));
@@ -192,9 +192,9 @@ Future<void> main() async {
 
         final response = await mgr.nextSearchBatchRequested();
 
-        expect(response, isA<NextSearchBatchRequestFailed>());
+        expect(response, isA<NextActiveSearchBatchRequestFailed>());
         expect(
-          (response as NextSearchBatchRequestFailed).reason,
+          (response as NextActiveSearchBatchRequestFailed).reason,
           SearchFailureReason.noActiveSearch,
         );
       });
@@ -204,9 +204,9 @@ Future<void> main() async {
         final response = await mgr.nextSearchBatchRequested();
 
         final updateSearch =
-            (response as NextSearchBatchRequestSucceeded).search;
+            (response as NextActiveSearchBatchRequestSucceeded).search;
 
-        expect(response, isA<NextSearchBatchRequestSucceeded>());
+        expect(response, isA<NextActiveSearchBatchRequestSucceeded>());
         final current = await searchRepo.getCurrent();
         expect(current?.toApiRepr(), equals(updateSearch));
         expect(response.items.length, equals(2));
@@ -243,9 +243,9 @@ Future<void> main() async {
 
         final response = await mgr.restoreSearchRequested();
 
-        expect(response, isA<RestoreSearchFailed>());
+        expect(response, isA<RestoreActiveSearchFailed>());
         expect(
-          (response as RestoreSearchFailed).reason,
+          (response as RestoreActiveSearchFailed).reason,
           SearchFailureReason.noActiveSearch,
         );
       });
@@ -260,9 +260,9 @@ Future<void> main() async {
 
         final response = await mgr.restoreSearchRequested();
 
-        expect(response, isA<RestoreSearchFailed>());
+        expect(response, isA<RestoreActiveSearchFailed>());
         expect(
-          (response as RestoreSearchFailed).reason,
+          (response as RestoreActiveSearchFailed).reason,
           SearchFailureReason.noResultsAvailable,
         );
       });
@@ -273,11 +273,11 @@ Future<void> main() async {
           () async {
         final response = await mgr.restoreSearchRequested();
 
-        expect(response, isA<RestoreSearchSucceeded>());
+        expect(response, isA<RestoreActiveSearchSucceeded>());
         expect(
           response,
           equals(
-            RestoreSearchSucceeded(
+            RestoreActiveSearchSucceeded(
               mockActiveSearch.toApiRepr(),
               [doc1.toApiRepr(), doc2.toApiRepr()],
             ),
@@ -298,9 +298,9 @@ Future<void> main() async {
 
         final response = await mgr.searchTermRequested();
 
-        expect(response, isA<SearchTermRequestFailed>());
+        expect(response, isA<ActiveSearchTermRequestFailed>());
         expect(
-          (response as SearchTermRequestFailed).reason,
+          (response as ActiveSearchTermRequestFailed).reason,
           SearchFailureReason.noActiveSearch,
         );
       });
@@ -311,9 +311,9 @@ Future<void> main() async {
           () async {
         final response = await mgr.searchTermRequested();
 
-        expect(response, isA<SearchTermRequestSucceeded>());
+        expect(response, isA<ActiveSearchTermRequestSucceeded>());
         expect(
-          (response as SearchTermRequestSucceeded).searchTerm,
+          (response as ActiveSearchTermRequestSucceeded).searchTerm,
           mockActiveSearch.searchTerm,
         );
       });

@@ -43,8 +43,8 @@ abstract class FeedClientEvent implements ClientEvent {}
 /// Used to group generic system events.
 abstract class SystemClientEvent implements ClientEvent {}
 
-/// Abstract class implemented by events like [SearchRequested],
-/// [RestoreSearchRequested] or [SearchClosed].
+/// Abstract class implemented by events like [ActiveSearchRequested],
+/// [RestoreActiveSearchRequested] or [ActiveSearchClosed].
 ///
 /// Used to group active search related events.
 abstract class SearchClientEvent implements ClientEvent {}
@@ -162,28 +162,32 @@ class ClientEvent with _$ClientEvent {
   /// a query term.
   @Implements<SearchClientEvent>()
   @Assert('term != ""')
-  const factory ClientEvent.searchRequested(String term, SearchBy searchBy) =
-      SearchRequested;
+  const factory ClientEvent.activeSearchRequested(
+    String term,
+    SearchBy searchBy,
+  ) = ActiveSearchRequested;
 
   /// Event created when the client asks for a next batch of documents related
   /// to the current active search.
   @Implements<SearchClientEvent>()
-  const factory ClientEvent.nextSearchBatchRequested() =
-      NextSearchBatchRequested;
+  const factory ClientEvent.nextActiveSearchBatchRequested() =
+      NextActiveSearchBatchRequested;
 
-  /// Event created when the user returns to the last search results.
+  /// Event created when the user returns to the last active search results.
   @Implements<SearchClientEvent>()
-  const factory ClientEvent.restoreSearchRequested() = RestoreSearchRequested;
+  const factory ClientEvent.restoreActiveSearchRequested() =
+      RestoreActiveSearchRequested;
 
   /// Event created when the client asks for current active search term.
   @Implements<SearchClientEvent>()
-  const factory ClientEvent.searchTermRequested() = SearchTermRequested;
+  const factory ClientEvent.activeSearchTermRequested() =
+      ActiveSearchTermRequested;
 
   /// Event created when the client makes [Document]s in the active search
   /// not accessible to the user anymore. The engine registers those documents
   /// as immutable, so they can't be changed anymore by the client.
   @Implements<SearchClientEvent>()
-  const factory ClientEvent.searchClosed() = SearchClosed;
+  const factory ClientEvent.activeSearchClosed() = ActiveSearchClosed;
 
   /// Event created when the client asks for the currently trending topics.
   @Implements<SearchClientEvent>()

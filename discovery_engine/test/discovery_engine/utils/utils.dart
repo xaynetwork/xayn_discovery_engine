@@ -58,11 +58,11 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent availableSourcesListRequestedResponse;
   final EngineEvent userReactionChangedResponse;
   final EngineEvent documentTimeLoggedResponse;
-  final EngineEvent searchRequestedResponse;
-  final EngineEvent nextSearchBatchRequestedResponse;
-  final EngineEvent restoreSearchResponse;
-  final EngineEvent searchClosedResponse;
-  final EngineEvent searchTermRequestedResponse;
+  final EngineEvent activeSearchRequestedResponse;
+  final EngineEvent nextActiveSearchBatchRequestedResponse;
+  final EngineEvent restoreActiveSearchResponse;
+  final EngineEvent activeSearchClosedResponse;
+  final EngineEvent activeSearchTermRequestedResponse;
   final EngineEvent trendingTopicsRequestedResponse;
 
   MockDiscoveryEngineWorker(
@@ -77,12 +77,12 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.feedDocumentsClosedResponse = const EngineEvent.clientEventSucceeded(),
     this.userReactionChangedResponse = const EngineEvent.clientEventSucceeded(),
     this.documentTimeLoggedResponse = const EngineEvent.clientEventSucceeded(),
-    EngineEvent? searchRequestedResponse,
-    EngineEvent? nextSearchBatchRequestedResponse,
-    EngineEvent? restoreSearchResponse,
-    this.searchClosedResponse = const EngineEvent.clientEventSucceeded(),
-    this.searchTermRequestedResponse =
-        const EngineEvent.searchTermRequestSucceeded(queryTerm),
+    EngineEvent? activeSearchRequestedResponse,
+    EngineEvent? nextActiveSearchBatchRequestedResponse,
+    EngineEvent? restoreActiveSearchResponse,
+    this.activeSearchClosedResponse = const EngineEvent.clientEventSucceeded(),
+    this.activeSearchTermRequestedResponse =
+        const EngineEvent.activeSearchTermRequestSucceeded(queryTerm),
     this.excludedSourceAddedResponse = const EngineEvent.clientEventSucceeded(),
     this.excludedSourceRemovedResponse =
         const EngineEvent.clientEventSucceeded(),
@@ -94,16 +94,17 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.trendingTopicsRequestedResponse =
         const EngineEvent.trendingTopicsRequestSucceeded([]),
     EngineEvent? availableSourcesListRequestedResponse,
-  })  : searchRequestedResponse = EngineEvent.searchRequestSucceeded(
+  })  : activeSearchRequestedResponse =
+            EngineEvent.activeSearchRequestSucceeded(
           mockActiveSearch.toApiRepr(),
           [],
         ),
-        nextSearchBatchRequestedResponse =
-            EngineEvent.nextSearchBatchRequestSucceeded(
+        nextActiveSearchBatchRequestedResponse =
+            EngineEvent.nextActiveSearchBatchRequestSucceeded(
           mockActiveSearch.toApiRepr(),
           [],
         ),
-        restoreSearchResponse = EngineEvent.restoreSearchSucceeded(
+        restoreActiveSearchResponse = EngineEvent.restoreActiveSearchSucceeded(
           mockActiveSearch.toApiRepr(),
           [],
         ),
@@ -142,11 +143,12 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
           availableSourcesListRequestedResponse,
       userReactionChanged: (_) => userReactionChangedResponse,
       documentTimeSpent: (_) => documentTimeLoggedResponse,
-      searchRequested: (_) => searchRequestedResponse,
-      nextSearchBatchRequested: (_) => nextSearchBatchRequestedResponse,
-      restoreSearchRequested: (_) => restoreSearchResponse,
-      searchClosed: (_) => searchClosedResponse,
-      searchTermRequested: (_) => searchTermRequestedResponse,
+      activeSearchRequested: (_) => activeSearchRequestedResponse,
+      nextActiveSearchBatchRequested: (_) =>
+          nextActiveSearchBatchRequestedResponse,
+      restoreActiveSearchRequested: (_) => restoreActiveSearchResponse,
+      activeSearchClosed: (_) => activeSearchClosedResponse,
+      activeSearchTermRequested: (_) => activeSearchTermRequestedResponse,
       trendingTopicsRequested: (_) => trendingTopicsRequestedResponse,
     );
     return send(response, request.sender);

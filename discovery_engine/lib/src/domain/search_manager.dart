@@ -63,11 +63,11 @@ class SearchManager {
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleSearchClientEvent(SearchClientEvent event) =>
       event.maybeWhen(
-        searchRequested: searchRequested,
-        nextSearchBatchRequested: nextSearchBatchRequested,
-        restoreSearchRequested: restoreSearchRequested,
-        searchClosed: searchClosed,
-        searchTermRequested: searchTermRequested,
+        activeSearchRequested: searchRequested,
+        nextActiveSearchBatchRequested: nextSearchBatchRequested,
+        restoreActiveSearchRequested: restoreSearchRequested,
+        activeSearchClosed: searchClosed,
+        activeSearchTermRequested: searchTermRequested,
         trendingTopicsRequested: trendingTopicsRequested,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
@@ -121,7 +121,7 @@ class SearchManager {
     );
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
-    return EngineEvent.searchRequestSucceeded(search.toApiRepr(), docs);
+    return EngineEvent.activeSearchRequestSucceeded(search.toApiRepr(), docs);
   }
 
   /// Obtain the next batch of search documents and persist to repositories.
@@ -130,14 +130,14 @@ class SearchManager {
 
     if (search == null) {
       const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.nextSearchBatchRequestFailed(reason);
+      return const EngineEvent.nextActiveSearchBatchRequestFailed(reason);
     }
 
     // lets update active search params
     search.requestedPageNb += 1;
     final docs = await _getSearchDocuments(search);
     await _searchRepo.save(search);
-    return EngineEvent.nextSearchBatchRequestSucceeded(
+    return EngineEvent.nextActiveSearchBatchRequestSucceeded(
       search.toApiRepr(),
       docs,
     );
@@ -151,7 +151,7 @@ class SearchManager {
 
     if (search == null) {
       const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.restoreSearchFailed(reason);
+      return const EngineEvent.restoreActiveSearchFailed(reason);
     }
 
     final allDocs = await _docRepo.fetchAll();
@@ -162,7 +162,7 @@ class SearchManager {
 
     if (searchDocs.isEmpty) {
       const reason = SearchFailureReason.noResultsAvailable;
-      return const EngineEvent.restoreSearchFailed(reason);
+      return const EngineEvent.restoreActiveSearchFailed(reason);
     }
 
     searchDocs.sort((doc1, doc2) {
@@ -174,7 +174,7 @@ class SearchManager {
 
     final docs = searchDocs.map((doc) => doc.toApiRepr()).toList();
 
-    return EngineEvent.restoreSearchSucceeded(search.toApiRepr(), docs);
+    return EngineEvent.restoreActiveSearchSucceeded(search.toApiRepr(), docs);
   }
 
   /// Return the active search term.
@@ -183,10 +183,10 @@ class SearchManager {
 
     if (search == null) {
       const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.searchTermRequestFailed(reason);
+      return const EngineEvent.activeSearchTermRequestFailed(reason);
     }
 
-    return EngineEvent.searchTermRequestSucceeded(search.searchTerm);
+    return EngineEvent.activeSearchTermRequestSucceeded(search.searchTerm);
   }
 
   /// Return the current trending topics.
