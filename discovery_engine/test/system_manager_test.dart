@@ -107,10 +107,10 @@ Future<void> main() async {
       expect(mgr.maxSearchDocs, maxDocs + 1);
     });
 
-    test('resetAI resets all AI state holders', () async {
+    test('resetAi resets all AI state holders', () async {
       expect(docRepo.box.isEmpty, isFalse);
-      final res = await mgr.resetAI();
-      expect(res, isA<ResetAISucceeded>());
+      final res = await mgr.resetAi();
+      expect(res, isA<ResetAiSucceeded>());
       expect(docRepo.box.isEmpty, isTrue);
     });
   });
