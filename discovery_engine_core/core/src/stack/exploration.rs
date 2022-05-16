@@ -14,7 +14,6 @@
 
 //! Exploration stack.
 
-use itertools::chain;
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -64,9 +63,17 @@ impl Stack {
             return Ok(());
         }
 
-        Self::validate_documents_stack_id(new_documents, Stack::id())?;
-        let documents = chain!(&self.data.documents, new_documents)
+        let new_documents = new_documents.iter().cloned().map(|mut doc| {
+            doc.stack_id = Self::id();
+            doc
+        });
+
+        let documents = self
+            .data
+            .documents
+            .iter()
             .cloned()
+            .chain(new_documents)
             .collect();
 
         let mut items = document_selection(
