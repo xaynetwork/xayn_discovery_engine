@@ -364,7 +364,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Requests a new search for [Document]s related to `queryTerm`.
+  /// Requests a new active search for [Document]s related to `queryTerm`.
   ///
   /// In response it can return:
   /// - [ActiveSearchRequestSucceeded] for successful response, containing a list of
@@ -372,7 +372,7 @@ class DiscoveryEngine {
   /// - [ActiveSearchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestSearch(String queryTerm) {
+  Future<EngineEvent> requestQuerySearch(String queryTerm) {
     return _trySend(() async {
       final event =
           ClientEvent.activeSearchRequested(queryTerm, SearchBy.query);
@@ -386,7 +386,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Requests for [Document]s of a specific `topic`.
+  /// Requests a new active search for [Document]s of a specific `topic`.
   ///
   /// In response it can return:
   /// - [ActiveSearchRequestSucceeded] for successful response, containing a list of
@@ -394,7 +394,7 @@ class DiscoveryEngine {
   /// - [ActiveSearchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestTopic(String topic) {
+  Future<EngineEvent> requestTopicSearch(String topic) {
     return _trySend(() async {
       final event = ClientEvent.activeSearchRequested(topic, SearchBy.topic);
       final response = await _manager.send(event);
@@ -415,7 +415,7 @@ class DiscoveryEngine {
   /// - [NextActiveSearchBatchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestNextSearchBatch() {
+  Future<EngineEvent> requestNextActiveSearchBatch() {
     return _trySend(() async {
       const event = ClientEvent.nextActiveSearchBatchRequested();
       final response = await _manager.send(event);
@@ -436,7 +436,7 @@ class DiscoveryEngine {
   /// - [RestoreActiveSearchFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> restoreSearch() {
+  Future<EngineEvent> restoreActiveSearch() {
     return _trySend(() async {
       const event = ClientEvent.restoreActiveSearchRequested();
       final response = await _manager.send(event);
@@ -449,7 +449,7 @@ class DiscoveryEngine {
     });
   }
 
-  /// Returns the current search term.
+  /// Returns the current active search term.
   ///
   /// In response it can return:
   /// - [ActiveSearchTermRequestSucceeded] for successful response, containing the
@@ -457,7 +457,7 @@ class DiscoveryEngine {
   /// - [ActiveSearchTermRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> getSearchTerm() {
+  Future<EngineEvent> getActiveSearchTerm() {
     return _trySend(() async {
       const event = ClientEvent.activeSearchTermRequested();
       final response = await _manager.send(event);
@@ -481,7 +481,7 @@ class DiscoveryEngine {
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> closeSearch() {
+  Future<EngineEvent> closeActiveSearch() {
     return _trySend(() async {
       const event = ClientEvent.activeSearchClosed();
       final response = await _manager.send(event);
