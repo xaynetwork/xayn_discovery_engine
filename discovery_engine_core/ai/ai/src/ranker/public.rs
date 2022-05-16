@@ -99,6 +99,11 @@ impl Ranker {
     pub fn negative_cois(&self) -> &[NegativeCoi] {
         self.0.negative_cois()
     }
+
+    /// Resets the AI state but not configurations.
+    pub fn reset_ai(&mut self) {
+        self.0.reset_ai();
+    }
 }
 
 /// A builder for a [`Ranker`].

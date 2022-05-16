@@ -261,4 +261,9 @@ class DiscoveryEngineFfi implements Engine {
   Future<void> dispose() async {
     await _engine.free();
   }
+
+  @override
+  Future<void> resetAi() async {
+    await asyncFfi.resetAi(_engine.ref);
+  }
 }

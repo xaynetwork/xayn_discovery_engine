@@ -87,8 +87,7 @@ class SystemManager {
 
   Future<EngineEvent> resetAi() async {
     await _clearAiState();
-    // TODO implement
-    //  - call rust engine reset
+    await _engine.resetAi();
     return const EngineEvent.resetAiSucceeded();
   }
 }

@@ -181,6 +181,11 @@ impl Ranker {
     pub(crate) fn negative_cois(&self) -> &[NegativeCoi] {
         self.state.user_interests.negative.as_slice()
     }
+
+    /// Resets the AI state but not configurations.
+    pub(crate) fn reset_ai(&mut self) {
+        self.state = State::default();
+    }
 }
 
 fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config: &Config) {

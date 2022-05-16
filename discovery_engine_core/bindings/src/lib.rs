@@ -242,4 +242,17 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn dispose(engine: Box<SharedEngine>) {
         engine.as_ref().as_ref().lock().await;
     }
+
+    /// Reset the AI state of this engine
+    pub async fn reset_ai(engine: &SharedEngine) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .reset_ai()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
 }
