@@ -132,7 +132,7 @@ Future<void> main() async {
       engine.resetCallCounter();
     });
 
-    group('searchRequested', () {
+    group('activeSearchRequested', () {
       test(
           'given a query term a proper active search object is persisted, '
           'and new document and active data entries are added to the database',
@@ -149,7 +149,7 @@ Future<void> main() async {
         );
 
         final response =
-            await mgr.searchRequested('example query', SearchBy.query);
+            await mgr.activeSearchRequested('example query', SearchBy.query);
 
         expect(searchRepo.getCurrent(), completion(equals(newSearch)));
         expect(response, isA<ActiveSearchRequestSucceeded>());
@@ -182,15 +182,15 @@ Future<void> main() async {
       });
     });
 
-    group('nextSearchBatchRequested', () {
+    group('nextActiveSearchBatchRequested', () {
       test(
           'when there is no active search stored it should return '
-          '"NextSearchBatchRequestFailed" event with "noActiveSearch" reason',
+          '"NextActiveSearchBatchRequestFailed" event with "noActiveSearch" reason',
           () async {
         // lets clear the repo
         await searchRepo.clear();
 
-        final response = await mgr.nextSearchBatchRequested();
+        final response = await mgr.nextActiveSearchBatchRequested();
 
         expect(response, isA<NextActiveSearchBatchRequestFailed>());
         expect(
@@ -201,7 +201,7 @@ Future<void> main() async {
 
       test('active search "requestedPageNb" attribute should be incremented ',
           () async {
-        final response = await mgr.nextSearchBatchRequested();
+        final response = await mgr.nextActiveSearchBatchRequested();
 
         final updateSearch =
             (response as NextActiveSearchBatchRequestSucceeded).search;
@@ -234,14 +234,15 @@ Future<void> main() async {
       });
     });
 
-    group('restoreSearchRequested', () {
+    group('restoreActiveSearchRequested', () {
       test(
           'when there is no active search stored it should return '
-          '"RestoreSearchFailed" event with "noActiveSearch" reason', () async {
+          '"RestoreActiveSearchFailed" event with "noActiveSearch" reason',
+          () async {
         // lets clear the repo
         await searchRepo.clear();
 
-        final response = await mgr.restoreSearchRequested();
+        final response = await mgr.restoreActiveSearchRequested();
 
         expect(response, isA<RestoreActiveSearchFailed>());
         expect(
@@ -251,14 +252,14 @@ Future<void> main() async {
       });
 
       test(
-          'when there are no search related documents it should return '
-          '"RestoreSearchFailed" event with "noResultsAvailable" reason',
+          'when there are no active search related documents it should return '
+          '"RestoreActiveSearchFailed" event with "noResultsAvailable" reason',
           () async {
         doc1 = doc1..isActive = false;
         doc2 = doc2..isSearched = false;
         await docRepo.updateMany([doc1, doc2]);
 
-        final response = await mgr.restoreSearchRequested();
+        final response = await mgr.restoreActiveSearchRequested();
 
         expect(response, isA<RestoreActiveSearchFailed>());
         expect(
@@ -269,9 +270,9 @@ Future<void> main() async {
 
       test(
           'when there is active search and related documents to restore '
-          'it should return "RestoreSearchSucceeded" event with them',
+          'it should return "RestoreActiveSearchSucceeded" event with them',
           () async {
-        final response = await mgr.restoreSearchRequested();
+        final response = await mgr.restoreActiveSearchRequested();
 
         expect(response, isA<RestoreActiveSearchSucceeded>());
         expect(
@@ -288,15 +289,15 @@ Future<void> main() async {
       });
     });
 
-    group('searchTermRequested', () {
+    group('activeSearchTermRequested', () {
       test(
           'when there is no active search stored it should return '
-          '"SearchTermRequestFailed" event with "noActiveSearch" reason',
+          '"ActiveSearchTermRequestFailed" event with "noActiveSearch" reason',
           () async {
         // lets clear the repo
         await searchRepo.clear();
 
-        final response = await mgr.searchTermRequested();
+        final response = await mgr.activeSearchTermRequested();
 
         expect(response, isA<ActiveSearchTermRequestFailed>());
         expect(
@@ -307,9 +308,9 @@ Future<void> main() async {
 
       test(
           'if active search is available it should return '
-          '"SearchTermRequestSucceeded" event with the current search term',
+          '"ActiveSearchTermRequestSucceeded" event with the current search term',
           () async {
-        final response = await mgr.searchTermRequested();
+        final response = await mgr.activeSearchTermRequested();
 
         expect(response, isA<ActiveSearchTermRequestSucceeded>());
         expect(
@@ -344,7 +345,7 @@ Future<void> main() async {
 
       test(
           'if active search is available it should return '
-          '"SearchTermRequestSucceeded" event with the current search term',
+          '"ActiveSearchTermRequestSucceeded" event with the current search term',
           () async {
         final response = await mgr.trendingTopicsRequested();
 
@@ -356,7 +357,7 @@ Future<void> main() async {
       });
     });
 
-    group('searchClosed', () {
+    group('activeSearchClosed', () {
       test(
           'when there are no search documents it should return '
           '"ClientEventSucceeded" event in response and clear only '
@@ -365,7 +366,7 @@ Future<void> main() async {
         doc2 = doc2..isSearched = false;
         await docRepo.updateMany([doc1, doc2]);
 
-        final response = await mgr.searchClosed();
+        final response = await mgr.activeSearchClosed();
 
         expect(response, isA<ClientEventSucceeded>());
         expect(searchRepo.box.isEmpty, isTrue);
@@ -400,7 +401,7 @@ Future<void> main() async {
         await activeRepo.update(doc4.documentId, data);
         await docRepo.updateMany([doc1, doc2, doc3, doc4]);
 
-        final response = await mgr.searchClosed();
+        final response = await mgr.activeSearchClosed();
 
         expect(response, isA<ClientEventSucceeded>());
         expect(searchRepo.box.isEmpty, isTrue);
