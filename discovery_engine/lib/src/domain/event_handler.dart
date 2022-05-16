@@ -149,18 +149,26 @@ class EventHandler {
   /// called each time there is a new event on the stream, without waiting for
   /// previous events to finish processing.
   Future<EngineEvent> handleMessage(ClientEvent clientEvent) async {
+    final s = Stopwatch();
+    s.start();
+
     if (clientEvent is Init) {
       if (_engine != null) {
+        logger.i(
+          'handle Init event (${EngineExceptionReason.wrongEventRequested}): ${s.elapsedMilliseconds}ms',
+        );
         return const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,
         );
       }
 
       try {
-        return await _initEngine(
+        final res = await _initEngine(
           clientEvent.configuration,
           aiConfig: clientEvent.aiConfig,
         );
+        logger.i('handle Init event (successful): ${s.elapsedMilliseconds}ms');
+        return res;
       } catch (e, st) {
         logger.e('failed to initialize the engine', e, st);
         final EngineExceptionReason reason;
@@ -171,6 +179,7 @@ class EventHandler {
         } else {
           reason = EngineExceptionReason.genericError;
         }
+        logger.i('handle Init event ({reason}): ${s.elapsedMilliseconds}ms');
         return EngineEvent.engineExceptionRaised(
           reason,
           message: '$e',
@@ -180,6 +189,9 @@ class EventHandler {
     }
 
     if (_engine == null) {
+      logger.i(
+        'handle ${clientEvent.runtimeType} event (${EngineExceptionReason.engineNotReady}): ${s.elapsedMilliseconds}ms',
+      );
       return const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.engineNotReady,
       );
@@ -187,15 +199,26 @@ class EventHandler {
 
     try {
       if (clientEvent is FeedClientEvent) {
-        return await _feedManager.handleFeedClientEvent(clientEvent);
+        final res = await _feedManager.handleFeedClientEvent(clientEvent);
+        logger.i('handle FeedClientEvent event: ${s.elapsedMilliseconds}ms');
+        return res;
       } else if (clientEvent is DocumentClientEvent) {
         await _documentManager.handleDocumentClientEvent(clientEvent);
+        logger
+            .i('handle DocumentClientEvent event: ${s.elapsedMilliseconds}ms');
         return const EngineEvent.clientEventSucceeded();
       } else if (clientEvent is SystemClientEvent) {
-        return await _systemManager.handleSystemClientEvent(clientEvent);
+        final res = await _systemManager.handleSystemClientEvent(clientEvent);
+        logger.i('handle SystemClientEvent event: ${s.elapsedMilliseconds}ms');
+        return res;
       } else if (clientEvent is SearchClientEvent) {
-        return await _searchManager.handleSearchClientEvent(clientEvent);
+        final res = await _searchManager.handleSearchClientEvent(clientEvent);
+        logger.i('handle SearchClientEvent event: ${s.elapsedMilliseconds}ms');
+        return res;
       } else {
+        logger.i(
+          'handle ${clientEvent.runtimeType} event (${EngineExceptionReason.wrongEventRequested}): ${s.elapsedMilliseconds}ms',
+        );
         return const EngineEvent.engineExceptionRaised(
           EngineExceptionReason.wrongEventRequested,
         );
@@ -203,7 +226,9 @@ class EventHandler {
     } catch (e, st) {
       // log the error
       logger.e('Handling ClientEvent by one of the managers failed', e, st);
-
+      logger.i(
+        'handle ${clientEvent.runtimeType} event ({e}): ${s.elapsedMilliseconds}ms',
+      );
       return EngineEvent.engineExceptionRaised(
         EngineExceptionReason.genericError,
         message: '$e',
