@@ -556,7 +556,7 @@ where
             );
         }
 
-        let (mut documents, article_errors) = parallel_articles_into_documents(
+        let (mut documents, article_errors) = articles_into_documents(
             StackId::nil(), // these documents are not associated with a stack
             &self.ranker,
             articles,
@@ -605,7 +605,7 @@ where
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
-        let (documents, errors) = parallel_articles_into_documents(
+        let (documents, errors) = articles_into_documents(
             StackId::nil(), // these documents are not associated with a stack
             &self.ranker,
             articles,
@@ -809,7 +809,7 @@ async fn fetch_new_documents_for_stack(
             return Err(Error::StackOpFailed(error));
         }
     };
-    let (documents, errors) = parallel_articles_into_documents(stack.id(), ranker, articles);
+    let (documents, errors) = articles_into_documents(stack.id(), ranker, articles);
 
     // only return an error if all articles failed
     if documents.is_empty() && !errors.is_empty() {
@@ -819,7 +819,7 @@ async fn fetch_new_documents_for_stack(
     }
 }
 
-fn parallel_articles_into_documents(
+fn articles_into_documents(
     stack_id: StackId,
     ranker: &(impl Ranker + Send + Sync),
     articles: Vec<Article>,
