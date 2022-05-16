@@ -25,7 +25,7 @@ thiserror = "1.0.30"
 tokio = { version = "1.17.0", default-features = false, features = ["sync"] }
 tracing = "0.1.31"
 url = { version = "2.2.2", features = ["serde"] }
-uuid = { version = "0.8.2", features = ["serde", "v4"] }
+uuid = { version = "1.0.0", features = ["serde", "v4"] }
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-bert = { path = "../ai/bert" }
 xayn-discovery-engine-kpe = { path = "../ai/kpe" }

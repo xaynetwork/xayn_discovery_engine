@@ -17,7 +17,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
-use uuid::Uuid;
+use uuid::uuid;
 use xayn_discovery_engine_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{
     Article,
@@ -67,7 +67,7 @@ impl BreakingNews {
     }
 
     pub(crate) fn id() -> Id {
-        Id(Uuid::parse_str("1ce442c8-8a96-433e-91db-c0bee37e5a83").unwrap(/* valid uuid */))
+        Id(uuid!("1ce442c8-8a96-433e-91db-c0bee37e5a83"))
     }
 
     /// Filter `articles` based on `stack` documents.

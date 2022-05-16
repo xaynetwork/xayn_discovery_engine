@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
 use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
-use uuid::Uuid;
+use uuid::uuid;
 use xayn_discovery_engine_ai::ranker::KeyPhrase;
 use xayn_discovery_engine_providers::{
     Article,
@@ -73,7 +73,7 @@ impl TrustedNews {
 #[async_trait]
 impl Ops for TrustedNews {
     fn id(&self) -> Id {
-        Id(Uuid::parse_str("d0f699d8-60d2-4008-b3a1-df1cffc4b8a3").unwrap(/* valid uuid */))
+        Id(uuid!("d0f699d8-60d2-4008-b3a1-df1cffc4b8a3"))
     }
 
     fn needs_key_phrases(&self) -> bool {
