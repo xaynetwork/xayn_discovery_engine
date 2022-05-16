@@ -24,7 +24,6 @@ use std::{
 use derivative::Derivative;
 use itertools::izip;
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix, Ix2};
-#[cfg(feature = "multithreaded")]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use xayn_discovery_engine_providers::Market;
@@ -214,12 +213,8 @@ fn unify(
         return key_phrases;
     }
 
-    #[cfg(not(feature = "multithreaded"))]
-    let candidates = candidates.iter();
-    #[cfg(feature = "multithreaded")]
-    let candidates = candidates.into_par_iter();
-
     let candidates = candidates
+        .into_par_iter()
         .filter_map(|candidate| {
             let candidate = clean_key_phrase(candidate);
             key_phrases
