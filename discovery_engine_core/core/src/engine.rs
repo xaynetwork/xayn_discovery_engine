@@ -35,6 +35,7 @@ use xayn_discovery_engine_ai::ranker::{Builder, CoiSystemConfig, KeyPhrase};
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
+    clean_query,
     Client,
     CommonQueryParts,
     Filter,
@@ -489,10 +490,11 @@ where
         page: u32,
         page_size: u32,
     ) -> Result<Vec<Document>, Error> {
+        let query = clean_query(query);
         if query.trim().is_empty() {
             return Err(Error::InvalidTerm);
         }
-        let filter = &Filter::default().add_keyword(query);
+        let filter = &Filter::default().add_keyword(&query);
         self.active_search(SearchBy::Query(filter), page, page_size)
             .await
     }

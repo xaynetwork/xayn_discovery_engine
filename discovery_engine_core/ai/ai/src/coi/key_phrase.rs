@@ -26,7 +26,7 @@ use itertools::izip;
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix, Ix2};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use xayn_discovery_engine_providers::Market;
+use xayn_discovery_engine_providers::{clean_query, Market};
 
 use crate::{
     coi::{point::PositiveCoi, stats::compute_coi_relevances, CoiError, CoiId},
@@ -216,7 +216,7 @@ fn unify(
     let candidates = candidates
         .into_par_iter()
         .filter_map(|candidate| {
-            let candidate = clean_key_phrase(candidate);
+            let candidate = clean_query(candidate);
             key_phrases
                 .iter()
                 .all(|key_phrase| key_phrase.words() != candidate)
@@ -455,24 +455,6 @@ fn remove(
     }
 
     key_phrase
-}
-
-/// Clean a key phrase from symbols and multiple spaces.
-fn clean_key_phrase(key_phrase: impl AsRef<str>) -> String {
-    use lazy_static::lazy_static;
-    use regex::Regex;
-
-    lazy_static! {
-        // match any sequence of symbols and spaces that can follow
-        static ref SYMBOLS: Regex = Regex::new(r"[\p{Symbol}\p{Punctuation}]+\p{Separator}*").unwrap();
-        // match any sequence spaces
-        static ref SEPARATORS: Regex = Regex::new(r"\p{Separator}+").unwrap();
-    }
-
-    // we replace a symbol with a space
-    let no_symbols = SYMBOLS.replace_all(key_phrase.as_ref(), " ");
-    // we collapse sequence of spaces to only one
-    SEPARATORS.replace_all(&no_symbols, " ").trim().to_string()
 }
 
 #[cfg(test)]
@@ -1523,52 +1505,5 @@ mod tests {
             ["key"],
         );
         assert!(key_phrases.removed.is_empty());
-    }
-
-    mod clean_key_phrase {
-        use super::*;
-
-        #[test]
-        fn no_symbol_is_identity_letters() {
-            let s = "aàáâäąbßcçdeèéêëęfghiìíîïlłmnǹńoòóôöpqrsśtuùúüvwyỳýÿzź";
-            assert_eq!(clean_key_phrase(s), s);
-        }
-
-        #[test]
-        fn no_symbol_is_identity_numbers() {
-            let s = "0123456789";
-            assert_eq!(clean_key_phrase(s), s);
-        }
-
-        #[test]
-        fn remove_symbols() {
-            assert_eq!(clean_key_phrase("!$\",?(){};:."), "");
-        }
-
-        #[test]
-        fn remove_symbols_adjust_space_between() {
-            for s in ["a-b", "a - b"] {
-                assert_eq!(clean_key_phrase(s), "a b");
-            }
-        }
-
-        #[test]
-        fn remove_symbols_adjust_space_after() {
-            for s in ["a!  ", "a ! ", "a  !  "] {
-                assert_eq!(clean_key_phrase(s), "a");
-            }
-        }
-
-        #[test]
-        fn remove_symbols_adjust_space_before() {
-            for s in ["  !a ", " ! a ", "  !  a  "] {
-                assert_eq!(clean_key_phrase(s), "a");
-            }
-        }
-
-        #[test]
-        fn adjust_spaces() {
-            assert_eq!(clean_key_phrase("  a  b  c  "), "a b c");
-        }
     }
 }
