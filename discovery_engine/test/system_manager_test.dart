@@ -110,7 +110,7 @@ Future<void> main() async {
     test('resetAI resets all AI state holders', () async {
       expect(docRepo.box.isEmpty, isFalse);
       final res = await mgr.resetAI();
-      expect(res, isA<ClientEventSucceeded>());
+      expect(res, isA<ResetAISucceeded>());
       expect(docRepo.box.isEmpty, isTrue);
     });
   });
