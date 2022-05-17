@@ -30,11 +30,13 @@
     clippy::must_use_candidate
 )]
 
+mod clean_query;
 mod client;
 mod expression;
 mod filter;
 mod newscatcher;
 
+pub use clean_query::clean_query;
 pub use client::{
     default_from,
     Client,
