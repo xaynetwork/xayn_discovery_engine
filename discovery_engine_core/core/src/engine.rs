@@ -183,6 +183,10 @@ struct CoreConfig {
     /// The number of times to get feed documents after which the stacks are updated without the
     /// limitation of `request_new`.
     request_after: usize,
+    /// The maximum number of top key phrases extracted from the search term in the deep search.
+    deep_search_top: usize,
+    /// The maximum number of documents returned from the deep search.
+    deep_search_max: usize,
 }
 
 impl Default for CoreConfig {
@@ -192,6 +196,8 @@ impl Default for CoreConfig {
             keep_top: 20,
             request_new: 3,
             request_after: 2,
+            deep_search_top: 3,
+            deep_search_max: 20,
         }
     }
 }
@@ -584,14 +590,14 @@ where
         let excluded_sources = &self.config.excluded_sources.read().await.clone();
         let filter = &key_phrases
             .iter()
-            .take(3)
+            .take(self.core_config.deep_search_top)
             .fold(Filter::default(), |filter, key_phrase| {
                 filter.add_keyword(key_phrase)
             });
         let query = NewsQuery {
             common: CommonQueryParts {
                 market: Some(market),
-                page_size: 20,
+                page_size: self.core_config.deep_search_max,
                 page: 1,
                 excluded_sources,
             },
