@@ -87,7 +87,7 @@ impl DuplicateFilter {
 
             // discard dups of historical documents
             documents.retain(|art| {
-                !hist_urls.contains(art.url()) && !hist_titles.contains(&normalize(art.url()))
+                !hist_urls.contains(art.url()) && !hist_titles.contains(&normalize(art.title()))
             });
         }
 
