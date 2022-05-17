@@ -201,7 +201,21 @@ class SearchManager {
     String term,
     FeedMarket market,
   ) async {
-    final docs = await _engine.deepSearch(term, market);
+    final List<DocumentWithActiveData> docs;
+    try {
+      docs = await _engine.deepSearch(term, market);
+    } catch (e) {
+      const fewWords =
+          'The sequence must contain at least `KEY_PHRASE_SIZE` valid words';
+      const notFound = 'HTTP status client error (404 Not Found) for url';
+      final message = e.toString();
+      if (message.contains(fewWords) || message.contains(notFound)) {
+        return const EngineEvent.deepSearchRequestFailed(
+          SearchFailureReason.noResultsAvailable,
+        );
+      }
+      rethrow;
+    }
 
     if (docs.isEmpty) {
       return const EngineEvent.deepSearchRequestFailed(

@@ -27,7 +27,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
     show TestEngineData, initEngine, setupTestEngineData;
-import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
+import 'utils/local_newsapi_server.dart' show LocalNewsApiServer, ReplyWith;
 
 void main() {
   setupLogging();
@@ -74,7 +74,7 @@ void main() {
       // phrases are selected due to no previous feedback. overall breaking news failed and
       // personalized news is filtered out because there are no key phrases available, which
       // results in a failure.
-      server.replyWithError = true;
+      server.replyWith = ReplyWith.error;
 
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();
       expect(nextFeedBatchResponse, isA<NextFeedBatchRequestFailed>());
@@ -104,7 +104,7 @@ void main() {
         isA<ClientEventSucceeded>(),
       );
 
-      server.replyWithError = true;
+      server.replyWith = ReplyWith.error;
       final nextFeedBatchResponse = await engine.requestNextFeedBatch();
       expect(nextFeedBatchResponse, isA<NextFeedBatchRequestFailed>());
       expect(

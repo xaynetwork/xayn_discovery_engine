@@ -1,0 +1,120 @@
+// Copyright 2022 Xayn AG
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, version 3.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+@Timeout(Duration(seconds: 80))
+
+import 'dart:io' show Directory;
+
+import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show
+        DeepSearchRequestFailed,
+        DeepSearchRequestSucceeded,
+        DiscoveryEngine,
+        FeedMarket,
+        SearchFailureReason;
+
+import '../logging.dart' show setupLogging;
+import 'utils/helpers.dart'
+    show TestEngineData, initEngine, setupTestEngineData;
+import 'utils/local_newsapi_server.dart' show LocalNewsApiServer, ReplyWith;
+
+void main() {
+  setupLogging();
+
+  group('DiscoveryEngine requestDeepSearch', () {
+    late LocalNewsApiServer server;
+    late TestEngineData data;
+    late DiscoveryEngine engine;
+
+    const term = 'this is a search term example';
+    const market = FeedMarket(countryCode: 'EX', langCode: 'ex');
+
+    setUp(() async {
+      server = await LocalNewsApiServer.start();
+      data = await setupTestEngineData();
+      engine = await initEngine(data, server.port);
+    });
+
+    tearDown(() async {
+      await engine.dispose();
+      await server.close();
+      await Directory(data.applicationDirectoryPath).delete(recursive: true);
+    });
+
+    test('requestDeepSearch should return documents', () async {
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[isA<DeepSearchRequestSucceeded>()]),
+      );
+
+      final response = await engine.requestDeepSearch(term, market);
+      expect(response, isA<DeepSearchRequestSucceeded>());
+      expect(
+        (response as DeepSearchRequestSucceeded).items,
+        isNotEmpty,
+      );
+    });
+
+    test(
+        'requestDeepSearch should return failed event if the search term is'
+        ' too short to extract enough key phrase words', () async {
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[isA<DeepSearchRequestFailed>()]),
+      );
+
+      final response = await engine.requestDeepSearch('example', market);
+      expect(response, isA<DeepSearchRequestFailed>());
+      expect(
+        (response as DeepSearchRequestFailed).reason,
+        equals(SearchFailureReason.noResultsAvailable),
+      );
+    });
+
+    test(
+        'requestDeepSearch should return failed event if the server returns empty documents',
+        () async {
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[isA<DeepSearchRequestFailed>()]),
+      );
+
+      server.replyWith = ReplyWith.empty;
+      final response = await engine.requestDeepSearch(term, market);
+      expect(response, isA<DeepSearchRequestFailed>());
+      expect(
+        (response as DeepSearchRequestFailed).reason,
+        equals(SearchFailureReason.noResultsAvailable),
+      );
+    });
+
+    test(
+        'requestDeepSearch should return failed event if the server replies with error',
+        () async {
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[isA<DeepSearchRequestFailed>()]),
+      );
+
+      server.replyWith = ReplyWith.error;
+      final response = await engine.requestDeepSearch(term, market);
+      expect(response, isA<DeepSearchRequestFailed>());
+      expect(
+        (response as DeepSearchRequestFailed).reason,
+        equals(SearchFailureReason.noResultsAvailable),
+      );
+    });
+  });
+}
