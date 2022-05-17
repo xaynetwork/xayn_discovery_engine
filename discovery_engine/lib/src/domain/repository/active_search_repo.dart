@@ -12,12 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/src/domain/ai_state_holder.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 
 /// Repository interface for currently performed [ActiveSearch].
-abstract class ActiveSearchRepository implements AIStateHolder {
+abstract class ActiveSearchRepository {
   /// Get current search.
   Future<ActiveSearch?> getCurrent();
 

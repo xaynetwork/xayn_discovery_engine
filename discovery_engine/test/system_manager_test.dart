@@ -58,7 +58,7 @@ Future<void> main() async {
         engine,
         config,
         docRepo,
-        [docRepo],
+        () async => docRepo.box.clear(),
       );
 
       final stackId = StackId();
