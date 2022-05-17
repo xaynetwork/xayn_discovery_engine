@@ -516,11 +516,8 @@ class DiscoveryEngine {
 
   /// Reset the state of the AI.
   ///
-  /// This will clear the history and active search.
-  ///
   /// This will not touch configurations like the
   /// market or trusted/excluded sources.
-  ///
   Future<EngineEvent> resetAi() {
     return _trySend(() async {
       const event = ClientEvent.resetAi();
