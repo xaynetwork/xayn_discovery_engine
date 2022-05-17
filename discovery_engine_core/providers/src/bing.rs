@@ -87,31 +87,31 @@ pub struct Response {
 pub struct TrendingTopic {
     /// Title of the trending topic.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    name: String,
+    pub(crate) name: String,
 
     /// Search query that returns this topic.
     #[serde(default)]
-    query: SearchQuery,
+    pub(crate) query: SearchQuery,
 
     /// Link to a related image.
     #[serde(default)]
-    image: Image,
+    pub(crate) image: Image,
 }
 
 /// Search query returning a trending topic.
 #[derive(Serialize, Deserialize, Debug, Default)]
-struct SearchQuery {
+pub(crate) struct SearchQuery {
     /// Query text.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    text: String,
+    pub(crate) text: String,
 }
 
 /// Image relating to a trending topic.
 #[derive(Serialize, Deserialize, Debug, Default)]
-struct Image {
+pub(crate) struct Image {
     /// URL to the image.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    url: String,
+    pub(crate) url: String,
 }
 
 // TODO relocate
@@ -123,4 +123,17 @@ where
 {
     let opt = Option::deserialize(deserializer)?;
     Ok(opt.unwrap_or_default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // in order to make sure that our API clients don't throw errors if some trending topics
+    // are malformed (missing fields, null fields) we are very liberal in what we accept
+    // as trending topics
+    fn test_deserialize_topic_where_all_fields_should_fall_back_to_default() {
+        let _topic: TrendingTopic = serde_json::from_str("{}").unwrap();
+    }
 }
