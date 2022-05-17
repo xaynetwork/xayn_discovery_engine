@@ -36,6 +36,7 @@ use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
     clean_query,
+    Article,
     Client,
     CommonQueryParts,
     Filter,
@@ -46,21 +47,19 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::{
-    document::{
-        self,
-        document_from_article,
-        Document,
-        HistoricDocument,
-        TimeSpent,
-        UserReacted,
-        UserReaction,
-    },
+    document::{self, Document, HistoricDocument, TimeSpent, UserReacted, UserReaction},
     mab::{self, BetaSampler, Bucket, SelectionIter},
     ranker::Ranker,
     stack::{
         self,
         exploration,
-        filters::{filter_semantically, DuplicateFilter, SemanticFilterConfig},
+        filters::{
+            filter_semantically,
+            ArticleFilter,
+            DuplicateFilter,
+            MalformedFilter,
+            SemanticFilterConfig,
+        },
         BoxedOps,
         BreakingNews,
         Data as StackData,
@@ -184,6 +183,10 @@ struct CoreConfig {
     /// The number of times to get feed documents after which the stacks are updated without the
     /// limitation of `request_new`.
     request_after: usize,
+    /// The maximum number of top key phrases extracted from the search term in the deep search.
+    deep_search_top: usize,
+    /// The maximum number of documents returned from the deep search.
+    deep_search_max: usize,
 }
 
 impl Default for CoreConfig {
@@ -193,6 +196,8 @@ impl Default for CoreConfig {
             keep_top: 20,
             request_new: 3,
             request_after: 2,
+            deep_search_top: 3,
+            deep_search_max: 20,
         }
     }
 }
@@ -557,20 +562,12 @@ where
             );
         }
 
-        let stack_id = uuid::Uuid::nil().into(); // documents here not associated with a stack
-        let mut documents = articles
-            .into_iter()
-            .filter_map(|article| {
-                self.ranker
-                    .compute_smbert(article.excerpt_or_title())
-                    .map_err(Error::Ranker)
-                    .and_then(|embedding| {
-                        document_from_article(article, stack_id, embedding).map_err(Error::Document)
-                    })
-                    .map_err(|e| errors.push(e))
-                    .ok()
-            })
-            .collect::<Vec<_>>();
+        let (mut documents, article_errors) = articles_into_documents(
+            StackId::nil(), // these documents are not associated with a stack
+            &self.ranker,
+            articles,
+        );
+        errors.extend(article_errors);
 
         if let Err(err) = self.ranker.rank(&mut documents) {
             errors.push(Error::Ranker(err));
@@ -579,6 +576,51 @@ where
             Err(Error::Errors(errors))
         } else {
             documents.truncate(page_size as usize);
+            Ok(documents)
+        }
+    }
+
+    /// Performs a deep search regarding a document.
+    pub async fn deep_search(&self, term: &str, market: &Market) -> Result<Vec<Document>, Error> {
+        let key_phrases = self.ranker.extract_key_phrases(&clean_query(term))?;
+        if key_phrases.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let excluded_sources = &self.config.excluded_sources.read().await.clone();
+        let filter = &key_phrases
+            .iter()
+            .take(self.core_config.deep_search_top)
+            .fold(Filter::default(), |filter, key_phrase| {
+                filter.add_keyword(key_phrase)
+            });
+        let query = NewsQuery {
+            common: CommonQueryParts {
+                market: Some(market),
+                page_size: self.core_config.deep_search_max,
+                page: 1,
+                excluded_sources,
+            },
+            filter,
+            from: None,
+        };
+
+        let articles = self
+            .client
+            .query_articles(&query)
+            .await
+            .map_err(|error| Error::Client(error.into()))?;
+        let articles = MalformedFilter::apply(&[], &[], articles)?;
+        let (documents, errors) = articles_into_documents(
+            StackId::nil(), // these documents are not associated with a stack
+            &self.ranker,
+            articles,
+        );
+
+        // only return an error if all articles failed
+        if documents.is_empty() && !errors.is_empty() {
+            Err(Error::Errors(errors))
+        } else {
             Ok(documents)
         }
     }
@@ -773,10 +815,22 @@ async fn fetch_new_documents_for_stack(
             return Err(Error::StackOpFailed(error));
         }
     };
+    let (documents, errors) = articles_into_documents(stack.id(), ranker, articles);
 
-    let id = stack.id();
-    let articles_len = articles.len();
-    let (documents, articles_errors) = articles
+    // only return an error if all articles failed
+    if documents.is_empty() && !errors.is_empty() {
+        Err(Error::Errors(errors))
+    } else {
+        Ok(documents)
+    }
+}
+
+fn articles_into_documents(
+    stack_id: StackId,
+    ranker: &(impl Ranker + Send + Sync),
+    articles: Vec<Article>,
+) -> (Vec<Document>, Vec<Error>) {
+    articles
         .into_par_iter()
         .map(|article| {
             let embedding = ranker
@@ -786,23 +840,16 @@ async fn fetch_new_documents_for_stack(
                     error!("{}", error);
                     error
                 })?;
-            document_from_article(article, id, embedding).map_err(|error| {
+            (article, stack_id, embedding).try_into().map_err(|error| {
                 let error = Error::Document(error);
                 error!("{}", error);
                 error
             })
         })
-        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|result| match result {
+        .partition_map(|result| match result {
             Ok(document) => Either::Left(document),
             Err(error) => Either::Right(error),
-        });
-
-    // only push an error if the articles aren't empty for other reasons and all articles failed
-    if articles_len > 0 && articles_errors.len() == articles_len {
-        return Err(Error::Errors(articles_errors));
-    }
-
-    Ok(documents)
+        })
 }
 
 /// A discovery engine with [`xayn_discovery_engine_ai::ranker::Ranker`] as a ranker.

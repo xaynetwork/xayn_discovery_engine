@@ -29,7 +29,7 @@ pub(crate) trait ArticleFilter {
     ) -> Result<Vec<Article>, GenericError>;
 }
 
-struct MalformedFilter;
+pub(crate) struct MalformedFilter;
 
 impl MalformedFilter {
     fn is_valid(article: &Article) -> bool {
@@ -79,7 +79,7 @@ impl SourcesFilter {
 mod tests {
     use std::{collections::HashMap, convert::TryInto, iter::FromIterator};
 
-    use crate::document::{document_from_article, Document};
+    use crate::document::Document;
     use itertools::Itertools;
     use xayn_discovery_engine_providers::Article;
 
@@ -97,7 +97,9 @@ mod tests {
             .take(2)
             .map(|article| {
                 let doc = Document::default();
-                document_from_article(article.clone(), doc.stack_id, doc.smbert_embedding).unwrap()
+                (article.clone(), doc.stack_id, doc.smbert_embedding)
+                    .try_into()
+                    .unwrap()
             })
             .collect::<Vec<_>>();
 

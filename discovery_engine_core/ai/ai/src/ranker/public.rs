@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
-use xayn_discovery_engine_kpe::Config as KpeConfig;
+use xayn_discovery_engine_kpe::{Config as KpeConfig, RankedKeyPhrases};
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -44,6 +44,11 @@ impl Ranker {
     /// Computes the `SMBert` embedding of the given `sequence`.
     pub fn compute_smbert(&self, sequence: &str) -> Result<Embedding, Error> {
         self.0.compute_smbert(sequence)
+    }
+
+    /// Extracts the key phrases of the given `sequence`.
+    pub fn extract_key_phrases(&self, sequence: &str) -> Result<RankedKeyPhrases, Error> {
+        self.0.extract_key_phrases(sequence)
     }
 
     /// Ranks the given documents based on the learned user interests.

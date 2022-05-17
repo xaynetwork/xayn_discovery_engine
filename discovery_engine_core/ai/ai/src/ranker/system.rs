@@ -19,7 +19,7 @@ use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use xayn_discovery_engine_bert::SMBert;
-use xayn_discovery_engine_kpe::Pipeline as KPE;
+use xayn_discovery_engine_kpe::{Pipeline as KPE, RankedKeyPhrases};
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -86,6 +86,11 @@ impl Ranker {
     /// Computes the `SMBert` embedding of the given `sequence`.
     pub(crate) fn compute_smbert(&self, sequence: &str) -> Result<Embedding, Error> {
         self.smbert.run(sequence).map_err(Into::into)
+    }
+
+    /// Extracts the key phrases of the given `sequence`.
+    pub(crate) fn extract_key_phrases(&self, sequence: &str) -> Result<RankedKeyPhrases, Error> {
+        self.kpe.run(sequence).map_err(Into::into)
     }
 
     /// Ranks the given documents based on the learned user interests.

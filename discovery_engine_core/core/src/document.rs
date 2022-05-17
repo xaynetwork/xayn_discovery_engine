@@ -96,6 +96,21 @@ pub struct Document {
     pub resource: NewsResource,
 }
 
+impl TryFrom<(Article, StackId, Embedding)> for Document {
+    type Error = Error;
+
+    fn try_from(
+        (article, stack_id, smbert_embedding): (Article, StackId, Embedding),
+    ) -> Result<Self, Self::Error> {
+        article.try_into().map(|resource| Self {
+            id: Id::new(),
+            stack_id,
+            smbert_embedding,
+            resource,
+        })
+    }
+}
+
 /// Represents a news that is delivered by an external content API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewsResource {
@@ -210,19 +225,6 @@ pub struct UserReacted {
 
     /// Market from which the document is.
     pub market: Market,
-}
-
-pub(crate) fn document_from_article(
-    article: Article,
-    stack_id: StackId,
-    smbert_embedding: Embedding,
-) -> Result<Document, Error> {
-    Ok(Document {
-        id: Id::new(),
-        stack_id,
-        smbert_embedding,
-        resource: article.try_into()?,
-    })
 }
 
 /// Represents a [`Document`] in the document history.
