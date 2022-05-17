@@ -53,7 +53,13 @@ use crate::{
     stack::{
         self,
         exploration,
-        filters::{filter_semantically, DuplicateFilter, SemanticFilterConfig},
+        filters::{
+            filter_semantically,
+            ArticleFilter,
+            DuplicateFilter,
+            MalformedFilter,
+            SemanticFilterConfig,
+        },
         BoxedOps,
         BreakingNews,
         Data as StackData,
@@ -564,6 +570,51 @@ where
             Err(Error::Errors(errors))
         } else {
             documents.truncate(page_size as usize);
+            Ok(documents)
+        }
+    }
+
+    /// Performs a deep search regarding a document.
+    pub async fn deep_search(&self, term: &str, market: &Market) -> Result<Vec<Document>, Error> {
+        let key_phrases = self.ranker.extract_key_phrases(&clean_query(term))?;
+        if key_phrases.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let excluded_sources = &self.config.excluded_sources.read().await.clone();
+        let filter = &key_phrases
+            .iter()
+            .take(3)
+            .fold(Filter::default(), |filter, key_phrase| {
+                filter.add_keyword(key_phrase)
+            });
+        let query = NewsQuery {
+            common: CommonQueryParts {
+                market: Some(market),
+                page_size: 20,
+                page: 1,
+                excluded_sources,
+            },
+            filter,
+            from: None,
+        };
+
+        let articles = self
+            .client
+            .query_articles(&query)
+            .await
+            .map_err(|error| Error::Client(error.into()))?;
+        let articles = MalformedFilter::apply(&[], &[], articles)?;
+        let (documents, errors) = parallel_articles_into_documents(
+            StackId::nil(), // these documents are not associated with a stack
+            &self.ranker,
+            articles,
+        );
+
+        // only return an error if all articles failed
+        if documents.is_empty() && !errors.is_empty() {
+            Err(Error::Errors(errors))
+        } else {
             Ok(documents)
         }
     }
