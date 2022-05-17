@@ -31,6 +31,7 @@ void main() {
     final document = UserReacted(
       id: DocumentId(),
       stackId: StackId(),
+      title: 'title',
       snippet: 'Cloning brought back the dodo.',
       smbertEmbedding: Embedding.fromList([.9, .1]),
       reaction: UserReaction.negative,

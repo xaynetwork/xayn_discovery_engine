@@ -26,6 +26,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 class UserReacted with EquatableMixin {
   final DocumentId id;
   final StackId stackId;
+  final String title;
   final String snippet;
   final Embedding smbertEmbedding;
   final UserReaction reaction;
@@ -34,6 +35,7 @@ class UserReacted with EquatableMixin {
   UserReacted({
     required this.id,
     required this.stackId,
+    required this.title,
     required this.snippet,
     required this.smbertEmbedding,
     required this.reaction,

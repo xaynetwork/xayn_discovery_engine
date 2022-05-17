@@ -44,6 +44,8 @@ pub enum PipelineError {
     BinParams(#[from] LoadingBinParamsFailed),
     /// Failed to build the model: {0}
     ModelBuild(#[source] ModelError),
+    /// The input does not contain enough data to execute the model
+    NotEnoughData,
 }
 
 impl Pipeline {
@@ -72,7 +74,10 @@ impl Pipeline {
 
     /// Extracts the key phrases from the sequence ranked in descending order.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<RankedKeyPhrases, PipelineError> {
-        let (encoding, key_phrases) = self.tokenizer.encode(sequence);
+        let (encoding, key_phrases) = self
+            .tokenizer
+            .encode(sequence)
+            .ok_or(PipelineError::NotEnoughData)?;
         let embeddings = self.bert.run(encoding.token_ids, encoding.attention_mask)?;
         let features = self.cnn.run(&embeddings, &encoding.valid_mask)?;
         let scores = self.classifier.run(&features, &encoding.active_mask);

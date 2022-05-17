@@ -113,6 +113,7 @@ impl Ranker {
     pub(crate) fn log_user_reaction(
         &mut self,
         user_feedback: UserFeedback,
+        title: &str,
         snippet: &str,
         embedding: &Embedding,
         market: &Market,
@@ -120,7 +121,18 @@ impl Ranker {
         match user_feedback {
             UserFeedback::Relevant => {
                 let smbert = &self.smbert;
-                let key_phrases = self.kpe.run(snippet).unwrap_or_default();
+                let key_phrases = self
+                    .kpe
+                    .run(snippet)
+                    .or_else(|_| self.kpe.run(format!("{title} {snippet}")))
+                    .map(Into::into)
+                    .unwrap_or_else(|_| {
+                        vec![if !title.is_empty() {
+                            title.to_string()
+                        } else {
+                            snippet.to_string()
+                        }]
+                    });
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
                     market,

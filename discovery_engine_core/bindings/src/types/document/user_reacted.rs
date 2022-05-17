@@ -54,6 +54,17 @@ pub unsafe extern "C" fn user_reacted_place_of_snippet(place: *mut UserReacted) 
     unsafe { addr_of_mut!((*place).snippet) }
 }
 
+/// Returns a pointer to the `title` field of an [`UserReacted`].
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`UserReacted`] memory object, it
+/// might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn user_reacted_place_of_title(place: *mut UserReacted) -> *mut String {
+    unsafe { addr_of_mut!((*place).title) }
+}
+
 /// Returns a pointer to the `smbert_embedding` field of an [`UserReacted`].
 ///
 /// # Safety

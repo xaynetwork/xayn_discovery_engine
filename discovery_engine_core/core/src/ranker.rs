@@ -84,6 +84,7 @@ impl Ranker for xayn_discovery_engine_ai::ranker::Ranker {
     fn log_user_reaction(&mut self, reaction: &UserReacted) -> Result<(), GenericError> {
         self.log_user_reaction(
             reaction.reaction.into(),
+            &reaction.title,
             &reaction.snippet,
             &reaction.smbert_embedding,
             &reaction.market,

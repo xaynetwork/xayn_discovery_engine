@@ -66,12 +66,13 @@ impl Ranker {
     pub fn log_user_reaction(
         &mut self,
         user_feedback: UserFeedback,
+        title: &str,
         snippet: &str,
         embedding: &Embedding,
         market: &Market,
     ) {
         self.0
-            .log_user_reaction(user_feedback, snippet, embedding, market);
+            .log_user_reaction(user_feedback, title, snippet, embedding, market);
     }
 
     /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.

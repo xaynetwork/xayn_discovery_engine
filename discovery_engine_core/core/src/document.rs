@@ -199,6 +199,9 @@ pub struct UserReacted {
     /// Stack from which the document has been taken.
     pub stack_id: StackId,
 
+    /// Text title of the document.
+    pub title: String,
+
     /// Text snippet of the document.
     pub snippet: String,
 

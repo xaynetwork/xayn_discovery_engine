@@ -35,6 +35,7 @@ extension UserReactedFfi on UserReacted {
     return UserReacted(
       id: DocumentIdFfi.readNative(ffi.user_reacted_place_of_id(place)),
       stackId: StackIdFfi.readNative(ffi.user_reacted_place_of_stack_id(place)),
+      title: StringFfi.readNative(ffi.user_reacted_place_of_title(place)),
       snippet: StringFfi.readNative(ffi.user_reacted_place_of_snippet(place)),
       smbertEmbedding: EmbeddingFfi.readNative(
         ffi.user_reacted_place_of_smbert_embedding(place),
@@ -55,6 +56,7 @@ extension UserReactedFfi on UserReacted {
   void writeNative(final Pointer<RustUserReacted> place) {
     id.writeNative(ffi.user_reacted_place_of_id(place));
     stackId.writeNative(ffi.user_reacted_place_of_stack_id(place));
+    title.writeNative(ffi.user_reacted_place_of_snippet(place));
     snippet.writeNative(ffi.user_reacted_place_of_snippet(place));
     smbertEmbedding
         .writeNative(ffi.user_reacted_place_of_smbert_embedding(place));
