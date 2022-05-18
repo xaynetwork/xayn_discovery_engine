@@ -26,9 +26,12 @@ pub struct Filter {
 
 impl Filter {
     /// Add a keyword to filter with. All keyword are in "or" with each other.
+    ///
+    /// Words in a key phase must not match `OR` or `AND`
+    /// as they would interfere with the OR/AND query operators.
     #[must_use = "dropped changed filter"]
     pub fn add_keyword(mut self, keyword: &str) -> Self {
-        // " can interfere with the quoting that we do while constructing the filter
+        // `"` can interfere with the exact match operator
         self.keywords.push(keyword.replace('"', ""));
 
         self
@@ -36,7 +39,7 @@ impl Filter {
 
     /// Build the expression.
     pub(crate) fn build(&self) -> String {
-        let keywords = Expr::or_from_iter(self.keywords.iter().map(|k| format!("\"{}\"", k)));
+        let keywords = Expr::or_from_iter(self.keywords.iter().map(|k| format!("({})", k)));
         keywords.build()
     }
 }
@@ -95,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_filter_keywords() {
-        let expected = "\"a b\" OR \"c d\"";
+        let expected = "(a b) OR (c d)";
         let filter = Filter::default().add_keyword("a b").add_keyword("c d");
         assert_eq!(expected, filter.build());
 
@@ -106,6 +109,6 @@ mod tests {
     #[test]
     fn test_filter_remove_invalid_char() {
         let filter = Filter::default().add_keyword("a\"b");
-        assert_eq!("\"ab\"", filter.build());
+        assert_eq!("(ab)", filter.build());
     }
 }

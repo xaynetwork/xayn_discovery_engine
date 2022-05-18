@@ -27,7 +27,10 @@ pub fn clean_query(query: impl AsRef<str>) -> String {
     // we replace a symbol with a space
     let no_symbols = SYMBOLS.replace_all(query.as_ref(), " ");
     // we collapse sequence of spaces to only one
-    SEPARATORS.replace_all(&no_symbols, " ").trim().to_string()
+    SEPARATORS
+        .replace_all(&no_symbols, " ")
+        .trim()
+        .to_lowercase()
 }
 
 #[cfg(test)]
@@ -75,5 +78,10 @@ mod tests {
     #[test]
     fn adjust_spaces() {
         assert_eq!(clean_query("  a  b  c  "), "a b c");
+    }
+
+    #[test]
+    fn lowercase_query() {
+        assert_eq!(clean_query("AND OR Or aNd"), "and or or and");
     }
 }
