@@ -63,17 +63,19 @@ class SearchManager {
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleSearchClientEvent(SearchClientEvent event) =>
       event.maybeWhen(
-        searchRequested: searchRequested,
-        nextSearchBatchRequested: nextSearchBatchRequested,
-        restoreSearchRequested: restoreSearchRequested,
-        searchClosed: searchClosed,
-        searchTermRequested: searchTermRequested,
+        activeSearchRequested: activeSearchRequested,
+        nextActiveSearchBatchRequested: nextActiveSearchBatchRequested,
+        restoreActiveSearchRequested: restoreActiveSearchRequested,
+        activeSearchClosed: activeSearchClosed,
+        activeSearchTermRequested: activeSearchTermRequested,
         trendingTopicsRequested: trendingTopicsRequested,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
 
-  Future<List<api.Document>> _getSearchDocuments(ActiveSearch search) async {
+  Future<List<api.Document>> _getActiveSearchDocuments(
+    ActiveSearch search,
+  ) async {
     final List<DocumentWithActiveData> searchDocs;
 
     switch (search.searchBy) {
@@ -106,12 +108,12 @@ class SearchManager {
         .toList();
   }
 
-  /// Obtain the first batch of search documents and persist to repositories.
-  Future<EngineEvent> searchRequested(
+  /// Obtain the first batch of active search documents and persist to repositories.
+  Future<EngineEvent> activeSearchRequested(
     String searchTerm,
     SearchBy searchBy,
   ) async {
-    await searchClosed();
+    await activeSearchClosed();
 
     final search = ActiveSearch(
       searchTerm: searchTerm,
@@ -119,25 +121,25 @@ class SearchManager {
       pageSize: _config.maxSearchDocs,
       searchBy: searchBy,
     );
-    final docs = await _getSearchDocuments(search);
+    final docs = await _getActiveSearchDocuments(search);
     await _searchRepo.save(search);
-    return EngineEvent.searchRequestSucceeded(search.toApiRepr(), docs);
+    return EngineEvent.activeSearchRequestSucceeded(search.toApiRepr(), docs);
   }
 
-  /// Obtain the next batch of search documents and persist to repositories.
-  Future<EngineEvent> nextSearchBatchRequested() async {
+  /// Obtain the next batch of active search documents and persist to repositories.
+  Future<EngineEvent> nextActiveSearchBatchRequested() async {
     final search = await _searchRepo.getCurrent();
 
     if (search == null) {
       const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.nextSearchBatchRequestFailed(reason);
+      return const EngineEvent.nextActiveSearchBatchRequestFailed(reason);
     }
 
     // lets update active search params
     search.requestedPageNb += 1;
-    final docs = await _getSearchDocuments(search);
+    final docs = await _getActiveSearchDocuments(search);
     await _searchRepo.save(search);
-    return EngineEvent.nextSearchBatchRequestSucceeded(
+    return EngineEvent.nextActiveSearchBatchRequestSucceeded(
       search.toApiRepr(),
       docs,
     );
@@ -146,12 +148,12 @@ class SearchManager {
   /// Returns the list of active search documents, ordered by their global rank.
   ///
   /// That is, documents are ordered by their timestamp, then local rank.
-  Future<EngineEvent> restoreSearchRequested() async {
+  Future<EngineEvent> restoreActiveSearchRequested() async {
     final search = await _searchRepo.getCurrent();
 
     if (search == null) {
       const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.restoreSearchFailed(reason);
+      return const EngineEvent.restoreActiveSearchFailed(reason);
     }
 
     final allDocs = await _docRepo.fetchAll();
@@ -162,7 +164,7 @@ class SearchManager {
 
     if (searchDocs.isEmpty) {
       const reason = SearchFailureReason.noResultsAvailable;
-      return const EngineEvent.restoreSearchFailed(reason);
+      return const EngineEvent.restoreActiveSearchFailed(reason);
     }
 
     searchDocs.sort((doc1, doc2) {
@@ -174,19 +176,19 @@ class SearchManager {
 
     final docs = searchDocs.map((doc) => doc.toApiRepr()).toList();
 
-    return EngineEvent.restoreSearchSucceeded(search.toApiRepr(), docs);
+    return EngineEvent.restoreActiveSearchSucceeded(search.toApiRepr(), docs);
   }
 
   /// Return the active search term.
-  Future<EngineEvent> searchTermRequested() async {
+  Future<EngineEvent> activeSearchTermRequested() async {
     final search = await _searchRepo.getCurrent();
 
     if (search == null) {
       const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.searchTermRequestFailed(reason);
+      return const EngineEvent.activeSearchTermRequestFailed(reason);
     }
 
-    return EngineEvent.searchTermRequestSucceeded(search.searchTerm);
+    return EngineEvent.activeSearchTermRequestSucceeded(search.searchTerm);
   }
 
   /// Return the current trending topics.
@@ -205,7 +207,7 @@ class SearchManager {
   }
 
   /// Clear the active search and deactivate interacted search documents.
-  Future<EngineEvent> searchClosed() async {
+  Future<EngineEvent> activeSearchClosed() async {
     await _searchRepo.clear();
 
     final allDocs = await _docRepo.fetchAll();

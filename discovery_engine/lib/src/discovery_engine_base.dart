@@ -33,14 +33,14 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextFeedBatchRequestSucceeded,
         ExcludedSourcesListRequestSucceeded,
         ExcludedSourcesListRequestFailed,
-        SearchRequestSucceeded,
-        SearchRequestFailed,
-        NextSearchBatchRequestSucceeded,
-        NextSearchBatchRequestFailed,
-        SearchTermRequestSucceeded,
-        SearchTermRequestFailed,
-        RestoreSearchSucceeded,
-        RestoreSearchFailed,
+        ActiveSearchRequestSucceeded,
+        ActiveSearchRequestFailed,
+        NextActiveSearchBatchRequestSucceeded,
+        NextActiveSearchBatchRequestFailed,
+        ActiveSearchTermRequestSucceeded,
+        ActiveSearchTermRequestFailed,
+        RestoreActiveSearchSucceeded,
+        RestoreActiveSearchFailed,
         RestoreFeedFailed,
         RestoreFeedSucceeded,
         UserReaction,
@@ -364,43 +364,44 @@ class DiscoveryEngine {
     });
   }
 
-  /// Requests a new search for [Document]s related to `queryTerm`.
+  /// Requests a new active search for [Document]s related to `queryTerm`.
   ///
   /// In response it can return:
-  /// - [SearchRequestSucceeded] for successful response, containing a list of
+  /// - [ActiveSearchRequestSucceeded] for successful response, containing a list of
   /// [Document]s
-  /// - [SearchRequestFailed] for failed response, with a reason for failure
+  /// - [ActiveSearchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestSearch(String queryTerm) {
+  Future<EngineEvent> requestQuerySearch(String queryTerm) {
     return _trySend(() async {
-      final event = ClientEvent.searchRequested(queryTerm, SearchBy.query);
+      final event =
+          ClientEvent.activeSearchRequested(queryTerm, SearchBy.query);
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        searchRequestSucceeded: true,
-        searchRequestFailed: true,
+        activeSearchRequestSucceeded: true,
+        activeSearchRequestFailed: true,
         engineExceptionRaised: true,
       );
     });
   }
 
-  /// Requests for [Document]s of a specific `topic`.
+  /// Requests a new active search for [Document]s of a specific `topic`.
   ///
   /// In response it can return:
-  /// - [SearchRequestSucceeded] for successful response, containing a list of
+  /// - [ActiveSearchRequestSucceeded] for successful response, containing a list of
   /// [Document]s
-  /// - [SearchRequestFailed] for failed response, with a reason for failure
+  /// - [ActiveSearchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestTopic(String topic) {
+  Future<EngineEvent> requestTopicSearch(String topic) {
     return _trySend(() async {
-      final event = ClientEvent.searchRequested(topic, SearchBy.topic);
+      final event = ClientEvent.activeSearchRequested(topic, SearchBy.topic);
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        searchRequestSucceeded: true,
-        searchRequestFailed: true,
+        activeSearchRequestSucceeded: true,
+        activeSearchRequestFailed: true,
         engineExceptionRaised: true,
       );
     });
@@ -409,19 +410,19 @@ class DiscoveryEngine {
   /// Requests next batch of [Document]s related to the current active search.
   ///
   /// In response it can return:
-  /// - [NextSearchBatchRequestSucceeded] for successful response, containing a list of
+  /// - [NextActiveSearchBatchRequestSucceeded] for successful response, containing a list of
   /// [Document]s
-  /// - [NextSearchBatchRequestFailed] for failed response, with a reason for failure
+  /// - [NextActiveSearchBatchRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> requestNextSearchBatch() {
+  Future<EngineEvent> requestNextActiveSearchBatch() {
     return _trySend(() async {
-      const event = ClientEvent.nextSearchBatchRequested();
+      const event = ClientEvent.nextActiveSearchBatchRequested();
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        nextSearchBatchRequestSucceeded: true,
-        nextSearchBatchRequestFailed: true,
+        nextActiveSearchBatchRequestSucceeded: true,
+        nextActiveSearchBatchRequestFailed: true,
         engineExceptionRaised: true,
       );
     });
@@ -430,40 +431,40 @@ class DiscoveryEngine {
   /// Restores latest active search that wasn't closed.
   ///
   /// In response it can return:
-  /// - [RestoreSearchSucceeded] for successful response, containing a list of
+  /// - [RestoreActiveSearchSucceeded] for successful response, containing a list of
   /// [Document]s
-  /// - [RestoreSearchFailed] for failed response, with a reason for failure
+  /// - [RestoreActiveSearchFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> restoreSearch() {
+  Future<EngineEvent> restoreActiveSearch() {
     return _trySend(() async {
-      const event = ClientEvent.restoreSearchRequested();
+      const event = ClientEvent.restoreActiveSearchRequested();
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        restoreSearchSucceeded: true,
-        restoreSearchFailed: true,
+        restoreActiveSearchSucceeded: true,
+        restoreActiveSearchFailed: true,
         engineExceptionRaised: true,
       );
     });
   }
 
-  /// Returns the current search term.
+  /// Returns the current active search term.
   ///
   /// In response it can return:
-  /// - [SearchTermRequestSucceeded] for successful response, containing the
+  /// - [ActiveSearchTermRequestSucceeded] for successful response, containing the
   /// search term
-  /// - [SearchTermRequestFailed] for failed response, with a reason for failure
+  /// - [ActiveSearchTermRequestFailed] for failed response, with a reason for failure
   /// - [EngineExceptionReason] for unexpected exception raised, with a reason
   /// for such failure.
-  Future<EngineEvent> getSearchTerm() {
+  Future<EngineEvent> getActiveSearchTerm() {
     return _trySend(() async {
-      const event = ClientEvent.searchTermRequested();
+      const event = ClientEvent.activeSearchTermRequested();
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        searchTermRequestSucceeded: true,
-        searchTermRequestFailed: true,
+        activeSearchTermRequestSucceeded: true,
+        activeSearchTermRequestFailed: true,
         engineExceptionRaised: true,
       );
     });
@@ -480,9 +481,9 @@ class DiscoveryEngine {
   /// - [ClientEventSucceeded] indicating a successful operation
   /// - [EngineExceptionReason] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> closeSearch() {
+  Future<EngineEvent> closeActiveSearch() {
     return _trySend(() async {
-      const event = ClientEvent.searchClosed();
+      const event = ClientEvent.activeSearchClosed();
       final response = await _manager.send(event);
 
       return response.mapEvent(
@@ -565,14 +566,16 @@ extension _MapEvent on EngineEvent {
     bool? clientEventSucceeded,
     bool? engineExceptionRaised,
     bool? documentsUpdated,
-    bool? searchRequestSucceeded,
-    bool? searchRequestFailed,
-    bool? nextSearchBatchRequestSucceeded,
-    bool? nextSearchBatchRequestFailed,
-    bool? restoreSearchSucceeded,
-    bool? restoreSearchFailed,
-    bool? searchTermRequestSucceeded,
-    bool? searchTermRequestFailed,
+    bool? activeSearchRequestSucceeded,
+    bool? activeSearchRequestFailed,
+    bool? nextActiveSearchBatchRequestSucceeded,
+    bool? nextActiveSearchBatchRequestFailed,
+    bool? restoreActiveSearchSucceeded,
+    bool? restoreActiveSearchFailed,
+    bool? activeSearchTermRequestSucceeded,
+    bool? activeSearchTermRequestFailed,
+    bool? deepSearchRequestSucceeded,
+    bool? deepSearchRequestFailed,
     bool? trendingTopicsRequestSucceeded,
     bool? trendingTopicsRequestFailed,
     bool? trustedSourcesListRequestSucceeded,
@@ -598,17 +601,23 @@ extension _MapEvent on EngineEvent {
         clientEventSucceeded: _maybePassThrough(clientEventSucceeded),
         engineExceptionRaised: _maybePassThrough(engineExceptionRaised),
         documentsUpdated: _maybePassThrough(documentsUpdated),
-        searchRequestSucceeded: _maybePassThrough(searchRequestSucceeded),
-        searchRequestFailed: _maybePassThrough(searchRequestFailed),
-        nextSearchBatchRequestSucceeded:
-            _maybePassThrough(nextSearchBatchRequestSucceeded),
-        nextSearchBatchRequestFailed:
-            _maybePassThrough(nextSearchBatchRequestFailed),
-        restoreSearchSucceeded: _maybePassThrough(restoreSearchSucceeded),
-        restoreSearchFailed: _maybePassThrough(restoreSearchFailed),
-        searchTermRequestSucceeded:
-            _maybePassThrough(searchTermRequestSucceeded),
-        searchTermRequestFailed: _maybePassThrough(searchTermRequestFailed),
+        activeSearchRequestSucceeded:
+            _maybePassThrough(activeSearchRequestSucceeded),
+        activeSearchRequestFailed: _maybePassThrough(activeSearchRequestFailed),
+        nextActiveSearchBatchRequestSucceeded:
+            _maybePassThrough(nextActiveSearchBatchRequestSucceeded),
+        nextActiveSearchBatchRequestFailed:
+            _maybePassThrough(nextActiveSearchBatchRequestFailed),
+        restoreActiveSearchSucceeded:
+            _maybePassThrough(restoreActiveSearchSucceeded),
+        restoreActiveSearchFailed: _maybePassThrough(restoreActiveSearchFailed),
+        activeSearchTermRequestSucceeded:
+            _maybePassThrough(activeSearchTermRequestSucceeded),
+        activeSearchTermRequestFailed:
+            _maybePassThrough(activeSearchTermRequestFailed),
+        deepSearchRequestSucceeded:
+            _maybePassThrough(deepSearchRequestSucceeded),
+        deepSearchRequestFailed: _maybePassThrough(deepSearchRequestFailed),
         trendingTopicsRequestSucceeded:
             _maybePassThrough(trendingTopicsRequestSucceeded),
         trendingTopicsRequestFailed:
