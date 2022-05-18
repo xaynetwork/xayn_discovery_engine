@@ -65,7 +65,7 @@ impl ValidMask {
 
     /// Checks if the valid mask is valid, i.e. at least `key_phrase_size` valid entries.
     pub(crate) fn is_valid(&self, key_phrase_size: usize) -> bool {
-        dbg!(dbg!(self.count()) >= dbg!(key_phrase_size))
+        self.count() >= key_phrase_size
     }
 }
 
@@ -96,11 +96,10 @@ pub(crate) struct Encoding {
 impl Encoding {
     /// Checks if all parts of the encoding are valid.
     pub(crate) fn is_valid(&self, vocab_size: usize, key_phrase_size: usize) -> bool {
-        dbg!(self.active_mask.is_valid());
-        dbg!(self.token_ids.is_valid(vocab_size))
-            && dbg!(self.attention_mask.is_valid())
-            && dbg!(self.valid_mask.is_valid(key_phrase_size))
-            && dbg!(self.active_mask.is_valid())
+        self.token_ids.is_valid(vocab_size)
+            && self.attention_mask.is_valid()
+            && self.valid_mask.is_valid(key_phrase_size)
+            && self.active_mask.is_valid()
     }
 }
 
