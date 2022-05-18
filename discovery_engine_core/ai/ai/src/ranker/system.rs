@@ -130,14 +130,17 @@ impl Ranker {
                     .kpe
                     .run(snippet)
                     .or_else(|_| self.kpe.run(format!("{title} {snippet}")))
-                    .map(Into::into)
-                    .unwrap_or_else(|_| {
-                        vec![if !title.is_empty() {
-                            title.to_string()
-                        } else {
-                            snippet.to_string()
-                        }]
-                    });
+                    .map_or_else(
+                        #[allow(clippy::if_not_else)]
+                        |_| {
+                            vec![if !title.is_empty() {
+                                title.to_string()
+                            } else {
+                                snippet.to_string()
+                            }]
+                        },
+                        Into::into,
+                    );
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
                     market,
