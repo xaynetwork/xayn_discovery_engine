@@ -388,15 +388,20 @@ where
         self.ranker.remove_key_phrases(&old_markets);
         drop(markets_guard);
 
+        self.clear_stack_data().await;
+
+        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+            .await
+    }
+
+    /// Clears the data of all stacks
+    async fn clear_stack_data(&mut self) {
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
             stack.data = StackData::default();
         }
         drop(stacks); // guard
         self.exploration_stack.data = StackData::default();
-
-        self.update_stacks_for_all_markets(history, self.core_config.request_new)
-            .await
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
@@ -664,6 +669,20 @@ where
 
         self.update_stacks_for_all_markets(history, self.core_config.request_new)
             .await
+    }
+
+    /// Resets the AI state
+    pub async fn reset_ai(&mut self) -> Result<(), Error> {
+        self.clear_stack_data().await;
+        self.exploration_stack =
+            exploration::Stack::new(StackData::default()).map_err(Error::InvalidStack)?;
+        self.ranker.reset_ai();
+
+        self.update_stacks_for_all_markets(&[], self.core_config.request_new)
+            .await
+            .ok();
+
+        Ok(())
     }
 }
 

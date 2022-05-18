@@ -152,6 +152,12 @@ class MockEngine implements Engine {
   Future<void> dispose() async {
     _incrementCount('dispose');
   }
+
+  @override
+  Future<void> resetAi() async {
+    _incrementCount('resetAi');
+    return;
+  }
 }
 
 const mockTrendingTopic = TrendingTopic(

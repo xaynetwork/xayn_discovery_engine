@@ -99,6 +99,9 @@ abstract class Engine {
 
   /// Disposes the engine.
   Future<void> dispose();
+
+  /// Resets the AI state of the engine.
+  Future<void> resetAi();
 }
 
 /// Passed to constructors/initializers of `Engine` implementing classes.

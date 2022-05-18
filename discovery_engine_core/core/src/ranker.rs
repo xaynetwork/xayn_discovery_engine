@@ -65,6 +65,9 @@ pub trait Ranker {
 
     /// Removes all data associated with given market.
     fn remove_key_phrases(&mut self, markets: &[Market]);
+
+    /// Resets the AI state, but not configurations.
+    fn reset_ai(&mut self);
 }
 
 impl Ranker for xayn_discovery_engine_ai::ranker::Ranker {
@@ -122,6 +125,10 @@ impl Ranker for xayn_discovery_engine_ai::ranker::Ranker {
 
     fn remove_key_phrases(&mut self, markets: &[Market]) {
         self.remove_key_phrases(markets);
+    }
+
+    fn reset_ai(&mut self) {
+        self.reset_ai();
     }
 }
 
