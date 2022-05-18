@@ -183,6 +183,11 @@ class EngineEvent with _$EngineEvent {
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.clientEventSucceeded() = ClientEventSucceeded;
 
+  /// Event created as a success response to various client events, like
+  /// UserReactionChanged.
+  @Implements<SystemEngineEvent>()
+  const factory EngineEvent.resetAiSucceeded() = ResetAiSucceeded;
+
   /// Event created by the engine for a multitude of generic reasons, also
   /// as a "failure" event in response to various events, like
   /// UserReactionChanged.

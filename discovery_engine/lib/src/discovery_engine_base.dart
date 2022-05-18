@@ -514,6 +514,22 @@ class DiscoveryEngine {
     });
   }
 
+  /// Reset the state of the AI.
+  ///
+  /// This will not touch configurations like the
+  /// market or trusted/excluded sources.
+  Future<EngineEvent> resetAi() {
+    return _trySend(() async {
+      const event = ClientEvent.resetAi();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        resetAiSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
   /// Send a [ClientEvent] to the [DiscoveryEngine] and wait for a response.
   Future<EngineEvent> send(ClientEvent event) =>
       _trySend(() => _manager.send(event));
@@ -564,6 +580,7 @@ extension _MapEvent on EngineEvent {
     bool? fetchingAssetsProgressed,
     bool? fetchingAssetsFinished,
     bool? clientEventSucceeded,
+    bool? resetAiSucceeded,
     bool? engineExceptionRaised,
     bool? documentsUpdated,
     bool? activeSearchRequestSucceeded,
@@ -599,6 +616,7 @@ extension _MapEvent on EngineEvent {
         fetchingAssetsProgressed: _maybePassThrough(fetchingAssetsProgressed),
         fetchingAssetsFinished: _maybePassThrough(fetchingAssetsFinished),
         clientEventSucceeded: _maybePassThrough(clientEventSucceeded),
+        resetAiSucceeded: _maybePassThrough(resetAiSucceeded),
         engineExceptionRaised: _maybePassThrough(engineExceptionRaised),
         documentsUpdated: _maybePassThrough(documentsUpdated),
         activeSearchRequestSucceeded:
