@@ -225,6 +225,13 @@ class EventHandler {
     final activeDataRepository = HiveActiveDocumentDataRepository();
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
+    Future<void> clearAiState() async {
+      await documentRepository.box.clear();
+      await activeDataRepository.box.clear();
+      await activeSearchRepository.box.clear();
+      await engineStateRepository.box.clear();
+    }
+
     final sourcePreferenceRepository = HiveSourcePreferenceRepository();
 
     final setupData = await _fetchAssets(config);
@@ -286,7 +293,12 @@ class EventHandler {
       activeDataRepository,
       engineStateRepository,
     );
-    _systemManager = SystemManager(engine, eventConfig, documentRepository);
+    _systemManager = SystemManager(
+      engine,
+      eventConfig,
+      documentRepository,
+      clearAiState,
+    );
 
     _engine = engine;
 

@@ -31,8 +31,14 @@ class SystemManager {
   final Engine _engine;
   final EventConfig _config;
   final DocumentRepository _docRepo;
+  final Future<void> Function() _clearAiState;
 
-  SystemManager(this._engine, this._config, this._docRepo);
+  SystemManager(
+    this._engine,
+    this._config,
+    this._docRepo,
+    this._clearAiState,
+  );
 
   @visibleForTesting
   int get maxFeedDocs => _config.maxFeedDocs;
@@ -80,8 +86,8 @@ class SystemManager {
   }
 
   Future<EngineEvent> resetAi() async {
+    await _clearAiState();
     // TODO implement
-    //  - check all repositories and clear all which need clearing
     //  - call rust engine reset
     return const EngineEvent.resetAiSucceeded();
   }
