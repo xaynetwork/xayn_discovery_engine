@@ -259,7 +259,7 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/_sn"))
-            .and(query_param("q", "\"Climate change\""))
+            .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "AU"))
@@ -306,7 +306,7 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/_sn"))
-            .and(query_param("q", "\"Climate change\""))
+            .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
             .and(query_param("countries", "DE"))
@@ -355,7 +355,7 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/_sn"))
-            .and(query_param("q", "\"Bill Gates\" OR \"Tim Cook\""))
+            .and(query_param("q", "(Bill Gates) OR (Tim Cook)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
             .and(query_param("countries", "DE"))
