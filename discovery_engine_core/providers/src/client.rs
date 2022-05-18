@@ -241,11 +241,7 @@ mod tests {
     use super::*;
     use chrono::NaiveDateTime;
 
-    use crate::{
-        bing::{Image, SearchQuery, TrendingTopic},
-        newscatcher::Topic,
-        TrendingQuery,
-    };
+    use crate::newscatcher::Topic;
     use wiremock::{
         matchers::{header, method, path, query_param},
         Mock,
@@ -457,45 +453,5 @@ mod tests {
         };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
-    }
-
-    #[tokio::test]
-    async fn test_trending() {
-        let mock_server = MockServer::start().await;
-        let client = Client::new("test-token", mock_server.uri());
-
-        let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/trending-topics.json"));
-
-        Mock::given(method("GET"))
-            .and(path("/_tt"))
-            .and(query_param("mkt", "en-US"))
-            .and(header("Authorization", "Bearer test-token"))
-            .respond_with(tmpl)
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-
-        let market = &Market {
-            lang_code: "en".to_string(),
-            country_code: "US".to_string(),
-        };
-        let params = TrendingQuery { market };
-
-        let topics = client.query_trending(&params).await.unwrap();
-        assert_eq!(topics.len(), 25);
-
-        let topic = topics.get(0).unwrap();
-        let expected = TrendingTopic {
-            name: "40% out of stock".to_string(),
-            query: SearchQuery {
-                text: "Baby formula shortage 40".to_string(),
-            },
-            image: Image {
-                url: "https://example.com/image.jpg".to_string(),
-            },
-        };
-
-        assert_eq!(format!("{:?}", topic), format!("{:?}", expected));
     }
 }

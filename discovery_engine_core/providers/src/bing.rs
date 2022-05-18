@@ -35,8 +35,8 @@ impl Query for TrendingQuery<'_> {
 
         let query = &mut url.query_pairs_mut();
 
-        let country = &self.market.country_code;
         let lang = &self.market.lang_code;
+        let country = &self.market.country_code;
         query.append_pair("mkt", &format!("{}-{}", lang, country));
 
         Ok(())
@@ -127,6 +127,13 @@ where
 
 #[cfg(test)]
 mod tests {
+    use wiremock::{
+        matchers::{header, method, path, query_param},
+        Mock,
+        MockServer,
+        ResponseTemplate,
+    };
+
     use super::*;
 
     #[test]
@@ -135,5 +142,45 @@ mod tests {
     // as trending topics
     fn test_deserialize_topic_where_all_fields_should_fall_back_to_default() {
         let _topic: TrendingTopic = serde_json::from_str("{}").unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_trending() {
+        let mock_server = MockServer::start().await;
+        let client = Client::new("test-token", mock_server.uri());
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/trending-topics.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/_tt"))
+            .and(query_param("mkt", "en-US"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = &Market {
+            lang_code: "en".to_string(),
+            country_code: "US".to_string(),
+        };
+        let params = TrendingQuery { market };
+
+        let topics = client.query_trending(&params).await.unwrap();
+        assert_eq!(topics.len(), 25);
+
+        let topic = topics.get(0).unwrap();
+        let expected = TrendingTopic {
+            name: "40% out of stock".to_string(),
+            query: SearchQuery {
+                text: "Baby formula shortage 40".to_string(),
+            },
+            image: Image {
+                url: "https://example.com/image.jpg".to_string(),
+            },
+        };
+
+        assert_eq!(format!("{:?}", topic), format!("{:?}", expected));
     }
 }
