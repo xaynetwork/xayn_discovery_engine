@@ -123,10 +123,7 @@ impl Embeddings {
             .flatten()
             .copied()
             .collect::<Array1<f32>>()
-            .into_shape((
-                valid_mask.iter().filter(|valid| **valid).count(),
-                self.shape()[2],
-            ))
+            .into_shape((valid_mask.count(), self.shape()[2]))
             .map_err(Into::into)
     }
 }

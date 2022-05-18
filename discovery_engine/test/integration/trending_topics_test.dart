@@ -27,7 +27,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
     show TestEngineData, initEngine, setupTestEngineData;
-import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
+import 'utils/local_newsapi_server.dart' show LocalNewsApiServer, ReplyWith;
 
 void main() {
   setupLogging();
@@ -77,7 +77,7 @@ void main() {
           ]),
         );
 
-        server.replyWithError = true;
+        server.replyWith = ReplyWith.error;
         final trendingTopicsResponse = await engine.requestTrendingTopics();
         expect(trendingTopicsResponse, isA<TrendingTopicsRequestFailed>());
         expect(

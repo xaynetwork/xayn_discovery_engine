@@ -29,9 +29,15 @@ import 'dart:io'
 const kMockDataPath = '/test/integration/utils/data/';
 const kMaxCheckAttempts = 5;
 
+enum ReplyWith {
+  error,
+  empty,
+  data,
+}
+
 class LocalNewsApiServer {
   final HttpServer _server;
-  bool _returnError = false;
+  ReplyWith _replyWith = ReplyWith.data;
   String _snFile = 'climate-change.json';
   String _lhFile = 'latest-headlines.json';
   String _ttFile = 'trending-topics.json';
@@ -44,32 +50,38 @@ class LocalNewsApiServer {
   Future<void> _handleRequests() async {
     await for (final request in _server) {
       lastUri = request.uri;
-      if (_returnError) {
-        _replyWithError(request);
-      } else {
-        switch (request.uri.path) {
-          case '/_sn':
-            await _replyWithData(request, _snFile);
-            break;
-          case '/_lh':
-            await _replyWithData(request, _lhFile);
-            break;
-          case '/_tt':
-            await _replyWithData(request, _ttFile);
-            break;
-          case '/_health':
-            _replyWithOk(request);
-            break;
-          default:
-            _replyWithError(request);
-        }
+      switch (_replyWith) {
+        case ReplyWith.error:
+          _replyWithError(request);
+          break;
+        case ReplyWith.empty:
+          _replyWithEmpty(request);
+          break;
+        case ReplyWith.data:
+          switch (request.uri.path) {
+            case '/_sn':
+              await _replyWithData(request, _snFile);
+              break;
+            case '/_lh':
+              await _replyWithData(request, _lhFile);
+              break;
+            case '/_tt':
+              await _replyWithData(request, _ttFile);
+              break;
+            case '/_health':
+              _replyWithOk(request);
+              break;
+            default:
+              _replyWithError(request);
+              break;
+          }
       }
 
       await request.response.close();
     }
   }
 
-  set replyWithError(bool flag) => _returnError = flag;
+  set replyWith(ReplyWith flag) => _replyWith = flag;
 
   set snFile(String filename) => _snFile = filename;
 
@@ -79,10 +91,10 @@ class LocalNewsApiServer {
 
   int get port => _server.port;
 
-  static Future<LocalNewsApiServer> start() async {
+  static Future<LocalNewsApiServer> start({bool verbose = false}) async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final wrapper = LocalNewsApiServer._(server);
-    await _waitUntilServerIsUpOrThrow(server.port);
+    await _waitUntilServerIsUpOrThrow(server.port, verbose);
     return wrapper;
   }
 
@@ -91,7 +103,7 @@ class LocalNewsApiServer {
   }
 }
 
-Future<void> _waitUntilServerIsUpOrThrow(int port) async {
+Future<void> _waitUntilServerIsUpOrThrow(int port, bool verbose) async {
   var attempts = 1;
   HttpClient client = HttpClient();
   while (attempts <= kMaxCheckAttempts) {
@@ -99,12 +111,18 @@ Future<void> _waitUntilServerIsUpOrThrow(int port) async {
     try {
       client = HttpClient();
 
-      print('Checking if connection works');
+      if (verbose) {
+        print('Checking if connection works');
+      }
       final HttpClientRequest request =
           await client.get('127.0.0.1', port, '/_health');
-      print('Connected to 127.0.0.1:$port');
+      if (verbose) {
+        print('Connected to 127.0.0.1:$port');
+      }
       final HttpClientResponse response = await request.close();
-      print('Got a response');
+      if (verbose) {
+        print('Got a response');
+      }
       final stringData = await response.transform(utf8.decoder).join();
       if (stringData != 'OK') {
         throw Exception('received wrong response $stringData');
@@ -122,6 +140,12 @@ Future<void> _waitUntilServerIsUpOrThrow(int port) async {
   throw Exception(
     'Was not able to connect to test server after $attempts attempts',
   );
+}
+
+void _replyWithEmpty(HttpRequest request) {
+  request.response
+    ..statusCode = HttpStatus.ok
+    ..write('{"status": "ok", "total_pages": 0}');
 }
 
 Future<void> _replyWithData(HttpRequest request, String filename) async {

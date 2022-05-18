@@ -41,6 +41,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         ActiveSearchTermRequestFailed,
         RestoreActiveSearchSucceeded,
         RestoreActiveSearchFailed,
+        DeepSearchRequestSucceeded,
+        DeepSearchRequestFailed,
         RestoreFeedFailed,
         RestoreFeedSucceeded,
         UserReaction,
@@ -54,6 +56,8 @@ import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     as entry_point show main;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show AvailableSource, Source;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
@@ -488,6 +492,27 @@ class DiscoveryEngine {
 
       return response.mapEvent(
         clientEventSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Requests a new deep search for [Document]s related to `term` and `market`.
+  ///
+  /// In response it can return:
+  /// - [DeepSearchRequestSucceeded] for successful response, containing a list of
+  /// [Document]s
+  /// - [DeepSearchRequestFailed] for failed response, with a reason for failure
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
+  Future<EngineEvent> requestDeepSearch(String term, FeedMarket market) {
+    return _trySend(() async {
+      final event = ClientEvent.deepSearchRequested(term, market);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        deepSearchRequestSucceeded: true,
+        deepSearchRequestFailed: true,
         engineExceptionRaised: true,
       );
     });

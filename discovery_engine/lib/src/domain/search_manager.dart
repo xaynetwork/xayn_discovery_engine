@@ -29,6 +29,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
+    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/active_search_repo.dart'
@@ -68,6 +70,7 @@ class SearchManager {
         restoreActiveSearchRequested: restoreActiveSearchRequested,
         activeSearchClosed: activeSearchClosed,
         activeSearchTermRequested: activeSearchTermRequested,
+        deepSearchRequested: deepSearchRequested,
         trendingTopicsRequested: trendingTopicsRequested,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
@@ -189,6 +192,40 @@ class SearchManager {
     }
 
     return EngineEvent.activeSearchTermRequestSucceeded(search.searchTerm);
+  }
+
+  /// Obtains the deep search documents related to `term` and `market`.
+  ///
+  /// These documents aren't persisted to repositories.
+  Future<EngineEvent> deepSearchRequested(
+    String term,
+    FeedMarket market,
+  ) async {
+    final List<DocumentWithActiveData> docs;
+    try {
+      docs = await _engine.deepSearch(term, market);
+    } catch (e) {
+      const fewWords =
+          'The sequence must contain at least `KEY_PHRASE_SIZE` valid words';
+      const notFound = 'HTTP status client error (404 Not Found) for url';
+      final message = e.toString();
+      if (message.contains(fewWords) || message.contains(notFound)) {
+        return const EngineEvent.deepSearchRequestFailed(
+          SearchFailureReason.noResultsAvailable,
+        );
+      }
+      rethrow;
+    }
+
+    if (docs.isEmpty) {
+      return const EngineEvent.deepSearchRequestFailed(
+        SearchFailureReason.noResultsAvailable,
+      );
+    }
+
+    return EngineEvent.deepSearchRequestSucceeded(
+      docs.map((doc) => doc.document.toApiRepr()).toList(),
+    );
   }
 
   /// Return the current trending topics.

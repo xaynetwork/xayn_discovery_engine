@@ -21,7 +21,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
     show TestEngineData, initEngine, setupTestEngineData;
-import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
+import 'utils/local_newsapi_server.dart' show LocalNewsApiServer, ReplyWith;
 
 void main() {
   setupLogging();
@@ -48,7 +48,7 @@ void main() {
 
     test('news api request error should not raise an engine init exception',
         () async {
-      server.replyWithError = true;
+      server.replyWith = ReplyWith.error;
       final engine = await initEngine(data, server.port);
       expect(engine, isA<DiscoveryEngine>());
       await engine.dispose();
