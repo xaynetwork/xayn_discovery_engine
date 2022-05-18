@@ -185,7 +185,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Performs a deep search regarding a document.
+    /// Performs a deep search by term and market.
     pub async fn deep_search(
         engine: &SharedEngine,
         term: Box<String>,

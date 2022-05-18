@@ -232,7 +232,7 @@ class DiscoveryEngineFfi implements Engine {
         .toDocumentListWithActiveData(isSearched: true);
   }
 
-  /// Performs a deep search regarding a document.
+  /// Performs a deep search by term and market.
   @override
   Future<List<DocumentWithActiveData>> deepSearch(
     String term,

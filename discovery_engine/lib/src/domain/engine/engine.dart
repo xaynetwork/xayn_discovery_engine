@@ -88,7 +88,7 @@ abstract class Engine {
     int pageSize,
   );
 
-  /// Performs a deep search regarding a document.
+  /// Performs a deep search by term and market.
   Future<List<DocumentWithActiveData>> deepSearch(
     String term,
     FeedMarket market,
