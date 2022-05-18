@@ -20,7 +20,7 @@ use ndarray::Array2;
 use crate::{model::classifier::Scores, tokenizer::encoding::ActiveMask};
 
 /// The collection of all potential key phrases.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct KeyPhrases<const KEY_PHRASE_SIZE: usize> {
     choices: Vec<String>,
     mentions: Vec<i64>,
@@ -31,6 +31,12 @@ pub(crate) struct KeyPhrases<const KEY_PHRASE_SIZE: usize> {
 /// The ranked key phrases in descending order.
 #[derive(Clone, Debug, Default, Deref, From)]
 pub struct RankedKeyPhrases(pub(crate) Vec<String>);
+
+impl From<RankedKeyPhrases> for Vec<String> {
+    fn from(v: RankedKeyPhrases) -> Vec<String> {
+        v.0
+    }
+}
 
 impl<const KEY_PHRASE_SIZE: usize> KeyPhrases<KEY_PHRASE_SIZE> {
     /// Collects all potential key phrases from the words.

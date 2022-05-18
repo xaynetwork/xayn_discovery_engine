@@ -90,6 +90,7 @@ class DocumentManager {
       UserReacted(
         id: id,
         stackId: doc.stackId,
+        title: doc.resource.title,
         snippet: doc.snippet,
         smbertEmbedding: smbertEmbedding,
         reaction: userReaction,

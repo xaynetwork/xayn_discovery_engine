@@ -110,7 +110,7 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
     pub(crate) fn encode(
         &self,
         sequence: impl AsRef<str>,
-    ) -> (Encoding, KeyPhrases<KEY_PHRASE_SIZE>) {
+    ) -> Option<(Encoding, KeyPhrases<KEY_PHRASE_SIZE>)> {
         let sequence = sequence.as_ref();
         let encoding = self.tokenizer.encode(sequence);
         let (token_ids, _, _, _, ref offsets, _, attention_mask, overflowing) = encoding.into();
@@ -130,9 +130,10 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
             valid_mask,
             active_mask,
         };
-        debug_assert!(encoding.is_valid(self.tokenizer.vocab_size(), KEY_PHRASE_SIZE));
 
-        (encoding, key_phrases)
+        encoding
+            .is_valid(self.tokenizer.vocab_size(), KEY_PHRASE_SIZE)
+            .then(|| (encoding, key_phrases))
     }
 }
 
@@ -244,7 +245,7 @@ mod tests {
     fn test_encode_exact() {
         let shape = (1, 10);
         let tokenizer = tokenizer(shape.1);
-        let (encoding, _) = tokenizer.encode(EXACT_SEQUENCE);
+        let (encoding, _) = tokenizer.encode(EXACT_SEQUENCE).unwrap();
         assert_eq!(
             encoding.token_ids.0,
             ArrayView2::from_shape(
@@ -285,7 +286,7 @@ mod tests {
     fn test_encode_padded() {
         let shape = (1, 10);
         let tokenizer = tokenizer(shape.1);
-        let (encoding, _) = tokenizer.encode(SHORT_SEQUENCE);
+        let (encoding, _) = tokenizer.encode(SHORT_SEQUENCE).unwrap();
         assert_eq!(
             encoding.token_ids.0,
             ArrayView2::from_shape(shape, &[2, 2584, 1693, 1624, 69469, 1599, 5, 3, 0, 0]).unwrap(),
@@ -322,7 +323,7 @@ mod tests {
     fn test_encode_truncated() {
         let shape = (1, 8);
         let tokenizer = tokenizer(shape.1);
-        let (encoding, _) = tokenizer.encode(LONG_SEQUENCE);
+        let (encoding, _) = tokenizer.encode(LONG_SEQUENCE).unwrap();
         assert_eq!(
             encoding.token_ids.0,
             ArrayView2::from_shape(shape, &[2, 2584, 69469, 1599, 1693, 5331, 11700, 3]).unwrap(),

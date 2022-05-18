@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let kpe = Pipeline::from(config)?;
 
-    let key_phrases = kpe.run("This sequence will be split into key phrases.")?;
+    let key_phrases = kpe.run("Berlin & Brandenburg")?;
     println!("{:?}", key_phrases);
     assert_eq!(key_phrases.len(), 30);
 
