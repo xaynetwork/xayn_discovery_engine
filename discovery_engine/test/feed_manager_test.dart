@@ -46,7 +46,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_preference_repo.dart'
     show HiveSourcePreferenceRepository;
 
-import 'discovery_engine/utils/utils.dart';
+import 'discovery_engine/utils/utils.dart' show mockDocuments, mockNewsResource;
 import 'logging.dart' show setupLogging;
 
 Future<void> main() async {
@@ -58,7 +58,7 @@ Future<void> main() async {
   late HiveSourcePreferenceRepository sourcePreferenceRepo;
   late FeedManager mgr;
 
-  final engine = MockEngine();
+  final engine = MockEngine()..feedDocuments = mockDocuments(StackId(), false);
   final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
 
   EventHandler.registerHiveAdapters();
@@ -143,17 +143,24 @@ Future<void> main() async {
       expect(
         docs!.map((doc) => doc.documentId),
         unorderedEquals(
-          <DocumentId>[engine.doc0.documentId, engine.doc1.documentId],
+          engine.feedDocuments
+              .map<DocumentId>((doc) => doc.document.documentId),
         ),
       );
 
       // check repositories are updated
       expect(docRepo.box, hasLength(4));
-      expect(docRepo.box.values, contains(engine.doc0));
-      expect(docRepo.box.values, contains(engine.doc1));
+      expect(
+        docRepo.box.values,
+        containsAll(engine.feedDocuments.map<Document>((doc) => doc.document)),
+      );
       expect(activeRepo.box, hasLength(3));
-      expect(activeRepo.box.values, contains(engine.active0));
-      expect(activeRepo.box.values, contains(engine.active1));
+      expect(
+        activeRepo.box.values,
+        containsAll(
+          engine.feedDocuments.map<ActiveDocumentData>((doc) => doc.data),
+        ),
+      );
 
       // serialize should be called and state saved
       expect(engine.getCallCount('serialize'), equals(1));
@@ -165,8 +172,9 @@ Future<void> main() async {
       final later = DateTime.utc(1989, 11, 9);
       await docRepo.update(doc2..timestamp = earlier);
       await docRepo.update(doc3..timestamp = later);
-      await docRepo.update(engine.doc0..timestamp = later);
-      await docRepo.update(engine.doc1..timestamp = earlier);
+      await docRepo.update(engine.feedDocuments[0].document..timestamp = later);
+      await docRepo
+          .update(engine.feedDocuments[1].document..timestamp = earlier);
 
       expect(docRepo.box, hasLength(4));
 
@@ -176,12 +184,18 @@ Future<void> main() async {
       expect(feed, isNotNull);
       expect(feed, hasLength(3));
       // doc1, doc2 have the earlier timestamp
-      expect(feed![0].documentId, equals(engine.doc1.documentId));
+      expect(
+        feed![0].documentId,
+        equals(engine.feedDocuments[1].document.documentId),
+      );
       expect(feed[0].batchIndex, equals(1));
       expect(feed[1].documentId, equals(doc2.documentId));
       expect(feed[1].batchIndex, equals(2));
       // doc0 has the later timestamp
-      expect(feed[2].documentId, equals(engine.doc0.documentId));
+      expect(
+        feed[2].documentId,
+        equals(engine.feedDocuments[0].document.documentId),
+      );
       expect(feed[2].batchIndex, equals(0));
       // doc3 is excluded since it is inactive
     });

@@ -580,7 +580,7 @@ where
         }
     }
 
-    /// Performs a deep search regarding a document.
+    /// Performs a deep search by term and market.
     pub async fn deep_search(&self, term: &str, market: &Market) -> Result<Vec<Document>, Error> {
         let key_phrases = self.ranker.extract_key_phrases(&clean_query(term))?;
         if key_phrases.is_empty() {

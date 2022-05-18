@@ -24,12 +24,20 @@ import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
     show DiscoveryEngineWorker;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
     show Manifest;
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
+    show ActiveDocumentData, DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show mockedAvailableSources, Source;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId, StackId;
 
 import '../../assets/utils/mock_manifest_reader.dart';
 
@@ -178,6 +186,33 @@ final mockNewsResource = NewsResource(
   language: 'en',
   topic: 'news',
 );
+
+List<DocumentWithActiveData> mockDocuments(
+  StackId stackId,
+  bool isSearched,
+) =>
+    [
+      DocumentWithActiveData(
+        Document(
+          documentId: DocumentId(),
+          stackId: stackId,
+          batchIndex: 0,
+          resource: mockNewsResource,
+          isSearched: isSearched,
+        ),
+        ActiveDocumentData(Embedding.fromList([1, 3])),
+      ),
+      DocumentWithActiveData(
+        Document(
+          documentId: DocumentId(),
+          stackId: stackId,
+          batchIndex: 1,
+          resource: mockNewsResource,
+          isSearched: isSearched,
+        ),
+        ActiveDocumentData(Embedding.fromList([0])),
+      ),
+    ];
 
 const queryTerm = 'example';
 

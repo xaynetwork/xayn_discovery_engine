@@ -62,7 +62,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_
     show HiveEngineStateRepository;
 
 import 'discovery_engine/utils/utils.dart'
-    show mockActiveSearch, mockNewsResource;
+    show mockActiveSearch, mockDocuments, mockNewsResource;
 import 'logging.dart' show setupLogging;
 
 Future<void> main() async {
@@ -75,7 +75,8 @@ Future<void> main() async {
     late HiveEngineStateRepository engineStateRepo;
     late SearchManager mgr;
 
-    final engine = MockEngine();
+    final engine = MockEngine()
+      ..activeSearchDocuments = mockDocuments(StackId.nil(), true);
     final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
     final data = ActiveDocumentData(Embedding.fromList([44]));
     final stackId = StackId.fromBytes(Uint8List.fromList(List.filled(16, 0)));
