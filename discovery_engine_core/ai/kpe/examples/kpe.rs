@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Run as `cargo run --example kpe
+
 use xayn_discovery_engine_kpe::{Config, Pipeline};
 use xayn_discovery_engine_test_utils::kpe::{bert, classifier, cnn, vocab};
 

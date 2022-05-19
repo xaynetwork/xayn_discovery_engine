@@ -12,31 +12,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Run as `cargo run --example mbert <kind>` with `<kind>`:
-//! - `s` for SMBert
-//! - `qa` for QAMBert
+//! Run as `cargo run --example mbert
 
 use xayn_discovery_engine_bert::{Config, FirstPooler, Pipeline, SMBert, SMBertConfig};
 use xayn_discovery_engine_test_utils::smbert;
 
-fn main() {
-    let (embedding, size) = match std::env::args().nth(1).unwrap().as_str() {
-        "s" => {
-            let config: SMBertConfig<_> =
-                Config::from_files(smbert::vocab().unwrap(), smbert::model().unwrap())
-                    .unwrap()
-                    .with_pooling::<FirstPooler>()
-                    .with_token_size(64)
-                    .unwrap();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config: SMBertConfig<_> = Config::from_files(smbert::vocab()?, smbert::model()?)?
+        .with_pooling::<FirstPooler>()
+        .with_token_size(64)?;
 
-            let mbert = Pipeline::from(config).unwrap();
-            (
-                mbert.run("This is a sequence.").unwrap(),
-                SMBert::embedding_size(),
-            )
-        }
-        _ => panic!("unknown MBert kind"),
-    };
+    let mbert = Pipeline::from(config)?;
+    let embedding = mbert.run("This is a sequence.")?;
+    let size = SMBert::embedding_size();
+
     println!("{}", *embedding);
     assert_eq!(embedding.shape(), [size]);
+
+    Ok(())
 }
