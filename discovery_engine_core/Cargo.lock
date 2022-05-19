@@ -3310,6 +3310,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
+ "xayn-discovery-engine-ai",
  "xayn-discovery-engine-core",
  "xayn-discovery-engine-providers",
 ]

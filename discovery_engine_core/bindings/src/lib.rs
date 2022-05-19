@@ -38,6 +38,7 @@ pub mod types;
 use xayn_discovery_engine_core::Engine;
 
 #[async_bindgen::api(
+    use xayn_discovery_engine_ai::ranker::Embedding;
     use xayn_discovery_engine_core::{
         document::{Document, HistoricDocument, TimeSpent, UserReacted},
         InitConfig,
@@ -186,17 +187,21 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Performs a deep search by term and market.
+    ///
+    /// The documents are sorted in descending order wrt their cosine similarity towards the
+    /// original search term embedding.
     pub async fn deep_search(
         engine: &SharedEngine,
         term: Box<String>,
         market: Box<Market>,
+        embedding: Box<Embedding>,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .deep_search(term.as_ref(), market.as_ref())
+                .deep_search(term.as_ref(), market.as_ref(), embedding.as_ref())
                 .await
                 .map_err(|error| error.to_string()),
         )
