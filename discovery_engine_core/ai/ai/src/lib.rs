@@ -35,14 +35,19 @@ mod coi;
 mod data;
 mod embedding;
 mod error;
-pub mod ranker;
+mod ranker;
 mod utils;
 
 pub use crate::{
-    coi::CoiId,
+    coi::{
+        config::{Config as CoiSystemConfig, Error as CoiSystemConfigError},
+        key_phrase::KeyPhrase,
+        point::{CoiPoint, NegativeCoi, PositiveCoi},
+        CoiId,
+    },
     data::document::{
         DayOfWeek,
-        Document,
+        Document as CoiDocument,
         DocumentHistory,
         DocumentId,
         QueryId,
@@ -51,8 +56,17 @@ pub use crate::{
         UserAction,
         UserFeedback,
     },
-    embedding::utils::{cosine_similarity, COSINE_SIMILARITY_RANGE},
+    embedding::utils::{
+        cosine_similarity,
+        pairwise_cosine_similarity,
+        Embedding,
+        COSINE_SIMILARITY_RANGE,
+    },
     error::Error,
+    ranker::{
+        document::Document,
+        public::{Builder, Ranker},
+    },
 };
 
 // we need to export rstest_reuse from the root for it to work.

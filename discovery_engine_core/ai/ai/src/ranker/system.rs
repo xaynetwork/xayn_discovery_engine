@@ -34,7 +34,7 @@ use crate::{
     error::Error,
     ranker::{
         context::{compute_score_for_docs, Error as ContextError},
-        Document,
+        document::Document,
     },
     utils::{nan_safe_f32_cmp, serialize_with_version},
 };

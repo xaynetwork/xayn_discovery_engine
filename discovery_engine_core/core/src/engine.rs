@@ -32,13 +32,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::error;
 
-use xayn_discovery_engine_ai::ranker::{
-    cosine_similarity,
-    Builder,
-    CoiSystemConfig,
-    Embedding,
-    KeyPhrase,
-};
+use xayn_discovery_engine_ai::{cosine_similarity, Builder, CoiSystemConfig, Embedding, KeyPhrase};
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
@@ -132,7 +126,7 @@ pub enum Error {
 }
 
 /// Configuration settings to initialize Discovery Engine with a
-/// [`xayn_discovery_engine_ai::ranker::Ranker`].
+/// [`xayn_discovery_engine_ai::Ranker`].
 #[derive(Clone)]
 pub struct InitConfig {
     /// Key for accessing the API.
@@ -976,11 +970,11 @@ fn documentify_topics(
         })
 }
 
-/// A discovery engine with [`xayn_discovery_engine_ai::ranker::Ranker`] as a ranker.
-pub type XaynAiEngine = Engine<xayn_discovery_engine_ai::ranker::Ranker>;
+/// A discovery engine with [`xayn_discovery_engine_ai::Ranker`] as a ranker.
+pub type XaynAiEngine = Engine<xayn_discovery_engine_ai::Ranker>;
 
 impl XaynAiEngine {
-    /// Creates a discovery engine with [`xayn_discovery_engine_ai::ranker::Ranker`] as a ranker.
+    /// Creates a discovery engine with [`xayn_discovery_engine_ai::Ranker`] as a ranker.
     pub async fn from_config(
         config: InitConfig,
         state: Option<&[u8]>,
@@ -1101,7 +1095,7 @@ mod tests {
         MockServer,
         ResponseTemplate,
     };
-    use xayn_discovery_engine_ai::ranker::Embedding;
+    use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_providers::Article;
 
     use super::*;

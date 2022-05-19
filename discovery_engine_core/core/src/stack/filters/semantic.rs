@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
-use xayn_discovery_engine_ai::ranker::pairwise_cosine_similarity;
+use xayn_discovery_engine_ai::pairwise_cosine_similarity;
 
 use crate::{document::Document, utils::nan_safe_f32_cmp};
 
@@ -231,7 +231,7 @@ mod tests {
     use std::iter::repeat_with;
 
     use chrono::NaiveDateTime;
-    use xayn_discovery_engine_ai::ranker::Embedding;
+    use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
     use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};

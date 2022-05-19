@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
-use xayn_discovery_engine_ai::ranker::KeyPhrase;
+use xayn_discovery_engine_ai::KeyPhrase;
 use xayn_discovery_engine_providers::{
     Article,
     Client,

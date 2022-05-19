@@ -20,7 +20,12 @@ use xayn_discovery_engine_kpe::{Config as KpeConfig, RankedKeyPhrases};
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    coi::{config::Config as CoiSystemConfig, key_phrase::KeyPhrase, CoiSystem},
+    coi::{
+        config::Config as CoiSystemConfig,
+        key_phrase::KeyPhrase,
+        point::{NegativeCoi, PositiveCoi},
+        CoiSystem,
+    },
     embedding::utils::Embedding,
     error::Error,
     ranker::{
@@ -29,8 +34,6 @@ use crate::{
     },
     UserFeedback,
 };
-
-use super::{NegativeCoi, PositiveCoi};
 
 /// The ranker.
 pub struct Ranker(super::system::Ranker);
