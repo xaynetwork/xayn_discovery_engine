@@ -201,9 +201,8 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
             )
         });
     } else {
-        documents.sort_unstable_by(|this, other| {
-            this.date_published().cmp(&other.date_published()).reverse()
-        });
+        documents
+            .sort_unstable_by(|this, other| this.date_published().cmp(&other.date_published()));
     }
 }
 
@@ -249,8 +248,9 @@ mod tests {
     #[test]
     fn test_rank_no_user_interests() {
         let mut documents = vec![
-            TestDocument::new(0, arr1(&[0., 0., 0.]), "2000-01-01 00:00:00"),
+            TestDocument::new(0, arr1(&[0., 0., 0.]), "2000-01-01 00:00:03"),
             TestDocument::new(1, arr1(&[0., 0., 0.]), "2000-01-01 00:00:01"),
+            TestDocument::new(2, arr1(&[0., 0., 0.]), "2000-01-01 00:00:02"),
         ];
 
         let config = Config::default().with_min_positive_cois(1).unwrap();
@@ -258,7 +258,8 @@ mod tests {
         rank(&mut documents, &UserInterests::default(), &config);
 
         assert_eq!(documents[0].id(), DocumentId::from_u128(1));
-        assert_eq!(documents[1].id(), DocumentId::from_u128(0));
+        assert_eq!(documents[1].id(), DocumentId::from_u128(2));
+        assert_eq!(documents[2].id(), DocumentId::from_u128(0));
     }
 
     #[test]
