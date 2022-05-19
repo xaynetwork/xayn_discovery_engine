@@ -23,7 +23,7 @@ use crate::{
         key_phrase::KeyPhrases,
         point::{find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
     },
-    embedding::utils::Embedding,
+    embedding::Embedding,
     Error,
 };
 

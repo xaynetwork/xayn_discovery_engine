@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::embedding::utils::Embedding;
+use crate::embedding::Embedding;
 #[cfg(test)]
 use xayn_discovery_engine_test_utils::uuid::mock_uuid;
 

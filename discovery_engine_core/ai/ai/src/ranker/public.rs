@@ -26,7 +26,7 @@ use crate::{
         point::{NegativeCoi, PositiveCoi},
         CoiSystem,
     },
-    embedding::utils::Embedding,
+    embedding::Embedding,
     error::Error,
     ranker::{
         document::Document,

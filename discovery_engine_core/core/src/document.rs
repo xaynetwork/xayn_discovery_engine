@@ -14,10 +14,7 @@
 
 //! Personalized document that is returned from [`Engine`](crate::engine::Engine).
 
-use std::{
-    convert::{TryFrom, TryInto},
-    time::Duration,
-};
+use std::time::Duration;
 
 use chrono::NaiveDateTime;
 use derivative::Derivative;

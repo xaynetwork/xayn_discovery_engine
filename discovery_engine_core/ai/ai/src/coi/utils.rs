@@ -12,29 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::data::document::{Relevance, UserFeedback};
-
-pub(crate) enum DocumentRelevance {
-    Positive,
-    Negative,
-}
-
-impl From<(Relevance, UserFeedback)> for DocumentRelevance {
-    fn from(history: (Relevance, UserFeedback)) -> DocumentRelevance {
-        match history {
-            (Relevance::Low, UserFeedback::Irrelevant | UserFeedback::NotGiven) => {
-                DocumentRelevance::Negative
-            }
-            _ => DocumentRelevance::Positive,
-        }
-    }
-}
-
 #[cfg(test)]
 pub(super) mod tests {
     use ndarray::{arr1, FixedInitializer};
 
-    use super::*;
     use crate::coi::{
         point::{tests::CoiPointConstructor, NegativeCoi, PositiveCoi},
         CoiId,
@@ -64,53 +45,5 @@ pub(super) mod tests {
         points: &[impl FixedInitializer<Elem = f32>],
     ) -> Vec<NegativeCoi> {
         create_cois(points)
-    }
-
-    #[test]
-    fn test_user_feedback() {
-        assert!(matches!(
-            (Relevance::Low, UserFeedback::Irrelevant).into(),
-            DocumentRelevance::Negative,
-        ));
-
-        assert!(matches!(
-            (Relevance::Medium, UserFeedback::Irrelevant).into(),
-            DocumentRelevance::Positive,
-        ));
-
-        assert!(matches!(
-            (Relevance::High, UserFeedback::Irrelevant).into(),
-            DocumentRelevance::Positive,
-        ));
-
-        assert!(matches!(
-            (Relevance::High, UserFeedback::Relevant).into(),
-            DocumentRelevance::Positive,
-        ));
-
-        assert!(matches!(
-            (Relevance::Medium, UserFeedback::Relevant).into(),
-            DocumentRelevance::Positive,
-        ));
-
-        assert!(matches!(
-            (Relevance::Low, UserFeedback::Relevant).into(),
-            DocumentRelevance::Positive,
-        ));
-
-        assert!(matches!(
-            (Relevance::High, UserFeedback::NotGiven).into(),
-            DocumentRelevance::Positive,
-        ));
-
-        assert!(matches!(
-            (Relevance::Medium, UserFeedback::NotGiven).into(),
-            DocumentRelevance::Positive,
-        ));
-
-        assert!(matches!(
-            (Relevance::Low, UserFeedback::NotGiven).into(),
-            DocumentRelevance::Negative,
-        ));
     }
 }

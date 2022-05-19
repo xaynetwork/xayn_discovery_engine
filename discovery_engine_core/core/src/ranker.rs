@@ -166,7 +166,7 @@ impl xayn_discovery_engine_ai::Document for TrendingTopic {
 
 impl From<Id> for DocumentId {
     fn from(id: Id) -> Self {
-        Self(Uuid::from(id))
+        Uuid::from(id).into()
     }
 }
 

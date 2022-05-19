@@ -29,12 +29,11 @@ use crate::{
         point::{NegativeCoi, PositiveCoi, UserInterests},
         CoiSystem,
     },
-    data::document::UserFeedback,
-    embedding::utils::Embedding,
+    embedding::Embedding,
     error::Error,
     ranker::{
         context::{compute_score_for_docs, Error as ContextError},
-        document::Document,
+        document::{Document, UserFeedback},
     },
     utils::{nan_safe_f32_cmp, serialize_with_version},
 };

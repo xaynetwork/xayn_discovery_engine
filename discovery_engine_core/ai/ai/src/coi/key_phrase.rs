@@ -30,7 +30,7 @@ use xayn_discovery_engine_providers::{clean_query, Market};
 
 use crate::{
     coi::{point::PositiveCoi, stats::compute_coi_relevances, CoiError, CoiId},
-    embedding::utils::{pairwise_cosine_similarity, Embedding},
+    embedding::{utils::pairwise_cosine_similarity, Embedding},
     error::Error,
     utils::{nan_safe_f32_cmp, system_time_now},
 };

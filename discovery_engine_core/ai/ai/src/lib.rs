@@ -32,7 +32,6 @@
 )]
 
 mod coi;
-mod data;
 mod embedding;
 mod error;
 mod ranker;
@@ -45,26 +44,13 @@ pub use crate::{
         point::{CoiPoint, NegativeCoi, PositiveCoi},
         CoiId,
     },
-    data::document::{
-        DayOfWeek,
-        Document as CoiDocument,
-        DocumentHistory,
-        DocumentId,
-        QueryId,
-        Relevance,
-        SessionId,
-        UserAction,
-        UserFeedback,
-    },
-    embedding::utils::{
-        cosine_similarity,
-        pairwise_cosine_similarity,
+    embedding::{
+        utils::{cosine_similarity, pairwise_cosine_similarity, COSINE_SIMILARITY_RANGE},
         Embedding,
-        COSINE_SIMILARITY_RANGE,
     },
     error::Error,
     ranker::{
-        document::Document,
+        document::{Document, DocumentId, UserFeedback},
         public::{Builder, Ranker},
     },
 };

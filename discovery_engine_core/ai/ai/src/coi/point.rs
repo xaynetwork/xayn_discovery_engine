@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     coi::{stats::CoiStats, CoiId},
-    embedding::utils::{cosine_similarity, Embedding},
+    embedding::{utils::cosine_similarity, Embedding},
     utils::system_time_now,
 };
 

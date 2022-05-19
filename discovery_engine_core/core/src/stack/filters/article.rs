@@ -77,7 +77,7 @@ impl SourcesFilter {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, convert::TryInto, iter::FromIterator};
+    use std::{collections::HashMap, iter::FromIterator};
 
     use crate::document::Document;
     use itertools::Itertools;
