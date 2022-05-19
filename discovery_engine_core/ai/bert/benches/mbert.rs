@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Run as `cargo bench --bench mbert --features bench`.
+//! Run as `cargo bench --bench mbert`.
 
 use std::{io::Result, path::Path};
 
@@ -21,7 +21,7 @@ use ndarray::{s, Array1, Axis};
 use onnxruntime::{environment::Environment, GraphOptimizationLevel};
 
 use xayn_discovery_engine_bert::{
-    kinds::{QAMBert, SMBert},
+    kinds::SMBert,
     AveragePooler,
     Config,
     Embedding2,
@@ -29,7 +29,7 @@ use xayn_discovery_engine_bert::{
     NonePooler,
     Pipeline,
 };
-use xayn_discovery_engine_test_utils::{qambert, smbert};
+use xayn_discovery_engine_test_utils::smbert;
 use xayn_discovery_engine_tokenizer::{
     AccentChars,
     Builder as TokenizerBuilder,
@@ -49,14 +49,14 @@ macro_rules! bench_tract {
         $group:expr => $kind:ty,
         $vocab:expr,
         $model:expr,
-        [$($name:expr => $pooler:expr),+ $(,)?] $(,)?
+        [$($name:expr => $pooler:ty),+ $(,)?] $(,)?
     ) => {
         let mut group = $manager.benchmark_group(format!("{} {}", $group, TOKEN_SIZE));
         $(
             let config = Config::<$kind, _>::from_files($vocab.unwrap(), $model.unwrap())
                 .unwrap()
-                .with_accents(false)
-                .with_lowercase(true)
+                .with_accents(AccentChars::Cleanse)
+                .with_case(CaseChars::Lower)
                 .with_token_size(TOKEN_SIZE)
                 .unwrap()
                 .with_pooling::<$pooler>();
@@ -108,12 +108,12 @@ fn bench_onnx(
             ];
             let outputs = session.run(inputs).unwrap();
 
-            Embedding2::from(outputs[0].slice(s![0, .., ..]).to_owned());
+            black_box(Embedding2::from(outputs[0].slice(s![0, .., ..]).to_owned()));
         })
     });
 }
 
-fn bench_tract_smbert_nonquant(manager: &mut Criterion) {
+fn bench_tract_smbert(manager: &mut Criterion) {
     bench_tract!(
         manager,
         "Tract SMBert" => SMBert,
@@ -127,109 +127,18 @@ fn bench_tract_smbert_nonquant(manager: &mut Criterion) {
     );
 }
 
-fn bench_tract_smbert_dynquant(manager: &mut Criterion) {
-    bench_tract!(
-        manager,
-        "Tract SMBert Quantized" => SMBert,
-        smbert::vocab(),
-        smbert::model(), // NOTE: smbert v0001 is already quantized
-        [
-            "None Pooler" => NonePooler,
-            "First Pooler" => FirstPooler,
-            "Average Pooler" => AveragePooler,
-        ],
-    );
-}
-
-fn bench_tract_qambert_nonquant(manager: &mut Criterion) {
-    bench_tract!(
-        manager,
-        "Tract QAMBert" => QAMBert,
-        qambert::vocab(),
-        qambert::model(),
-        [
-            "None Pooler" => NonePooler,
-            "First Pooler" => FirstPooler,
-            "Average Pooler" => AveragePooler,
-        ],
-    );
-}
-
-fn bench_tract_qambert_dynquant(manager: &mut Criterion) {
-    bench_tract!(
-        manager,
-        "Tract QAMBert Quantized" => QAMBert,
-        qambert::vocab(),
-        qambert::model_quant(),
-        [
-            "None Pooler" => NonePooler,
-            "First Pooler" => FirstPooler,
-            "Average Pooler" => AveragePooler,
-        ],
-    );
-}
-
-fn bench_onnx_smbert_nonquant(manager: &mut Criterion) {
+fn bench_onnx_smbert(manager: &mut Criterion) {
     bench_onnx(manager, "Onnx SMBert", smbert::vocab(), smbert::model());
 }
 
-fn bench_onnx_smbert_dynquant(manager: &mut Criterion) {
-    bench_onnx(
-        manager,
-        "Onnx SMBert Quantized",
-        smbert::vocab(),
-        smbert::model(), // NOTE: smbert v0001 is already quantized
-    );
-}
-
-fn bench_onnx_qambert_nonquant(manager: &mut Criterion) {
-    bench_onnx(manager, "Onnx QAMBert", qambert::vocab(), qambert::model());
-}
-
-fn bench_onnx_qambert_dynquant(manager: &mut Criterion) {
-    bench_onnx(
-        manager,
-        "Onnx QAMBert Quantized",
-        qambert::vocab(),
-        qambert::model_quant(),
-    );
-}
-
 criterion_group! {
-    name = bench_tract_smbert;
+    name = bench;
     config = Criterion::default();
     targets =
-        bench_tract_smbert_nonquant,
-        bench_tract_smbert_dynquant,
-}
-
-criterion_group! {
-    name = bench_tract_qambert;
-    config = Criterion::default();
-    targets =
-        bench_tract_qambert_nonquant,
-        bench_tract_qambert_dynquant,
-}
-
-criterion_group! {
-    name = bench_onnx_smbert;
-    config = Criterion::default();
-    targets =
-        bench_onnx_smbert_nonquant,
-        bench_onnx_smbert_dynquant,
-}
-
-criterion_group! {
-    name = bench_onnx_qambert;
-    config = Criterion::default();
-    targets =
-        bench_onnx_qambert_nonquant,
-        bench_onnx_qambert_dynquant,
+        bench_tract_smbert,
+        bench_onnx_smbert,
 }
 
 criterion_main! {
-    bench_tract_smbert,
-    bench_tract_qambert,
-    bench_onnx_smbert,
-    bench_onnx_qambert,
+    bench,
 }
