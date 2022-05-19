@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#![allow(unused_macros)] // obake
-
 use std::time::SystemTime;
 
 use derivative::Derivative;
@@ -25,65 +23,23 @@ use crate::{
     utils::system_time_now,
 };
 
-#[obake::versioned]
-#[obake(version("0.0.0"))]
-#[obake(version("0.1.0"))]
-#[obake(version("0.2.0"))]
-#[obake(version("0.3.0"))]
+/// A positive `CoI`.
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
 pub struct PositiveCoi {
-    #[obake(cfg(">=0.0"))]
     pub(super) id: CoiId,
-    #[obake(cfg(">=0.0"))]
     pub(super) point: Embedding,
-    #[obake(cfg(">=0.3"))]
     #[derivative(PartialEq = "ignore")]
     pub(crate) stats: CoiStats,
-
-    // removed fields go below this line
-    #[obake(cfg(">=0.0, <0.2"))]
-    pub(super) alpha: f32,
-    #[obake(cfg(">=0.0, <0.2"))]
-    pub(super) beta: f32,
 }
 
 impl PositiveCoi {
+    /// Creates a positive `CoI`.
     pub fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
         Self {
             id: id.into(),
             point: point.into(),
             stats: CoiStats::new(),
-        }
-    }
-}
-
-impl From<PositiveCoi_v0_0_0> for PositiveCoi_v0_1_0 {
-    fn from(coi: PositiveCoi_v0_0_0) -> Self {
-        Self {
-            id: coi.id,
-            point: coi.point,
-            alpha: coi.alpha,
-            beta: coi.beta,
-        }
-    }
-}
-
-impl From<PositiveCoi_v0_1_0> for PositiveCoi_v0_2_0 {
-    fn from(coi: PositiveCoi_v0_1_0) -> Self {
-        Self {
-            id: coi.id,
-            point: coi.point,
-        }
-    }
-}
-
-impl From<PositiveCoi_v0_2_0> for PositiveCoi {
-    fn from(coi: PositiveCoi_v0_2_0) -> Self {
-        Self {
-            id: coi.id,
-            point: coi.point,
-            stats: CoiStats::default(),
         }
     }
 }
@@ -144,62 +100,15 @@ macro_rules! impl_coi_point {
 }
 
 impl_coi_point! {
-    #[cfg(test)] PositiveCoi_v0_0_0,
-    #[cfg(test)] PositiveCoi_v0_1_0,
-    #[cfg(test)] PositiveCoi_v0_2_0,
     PositiveCoi,
     NegativeCoi,
 }
 
-// generic types can't be versioned, but aliasing and proper naming in the proc macro call works
-#[allow(non_camel_case_types)]
-type PositiveCois_v0_0_0 = Vec<PositiveCoi_v0_0_0>;
-#[allow(non_camel_case_types)]
-type PositiveCois_v0_1_0 = Vec<PositiveCoi_v0_1_0>;
-#[allow(non_camel_case_types)]
-type PositiveCois_v0_2_0 = Vec<PositiveCoi_v0_2_0>;
-#[allow(non_camel_case_types)]
-type PositiveCois_v0_3_0 = Vec<PositiveCoi>;
-
-#[obake::versioned]
-#[obake(version("0.0.0"))]
-#[obake(version("0.1.0"))]
-#[obake(version("0.2.0"))]
-#[obake(version("0.3.0"))]
+/// The `CoI`s of a user.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(crate) struct UserInterests {
-    #[obake(inherit)]
-    #[obake(cfg(">=0.0"))]
-    pub(crate) positive: PositiveCois,
-    #[obake(cfg(">=0.0"))]
+    pub(crate) positive: Vec<PositiveCoi>,
     pub(crate) negative: Vec<NegativeCoi>,
-}
-
-impl From<UserInterests_v0_0_0> for UserInterests_v0_1_0 {
-    fn from(ui: UserInterests_v0_0_0) -> Self {
-        Self {
-            positive: ui.positive.into_iter().map(Into::into).collect(),
-            negative: ui.negative.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-impl From<UserInterests_v0_1_0> for UserInterests_v0_2_0 {
-    fn from(ui: UserInterests_v0_1_0) -> Self {
-        Self {
-            positive: ui.positive.into_iter().map(Into::into).collect(),
-            negative: ui.negative.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-impl From<UserInterests_v0_2_0> for UserInterests {
-    fn from(ui: UserInterests_v0_2_0) -> Self {
-        Self {
-            positive: ui.positive.into_iter().map(Into::into).collect(),
-            negative: ui.negative.into_iter().map(Into::into).collect(),
-        }
-    }
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
@@ -255,37 +164,6 @@ pub(crate) mod tests {
 
     pub(crate) trait CoiPointConstructor {
         fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self;
-    }
-
-    impl CoiPointConstructor for PositiveCoi_v0_0_0 {
-        fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
-            Self {
-                id: id.into(),
-                point: point.into(),
-                alpha: 1.,
-                beta: 1.,
-            }
-        }
-    }
-
-    impl CoiPointConstructor for PositiveCoi_v0_1_0 {
-        fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
-            Self {
-                id: id.into(),
-                point: point.into(),
-                alpha: 1.,
-                beta: 1.,
-            }
-        }
-    }
-
-    impl CoiPointConstructor for PositiveCoi_v0_2_0 {
-        fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
-            Self {
-                id: id.into(),
-                point: point.into(),
-            }
-        }
     }
 
     impl CoiPointConstructor for PositiveCoi {
