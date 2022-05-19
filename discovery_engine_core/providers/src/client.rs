@@ -229,7 +229,7 @@ impl Client {
 
 /// Default `from` value for newscatcher news queries
 pub fn default_from() -> String {
-    let from = Utc::today() - chrono::Duration::days(3);
+    let from = Utc::today() - chrono::Duration::days(30);
     from.format("%Y/%m/%d").to_string()
 }
 
