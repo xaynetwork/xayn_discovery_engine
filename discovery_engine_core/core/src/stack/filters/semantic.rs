@@ -51,18 +51,14 @@ fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
 }
 
 /// Computes the condensed decayed date distance matrix.
-fn condensed_decay_factor(
-    date_distance: Vec<f32>,
-    max_days: f32,
-    max_dissimilarity: f32,
-) -> Vec<f32> {
+fn condensed_decay_factor(date_distance: Vec<f32>, max_days: f32, threshold: f32) -> Vec<f32> {
     let exp_max_days = (-0.1 * max_days).exp();
     date_distance
         .into_iter()
         .map(|distance| {
             ((exp_max_days - (-0.1 * distance).exp()) / (exp_max_days - 1.)).max(0.)
-                * (1. - max_dissimilarity)
-                + max_dissimilarity
+                * (1. - threshold)
+                + threshold
         })
         .collect()
 }
@@ -124,41 +120,84 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, max_dissimilarity: f32) -> Vec<usize> 
             },
         );
 
-    // assign labels to samples
-    clusters.into_values().enumerate().fold(
-        vec![0; dendrogram.observations()],
-        |mut labels, (label, cluster)| {
+    assign_labels(clusters, dendrogram.observations())
+}
+
+fn find_n_clusters(dendrogram: &Dendrogram<f32>, n_clusters: usize) -> Vec<usize> {
+    // at the beginning every sample is in its own cluster
+    // we use BTreeMap instead of HashMap to keep the order of the labels with the
+    // order of the documents
+    let mut clusters = (0..dendrogram.observations())
+        .map(|x| (x, vec![x]))
+        .collect::<BTreeMap<_, _>>();
+
+    let mut id = dendrogram.observations();
+    for step in dendrogram.steps() {
+        if clusters.len() <= n_clusters {
+            break;
+        }
+        // unwrap safety:
+        // - initial cluster ids have been inserted in the beginning
+        // - merged cluster ids have been inserted in a previous iteration/step
+        let mut cluster_1 = clusters.remove(&step.cluster1).unwrap();
+        let cluster_2 = clusters.remove(&step.cluster2).unwrap();
+
+        // merge clusters
+        cluster_1.extend(cluster_2);
+        clusters.insert(id, cluster_1);
+
+        id += 1;
+    }
+
+    assign_labels(clusters, dendrogram.observations())
+}
+
+/// Assigns the cluster ids to labels beginning from `0`.
+fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize> {
+    clusters
+        .into_values()
+        .enumerate()
+        .fold(vec![0; len], |mut labels, (label, cluster)| {
             for sample in cluster {
                 labels[sample] = label;
             }
             labels
-        },
-    )
+        })
 }
 
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
     let cosine_similarity = condensed_cosine_similarity(documents);
     let date_distance = condensed_date_distance(documents);
-    let decay_factor =
-        condensed_decay_factor(date_distance, config.max_days, config.max_dissimilarity);
+    let decay_factor = condensed_decay_factor(date_distance, config.max_days, config.threshold);
     condensed_normalized_distance(cosine_similarity, decay_factor)
 }
 
 /// Configurations for semantic filtering.
 pub(crate) struct SemanticFilterConfig {
     /// Maximum days threshold after which documents fully decay (must be non-negative).
-    max_days: f32,
+    pub(crate) max_days: f32,
+    /// Threshold to scale the time decay factor.
+    pub(crate) threshold: f32,
+    /// The criterion when to stop merging the clusters.
+    pub(crate) criterion: Criterion,
+}
+
+/// The criterion when to stop merging the clusters.
+pub(crate) enum Criterion {
     /// Cluster cutoff threshold for dissimilarity of normalized combined distances (must be in the
     /// unit interval [0, 1]).
-    max_dissimilarity: f32,
+    MaxDissimilarity(f32),
+    /// The max number of cluster.
+    MaxClusters(usize),
 }
 
 impl Default for SemanticFilterConfig {
     fn default() -> Self {
         Self {
             max_days: 10.,
-            max_dissimilarity: 0.5,
+            threshold: 0.5,
+            criterion: Criterion::MaxDissimilarity(0.5),
         }
     }
 }
@@ -174,7 +213,11 @@ pub(crate) fn filter_semantically(
 
     let mut normalized_distance = normalized_distance(&documents, config);
     let dendrogram = linkage(&mut normalized_distance, documents.len(), Method::Average);
-    let labels = cut_tree(&dendrogram, config.max_dissimilarity);
+
+    let labels = match config.criterion {
+        Criterion::MaxDissimilarity(max_dissimilarity) => cut_tree(&dendrogram, max_dissimilarity),
+        Criterion::MaxClusters(max_clusters) => find_n_clusters(&dendrogram, max_clusters),
+    };
 
     izip!(documents, labels)
         .unique_by(|(_, label)| *label)
@@ -233,14 +276,13 @@ mod tests {
         for n in 0..5 {
             let date_distance = (0..n).map(|d| d as f32).collect();
             let max_days = 2;
-            let max_dissimilarity = 0.5;
-            let condensed =
-                condensed_decay_factor(date_distance, max_days as f32, max_dissimilarity);
+            let threshold = 0.5;
+            let condensed = condensed_decay_factor(date_distance, max_days as f32, threshold);
             for (m, c) in condensed.into_iter().enumerate() {
                 if m < max_days {
-                    assert!(c > max_dissimilarity);
+                    assert!(c > threshold);
                 } else {
-                    assert_eq!(c, max_dissimilarity);
+                    assert_eq!(c, threshold);
                 }
             }
         }
@@ -283,6 +325,48 @@ mod tests {
     }
 
     #[test]
+    fn test_find_1_cluster() {
+        let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
+        let labels = find_n_clusters(&dendrogram, 1);
+        assert_eq!(labels, [0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn test_find_2_clusters() {
+        let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
+        let labels = find_n_clusters(&dendrogram, 2);
+        assert_eq!(labels, [0, 0, 1, 1]);
+    }
+
+    #[test]
+    fn test_find_3_clusters() {
+        let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
+        let labels = find_n_clusters(&dendrogram, 3);
+        assert_eq!(labels, [2, 2, 0, 1]);
+    }
+
+    #[test]
+    fn test_find_4_clusters() {
+        let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
+        let labels = find_n_clusters(&dendrogram, 4);
+        assert_eq!(labels, [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_find_n_clusters_too_many() {
+        let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
+        let labels = find_n_clusters(&dendrogram, 5);
+        assert_eq!(labels, [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_find_0_clusters_no_panic() {
+        let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
+        let labels = find_n_clusters(&dendrogram, 0);
+        assert_eq!(labels, [0, 0, 0, 0]);
+    }
+
+    #[test]
     fn test_filter_semantically_empty() {
         let documents = vec![];
         let config = SemanticFilterConfig::default();
@@ -320,7 +404,7 @@ mod tests {
             Document::default(),
         ];
         let config = SemanticFilterConfig {
-            max_dissimilarity: 0.,
+            criterion: Criterion::MaxDissimilarity(0.),
             ..SemanticFilterConfig::default()
         };
         let filtered = filter_semantically(documents.clone(), &config);

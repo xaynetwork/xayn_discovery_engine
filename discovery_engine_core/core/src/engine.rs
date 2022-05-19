@@ -57,6 +57,7 @@ use crate::{
         filters::{
             filter_semantically,
             ArticleFilter,
+            Criterion,
             DuplicateFilter,
             MalformedFilter,
             SemanticFilterConfig,
@@ -150,7 +151,6 @@ pub(crate) struct EndpointConfig {
     /// Write-exclusive access to markets list.
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
     /// Trusted sources for news queries.
-    #[allow(dead_code)]
     pub(crate) trusted_sources: Arc<RwLock<Vec<String>>>,
     /// Sources to exclude for news queries.
     pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
@@ -779,7 +779,14 @@ async fn update_stacks<'a>(
     // Separate stack documents (via the `stack` parameter) are not needed here, since they are
     // already contained in `all_documents`.
     all_documents = DuplicateFilter::apply(history, &[], all_documents);
-    all_documents = filter_semantically(all_documents, &SemanticFilterConfig::default());
+    let max_clusters = all_documents.len() / 2;
+    all_documents = filter_semantically(
+        all_documents,
+        &SemanticFilterConfig {
+            criterion: Criterion::MaxClusters(max_clusters),
+            ..SemanticFilterConfig::default()
+        },
+    );
 
     // Filter the exploration stack documents from the other documents, in order
     // to keep the loop below simple.
