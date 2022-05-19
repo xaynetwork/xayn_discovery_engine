@@ -171,7 +171,7 @@ rust-test: _codegen-order-workaround download-assets
     #!/usr/bin/env sh
     set -eux
     cd "$RUST_WORKSPACE";
-    cargo test --all-targets --quiet --locked
+    cargo test --lib --bins --tests --quiet --locked
     cargo test --doc --quiet --locked
 
 # Tests dart and rust
