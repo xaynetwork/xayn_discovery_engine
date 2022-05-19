@@ -70,7 +70,7 @@
     rust_2018_idioms,
     unused_qualifications
 )]
-#![warn(missing_docs, unreachable_pub)]
+#![warn(unreachable_pub, rustdoc::missing_crate_level_docs)]
 #![allow(
     clippy::items_after_statements,
     clippy::missing_errors_doc,

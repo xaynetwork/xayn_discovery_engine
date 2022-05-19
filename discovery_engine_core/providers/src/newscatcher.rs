@@ -19,7 +19,6 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 /// Topic of the publisher.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Display)]
 #[serde(rename_all = "lowercase")]
-#[allow(missing_docs)]
 pub enum Topic {
     News,
     Sport,
