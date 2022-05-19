@@ -16,34 +16,22 @@ thiserror = "1.0.30"
 tract-onnx = "0.16.1"
 xayn-discovery-engine-tokenizer = { path = "../tokenizer" }
 
-# features
-criterion = { version = "0.3.5", features = ["html_reports"], optional = true }
-csv = { version = "1.1.6", optional = true }
-indicatif = { version = "0.16.2", optional = true }
-onnxruntime = { version = "0.0.13", optional = true }
-
 [dev-dependencies]
+criterion = { version = "0.3.5", features = ["html_reports"] }
+csv = { version = "1.1.6" }
+indicatif = { version = "0.16.2" }
+onnxruntime = { version = "0.0.13" }
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
-
-[features]
-bench = ["criterion", "onnxruntime"]
-validate = ["csv", "indicatif", "onnxruntime"]
 
 [[example]]
 name = "mbert"
+test = false
 
 [[example]]
 name = "validate"
-required-features = ["validate"]
-
-[[bench]]
-name = "matmul"
-harness = false
-bench = false
-required-features = ["bench"]
+test = false
 
 [[bench]]
 name = "mbert"
 harness = false
-bench = false
-required-features = ["bench"]
+test = false
