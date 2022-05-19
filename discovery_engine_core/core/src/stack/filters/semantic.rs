@@ -174,15 +174,15 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
 /// Configurations for semantic filtering.
 pub(crate) struct SemanticFilterConfig {
     /// Maximum days threshold after which documents fully decay (must be non-negative).
-    max_days: f32,
+    pub(crate) max_days: f32,
     /// Threshold to scale the time decay factor.
-    threshold: f32,
+    pub(crate) threshold: f32,
     /// The criterion when to stop merging the clusters.
-    criterion: Criterion,
+    pub(crate) criterion: Criterion,
 }
 
 /// The criterion when to stop merging the clusters.
-enum Criterion {
+pub(crate) enum Criterion {
     /// Cluster cutoff threshold for dissimilarity of normalized combined distances (must be in the
     /// unit interval [0, 1]).
     MaxDissimilarity(f32),
