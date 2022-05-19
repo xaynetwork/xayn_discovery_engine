@@ -18,6 +18,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
@@ -137,6 +139,7 @@ class MockEngine implements Engine {
   Future<List<DocumentWithActiveData>> deepSearch(
     String term,
     FeedMarket market,
+    Embedding embedding,
   ) async {
     _incrementCount('deepSearch');
     return deepSearchDocuments;

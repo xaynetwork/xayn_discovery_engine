@@ -201,7 +201,8 @@ class SearchManager {
   /// These documents aren't persisted to repositories.
   Future<EngineEvent> deepSearchRequested(DocumentId id) async {
     final doc = await _docRepo.fetchById(id);
-    if (doc == null || !doc.isActive) {
+    final data = await _activeRepo.fetchById(id);
+    if (doc == null || !doc.isActive || data == null) {
       throw ArgumentError('id $id does not identify an active document');
     }
     final term = doc.resource.snippet.isNotEmpty
@@ -211,10 +212,11 @@ class SearchManager {
       countryCode: doc.resource.country,
       langCode: doc.resource.language,
     );
+    final embedding = data.smbertEmbedding;
 
     final List<DocumentWithActiveData> docs;
     try {
-      docs = await _engine.deepSearch(term, market);
+      docs = await _engine.deepSearch(term, market, embedding);
     } catch (e) {
       const fewWords =
           'The sequence must contain at least `KEY_PHRASE_SIZE` valid words';

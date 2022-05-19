@@ -21,6 +21,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
@@ -89,9 +91,13 @@ abstract class Engine {
   );
 
   /// Performs a deep search by term and market.
+  ///
+  /// The documents are sorted in descending order wrt their cosine similarity towards the
+  /// original search term embedding.
   Future<List<DocumentWithActiveData>> deepSearch(
     String term,
     FeedMarket market,
+    Embedding embedding,
   );
 
   /// Returns the currently trending topics.
