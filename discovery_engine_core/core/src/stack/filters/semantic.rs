@@ -125,6 +125,8 @@ fn cut_tree(dendrogram: &Dendrogram<f32>, max_dissimilarity: f32) -> Vec<usize> 
 
 fn find_n_clusters(dendrogram: &Dendrogram<f32>, n_clusters: usize) -> Vec<usize> {
     // at the beginning every sample is in its own cluster
+    // we use BTreeMap instead of HashMap to keep the order of the labels with the
+    // order of the documents
     let mut clusters = (0..dendrogram.observations())
         .map(|x| (x, vec![x]))
         .collect::<BTreeMap<_, _>>();
@@ -150,7 +152,7 @@ fn find_n_clusters(dendrogram: &Dendrogram<f32>, n_clusters: usize) -> Vec<usize
     assign_labels(clusters, dendrogram.observations())
 }
 
-/// Assigns labels to samples.
+/// Assigns the cluster ids to labels beginning from `0`.
 fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize> {
     clusters
         .into_values()
@@ -216,29 +218,6 @@ pub(crate) fn filter_semantically(
         Criterion::MaxDissimilarity(max_dissimilarity) => cut_tree(&dendrogram, max_dissimilarity),
         Criterion::MaxClusters(max_clusters) => find_n_clusters(&dendrogram, max_clusters),
     };
-
-    {
-        let mut data_grouped = Vec::new();
-        for (key, group) in &izip!(documents.clone(), labels.clone())
-            .sorted_by(|a, b| Ord::cmp(&a.1, &b.1))
-            .group_by(|a| a.1)
-        {
-            data_grouped.push((
-                key,
-                group.into_iter().map(|a| a.0).collect::<Vec<Document>>(),
-            ));
-        }
-
-        for (label, docs) in data_grouped {
-            println!(
-                "cluster: {} docs: {:#?}",
-                label,
-                docs.into_iter()
-                    .map(|d| d.resource.title)
-                    .collect::<Vec<String>>()
-            );
-        }
-    }
 
     izip!(documents, labels)
         .unique_by(|(_, label)| *label)
@@ -346,7 +325,7 @@ mod tests {
     }
 
     #[test]
-    fn test_find_1_clusters() {
+    fn test_find_1_cluster() {
         let dendrogram = linkage(&mut [0.5, 3., 2., 3.5, 2.5, 1.], 4, Method::Single);
         let labels = find_n_clusters(&dendrogram, 1);
         assert_eq!(labels, [0, 0, 0, 0]);
