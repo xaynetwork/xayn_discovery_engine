@@ -168,10 +168,10 @@ impl Seal for HeadlinesQuery<'_> {}
 
 /// Client that can provide documents.
 pub struct Client {
-    token: String,
-    url: String,
-    timeout: Duration,
-    client: reqwest::Client,
+    pub(crate) token: String,
+    pub(crate) url: String,
+    pub(crate) timeout: Duration,
+    pub(crate) client: reqwest::Client,
 }
 
 impl Client {
