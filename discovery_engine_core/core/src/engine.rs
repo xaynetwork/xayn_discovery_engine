@@ -24,6 +24,7 @@ use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
+use futures::future::join_all;
 use itertools::{chain, Itertools};
 use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -728,7 +729,7 @@ async fn update_stacks<'a>(
     let mut all_documents = Vec::new();
 
     // Needy stacks are the ones for which we want to fetch new items.
-    let mut needy_stacks = stacks
+    let needy_stacks = stacks
         .values_mut()
         .filter(|stack| stack.len() <= request_new)
         .collect_vec();
@@ -747,10 +748,12 @@ async fn update_stacks<'a>(
     // Here we gather new documents for all relevant stacks, and put them into a vector.
     // We don't update the stacks immediately, because we want to de-duplicate the documents
     // across stacks first.
-    for stack in &mut needy_stacks {
-        let maybe_new_documents =
-            fetch_new_documents_for_stack(stack, ranker, &key_phrases, history).await;
+    let new_document_futures = needy_stacks
+        .iter()
+        .map(|stack| fetch_new_documents_for_stack(stack, ranker, &key_phrases, history))
+        .collect_vec();
 
+    for maybe_new_documents in join_all(new_document_futures).await {
         match maybe_new_documents {
             Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady))) => {
                 ready_stacks -= 1;
@@ -823,8 +826,8 @@ async fn update_stacks<'a>(
 }
 
 async fn fetch_new_documents_for_stack(
-    stack: &mut Stack,
-    ranker: &mut (impl Ranker + Send + Sync),
+    stack: &Stack,
+    ranker: &(impl Ranker + Send + Sync),
     key_phrases: &[KeyPhrase],
     history: &[HistoricDocument],
 ) -> Result<Vec<Document>, Error> {
