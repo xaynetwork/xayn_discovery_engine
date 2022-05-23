@@ -44,11 +44,21 @@ use xayn_discovery_engine_providers::{
     HeadlinesQuery,
     Market,
     NewsQuery,
+    TrendingQuery,
+    TrendingTopic as BingTopic,
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::{
-    document::{self, Document, HistoricDocument, TimeSpent, UserReacted, UserReaction},
+    document::{
+        self,
+        Document,
+        HistoricDocument,
+        TimeSpent,
+        TrendingTopic,
+        UserReacted,
+        UserReaction,
+    },
     mab::{self, BetaSampler, Bucket, SelectionIter},
     ranker::Ranker,
     stack::{
@@ -568,7 +578,7 @@ where
             );
         }
 
-        let (mut documents, article_errors) = articles_into_documents(
+        let (mut documents, article_errors) = documentify_articles(
             StackId::nil(), // these documents are not associated with a stack
             &self.ranker,
             articles,
@@ -617,7 +627,7 @@ where
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
-        let (documents, errors) = articles_into_documents(
+        let (documents, errors) = documentify_articles(
             StackId::nil(), // these documents are not associated with a stack
             &self.ranker,
             articles,
@@ -628,6 +638,33 @@ where
             Err(Error::Errors(errors))
         } else {
             Ok(documents)
+        }
+    }
+
+    /// Returns the current trending topics.
+    pub async fn trending_topics(&mut self) -> Result<Vec<TrendingTopic>, Error> {
+        let mut errors = Vec::new();
+        let mut topics = Vec::new();
+
+        let markets = self.config.markets.read().await;
+        for market in markets.iter() {
+            let query = TrendingQuery { market };
+            match self.client.query_trending(&query).await {
+                Ok(batch) => topics.extend(batch),
+                Err(err) => errors.push(Error::Client(err.into())),
+            };
+        }
+
+        let (mut topics, topic_errors) = documentify_topics(&self.ranker, topics);
+        errors.extend(topic_errors);
+
+        if let Err(err) = self.ranker.rank(&mut topics) {
+            errors.push(Error::Ranker(err));
+        };
+        if topics.is_empty() && !errors.is_empty() {
+            Err(Error::Errors(errors))
+        } else {
+            Ok(topics)
         }
     }
 
@@ -844,7 +881,7 @@ async fn fetch_new_documents_for_stack(
             return Err(Error::StackOpFailed(error));
         }
     };
-    let (documents, errors) = articles_into_documents(stack.id(), ranker, articles);
+    let (documents, errors) = documentify_articles(stack.id(), ranker, articles);
 
     // only return an error if all articles failed
     if documents.is_empty() && !errors.is_empty() {
@@ -854,7 +891,7 @@ async fn fetch_new_documents_for_stack(
     }
 }
 
-fn articles_into_documents(
+fn documentify_articles(
     stack_id: StackId,
     ranker: &(impl Ranker + Send + Sync),
     articles: Vec<Article>,
@@ -878,6 +915,30 @@ fn articles_into_documents(
         .partition_map(|result| match result {
             Ok(document) => Either::Left(document),
             Err(error) => Either::Right(error),
+        })
+}
+
+fn documentify_topics(
+    ranker: &(impl Ranker + Send + Sync),
+    topics: Vec<BingTopic>,
+) -> (Vec<TrendingTopic>, Vec<Error>) {
+    topics
+        .into_par_iter()
+        .map(|topic| {
+            let embedding = ranker.compute_smbert(&topic.name).map_err(|err| {
+                let error = Error::Ranker(err);
+                error!("{}", error);
+                error
+            })?;
+            (topic, embedding).try_into().map_err(|err| {
+                let error = Error::Document(err);
+                error!("{}", error);
+                error
+            })
+        })
+        .partition_map(|result| match result {
+            Ok(topic) => Either::Left(topic),
+            Err(err) => Either::Right(err),
         })
 }
 
