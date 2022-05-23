@@ -1512,25 +1512,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
-name = "obake"
-version = "1.0.4"
-source = "git+https://github.com/doctorn/obake?rev=d6bea07e355ca4adf353c1e627f13c8c3286361b#d6bea07e355ca4adf353c1e627f13c8c3286361b"
-dependencies = [
- "obake_macros",
-]
-
-[[package]]
-name = "obake_macros"
-version = "1.0.4"
-source = "git+https://github.com/doctorn/obake?rev=d6bea07e355ca4adf353c1e627f13c8c3286361b#d6bea07e355ca4adf353c1e627f13c8c3286361b"
-dependencies = [
- "proc-macro2",
- "quote",
- "semver",
- "syn",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3252,7 +3233,6 @@ dependencies = [
  "lazy_static",
  "mockall",
  "ndarray",
- "obake",
  "once_cell",
  "paste",
  "rand 0.8.5",
