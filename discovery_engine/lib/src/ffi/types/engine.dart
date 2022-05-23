@@ -19,6 +19,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
@@ -41,6 +43,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
+    show EmbeddingFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
     show FeedMarketFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
@@ -233,15 +237,20 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   /// Performs a deep search by term and market.
+  ///
+  /// The documents are sorted in descending order wrt their cosine similarity towards the
+  /// original search term embedding.
   @override
   Future<List<DocumentWithActiveData>> deepSearch(
     String term,
     FeedMarket market,
+    Embedding embedding,
   ) async {
     final result = await asyncFfi.deepSearch(
       _engine.ref,
       term.allocNative().move(),
       market.allocNative().move(),
+      embedding.allocNative().move(),
     );
 
     return resultVecDocumentStringFfiAdapter

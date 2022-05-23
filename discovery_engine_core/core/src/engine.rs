@@ -32,7 +32,13 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::error;
 
-use xayn_discovery_engine_ai::ranker::{Builder, CoiSystemConfig, KeyPhrase};
+use xayn_discovery_engine_ai::ranker::{
+    cosine_similarity,
+    Builder,
+    CoiSystemConfig,
+    Embedding,
+    KeyPhrase,
+};
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
@@ -72,6 +78,7 @@ use crate::{
         Stack,
         TrustedNews,
     },
+    utils::nan_safe_f32_cmp,
 };
 
 /// Discovery engine errors.
@@ -188,6 +195,9 @@ struct CoreConfig {
     deep_search_top: usize,
     /// The maximum number of documents returned from the deep search.
     deep_search_max: usize,
+    /// The minimum cosine similarity wrt the original document below which documents returned from
+    /// the deep search are discarded.
+    deep_search_sim: f32,
 }
 
 impl Default for CoreConfig {
@@ -199,6 +209,7 @@ impl Default for CoreConfig {
             request_after: 2,
             deep_search_top: 3,
             deep_search_max: 20,
+            deep_search_sim: 0.2,
         }
     }
 }
@@ -587,7 +598,15 @@ where
     }
 
     /// Performs a deep search by term and market.
-    pub async fn deep_search(&self, term: &str, market: &Market) -> Result<Vec<Document>, Error> {
+    ///
+    /// The documents are sorted in descending order wrt their cosine similarity towards the
+    /// original search term embedding.
+    pub async fn deep_search(
+        &self,
+        term: &str,
+        market: &Market,
+        embedding: &Embedding,
+    ) -> Result<Vec<Document>, Error> {
         let key_phrases = self.ranker.extract_key_phrases(&clean_query(term))?;
         if key_phrases.is_empty() {
             return Ok(Vec::new());
@@ -625,10 +644,24 @@ where
 
         // only return an error if all articles failed
         if documents.is_empty() && !errors.is_empty() {
-            Err(Error::Errors(errors))
-        } else {
-            Ok(documents)
+            return Err(Error::Errors(errors));
         }
+
+        let mut documents = documents
+            .into_iter()
+            .filter_map(|document| {
+                let similarity =
+                    cosine_similarity(embedding.view(), document.smbert_embedding.view());
+                (similarity > self.core_config.deep_search_sim).then(|| (similarity, document))
+            })
+            .collect_vec();
+        documents.sort_unstable_by(|(this, _), (other, _)| nan_safe_f32_cmp(this, other).reverse());
+        let documents = documents
+            .into_iter()
+            .map(|(_, document)| document)
+            .collect();
+
+        Ok(documents)
     }
 
     /// Updates the trusted sources.

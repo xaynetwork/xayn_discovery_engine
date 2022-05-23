@@ -19,6 +19,7 @@ import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustEmbedding;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
     show checkFfiUsize;
 
@@ -39,5 +40,11 @@ extension EmbeddingFfi on Embedding {
     final len = ffi.get_embedding_buffer_len(place);
     final data = ffi.get_embedding_buffer(place).asTypedList(len);
     return Embedding.fromList(data);
+  }
+
+  Boxed<RustEmbedding> allocNative() {
+    final place = ffi.alloc_uninitialized_embedding();
+    writeNative(place);
+    return Boxed(place, ffi.drop_embedding);
   }
 }
