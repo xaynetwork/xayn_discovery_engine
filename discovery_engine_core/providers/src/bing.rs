@@ -87,31 +87,31 @@ pub struct Response {
 pub struct TrendingTopic {
     /// Title of the trending topic.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub(crate) name: String,
+    pub name: String,
 
     /// Search query that returns this topic.
     #[serde(default)]
-    pub(crate) query: SearchQuery,
+    pub query: SearchQuery,
 
     /// Link to a related image.
     #[serde(default)]
-    pub(crate) image: Image,
+    pub image: Image,
 }
 
 /// Search query returning a trending topic.
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub(crate) struct SearchQuery {
+pub struct SearchQuery {
     /// Query text.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub(crate) text: String,
+    pub text: String,
 }
 
 /// Image relating to a trending topic.
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub(crate) struct Image {
+pub struct Image {
     /// URL to the image.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub(crate) url: String,
+    pub url: String,
 }
 
 // TODO relocate
