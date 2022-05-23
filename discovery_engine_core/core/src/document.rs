@@ -29,7 +29,7 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-use xayn_discovery_engine_providers::{Article, Market};
+use xayn_discovery_engine_providers::{Article, Market, TrendingTopic as BingTopic};
 
 use crate::stack::Id as StackId;
 
@@ -255,6 +255,23 @@ pub struct TrendingTopic {
     pub query: String,
     /// Link to a related image.
     pub image: Option<Url>,
+}
+
+impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
+    type Error = Error;
+    fn try_from((topic, smbert_embedding): (BingTopic, Embedding)) -> Result<Self, Self::Error> {
+        let image = topic.image.url;
+
+        Ok(Self {
+            id: Id::new(),
+            smbert_embedding,
+            name: topic.name,
+            query: topic.query.text,
+            image: (!image.is_empty())
+                .then(|| Url::parse(&image))
+                .transpose()?,
+        })
+    }
 }
 
 #[cfg(test)]
