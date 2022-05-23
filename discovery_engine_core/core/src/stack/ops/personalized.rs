@@ -102,6 +102,7 @@ impl Ops for PersonalizedNews {
         request_min_new_items(
             self.max_requests,
             self.min_articles,
+            self.page_size,
             |request_num| {
                 spawn_news_request(
                     self.client.clone(),

@@ -22,6 +22,7 @@ type Request<I> = JoinHandle<ItemsResult<I>>;
 pub(super) async fn request_min_new_items<I: Send>(
     max_requests: u32,
     min_articles: usize,
+    page_size: usize,
     request_fn: impl Fn(u32) -> Request<I> + Send + Sync,
     filter_fn: impl Fn(Vec<I>) -> ItemsResult<I> + Send + Sync,
 ) -> ItemsResult<I> {
@@ -31,22 +32,28 @@ pub(super) async fn request_min_new_items<I: Send>(
     for request_num in 0..max_requests {
         match request_fn(request_num).await {
             // if the API doesn't return any new items, we stop requesting more pages
-            Ok(Ok(batch)) if batch.is_empty() => break,
-            Ok(Ok(batch)) => items.extend(batch),
+            Ok(Ok(batch)) => {
+                if batch.is_empty() {
+                    break;
+                }
+
+                let batch_size = batch.len();
+                items.extend(batch);
+
+                items = filter_fn(items)
+                    .map_err(|err| error.replace(err))
+                    .unwrap_or_default();
+
+                if items.len() >= min_articles || batch_size < page_size {
+                    break;
+                }
+            }
             Ok(Err(err)) => {
                 error.replace(err);
             }
             // should we also push handle errors?
             Err(_) => {}
         };
-
-        items = filter_fn(items)
-            .map_err(|err| error.replace(err))
-            .unwrap_or_default();
-
-        if items.len() >= min_articles {
-            break;
-        }
     }
 
     if items.is_empty() && error.is_some() {
@@ -81,6 +88,7 @@ mod tests {
         let items = request_min_new_items(
             3,
             2,
+            1,
             |i| Response::ok(&[i]).request(),
             |items| Ok(items.into_iter().filter(|item| *item != 2).collect()),
         )
@@ -94,6 +102,7 @@ mod tests {
         let res = request_min_new_items(
             1,
             1,
+            1,
             |_| Response::ok(&[0]).request(),
             |_| Err(GenericError::from("filter")),
         )
@@ -104,7 +113,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_min_new_items() {
-        let items = request_min_new_items(2, 2, |i| Response::ok(&[i]).request(), Ok)
+        let items = request_min_new_items(2, 2, 1, |i| Response::ok(&[i]).request(), Ok)
             .await
             .unwrap();
         assert_eq!(items.len(), 2);
@@ -113,7 +122,8 @@ mod tests {
     #[tokio::test]
     async fn test_request_min_new_items_only_errors() {
         let res =
-            request_min_new_items(2, 2, |i| Response::err(&format!("{}", i)).request(), Ok).await;
+            request_min_new_items(2, 2, 1, |i| Response::err(&format!("{}", i)).request(), Ok)
+                .await;
         assert!(res.is_err());
         assert_eq!(res.unwrap_err().to_string(), "1");
     }
@@ -123,6 +133,7 @@ mod tests {
         let items = request_min_new_items(
             2,
             2,
+            1,
             |i| {
                 match i {
                     0 => Response::err(&format!("{}", i)),
@@ -140,7 +151,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_min_new_items_less_than_min() {
-        let items = request_min_new_items(3, 10, |i| Response::ok(&[i]).request(), Ok)
+        let items = request_min_new_items(3, 10, 1, |i| Response::ok(&[i]).request(), Ok)
             .await
             .unwrap();
         assert_eq!(items.len(), 3);
@@ -151,6 +162,7 @@ mod tests {
         let items = request_min_new_items(
             3,
             1,
+            2,
             |i| {
                 match i {
                     0 => Response::ok(&[i, i + 1]),
@@ -168,7 +180,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_min_new_items_no_requests() {
-        let items = request_min_new_items(0, 0, |i| Response::ok(&[i]).request(), Ok)
+        let items = request_min_new_items(0, 0, 1, |i| Response::ok(&[i]).request(), Ok)
             .await
             .unwrap();
         assert!(items.is_empty());

@@ -98,6 +98,7 @@ impl Ops for BreakingNews {
         request_min_new_items(
             self.max_requests,
             self.min_articles,
+            self.page_size,
             |request_num| {
                 spawn_headlines_request(
                     self.client.clone(),
