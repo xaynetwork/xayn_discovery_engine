@@ -20,13 +20,14 @@ use tracing_subscriber::{filter::LevelFilter, util::SubscriberInitExt};
 
 static INIT_TRACING: Once = Once::new();
 
-pub(crate) fn init_tracing() {
+pub(crate) fn init_tracing(path: &str) {
     INIT_TRACING.call_once(|| {
-        init_tracing_once();
+        init_tracing_once(path);
     });
 }
 
-fn init_tracing_once() {
+#[allow(unused_variables)]
+fn init_tracing_once(path: &str) {
     let subscriber = tracing_subscriber::fmt()
         .with_max_level(LevelFilter::INFO)
         .finish();
@@ -35,6 +36,14 @@ fn init_tracing_once() {
         if #[cfg(target_os = "android")] {
             use tracing_subscriber::layer::SubscriberExt;
             let layer = tracing_android::layer("xayn_discovery_engine").ok();
+            subscriber.with(layer).init();
+        } else if #[cfg(target_os = "ios")]  {
+            use tracing_subscriber::layer::SubscriberExt;
+            let appender = tracing_appender::rolling::never(path, "tracing_engine.log");
+            let layer = tracing_subscriber::fmt::layer()
+                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
+                .with_ansi(false)
+                .with_writer(appender);
             subscriber.with(layer).init();
         } else {
             subscriber.init();

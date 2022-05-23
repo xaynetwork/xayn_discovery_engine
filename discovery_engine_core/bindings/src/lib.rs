@@ -55,7 +55,11 @@ impl XaynDiscoveryEngineAsyncFfi {
         state: Option<Box<Vec<u8>>>,
         history: Box<Vec<HistoricDocument>>,
     ) -> Box<Result<SharedEngine, String>> {
-        tracing::init_tracing();
+        let path = &config.smbert_vocab;
+        let vocab_path = "engine_data/assets/smbert_v0001/vocab.txt";
+        let log_path = path.replace(vocab_path, "");
+
+        tracing::init_tracing(&log_path);
 
         Box::new(
             Engine::from_config(*config, state.as_deref().map(Vec::as_slice), &history)

@@ -22,6 +22,9 @@ xayn-discovery-engine-providers = { path = "../providers" }
 [target.'cfg(target_os = "android")'.dependencies]
 tracing-android = "0.2.0"
 
+[target.'cfg(target_os = "ios")'.dependencies]
+tracing-appender = "0.2.2"
+
 [dev-dependencies]
 async-bindgen-gen-dart = "0.1.0"
 uuid = { version = "1.0.0", features = ["v4"] }

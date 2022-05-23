@@ -19,6 +19,7 @@ use std::{ops::Deref, time::Duration};
 use chrono::Utc;
 use displaydoc::Display as DisplayDoc;
 use thiserror::Error;
+use tracing::info;
 use url::Url;
 
 use crate::{
@@ -224,6 +225,7 @@ impl Client {
         let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
         query.setup_url(&mut url)?;
 
+        info!("url: {}", url);
         let response = self
             .client
             .get(url)

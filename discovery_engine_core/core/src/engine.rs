@@ -30,7 +30,7 @@ use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::error;
+use tracing::{error, info, instrument};
 
 use xayn_discovery_engine_ai::{
     cosine_similarity,
@@ -347,11 +347,13 @@ where
         Ok(engine)
     }
 
+    #[instrument(skip_all)]
     async fn update_stacks_for_all_markets(
         &mut self,
         history: &[HistoricDocument],
         request_new: usize,
     ) -> Result<(), Error> {
+        info!("history: {}", history.len());
         let markets = self.config.markets.read().await;
         let mut stacks = self.stacks.write().await;
 
@@ -424,6 +426,7 @@ where
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
+    #[instrument(skip_all)]
     pub async fn get_feed_documents(
         &mut self,
         history: &[HistoricDocument],
@@ -464,6 +467,7 @@ where
     /// Process the feedback about the user reacting to a document.
     ///
     /// The history is only required for positive reactions.
+    #[instrument(skip_all)]
     pub async fn user_reacted(
         &mut self,
         history: Option<&[HistoricDocument]>,
