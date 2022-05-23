@@ -152,16 +152,17 @@ impl TryFrom<Article> for NewsResource {
     type Error = Error;
     fn try_from(article: Article) -> Result<Self, Self::Error> {
         let media = article.media;
+        let image = (!media.is_empty())
+            .then(|| Url::parse(&media))
+            .transpose()?;
 
-        Ok(NewsResource {
+        Ok(Self {
             title: article.title,
             snippet: article.excerpt,
             date_published: article.published_date,
             url: Url::parse(&article.link)?,
             source_domain: article.source_domain,
-            image: (!media.is_empty())
-                .then(|| Url::parse(&media))
-                .transpose()?,
+            image,
             rank: article.rank,
             score: article.score,
             country: article.country,
@@ -260,16 +261,15 @@ pub struct TrendingTopic {
 impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
     type Error = Error;
     fn try_from((topic, smbert_embedding): (BingTopic, Embedding)) -> Result<Self, Self::Error> {
-        let image = topic.image.url;
+        let url = topic.image.url;
+        let image = (!url.is_empty()).then(|| Url::parse(&url)).transpose()?;
 
         Ok(Self {
             id: Id::new(),
             smbert_embedding,
             name: topic.name,
             query: topic.query.text,
-            image: (!image.is_empty())
-                .then(|| Url::parse(&image))
-                .transpose()?,
+            image,
         })
     }
 }
