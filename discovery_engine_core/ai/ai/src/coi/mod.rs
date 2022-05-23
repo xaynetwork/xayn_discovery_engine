@@ -17,10 +17,9 @@ pub(crate) mod key_phrase;
 pub(crate) mod point;
 mod stats;
 mod system;
-mod utils;
 
 #[cfg(test)]
-pub(crate) use self::utils::tests::{create_neg_cois, create_pos_cois};
+pub(crate) use self::point::tests::{create_neg_cois, create_pos_cois};
 pub(crate) use point::find_closest_coi;
 pub(crate) use stats::{compute_coi_decay_factor, compute_coi_relevances};
 pub(crate) use system::CoiSystem;

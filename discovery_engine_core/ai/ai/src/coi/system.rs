@@ -24,7 +24,7 @@ use crate::{
         point::{find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
     },
     embedding::Embedding,
-    Error,
+    GenericError,
 };
 
 use super::key_phrase::KeyPhrase;
@@ -56,7 +56,7 @@ impl CoiSystem {
         key_phrases: &mut KeyPhrases,
         embedding: &Embedding,
         candidates: &[String],
-        smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
+        smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
     ) {
         log_positive_user_reaction(
             cois,
@@ -110,7 +110,7 @@ fn log_positive_user_reaction(
     config: &Config,
     key_phrases: &mut KeyPhrases,
     candidates: &[String],
-    smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
+    smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
 ) {
     match find_closest_coi_mut(cois, embedding) {
         // If the given embedding's similarity to the CoI is above the threshold,
@@ -167,7 +167,7 @@ mod tests {
     use ndarray::arr1;
 
     use super::*;
-    use crate::coi::utils::tests::{create_neg_cois, create_pos_cois};
+    use crate::coi::point::tests::{create_neg_cois, create_pos_cois};
 
     #[test]
     fn test_update_coi_update_point() {

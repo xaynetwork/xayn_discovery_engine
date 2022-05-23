@@ -16,14 +16,15 @@ use std::{cmp::Ordering, time::SystemTime};
 
 use serde::Serialize;
 
-use crate::Error;
+use crate::GenericError;
 
 /// Pretend that f32 has a total ordering.
 ///
 /// `NaN` is treated as the lowest possible value if `nan_min`, similar to what [`f32::max`] does.
 /// Otherwise it is treated as the highest possible value, similar to what [`f32::min`] does.
+#[inline]
 #[allow(clippy::trivially_copy_pass_by_ref)] // required by calling functions
-pub(crate) fn nan_safe_f32_cmp_base(a: &f32, b: &f32, nan_min: bool) -> Ordering {
+fn nan_safe_f32_cmp_base(a: &f32, b: &f32, nan_min: bool) -> Ordering {
     a.partial_cmp(b).unwrap_or_else(|| {
         // if `partial_cmp` returns None we have at least one `NaN`,
         let cmp = match (a.is_nan(), b.is_nan()) {
@@ -51,20 +52,24 @@ pub(crate) fn nan_safe_f32_cmp_base(a: &f32, b: &f32, nan_min: bool) -> Ordering
 ///
 /// By switching the input parameters around this can be used to create a
 /// descending sorted order, like e.g.: `[2.0, 1.5, 0.5, NaN]`.
+#[inline]
 #[allow(clippy::trivially_copy_pass_by_ref)] // required by calling functions
-pub(crate) fn nan_safe_f32_cmp(a: &f32, b: &f32) -> Ordering {
+pub fn nan_safe_f32_cmp(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp_base(a, b, true)
 }
 
 /// `nan_safe_f32_cmp_desc(a,b)` is syntax suggar for `nan_safe_f32_cmp(b, a)`
 #[inline]
 #[allow(clippy::trivially_copy_pass_by_ref)] // required by calling functions
-pub(crate) fn nan_safe_f32_cmp_desc(a: &f32, b: &f32) -> Ordering {
+pub fn nan_safe_f32_cmp_desc(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp(b, a)
 }
 
 /// Serializes the given data, tagged with the given version number.
-pub(crate) fn serialize_with_version(data: &impl Serialize, version: u8) -> Result<Vec<u8>, Error> {
+pub(crate) fn serialize_with_version(
+    data: &impl Serialize,
+    version: u8,
+) -> Result<Vec<u8>, GenericError> {
     let size = bincode::serialized_size(data)? + 1;
     #[allow(clippy::cast_possible_truncation)] // bounded by architecture
     let mut serialized = Vec::with_capacity(size as usize);

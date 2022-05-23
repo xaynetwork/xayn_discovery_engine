@@ -18,6 +18,7 @@ use uuid::Uuid;
 use xayn_discovery_engine_ai::{
     DocumentId,
     Embedding,
+    GenericError,
     KeyPhrase,
     NegativeCoi,
     PositiveCoi,
@@ -26,10 +27,7 @@ use xayn_discovery_engine_ai::{
 use xayn_discovery_engine_kpe::RankedKeyPhrases;
 use xayn_discovery_engine_providers::Market;
 
-use crate::{
-    document::{Document, Id, TimeSpent, TrendingTopic, UserReacted, UserReaction},
-    engine::GenericError,
-};
+use crate::document::{Document, Id, TimeSpent, TrendingTopic, UserReacted, UserReaction};
 
 #[cfg(test)]
 use mockall::automock;

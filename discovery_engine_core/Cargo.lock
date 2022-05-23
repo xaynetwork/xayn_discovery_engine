@@ -3222,7 +3222,6 @@ dependencies = [
 name = "xayn-discovery-engine-ai"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bincode",
  "chrono",
  "csv",

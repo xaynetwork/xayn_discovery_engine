@@ -48,11 +48,12 @@ pub use crate::{
         utils::{cosine_similarity, pairwise_cosine_similarity, COSINE_SIMILARITY_RANGE},
         Embedding,
     },
-    error::Error,
+    error::GenericError,
     ranker::{
         document::{Document, DocumentId, UserFeedback},
         public::{Builder, Ranker},
     },
+    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
 };
 
 // we need to export rstest_reuse from the root for it to work.

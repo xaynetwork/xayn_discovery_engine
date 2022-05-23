@@ -13,8 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use tokio::task::JoinHandle;
-
-use crate::engine::GenericError;
+use xayn_discovery_engine_ai::GenericError;
 
 type ItemsResult<I> = Result<Vec<I>, GenericError>;
 type Request<I> = JoinHandle<ItemsResult<I>>;

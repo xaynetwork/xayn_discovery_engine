@@ -16,9 +16,9 @@ use url::Url;
 
 use crate::{
     document::{Document, HistoricDocument},
-    engine::GenericError,
     stack::filters::DuplicateFilter,
 };
+use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_providers::Article;
 
 pub(crate) trait ArticleFilter {

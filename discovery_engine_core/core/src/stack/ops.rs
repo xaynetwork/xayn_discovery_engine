@@ -18,12 +18,11 @@ use displaydoc::Display;
 use mockall::automock;
 use thiserror::Error;
 
-use xayn_discovery_engine_ai::KeyPhrase;
+use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{Article, Market};
 
 use crate::{
     document::{Document, HistoricDocument},
-    engine::GenericError,
     stack::Id,
 };
 

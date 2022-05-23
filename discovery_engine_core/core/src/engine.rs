@@ -32,7 +32,15 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::error;
 
-use xayn_discovery_engine_ai::{cosine_similarity, Builder, CoiSystemConfig, Embedding, KeyPhrase};
+use xayn_discovery_engine_ai::{
+    cosine_similarity,
+    nan_safe_f32_cmp,
+    Builder,
+    CoiSystemConfig,
+    Embedding,
+    GenericError,
+    KeyPhrase,
+};
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
@@ -82,7 +90,6 @@ use crate::{
         Stack,
         TrustedNews,
     },
-    utils::nan_safe_f32_cmp,
 };
 
 /// Discovery engine errors.
@@ -1026,11 +1033,7 @@ impl XaynAiEngine {
 
         if let Some(state) = state {
             let state: State = bincode::deserialize(state).map_err(Error::Deserialization)?;
-            let ranker = builder
-                .with_serialized_state(&state.ranker.0)
-                .map_err(|err| Error::Ranker(err.into()))?
-                .build()
-                .map_err(|err| Error::Ranker(err.into()))?;
+            let ranker = builder.with_serialized_state(&state.ranker.0)?.build()?;
             Self::from_state(
                 &state.engine,
                 endpoint_config,
@@ -1041,7 +1044,7 @@ impl XaynAiEngine {
             )
             .await
         } else {
-            let ranker = builder.build().map_err(|err| Error::Ranker(err.into()))?;
+            let ranker = builder.build()?;
             Self::new(endpoint_config, ranker, history, stack_ops, client).await
         }
     }
@@ -1054,10 +1057,6 @@ fn ai_config_from_json(json: &str) -> Figment {
         .merge(Serialized::default("smbert.token_size", 150))
         .merge(Json::string(json))
 }
-
-/// A wrapper around a dynamic error type, similar to `anyhow::Error`,
-/// but without the need to declare `anyhow` as a dependency.
-pub(crate) type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
 
 #[derive(Serialize, Deserialize)]
 struct StackState(Vec<u8>);
@@ -1088,20 +1087,18 @@ mod tests {
         stack::{ops::MockOps, Data},
     };
 
-    use std::{error::Error, mem::size_of};
+    use std::mem::size_of;
     use wiremock::{
         matchers::{method, path},
         Mock,
         MockServer,
         ResponseTemplate,
     };
-    use xayn_discovery_engine_ai::Embedding;
-    use xayn_discovery_engine_providers::Article;
 
     use super::*;
 
     #[test]
-    fn test_ai_config_from_json_default() -> Result<(), Box<dyn Error>> {
+    fn test_ai_config_from_json_default() -> Result<(), GenericError> {
         let ai_config = ai_config_from_json("{}");
         assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
         assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 150);
@@ -1113,7 +1110,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ai_config_from_json_modified() -> Result<(), Box<dyn Error>> {
+    fn test_ai_config_from_json_modified() -> Result<(), GenericError> {
         let ai_config = ai_config_from_json(
             r#"{
                 "coi": {
