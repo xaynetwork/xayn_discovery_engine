@@ -22,7 +22,8 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         DeepSearchRequestFailed,
         DeepSearchRequestSucceeded,
         DiscoveryEngine,
-        FeedMarket,
+        DocumentId,
+        NextFeedBatchRequestSucceeded,
         SearchFailureReason;
 
 import '../logging.dart' show setupLogging;
@@ -38,13 +39,21 @@ void main() {
     late TestEngineData data;
     late DiscoveryEngine engine;
 
-    const term = 'this is a search term example';
-    const market = FeedMarket(countryCode: 'EX', langCode: 'ex');
+    late DocumentId id;
 
     setUp(() async {
       server = await LocalNewsApiServer.start();
       data = await setupTestEngineData();
       engine = await initEngine(data, server.port);
+
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[isA<NextFeedBatchRequestSucceeded>()]),
+      );
+      id = ((await engine.requestNextFeedBatch())
+              as NextFeedBatchRequestSucceeded)
+          .items[0]
+          .documentId;
     });
 
     tearDown(() async {
@@ -59,27 +68,11 @@ void main() {
         emitsInOrder(<Matcher>[isA<DeepSearchRequestSucceeded>()]),
       );
 
-      final response = await engine.requestDeepSearch(term, market);
+      final response = await engine.requestDeepSearch(id);
       expect(response, isA<DeepSearchRequestSucceeded>());
       expect(
         (response as DeepSearchRequestSucceeded).items,
         isNotEmpty,
-      );
-    });
-
-    test(
-        'requestDeepSearch should return failed event if the search term is'
-        ' too short to extract enough key phrase words', () async {
-      expect(
-        engine.engineEvents,
-        emitsInOrder(<Matcher>[isA<DeepSearchRequestFailed>()]),
-      );
-
-      final response = await engine.requestDeepSearch('example', market);
-      expect(response, isA<DeepSearchRequestFailed>());
-      expect(
-        (response as DeepSearchRequestFailed).reason,
-        equals(SearchFailureReason.noResultsAvailable),
       );
     });
 
@@ -92,7 +85,7 @@ void main() {
       );
 
       server.replyWith = ReplyWith.empty;
-      final response = await engine.requestDeepSearch(term, market);
+      final response = await engine.requestDeepSearch(id);
       expect(response, isA<DeepSearchRequestFailed>());
       expect(
         (response as DeepSearchRequestFailed).reason,
@@ -109,7 +102,7 @@ void main() {
       );
 
       server.replyWith = ReplyWith.error;
-      final response = await engine.requestDeepSearch(term, market);
+      final response = await engine.requestDeepSearch(id);
       expect(response, isA<DeepSearchRequestFailed>());
       expect(
         (response as DeepSearchRequestFailed).reason,

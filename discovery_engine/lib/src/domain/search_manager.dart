@@ -31,6 +31,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/active_search_repo.dart'
@@ -194,13 +196,22 @@ class SearchManager {
     return EngineEvent.activeSearchTermRequestSucceeded(search.searchTerm);
   }
 
-  /// Obtains the deep search documents related to `term` and `market`.
+  /// Obtains the deep search documents related to a document.
   ///
   /// These documents aren't persisted to repositories.
-  Future<EngineEvent> deepSearchRequested(
-    String term,
-    FeedMarket market,
-  ) async {
+  Future<EngineEvent> deepSearchRequested(DocumentId id) async {
+    final doc = await _docRepo.fetchById(id);
+    if (doc == null || !doc.isActive) {
+      throw ArgumentError('id $id does not identify an active document');
+    }
+    final term = doc.resource.snippet.isNotEmpty
+        ? doc.resource.snippet
+        : doc.resource.title;
+    final market = FeedMarket(
+      countryCode: doc.resource.country,
+      langCode: doc.resource.language,
+    );
+
     final List<DocumentWithActiveData> docs;
     try {
       docs = await _engine.deepSearch(term, market);
