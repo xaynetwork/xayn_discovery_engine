@@ -37,7 +37,7 @@ mod expression;
 mod filter;
 mod newscatcher;
 
-pub use bing::TrendingQuery;
+pub use bing::{TrendingQuery, TrendingTopic};
 pub use clean_query::clean_query;
 pub use client::{
     default_from,

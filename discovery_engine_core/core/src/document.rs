@@ -29,7 +29,7 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-use xayn_discovery_engine_providers::{Article, Market};
+use xayn_discovery_engine_providers::{Article, Market, TrendingTopic as BingTopic};
 
 use crate::stack::Id as StackId;
 
@@ -152,16 +152,17 @@ impl TryFrom<Article> for NewsResource {
     type Error = Error;
     fn try_from(article: Article) -> Result<Self, Self::Error> {
         let media = article.media;
+        let image = (!media.is_empty())
+            .then(|| Url::parse(&media))
+            .transpose()?;
 
-        Ok(NewsResource {
+        Ok(Self {
             title: article.title,
             snippet: article.excerpt,
             date_published: article.published_date,
             url: Url::parse(&article.link)?,
             source_domain: article.source_domain,
-            image: (!media.is_empty())
-                .then(|| Url::parse(&media))
-                .transpose()?,
+            image,
             rank: article.rank,
             score: article.score,
             country: article.country,
@@ -255,6 +256,22 @@ pub struct TrendingTopic {
     pub query: String,
     /// Link to a related image.
     pub image: Option<Url>,
+}
+
+impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
+    type Error = Error;
+    fn try_from((topic, smbert_embedding): (BingTopic, Embedding)) -> Result<Self, Self::Error> {
+        let url = topic.image.url;
+        let image = (!url.is_empty()).then(|| Url::parse(&url)).transpose()?;
+
+        Ok(Self {
+            id: Id::new(),
+            smbert_embedding,
+            name: topic.name,
+            query: topic.query.text,
+            image,
+        })
+    }
 }
 
 #[cfg(test)]
