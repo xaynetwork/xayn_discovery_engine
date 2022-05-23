@@ -820,7 +820,7 @@ async fn update_stacks<'a>(
     // across stacks first.
     let new_document_futures = needy_stacks
         .iter()
-        .map(|stack| fetch_new_documents_for_stack(stack, ranker, &key_phrases, history))
+        .map(|stack| fetch_new_documents_for_stack(stack, ranker, &key_phrases, history, market))
         .collect_vec();
 
     for maybe_new_documents in join_all(new_document_futures).await {
@@ -907,8 +907,9 @@ async fn fetch_new_documents_for_stack(
     ranker: &(impl Ranker + Send + Sync),
     key_phrases: &[KeyPhrase],
     history: &[HistoricDocument],
+    market: &Market,
 ) -> Result<Vec<Document>, Error> {
-    let articles = match stack.new_items(key_phrases, history).await {
+    let articles = match stack.new_items(key_phrases, history, market).await {
         Ok(articles) => articles,
         Err(error) => {
             return Err(Error::StackOpFailed(error));
@@ -1257,7 +1258,7 @@ mod tests {
         let mut mock_ops = new_mock_stack_ops();
         mock_ops
             .expect_new_items()
-            .returning(|_, _, _| Err(NewItemsError::NotReady));
+            .returning(|_, _, _, _| Err(NewItemsError::NotReady));
 
         let stack_ops = vec![Box::new(mock_ops) as BoxedOps];
         let mut stacks = create_stacks_from_stack_ops(stack_ops);
@@ -1286,12 +1287,12 @@ mod tests {
         let mut mock_ops_ok = new_mock_stack_ops();
         mock_ops_ok
             .expect_new_items()
-            .returning(|_, _, _| Ok(vec![new_mock_article()]));
+            .returning(|_, _, _, _| Ok(vec![new_mock_article()]));
 
         let mut mock_ops_failed = new_mock_stack_ops();
         mock_ops_failed
             .expect_new_items()
-            .returning(|_, _, _| Err(NewItemsError::Error("mock_ops_failed_error".into())));
+            .returning(|_, _, _, _| Err(NewItemsError::Error("mock_ops_failed_error".into())));
 
         let stack_ops = vec![
             Box::new(mock_ops_ok) as BoxedOps,
@@ -1323,7 +1324,7 @@ mod tests {
         let mut mock_ops_failed = new_mock_stack_ops();
         mock_ops_failed
             .expect_new_items()
-            .returning(|_, _, _| Err(NewItemsError::Error("mock_ops_failed_error".into())));
+            .returning(|_, _, _, _| Err(NewItemsError::Error("mock_ops_failed_error".into())));
 
         let stack_ops = vec![Box::new(mock_ops_failed) as BoxedOps];
         let mut stacks = create_stacks_from_stack_ops(stack_ops);
