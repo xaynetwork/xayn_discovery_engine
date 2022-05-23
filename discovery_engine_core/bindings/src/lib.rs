@@ -40,7 +40,7 @@ use xayn_discovery_engine_core::Engine;
 #[async_bindgen::api(
     use xayn_discovery_engine_ai::ranker::Embedding;
     use xayn_discovery_engine_core::{
-        document::{Document, HistoricDocument, TimeSpent, UserReacted},
+        document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted},
         InitConfig,
     };
     use xayn_discovery_engine_providers::Market;
@@ -202,6 +202,19 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .lock()
                 .await
                 .deep_search(term.as_ref(), market.as_ref(), embedding.as_ref())
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Returns the current trending topics.
+    pub async fn trending_topics(engine: &SharedEngine) -> Box<Result<Vec<TrendingTopic>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .trending_topics()
                 .await
                 .map_err(|error| error.to_string()),
         )

@@ -12,28 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Modules containing FFI glue for various types.
+//! FFI functions for handling types from the trending topic module.
 
-#![allow(unsafe_code)]
+#[allow(clippy::module_inception)]
+mod trending_topic;
+mod trending_topic_vec;
 
-mod boxed;
-pub mod date_time;
-pub mod document;
-pub mod duration;
-pub mod embedding;
-pub mod engine;
-pub mod history;
-pub mod history_vec;
-pub mod init_config;
-pub mod market;
-pub mod market_vec;
-pub mod option;
-pub mod primitives;
-pub mod result;
-pub mod slice;
-pub mod string;
-pub mod string_vec;
-pub mod trending_topic;
-pub mod url;
-pub mod uuid;
-pub mod vec;
+pub use trending_topic::*;
+pub use trending_topic_vec::*;
