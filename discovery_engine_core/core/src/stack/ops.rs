@@ -19,7 +19,7 @@ use mockall::automock;
 use thiserror::Error;
 
 use xayn_discovery_engine_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::Article;
+use xayn_discovery_engine_providers::{Article, Market};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -64,6 +64,7 @@ pub trait Ops {
         key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
+        market: &Market,
     ) -> Result<Vec<Article>, NewItemsError>;
 
     /// Returns if `[new_items]` needs the key phrases to work.

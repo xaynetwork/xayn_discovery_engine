@@ -12,67 +12,48 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use futures::{stream::FuturesUnordered, StreamExt};
 use tokio::task::JoinHandle;
-use xayn_discovery_engine_providers::Market;
 
 use crate::engine::GenericError;
 
 type ItemsResult<I> = Result<Vec<I>, GenericError>;
-type Requests<I> = FuturesUnordered<JoinHandle<ItemsResult<I>>>;
-
-async fn request_new_items<I: Send>(
-    requests_fn: impl FnOnce() -> Requests<I> + Send,
-) -> ItemsResult<I> {
-    let mut requests = requests_fn();
-    let mut items = Vec::new();
-    let mut error = None;
-
-    while let Some(handle) = requests.next().await {
-        // should we also push handle errors?
-        if let Ok(result) = handle {
-            match result {
-                Ok(batch) => items.extend(batch),
-                Err(err) => {
-                    error.replace(err);
-                }
-            }
-        }
-    }
-
-    if items.is_empty() && error.is_some() {
-        Err(error.unwrap(/* nonempty error */))
-    } else {
-        Ok(items)
-    }
-}
+type Request<I> = JoinHandle<ItemsResult<I>>;
 
 pub(super) async fn request_min_new_items<I: Send>(
     max_requests: u32,
     min_articles: usize,
-    requests_fn: impl Fn(u32) -> Requests<I> + Send + Sync,
+    page_size: usize,
+    request_fn: impl Fn(u32) -> Request<I> + Send + Sync,
     filter_fn: impl Fn(Vec<I>) -> ItemsResult<I> + Send + Sync,
 ) -> ItemsResult<I> {
-    let mut items = Vec::new();
+    let mut items = Vec::with_capacity(min_articles);
     let mut error = None;
 
     for request_num in 0..max_requests {
-        match request_new_items(|| requests_fn(request_num)).await {
+        match request_fn(request_num).await {
             // if the API doesn't return any new items, we stop requesting more pages
-            Ok(batch) if batch.is_empty() => break,
-            Ok(batch) => items.extend(batch),
-            Err(err) => {
+            Ok(Ok(batch)) => {
+                if batch.is_empty() {
+                    break;
+                }
+
+                let batch_size = batch.len();
+                items.extend(batch);
+
+                items = filter_fn(items)
+                    .map_err(|err| error.replace(err))
+                    .unwrap_or_default();
+
+                if items.len() >= min_articles || batch_size < page_size {
+                    break;
+                }
+            }
+            Ok(Err(err)) => {
                 error.replace(err);
             }
+            // should we also push handle errors?
+            Err(_) => {}
         };
-
-        items = filter_fn(items)
-            .map_err(|err| error.replace(err))
-            .unwrap_or_default();
-
-        if items.len() >= min_articles {
-            break;
-        }
     }
 
     if items.is_empty() && error.is_some() {
@@ -80,25 +61,15 @@ pub(super) async fn request_min_new_items<I: Send>(
     } else {
         Ok(items)
     }
-}
-
-pub(super) fn create_requests_for_markets<I>(
-    markets: Vec<Market>,
-    request_fn: impl Fn(Market) -> JoinHandle<ItemsResult<I>> + Send,
-) -> Requests<I> {
-    markets
-        .into_iter()
-        .map(request_fn)
-        .collect::<FuturesUnordered<_>>()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    struct Resp(Result<Vec<u32>, GenericError>);
+    struct Response(ItemsResult<u32>);
 
-    impl Resp {
+    impl Response {
         fn ok(items: &[u32]) -> Self {
             Self(Ok(items.to_owned()))
         }
@@ -106,46 +77,10 @@ mod tests {
         fn err(msg: &str) -> Self {
             Self(Err(GenericError::from(msg)))
         }
-    }
 
-    fn client(responses: Vec<Resp>) -> Requests<u32> {
-        responses
-            .into_iter()
-            .map(|response| tokio::spawn(async { response.0 }))
-            .collect::<FuturesUnordered<_>>()
-    }
-
-    #[tokio::test]
-    async fn test_request_new_items() {
-        let items = request_new_items(|| {
-            let responses = vec![Resp::ok(&[1]), Resp::ok(&[2, 3])];
-            client(responses)
-        })
-        .await
-        .unwrap();
-        assert_eq!(items.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn test_request_new_items_only_errors() {
-        let res = request_new_items(|| {
-            let responses = vec![Resp::err("0"), Resp::err("1")];
-            client(responses)
-        })
-        .await;
-        assert!(res.is_err());
-        assert_eq!(res.unwrap_err().to_string(), "1");
-    }
-
-    #[tokio::test]
-    async fn test_request_new_items_mixed() {
-        let items = request_new_items(|| {
-            let responses = vec![Resp::err("0"), Resp::ok(&[1])];
-            client(responses)
-        })
-        .await
-        .unwrap();
-        assert_eq!(items.len(), 1);
+        fn request(self) -> Request<u32> {
+            tokio::spawn(async { self.0 })
+        }
     }
 
     #[tokio::test]
@@ -153,10 +88,8 @@ mod tests {
         let items = request_min_new_items(
             3,
             2,
-            |i| {
-                let responses = vec![Resp::ok(&[i])];
-                client(responses)
-            },
+            1,
+            |i| Response::ok(&[i]).request(),
             |items| Ok(items.into_iter().filter(|item| *item != 2).collect()),
         )
         .await
@@ -166,13 +99,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_min_new_items_filter_error() {
-        let res: Result<Vec<u32>, GenericError> = request_min_new_items(
+        let res = request_min_new_items(
             1,
             1,
-            |_| {
-                let responses = vec![Resp::ok(&[0])];
-                client(responses)
-            },
+            1,
+            |_| Response::ok(&[0]).request(),
             |_| Err(GenericError::from("filter")),
         )
         .await;
@@ -182,32 +113,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_min_new_items() {
-        let items = request_min_new_items(
-            2,
-            2,
-            |i| {
-                let responses = vec![Resp::ok(&[i])];
-                client(responses)
-            },
-            Ok,
-        )
-        .await
-        .unwrap();
+        let items = request_min_new_items(2, 2, 1, |i| Response::ok(&[i]).request(), Ok)
+            .await
+            .unwrap();
         assert_eq!(items.len(), 2);
     }
 
     #[tokio::test]
     async fn test_request_min_new_items_only_errors() {
-        let res = request_min_new_items(
-            2,
-            2,
-            |i| {
-                let responses = vec![Resp::err(&format!("{}", i))];
-                client(responses)
-            },
-            Ok,
-        )
-        .await;
+        let res =
+            request_min_new_items(2, 2, 1, |i| Response::err(&format!("{}", i)).request(), Ok)
+                .await;
         assert!(res.is_err());
         assert_eq!(res.unwrap_err().to_string(), "1");
     }
@@ -217,30 +133,27 @@ mod tests {
         let items = request_min_new_items(
             2,
             2,
+            1,
             |i| {
-                let responses = vec![Resp::err(&format!("{}", i)), Resp::ok(&[i])];
-                client(responses)
+                match i {
+                    0 => Response::err(&format!("{}", i)),
+                    1 => Response::ok(&[i]),
+                    _ => unreachable!(),
+                }
+                .request()
             },
             Ok,
         )
         .await
         .unwrap();
-        assert_eq!(items.len(), 2);
+        assert_eq!(items.len(), 1);
     }
 
     #[tokio::test]
     async fn test_request_min_new_items_less_than_min() {
-        let items = request_min_new_items(
-            3,
-            10,
-            |i| {
-                let responses = vec![Resp::ok(&[i])];
-                client(responses)
-            },
-            Ok,
-        )
-        .await
-        .unwrap();
+        let items = request_min_new_items(3, 10, 1, |i| Response::ok(&[i]).request(), Ok)
+            .await
+            .unwrap();
         assert_eq!(items.len(), 3);
     }
 
@@ -249,9 +162,13 @@ mod tests {
         let items = request_min_new_items(
             3,
             1,
+            2,
             |i| {
-                let responses = vec![Resp::ok(&[i]), Resp::ok(&[i])];
-                client(responses)
+                match i {
+                    0 => Response::ok(&[i, i + 1]),
+                    _ => unreachable!(),
+                }
+                .request()
             },
             Ok,
         )
@@ -263,38 +180,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_min_new_items_no_requests() {
-        let items = request_min_new_items(
-            0,
-            0,
-            |i| {
-                let responses = vec![Resp::ok(&[i]), Resp::ok(&[i])];
-                client(responses)
-            },
-            Ok,
-        )
-        .await
-        .unwrap();
+        let items = request_min_new_items(0, 0, 1, |i| Response::ok(&[i]).request(), Ok)
+            .await
+            .unwrap();
         assert!(items.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_request_min_new_items_exit_early() {
-        let items = request_min_new_items(
-            5,
-            10,
-            |i| {
-                if i == 2 {
-                    FuturesUnordered::new()
-                } else {
-                    let responses = vec![Resp::ok(&[i])];
-                    client(responses)
-                }
-            },
-            Ok,
-        )
-        .await
-        .unwrap();
-        assert_eq!(items.len(), 2);
-        assert_eq!(items[1], 1);
     }
 }

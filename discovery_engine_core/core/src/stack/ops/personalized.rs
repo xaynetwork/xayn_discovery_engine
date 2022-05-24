@@ -38,16 +38,11 @@ use crate::{
     },
 };
 
-use super::{
-    common::{create_requests_for_markets, request_min_new_items},
-    NewItemsError,
-    Ops,
-};
+use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for personalized news items.
 pub(crate) struct PersonalizedNews {
     client: Arc<Client>,
-    markets: Arc<RwLock<Vec<Market>>>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: u32,
@@ -59,7 +54,6 @@ impl PersonalizedNews {
     pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
         Self {
             client,
-            markets: config.markets.clone(),
             page_size: config.page_size,
             excluded_sources: config.excluded_sources.clone(),
             max_requests: config.max_requests,
@@ -94,6 +88,7 @@ impl Ops for PersonalizedNews {
         key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
+        market: &Market,
     ) -> Result<Vec<Article>, NewItemsError> {
         if key_phrases.is_empty() {
             return Err(NewItemsError::NotReady);
@@ -102,24 +97,21 @@ impl Ops for PersonalizedNews {
         let filter = Arc::new(key_phrases.iter().fold(Filter::default(), |filter, kp| {
             filter.add_keyword(kp.words())
         }));
-        let markets = self.markets.read().await.clone();
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
 
         request_min_new_items(
             self.max_requests,
             self.min_articles,
+            self.page_size,
             |request_num| {
-                create_requests_for_markets(markets.clone(), |market| {
-                    let page = request_num as usize + 1;
-                    spawn_news_request(
-                        self.client.clone(),
-                        market,
-                        filter.clone(),
-                        self.page_size,
-                        page,
-                        excluded_sources.clone(),
-                    )
-                })
+                spawn_news_request(
+                    self.client.clone(),
+                    market.clone(),
+                    filter.clone(),
+                    self.page_size,
+                    request_num as usize + 1,
+                    excluded_sources.clone(),
+                )
             },
             |articles| Self::filter_articles(history, stack, articles, &excluded_sources),
         )

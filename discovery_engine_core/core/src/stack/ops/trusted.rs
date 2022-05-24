@@ -12,10 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{iter, sync::Arc};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::stream::FuturesUnordered;
 use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
@@ -25,6 +24,7 @@ use xayn_discovery_engine_providers::{
     Client,
     CommonQueryParts,
     HeadlinesQuery,
+    Market,
     DEFAULT_WHEN,
 };
 
@@ -85,6 +85,7 @@ impl Ops for TrustedNews {
         _key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
+        _market: &Market,
     ) -> Result<Vec<Article>, NewItemsError> {
         let sources = Arc::new(self.sources.read().await.clone());
         if sources.is_empty() {
@@ -94,15 +95,14 @@ impl Ops for TrustedNews {
         request_min_new_items(
             self.max_requests,
             self.min_articles,
+            self.page_size,
             |request_num| {
-                let page = request_num as usize + 1;
-                let future = spawn_trusted_request(
+                spawn_trusted_request(
                     self.client.clone(),
                     self.page_size,
-                    page,
+                    request_num as usize + 1,
                     sources.clone(),
-                );
-                iter::once(future).collect::<FuturesUnordered<_>>()
+                )
             },
             |articles| Self::filter_articles(history, stack, articles),
         )

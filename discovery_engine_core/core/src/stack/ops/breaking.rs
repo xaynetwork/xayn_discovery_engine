@@ -37,16 +37,11 @@ use crate::{
     },
 };
 
-use super::{
-    common::{create_requests_for_markets, request_min_new_items},
-    NewItemsError,
-    Ops,
-};
+use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for breaking news items.
 pub(crate) struct BreakingNews {
     client: Arc<Client>,
-    markets: Arc<RwLock<Vec<Market>>>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: u32,
@@ -58,7 +53,6 @@ impl BreakingNews {
     pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
         Self {
             client,
-            markets: config.markets.clone(),
             excluded_sources: config.excluded_sources.clone(),
             page_size: config.page_size,
             max_requests: config.max_requests,
@@ -97,24 +91,22 @@ impl Ops for BreakingNews {
         _key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         stack: &[Document],
+        market: &Market,
     ) -> Result<Vec<Article>, NewItemsError> {
-        let markets = self.markets.read().await.clone();
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
 
         request_min_new_items(
             self.max_requests,
             self.min_articles,
+            self.page_size,
             |request_num| {
-                create_requests_for_markets(markets.clone(), |market| {
-                    let page = request_num as usize + 1;
-                    spawn_headlines_request(
-                        self.client.clone(),
-                        market,
-                        self.page_size,
-                        page,
-                        excluded_sources.clone(),
-                    )
-                })
+                spawn_headlines_request(
+                    self.client.clone(),
+                    market.clone(),
+                    self.page_size,
+                    request_num as usize + 1,
+                    excluded_sources.clone(),
+                )
             },
             |articles| Self::filter_articles(history, stack, articles, &excluded_sources),
         )

@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 use xayn_discovery_engine_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::Article;
+use xayn_discovery_engine_providers::{Article, Market};
 
 use crate::{
     document::{Document, HistoricDocument, Id as DocumentId, UserReaction},
@@ -198,9 +198,10 @@ impl Stack {
         &self,
         key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
+        market: &Market,
     ) -> Result<Vec<Article>, Error> {
         self.ops
-            .new_items(key_phrases, history, &self.data.documents)
+            .new_items(key_phrases, history, &self.data.documents, market)
             .await
             .map_err(Error::New)
     }
