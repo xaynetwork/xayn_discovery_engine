@@ -32,8 +32,11 @@ $ dart pub get
 ## Dart VM example
 
 ```sh
-# run the example, this executes the code in bin/example.dart
+# run the example from the discovery_engine/example/ dir, this executes the code in bin/example.dart
 $ dart run
+
+# if dynamic library path resolution fails, run the example from the discovery_engine/ dir
+$ dart run example/bin/example.dart
 ```
 
 ## Web example
