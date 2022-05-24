@@ -59,10 +59,13 @@ import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
     show
         resultSharedEngineStringFfiAdapter,
         resultVecDocumentStringFfiAdapter,
+        resultVecTrendingTopicStringFfiAdapter,
         resultVecU8StringFfiAdapter,
         resultVoidStringFfiAdapter;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show StringFfi, StringListFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart'
+    show TrendingTopicSliceFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
@@ -261,8 +264,11 @@ class DiscoveryEngineFfi implements Engine {
   /// Returns the currently trending topics.
   @override
   Future<List<TrendingTopic>> getTrendingTopics() async {
-    // TODO: implement engine call
-    throw UnimplementedError('TODO: implement engine call');
+    final result = await asyncFfi.trendingTopics(_engine.ref);
+
+    return resultVecTrendingTopicStringFfiAdapter
+        .consumeNative(result)
+        .toTrendingTopicList();
   }
 
   /// Disposes the engine.
