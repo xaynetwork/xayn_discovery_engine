@@ -41,7 +41,7 @@ impl Default for CoiConfig {
             shift_factor: 0.1,
             threshold: 0.67,
             min_positive_cois: 2,
-            min_negative_cois: 2,
+            min_negative_cois: 0,
         }
     }
 }

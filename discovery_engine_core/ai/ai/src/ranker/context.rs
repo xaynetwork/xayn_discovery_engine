@@ -26,7 +26,7 @@ use crate::{
         compute_coi_relevances,
         config::Config,
         find_closest_coi,
-        point::{CoiPoint, UserInterests},
+        point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
     },
     embedding::utils::Embedding,
     ranker::document::Document,
@@ -44,31 +44,115 @@ pub(crate) enum Error {
     FailedToFindTheClosestCois,
 }
 
-/// Helper struct for [`find_closest_cois`].
-struct ClosestCois {
+struct ClosestPositiveCoi {
     /// The ID of the closest positive centre of interest
-    pos_id: CoiId,
-    /// Distance from the closest positive centre of interest
-    pos_similarity: f32,
-    pos_last_view: SystemTime,
-
-    /// Distance from the closest negative centre of interest
-    neg_similarity: f32,
-    neg_last_view: SystemTime,
+    id: CoiId,
+    /// Similarity to the closest positive centre of interest
+    similarity: f32,
+    last_view: SystemTime,
 }
 
-fn find_closest_cois(embedding: &Embedding, user_interests: &UserInterests) -> Option<ClosestCois> {
-    let (pos_coi, pos_similarity) = find_closest_coi(&user_interests.positive, embedding)?;
-    let (neg_coi, neg_similarity) = find_closest_coi(&user_interests.negative, embedding)?;
+impl ClosestPositiveCoi {
+    fn new(
+        embedding: &Embedding,
+        positive_user_interests: &[PositiveCoi],
+    ) -> Result<Option<Self>, Error> {
+        let this = find_closest_coi(positive_user_interests, embedding).map(|(coi, similarity)| {
+            ClosestPositiveCoi {
+                id: coi.id(),
+                similarity,
+                last_view: coi.stats.last_view,
+            }
+        });
 
-    ClosestCois {
-        pos_id: pos_coi.id(),
-        pos_similarity,
-        pos_last_view: pos_coi.stats.last_view,
-        neg_similarity,
-        neg_last_view: neg_coi.last_view,
+        if !positive_user_interests.is_empty() && this.is_none() {
+            Err(Error::FailedToFindTheClosestCois)
+        } else {
+            Ok(this)
+        }
     }
-    .into()
+
+    fn score(
+        &self,
+        positive_user_interests: &[PositiveCoi],
+        horizon: Duration,
+        now: SystemTime,
+    ) -> f32 {
+        let decay = compute_coi_decay_factor(horizon, now, self.last_view);
+        let index = positive_user_interests
+            .iter()
+            .position(|coi| coi.id() == self.id)
+            .unwrap();
+        let relevance = compute_coi_relevances(positive_user_interests, horizon, now)[index];
+
+        self.similarity * decay + relevance
+    }
+}
+
+struct ClosestNegativeCoi {
+    /// Similarity to closest negative centre of interest
+    similarity: f32,
+    last_view: SystemTime,
+}
+
+impl ClosestNegativeCoi {
+    fn new(
+        embedding: &Embedding,
+        negative_user_interests: &[NegativeCoi],
+    ) -> Result<Option<Self>, Error> {
+        let this = find_closest_coi(negative_user_interests, embedding).map(|(coi, similarity)| {
+            ClosestNegativeCoi {
+                similarity,
+                last_view: coi.last_view,
+            }
+        });
+
+        if !negative_user_interests.is_empty() && this.is_none() {
+            Err(Error::FailedToFindTheClosestCois)
+        } else {
+            Ok(this)
+        }
+    }
+
+    fn score(&self, horizon: Duration, now: SystemTime) -> f32 {
+        let decay = compute_coi_decay_factor(horizon, now, self.last_view);
+
+        self.similarity * decay
+    }
+}
+
+struct ClosestCois {
+    positive: Option<ClosestPositiveCoi>,
+    negative: Option<ClosestNegativeCoi>,
+}
+
+impl ClosestCois {
+    fn new(embedding: &Embedding, user_interests: &UserInterests) -> Result<Self, Error> {
+        let positive = ClosestPositiveCoi::new(embedding, &user_interests.positive)?;
+        let negative = ClosestNegativeCoi::new(embedding, &user_interests.negative)?;
+
+        Ok(Self { positive, negative })
+    }
+
+    fn score(
+        &self,
+        positive_user_interests: &[PositiveCoi],
+        horizon: Duration,
+        now: SystemTime,
+    ) -> f32 {
+        let positive = self
+            .positive
+            .as_ref()
+            .map(|positive| positive.score(positive_user_interests, horizon, now))
+            .unwrap_or_default();
+        let negative = self
+            .negative
+            .as_ref()
+            .map(|negative| negative.score(horizon, now))
+            .unwrap_or_default();
+
+        (positive - negative).clamp(f32::MIN, f32::MAX) // avoid positive or negative infinity
+    }
 }
 
 fn compute_score_for_embedding(
@@ -77,23 +161,8 @@ fn compute_score_for_embedding(
     horizon: Duration,
     now: SystemTime,
 ) -> Result<f32, Error> {
-    let cois =
-        find_closest_cois(embedding, user_interests).ok_or(Error::FailedToFindTheClosestCois)?;
-
-    let pos_decay = compute_coi_decay_factor(horizon, now, cois.pos_last_view);
-    let neg_decay = compute_coi_decay_factor(horizon, now, cois.neg_last_view);
-
-    let pos_coi_index = user_interests
-        .positive
-        .iter()
-        .position(|coi| coi.id() == cois.pos_id)
-        .unwrap();
-    let pos_coi_relevance =
-        compute_coi_relevances(&user_interests.positive, horizon, now)[pos_coi_index];
-
-    let result =
-        cois.pos_similarity * pos_decay + pos_coi_relevance - cois.neg_similarity * neg_decay;
-    Ok(result.clamp(f32::MIN, f32::MAX)) // Avoid positive or negative infinity
+    ClosestCois::new(embedding, user_interests)
+        .map(|cois| cois.score(&user_interests.positive, horizon, now))
 }
 
 fn has_enough_cois(
@@ -129,8 +198,6 @@ pub(super) fn compute_score_for_docs(
     documents
         .iter()
         .map(|document| {
-            // `compute_score_for_embedding` cannot panic because we calculate
-            // the relevances for all positive cois before
             let score = compute_score_for_embedding(
                 document.smbert_embedding(),
                 user_interests,
@@ -203,9 +270,6 @@ mod tests {
             system_time_now(),
         );
 
-        assert!(matches!(
-            res.unwrap_err(),
-            Error::FailedToFindTheClosestCois
-        ));
+        assert_approx_eq!(f32, res.unwrap(), f32::default());
     }
 }
