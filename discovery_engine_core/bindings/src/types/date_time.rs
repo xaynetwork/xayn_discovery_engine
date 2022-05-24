@@ -14,8 +14,6 @@
 
 //! FFI functions for handling date time fields.
 
-use std::convert::TryFrom;
-
 use chrono::{naive::MAX_DATETIME, NaiveDateTime};
 
 const NANOS_PER_MICRO: i64 = 1_000;

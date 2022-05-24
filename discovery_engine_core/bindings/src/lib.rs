@@ -38,7 +38,7 @@ pub mod types;
 use xayn_discovery_engine_core::Engine;
 
 #[async_bindgen::api(
-    use xayn_discovery_engine_ai::ranker::Embedding;
+    use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_core::{
         document::{Document, HistoricDocument, TimeSpent, UserReacted},
         InitConfig,

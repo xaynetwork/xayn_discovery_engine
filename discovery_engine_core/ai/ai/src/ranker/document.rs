@@ -13,8 +13,39 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use chrono::NaiveDateTime;
+use derive_more::Display;
+use uuid::Uuid;
 
-use crate::{embedding::utils::Embedding, DocumentId};
+use crate::embedding::Embedding;
+
+/// A unique identifier of a document.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Display)]
+pub struct DocumentId(Uuid);
+
+impl From<Uuid> for DocumentId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+#[cfg(test)]
+impl DocumentId {
+    /// Creates a `DocumentId` from a 128bit value in big-endian order.
+    pub const fn from_u128(id: u128) -> Self {
+        DocumentId(Uuid::from_u128(id))
+    }
+}
+
+/// The various kinds of user feedback.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum UserFeedback {
+    /// The user considers this as relevant.
+    Relevant,
+    /// The user considers this as irrelevant.
+    Irrelevant,
+    /// The user doesn't give feedback.
+    NotGiven,
+}
 
 /// Common document properties.
 pub trait Document {

@@ -22,12 +22,11 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::ranker::KeyPhrase;
+use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{Article, Market};
 
 use crate::{
     document::{Document, HistoricDocument, Id as DocumentId, UserReaction},
-    engine::GenericError,
     mab::Bucket,
     ranker::Ranker,
 };

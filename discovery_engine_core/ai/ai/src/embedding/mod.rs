@@ -13,3 +13,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub(crate) mod utils;
+
+use xayn_discovery_engine_bert::Embedding1;
+
+/// A 1-dimensional sequence embedding.
+///
+/// The embedding is of shape `(embedding_size,)`.
+pub type Embedding = Embedding1;

@@ -29,12 +29,11 @@ use crate::{
         point::{NegativeCoi, PositiveCoi, UserInterests},
         CoiSystem,
     },
-    data::document::UserFeedback,
-    embedding::utils::Embedding,
-    error::Error,
+    embedding::Embedding,
+    error::GenericError,
     ranker::{
         context::{compute_score_for_docs, Error as ContextError},
-        Document,
+        document::{Document, UserFeedback},
     },
     utils::{nan_safe_f32_cmp, serialize_with_version},
 };
@@ -79,17 +78,20 @@ impl Ranker {
     }
 
     /// Creates a byte representation of the internal state of the ranker.
-    pub(crate) fn serialize(&self) -> Result<Vec<u8>, Error> {
+    pub(crate) fn serialize(&self) -> Result<Vec<u8>, GenericError> {
         serialize_with_version(&self.state, STATE_VERSION)
     }
 
     /// Computes the `SMBert` embedding of the given `sequence`.
-    pub(crate) fn compute_smbert(&self, sequence: &str) -> Result<Embedding, Error> {
+    pub(crate) fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError> {
         self.smbert.run(sequence).map_err(Into::into)
     }
 
     /// Extracts the key phrases of the given `sequence`.
-    pub(crate) fn extract_key_phrases(&self, sequence: &str) -> Result<RankedKeyPhrases, Error> {
+    pub(crate) fn extract_key_phrases(
+        &self,
+        sequence: &str,
+    ) -> Result<RankedKeyPhrases, GenericError> {
         self.kpe.run(sequence).map_err(Into::into)
     }
 

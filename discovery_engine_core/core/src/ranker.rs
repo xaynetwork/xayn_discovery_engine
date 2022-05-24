@@ -16,17 +16,18 @@ use chrono::NaiveDateTime;
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{
-    ranker::{Embedding, KeyPhrase, NegativeCoi, PositiveCoi},
     DocumentId,
+    Embedding,
+    GenericError,
+    KeyPhrase,
+    NegativeCoi,
+    PositiveCoi,
     UserFeedback,
 };
 use xayn_discovery_engine_kpe::RankedKeyPhrases;
 use xayn_discovery_engine_providers::Market;
 
-use crate::{
-    document::{Document, Id, TimeSpent, TrendingTopic, UserReacted, UserReaction},
-    engine::GenericError,
-};
+use crate::document::{Document, Id, TimeSpent, TrendingTopic, UserReacted, UserReaction};
 
 #[cfg(test)]
 use mockall::automock;
@@ -37,7 +38,7 @@ pub trait Ranker {
     /// Performs the ranking of [`Document`] items.
     fn rank<T>(&mut self, items: &mut [T]) -> Result<(), GenericError>
     where
-        T: xayn_discovery_engine_ai::ranker::Document + 'static;
+        T: xayn_discovery_engine_ai::Document + 'static;
 
     /// Logs the time a user spent on a document.
     fn log_document_view_time(&mut self, time_spent: &TimeSpent) -> Result<(), GenericError>;
@@ -70,10 +71,10 @@ pub trait Ranker {
     fn reset_ai(&mut self);
 }
 
-impl Ranker for xayn_discovery_engine_ai::ranker::Ranker {
+impl Ranker for xayn_discovery_engine_ai::Ranker {
     fn rank<T>(&mut self, items: &mut [T]) -> Result<(), GenericError>
     where
-        T: xayn_discovery_engine_ai::ranker::Document + 'static,
+        T: xayn_discovery_engine_ai::Document + 'static,
     {
         self.rank(items);
         Ok(())
@@ -132,7 +133,7 @@ impl Ranker for xayn_discovery_engine_ai::ranker::Ranker {
     }
 }
 
-impl xayn_discovery_engine_ai::ranker::Document for Document {
+impl xayn_discovery_engine_ai::Document for Document {
     fn id(&self) -> DocumentId {
         self.id.into()
     }
@@ -146,7 +147,7 @@ impl xayn_discovery_engine_ai::ranker::Document for Document {
     }
 }
 
-impl xayn_discovery_engine_ai::ranker::Document for TrendingTopic {
+impl xayn_discovery_engine_ai::Document for TrendingTopic {
     fn id(&self) -> DocumentId {
         self.id.into()
     }
@@ -163,7 +164,7 @@ impl xayn_discovery_engine_ai::ranker::Document for TrendingTopic {
 
 impl From<Id> for DocumentId {
     fn from(id: Id) -> Self {
-        Self(Uuid::from(id))
+        Uuid::from(id).into()
     }
 }
 

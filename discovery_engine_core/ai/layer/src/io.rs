@@ -16,7 +16,6 @@
 
 use std::{
     collections::HashMap,
-    convert::{TryFrom, TryInto},
     fs::File,
     io::{BufReader, BufWriter, Error as IoError, Read, Write},
     path::Path,

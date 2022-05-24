@@ -14,15 +14,19 @@
 
 use std::time::Duration;
 
-use anyhow::anyhow;
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::{Config as KpeConfig, RankedKeyPhrases};
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    coi::{config::Config as CoiSystemConfig, key_phrase::KeyPhrase, CoiSystem},
-    embedding::utils::Embedding,
-    error::Error,
+    coi::{
+        config::Config as CoiSystemConfig,
+        key_phrase::KeyPhrase,
+        point::{NegativeCoi, PositiveCoi},
+        CoiSystem,
+    },
+    embedding::Embedding,
+    error::GenericError,
     ranker::{
         document::Document,
         system::{State, STATE_VERSION},
@@ -30,24 +34,22 @@ use crate::{
     UserFeedback,
 };
 
-use super::{NegativeCoi, PositiveCoi};
-
 /// The ranker.
 pub struct Ranker(super::system::Ranker);
 
 impl Ranker {
     /// Creates a byte representation of the internal state of the ranker.
-    pub fn serialize(&self) -> Result<Vec<u8>, Error> {
+    pub fn serialize(&self) -> Result<Vec<u8>, GenericError> {
         self.0.serialize()
     }
 
     /// Computes the `SMBert` embedding of the given `sequence`.
-    pub fn compute_smbert(&self, sequence: &str) -> Result<Embedding, Error> {
+    pub fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError> {
         self.0.compute_smbert(sequence)
     }
 
     /// Extracts the key phrases of the given `sequence`.
-    pub fn extract_key_phrases(&self, sequence: &str) -> Result<RankedKeyPhrases, Error> {
+    pub fn extract_key_phrases(&self, sequence: &str) -> Result<RankedKeyPhrases, GenericError> {
         self.0.extract_key_phrases(sequence)
     }
 
@@ -131,19 +133,19 @@ impl<'a> Builder<'a, AveragePooler> {
     /// # Errors
     ///
     /// Fails if the state cannot be deserialized.
-    pub fn with_serialized_state(mut self, bytes: impl AsRef<[u8]>) -> Result<Self, Error> {
+    pub fn with_serialized_state(mut self, bytes: impl AsRef<[u8]>) -> Result<Self, GenericError> {
         let bytes = bytes.as_ref();
 
         let state = match bytes[0] {
             version if version < STATE_VERSION => Ok(State::default()),
             STATE_VERSION => bincode::deserialize(&bytes[1..]).map_err(Into::into),
-            version => Err(anyhow!(
+            version => Err(format!(
                 "Unsupported serialized data. Found version {} expected {}",
-                version,
-                STATE_VERSION,
-            )),
+                version, STATE_VERSION,
+            )
+            .into()),
         }
-        .or_else(|e|
+        .or_else(|e: GenericError|
                   // Serialized data could be the unversioned data we had before
                   bincode::deserialize(bytes).map(|user_interests|
                                                   State {
@@ -169,7 +171,7 @@ impl<'a> Builder<'a, AveragePooler> {
     ///
     /// Fails if the `SMBert` or `KPE` cannot be initialized. For example because
     /// reading from a file failed or the bytes read are have an unexpected format.
-    pub fn build(self) -> Result<Ranker, Error> {
+    pub fn build(self) -> Result<Ranker, GenericError> {
         let smbert = xayn_discovery_engine_bert::Pipeline::from(self.smbert_config)?;
         let coi = CoiSystem::new(self.coi_config);
         let kpe = xayn_discovery_engine_kpe::Pipeline::from(self.kpe_config)?;

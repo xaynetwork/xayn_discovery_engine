@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     coi::{stats::CoiStats, CoiId},
-    embedding::utils::{cosine_similarity, Embedding},
+    embedding::{utils::cosine_similarity, Embedding},
     utils::system_time_now,
 };
 
@@ -155,9 +155,8 @@ where
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use ndarray::arr1;
+    use ndarray::{arr1, FixedInitializer};
 
-    use crate::coi::utils::tests::create_pos_cois;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
@@ -176,6 +175,32 @@ pub(crate) mod tests {
         fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self {
             Self::new(id, point)
         }
+    }
+
+    fn create_cois<FI: FixedInitializer<Elem = f32>, CP: CoiPointConstructor>(
+        points: &[FI],
+    ) -> Vec<CP> {
+        if FI::len() == 0 {
+            return Vec::new();
+        }
+
+        points
+            .iter()
+            .enumerate()
+            .map(|(id, point)| CP::new(CoiId::mocked(id), arr1(point.as_init_slice())))
+            .collect()
+    }
+
+    pub(crate) fn create_pos_cois(
+        points: &[impl FixedInitializer<Elem = f32>],
+    ) -> Vec<PositiveCoi> {
+        create_cois(points)
+    }
+
+    pub(crate) fn create_neg_cois(
+        points: &[impl FixedInitializer<Elem = f32>],
+    ) -> Vec<NegativeCoi> {
+        create_cois(points)
     }
 
     #[test]

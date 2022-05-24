@@ -30,8 +30,8 @@ use xayn_discovery_engine_providers::{clean_query, Market};
 
 use crate::{
     coi::{point::PositiveCoi, stats::compute_coi_relevances, CoiError, CoiId},
-    embedding::utils::{pairwise_cosine_similarity, Embedding},
-    error::Error,
+    embedding::{utils::pairwise_cosine_similarity, Embedding},
+    error::GenericError,
     utils::{nan_safe_f32_cmp, system_time_now},
 };
 
@@ -93,7 +93,7 @@ impl PositiveCoi {
         market: &Market,
         key_phrases: &mut KeyPhrases,
         candidates: &[String],
-        smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
+        smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
         max_key_phrases: usize,
         gamma: f32,
     ) {
@@ -118,7 +118,7 @@ impl KeyPhrases {
         coi: &PositiveCoi,
         market: &Market,
         candidates: &[String],
-        smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
+        smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
         max_key_phrases: usize,
         gamma: f32,
     ) {
@@ -207,7 +207,7 @@ impl KeyPhrases {
 fn unify(
     key_phrases: Vec<KeyPhrase>,
     candidates: &[String],
-    smbert: impl Fn(&str) -> Result<Embedding, Error> + Sync,
+    smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
 ) -> Vec<KeyPhrase> {
     if candidates.is_empty() {
         return key_phrases;
@@ -465,7 +465,7 @@ mod tests {
     use ndarray::arr2;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
-    use crate::coi::{config::Config, utils::tests::create_pos_cois};
+    use crate::coi::{config::Config, point::tests::create_pos_cois};
 
     use super::*;
 

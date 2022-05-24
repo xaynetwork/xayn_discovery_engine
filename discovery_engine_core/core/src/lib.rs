@@ -35,6 +35,5 @@ mod engine;
 mod mab;
 mod ranker;
 pub mod stack;
-mod utils;
 
 pub use crate::engine::{Engine, Error, InitConfig, XaynAiEngine};

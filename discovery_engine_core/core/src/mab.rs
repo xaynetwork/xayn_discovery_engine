@@ -17,8 +17,7 @@ use std::{cmp::Ordering, marker::PhantomData};
 use displaydoc::Display;
 use rand_distr::{Beta, BetaError, Distribution};
 use thiserror::Error;
-
-use crate::utils::nan_safe_f32_cmp;
+use xayn_discovery_engine_ai::nan_safe_f32_cmp;
 
 #[derive(Error, Debug, Display)]
 pub enum Error {

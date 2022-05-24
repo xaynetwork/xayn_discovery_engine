@@ -16,9 +16,9 @@ use url::Url;
 
 use crate::{
     document::{Document, HistoricDocument},
-    engine::GenericError,
     stack::filters::DuplicateFilter,
 };
+use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_providers::Article;
 
 pub(crate) trait ArticleFilter {
@@ -77,7 +77,7 @@ impl SourcesFilter {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, convert::TryInto, iter::FromIterator};
+    use std::{collections::HashMap, iter::FromIterator};
 
     use crate::document::Document;
     use itertools::Itertools;

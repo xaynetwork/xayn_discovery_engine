@@ -21,10 +21,14 @@ use rand::{prelude::IteratorRandom, Rng};
 use thiserror::Error;
 use xayn_discovery_engine_ai::{
     cosine_similarity,
-    ranker::{pairwise_cosine_similarity, CoiPoint, NegativeCoi, PositiveCoi},
+    nan_safe_f32_cmp,
+    pairwise_cosine_similarity,
+    CoiPoint,
+    NegativeCoi,
+    PositiveCoi,
 };
 
-use crate::{document::Document, utils::nan_safe_f32_cmp};
+use crate::document::Document;
 
 #[derive(Error, Debug, Display)]
 pub enum Error {

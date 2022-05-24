@@ -14,10 +14,7 @@
 
 //! Personalized document that is returned from [`Engine`](crate::engine::Engine).
 
-use std::{
-    convert::{TryFrom, TryInto},
-    time::Duration,
-};
+use std::time::Duration;
 
 use chrono::NaiveDateTime;
 use derivative::Derivative;
@@ -33,7 +30,7 @@ use xayn_discovery_engine_providers::{Article, Market, TrendingTopic as BingTopi
 
 use crate::stack::Id as StackId;
 
-pub use xayn_discovery_engine_ai::ranker::Embedding;
+pub use xayn_discovery_engine_ai::Embedding;
 
 /// Errors that could happen when constructing a [`Document`].
 #[derive(Error, Debug, DisplayDoc)]

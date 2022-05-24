@@ -28,7 +28,7 @@ use crate::{
         find_closest_coi,
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
     },
-    embedding::utils::Embedding,
+    embedding::Embedding,
     ranker::document::Document,
     utils::system_time_now,
     CoiId,

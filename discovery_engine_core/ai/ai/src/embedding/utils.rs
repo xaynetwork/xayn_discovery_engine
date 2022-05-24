@@ -16,12 +16,6 @@ use std::ops::RangeInclusive;
 
 use itertools::Itertools;
 use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
-use xayn_discovery_engine_bert::Embedding1;
-
-/// A 1-dimensional sequence embedding.
-///
-/// The embedding is of shape `(embedding_size,)`.
-pub type Embedding = Embedding1;
 
 /// Computes the l2 norm (euclidean metric) of a vector.
 ///

@@ -14,8 +14,6 @@
 
 //! Modules containing FFI glue for handling primitives (expect `str`/`slice`).
 
-use std::convert::TryInto;
-
 use super::{
     boxed,
     option::get_option_some,

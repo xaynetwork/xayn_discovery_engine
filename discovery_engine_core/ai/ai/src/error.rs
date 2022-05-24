@@ -12,5 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/// Temporary dummy error.
-pub type Error = anyhow::Error;
+/// A wrapper around a dynamic error type, similar to `anyhow::Error`,
+/// but without the need to declare `anyhow` as a dependency.
+pub type GenericError = Box<dyn std::error::Error + Sync + Send + 'static>;
