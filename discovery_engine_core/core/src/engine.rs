@@ -347,29 +347,17 @@ where
         let markets = self.config.markets.read().await;
         let mut stacks = self.stacks.write().await;
 
-        let mut errors = vec![];
-        for market in markets.iter() {
-            if let Err(error) = update_stacks(
-                &mut stacks,
-                &mut self.exploration_stack,
-                &mut self.ranker,
-                history,
-                self.core_config.take_top,
-                self.core_config.keep_top,
-                request_new,
-                market,
-            )
-            .await
-            {
-                errors.push(error);
-            }
-        }
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(Error::Errors(errors))
-        }
+        update_stacks(
+            &mut stacks,
+            &mut self.exploration_stack,
+            &mut self.ranker,
+            history,
+            self.core_config.take_top,
+            self.core_config.keep_top,
+            request_new,
+            &markets,
+        )
+        .await
     }
 
     /// Serializes the state of the `Engine` and `Ranker` state.
@@ -503,7 +491,7 @@ where
                     self.core_config.take_top,
                     self.core_config.keep_top,
                     usize::MAX,
-                    &reacted.market,
+                    &[reacted.market.clone()],
                 )
                 .await?;
                 self.request_after = 0;
@@ -793,7 +781,7 @@ async fn update_stacks<'a>(
     take_top: usize,
     keep_top: usize,
     request_new: usize,
-    market: &Market,
+    markets: &[Market],
 ) -> Result<(), Error> {
     let mut ready_stacks = stacks.len();
     let mut errors = Vec::new();
@@ -810,10 +798,15 @@ async fn update_stacks<'a>(
         return Ok(());
     }
 
-    let key_phrases = needy_stacks
+    let key_phrases_by_market = needy_stacks
         .iter()
         .any(|stack| stack.ops.needs_key_phrases())
-        .then(|| ranker.take_key_phrases(market, take_top))
+        .then(|| {
+            markets
+                .iter()
+                .map(|market| (market, ranker.take_key_phrases(market, take_top)))
+                .collect::<HashMap<_, _>>()
+        })
         .unwrap_or_default();
 
     // Here we gather new documents for all relevant stacks, and put them into a vector.
@@ -821,7 +814,14 @@ async fn update_stacks<'a>(
     // across stacks first.
     let new_document_futures = needy_stacks
         .iter()
-        .map(|stack| fetch_new_documents_for_stack(stack, ranker, &key_phrases, history, market))
+        .flat_map(|stack| {
+            markets.iter().map(|market| {
+                let key_phrases = key_phrases_by_market
+                    .get(market)
+                    .map_or(&[] as &[_], Vec::as_slice);
+                fetch_new_documents_for_stack(stack, ranker, key_phrases, history, market)
+            })
+        })
         .collect_vec();
 
     for maybe_new_documents in join_all(new_document_futures).await {
@@ -1206,7 +1206,7 @@ mod tests {
             10,
             10,
             10,
-            &market.into(),
+            &[market.into()],
         )
         .await
         .unwrap();
@@ -1231,7 +1231,7 @@ mod tests {
             10,
             10,
             10,
-            &market.into(),
+            &[market.into()],
         )
         .await
         .unwrap();
@@ -1266,7 +1266,7 @@ mod tests {
             10,
             10,
             10,
-            &market.into(),
+            &[market.into()],
         )
         .await;
 
@@ -1303,7 +1303,7 @@ mod tests {
             10,
             10,
             10,
-            &market.into(),
+            &[market.into()],
         )
         .await;
 
@@ -1332,7 +1332,7 @@ mod tests {
             10,
             10,
             10,
-            &market.into(),
+            &[market.into()],
         )
         .await;
 
