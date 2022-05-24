@@ -355,7 +355,7 @@ where
             self.core_config.take_top,
             self.core_config.keep_top,
             request_new,
-            &*markets,
+            &markets,
         )
         .await
     }
@@ -812,12 +812,13 @@ async fn update_stacks<'a>(
     // Here we gather new documents for all relevant stacks, and put them into a vector.
     // We don't update the stacks immediately, because we want to de-duplicate the documents
     // across stacks first.
-    let no_key_phrases = vec![];
     let new_document_futures = needy_stacks
         .iter()
         .flat_map(|stack| {
             markets.iter().map(|market| {
-                let key_phrases = key_phrases_by_market.get(market).unwrap_or(&no_key_phrases);
+                let key_phrases = key_phrases_by_market
+                    .get(market)
+                    .map_or(&[] as &[_], Vec::as_slice);
                 fetch_new_documents_for_stack(stack, ranker, key_phrases, history, market)
             })
         })
