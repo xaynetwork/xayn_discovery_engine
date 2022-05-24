@@ -31,7 +31,12 @@ mod tracing;
 pub mod types;
 
 use ::tracing::{event, Level};
-use sqlx::{sqlite::SqliteRow, Connection, Row, SqliteConnection};
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqliteRow},
+    Connection,
+    Row,
+    SqliteConnection,
+};
 use xayn_discovery_engine_core::Engine;
 
 #[derive(Debug)]
@@ -60,18 +65,18 @@ impl XaynDiscoveryEngineAsyncFfi {
     ) -> Box<Result<SharedEngine, String>> {
         tracing::init_tracing();
 
-        // let path = &config.smbert_vocab.clone();
-        // let vocab_path = "assets/smbert_v0001/vocab.txt";
-        // let db_filename = "discovery_engine.db3";
-        // let path = path.replace(vocab_path, db_filename);
-        // let mut db_path = "sqlite://".to_string();
-        // db_path.push_str(&path);
-        let db_path = ":memory:";
+        let path = &config.smbert_vocab.clone();
+        let vocab_path = "assets/smbert_v0001/vocab.txt";
+        let db_filename = "discovery_engine.db3";
+        let path = path.replace(vocab_path, db_filename);
 
         event!(Level::INFO, "\n\n [SQLite] trying to open DB from disk\n\n");
-        event!(Level::INFO, "\n\n [SQLite] path: {}\n\n", db_path);
+        event!(Level::INFO, "\n\n [SQLite] path: {}\n\n", path);
 
-        let mut conn = SqliteConnection::connect(&db_path)
+        let opt = SqliteConnectOptions::default()
+            .filename(&path)
+            .create_if_missing(true);
+        let mut conn = SqliteConnection::connect_with(&opt)
             .await
             .expect("[SQLite] connection failed");
 
