@@ -25,7 +25,7 @@ final _adapter =
   alloc: ffi.alloc_uninitialized_trending_topic_slice,
   next: ffi.next_trending_topic,
   writeNative: (trendingTopic, place) => trendingTopic.writeNative(place),
-  readNative: (place) => TrendingTopicFfi.readNative(place),
+  readNative: TrendingTopicFfi.readNative,
   getVecLen: ffi.get_trending_topic_vec_len,
   getVecBuffer: ffi.get_trending_topic_vec_buffer,
   writeNativeVec: ffi.init_trending_topic_vec_at,
