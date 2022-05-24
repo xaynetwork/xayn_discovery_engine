@@ -32,60 +32,55 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer, ReplyWith;
 void main() {
   setupLogging();
 
-  group(
-    'DiscoveryEngine requestTrendingTopics',
-    () {
-      late LocalNewsApiServer server;
-      late TestEngineData data;
-      late DiscoveryEngine engine;
+  group('DiscoveryEngine requestTrendingTopics', () {
+    late LocalNewsApiServer server;
+    late TestEngineData data;
+    late DiscoveryEngine engine;
 
-      setUp(() async {
-        server = await LocalNewsApiServer.start();
-        data = await setupTestEngineData();
-        engine = await initEngine(data, server.port);
-      });
+    setUp(() async {
+      server = await LocalNewsApiServer.start();
+      data = await setupTestEngineData();
+      engine = await initEngine(data, server.port);
+    });
 
-      tearDown(() async {
-        await engine.dispose();
-        await server.close();
-        await Directory(data.applicationDirectoryPath).delete(recursive: true);
-      });
+    tearDown(() async {
+      await engine.dispose();
+      await server.close();
+      await Directory(data.applicationDirectoryPath).delete(recursive: true);
+    });
 
-      test('requestTrendingTopics should return trending topics', () async {
-        expect(
-          engine.engineEvents,
-          emitsInOrder(<Matcher>[
-            isA<TrendingTopicsRequestSucceeded>(),
-          ]),
-        );
+    test('requestTrendingTopics should return trending topics', () async {
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[
+          isA<TrendingTopicsRequestSucceeded>(),
+        ]),
+      );
 
-        final trendingTopicsResponse = await engine.requestTrendingTopics();
-        expect(trendingTopicsResponse, isA<TrendingTopicsRequestSucceeded>());
-        expect(
-          (trendingTopicsResponse as TrendingTopicsRequestSucceeded).topics,
-          isNotEmpty,
-        );
-      });
+      final trendingTopicsResponse = await engine.requestTrendingTopics();
+      expect(trendingTopicsResponse, isA<TrendingTopicsRequestSucceeded>());
+      expect(
+        (trendingTopicsResponse as TrendingTopicsRequestSucceeded).topics,
+        isNotEmpty,
+      );
+    });
 
-      test(
-          'requestTrendingTopics should return failed event if no topics found',
-          () async {
-        expect(
-          engine.engineEvents,
-          emitsInOrder(<Matcher>[
-            isA<TrendingTopicsRequestFailed>(),
-          ]),
-        );
+    test('requestTrendingTopics should return failed event if no topics found',
+        () async {
+      expect(
+        engine.engineEvents,
+        emitsInOrder(<Matcher>[
+          isA<TrendingTopicsRequestFailed>(),
+        ]),
+      );
 
-        server.replyWith = ReplyWith.error;
-        final trendingTopicsResponse = await engine.requestTrendingTopics();
-        expect(trendingTopicsResponse, isA<TrendingTopicsRequestFailed>());
-        expect(
-          (trendingTopicsResponse as TrendingTopicsRequestFailed).reason,
-          equals(SearchFailureReason.noResultsAvailable),
-        );
-      });
-    },
-    skip: 'TODO: include after TY-2800 is finished',
-  );
+      server.replyWith = ReplyWith.empty;
+      final trendingTopicsResponse = await engine.requestTrendingTopics();
+      expect(trendingTopicsResponse, isA<TrendingTopicsRequestFailed>());
+      expect(
+        (trendingTopicsResponse as TrendingTopicsRequestFailed).reason,
+        equals(SearchFailureReason.noResultsAvailable),
+      );
+    });
+  });
 }

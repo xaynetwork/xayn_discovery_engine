@@ -344,9 +344,8 @@ Future<void> main() async {
       });
 
       test(
-          'if active search is available it should return '
-          '"ActiveSearchTermRequestSucceeded" event with the current search term',
-          () async {
+          'if trending topics are available it should return '
+          '"TrendingTopicsRequestSucceeded" along with the topics', () async {
         final response = await mgr.trendingTopicsRequested();
 
         expect(response, isA<TrendingTopicsRequestSucceeded>());
