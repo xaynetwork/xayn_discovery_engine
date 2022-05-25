@@ -48,13 +48,13 @@ class LocalNewsApiServer {
         _replyWithError(request);
       } else {
         switch (request.uri.path) {
-          case '/search-news':
+          case '/v1/search-news':
             await _replyWithData(request, _snFile);
             break;
-          case '/trusted-sources':
-            await _replyWithData(request, _snFile);
+          case '/v2/trusted-sources':
+            await _replyWithData(request, _lhFile);
             break;
-          case '/latest-headline':
+          case '/v1/latest-headlines':
             await _replyWithData(request, _lhFile);
             break;
           case '/_tt':

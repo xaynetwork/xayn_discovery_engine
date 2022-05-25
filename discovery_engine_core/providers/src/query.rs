@@ -1,0 +1,99 @@
+// Copyright 2022 Xayn AG
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, version 3.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+#![allow(clippy::module_name_repetitions)]
+
+use chrono::Utc;
+
+use crate::{Filter, Market};
+
+/// Elements shared between various headlines and news queries.
+///
+/// Fields not supported by the used provider will be ignored.
+pub struct CommonQueryParts<'a> {
+    /// Market of news.
+    pub market: Option<&'a Market>,
+
+    /// How many articles to return (per page).
+    pub page_size: usize,
+
+    /// The number of the page which should be returned.
+    ///
+    /// Paging starts with `1`.
+    pub page: usize,
+
+    /// Exclude given sources.
+    pub excluded_sources: &'a [String],
+
+    /// Prefer trusted sources
+    ///
+    /// Supported by
+    /// - newscatcher/search
+    /// - newscatcher/headlines
+    pub trusted_sources: &'a [String],
+
+    /// News filter.
+    ///
+    /// Supported by
+    /// - newscatcher/search
+    /// - gnews/search
+    /// - gnews/headlines
+    pub filter: Option<&'a Filter>,
+
+    /// Headlines topic.
+    ///
+    /// Supported by
+    /// - newscatcher/search
+    /// - newscatcher/headlines
+    /// - gnews/headlines
+    pub topic: Option<&'a str>,
+}
+
+/// Parameters determining which news to fetch
+///
+/// Fields not supported by the used provider will be ignored.
+pub struct NewsQuery<'a> {
+    /// Common parts
+    pub common: CommonQueryParts<'a>,
+
+    //FIXME gnews support for from
+    /// Starting point in time from which to start the search.
+    /// The format is YYYY/mm/dd. Default timezone is UTC.
+    /// Defaults to the last week.
+    pub from: Option<String>,
+}
+
+/// Parameters determining which headlines to fetch.
+///
+/// Fields not supported by the used provider will be ignored.
+pub struct HeadlinesQuery<'a> {
+    /// Common parts.
+    pub common: CommonQueryParts<'a>,
+    //FIXME gnews support for from derived from when
+    /// The time period you want to get the latest headlines for.
+    /// Can be specified in days (e.g. 3d) or hours (e.g. 24h).
+    /// Defaults to all data available for the subscriptions.
+    pub when: Option<&'a str>,
+}
+
+//FIXME more clear name
+/// Default `from` value for newscatcher news queries
+pub fn default_from() -> String {
+    let from = Utc::today() - chrono::Duration::days(3);
+    from.format("%Y/%m/%d").to_string()
+}
+
+//FIXME more clear name
+/// Default `when` value for newscatcher headline queries
+pub const DEFAULT_WHEN: Option<&'static str> = Some("3d");
