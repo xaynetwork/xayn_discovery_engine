@@ -35,6 +35,8 @@ void main() {
       kpeModel: 'yo.lo',
       kpeCnn: 'abc',
       kpeClassifier: 'magic',
+      headlinesProviderPath: '/newscatcher/v1/latest-headlines',
+      newsProviderPath: '/newscatcher/v1/search-news',
     );
     final boxed = config.allocNative();
     final res = InitConfigFfi.readNative(boxed.ref);
@@ -59,6 +61,8 @@ void main() {
       kpeCnn: 'abc',
       kpeClassifier: 'magic',
       aiConfig: '{ "key": "value" }',
+      headlinesProviderPath: '/newscatcher/v1/latest-headlines',
+      newsProviderPath: '/newscatcher/v1/search-news',
     );
     final boxed = config.allocNative();
     final res = InitConfigFfi.readNative(boxed.ref);
