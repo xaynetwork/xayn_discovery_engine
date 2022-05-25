@@ -142,6 +142,9 @@ fn spawn_news_request(
             excluded_sources: excluded_sources.as_slice(),
             filter: filter.borrow(),
         };
-        client.query_articles(&query).await.map_err(Into::into)
+        client
+            .query_gnews_articles(&query)
+            .await
+            .map_err(Into::into)
     })
 }

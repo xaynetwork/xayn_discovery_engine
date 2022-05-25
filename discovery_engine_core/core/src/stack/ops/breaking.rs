@@ -138,6 +138,9 @@ fn spawn_headlines_request(
             filter: None,
         };
 
-        client.query_headlines(&query).await.map_err(Into::into)
+        client
+            .query_gnews_headlines(&query)
+            .await
+            .map_err(Into::into)
     })
 }

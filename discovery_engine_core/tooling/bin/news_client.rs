@@ -12,133 +12,143 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-extern crate core;
+// use anyhow::{Context, Result};
+// use std::{env, time::Duration};
+// use tokio::time::sleep;
+// use xayn_discovery_engine_providers::{
+//     gnews,
+//     newscatcher,
+//     CommonQueryParts,
+//     Filter,
+//     GnewsHeadlinesQuery,
+//     GnewsNewsQuery,
+//     HeadlinesQuery,
+//     Market,
+// };
 
-use anyhow::{Context, Result};
-use std::{env, time::Duration};
-use tokio::time::sleep;
-use xayn_discovery_engine_providers::{
-    gnews_client,
-    newscatcher_client,
-    CommonQueryParts,
-    Filter,
-    GnewsHeadlinesQuery,
-    GnewsNewsQuery,
-    HeadlinesQuery,
-    Market,
-};
+//FIXME[TY-2810] Depending on what this tool is meant for fix it appropriately.
+//
+// It is unclear if the tool is supposed to :
+//  1. dump what providers return
+//  2. dump what providers receive
+//
+// On TY-2670 it's doing neither, but instead dumping a modified version of what the provider
+// receives. I do not think this is quite right tbh. But I'm not sure what it's meant for.
+// I will disable this tool until a follow up PR and then make it only dump what providers
+// receive, as I think that it's what it is for.
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     //let url = "https://api-gw.xaynet.dev/news/v2".to_string();
-    let url = "https://api-gw.xayn.com/news/v2".to_string();
-    let token = std::env::var("NEWSCATCHER_DEV_BEARER_AUTH_TOKEN").context(
-        "Please provide the NEWSCATCHER_DEV_BEARER_AUTH_TOKEN environment variable for the dev environment. \
-                  The token can be found in 1Password",
-    )?;
+    // let url = "https://api-gw.xayn.com/news/v2".to_string();
+    // let token = std::env::var("NEWSCATCHER_DEV_BEARER_AUTH_TOKEN").context(
+    //     "Please provide the NEWSCATCHER_DEV_BEARER_AUTH_TOKEN environment variable for the dev environment. \
+    //               The token can be found in 1Password",
+    // )?;
 
-    let args: Vec<String> = env::args().collect();
-    let mode = args.get(1).map(|s| s.to_owned()).unwrap_or_default();
+    // let args: Vec<String> = env::args().collect();
+    // let mode = args.get(1).map(|s| s.to_owned()).unwrap_or_default();
 
-    match mode.as_str() {
-        "newscatcher" => query_newscatcher(&url, &token).await,
-        "gnews_search" => query_gnews(&url, &token, false).await,
-        "gnews_headlines" => query_gnews(&url, &token, true).await,
-        _ => panic!("Unknown mode {}", mode),
-    }
+    // match mode.as_str() {
+    //     "newscatcher" => query_newscatcher(&url, &token).await,
+    //     "gnews_search" => query_gnews(&url, &token, false).await,
+    //     "gnews_headlines" => query_gnews(&url, &token, true).await,
+    //     _ => panic!("Unknown mode {}", mode),
+    // }
+    panic!("temporary disabled");
 }
 
-async fn query_gnews(url: &str, token: &str, headlines: bool) -> Result<()> {
-    tokio::fs::create_dir("./gnews_download")
-        .await
-        .context("Failed to create download directory. Does it already exist?")?;
+// async fn query_gnews(url: &str, token: &str, headlines: bool) -> Result<()> {
+//     tokio::fs::create_dir("./gnews_download")
+//         .await
+//         .context("Failed to create download directory. Does it already exist?")?;
 
-    let client = gnews_client::Client::new(token, url);
-    let market = Market {
-        lang_code: "en".to_string(),
-        country_code: "US".to_string(),
-    };
+//     let client = gnews::Client::new(token, url);
+//     let market = Market {
+//         lang_code: "en".to_string(),
+//         country_code: "US".to_string(),
+//     };
 
-    let total_pages = 10;
-    let mut page = 1;
-    while page <= total_pages {
-        println!("Fetching page {} of {}", page, total_pages);
+//     let total_pages = 10;
+//     let mut page = 1;
+//     while page <= total_pages {
+//         println!("Fetching page {} of {}", page, total_pages);
 
-        let content = if headlines {
-            let params = GnewsHeadlinesQuery {
-                market: Some(&market),
-                page_size: 10,
-                page,
-                excluded_sources: &[],
-                filter: None,
-            };
-            let response = client.query_headlines(&params).await.unwrap();
-            serde_json::to_string_pretty(&response)?
-        } else {
-            let filter = Filter::default().add_keyword("clouds");
-            let params = GnewsNewsQuery {
-                market: Some(&market),
-                page_size: 10,
-                page,
-                excluded_sources: &[],
-                filter: &filter,
-            };
+//         let content = if headlines {
+//             let params = GnewsHeadlinesQuery {
+//                 market: Some(&market),
+//                 page_size: 10,
+//                 page,
+//                 excluded_sources: &[],
+//                 filter: None,
+//             };
+//             let response = client.query_headlines(&params).await.unwrap();
+//             serde_json::to_string_pretty(&response)?
+//         } else {
+//             let filter = Filter::default().add_keyword("clouds");
+//             let params = GnewsNewsQuery {
+//                 market: Some(&market),
+//                 page_size: 10,
+//                 page,
+//                 excluded_sources: &[],
+//                 filter: &filter,
+//             };
 
-            let response = client.query_articles(&params).await.unwrap();
-            serde_json::to_string_pretty(&response)?
-        };
+//             let response = client.query_articles(&params).await.unwrap();
+//             serde_json::to_string_pretty(&response)?
+//         };
 
-        tokio::fs::write(format!("./gnews_download/page_{:03}.json", page), content).await?;
+//         tokio::fs::write(format!("./gnews_download/page_{:03}.json", page), content).await?;
 
-        page += 1;
+//         page += 1;
 
-        // Wait a little, because Gnews has very strict requests/second limitations
-        sleep(Duration::from_millis(1000)).await;
-    }
+//         // Wait a little, because Gnews has very strict requests/second limitations
+//         sleep(Duration::from_millis(1000)).await;
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-async fn query_newscatcher(url: &str, token: &str) -> Result<()> {
-    tokio::fs::create_dir("./headlines_download")
-        .await
-        .context("Failed to create download directory. Does it already exist?")?;
+// async fn query_newscatcher(url: &str, token: &str) -> Result<()> {
+//     tokio::fs::create_dir("./headlines_download")
+//         .await
+//         .context("Failed to create download directory. Does it already exist?")?;
 
-    let client = newscatcher_client::Client::new(token, url);
-    let market = Market {
-        lang_code: "en".to_string(),
-        country_code: "US".to_string(),
-    };
+//     let client = newscatcher::Client::new(token, url);
+//     let market = Market {
+//         lang_code: "en".to_string(),
+//         country_code: "US".to_string(),
+//     };
 
-    // This is updated every iteration, based on the response from Newscatcher. So in reality,
-    // we'll be fetching more than one page.
-    let mut total_pages = 1;
-    let mut page = 1;
-    while page <= total_pages {
-        println!("Fetching page {} of {}", page, total_pages);
-        let params = HeadlinesQuery {
-            common: CommonQueryParts {
-                market: Some(&market),
-                page_size: 100,
-                page,
-                excluded_sources: &[],
-            },
-            trusted_sources: &[],
-            topic: None,
-            when: None,
-        };
-        let raw_response = client.query(&params).await.unwrap();
-        total_pages = raw_response.total_pages;
+//     // This is updated every iteration, based on the response from Newscatcher. So in reality,
+//     // we'll be fetching more than one page.
+//     let mut total_pages = 1;
+//     let mut page = 1;
+//     while page <= total_pages {
+//         println!("Fetching page {} of {}", page, total_pages);
+//         let params = HeadlinesQuery {
+//             common: CommonQueryParts {
+//                 market: Some(&market),
+//                 page_size: 100,
+//                 page,
+//                 excluded_sources: &[],
+//             },
+//             trusted_sources: &[],
+//             topic: None,
+//             when: None,
+//         };
+//         let raw_response = client.query(&params).await.unwrap();
+//         total_pages = raw_response.total_pages;
 
-        let content = serde_json::to_string_pretty(&raw_response.articles)?;
-        tokio::fs::write(
-            format!("./headlines_download/page_{:03}.json", page),
-            content,
-        )
-        .await?;
+//         let content = serde_json::to_string_pretty(&raw_response.articles)?;
+//         tokio::fs::write(
+//             format!("./headlines_download/page_{:03}.json", page),
+//             content,
+//         )
+//         .await?;
 
-        page += 1;
-    }
+//         page += 1;
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
