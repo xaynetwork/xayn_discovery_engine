@@ -101,7 +101,7 @@ where
     F: Deref<Target = Filter> + Sync,
 {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_sn")?;
+        self.common.setup_url(url, "search-news")?;
 
         let mut query = url.query_pairs_mut();
         query
@@ -245,7 +245,7 @@ mod tests {
         ));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search-news"))
             .and(query_param("q", "\"Climate change\""))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "en"))
@@ -293,7 +293,7 @@ mod tests {
         ));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search-news"))
             .and(query_param("q", "\"Climate change\""))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
@@ -301,7 +301,7 @@ mod tests {
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("not_sources", "dodo.com,dada.net"))
-            .and(query_param("to_rank", "12000"))
+            .and(query_param("to_rank", "9000"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -343,7 +343,7 @@ mod tests {
         ));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search-news"))
             .and(query_param("q", "\"Bill Gates\" OR \"Tim Cook\""))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
@@ -426,18 +426,18 @@ mod tests {
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(1).unwrap();
-        let expected = models::Article {
+        let expected = Article {
             title: "Jerusalem blanketed in white after rare snowfall".to_string(),
             score: None,
             rank: 6510,
             source_domain: "example.com".to_string(),
-            excerpt: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
-            link: "https://example.com".to_string(),
-            media: "https://uploads.example.com/image.png".to_string(),
-            topic: Topic::Gaming,
+            snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
+            url: "https://example.com".to_string(),
+            image: "https://uploads.example.com/image.png".to_string(),
+            topic: Topic::Gaming.to_string(),
             country: "US".to_string(),
             language: "en".to_string(),
-            published_date: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+            date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
         };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));

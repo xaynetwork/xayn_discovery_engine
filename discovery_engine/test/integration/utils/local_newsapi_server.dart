@@ -51,6 +51,9 @@ class LocalNewsApiServer {
           case '/search-news':
             await _replyWithData(request, _snFile);
             break;
+          case '/trusted-sources':
+            await _replyWithData(request, _snFile);
+            break;
           case '/latest-headline':
             await _replyWithData(request, _lhFile);
             break;

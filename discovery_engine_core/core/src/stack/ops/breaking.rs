@@ -19,7 +19,7 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::{Article, Client, GnewsHeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -130,17 +130,18 @@ fn spawn_headlines_request(
     tokio::spawn(async move {
         let market = market;
 
-        let query = GnewsHeadlinesQuery {
-            market: Some(&market),
-            page_size,
-            page,
-            excluded_sources: excluded_sources.as_slice(),
-            filter: None,
+        let query = HeadlinesQuery {
+            common: CommonQueryParts {
+                market: Some(&market),
+                page_size,
+                page,
+                excluded_sources: excluded_sources.as_slice(),
+            },
+            trusted_sources: &[],
+            topic: None,
+            when: None,
         };
 
-        client
-            .query_gnews_headlines(&query)
-            .await
-            .map_err(Into::into)
+        client.query_newscatcher(&query).await.map_err(Into::into)
     })
 }

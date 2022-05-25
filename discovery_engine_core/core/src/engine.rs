@@ -40,9 +40,9 @@ use xayn_discovery_engine_providers::{
     Client,
     CommonQueryParts,
     Filter,
-    GnewsNewsQuery,
     HeadlinesQuery,
     Market,
+    NewsQuery,
 };
 
 use crate::{
@@ -526,14 +526,19 @@ where
         for market in markets.iter() {
             let query_result = match by {
                 SearchBy::Query(filter) => {
-                    let news_query = GnewsNewsQuery {
-                        market: Some(market),
-                        page_size: scaled_page_size,
-                        page: page as usize,
-                        excluded_sources: &excluded_sources,
+                    let news_query = NewsQuery {
+                        common: CommonQueryParts {
+                            market: Some(market),
+                            page_size: scaled_page_size,
+                            page: page as usize,
+                            excluded_sources: &excluded_sources,
+                        },
                         filter,
+                        //FIXME it's not clear if this should be set if supported
+                        from: None,
                     };
-                    self.client.query_gnews_articles(&news_query).await
+
+                    self.client.query_newscatcher(&news_query).await
                 }
                 SearchBy::Topic(topic) => {
                     let common = CommonQueryParts {
@@ -982,7 +987,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("/latest-headlines"))
+            .respond_with(tmpl.clone())
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/trusted-sources"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1103,6 +1114,12 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/latest-headlines"))
+            .respond_with(tmpl.clone())
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/trusted-sources"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
