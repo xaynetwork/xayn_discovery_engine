@@ -1050,7 +1050,7 @@ impl XaynAiEngine {
     }
 }
 
-fn ai_config_from_json(json: &str) -> Figment {
+pub fn ai_config_from_json(json: &str) -> Figment {
     Figment::new()
         .merge(Serialized::defaults(CoiSystemConfig::default()))
         .merge(Serialized::default("kpe.token_size", 150))

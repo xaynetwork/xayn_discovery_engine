@@ -36,4 +36,4 @@ mod mab;
 mod ranker;
 pub mod stack;
 
-pub use crate::engine::{Engine, Error, InitConfig, XaynAiEngine};
+pub use crate::engine::{ai_config_from_json, Engine, Error, InitConfig, XaynAiEngine};

@@ -12,10 +12,19 @@ path = "bin/newscatcher.rs"
 name = "clean_sources"
 path = "bin/clean_sources.rs"
 
+[[bin]]
+name = "compute_embeddings"
+path = "bin/compute_embeddings.rs"
+
 [dependencies]
 anyhow = "1.0.55"
 csv = "1.1.6"
 serde_json = "1.0.79"
 serde_path_to_error = "0.1"
 tokio = { version = "1.17.0", features = ["full"] }
+xayn-discovery-engine-ai = { path = "../ai/ai" }
+xayn-discovery-engine-bert = { path = "../ai/bert" }
+xayn-discovery-engine-core = { path = "../core" }
+xayn-discovery-engine-kpe = { path = "../ai/kpe" }
 xayn-discovery-engine-providers = { path = "../providers" }
+xayn-discovery-engine-tokenizer = { path = "../ai/tokenizer" }
