@@ -20,18 +20,18 @@ use url::{form_urlencoded, Url, UrlQuery};
 
 use crate::Error;
 
-/// Preferable all endpoints should share the same `Client` instance.
+/// Preferably all endpoints should share the same `Client` instance.
 static SHARED_CLIENT: OnceCell<Arc<reqwest::Client>> = OnceCell::new();
 
 /// A simple abstraction over a single get endpoint.
-pub struct SimpleEndpoint {
+pub struct Endpoint {
     client: Arc<reqwest::Client>,
     endpoint_url: Url,
     auth_token: String,
     timeout: Duration,
 }
 
-impl SimpleEndpoint {
+impl Endpoint {
     pub fn new(endpoint_url: Url, auth_token: String) -> Self {
         let client = SHARED_CLIENT
             .get_or_init(|| {
@@ -60,14 +60,14 @@ impl SimpleEndpoint {
 
     pub(crate) async fn fetch<
         D: DeserializeOwned + Send,
-        FN: FnOnce(form_urlencoded::Serializer<'_, UrlQuery<'_>>) -> Result<(), Error> + Send,
+        FN: FnOnce(form_urlencoded::Serializer<'_, UrlQuery<'_>>) + Send,
     >(
         &self,
         setup_query_params: FN,
     ) -> Result<D, Error> {
         let mut url = self.endpoint_url.clone();
 
-        setup_query_params(url.query_pairs_mut())?;
+        setup_query_params(url.query_pairs_mut());
 
         let response = self
             .client

@@ -20,7 +20,7 @@ use itertools::Itertools;
 use url::{form_urlencoded, Url, UrlQuery};
 
 use crate::{
-    rest::SimpleEndpoint,
+    rest::Endpoint,
     Article,
     CommonQueryParts,
     Error,
@@ -36,61 +36,55 @@ mod models;
 
 /// Gnews based implementation of a `NewsProvider`.
 #[derive(From)]
-pub struct NewsProviderImpl(SimpleEndpoint);
+pub struct NewsProviderImpl(Endpoint);
 
 impl NewsProviderImpl {
     /// Create a new provider instance.
     pub fn new(endpoint_url: Url, auth_token: String) -> Self {
-        Self(SimpleEndpoint::new(endpoint_url, auth_token))
+        Self(Endpoint::new(endpoint_url, auth_token))
     }
 }
 
 #[async_trait]
 impl NewsProvider for NewsProviderImpl {
     async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
-        let response: Response = self
-            .0
-            .fetch(|mut query| {
+        self.0
+            .fetch::<Response, _>(|mut query| {
                 query.append_pair("sortby", "relevance");
-                common_query_parts_helper(&request.common, &mut query);
-                Ok(())
+                append_common_query_parts(&request.common, &mut query);
             })
-            .await?;
-
-        Ok(response.articles.into_iter().map_into().collect())
+            .await
+            .map(|response| response.articles.into_iter().map_into().collect())
     }
 }
 
 /// Gnews based implementation of a `HeadlinesProvider`.
 #[derive(From)]
-pub struct HeadlineProviderImpl(SimpleEndpoint);
+pub struct HeadlineProviderImpl(Endpoint);
 
 impl HeadlineProviderImpl {
     /// Create a new provider instance.
     pub fn new(endpoint_url: Url, auth_token: String) -> Self {
-        Self(SimpleEndpoint::new(endpoint_url, auth_token))
+        Self(Endpoint::new(endpoint_url, auth_token))
     }
 }
 
 #[async_trait]
 impl HeadlinesProvider for HeadlineProviderImpl {
     async fn query_headlines(&self, request: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
-        let response: Response = self
-            .0
-            .fetch(|mut query| {
-                common_query_parts_helper(&request.common, &mut query);
+        self.0
+            .fetch::<Response, _>(|mut query| {
+                append_common_query_parts(&request.common, &mut query);
                 if let Some(topic) = &request.common.topic {
                     query.append_pair("topic", topic);
                 }
-                Ok(())
             })
-            .await?;
-
-        Ok(response.articles.into_iter().map_into().collect())
+            .await
+            .map(|response| response.articles.into_iter().map_into().collect())
     }
 }
 
-fn common_query_parts_helper(
+fn append_common_query_parts(
     common: &CommonQueryParts<'_>,
     query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>,
 ) {
