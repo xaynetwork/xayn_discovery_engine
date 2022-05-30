@@ -14,6 +14,7 @@
 
 use chrono::NaiveDateTime;
 use derive_more::Display;
+use itertools::Itertools;
 use serde::{de, Deserialize, Deserializer, Serialize};
 
 use crate::{utils::deserialize_null_default, Error};
@@ -168,9 +169,9 @@ impl From<Article> for crate::Article {
 impl crate::Article {
     /// Loads newscatcher articles from JSON and returns them in `Article` representation
     pub fn load_from_newscatcher_json_representation(json: &str) -> Result<Vec<Self>, Error> {
-        let articles: Vec<Article> = serde_json::from_str(json).map_err(Error::Decoding)?;
-
-        Ok(articles.into_iter().map(Into::into).collect())
+        serde_json::from_str::<Vec<Article>>(json)
+            .map(|articles| articles.into_iter().map_into().collect())
+            .map_err(Error::Decoding)
     }
 }
 

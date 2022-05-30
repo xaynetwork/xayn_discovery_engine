@@ -112,7 +112,7 @@ pub struct Article {
 }
 
 impl Article {
-    /// Gets the excerpt or falls back to the title if the excerpt is empty.
+    /// Gets the snippet or falls back to the title if the snippet is empty.
     pub fn snippet_or_title(&self) -> &str {
         (!self.snippet.is_empty())
             .then(|| &self.snippet)
