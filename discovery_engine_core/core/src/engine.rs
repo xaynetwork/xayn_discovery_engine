@@ -571,11 +571,10 @@ where
                             page_size: scaled_page_size,
                             page: page as usize,
                             excluded_sources: &excluded_sources,
-                            filter: Some(filter),
                             //FIXME should this use trusted sources
                             trusted_sources: &[],
-                            topic: None,
                         },
+                        filter,
                         //FIXME it's not clear if this should be set if supported
                         from: None,
                     };
@@ -590,9 +589,8 @@ where
                             page: page as usize,
                             excluded_sources: &excluded_sources,
                             trusted_sources: &[],
-                            topic: Some(topic),
-                            filter: None,
                         },
+                        topic: Some(topic),
                         when: None,
                     };
                     self.providers

@@ -143,9 +143,8 @@ fn spawn_headlines_request(
                 page,
                 excluded_sources: excluded_sources.as_slice(),
                 trusted_sources: &[],
-                topic: None,
-                filter: None,
             },
+            topic: None,
             when: None,
         };
 

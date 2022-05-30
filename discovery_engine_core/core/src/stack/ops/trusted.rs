@@ -129,9 +129,8 @@ fn spawn_trusted_request(
                 page,
                 excluded_sources: &[],
                 trusted_sources: sources.as_slice(),
-                topic: None,
-                filter: None,
             },
+            topic: None,
             when: DEFAULT_WHEN,
         };
         client.query_headlines(&query).await.map_err(Into::into)

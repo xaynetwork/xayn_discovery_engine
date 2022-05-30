@@ -53,10 +53,7 @@ impl NewsProvider for NewsProviderImpl {
                 query.append_pair("sort_by", "relevancy");
 
                 append_common_query_parts(&request.common, &mut query);
-
-                if let Some(filter) = &request.common.filter {
-                    query.append_pair("q", &filter.build());
-                }
+                query.append_pair("q", &request.filter.build());
 
                 if let Some(from) = &request.from {
                     query.append_pair("from", from);
@@ -84,6 +81,9 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
         self.0
             .fetch::<Response, _>(|mut query| {
                 append_common_query_parts(&request.common, &mut query);
+                if let Some(topic) = &request.topic {
+                    query.append_pair("topic", topic);
+                }
                 if let Some(when) = &request.when {
                     query.append_pair("when", when);
                 }
@@ -111,10 +111,6 @@ fn append_common_query_parts(
         .append_pair("page_size", &common.page_size.to_string())
         // FIXME Consider cmp::min(self.page, 1) or explicit error variant
         .append_pair("page", &common.page.to_string());
-
-    if let Some(topic) = &common.topic {
-        query.append_pair("topic", topic);
-    }
 
     if !common.trusted_sources.is_empty() {
         query.append_pair("sources", &common.trusted_sources.join(","));
@@ -177,10 +173,9 @@ mod tests {
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
-                filter: Some(filter),
                 trusted_sources: &[],
-                topic: None,
             },
+            filter,
             from: None,
         };
 
@@ -232,10 +227,9 @@ mod tests {
                 page_size: 2,
                 page: 1,
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
-                filter: Some(filter),
                 trusted_sources: &[],
-                topic: None,
             },
+            filter,
             from: None,
         };
 
@@ -286,10 +280,9 @@ mod tests {
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
-                filter: Some(filter),
                 trusted_sources: &[],
-                topic: None,
             },
+            filter,
             from: None,
         };
 
@@ -339,9 +332,8 @@ mod tests {
                 page: 1,
                 excluded_sources: &[],
                 trusted_sources: &["dodo.com".into(), "dada.net".into()],
-                topic: None,
-                filter: None,
             },
+            topic: None,
             when: None,
         };
 

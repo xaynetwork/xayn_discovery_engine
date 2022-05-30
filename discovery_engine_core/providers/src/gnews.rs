@@ -52,6 +52,7 @@ impl NewsProvider for NewsProviderImpl {
             .fetch::<Response, _>(|mut query| {
                 query.append_pair("sortby", "relevance");
                 append_common_query_parts(&request.common, &mut query);
+                query.append_pair("q", &request.filter.build());
             })
             .await
             .map(|response| response.articles.into_iter().map_into().collect())
@@ -75,7 +76,7 @@ impl HeadlinesProvider for HeadlineProviderImpl {
         self.0
             .fetch::<Response, _>(|mut query| {
                 append_common_query_parts(&request.common, &mut query);
-                if let Some(topic) = &request.common.topic {
+                if let Some(topic) = &request.topic {
                     query.append_pair("topic", topic);
                 }
             })
@@ -91,10 +92,6 @@ fn append_common_query_parts(
     query
         .append_pair("max", &common.page_size.to_string())
         .append_pair("page", &common.page.to_string());
-
-    if let Some(filter) = &common.filter {
-        query.append_pair("q", &filter.build());
-    }
 
     if let Some(market) = &common.market {
         query
@@ -154,9 +151,8 @@ mod tests {
                 page: 1,
                 excluded_sources: &[],
                 trusted_sources: &[],
-                filter: Some(filter),
-                topic: None,
             },
+            filter,
             from: None,
         };
 

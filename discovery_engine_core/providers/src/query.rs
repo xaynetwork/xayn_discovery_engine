@@ -14,6 +14,10 @@
 
 #![allow(clippy::module_name_repetitions)]
 
+//! Module containing query structs usable across all providers.
+//!
+//! If a provider doesn't support a field in a query they should ignore it.
+
 use chrono::Utc;
 
 use crate::{Filter, Market};
@@ -42,22 +46,6 @@ pub struct CommonQueryParts<'a> {
     /// - newscatcher/search
     /// - newscatcher/headlines
     pub trusted_sources: &'a [String],
-
-    /// News filter.
-    ///
-    /// Supported by
-    /// - newscatcher/search
-    /// - gnews/search
-    /// - gnews/headlines
-    pub filter: Option<&'a Filter>,
-
-    /// Headlines topic.
-    ///
-    /// Supported by
-    /// - newscatcher/search
-    /// - newscatcher/headlines
-    /// - gnews/headlines
-    pub topic: Option<&'a str>,
 }
 
 /// Parameters determining which news to fetch
@@ -66,6 +54,9 @@ pub struct CommonQueryParts<'a> {
 pub struct NewsQuery<'a> {
     /// Common parts
     pub common: CommonQueryParts<'a>,
+
+    /// News search filter.
+    pub filter: &'a Filter,
 
     //FIXME gnews support for from
     /// Starting point in time from which to start the search.
@@ -80,6 +71,10 @@ pub struct NewsQuery<'a> {
 pub struct HeadlinesQuery<'a> {
     /// Common parts.
     pub common: CommonQueryParts<'a>,
+
+    /// Headlines topic.
+    pub topic: Option<&'a str>,
+
     //FIXME gnews support for from derived from when
     /// The time period you want to get the latest headlines for.
     /// Can be specified in days (e.g. 3d) or hours (e.g. 24h).

@@ -148,10 +148,9 @@ fn spawn_news_request(
                 page_size,
                 page,
                 excluded_sources: excluded_sources.as_slice(),
-                filter: Some(&filter),
                 trusted_sources: &[],
-                topic: None,
             },
+            filter: &filter,
             //FIXME it's not clear if we should set it if supported
             from: None,
         };
