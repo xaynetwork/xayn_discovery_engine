@@ -19,7 +19,14 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::{Article, Client, Filter, GnewsNewsQuery, Market};
+use xayn_discovery_engine_providers::{
+    Article,
+    Client,
+    CommonQueryParts,
+    Filter,
+    Market,
+    NewsQuery,
+};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -135,13 +142,18 @@ fn spawn_news_request(
     tokio::spawn(async move {
         let market = market;
 
-        let query = GnewsNewsQuery {
-            market: Some(&market),
-            page_size,
-            page,
-            excluded_sources: excluded_sources.as_slice(),
+        let query = NewsQuery {
+            common: CommonQueryParts {
+                market: Some(&market),
+                page_size,
+                page,
+                excluded_sources: excluded_sources.as_slice(),
+            },
             filter: filter.borrow(),
+            //FIXME it's not clear if we should set it if supported
+            from: None,
         };
-        client.query_articles(&query).await.map_err(Into::into)
+
+        client.query_newscatcher(&query).await.map_err(Into::into)
     })
 }
