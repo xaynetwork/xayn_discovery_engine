@@ -40,7 +40,7 @@ mod rest;
 mod utils;
 
 pub use filter::{Filter, Market};
-pub use query::*;
+pub use query::{default_from, CommonQueryParts, HeadlinesQuery, NewsQuery, DEFAULT_WHEN};
 
 /// Client errors.
 #[derive(Error, Debug, DisplayDoc)]
