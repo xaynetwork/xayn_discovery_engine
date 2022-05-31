@@ -19,7 +19,13 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 use xayn_ai::ranker::KeyPhrase;
-use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{
+    Article,
+    CommonQueryParts,
+    HeadlinesProvider,
+    HeadlinesQuery,
+    Market,
+};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -38,7 +44,7 @@ use super::{
 
 /// Stack operations customized for breaking news items.
 pub(crate) struct BreakingNews {
-    client: Arc<Client>,
+    client: Arc<dyn HeadlinesProvider>,
     markets: Arc<RwLock<Vec<Market>>>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
@@ -48,7 +54,7 @@ pub(crate) struct BreakingNews {
 
 impl BreakingNews {
     /// Creates a breaking news stack.
-    pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn HeadlinesProvider>) -> Self {
         Self {
             client,
             markets: config.markets.clone(),
@@ -121,7 +127,7 @@ impl Ops for BreakingNews {
 }
 
 fn spawn_headlines_request(
-    client: Arc<Client>,
+    client: Arc<dyn HeadlinesProvider>,
     market: Market,
     page_size: usize,
     page: usize,
@@ -136,12 +142,12 @@ fn spawn_headlines_request(
                 page_size,
                 page,
                 excluded_sources: excluded_sources.as_slice(),
+                trusted_sources: &[],
             },
-            trusted_sources: &[],
             topic: None,
             when: None,
         };
 
-        client.query_newscatcher(&query).await.map_err(Into::into)
+        client.query_headlines(&query).await.map_err(Into::into)
     })
 }
