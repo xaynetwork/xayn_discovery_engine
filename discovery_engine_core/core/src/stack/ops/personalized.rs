@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Borrow, sync::Arc};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use itertools::chain;
@@ -21,10 +21,10 @@ use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
     Article,
-    Client,
     CommonQueryParts,
     Filter,
     Market,
+    NewsProvider,
     NewsQuery,
 };
 
@@ -41,7 +41,7 @@ use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for personalized news items.
 pub(crate) struct PersonalizedNews {
-    client: Arc<Client>,
+    client: Arc<dyn NewsProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: u32,
@@ -50,7 +50,7 @@ pub(crate) struct PersonalizedNews {
 
 impl PersonalizedNews {
     /// Creates a personalized news stack.
-    pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn NewsProvider>) -> Self {
         Self {
             client,
             page_size: config.page_size,
@@ -124,7 +124,7 @@ impl Ops for PersonalizedNews {
 }
 
 fn spawn_news_request(
-    client: Arc<Client>,
+    client: Arc<dyn NewsProvider>,
     market: Market,
     filter: Arc<Filter>,
     page_size: usize,
@@ -140,12 +140,13 @@ fn spawn_news_request(
                 page_size,
                 page,
                 excluded_sources: excluded_sources.as_slice(),
+                trusted_sources: &[],
             },
-            filter: filter.borrow(),
+            filter: &filter,
             //FIXME it's not clear if we should set it if supported
             from: None,
         };
 
-        client.query_newscatcher(&query).await.map_err(Into::into)
+        client.query_news(&query).await.map_err(Into::into)
     })
 }

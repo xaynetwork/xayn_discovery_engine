@@ -26,7 +26,7 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-use xayn_discovery_engine_providers::{Article, Market, TrendingTopic as BingTopic};
+use xayn_discovery_engine_providers::{bing::TrendingTopic as BingTopic, Article, Market};
 
 use crate::stack::Id as StackId;
 

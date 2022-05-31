@@ -14,12 +14,11 @@
 
 //! Client to retrieve trending topics.
 
+use derive_more::From;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
-use crate::{Client, Error, Market};
-
-const URL_SUFFIX: &str = "_tt";
+use crate::{rest::Endpoint, Error, Market};
 
 /// Parameters for fetching trending news topics.
 pub struct TrendingQuery<'a> {
@@ -27,49 +26,36 @@ pub struct TrendingQuery<'a> {
     pub market: &'a Market,
 }
 
+/// Bing implementation for tending topics.
+#[derive(From)]
+pub struct TrendingTopicsProvider(Endpoint);
 
-impl Client {
-    /// Run query for fetching trending topics from Bing.
-    pub async fn query_trending(&self, query: &TrendingQuery<'_>) -> Result<Vec<TrendingTopic>, Error> {
-        self.query_bing(query).await.map(|trending| trending.value)
+impl TrendingTopicsProvider {
+    /// Create a new provider.
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self(Endpoint::new(endpoint_url, auth_token))
     }
 
-    /// Run a query against Bing.
-    pub async fn query_bing(&self, query: &TrendingQuery<'_>) -> Result<Response, Error> {
-        let mut url = Url::parse(&self.newscatcher.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
-
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push(URL_SUFFIX);
-
-        {
-            let mut query_mut = url.query_pairs_mut();
-            let lang = &query.market.lang_code;
-            let country = &query.market.country_code;
-            query_mut.append_pair("mkt", &format!("{}-{}", lang, country));
-        }
-
-        let response = self.newscatcher
-            .client
-            .get(url)
-            .timeout(self.newscatcher.timeout)
-            .bearer_auth(&self.newscatcher.token)
-            .send()
+    /// Run query for fetching trending topics from Bing.
+    //Note: If we ever have potentially multiple providers we can make this a trait like for e.g. latest-headlines
+    pub async fn query_trending_topics(
+        &self,
+        request: &TrendingQuery<'_>,
+    ) -> Result<Vec<TrendingTopic>, Error> {
+        self.0
+            .fetch::<Response, _>(|mut query| {
+                let lang = &request.market.lang_code;
+                let country = &request.market.country_code;
+                query.append_pair("mkt", &format!("{}-{}", lang, country));
+            })
             .await
-            .map_err(Error::RequestExecution)?
-            .error_for_status()
-            .map_err(Error::StatusCode)?;
-
-        let raw_response = response.bytes().await.map_err(Error::Fetching)?;
-        let deserializer = &mut serde_json::Deserializer::from_slice(&raw_response);
-        serde_path_to_error::deserialize(deserializer)
-            .map_err(|error| Error::DecodingAtPath(error.path().to_string(), error))
+            .map(|response| response.value)
     }
 }
 
 /// Query response from Bing API.
 #[derive(Deserialize, Debug)]
-pub struct Response {
+struct Response {
     /// Main response content.
     #[serde(default)]
     value: Vec<TrendingTopic>,
@@ -140,11 +126,15 @@ mod tests {
     #[tokio::test]
     async fn test_trending() {
         let mock_server = MockServer::start().await;
-        let client = Client::new("test-token", mock_server.uri());
+        let mut url = Url::parse(&mock_server.uri()).unwrap();
+        url.path_segments_mut().unwrap().push("_tt");
+        let client = TrendingTopicsProvider::new(url, "test-token".into());
 
         let tmpl = ResponseTemplate::new(200)
             //FIXME move out of newscatcher after full rebase
-            .set_body_string(include_str!("../test-fixtures/newscatcher/trending-topics.json"));
+            .set_body_string(include_str!(
+                "../test-fixtures/newscatcher/trending-topics.json"
+            ));
 
         Mock::given(method("GET"))
             .and(path("/_tt"))
@@ -161,7 +151,7 @@ mod tests {
         };
         let params = TrendingQuery { market };
 
-        let topics = client.query_trending(&params).await.unwrap();
+        let topics = client.query_trending_topics(&params).await.unwrap();
         assert_eq!(topics.len(), 25);
 
         let topic = topics.get(0).unwrap();

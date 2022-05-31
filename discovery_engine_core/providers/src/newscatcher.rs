@@ -14,216 +14,116 @@
 
 //! Client to get new documents.
 
-use std::{ops::Deref, time::Duration};
-
-use chrono::Utc;
+use async_trait::async_trait;
+use derive_more::From;
 use itertools::Itertools;
-use url::Url;
+use url::{form_urlencoded, Url, UrlQuery};
 
 use crate::{
-    filter::{Filter, Market},
-    seal::Seal,
+    rest::Endpoint,
     Article,
+    CommonQueryParts,
     Error,
+    HeadlinesProvider,
+    HeadlinesQuery,
+    NewsProvider,
+    NewsQuery,
 };
 
 use self::models::Response;
 
 mod models;
 
-const TRUSTED_SOURCES_ENDPOINT: &str = "trusted-sources";
+/// Newscatcher based implementation of a `NewsProvider`.
+#[derive(From)]
+pub struct NewsProviderImpl(Endpoint);
 
-/// Represents a Query to Newscatcher.
-pub trait NewscatcherQuery: Seal + Sync {
-    /// Sets query specific parameters on given Newscatcher base URL.
-    fn setup_url(&self, url: &mut Url) -> Result<(), Error>;
-}
-
-/// Elements shared between various Newscatcher queries.
-pub struct CommonQueryParts<'a> {
-    /// Market of news.
-    pub market: Option<&'a Market>,
-    /// How many articles to return (per page).
-    pub page_size: usize,
-    /// The number of the page which should be returned.
-    ///
-    /// Paging starts with `1`.
-    pub page: usize,
-    /// Exclude given sources.
-    pub excluded_sources: &'a [String],
-}
-
-impl CommonQueryParts<'_> {
-    fn setup_url(&self, url: &mut Url, single_path_element_suffix: &str) -> Result<(), Error> {
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push(single_path_element_suffix);
-
-        let query = &mut url.query_pairs_mut();
-
-        if let Some(market) = &self.market {
-            query
-                .append_pair("lang", &market.lang_code)
-                .append_pair("countries", &market.country_code);
-
-            if let Some(limit) = market.news_quality_rank_limit() {
-                query.append_pair("to_rank", &limit.to_string());
-            }
-        }
-
-        query
-            .append_pair("page_size", &self.page_size.to_string())
-            // FIXME Consider cmp::min(self.page, 1) or explicit error variant
-            .append_pair("page", &self.page.to_string());
-
-        if !self.excluded_sources.is_empty() {
-            query.append_pair("not_sources", &self.excluded_sources.join(","));
-        }
-
-        Ok(())
+impl NewsProviderImpl {
+    /// Create a new provider.
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self(Endpoint::new(endpoint_url, auth_token))
     }
 }
 
-/// Parameters determining which news to fetch
-pub struct NewsQuery<'a, F> {
-    /// Common parts
-    pub common: CommonQueryParts<'a>,
-    /// News filter.
-    pub filter: F,
-    /// Starting point in time from which to start the search.
-    /// The format is YYYY/mm/dd. Default timezone is UTC.
-    /// Defaults to the last week.
-    pub from: Option<String>,
-}
+#[async_trait]
+impl NewsProvider for NewsProviderImpl {
+    async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
+        self.0
+            .fetch::<Response, _>(|mut query| {
+                query.append_pair("sort_by", "relevancy");
 
-impl<F> NewscatcherQuery for NewsQuery<'_, F>
-where
-    F: Deref<Target = Filter> + Sync,
-{
-    fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "search-news")?;
+                append_common_query_parts(&request.common, &mut query);
+                query.append_pair("q", &request.filter.build());
 
-        let mut query = url.query_pairs_mut();
-        query
-            .append_pair("sort_by", "relevancy")
-            .append_pair("q", &self.filter.build());
-
-        if let Some(from) = &self.from {
-            query.append_pair("from", from);
-        }
-
-        Ok(())
-    }
-}
-
-impl<T> Seal for NewsQuery<'_, T> {}
-
-/// Parameters determining which headlines to fetch.
-pub struct HeadlinesQuery<'a> {
-    /// Common parts.
-    pub common: CommonQueryParts<'a>,
-    /// Trusted sources.
-    pub trusted_sources: &'a [String],
-    /// Headlines topic.
-    pub topic: Option<&'a str>,
-    /// The time period you want to get the latest headlines for.
-    /// Can be specified in days (e.g. 3d) or hours (e.g. 24h).
-    /// Defaults to all data available for the subscriptions.
-    pub when: Option<&'a str>,
-}
-
-impl NewscatcherQuery for HeadlinesQuery<'_> {
-    fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, TRUSTED_SOURCES_ENDPOINT)?;
-
-        let mut query = url.query_pairs_mut();
-        if !self.trusted_sources.is_empty() {
-            query.append_pair("sources", &self.trusted_sources.join(","));
-        };
-        if let Some(topic) = self.topic {
-            query.append_pair("topic", topic);
-        }
-        if let Some(when) = self.when {
-            query.append_pair("when", when);
-        }
-        Ok(())
-    }
-}
-
-impl Seal for HeadlinesQuery<'_> {}
-
-/// Client that can provide documents.
-pub struct Client {
-    pub(crate) token: String,
-    pub(crate) url: String,
-    pub(crate) timeout: Duration,
-    pub(crate) client: reqwest::Client,
-}
-
-impl Client {
-    /// Create a client.
-    pub fn new(token: impl Into<String>, url: impl Into<String>) -> Self {
-        Self {
-            token: token.into(),
-            url: url.into(),
-            timeout: Duration::from_millis(3500),
-            client: reqwest::Client::new(),
-        }
-    }
-
-    /// Configures the timeout.
-    ///
-    /// The timeout defaults to 3.5s.
-    #[must_use = "dropped changed client"]
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
-        self
-    }
-
-    /// Run a query for fetching `Article`s from Newscatcher.
-    pub async fn query_articles(
-        &self,
-        query: &impl NewscatcherQuery,
-    ) -> Result<Vec<Article>, Error> {
-        let response = self.query(query).await?;
-        Ok(response.articles.into_iter().map_into().collect())
-    }
-
-    /// Run a query against Newscatcher.
-    async fn query(&self, query: &impl NewscatcherQuery) -> Result<Response, Error> {
-        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
-        query.setup_url(&mut url)?;
-
-        let response = self
-            .client
-            .get(url)
-            .timeout(self.timeout)
-            .bearer_auth(&self.token)
-            .send()
+                if let Some(from) = &request.from {
+                    query.append_pair("from", from);
+                }
+            })
             .await
-            .map_err(Error::RequestExecution)?
-            .error_for_status()
-            .map_err(Error::StatusCode)?;
-
-        let raw_response = response.bytes().await.map_err(Error::Fetching)?;
-        let deserializer = &mut serde_json::Deserializer::from_slice(&raw_response);
-        serde_path_to_error::deserialize(deserializer)
-            .map_err(|error| Error::DecodingAtPath(error.path().to_string(), error))
+            .map(|response| response.articles.into_iter().map_into().collect())
     }
 }
 
-/// Default `from` value for newscatcher news queries
-pub fn default_from() -> String {
-    let from = Utc::today() - chrono::Duration::days(3);
-    from.format("%Y/%m/%d").to_string()
+/// Newscatcher based implementation of a `HeadlinesProvider`.
+#[derive(From)]
+pub struct HeadlinesProviderImpl(Endpoint);
+
+impl HeadlinesProviderImpl {
+    /// Create a new provider.
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self(Endpoint::new(endpoint_url, auth_token))
+    }
 }
 
-/// Default `when` value for newscatcher headline queries
-pub const DEFAULT_WHEN: Option<&'static str> = Some("3d");
+#[async_trait]
+impl HeadlinesProvider for HeadlinesProviderImpl {
+    async fn query_headlines(&self, request: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
+        self.0
+            .fetch::<Response, _>(|mut query| {
+                append_common_query_parts(&request.common, &mut query);
+                if let Some(topic) = &request.topic {
+                    query.append_pair("topic", topic);
+                }
+                if let Some(when) = &request.when {
+                    query.append_pair("when", when);
+                }
+            })
+            .await
+            .map(|response| response.articles.into_iter().map_into().collect())
+    }
+}
+
+fn append_common_query_parts(
+    common: &CommonQueryParts<'_>,
+    query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>,
+) {
+    if let Some(market) = &common.market {
+        query
+            .append_pair("lang", &market.lang_code)
+            .append_pair("countries", &market.country_code);
+
+        if let Some(limit) = market.news_quality_rank_limit() {
+            query.append_pair("to_rank", &limit.to_string());
+        }
+    }
+
+    query
+        .append_pair("page_size", &common.page_size.to_string())
+        // FIXME Consider cmp::min(self.page, 1) or explicit error variant
+        .append_pair("page", &common.page.to_string());
+
+    if !common.trusted_sources.is_empty() {
+        query.append_pair("sources", &common.trusted_sources.join(","));
+    }
+
+    if !common.excluded_sources.is_empty() {
+        query.append_pair("not_sources", &common.excluded_sources.join(","));
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::newscatcher::models::Topic;
+    use crate::{newscatcher::models::Topic, Filter, Market};
 
     use super::*;
     use chrono::NaiveDateTime;
@@ -238,14 +138,17 @@ mod tests {
     #[tokio::test]
     async fn test_simple_news_query() {
         let mock_server = MockServer::start().await;
-        let client = Client::new("test-token", mock_server.uri());
+        let provider = NewsProviderImpl::new(
+            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
 
         let tmpl = ResponseTemplate::new(200).set_body_string(include_str!(
             "../test-fixtures/newscatcher/climate-change.json"
         ));
 
         Mock::given(method("GET"))
-            .and(path("/search-news"))
+            .and(path("/v1/search-news"))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "en"))
@@ -270,12 +173,13 @@ mod tests {
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
+                trusted_sources: &[],
             },
             filter,
             from: None,
         };
 
-        let docs = client.query_articles(&params).await.unwrap();
+        let docs = provider.query_news(&params).await.unwrap();
 
         assert_eq!(docs.len(), 2);
 
@@ -286,14 +190,17 @@ mod tests {
     #[tokio::test]
     async fn test_simple_news_query_with_additional_parameters() {
         let mock_server = MockServer::start().await;
-        let client = Client::new("test-token", mock_server.uri());
+        let provider = NewsProviderImpl::new(
+            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
 
         let tmpl = ResponseTemplate::new(200).set_body_string(include_str!(
             "../test-fixtures/newscatcher/climate-change.json"
         ));
 
         Mock::given(method("GET"))
-            .and(path("/search-news"))
+            .and(path("/v1/search-news"))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
@@ -320,12 +227,13 @@ mod tests {
                 page_size: 2,
                 page: 1,
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
+                trusted_sources: &[],
             },
             filter,
             from: None,
         };
 
-        let docs = client.query_articles(&params).await.unwrap();
+        let docs = provider.query_news(&params).await.unwrap();
 
         assert_eq!(docs.len(), 2);
 
@@ -336,14 +244,17 @@ mod tests {
     #[tokio::test]
     async fn test_news_multiple_keywords() {
         let mock_server = MockServer::start().await;
-        let client = Client::new("test-token", mock_server.uri());
+        let provider = NewsProviderImpl::new(
+            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
 
         let tmpl = ResponseTemplate::new(200).set_body_string(include_str!(
             "../test-fixtures/newscatcher/msft-vs-aapl.json"
         ));
 
         Mock::given(method("GET"))
-            .and(path("/search-news"))
+            .and(path("/v1/search-news"))
             .and(query_param("q", "(Bill Gates) OR (Tim Cook)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
@@ -369,12 +280,13 @@ mod tests {
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
+                trusted_sources: &[],
             },
             filter,
             from: None,
         };
 
-        let docs = client.query_articles(&params).await.unwrap();
+        let docs = provider.query_news(&params).await.unwrap();
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(0).unwrap();
@@ -387,14 +299,17 @@ mod tests {
     #[tokio::test]
     async fn test_headlines() {
         let mock_server = MockServer::start().await;
-        let client = Client::new("test-token", mock_server.uri());
+        let provider = HeadlinesProviderImpl::new(
+            Url::parse(&format!("{}/v1/latest-headlines", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
 
         let tmpl = ResponseTemplate::new(200).set_body_string(include_str!(
             "../test-fixtures/newscatcher/latest-headlines.json"
         ));
 
         Mock::given(method("GET"))
-            .and(path(TRUSTED_SOURCES_ENDPOINT))
+            .and(path("/v1/latest-headlines"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))
@@ -416,13 +331,13 @@ mod tests {
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
+                trusted_sources: &["dodo.com".into(), "dada.net".into()],
             },
-            trusted_sources: &["dodo.com".into(), "dada.net".into()],
             topic: None,
             when: None,
         };
 
-        let docs = client.query_articles(&params).await.unwrap();
+        let docs = provider.query_headlines(&params).await.unwrap();
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(1).unwrap();

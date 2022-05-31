@@ -21,12 +21,11 @@ use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
     Article,
-    Client,
     CommonQueryParts,
+    HeadlinesProvider,
     HeadlinesQuery,
     Market,
 };
-
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -41,7 +40,7 @@ use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for breaking news items.
 pub(crate) struct BreakingNews {
-    client: Arc<Client>,
+    client: Arc<dyn HeadlinesProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: u32,
@@ -50,7 +49,7 @@ pub(crate) struct BreakingNews {
 
 impl BreakingNews {
     /// Creates a breaking news stack.
-    pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn HeadlinesProvider>) -> Self {
         Self {
             client,
             excluded_sources: config.excluded_sources.clone(),
@@ -120,7 +119,7 @@ impl Ops for BreakingNews {
 }
 
 fn spawn_headlines_request(
-    client: Arc<Client>,
+    client: Arc<dyn HeadlinesProvider>,
     market: Market,
     page_size: usize,
     page: usize,
@@ -135,12 +134,12 @@ fn spawn_headlines_request(
                 page_size,
                 page,
                 excluded_sources: excluded_sources.as_slice(),
+                trusted_sources: &[],
             },
-            trusted_sources: &[],
             topic: None,
             when: None,
         };
 
-        client.query_newscatcher(&query).await.map_err(Into::into)
+        client.query_headlines(&query).await.map_err(Into::into)
     })
 }

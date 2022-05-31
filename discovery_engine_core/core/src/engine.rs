@@ -32,6 +32,7 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::error;
 
+use url::Url;
 use xayn_discovery_engine_ai::{
     cosine_similarity,
     nan_safe_f32_cmp,
@@ -44,16 +45,16 @@ use xayn_discovery_engine_ai::{
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
+    bing::{TrendingQuery, TrendingTopic as BingTopic, TrendingTopicsProvider},
     clean_query,
     Article,
-    Client,
     CommonQueryParts,
     Filter,
+    HeadlinesProvider,
     HeadlinesQuery,
     Market,
+    NewsProvider,
     NewsQuery,
-    TrendingQuery,
-    TrendingTopic as BingTopic,
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
@@ -225,9 +226,54 @@ impl Default for CoreConfig {
     }
 }
 
+struct Providers {
+    headlines: Arc<dyn HeadlinesProvider>,
+    trusted_sources: Arc<dyn HeadlinesProvider>,
+    news: Arc<dyn NewsProvider>,
+    trending_topics: Arc<TrendingTopicsProvider>,
+}
+
+impl Providers {
+    //FIXME removed again in follow up PR, hence unwrap is fine
+    fn from_hardcoded(base_url: &str, auth_token: &str) -> Self {
+        use xayn_discovery_engine_providers::newscatcher::{
+            HeadlinesProviderImpl,
+            NewsProviderImpl,
+        };
+
+        let base_url = base_url.strip_suffix('/').unwrap_or(base_url);
+        let headlines_url = Url::parse(&format!("{}/v1/latest-headlines", base_url)).unwrap();
+        let headlines = Arc::new(HeadlinesProviderImpl::new(headlines_url, auth_token.into()));
+
+        let base_url = base_url.strip_suffix('/').unwrap_or(base_url);
+        let trusted_sources_url = Url::parse(&format!("{}/v2/trusted-sources", base_url)).unwrap();
+        let trusted_sources = Arc::new(HeadlinesProviderImpl::new(
+            trusted_sources_url,
+            auth_token.into(),
+        ));
+
+        let base_url = base_url.strip_suffix('/').unwrap_or(base_url);
+        let news_url = Url::parse(&format!("{}/v1/search-news", base_url)).unwrap();
+        let news = Arc::new(NewsProviderImpl::new(news_url, auth_token.into()));
+
+        let trending_topics_url = Url::parse(&format!("{}/_tt", base_url)).unwrap();
+        let trending_topics = Arc::new(TrendingTopicsProvider::new(
+            trending_topics_url,
+            auth_token.into(),
+        ));
+
+        Providers {
+            headlines,
+            trusted_sources,
+            news,
+            trending_topics,
+        }
+    }
+}
+
 /// Discovery Engine.
 pub struct Engine<R> {
-    client: Arc<Client>,
+    providers: Providers,
     config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
@@ -246,7 +292,7 @@ where
         ranker: R,
         history: &[HistoricDocument],
         stack_ops: Vec<BoxedOps>,
-        client: Arc<Client>,
+        providers: Providers,
     ) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
@@ -257,7 +303,7 @@ where
             stack_data,
             StackData::default(),
             stack_ops,
-            client,
+            providers,
         )
         .await
     }
@@ -272,7 +318,7 @@ where
         ranker: R,
         history: &'a [HistoricDocument],
         stack_ops: Vec<BoxedOps>,
-        client: Arc<Client>,
+        providers: Providers,
     ) -> Result<Self, Error> {
         if stack_ops.is_empty() {
             return Err(Error::NoStackOps);
@@ -292,7 +338,7 @@ where
             stack_data,
             exploration_stack_data,
             stack_ops,
-            client,
+            providers,
         )
         .await
     }
@@ -304,7 +350,7 @@ where
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
         exploration_stack_data: StackData,
         stack_ops: Vec<BoxedOps>,
-        client: Arc<Client>,
+        providers: Providers,
     ) -> Result<Self, Error> {
         let stacks = stack_ops
             .into_iter()
@@ -322,7 +368,7 @@ where
 
         // we don't want to fail initialization if there are network problems
         let mut engine = Self {
-            client,
+            providers,
             config,
             core_config,
             stacks: RwLock::new(stacks),
@@ -555,28 +601,32 @@ where
                             page_size: scaled_page_size,
                             page: page as usize,
                             excluded_sources: &excluded_sources,
+                            //FIXME should this use trusted sources
+                            trusted_sources: &[],
                         },
                         filter,
                         //FIXME it's not clear if this should be set if supported
                         from: None,
                     };
 
-                    self.client.query_newscatcher(&news_query).await
+                    self.providers.news.query_news(&news_query).await
                 }
                 SearchBy::Topic(topic) => {
-                    let common = CommonQueryParts {
-                        market: Some(market),
-                        page_size: scaled_page_size,
-                        page: page as usize,
-                        excluded_sources: &excluded_sources,
-                    };
                     let headlines_query = HeadlinesQuery {
-                        common,
-                        trusted_sources: &[],
+                        common: CommonQueryParts {
+                            market: Some(market),
+                            page_size: scaled_page_size,
+                            page: page as usize,
+                            excluded_sources: &excluded_sources,
+                            trusted_sources: &[],
+                        },
                         topic: Some(topic),
                         when: None,
                     };
-                    self.client.query_newscatcher(&headlines_query).await
+                    self.providers
+                        .headlines
+                        .query_headlines(&headlines_query)
+                        .await
                 }
             };
             query_result.map_or_else(
@@ -631,14 +681,16 @@ where
                 page_size: self.core_config.deep_search_max,
                 page: 1,
                 excluded_sources,
+                trusted_sources: &[],
             },
             filter,
             from: None,
         };
 
         let articles = self
-            .client
-            .query_newscatcher(&query)
+            .providers
+            .news
+            .query_news(&query)
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
@@ -678,7 +730,12 @@ where
         let markets = self.config.markets.read().await;
         for market in markets.iter() {
             let query = TrendingQuery { market };
-            match self.client.query_trending(&query).await {
+            match self
+                .providers
+                .trending_topics
+                .query_trending_topics(&query)
+                .await
+            {
                 Ok(batch) => topics.extend(batch),
                 Err(err) => errors.push(Error::Client(err.into())),
             };
@@ -1030,12 +1087,21 @@ impl XaynAiEngine {
         let builder =
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
-        let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
+        let providers = Providers::from_hardcoded(&config.api_base_url, &config.api_key);
         let endpoint_config = config.into();
         let stack_ops = vec![
-            Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
-            Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
-            Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
+            Box::new(BreakingNews::new(
+                &endpoint_config,
+                providers.headlines.clone(),
+            )) as BoxedOps,
+            Box::new(TrustedNews::new(
+                &endpoint_config,
+                providers.trusted_sources.clone(),
+            )) as BoxedOps,
+            Box::new(PersonalizedNews::new(
+                &endpoint_config,
+                providers.news.clone(),
+            )) as BoxedOps,
         ];
 
         if let Some(state) = state {
@@ -1047,12 +1113,12 @@ impl XaynAiEngine {
                 ranker,
                 history,
                 stack_ops,
-                client,
+                providers,
             )
             .await
         } else {
             let ranker = builder.build()?;
-            Self::new(endpoint_config, ranker, history, stack_ops, client).await
+            Self::new(endpoint_config, ranker, history, stack_ops, providers).await
         }
     }
 }
@@ -1094,8 +1160,8 @@ mod tests {
         stack::{ops::MockOps, Data},
     };
 
-    use std::mem::size_of;
     use chrono::NaiveDateTime;
+    use std::mem::size_of;
     use wiremock::{
         matchers::{method, path},
         Mock,
@@ -1157,13 +1223,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/latest-headlines"))
+            .and(path("/v1/latest-headlines"))
             .respond_with(tmpl.clone())
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
-            .and(path("/trusted-sources"))
+            .and(path("/v2/trusted-sources"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1186,13 +1252,19 @@ mod tests {
             ai_config: None,
         };
         let endpoint_config = config.clone().into();
-        let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
+        let providers = Providers::from_hardcoded(&config.api_base_url, &config.api_key);
 
         // We assume that, if de-duplication works between two stacks, it'll work between
         // any number of stacks. So we just create two.
         let stack_ops = vec![
-            Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
-            Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
+            Box::new(BreakingNews::new(
+                &endpoint_config,
+                providers.headlines.clone(),
+            )) as BoxedOps,
+            Box::new(TrustedNews::new(
+                &endpoint_config,
+                providers.trusted_sources.clone(),
+            )) as BoxedOps,
         ];
 
         let breaking_news_id = stack_ops.get(0).unwrap().id();
@@ -1370,13 +1442,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/latest-headlines"))
+            .and(path("/v1/latest-headlines"))
             .respond_with(tmpl.clone())
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
-            .and(path("/trusted-sources"))
+            .and(path("/v2/trusted-sources"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1448,16 +1520,16 @@ mod tests {
 
     fn new_mock_article() -> Article {
         Article {
-            title: Default::default(),
-            snippet: Default::default(),
+            title: "".into(),
+            snippet: "".into(),
             url: "https://xayn.com".into(),
-            source_domain: Default::default(),
+            source_domain: "".into(),
             date_published: NaiveDateTime::from_timestamp(0, 0),
-            image: Default::default(),
-            rank: Default::default(),
-            score: Default::default(),
-            country: Default::default(),
-            language: Default::default(),
+            image: "".into(),
+            rank: 0,
+            score: None,
+            country: "US".into(),
+            language: "en".into(),
             topic: "unrecognized".into(),
         }
     }

@@ -14,176 +14,96 @@
 
 //! Client to get new documents.
 
-use std::time::Duration;
-
+use async_trait::async_trait;
+use derive_more::From;
 use itertools::Itertools;
-use url::Url;
+use url::{form_urlencoded, Url, UrlQuery};
 
 use crate::{
-    filter::{Filter, Market},
+    rest::Endpoint,
     Article,
+    CommonQueryParts,
     Error,
+    HeadlinesProvider,
+    HeadlinesQuery,
+    NewsProvider,
+    NewsQuery,
 };
 
 use self::models::Response;
 
 mod models;
 
-const LATEST_HEADLINE_ENDPOINT: &str = "latest-headlines";
-const SEARCH_NEWS_ENDPOINT: &str = "search-news";
+/// Gnews based implementation of a `NewsProvider`.
+#[derive(From)]
+pub struct NewsProviderImpl(Endpoint);
 
-/// Query parameters for the news search query
-pub struct NewsQuery<'a> {
-    /// Market of news.
-    pub market: Option<&'a Market>,
-    /// How many articles to return (per page).
-    pub page_size: usize,
-    /// The number of the page which should be returned.
-    ///
-    /// Paging starts with `1`.
-    pub page: usize,
-    /// Exclude given sources.
-    pub excluded_sources: &'a [String],
-    /// Search filter for selecting the results
-    pub filter: &'a Filter,
+impl NewsProviderImpl {
+    /// Create a new provider instance.
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self(Endpoint::new(endpoint_url, auth_token))
+    }
 }
 
-/// Query parameters for the headlines query
-pub struct HeadlinesQuery<'a> {
-    /// Market of news.
-    pub market: Option<&'a Market>,
-    /// How many articles to return (per page).
-    pub page_size: usize,
-    /// The number of the page which should be returned.
-    ///
-    /// Paging starts with `1`.
-    pub page: usize,
-    /// Exclude given sources.
-    pub excluded_sources: &'a [String],
-    /// Search filter for selecting the results
-    pub filter: Option<&'a Filter>,
-}
-
-/// Client that can provide documents.
-pub struct Client {
-    token: String,
-    url: String,
-    timeout: Duration,
-    client: reqwest::Client,
-}
-
-impl Client {
-    /// Create a client.
-    pub fn new(token: impl Into<String>, url: impl Into<String>) -> Self {
-        Self {
-            token: token.into(),
-            url: url.into(),
-            timeout: Duration::from_millis(3500),
-            client: reqwest::Client::new(),
-        }
-    }
-
-    /// Configures the timeout.
-    ///
-    /// The timeout defaults to 3.5s.
-    #[must_use = "dropped changed client"]
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
-        self
-    }
-
-    /// Run a query for fetching `Article`s
-    pub async fn query_articles(&self, query: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
-        let url = self.build_news_url(query)?;
-        let response = self.query(url).await?;
-        Ok(response.articles.into_iter().map_into().collect())
-    }
-
-    /// Run a query for fetching `Article`s
-    pub async fn query_headlines(&self, query: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
-        let url = self.build_headlines_url(query)?;
-        let response = self.query(url).await?;
-        Ok(response.articles.into_iter().map_into().collect())
-    }
-
-    /// Run a query against the gnews API.
-    async fn query(&self, url: Url) -> Result<Response, Error> {
-        let response = self
-            .client
-            .get(url)
-            .timeout(self.timeout)
-            .bearer_auth(&self.token)
-            .send()
+#[async_trait]
+impl NewsProvider for NewsProviderImpl {
+    async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
+        self.0
+            .fetch::<Response, _>(|mut query| {
+                query.append_pair("sortby", "relevance");
+                append_common_query_parts(&request.common, &mut query);
+                query.append_pair("q", &request.filter.build());
+            })
             .await
-            .map_err(Error::RequestExecution)?
-            .error_for_status()
-            .map_err(Error::StatusCode)?;
-
-        let raw_response = response.bytes().await.map_err(Error::Fetching)?;
-        let deserializer = &mut serde_json::Deserializer::from_slice(&raw_response);
-        serde_path_to_error::deserialize(deserializer)
-            .map_err(|error| Error::DecodingAtPath(error.path().to_string(), error))
+            .map(|response| response.articles.into_iter().map_into().collect())
     }
+}
 
-    fn build_news_url(&self, params: &NewsQuery<'_>) -> Result<Url, Error> {
-        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
+/// Gnews based implementation of a `HeadlinesProvider`.
+#[derive(From)]
+pub struct HeadlineProviderImpl(Endpoint);
 
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push(SEARCH_NEWS_ENDPOINT);
-
-        {
-            let mut query = url.query_pairs_mut();
-            query
-                .append_pair("sortby", "relevance")
-                .append_pair("q", &params.filter.build());
-
-            if let Some(market) = &params.market {
-                query
-                    .append_pair("lang", &market.lang_code)
-                    .append_pair("country", &market.country_code.to_lowercase());
-            }
-
-            query
-                .append_pair("max", &params.page_size.to_string())
-                .append_pair("page", &params.page.to_string());
-        }
-
-        Ok(url)
+impl HeadlineProviderImpl {
+    /// Create a new provider instance.
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self(Endpoint::new(endpoint_url, auth_token))
     }
+}
 
-    fn build_headlines_url(&self, params: &HeadlinesQuery<'_>) -> Result<Url, Error> {
-        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
+#[async_trait]
+impl HeadlinesProvider for HeadlineProviderImpl {
+    async fn query_headlines(&self, request: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
+        self.0
+            .fetch::<Response, _>(|mut query| {
+                append_common_query_parts(&request.common, &mut query);
+                if let Some(topic) = &request.topic {
+                    query.append_pair("topic", topic);
+                }
+            })
+            .await
+            .map(|response| response.articles.into_iter().map_into().collect())
+    }
+}
 
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push(LATEST_HEADLINE_ENDPOINT);
+fn append_common_query_parts(
+    common: &CommonQueryParts<'_>,
+    query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>,
+) {
+    query
+        .append_pair("max", &common.page_size.to_string())
+        .append_pair("page", &common.page.to_string());
 
-        {
-            let mut query = url.query_pairs_mut();
-            query.append_pair("sortby", "relevance");
-
-            if let Some(filter) = &params.filter {
-                query.append_pair("q", &filter.build());
-            }
-
-            if let Some(market) = &params.market {
-                query
-                    .append_pair("lang", &market.lang_code)
-                    .append_pair("country", &market.country_code.to_lowercase());
-            }
-
-            query
-                .append_pair("max", &params.page_size.to_string())
-                .append_pair("page", &params.page.to_string());
-        }
-
-        Ok(url)
+    if let Some(market) = &common.market {
+        query
+            .append_pair("lang", &market.lang_code)
+            .append_pair("country", &market.country_code.to_lowercase());
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::{Filter, Market};
+
     use super::*;
 
     use wiremock::{
@@ -196,13 +116,16 @@ mod tests {
     #[tokio::test]
     async fn test_simple_news_query() {
         let mock_server = MockServer::start().await;
-        let client = Client::new("test-token", mock_server.uri());
+        let provider = NewsProviderImpl::new(
+            Url::parse(&format!("{}/v2/search-news", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/gnews/climate-change.json"));
 
         Mock::given(method("GET"))
-            .and(path(SEARCH_NEWS_ENDPOINT))
+            .and(path("/v2/search-news"))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sortby", "relevance"))
             .and(query_param("lang", "en"))
@@ -221,15 +144,19 @@ mod tests {
         };
         let filter = &Filter::default().add_keyword("Climate change");
 
-        let params = NewsQuery {
-            market: Some(market),
-            page_size: 2,
-            page: 1,
-            excluded_sources: &[],
+        let query = NewsQuery {
+            common: CommonQueryParts {
+                market: Some(market),
+                page_size: 2,
+                page: 1,
+                excluded_sources: &[],
+                trusted_sources: &[],
+            },
             filter,
+            from: None,
         };
 
-        let docs = client.query_articles(&params).await.unwrap();
+        let docs = provider.query_news(&query).await.unwrap();
 
         assert_eq!(docs.len(), 2);
 
