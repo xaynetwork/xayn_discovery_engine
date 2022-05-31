@@ -17,72 +17,71 @@ use chrono::{DateTime, Utc};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::deserialize_null_default;
+use crate::{utils::deserialize_null_default, Market};
 
 /// A news article
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Article {
+pub(super) struct Article {
     #[serde(deserialize_with = "deserialize_null_default")]
-    pub title: String,
+    pub(super) title: String,
 
     #[serde(deserialize_with = "deserialize_null_default")]
-    pub description: String,
+    pub(super) description: String,
 
     #[serde(deserialize_with = "deserialize_null_default")]
-    pub content: String,
+    pub(super) content: String,
 
     #[serde(deserialize_with = "deserialize_null_default")]
-    pub url: String,
+    pub(super) url: String,
 
     #[serde(deserialize_with = "deserialize_null_default")]
-    pub image: String,
+    pub(super) image: String,
 
     #[serde(deserialize_with = "deserialize_null_default")]
-    pub source: Source,
+    pub(super) source: Source,
 
     #[serde(rename(deserialize = "publishedAt"), alias = "date_published")]
-    pub published_at: DateTime<Utc>,
+    pub(super) published_at: DateTime<Utc>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
-pub struct Source {
+pub(super) struct Source {
     #[serde(deserialize_with = "deserialize_null_default")]
-    pub name: String,
+    pub(super) name: String,
 
     #[serde(deserialize_with = "deserialize_null_default")]
-    pub url: String,
+    pub(super) url: String,
 }
 
 /// Query response from the Gnews API
 #[derive(Deserialize, Debug)]
-pub(crate) struct Response {
+pub(super) struct Response {
     #[serde(default)]
-    pub(crate) articles: Vec<Article>,
+    pub(super) articles: Vec<Article>,
 
     /// Total articles available
     #[allow(dead_code)]
     #[serde(rename(deserialize = "totalArticles"))]
-    pub(crate) total_articles: usize,
+    pub(super) total_articles: usize,
 }
 
-impl From<Article> for crate::Article {
-    fn from(source: Article) -> Self {
-        let source_domain = Url::parse(&source.url)
+impl Article {
+    pub(super) fn into_generic_article(self, market: Market) -> crate::Article {
+        let source_domain = Url::parse(&self.url)
             .ok()
             .and_then(|url| url.domain().map(std::string::ToString::to_string))
             .unwrap_or_default();
 
         crate::Article {
-            title: source.title,
-            snippet: source.description,
-            url: source.url,
+            title: self.title,
+            snippet: self.description,
+            url: self.url,
             source_domain,
-            date_published: source.published_at.naive_local(),
-            image: source.image,
+            date_published: self.published_at.naive_local(),
+            image: self.image,
             rank: 0,
             score: None,
-            country: String::new(),
-            language: String::new(),
+            market,
             topic: String::new(),
         }
     }

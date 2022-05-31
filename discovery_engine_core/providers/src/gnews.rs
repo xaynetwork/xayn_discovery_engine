@@ -17,7 +17,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use itertools::Itertools;
 use url::{form_urlencoded, Url, UrlQuery};
 
 use crate::{
@@ -62,7 +61,13 @@ impl NewsProvider for NewsProviderImpl {
                 query.append_pair("q", &request.filter.build());
             })
             .await
-            .map(|response| response.articles.into_iter().map_into().collect())
+            .map(|response| {
+                response
+                    .articles
+                    .into_iter()
+                    .map(|article| article.into_generic_article(request.market.clone()))
+                    .collect()
+            })
     }
 }
 
@@ -87,14 +92,20 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
         self.0
             .fetch::<Response, _>(|mut query| {
                 append_common_query_parts(&mut query, &request.common);
-                append_market(&mut query, &request.market);
+                append_market(&mut query, request.market);
 
                 if let Some(topic) = &request.topic {
                     query.append_pair("topic", topic);
                 }
             })
             .await
-            .map(|response| response.articles.into_iter().map_into().collect())
+            .map(|response| {
+                response
+                    .articles
+                    .into_iter()
+                    .map(|article| article.into_generic_article(request.market.clone()))
+                    .collect()
+            })
     }
 }
 

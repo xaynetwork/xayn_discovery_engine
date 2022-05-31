@@ -388,8 +388,7 @@ mod tests {
             url: "https://example.com".to_string(),
             image: "https://uploads.example.com/image.png".to_string(),
             topic: Topic::Gaming.to_string(),
-            country: "US".to_string(),
-            language: "en".to_string(),
+            market: Market { country_code: "US".to_string(), lang_code: "en".to_string() },
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
         };
 

@@ -121,11 +121,8 @@ pub struct Article {
     /// How much the article match the query.
     pub score: Option<f32>,
 
-    /// The country of the publisher.
-    pub country: String,
-
-    /// The language of the article.
-    pub language: String,
+    /// The market from which the article is.
+    pub market: Market,
 
     /// Main topic of the publisher.
     pub topic: String,

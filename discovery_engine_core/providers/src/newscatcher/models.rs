@@ -17,7 +17,7 @@ use derive_more::Display;
 use itertools::Itertools;
 use serde::{de, Deserialize, Deserializer, Serialize};
 
-use crate::{utils::deserialize_null_default, Error};
+use crate::{utils::deserialize_null_default, Error, Market};
 
 /// Topic of the publisher.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Display)]
@@ -159,8 +159,10 @@ impl From<Article> for crate::Article {
             image: source.media,
             rank: source.rank,
             score: source.score,
-            country: source.country,
-            language: source.language,
+            market: Market {
+                country_code: source.country,
+                lang_code: source.language,
+            },
             topic: source.topic.to_string(),
         }
     }
