@@ -25,34 +25,22 @@
 #![warn(missing_docs, unreachable_pub)]
 #![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
 
+use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-mod client;
 mod expression;
 mod filter;
 pub mod gnews;
 pub mod newscatcher;
+mod query;
+mod rest;
 mod utils;
 
-pub use client::Client;
-pub use gnews::{HeadlinesQuery as GnewsHeadlinesQuery, NewsQuery as GnewsNewsQuery};
-pub use newscatcher::{
-    default_from,
-    CommonQueryParts,
-    HeadlinesQuery,
-    NewsQuery,
-    NewscatcherQuery,
-    DEFAULT_WHEN,
-};
-
 pub use filter::{Filter, Market};
-
-mod seal {
-    pub trait Seal {}
-}
+pub use query::{default_from, CommonQueryParts, HeadlinesQuery, NewsQuery, DEFAULT_WHEN};
 
 /// Client errors.
 #[derive(Error, Debug, DisplayDoc)]
@@ -72,6 +60,20 @@ pub enum Error {
         String,
         #[source] serde_path_to_error::Error<serde_json::Error>,
     ),
+}
+
+/// Abstraction over a provider for a news searching functionality.
+#[async_trait]
+pub trait NewsProvider: Send + Sync {
+    /// Query news.
+    async fn query_news(&self, query: &NewsQuery<'_>) -> Result<Vec<Article>, Error>;
+}
+
+/// Abstraction over a provider for the latest headlines.
+#[async_trait]
+pub trait HeadlinesProvider: Send + Sync {
+    /// Query headlines.
+    async fn query_headlines(&self, query: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error>;
 }
 
 /// A news article
