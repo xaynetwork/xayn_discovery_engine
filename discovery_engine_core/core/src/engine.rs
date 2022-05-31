@@ -48,6 +48,7 @@ use xayn_discovery_engine_providers::{
     Market,
     NewsProvider,
     NewsQuery,
+    TrustedSourcesProvider,
 };
 
 use crate::{
@@ -225,7 +226,7 @@ impl Default for CoreConfig {
 
 struct Providers {
     headlines: Arc<dyn HeadlinesProvider>,
-    trusted_sources: Arc<dyn HeadlinesProvider>,
+    trusted_sources: Arc<dyn TrustedSourcesProvider>,
     news: Arc<dyn NewsProvider>,
 }
 
@@ -301,7 +302,7 @@ impl Providers {
             config.api_key.clone(),
         );
         let trusted_sources =
-            newscatcher::HeadlinesProviderImpl::from_endpoint(trusted_sources_endpoint);
+            newscatcher::TrustedSourcesProviderImpl::from_endpoint(trusted_sources_endpoint);
 
         Ok(Providers {
             headlines,
@@ -643,13 +644,11 @@ where
                 SearchBy::Query(filter) => {
                     let news_query = NewsQuery {
                         common: CommonQueryParts {
-                            market: Some(market),
                             page_size: scaled_page_size,
                             page: page as usize,
                             excluded_sources: &excluded_sources,
-                            //FIXME should this use trusted sources
-                            trusted_sources: &[],
                         },
+                        market,
                         filter,
                         //FIXME it's not clear if this should be set if supported
                         from: None,
@@ -660,12 +659,11 @@ where
                 SearchBy::Topic(topic) => {
                     let headlines_query = HeadlinesQuery {
                         common: CommonQueryParts {
-                            market: Some(market),
                             page_size: scaled_page_size,
                             page: page as usize,
                             excluded_sources: &excluded_sources,
-                            trusted_sources: &[],
                         },
+                        market,
                         topic: Some(topic),
                         when: None,
                     };

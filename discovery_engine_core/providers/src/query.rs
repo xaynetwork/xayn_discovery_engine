@@ -26,9 +26,6 @@ use crate::{Filter, Market};
 ///
 /// Fields not supported by the used provider will be ignored.
 pub struct CommonQueryParts<'a> {
-    /// Market of news.
-    pub market: Option<&'a Market>,
-
     /// How many articles to return (per page).
     pub page_size: usize,
 
@@ -39,13 +36,6 @@ pub struct CommonQueryParts<'a> {
 
     /// Exclude given sources.
     pub excluded_sources: &'a [String],
-
-    /// Prefer trusted sources
-    ///
-    /// Supported by
-    /// - newscatcher/search
-    /// - newscatcher/headlines
-    pub trusted_sources: &'a [String],
 }
 
 /// Parameters determining which news to fetch
@@ -54,6 +44,9 @@ pub struct CommonQueryParts<'a> {
 pub struct NewsQuery<'a> {
     /// Common parts
     pub common: CommonQueryParts<'a>,
+
+    /// Market of news.
+    pub market: &'a Market,
 
     /// News search filter.
     pub filter: &'a Filter,
@@ -72,8 +65,28 @@ pub struct HeadlinesQuery<'a> {
     /// Common parts.
     pub common: CommonQueryParts<'a>,
 
+    /// Market of news.
+    pub market: &'a Market,
+
     /// Headlines topic.
     pub topic: Option<&'a str>,
+
+    //FIXME gnews support for from derived from when
+    /// The time period you want to get the latest headlines for.
+    /// Can be specified in days (e.g. 3d) or hours (e.g. 24h).
+    /// Defaults to all data available for the subscriptions.
+    pub when: Option<&'a str>,
+}
+
+/// Parameters determining which which headlines from trusted sources to fetch.
+///
+/// Fields not supported by the used provider will be ignored.
+pub struct TrustedSourcesQuery<'a> {
+    /// Common parts.
+    pub common: CommonQueryParts<'a>,
+
+    /// Prefer trusted sources
+    pub trusted_sources: &'a [String],
 
     //FIXME gnews support for from derived from when
     /// The time period you want to get the latest headlines for.

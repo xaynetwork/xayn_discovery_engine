@@ -21,14 +21,17 @@ use itertools::Itertools;
 use url::{form_urlencoded, Url, UrlQuery};
 
 use crate::{
+    query::TrustedSourcesQuery,
     rest::Endpoint,
     Article,
     CommonQueryParts,
     Error,
     HeadlinesProvider,
     HeadlinesQuery,
+    Market,
     NewsProvider,
     NewsQuery,
+    TrustedSourcesProvider,
 };
 
 use self::models::Response;
@@ -56,8 +59,8 @@ impl NewsProvider for NewsProviderImpl {
         self.0
             .fetch::<Response, _>(|mut query| {
                 query.append_pair("sort_by", "relevancy");
-
-                append_common_query_parts(&request.common, &mut query);
+                append_common_query_parts(&mut query, &request.common);
+                append_market(&mut query, request.market);
                 query.append_pair("q", &request.filter.build());
 
                 if let Some(from) = &request.from {
@@ -89,12 +92,47 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
     async fn query_headlines(&self, request: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
         self.0
             .fetch::<Response, _>(|mut query| {
-                append_common_query_parts(&request.common, &mut query);
+                append_common_query_parts(&mut query, &request.common);
+                append_market(&mut query, request.market);
+                append_when(&mut query, request.when);
+
                 if let Some(topic) = &request.topic {
                     query.append_pair("topic", topic);
                 }
-                if let Some(when) = &request.when {
-                    query.append_pair("when", when);
+            })
+            .await
+            .map(|response| response.articles.into_iter().map_into().collect())
+    }
+}
+
+/// Newscatcher based implementation of a `TrustedSourcesProvider`.
+pub struct TrustedSourcesProviderImpl(Endpoint);
+
+impl TrustedSourcesProviderImpl {
+    /// Create a new provider.
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self(Endpoint::new(endpoint_url, auth_token))
+    }
+
+    /// Creates a `Arc<dyn HeadlineProvider>` from given endpoint.
+    pub fn from_endpoint(endpoint: Endpoint) -> Arc<dyn TrustedSourcesProvider> {
+        Arc::new(Self(endpoint))
+    }
+}
+
+#[async_trait]
+impl TrustedSourcesProvider for TrustedSourcesProviderImpl {
+    async fn query_trusted_sources(
+        &self,
+        request: &TrustedSourcesQuery<'_>,
+    ) -> Result<Vec<Article>, Error> {
+        self.0
+            .fetch::<Response, _>(|mut query| {
+                append_common_query_parts(&mut query, &request.common);
+                append_when(&mut query, request.when);
+
+                if !request.trusted_sources.is_empty() {
+                    query.append_pair("sources", &request.trusted_sources.join(","));
                 }
             })
             .await
@@ -103,30 +141,32 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
 }
 
 fn append_common_query_parts(
-    common: &CommonQueryParts<'_>,
     query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>,
+    common: &CommonQueryParts<'_>,
 ) {
-    if let Some(market) = &common.market {
-        query
-            .append_pair("lang", &market.lang_code)
-            .append_pair("countries", &market.country_code);
-
-        if let Some(limit) = market.news_quality_rank_limit() {
-            query.append_pair("to_rank", &limit.to_string());
-        }
-    }
-
     query
         .append_pair("page_size", &common.page_size.to_string())
         // FIXME Consider cmp::min(self.page, 1) or explicit error variant
         .append_pair("page", &common.page.to_string());
 
-    if !common.trusted_sources.is_empty() {
-        query.append_pair("sources", &common.trusted_sources.join(","));
-    }
-
     if !common.excluded_sources.is_empty() {
         query.append_pair("not_sources", &common.excluded_sources.join(","));
+    }
+}
+
+fn append_market(query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>, market: &Market) {
+    query
+        .append_pair("lang", &market.lang_code)
+        .append_pair("countries", &market.country_code);
+
+    if let Some(limit) = market.news_quality_rank_limit() {
+        query.append_pair("to_rank", &limit.to_string());
+    }
+}
+
+fn append_when(query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>, when: Option<&str>) {
+    if let Some(when) = when {
+        query.append_pair("when", when);
     }
 }
 
@@ -178,12 +218,11 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some(market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
-                trusted_sources: &[],
             },
+            market,
             filter,
             from: None,
         };
@@ -232,12 +271,11 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some(market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
-                trusted_sources: &[],
             },
+            market,
             filter,
             from: None,
         };
@@ -285,12 +323,11 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some(market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
-                trusted_sources: &[],
             },
+            market,
             filter,
             from: None,
         };
@@ -308,7 +345,7 @@ mod tests {
     #[tokio::test]
     async fn test_headlines() {
         let mock_server = MockServer::start().await;
-        let provider = HeadlinesProviderImpl::new(
+        let provider = TrustedSourcesProviderImpl::new(
             Url::parse(&format!("{}/v1/latest-headlines", mock_server.uri())).unwrap(),
             "test-token".into(),
         );
@@ -319,8 +356,6 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/v1/latest-headlines"))
-            .and(query_param("lang", "en"))
-            .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("sources", "dodo.com,dada.net"))
@@ -330,23 +365,17 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = Market {
-            lang_code: "en".to_string(),
-            country_code: "US".to_string(),
-        };
-        let params = HeadlinesQuery {
+        let params = TrustedSourcesQuery {
             common: CommonQueryParts {
-                market: Some(&market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
-                trusted_sources: &["dodo.com".into(), "dada.net".into()],
             },
-            topic: None,
+            trusted_sources: &["dodo.com".into(), "dada.net".into()],
             when: None,
         };
 
-        let docs = provider.query_headlines(&params).await.unwrap();
+        let docs = provider.query_trusted_sources(&params).await.unwrap();
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(1).unwrap();

@@ -27,6 +27,7 @@ use crate::{
     Error,
     HeadlinesProvider,
     HeadlinesQuery,
+    Market,
     NewsProvider,
     NewsQuery,
 };
@@ -56,7 +57,8 @@ impl NewsProvider for NewsProviderImpl {
         self.0
             .fetch::<Response, _>(|mut query| {
                 query.append_pair("sortby", "relevance");
-                append_common_query_parts(&request.common, &mut query);
+                append_common_query_parts(&mut query, &request.common);
+                append_market(&mut query, request.market);
                 query.append_pair("q", &request.filter.build());
             })
             .await
@@ -84,7 +86,9 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
     async fn query_headlines(&self, request: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
         self.0
             .fetch::<Response, _>(|mut query| {
-                append_common_query_parts(&request.common, &mut query);
+                append_common_query_parts(&mut query, &request.common);
+                append_market(&mut query, &request.market);
+
                 if let Some(topic) = &request.topic {
                     query.append_pair("topic", topic);
                 }
@@ -95,18 +99,18 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
 }
 
 fn append_common_query_parts(
-    common: &CommonQueryParts<'_>,
     query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>,
+    common: &CommonQueryParts<'_>,
 ) {
     query
         .append_pair("max", &common.page_size.to_string())
         .append_pair("page", &common.page.to_string());
+}
 
-    if let Some(market) = &common.market {
-        query
-            .append_pair("lang", &market.lang_code)
-            .append_pair("country", &market.country_code.to_lowercase());
-    }
+fn append_market(query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>, market: &Market) {
+    query
+        .append_pair("lang", &market.lang_code)
+        .append_pair("country", &market.country_code.to_lowercase());
 }
 
 #[cfg(test)]
@@ -155,12 +159,11 @@ mod tests {
 
         let query = NewsQuery {
             common: CommonQueryParts {
-                market: Some(market),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
-                trusted_sources: &[],
             },
+            market,
             filter,
             from: None,
         };

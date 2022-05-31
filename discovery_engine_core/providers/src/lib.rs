@@ -40,7 +40,14 @@ mod rest;
 mod utils;
 
 pub use filter::{Filter, Market};
-pub use query::{default_from, CommonQueryParts, HeadlinesQuery, NewsQuery, DEFAULT_WHEN};
+pub use query::{
+    default_from,
+    CommonQueryParts,
+    HeadlinesQuery,
+    NewsQuery,
+    TrustedSourcesQuery,
+    DEFAULT_WHEN,
+};
 pub use rest::Endpoint;
 
 /// Client errors.
@@ -75,6 +82,16 @@ pub trait NewsProvider: Send + Sync {
 pub trait HeadlinesProvider: Send + Sync {
     /// Query headlines.
     async fn query_headlines(&self, query: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error>;
+}
+
+/// Abstraction over a provider for headlines only from trusted sources.
+#[async_trait]
+pub trait TrustedSourcesProvider: Send + Sync {
+    /// Query headlines.
+    async fn query_trusted_sources(
+        &self,
+        query: &TrustedSourcesQuery<'_>,
+    ) -> Result<Vec<Article>, Error>;
 }
 
 /// A news article
