@@ -66,7 +66,7 @@ pub(super) struct Response {
 }
 
 impl Article {
-    pub(super) fn into_generic_article(self, market: Market, topic: String) -> crate::Article {
+    pub(super) fn into_generic_article(self, market: &Market, topic: &str) -> crate::Article {
         let source_domain = Url::parse(&self.url)
             .ok()
             .and_then(|url| url.domain().map(std::string::ToString::to_string))
@@ -81,8 +81,8 @@ impl Article {
             image: self.image,
             rank: 0,
             score: None,
-            market,
-            topic,
+            market: market.clone(),
+            topic: topic.to_owned(),
         }
     }
 }

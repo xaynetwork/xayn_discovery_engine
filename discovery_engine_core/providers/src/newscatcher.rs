@@ -114,7 +114,7 @@ impl TrustedSourcesProviderImpl {
         Self(Endpoint::new(endpoint_url, auth_token))
     }
 
-    /// Creates a `Arc<dyn HeadlineProvider>` from given endpoint.
+    /// Creates a `Arc<dyn TrustedSourcesProvider>` from given endpoint.
     pub fn from_endpoint(endpoint: Endpoint) -> Arc<dyn TrustedSourcesProvider> {
         Arc::new(Self(endpoint))
     }

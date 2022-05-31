@@ -291,10 +291,7 @@ mod tests {
             url: "https://example.com/news/".to_string(),
             image: "https://example.com/news/image/".to_string(),
             topic: "News".to_string(),
-            market: Market {
-                country_code: "EN".to_string(),
-                lang_code: "en".to_string(),
-            },
+            market: ("EN", "en").into(),
             date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
         }
     }
