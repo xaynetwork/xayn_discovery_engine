@@ -144,12 +144,11 @@ fn spawn_news_request(
 
         let query = NewsQuery {
             common: CommonQueryParts {
-                market: Some(&market),
                 page_size,
                 page,
                 excluded_sources: excluded_sources.as_slice(),
-                trusted_sources: &[],
             },
+            market: &market,
             filter: &filter,
             //FIXME it's not clear if we should set it if supported
             from: None,

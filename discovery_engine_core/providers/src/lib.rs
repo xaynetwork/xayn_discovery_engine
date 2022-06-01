@@ -40,7 +40,14 @@ mod rest;
 mod utils;
 
 pub use filter::{Filter, Market};
-pub use query::{default_from, CommonQueryParts, HeadlinesQuery, NewsQuery, DEFAULT_WHEN};
+pub use query::{
+    default_from,
+    CommonQueryParts,
+    HeadlinesQuery,
+    NewsQuery,
+    TrustedSourcesQuery,
+    DEFAULT_WHEN,
+};
 pub use rest::Endpoint;
 
 /// Client errors.
@@ -77,6 +84,16 @@ pub trait HeadlinesProvider: Send + Sync {
     async fn query_headlines(&self, query: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error>;
 }
 
+/// Abstraction over a provider for headlines only from trusted sources.
+#[async_trait]
+pub trait TrustedSourcesProvider: Send + Sync {
+    /// Query headlines.
+    async fn query_trusted_sources(
+        &self,
+        query: &TrustedSourcesQuery<'_>,
+    ) -> Result<Vec<Article>, Error>;
+}
+
 /// A news article
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Article {
@@ -104,11 +121,8 @@ pub struct Article {
     /// How much the article match the query.
     pub score: Option<f32>,
 
-    /// The country of the publisher.
-    pub country: String,
-
-    /// The language of the article.
-    pub language: String,
+    /// The market from which the article is.
+    pub market: Market,
 
     /// Main topic of the publisher.
     pub topic: String,

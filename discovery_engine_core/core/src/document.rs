@@ -149,8 +149,8 @@ impl TryFrom<Article> for NewsResource {
                 .transpose()?,
             rank: article.rank,
             score: article.score,
-            country: article.country,
-            language: article.language,
+            country: article.market.country_code,
+            language: article.market.lang_code,
             topic: article.topic.to_string(),
         })
     }
@@ -291,8 +291,7 @@ mod tests {
             url: "https://example.com/news/".to_string(),
             image: "https://example.com/news/image/".to_string(),
             topic: "News".to_string(),
-            country: "EN".to_string(),
-            language: "en".to_string(),
+            market: ("EN", "en").into(),
             date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
         }
     }
@@ -321,8 +320,8 @@ mod tests {
         assert_eq!(article.url, resource.url.to_string());
         assert_eq!(article.source_domain, resource.source_domain);
         assert_eq!(article.image, resource.image.unwrap().to_string());
-        assert_eq!(article.country, resource.country);
-        assert_eq!(article.language, resource.language);
+        assert_eq!(article.market.country_code, resource.country);
+        assert_eq!(article.market.lang_code, resource.language);
         assert_eq!(article.score, resource.score);
         assert_eq!(article.rank, resource.rank);
         assert_eq!(article.topic, resource.topic);
