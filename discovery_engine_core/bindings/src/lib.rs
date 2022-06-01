@@ -32,10 +32,8 @@ pub mod types;
 
 use ::tracing::{event, Level};
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqliteRow},
-    Connection,
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions, SqliteRow},
     Row,
-    SqliteConnection,
 };
 use xayn_discovery_engine_core::Engine;
 
@@ -43,6 +41,7 @@ use xayn_discovery_engine_core::Engine;
 struct Person {
     id: i32,
     name: String,
+    age: u32,
     data: Option<Vec<u8>>,
 }
 
@@ -63,7 +62,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         state: Option<Box<Vec<u8>>>,
         history: Box<Vec<HistoricDocument>>,
     ) -> Box<Result<SharedEngine, String>> {
-        tracing::init_tracing();
+        // tracing::init_tracing();
 
         let path = &config.smbert_vocab.clone();
         let vocab_path = "assets/smbert_v0001/vocab.txt";
@@ -76,40 +75,43 @@ impl XaynDiscoveryEngineAsyncFfi {
         let opt = SqliteConnectOptions::default()
             .filename(&path)
             .create_if_missing(true);
-        let mut conn = SqliteConnection::connect_with(&opt)
+
+        let pool = SqlitePoolOptions::new()
+            .connect_with(opt)
             .await
-            .expect("[SQLite] connection failed");
+            .expect("[SQLite] pool creation failed");
+        let mut conn = pool
+            .acquire()
+            .await
+            .expect("[SQLite] acquiring a connection from the pool failed");
 
         event!(Level::INFO, "\n\n [SQLite] DB opened!!\n\n");
 
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS person (
-            id    INTEGER PRIMARY KEY,
-            name  TEXT NOT NULL,
-            data  BLOB)",
-        )
-        .execute(&mut conn)
-        .await
-        .expect("[SQLite] table creation failed");
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+
+        event!(Level::INFO, "\n\n [SQLite] Migrations completed!!\n\n");
 
         let me = Person {
             id: 0,
             name: "Steven".to_string(),
+            age: 5,
             data: None,
         };
 
-        sqlx::query("INSERT INTO person (name, data) VALUES (?1, ?2)")
+        sqlx::query("INSERT INTO person (name, data, age) VALUES (?1, ?2, ?3)")
             .bind(&me.name)
             .bind(&me.data)
+            .bind(&me.age)
             .execute(&mut conn)
             .await
             .expect("[SQLite] insertion failed");
 
-        let person_iter = sqlx::query("SELECT id, name, data FROM person")
+        let person_iter = sqlx::query("SELECT id, name, data, age FROM person")
             .map(|row: SqliteRow| Person {
                 id: row.get(0),
                 name: row.get(1),
                 data: row.get(2),
+                age: row.get(3),
             })
             .fetch_all(&mut conn)
             .await
@@ -123,7 +125,7 @@ impl XaynDiscoveryEngineAsyncFfi {
             );
         }
 
-        conn.close().await.expect("[SQLite] closing failed");
+        //conn.close().await.expect("[SQLite] closing failed");
         event!(Level::INFO, "\n\n [SQLite] DB closed!!\n\n");
 
         Box::new(
@@ -276,5 +278,38 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Disposes the engine.
     pub async fn dispose(engine: Box<SharedEngine>) {
         engine.as_ref().as_ref().lock().await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::path::PathBuf;
+
+    use xayn_discovery_engine_core::InitConfig;
+    #[tokio::test]
+    async fn test_sqlx() {
+        let mut buf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        buf.push("assets/smbert_v0001/vocab.txt");
+        let manifest_dir = buf.to_str().unwrap();
+
+        let config = Box::new(InitConfig {
+            api_key: "".to_string(),
+            api_base_url: "".to_string(),
+            markets: vec![],
+            trusted_sources: vec![],
+            excluded_sources: vec![],
+            smbert_vocab: manifest_dir.to_string(),
+            smbert_model: manifest_dir.to_string(),
+            kpe_vocab: manifest_dir.to_string(),
+            kpe_model: manifest_dir.to_string(),
+            kpe_cnn: manifest_dir.to_string(),
+            kpe_classifier: manifest_dir.to_string(),
+            ai_config: None,
+        });
+
+        tracing_subscriber::fmt().init();
+        let _foo = XaynDiscoveryEngineAsyncFfi::initialize(config, None, Box::new(vec![])).await;
     }
 }

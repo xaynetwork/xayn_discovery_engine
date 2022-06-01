@@ -2,3 +2,4 @@
 # DELETE_AFTER_THIS_IN_RELEASE
 src/async_bindings/*.rs
 include/
+*.db3*
