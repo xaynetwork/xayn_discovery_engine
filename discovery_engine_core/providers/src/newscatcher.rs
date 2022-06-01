@@ -367,8 +367,6 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &("US", "en").into();
-
         let params = HeadlinesQuery {
             common: CommonQueryParts {
                 page_size: 2,
@@ -376,7 +374,7 @@ mod tests {
                 excluded_sources: &[],
             },
             when: None,
-            market,
+            market: &("US", "en").into(),
             topic: Some("games"),
         };
 
