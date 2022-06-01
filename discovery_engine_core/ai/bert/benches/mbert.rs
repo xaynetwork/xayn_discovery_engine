@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Run as `cargo bench --bench mbert`.
+//! Run as `cargo bench --bench mbert --features onnxruntime`.
 
 use std::{io::Result, path::Path};
 
