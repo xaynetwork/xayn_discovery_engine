@@ -14,7 +14,7 @@
 
 //! Compares MBert models evaluated by the onnx or the tract runtime.
 //!
-//! Run as `cargo run --release --example validate`.
+//! Run as `cargo run --release --example validate --features onnxruntime`.
 
 use std::{
     marker::PhantomPinned,
