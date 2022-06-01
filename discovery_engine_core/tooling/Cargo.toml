@@ -4,6 +4,14 @@ version = "0.1.0"
 license = "AGPL-3.0-only"
 edition = "2021"
 
+[[bin]]
+name = "newscatcher"
+path = "bin/test_provider.rs"
+
+[[bin]]
+name = "clean_sources"
+path = "bin/clean_sources.rs"
+
 [dependencies]
 anyhow = "1.0.55"
 csv = "1.1.6"

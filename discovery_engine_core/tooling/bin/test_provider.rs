@@ -74,7 +74,7 @@ fn main() -> Result<()> {
         .context("first argument must be the provider name")?;
     let method = args.get(2).context("second argument must be the method")?;
     let url = args.get(3).map_or_else(
-        || resolve_default_url_paths(&provider, &method),
+        || resolve_default_url_paths(provider, method),
         |s| s.to_owned(),
     );
     let url = Url::parse(&url).unwrap();
