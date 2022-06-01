@@ -49,6 +49,7 @@ mod utils;
 pub use clean_query::clean_query;
 pub use filter::{Filter, Market};
 pub use query::{default_from, CommonQueryParts, HeadlinesQuery, NewsQuery, DEFAULT_WHEN};
+pub use rest::Endpoint;
 
 /// Client errors.
 #[derive(Error, Debug, DisplayDoc)]

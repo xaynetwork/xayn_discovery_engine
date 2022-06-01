@@ -14,7 +14,6 @@
 
 //! Client to retrieve trending topics.
 
-use derive_more::From;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
@@ -27,13 +26,17 @@ pub struct TrendingQuery<'a> {
 }
 
 /// Bing implementation for tending topics.
-#[derive(From)]
 pub struct TrendingTopicsProvider(Endpoint);
 
 impl TrendingTopicsProvider {
     /// Create a new provider.
     pub fn new(endpoint_url: Url, auth_token: String) -> Self {
         Self(Endpoint::new(endpoint_url, auth_token))
+    }
+
+    /// Creates a provider from given endpoint.
+    pub fn from_endpoint(endpoint: Endpoint) -> TrendingTopicsProvider {
+        Self(endpoint)
     }
 
     /// Run query for fetching trending topics from Bing.

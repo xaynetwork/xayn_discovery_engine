@@ -26,13 +26,14 @@ static SHARED_CLIENT: OnceCell<Arc<reqwest::Client>> = OnceCell::new();
 /// A simple abstraction over a single get endpoint.
 pub struct Endpoint {
     client: Arc<reqwest::Client>,
-    endpoint_url: Url,
+    url: Url,
     auth_token: String,
     timeout: Duration,
 }
 
 impl Endpoint {
-    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+    /// Create a new `SimpleEndpoint` instance with a default timeout.
+    pub fn new(url: Url, auth_token: String) -> Self {
         let client = SHARED_CLIENT
             .get_or_init(|| {
                 //Note: If we need to use a ClientBuilder we should pass the `Arc<Client>` as
@@ -43,7 +44,7 @@ impl Endpoint {
 
         Self {
             client,
-            endpoint_url,
+            url,
             auth_token,
             timeout: Duration::from_millis(3500),
         }
@@ -58,6 +59,11 @@ impl Endpoint {
         self
     }
 
+    /// Return a reference to the Url of the endpoint.
+    pub fn url(&self) -> &Url {
+        &self.url
+    }
+
     pub(crate) async fn fetch<
         D: DeserializeOwned + Send,
         FN: FnOnce(form_urlencoded::Serializer<'_, UrlQuery<'_>>) + Send,
@@ -65,7 +71,7 @@ impl Endpoint {
         &self,
         setup_query_params: FN,
     ) -> Result<D, Error> {
-        let mut url = self.endpoint_url.clone();
+        let mut url = self.url.clone();
 
         setup_query_params(url.query_pairs_mut());
 

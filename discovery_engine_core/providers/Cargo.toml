@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1.52"
 chrono = { version = "0.4.19", default_features = false, features = ["clock", "serde"] }
-derive_more = { version = "0.99.17", default-features = false, features = ["display", "from"] }
+derive_more = { version = "0.99.17", default-features = false, features = ["display"] }
 displaydoc = "0.2.3"
 itertools = "0.10.3"
 lazy_static = "1.4.0"

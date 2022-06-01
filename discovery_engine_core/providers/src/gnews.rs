@@ -14,8 +14,9 @@
 
 //! Client to get new documents.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
-use derive_more::From;
 use itertools::Itertools;
 use url::{form_urlencoded, Url, UrlQuery};
 
@@ -35,13 +36,17 @@ use self::models::Response;
 mod models;
 
 /// Gnews based implementation of a `NewsProvider`.
-#[derive(From)]
 pub struct NewsProviderImpl(Endpoint);
 
 impl NewsProviderImpl {
     /// Create a new provider instance.
     pub fn new(endpoint_url: Url, auth_token: String) -> Self {
         Self(Endpoint::new(endpoint_url, auth_token))
+    }
+
+    /// Creates a `Arc<dyn NewsProvider>` from given endpoint.
+    pub fn from_endpoint(endpoint: Endpoint) -> Arc<dyn NewsProvider> {
+        Arc::new(Self(endpoint))
     }
 }
 
@@ -60,18 +65,22 @@ impl NewsProvider for NewsProviderImpl {
 }
 
 /// Gnews based implementation of a `HeadlinesProvider`.
-#[derive(From)]
-pub struct HeadlineProviderImpl(Endpoint);
+pub struct HeadlinesProviderImpl(Endpoint);
 
-impl HeadlineProviderImpl {
+impl HeadlinesProviderImpl {
     /// Create a new provider instance.
     pub fn new(endpoint_url: Url, auth_token: String) -> Self {
         Self(Endpoint::new(endpoint_url, auth_token))
     }
+
+    /// Creates a `Arc<dyn HeadlineProvider>` from given endpoint.
+    pub fn from_endpoint(endpoint: Endpoint) -> Arc<dyn HeadlinesProvider> {
+        Arc::new(Self(endpoint))
+    }
 }
 
 #[async_trait]
-impl HeadlinesProvider for HeadlineProviderImpl {
+impl HeadlinesProvider for HeadlinesProviderImpl {
     async fn query_headlines(&self, request: &HeadlinesQuery<'_>) -> Result<Vec<Article>, Error> {
         self.0
             .fetch::<Response, _>(|mut query| {

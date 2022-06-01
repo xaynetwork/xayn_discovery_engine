@@ -68,6 +68,8 @@ Configuration createConfig(
     applicationDirectoryPath: data.applicationDirectoryPath,
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
     manifest: data.manifest,
+    headlinesProviderPath: '/newscatcher/v1/latest-headlines',
+    newsProviderPath: '/newscatcher/v1/search-news',
   );
 }
 

@@ -34,6 +34,8 @@ void main() {
           maxItemsPerSearchBatch: -1,
           applicationDirectoryPath: '',
           manifest: Manifest([]),
+          headlinesProviderPath: '',
+          newsProviderPath: '',
         ),
         throwsA(isA<AssertionError>()),
       );
