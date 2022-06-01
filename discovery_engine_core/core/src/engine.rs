@@ -558,7 +558,7 @@ where
                     let news_query = NewsQuery {
                         common,
                         filter,
-                        from: None,
+                        from: Some("2020/01/01".into()),
                     };
                     self.client.query_articles(&news_query).await
                 }
