@@ -38,7 +38,10 @@ use xayn_ai::{
     SMBertConfig,
 };
 use xayn_discovery_engine_providers::{
+    gnews,
+    newscatcher,
     CommonQueryParts,
+    Endpoint,
     Filter,
     HeadlinesProvider,
     HeadlinesQuery,
@@ -113,6 +116,24 @@ pub enum Error {
 
     /// List of errors/warnings. {0:?}
     Errors(Vec<Error>),
+
+    /// In the configuration a URL is malformed/unsupported: {url}
+    MalformedUrlInConfig {
+        /// The malformed url.
+        url: String,
+    },
+
+    /// In the configuration a URL path is malformed/unsupported: {path}
+    MalformedUrlPathInConfig {
+        /// The malformed path.
+        path: String,
+    },
+
+    /// We can't detect which provider to use for given endpoint: {url}
+    NoProviderForEndpoint {
+        /// The url which doesn't contain clues for selecting the provider.
+        url: String,
+    },
 }
 
 /// Configuration settings to initialize Discovery Engine with a [`xayn_ai::ranker::Ranker`].
@@ -122,6 +143,10 @@ pub struct InitConfig {
     pub api_key: String,
     /// API base url.
     pub api_base_url: String,
+    /// Url path for the news search provider.
+    pub news_provider_path: String,
+    /// Url path for the latest headlines provider.
+    pub headlines_provider_path: String,
     /// List of markets to use.
     pub markets: Vec<Market>,
     /// List of trusted sources to use.
@@ -204,34 +229,85 @@ struct Providers {
     news: Arc<dyn NewsProvider>,
 }
 
+fn create_endpoint_url(str_base_url: &str, path: &str) -> Result<Url, Error> {
+    let mut base_url = Url::parse(str_base_url).map_err(|_| Error::MalformedUrlInConfig {
+        url: str_base_url.into(),
+    })?;
+    let mut segments = base_url
+        .path_segments_mut()
+        .map_err(|_| Error::MalformedUrlInConfig {
+            url: str_base_url.into(),
+        })?;
+    segments.pop_if_empty();
+    let stripped_path = path.strip_prefix('/').unwrap_or(path);
+    let stripped_path = stripped_path.strip_suffix('/').unwrap_or(stripped_path);
+    for new_segment in stripped_path.split('/') {
+        segments.push(new_segment);
+        if new_segment.is_empty() {
+            return Err(Error::MalformedUrlPathInConfig { path: path.into() });
+        }
+    }
+    drop(segments);
+    Ok(base_url)
+}
+
+fn select_provider_impl<T: ?Sized>(
+    endpoint: Endpoint,
+    create_newscatcher: impl FnOnce(Endpoint) -> Arc<T>,
+    create_gnews: impl FnOnce(Endpoint) -> Arc<T>,
+) -> Result<Arc<T>, Error> {
+    if let Some(segments) = endpoint.url().path_segments() {
+        for segment in segments {
+            return match segment {
+                "newscatcher" => Ok(create_newscatcher(endpoint)),
+                "gnews" => Ok(create_gnews(endpoint)),
+                _ => continue,
+            };
+        }
+    }
+
+    Err(Error::NoProviderForEndpoint {
+        url: endpoint.url().to_string(),
+    })
+}
+
 impl Providers {
-    //FIXME removed again in follow up PR, hence unwrap is fine
-    fn from_hardcoded(base_url: &str, auth_token: &str) -> Self {
-        use xayn_discovery_engine_providers::newscatcher::{
-            HeadlinesProviderImpl,
-            NewsProviderImpl,
-        };
+    fn new(config: &InitConfig) -> Result<Self, Error> {
+        let headlines_endpoint = Endpoint::new(
+            create_endpoint_url(&config.api_base_url, &config.headlines_provider_path)?,
+            config.api_key.clone(),
+        );
 
-        let base_url = base_url.strip_suffix('/').unwrap_or(base_url);
-        let headlines_url = Url::parse(&format!("{}/v1/latest-headlines", base_url)).unwrap();
-        let headlines = Arc::new(HeadlinesProviderImpl::new(headlines_url, auth_token.into()));
+        let headlines = select_provider_impl(
+            headlines_endpoint,
+            newscatcher::HeadlinesProviderImpl::from_endpoint,
+            gnews::HeadlinesProviderImpl::from_endpoint,
+        )?;
 
-        let base_url = base_url.strip_suffix('/').unwrap_or(base_url);
-        let trusted_sources_url = Url::parse(&format!("{}/v2/trusted-sources", base_url)).unwrap();
-        let trusted_sources = Arc::new(HeadlinesProviderImpl::new(
-            trusted_sources_url,
-            auth_token.into(),
-        ));
+        let news_endpoint = Endpoint::new(
+            create_endpoint_url(&config.api_base_url, &config.news_provider_path)?,
+            config.api_key.clone(),
+        );
 
-        let base_url = base_url.strip_suffix('/').unwrap_or(base_url);
-        let news_url = Url::parse(&format!("{}/v1/search-news", base_url)).unwrap();
-        let news = Arc::new(NewsProviderImpl::new(news_url, auth_token.into()));
+        let news = select_provider_impl(
+            news_endpoint,
+            newscatcher::NewsProviderImpl::from_endpoint,
+            gnews::NewsProviderImpl::from_endpoint,
+        )?;
 
-        Providers {
+        //Note: Trusted-sources only works with newscatcher for now.
+        let trusted_sources_endpoint = Endpoint::new(
+            create_endpoint_url(&config.api_base_url, "newscatcher/v2/trusted-sources")?,
+            config.api_key.clone(),
+        );
+        let trusted_sources =
+            newscatcher::HeadlinesProviderImpl::from_endpoint(trusted_sources_endpoint);
+
+        Ok(Providers {
             headlines,
             trusted_sources,
             news,
-        }
+        })
     }
 }
 
@@ -898,7 +974,7 @@ impl XaynAiEngine {
         let builder =
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
-        let providers = Providers::from_hardcoded(&config.api_base_url, &config.api_key);
+        let providers = Providers::new(&config)?;
         let endpoint_config = config.into();
         let stack_ops = vec![
             Box::new(BreakingNews::new(
@@ -988,6 +1064,144 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_create_endpoint_url_fails_on_unparsable_or_non_segmented_url() {
+        create_endpoint_url("foo_bar_not_url", "/foo/bar").unwrap_err();
+        create_endpoint_url("data:foobar", "/foo/bar").unwrap_err();
+    }
+
+    #[test]
+    fn test_create_endpoint_url_fails_on_empty_path() {
+        create_endpoint_url("https://xayn.example/", "").unwrap_err();
+        create_endpoint_url("https://xayn.example/", "/").unwrap_err();
+        create_endpoint_url("https://xayn.example/", "/foo//bar").unwrap_err();
+        create_endpoint_url("https://xayn.example/", "foo//bar").unwrap_err();
+    }
+
+    #[test]
+    fn test_create_endpoint_url_handles_slash_correctly() {
+        let url = Url::parse("https://xayn.example/foo").unwrap();
+        assert_eq!(
+            create_endpoint_url("https://xayn.example", "foo").unwrap(),
+            url
+        );
+        assert_eq!(
+            create_endpoint_url("https://xayn.example/", "foo").unwrap(),
+            url
+        );
+        assert_eq!(
+            create_endpoint_url("https://xayn.example", "foo/").unwrap(),
+            url
+        );
+        assert_eq!(
+            create_endpoint_url("https://xayn.example", "/foo").unwrap(),
+            url
+        );
+        assert_eq!(
+            create_endpoint_url("https://xayn.example/", "/foo").unwrap(),
+            url
+        );
+        assert_eq!(
+            create_endpoint_url("https://xayn.example/", "/foo/").unwrap(),
+            url
+        );
+        assert_eq!(
+            create_endpoint_url("https://xayn.example", "/foo/").unwrap(),
+            url
+        );
+    }
+
+    #[test]
+    fn test_create_endpoint_url_allows_base_url_with_path() {
+        assert_eq!(
+            create_endpoint_url("https://xayn.example/foo", "/bar/baz").unwrap(),
+            Url::parse("https://xayn.example/foo/bar/baz").unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_select_provider_impl_should_error_on_non_segmented_path() {
+        let non_segmented_url = Url::parse("data:foobar").unwrap();
+        assert!(non_segmented_url.cannot_be_a_base());
+        let endpoint = Endpoint::new(non_segmented_url, "".into());
+        let res: Result<Arc<()>, _> =
+            select_provider_impl(endpoint, |_| unreachable!(), |_| unreachable!());
+        res.unwrap_err();
+    }
+
+    #[test]
+    fn test_select_provider_impl_should_error_on_non_telling_segment() {
+        let endpoint = Endpoint::new(
+            Url::parse("https://xayn.example/foo/bar").unwrap(),
+            "".into(),
+        );
+        let res: Result<Arc<()>, _> =
+            select_provider_impl(endpoint, |_| unreachable!(), |_| unreachable!());
+        res.unwrap_err();
+    }
+
+    #[test]
+    fn test_select_provider_impl_should_select_gnews() {
+        select_provider_impl(
+            Endpoint::new(
+                Url::parse("https://xayn.example/gnews/foo/bar").unwrap(),
+                "".into(),
+            ),
+            |_| panic!("selected wrong provider"),
+            |_| Arc::new(()),
+        )
+        .unwrap();
+        select_provider_impl(
+            Endpoint::new(
+                Url::parse("https://xayn.example/foo/gnews/bar").unwrap(),
+                "".into(),
+            ),
+            |_| panic!("selected wrong provider"),
+            |_| Arc::new(()),
+        )
+        .unwrap();
+        select_provider_impl(
+            Endpoint::new(
+                Url::parse("https://xayn.example/foo/bar/gnews").unwrap(),
+                "".into(),
+            ),
+            |_| panic!("selected wrong provider"),
+            |_| Arc::new(()),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_select_provider_impl_should_select_newscatcher() {
+        select_provider_impl(
+            Endpoint::new(
+                Url::parse("https://xayn.example/newscatcher/foo/bar").unwrap(),
+                "".into(),
+            ),
+            |_| Arc::new(()),
+            |_| panic!("selected wrong provider"),
+        )
+        .unwrap();
+        select_provider_impl(
+            Endpoint::new(
+                Url::parse("https://xayn.example/foo/newscatcher/bar").unwrap(),
+                "".into(),
+            ),
+            |_| Arc::new(()),
+            |_| panic!("selected wrong provider"),
+        )
+        .unwrap();
+        select_provider_impl(
+            Endpoint::new(
+                Url::parse("https://xayn.example/foo/bar/newscatcher").unwrap(),
+                "".into(),
+            ),
+            |_| Arc::new(()),
+            |_| panic!("selected wrong provider"),
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn test_ai_config_from_json_default() -> Result<(), Box<dyn Error>> {
         let ai_config = ai_config_from_json("{}");
         assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
@@ -1039,13 +1253,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v1/latest-headlines"))
+            .and(path("/newscatcher/v1/latest-headlines"))
             .respond_with(tmpl.clone())
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
-            .and(path("/v2/trusted-sources"))
+            .and(path("/newscatcher/v2/trusted-sources"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1055,6 +1269,8 @@ mod tests {
         let config = InitConfig {
             api_key: "test-token".to_string(),
             api_base_url: mock_server.uri(),
+            news_provider_path: "/newscatcher/v1/search-news".to_string(),
+            headlines_provider_path: "/newscatcher/v1/latest-headlines".to_string(),
             markets: vec![market.into()],
             // This triggers the trusted sources stack to also fetch articles
             trusted_sources: vec!["example.com".to_string()],
@@ -1068,7 +1284,7 @@ mod tests {
             ai_config: None,
         };
         let endpoint_config = config.clone().into();
-        let providers = Providers::from_hardcoded(&config.api_base_url, &config.api_key);
+        let providers = Providers::new(&config).unwrap();
 
         // To test de-duplication we don't really need any ranking, so this
         // this is essentially a no-op ranker.
@@ -1171,13 +1387,13 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v1/latest-headlines"))
+            .and(path("/newscatcher/v1/latest-headlines"))
             .respond_with(tmpl.clone())
             .mount(&mock_server)
             .await;
 
         Mock::given(method("GET"))
-            .and(path("/v2/trusted-sources"))
+            .and(path("/newscatcher/v2/trusted-sources"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1188,6 +1404,8 @@ mod tests {
         let config = InitConfig {
             api_key: "test-token".to_string(),
             api_base_url: mock_server.uri(),
+            news_provider_path: "/newscatcher/v1/search-news".to_string(),
+            headlines_provider_path: "/newscatcher/v1/latest-headlines".to_string(),
             markets: vec![Market {
                 country_code: "US".to_string(),
                 lang_code: "en".to_string(),
