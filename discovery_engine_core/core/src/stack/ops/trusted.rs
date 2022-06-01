@@ -22,9 +22,9 @@ use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
     Article,
     CommonQueryParts,
-    HeadlinesProvider,
-    HeadlinesQuery,
     Market,
+    TrustedSourcesProvider,
+    TrustedSourcesQuery,
     DEFAULT_WHEN,
 };
 
@@ -41,7 +41,7 @@ use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for trusted news.
 pub(crate) struct TrustedNews {
-    client: Arc<dyn HeadlinesProvider>,
+    client: Arc<dyn TrustedSourcesProvider>,
     sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: u32,
@@ -51,7 +51,7 @@ pub(crate) struct TrustedNews {
 impl TrustedNews {
     #[allow(unused)]
     /// Creates a trusted news stack.
-    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn HeadlinesProvider>) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn TrustedSourcesProvider>) -> Self {
         Self {
             client,
             sources: config.trusted_sources.clone(),
@@ -116,23 +116,24 @@ impl Ops for TrustedNews {
 }
 
 fn spawn_trusted_request(
-    client: Arc<dyn HeadlinesProvider>,
+    client: Arc<dyn TrustedSourcesProvider>,
     page_size: usize,
     page: usize,
     sources: Arc<Vec<String>>,
 ) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
-        let query = HeadlinesQuery {
+        let query = TrustedSourcesQuery {
             common: CommonQueryParts {
-                market: None,
                 page_size,
                 page,
                 excluded_sources: &[],
-                trusted_sources: sources.as_slice(),
             },
-            topic: None,
+            trusted_sources: sources.as_slice(),
             when: DEFAULT_WHEN,
         };
-        client.query_headlines(&query).await.map_err(Into::into)
+        client
+            .query_trusted_sources(&query)
+            .await
+            .map_err(Into::into)
     })
 }

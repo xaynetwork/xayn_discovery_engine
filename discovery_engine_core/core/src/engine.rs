@@ -45,11 +45,11 @@ use xayn_discovery_engine_ai::{
 use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
-    bing::{TrendingQuery, TrendingTopic as BingTopic, TrendingTopicsProvider, self},
+    bing::{self, TrendingQuery, TrendingTopic as BingTopic, TrendingTopicsProvider},
     clean_query,
-    Article,
     gnews,
     newscatcher,
+    Article,
     CommonQueryParts,
     Endpoint,
     Filter,
@@ -58,6 +58,7 @@ use xayn_discovery_engine_providers::{
     Market,
     NewsProvider,
     NewsQuery,
+    TrustedSourcesProvider,
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
@@ -253,7 +254,7 @@ impl Default for CoreConfig {
 
 struct Providers {
     headlines: Arc<dyn HeadlinesProvider>,
-    trusted_sources: Arc<dyn HeadlinesProvider>,
+    trusted_sources: Arc<dyn TrustedSourcesProvider>,
     news: Arc<dyn NewsProvider>,
     trending_topics: TrendingTopicsProvider,
 }
@@ -330,7 +331,7 @@ impl Providers {
             config.api_key.clone(),
         );
         let trusted_sources =
-            newscatcher::HeadlinesProviderImpl::from_endpoint(trusted_sources_endpoint);
+            newscatcher::TrustedSourcesProviderImpl::from_endpoint(trusted_sources_endpoint);
 
         let trending_topics_endpoint = Endpoint::new(
             create_endpoint_url(&config.api_base_url, "_tt")?,
@@ -673,13 +674,11 @@ where
                 SearchBy::Query(filter) => {
                     let news_query = NewsQuery {
                         common: CommonQueryParts {
-                            market: Some(market),
                             page_size: scaled_page_size,
                             page: page as usize,
                             excluded_sources: &excluded_sources,
-                            //FIXME should this use trusted sources
-                            trusted_sources: &[],
                         },
+                        market,
                         filter,
                         //FIXME it's not clear if this should be set if supported
                         from: None,
@@ -690,12 +689,11 @@ where
                 SearchBy::Topic(topic) => {
                     let headlines_query = HeadlinesQuery {
                         common: CommonQueryParts {
-                            market: Some(market),
                             page_size: scaled_page_size,
                             page: page as usize,
                             excluded_sources: &excluded_sources,
-                            trusted_sources: &[],
                         },
+                        market,
                         topic: Some(topic),
                         when: None,
                     };
@@ -753,12 +751,11 @@ where
             });
         let query = NewsQuery {
             common: CommonQueryParts {
-                market: Some(market),
                 page_size: self.core_config.deep_search_max,
                 page: 1,
                 excluded_sources,
-                trusted_sources: &[],
             },
+            market,
             filter,
             from: None,
         };
@@ -1746,8 +1743,7 @@ mod tests {
             image: "".into(),
             rank: 0,
             score: None,
-            country: "US".into(),
-            language: "en".into(),
+            market: ("US", "en").into(),
             topic: "unrecognized".into(),
         }
     }
