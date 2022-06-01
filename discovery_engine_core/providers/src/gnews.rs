@@ -65,9 +65,7 @@ impl NewsProvider for NewsProviderImpl {
                 response
                     .articles
                     .into_iter()
-                    .map(|article| {
-                        article.into_generic_article(request.market, "")
-                    })
+                    .map(|article| article.into_generic_article(request.market.clone(), "".into()))
                     .collect()
             })
     }
@@ -107,8 +105,8 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
                     .into_iter()
                     .map(|article| {
                         article.into_generic_article(
-                            request.market,
-                            request.topic.unwrap_or(""),
+                            request.market.clone(),
+                            request.topic.unwrap_or("").into(),
                         )
                     })
                     .collect()

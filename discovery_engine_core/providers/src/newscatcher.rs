@@ -345,7 +345,7 @@ mod tests {
     #[tokio::test]
     async fn test_headlines() {
         let mock_server = MockServer::start().await;
-        let provider = TrustedSourcesProviderImpl::new(
+        let provider = HeadlinesProviderImpl::new(
             Url::parse(&format!("{}/v1/latest-headlines", mock_server.uri())).unwrap(),
             "test-token".into(),
         );
@@ -356,6 +356,64 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/v1/latest-headlines"))
+            .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
+            .and(query_param("lang", "en"))
+            .and(query_param("countries", "US"))
+            .and(query_param("topic", "games"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = &("US", "en").into();
+
+        let params = HeadlinesQuery {
+            common: CommonQueryParts {
+                page_size: 2,
+                page: 1,
+                excluded_sources: &[],
+            },
+            when: None,
+            market,
+            topic: Some("games"),
+        };
+
+        let docs = provider.query_headlines(&params).await.unwrap();
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        let expected = Article {
+            title: "Jerusalem blanketed in white after rare snowfall".to_string(),
+            score: None,
+            rank: 6510,
+            source_domain: "example.com".to_string(),
+            snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
+            url: "https://example.com".to_string(),
+            image: "https://uploads.example.com/image.png".to_string(),
+            topic: Topic::Gaming.to_string(),
+            market: Market { country_code: "US".to_string(), lang_code: "en".to_string() },
+            date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+        };
+
+        assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
+    }
+
+    #[tokio::test]
+    async fn test_trusted_sources() {
+        let mock_server = MockServer::start().await;
+        let provider = TrustedSourcesProviderImpl::new(
+            Url::parse(&format!("{}/v2/trusted-sources", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
+
+        let tmpl = ResponseTemplate::new(200).set_body_string(include_str!(
+            "../test-fixtures/newscatcher/latest-headlines.json"
+        ));
+
+        Mock::given(method("GET"))
+            .and(path("/v2/trusted-sources"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("sources", "dodo.com,dada.net"))

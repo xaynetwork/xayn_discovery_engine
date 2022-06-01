@@ -23,7 +23,7 @@ use crate::{utils::deserialize_null_default, Error, Market};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Display)]
 #[serde(rename_all = "lowercase")]
 #[allow(missing_docs)]
-pub enum Topic {
+pub(super) enum Topic {
     News,
     Sport,
     Tech,
@@ -52,10 +52,10 @@ impl Default for Topic {
 
 /// A news article
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Article {
+pub(super) struct Article {
     /// The title of the article.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub title: String,
+    pub(super) title: String,
 
     /// How well the article is matching your search criteria.
     #[serde(
@@ -63,11 +63,11 @@ pub struct Article {
         rename(deserialize = "_score"),
         deserialize_with = "deserialize_null_default"
     )]
-    pub score: Option<f32>,
+    pub(super) score: Option<f32>,
 
     /// The page rank of the source website.
     #[serde(default, deserialize_with = "deserialize_rank")]
-    pub rank: u64,
+    pub(super) rank: u64,
 
     /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
     #[serde(
@@ -75,33 +75,33 @@ pub struct Article {
         rename(deserialize = "clean_url"),
         deserialize_with = "deserialize_null_default"
     )]
-    pub source_domain: String,
+    pub(super) source_domain: String,
 
     /// Short summary of the article provided by the publisher.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub excerpt: String,
+    pub(super) excerpt: String,
 
     /// Full URL where the article was originally published.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub link: String,
+    pub(super) link: String,
 
     /// A link to a thumbnail image of the article.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub media: String,
+    pub(super) media: String,
 
     /// The main topic of the news publisher.
     /// Important: This parameter is not deducted on a per-article level:
     /// it is deducted on the per-publisher level.
     #[serde(default, deserialize_with = "deserialize_topic")]
-    pub topic: Topic,
+    pub(super) topic: Topic,
 
     /// The country of the publisher.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub country: String,
+    pub(super) country: String,
 
     /// The language of the article.
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub language: String,
+    pub(super) language: String,
 
     /// While Newscatcher claims to have some sort of timezone support in their
     /// [API][<https://docs.newscatcherapi.com/api-docs/endpoints/search-news>] (via the
@@ -111,7 +111,7 @@ pub struct Article {
         default = "default_published_date",
         deserialize_with = "deserialize_naive_date_time_from_str"
     )]
-    pub published_date: NaiveDateTime,
+    pub(super) published_date: NaiveDateTime,
 }
 
 fn default_published_date() -> NaiveDateTime {
@@ -179,16 +179,16 @@ impl crate::Article {
 
 /// Query response from the Newscatcher API
 #[derive(Deserialize, Debug)]
-pub(crate) struct Response {
+pub(super) struct Response {
     /// Status message
     #[allow(dead_code)]
-    pub(crate) status: String,
+    pub(super) status: String,
     /// Main response content
     #[serde(default)]
-    pub(crate) articles: Vec<Article>,
+    pub(super) articles: Vec<Article>,
     /// Total pages of content available
     #[allow(dead_code)]
-    pub(crate) total_pages: usize,
+    pub(super) total_pages: usize,
 }
 
 #[cfg(test)]
