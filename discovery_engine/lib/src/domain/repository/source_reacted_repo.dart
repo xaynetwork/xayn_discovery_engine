@@ -18,11 +18,8 @@ import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart'
 
 /// [SourceReacted] repository interface.
 abstract class SourceReactedRepository {
-  /// Fetch sources of liked documents.
-  Future<List<Source>> fetchLiked();
-
-  /// Fetch sources of disliked documents.
-  Future<List<Source>> fetchDisliked();
+  /// Fetch sources of documents with the given reaction.
+  Future<List<Source>> fetchByReaction(bool like);
 
   /// Save [SourceReacted] to the repository.
   Future<void> save(SourceReacted source);
