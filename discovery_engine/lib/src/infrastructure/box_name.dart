@@ -19,6 +19,7 @@ const searchBox = 'search';
 const trustedSourcesBox = 'trusted_sources';
 const excludedSourcesBox = 'excluded_sources';
 const sourcePreferenceBox = 'source_preferences';
+const sourceReactedBox = 'source_reacted';
 
 // names below were used by boxes which are now deprecated
 // please use different names when adding new boxes / repositories
