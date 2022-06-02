@@ -198,7 +198,7 @@ fn download(
         }
 
         println!("page {} written to {}", page, out_file.display());
-        // Needed for some providers (gnews) which do not allow to many queries to fast
+        // Needed for some providers (gnews) which do not allow too many queries too fast
         // (at least not with the dev keys we have).
         sleep(Duration::from_millis(1000));
     }
