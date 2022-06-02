@@ -437,7 +437,7 @@ mod tests {
                 .map(|(title, secs)| new_doc(smbert.run(title).unwrap(), *secs))
                 .collect::<Vec<_>>();
             let distances = normalized_distance(&documents, &SemanticFilterConfig::default());
-            assert_approx_eq!(f32, distances, expected);
+            assert_approx_eq!(f32, distances, expected, epsilon = 0.002);
         }
 
         let smbert_config =

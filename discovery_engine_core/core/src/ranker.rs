@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::time::Instant;
+
 use chrono::NaiveDateTime;
+use tracing::info;
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{
