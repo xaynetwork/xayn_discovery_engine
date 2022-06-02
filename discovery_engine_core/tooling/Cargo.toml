@@ -6,7 +6,7 @@ edition = "2021"
 
 [[bin]]
 name = "newscatcher"
-path = "bin/news_client.rs"
+path = "bin/test_provider.rs"
 
 [[bin]]
 name = "clean_sources"
@@ -16,6 +16,6 @@ path = "bin/clean_sources.rs"
 anyhow = "1.0.55"
 csv = "1.1.6"
 serde_json = "1.0.79"
-serde_path_to_error = "0.1"
 tokio = { version = "1.17.0", features = ["full"] }
+url = "2.2.2"
 xayn-discovery-engine-providers = { path = "../providers" }

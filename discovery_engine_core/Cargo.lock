@@ -3417,8 +3417,8 @@ dependencies = [
  "anyhow",
  "csv",
  "serde_json",
- "serde_path_to_error",
  "tokio",
+ "url",
  "xayn-discovery-engine-providers",
 ]
 
