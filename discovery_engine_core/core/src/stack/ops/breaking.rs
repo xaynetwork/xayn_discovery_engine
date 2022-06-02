@@ -19,14 +19,7 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
-use xayn_discovery_engine_providers::{
-    Article,
-    Client,
-    CommonQueryParts,
-    HeadlinesQuery,
-    Market,
-    DEFAULT_WHEN,
-};
+use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -46,6 +39,7 @@ pub(crate) struct BreakingNews {
     page_size: usize,
     max_requests: u32,
     min_articles: usize,
+    max_headline_age_days: usize,
 }
 
 impl BreakingNews {
@@ -57,6 +51,7 @@ impl BreakingNews {
             page_size: config.page_size,
             max_requests: config.max_requests,
             min_articles: config.min_articles,
+            max_headline_age_days: config.max_headline_age_days,
         }
     }
 
@@ -106,6 +101,7 @@ impl Ops for BreakingNews {
                     self.page_size,
                     request_num as usize + 1,
                     excluded_sources.clone(),
+                    self.max_headline_age_days,
                 )
             },
             |articles| Self::filter_articles(history, stack, articles, &excluded_sources),
@@ -125,6 +121,7 @@ fn spawn_headlines_request(
     page_size: usize,
     page: usize,
     excluded_sources: Arc<Vec<String>>,
+    max_headline_age_days: usize,
 ) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
@@ -137,8 +134,9 @@ fn spawn_headlines_request(
             },
             trusted_sources: &[],
             topic: None,
-            when: DEFAULT_WHEN,
-        };
+            when: None,
+        }
+        .max_headline_age(max_headline_age_days);
         client.query_articles(&query).await.map_err(Into::into)
     })
 }

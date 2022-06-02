@@ -176,6 +176,12 @@ pub(crate) struct EndpointConfig {
     pub(crate) max_requests: u32,
     /// The minimum number of new articles to try to return when updating the stack.
     pub(crate) min_articles: usize,
+    /// The maximum age of a headline, in days, after which we no longer
+    /// want to display them
+    pub(crate) max_headline_age_days: usize,
+    /// The maximum age of a news article, in days, after which we no longer
+    /// want to display them
+    pub(crate) max_article_age_days: usize,
 }
 
 impl From<InitConfig> for EndpointConfig {
@@ -187,6 +193,8 @@ impl From<InitConfig> for EndpointConfig {
             excluded_sources: Arc::new(RwLock::new(config.excluded_sources)),
             max_requests: 5,
             min_articles: 20,
+            max_headline_age_days: 3,
+            max_article_age_days: 30,
         }
     }
 }
