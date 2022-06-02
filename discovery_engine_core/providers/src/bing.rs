@@ -134,9 +134,7 @@ mod tests {
         let client = TrendingTopicsProvider::new(url, "test-token".into());
 
         let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!(
-                "../test-fixtures/bing/trending-topics.json"
-            ));
+            .set_body_string(include_str!("../test-fixtures/bing/trending-topics.json"));
 
         Mock::given(method("GET"))
             .and(path("/_tt"))
