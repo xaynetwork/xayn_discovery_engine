@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex, RwLock},
+    time::Duration,
+};
 
 use displaydoc::Display;
 
@@ -58,7 +61,7 @@ pub(super) struct State {
 /// The Ranker.
 pub(crate) struct Ranker {
     /// SMBert system.
-    smbert: SMBert,
+    smbert: Arc<Mutex<SMBert>>,
     /// CoI system.
     coi: CoiSystem,
     /// Key phrase extraction system.
@@ -70,7 +73,7 @@ impl Ranker {
     /// Creates a new `Ranker`.
     pub(super) fn new(smbert: SMBert, coi: CoiSystem, kpe: KPE, state: State) -> Self {
         Self {
-            smbert,
+            smbert: Arc::new(Mutex::new(smbert)),
             coi,
             kpe,
             state,
@@ -84,7 +87,11 @@ impl Ranker {
 
     /// Computes the `SMBert` embedding of the given `sequence`.
     pub(crate) fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError> {
-        self.smbert.run(sequence).map_err(Into::into)
+        self.smbert
+            .lock()
+            .unwrap()
+            .run(sequence)
+            .map_err(Into::into)
     }
 
     /// Extracts the key phrases of the given `sequence`.
@@ -127,7 +134,7 @@ impl Ranker {
     ) {
         match user_feedback {
             UserFeedback::Relevant => {
-                let smbert = &self.smbert;
+                let smbert = self.smbert.clone();
                 let key_phrases = self
                     .kpe
                     .run(snippet)
@@ -149,7 +156,7 @@ impl Ranker {
                     &mut self.state.key_phrases,
                     embedding,
                     key_phrases.as_slice(),
-                    |words| smbert.run(words).map_err(Into::into),
+                    move |words| smbert.lock().unwrap().run(words).map_err(Into::into),
                 );
             }
             UserFeedback::Irrelevant => self

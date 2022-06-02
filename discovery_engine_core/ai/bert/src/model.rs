@@ -18,7 +18,12 @@ use std::{
     ops::RangeInclusive,
     path::{Path, PathBuf},
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc,
+        Mutex,
+    },
+    thread::{self, JoinHandle},
     time::Instant,
 };
 
@@ -74,9 +79,9 @@ pub mod kinds {
 /// A Bert onnx model.
 #[derive(Debug)]
 pub(crate) struct Model<K> {
-    environment: Environment,
-    path: PathBuf,
-
+    tx: Sender<Vec<ArrayBase<OwnedRepr<i64>, Dim<[usize; 2]>>>>,
+    rx: Receiver<ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>,
+    handler: JoinHandle<()>,
     pub(crate) token_size: usize,
     _kind: PhantomData<K>,
 }
@@ -123,13 +128,38 @@ where
             return Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into());
         }
 
-        let environment = Environment::builder().build().unwrap();
+        let (tx, rx_t) = channel();
+        let (tx_t, rx) = channel();
+
         let path = model.as_ref().to_path_buf();
+        let handler = thread::spawn(move || {
+            let environment = Environment::builder().build().unwrap();
+            let session = environment
+                .new_session_builder()
+                .unwrap()
+                // .with_number_threads(4)
+                // .unwrap()
+                .with_optimization_level(GraphOptimizationLevel::All)
+                .unwrap();
+
+            // #[cfg(all(target_os = "android", target_arch = "aarch64"))]
+            // let session = session.with_nnapi().unwrap();
+            let mut session = session.with_model_from_file(path.clone()).unwrap();
+
+            while let Ok(msg) = rx_t.recv() {
+                let start = Instant::now();
+                let outputs = session.run(msg).unwrap();
+                info!("session run time: {:?}", start.elapsed());
+                tx_t.send(outputs[0].to_owned()).unwrap();
+            }
+        });
+
         Ok(Model {
-            environment,
-            path,
             token_size,
             _kind: PhantomData,
+            tx,
+            rx,
+            handler,
         })
     }
 
@@ -170,24 +200,12 @@ where
         ];
 
         let start = Instant::now();
+        self.tx.send(inputs).unwrap();
+        let outputs = self.rx.recv().unwrap();
+        info!("session run with send time: {:?}", start.elapsed());
+        // debug_assert_eq!(outputs[0].shape(), [1, self.token_size, K::EMBEDDING_SIZE]);
 
-        let session = self
-            .environment
-            .new_session_builder()
-            .unwrap()
-            .with_optimization_level(GraphOptimizationLevel::All)
-            .unwrap();
-
-        // #[cfg(all(target_os = "android", target_arch = "aarch64"))]
-        // let session = session.with_nnapi().unwrap();
-        let mut session = session.with_model_from_file(self.path.clone()).unwrap();
-        info!("session creation time: {:?}", start.elapsed());
-        let start = Instant::now();
-        let outputs = session.run(inputs).unwrap();
-        info!("session run time: {:?}", start.elapsed());
-        debug_assert_eq!(outputs[0].shape(), [1, self.token_size, K::EMBEDDING_SIZE]);
-
-        Ok(Prediction(outputs[0].to_owned()))
+        Ok(Prediction(outputs))
     }
 }
 
