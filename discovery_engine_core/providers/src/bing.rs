@@ -134,9 +134,8 @@ mod tests {
         let client = TrendingTopicsProvider::new(url, "test-token".into());
 
         let tmpl = ResponseTemplate::new(200)
-            //FIXME move out of newscatcher after full rebase
             .set_body_string(include_str!(
-                "../test-fixtures/newscatcher/trending-topics.json"
+                "../test-fixtures/bing/trending-topics.json"
             ));
 
         Mock::given(method("GET"))

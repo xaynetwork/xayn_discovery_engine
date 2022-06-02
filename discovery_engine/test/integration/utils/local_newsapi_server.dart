@@ -38,9 +38,9 @@ enum ReplyWith {
 class LocalNewsApiServer {
   final HttpServer _server;
   ReplyWith _replyWith = ReplyWith.data;
-  String _snFile = 'climate-change.json';
-  String _lhFile = 'latest-headlines.json';
-  String _ttFile = 'trending-topics.json';
+  String _snFile = 'newscatcher/climate-change.json';
+  String _lhFile = 'newscatcher/latest-headlines.json';
+  String _ttFile = 'bing/trending-topics.json';
   Uri? lastUri;
 
   LocalNewsApiServer._(this._server) {
