@@ -29,6 +29,7 @@ use crate::{
     Market,
     NewsProvider,
     NewsQuery,
+    Topic,
 };
 
 use self::models::Response;
@@ -68,7 +69,7 @@ impl NewsProvider for NewsProviderImpl {
                 response
                     .articles
                     .into_iter()
-                    .map(|article| article.into_generic_article(request.market.clone(), "".into()))
+                    .map(|article| article.into_generic_article(request.market.clone(), None))
                     .collect()
             })
     }
@@ -96,10 +97,7 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
             .fetch::<Response, _>(|mut query| {
                 append_common_query_parts(&mut query, &request.common);
                 append_market(&mut query, request.market);
-
-                if let Some(topic) = &request.topic {
-                    query.append_pair("topic", topic);
-                }
+                append_topic(&mut query, request.topic.as_ref());
             })
             .await
             .map(|response| {
@@ -107,10 +105,7 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
                     .articles
                     .into_iter()
                     .map(|article| {
-                        article.into_generic_article(
-                            request.market.clone(),
-                            request.topic.unwrap_or("").into(),
-                        )
+                        article.into_generic_article(request.market.clone(), request.topic.clone())
                     })
                     .collect()
             })
@@ -130,6 +125,20 @@ fn append_market(query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>, mark
     query
         .append_pair("lang", &market.lang_code)
         .append_pair("country", &market.country_code.to_lowercase());
+}
+
+fn append_topic(query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>, topic: Option<&Topic>) {
+    if let Some(topic) = topic {
+        let topic = match topic {
+            Topic::BreakingNews => "breaking-news",
+            Topic::Entertainment => "entertainment",
+            Topic::Sports => "sport",
+            Topic::Science => "science",
+            Topic::Business => "business",
+            Topic::Raw(s) => s,
+        };
+        query.append_pair("topic", topic);
+    }
 }
 
 #[cfg(test)]

@@ -21,7 +21,7 @@ use itertools::Itertools;
 use url::{form_urlencoded, Url, UrlQuery};
 
 use crate::{
-    query::TrustedSourcesQuery,
+    query::{Topic, TrustedSourcesQuery},
     rest::Endpoint,
     Article,
     CommonQueryParts,
@@ -95,10 +95,7 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
                 append_common_query_parts(&mut query, &request.common);
                 append_market(&mut query, request.market);
                 append_when(&mut query, request.when);
-
-                if let Some(topic) = &request.topic {
-                    query.append_pair("topic", topic);
-                }
+                append_topic(&mut query, request.topic.as_ref());
             })
             .await
             .map(|response| response.articles.into_iter().map_into().collect())
@@ -170,9 +167,23 @@ fn append_when(query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>, when: 
     }
 }
 
+fn append_topic(query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>, topic: Option<&Topic>) {
+    if let Some(topic) = topic {
+        let topic = match topic {
+            Topic::BreakingNews => "news",
+            Topic::Entertainment => "entertainment",
+            Topic::Sports => "sport",
+            Topic::Science => "science",
+            Topic::Business => "business",
+            Topic::Raw(s) => s,
+        };
+        query.append_pair("topic", topic);
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{newscatcher::models::Topic, Filter, Market};
+    use crate::{Filter, Market, Topic};
 
     use super::*;
     use chrono::NaiveDateTime;
@@ -360,7 +371,7 @@ mod tests {
             .and(query_param("page", "1"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "US"))
-            .and(query_param("topic", "games"))
+            .and(query_param("topic", "business"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -375,7 +386,7 @@ mod tests {
             },
             when: None,
             market: &("US", "en").into(),
-            topic: Some("games"),
+            topic: Some(Topic::Business),
         };
 
         let docs = provider.query_headlines(&params).await.unwrap();
@@ -390,7 +401,7 @@ mod tests {
             snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
             url: "https://example.com".to_string(),
             image: "https://uploads.example.com/image.png".to_string(),
-            topic: Topic::Gaming.to_string(),
+            topic: Some(Topic::Raw("Gaming".into())),
             market: Market { country_code: "US".to_string(), lang_code: "en".to_string() },
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
         };
@@ -443,7 +454,7 @@ mod tests {
             snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
             url: "https://example.com".to_string(),
             image: "https://uploads.example.com/image.png".to_string(),
-            topic: Topic::Gaming.to_string(),
+            topic: Some(Topic::Raw("Gaming".into())),
             market: Market { country_code: "US".to_string(), lang_code: "en".to_string() },
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
         };

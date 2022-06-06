@@ -53,6 +53,7 @@ pub use query::{
     CommonQueryParts,
     HeadlinesQuery,
     NewsQuery,
+    Topic,
     TrustedSourcesQuery,
     DEFAULT_WHEN,
 };
@@ -133,7 +134,7 @@ pub struct Article {
     pub market: Market,
 
     /// Main topic of the publisher.
-    pub topic: String,
+    pub topic: Option<Topic>,
 }
 
 impl Article {

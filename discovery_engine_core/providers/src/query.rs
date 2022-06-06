@@ -19,6 +19,8 @@
 //! If a provider doesn't support a field in a query they should ignore it.
 
 use chrono::Utc;
+use derive_more::Display;
+use serde::{Deserialize, Serialize};
 
 use crate::{Filter, Market};
 
@@ -69,13 +71,24 @@ pub struct HeadlinesQuery<'a> {
     pub market: &'a Market,
 
     /// Headlines topic.
-    pub topic: Option<&'a str>,
+    pub topic: Option<Topic>,
 
     //FIXME gnews support for from derived from when
     /// The time period you want to get the latest headlines for.
     /// Can be specified in days (e.g. 3d) or hours (e.g. 24h).
     /// Defaults to all data available for the subscriptions.
     pub when: Option<&'a str>,
+}
+
+/// Topics used by [`HeadlineQuery`]'s
+#[derive(Debug, Display, Clone, Deserialize, Serialize)]
+pub enum Topic {
+    BreakingNews,
+    Entertainment,
+    Sports,
+    Science,
+    Business,
+    Raw(String),
 }
 
 /// Parameters determining which which headlines from trusted sources to fetch.

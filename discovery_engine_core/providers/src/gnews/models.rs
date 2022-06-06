@@ -17,7 +17,7 @@ use chrono::{DateTime, Utc};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::deserialize_null_default, Market};
+use crate::{utils::deserialize_null_default, Market, Topic};
 
 /// A news article
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -66,7 +66,11 @@ pub(super) struct Response {
 }
 
 impl Article {
-    pub(super) fn into_generic_article(self, market: Market, topic: String) -> crate::Article {
+    pub(super) fn into_generic_article(
+        self,
+        market: Market,
+        topic: Option<Topic>,
+    ) -> crate::Article {
         let source_domain = Url::parse(&self.url)
             .ok()
             .and_then(|url| url.domain().map(std::string::ToString::to_string))

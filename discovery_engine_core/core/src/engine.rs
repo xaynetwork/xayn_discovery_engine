@@ -58,6 +58,7 @@ use xayn_discovery_engine_providers::{
     Market,
     NewsProvider,
     NewsQuery,
+    Topic,
     TrustedSourcesProvider,
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
@@ -694,7 +695,7 @@ where
                             excluded_sources: &excluded_sources,
                         },
                         market,
-                        topic: Some(topic),
+                        topic: Some(Topic::Raw(topic.into())),
                         when: None,
                     };
                     self.providers
@@ -1744,7 +1745,7 @@ mod tests {
             rank: 0,
             score: None,
             market: ("US", "en").into(),
-            topic: "unrecognized".into(),
+            topic: None,
         }
     }
 

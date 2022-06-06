@@ -164,7 +164,12 @@ impl TryFrom<Article> for NewsResource {
             score: article.score,
             country: article.market.country_code,
             language: article.market.lang_code,
-            topic: article.topic.to_string(),
+            //FIXME if this wouldn't be an experimental brach we probably
+            //      should propagate `Option<providers::Topic>`
+            topic: article
+                .topic
+                .map(|topic| topic.to_string())
+                .unwrap_or_default(),
         })
     }
 }
@@ -275,6 +280,7 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
 mod tests {
     use chrono::NaiveDate;
     use claim::{assert_matches, assert_none};
+    use xayn_discovery_engine_providers::Topic;
 
     use super::*;
 
@@ -309,7 +315,7 @@ mod tests {
             snippet: "summary of the article".to_string(),
             url: "https://example.com/news/".to_string(),
             image: "https://example.com/news/image/".to_string(),
-            topic: "News".to_string(),
+            topic: Some(Topic::BreakingNews),
             market: ("EN", "en").into(),
             date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
         }
@@ -343,7 +349,10 @@ mod tests {
         assert_eq!(article.market.lang_code, resource.language);
         assert_eq!(article.score, resource.score);
         assert_eq!(article.rank, resource.rank);
-        assert_eq!(article.topic, resource.topic);
+        assert_eq!(
+            article.topic.map(|t| t.to_string()).unwrap_or_default(),
+            resource.topic
+        );
         assert_eq!(article.date_published, resource.date_published);
     }
 

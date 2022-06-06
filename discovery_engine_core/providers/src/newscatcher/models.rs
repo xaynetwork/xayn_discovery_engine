@@ -163,7 +163,25 @@ impl From<Article> for crate::Article {
                 country_code: source.country,
                 lang_code: source.language,
             },
-            topic: source.topic.to_string(),
+            topic: source.topic.into(),
+        }
+    }
+}
+
+impl From<Topic> for Option<crate::Topic> {
+    fn from(topic: Topic) -> Self {
+        use crate::Topic as CrateTopic;
+        match topic {
+            //FIXME if this wouldn't be a example branch we probably should
+            //      include the string into the `Unrecognized` option and map
+            //      that to `Raw`.
+            Topic::Unrecognized => None,
+            Topic::News => Some(CrateTopic::BreakingNews),
+            Topic::Sport => Some(CrateTopic::Sports),
+            Topic::Business => Some(CrateTopic::Business),
+            Topic::Entertainment => Some(CrateTopic::Entertainment),
+            Topic::Science => Some(CrateTopic::Science),
+            _ => Some(CrateTopic::Raw(topic.to_string())),
         }
     }
 }
