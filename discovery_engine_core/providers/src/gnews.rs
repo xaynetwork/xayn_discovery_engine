@@ -55,10 +55,12 @@ impl NewsProvider for NewsProviderImpl {
     async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<Article>, Error> {
         self.0
             .fetch::<Response, _>(|mut query| {
-                query.append_pair("sortby", "relevance");
+                query.append_pair("sortby", "relevance")
+                    .append_pair("q", &request.filter.build())
+                    .append_pair("in", "title,description,content");
+
                 append_common_query_parts(&mut query, &request.common);
                 append_market(&mut query, request.market);
-                query.append_pair("q", &request.filter.build());
             })
             .await
             .map(|response| {
