@@ -80,7 +80,7 @@ pub struct HeadlinesQuery<'a> {
     pub when: Option<&'a str>,
 }
 
-/// Topics used by [`HeadlineQuery`]'s
+/// Topics used by [`HeadlinesQuery`]'s
 #[derive(Debug, Display, Clone, Deserialize, Serialize)]
 pub enum Topic {
     BreakingNews,
