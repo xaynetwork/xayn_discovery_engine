@@ -68,7 +68,7 @@ impl NewsProvider for NewsProviderImpl {
                 response
                     .articles
                     .into_iter()
-                    .map(|article| article.into_generic_article(request.market.clone(), "".into()))
+                    .map(|article| article.into_generic_article(request.market.clone(), None))
                     .collect()
             })
     }
@@ -99,6 +99,11 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
 
                 if let Some(topic) = &request.topic {
                     query.append_pair("topic", topic);
+                } else {
+                    //FIXME[if ported to main] for the experimental branch we force set braking-news for the headlines query
+                    //                         if no explicit topic was set, for newscatcher we rely on `when` instead which we do not
+                    //                         support (in the experiment) for gnews
+                    query.append_pair("topic", "breaking-news");
                 }
             })
             .await
@@ -109,7 +114,7 @@ impl HeadlinesProvider for HeadlinesProviderImpl {
                     .map(|article| {
                         article.into_generic_article(
                             request.market.clone(),
-                            request.topic.unwrap_or("").into(),
+                            request.topic.map(String::from),
                         )
                     })
                     .collect()

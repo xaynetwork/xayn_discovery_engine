@@ -66,10 +66,14 @@ pub(super) struct Response {
 }
 
 impl Article {
-    pub(super) fn into_generic_article(self, market: Market, topic: String) -> crate::Article {
+    pub(super) fn into_generic_article(
+        self,
+        market: Market,
+        topic: Option<String>,
+    ) -> crate::Article {
         let source_domain = Url::parse(&self.url)
             .ok()
-            .and_then(|url| url.domain().map(std::string::ToString::to_string))
+            .and_then(|url| url.domain().map(ToString::to_string))
             .unwrap_or_default();
 
         crate::Article {
@@ -82,7 +86,8 @@ impl Article {
             rank: 0,
             score: None,
             market,
-            topic,
+            //FIXME[if ported to main] only needed due to the hardcoded setting of braking-news for gnews/headlines
+            topic: topic.unwrap_or_else(|| "breaking-news".into()),
         }
     }
 }

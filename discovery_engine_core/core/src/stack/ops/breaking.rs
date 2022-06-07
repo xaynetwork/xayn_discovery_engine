@@ -25,6 +25,7 @@ use xayn_discovery_engine_providers::{
     HeadlinesProvider,
     HeadlinesQuery,
     Market,
+    DEFAULT_WHEN,
 };
 
 use crate::{
@@ -136,7 +137,7 @@ fn spawn_headlines_request(
             },
             market: &market,
             topic: None,
-            when: None,
+            when: DEFAULT_WHEN,
         };
 
         client.query_headlines(&query).await.map_err(Into::into)
