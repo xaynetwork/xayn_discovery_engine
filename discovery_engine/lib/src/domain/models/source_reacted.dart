@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
 
 part 'source_reacted.g.dart';
 
-/// [Source] of a document that the user has reacted to.
+/// Source domain of a document that the user has reacted to.
 @HiveType(typeId: sourceReactedTypeId)
 class SourceReacted {
   @HiveField(0)
@@ -29,6 +29,8 @@ class SourceReacted {
   int weight;
   @HiveField(2)
   DateTime timestamp;
+
+  /// True iff the reaction was positive, false iff the reaction was negative.
   @HiveField(3)
   final bool liked;
 
