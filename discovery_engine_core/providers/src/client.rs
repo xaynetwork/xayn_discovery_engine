@@ -18,6 +18,7 @@ use std::{ops::Deref, time::Duration};
 
 use chrono::Utc;
 use displaydoc::Display as DisplayDoc;
+use reqwest::header::{HeaderName, HeaderValue, InvalidHeaderValue};
 use thiserror::Error;
 use url::Url;
 
@@ -40,6 +41,8 @@ pub enum Error {
     Fetching(#[source] reqwest::Error),
     /// Failed to decode the server's response: {0}
     Decoding(#[source] serde_json::Error),
+    /// Failed to set the HTTP request header: {0}
+    RequestHeader(#[from] InvalidHeaderValue),
     /// Failed to decode the server's response at JSON path {1}: {0}
     DecodingAtPath(
         String,
@@ -115,12 +118,13 @@ where
     F: Deref<Target = Filter> + Sync,
 {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_sn")?;
+        self.common.setup_url(url, "search")?;
 
         let mut query = url.query_pairs_mut();
         query
             .append_pair("sort_by", "relevancy")
-            .append_pair("q", &self.filter.build());
+            .append_pair("q", &self.filter.build())
+            .append_pair("fuzzy_score", "AUTO");
 
         if let Some(from) = &self.from {
             query.append_pair("from", from);
@@ -148,7 +152,7 @@ pub struct HeadlinesQuery<'a> {
 
 impl Query for HeadlinesQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_lh")?;
+        self.common.setup_url(url, "latest_headlines")?;
 
         let mut query = url.query_pairs_mut();
         if !self.trusted_sources.is_empty() {
@@ -209,11 +213,18 @@ impl Client {
         let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
         query.setup_url(&mut url)?;
 
+        let mut token = HeaderValue::try_from(&self.token)?;
+        token.set_sensitive(true);
+        let header = [(HeaderName::from_static("x-api-key"), token)]
+            .into_iter()
+            .collect();
+
         let response = self
             .client
             .get(url)
             .timeout(self.timeout)
-            .bearer_auth(&self.token)
+            // using RequestBuilder.header() won't work because it sets sensitive to false again
+            .headers(header)
             .send()
             .await
             .map_err(Error::RequestExecution)?
@@ -258,14 +269,14 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/climate-change.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search"))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "AU"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -305,7 +316,7 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/climate-change.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search"))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
@@ -314,7 +325,7 @@ mod tests {
             .and(query_param("page", "1"))
             .and(query_param("not_sources", "dodo.com,dada.net"))
             .and(query_param("to_rank", "9000"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -354,14 +365,14 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/msft-vs-aapl.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search"))
             .and(query_param("q", "(Bill Gates) OR (Tim Cook)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
             .and(query_param("countries", "DE"))
             .and(query_param("page_size", "2"))
             .and(query_param("from", default_from()))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -405,14 +416,14 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("/latest_headlines"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("when", "3d"))
             .and(query_param("sources", "dodo.com,dada.net"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
