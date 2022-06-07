@@ -934,7 +934,7 @@ fn documentify_articles(
 ) -> (Vec<Document>, Vec<Error>) {
     let start = Instant::now();
     let a = articles
-        .into_iter()
+        .into_par_iter()
         .map(|article| {
             let embedding = ranker
                 .compute_smbert(article.excerpt_or_title())
@@ -962,7 +962,7 @@ fn documentify_topics(
     topics: Vec<BingTopic>,
 ) -> (Vec<TrendingTopic>, Vec<Error>) {
     topics
-        .into_iter()
+        .into_par_iter()
         .map(|topic| {
             let embedding = ranker.compute_smbert(&topic.name).map_err(|err| {
                 let error = Error::Ranker(err);

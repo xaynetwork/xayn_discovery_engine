@@ -13,38 +13,20 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    io::{Error as IoError, Read},
-    marker::{PhantomData, PhantomPinned},
+    io::Error as IoError,
+    marker::PhantomData,
     ops::RangeInclusive,
-    path::{Path, PathBuf},
-    pin::Pin,
-    sync::{
-        mpsc::{channel, Receiver, Sender},
-        Arc,
-        Mutex,
-    },
-    thread::{self, JoinHandle},
+    path::Path,
     time::Instant,
 };
 
 use derive_more::{Deref, From};
 use displaydoc::Display;
-use ndarray::{ArrayBase, Dim, ErrorKind, IxDynImpl, OwnedRepr, ShapeError, ViewRepr};
-use once_cell::sync::Lazy;
+use ndarray::{ArrayBase, Dim, ErrorKind, IxDynImpl, OwnedRepr, ShapeError};
 use onnxruntime::{environment::Environment, session::Session, GraphOptimizationLevel};
 use thiserror::Error;
 use tracing::info;
-use tract_onnx::prelude::{
-    tvec,
-    Datum,
-    Framework,
-    InferenceFact,
-    InferenceModelExt,
-    Tensor,
-    TractError,
-    TypedModel,
-    TypedSimplePlan,
-};
+use tract_onnx::prelude::TractError;
 
 use crate::tokenizer::Encoding;
 
@@ -79,9 +61,7 @@ pub mod kinds {
 /// A Bert onnx model.
 #[derive(Debug)]
 pub(crate) struct Model<K> {
-    tx: Sender<Vec<ArrayBase<OwnedRepr<i64>, Dim<[usize; 2]>>>>,
-    rx: Receiver<ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>,
-    handler: JoinHandle<()>,
+    session: Session,
     pub(crate) token_size: usize,
     _kind: PhantomData<K>,
 }
@@ -121,71 +101,34 @@ where
     /// Requires the maximum number of tokens per tokenized sequence.
     pub(crate) fn new(
         // `Read` instead of `AsRef<Path>` is needed for wasm
-        mut model: impl AsRef<Path>,
+        model: impl AsRef<Path>,
         token_size: usize,
     ) -> Result<Self, ModelError> {
         if !K::TOKEN_RANGE.contains(&token_size) {
             return Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into());
         }
 
-        let (tx, rx_t) = channel();
-        let (tx_t, rx) = channel();
+        let environment = Environment::builder().build().unwrap();
+        let session = environment
+            .new_session_builder()
+            .unwrap()
+            .with_number_intra_threads(1)
+            .unwrap()
+            .with_number_inter_threads(1)
+            .unwrap()
+            .with_optimization_level(GraphOptimizationLevel::All)
+            .unwrap();
 
-        let path = model.as_ref().to_path_buf();
-        let handler = thread::spawn(move || {
-            let environment = Environment::builder().build().unwrap();
-            let session = environment
-                .new_session_builder()
-                .unwrap()
-                // .with_number_threads(4)
-                // .unwrap()
-                .with_optimization_level(GraphOptimizationLevel::All)
-                .unwrap();
-
-            // #[cfg(all(target_os = "android", target_arch = "aarch64"))]
-            // let session = session.with_nnapi().unwrap();
-            let mut session = session.with_model_from_file(path.clone()).unwrap();
-
-            while let Ok(msg) = rx_t.recv() {
-                let start = Instant::now();
-                let outputs = session.run(msg).unwrap();
-                info!("session run time: {:?}", start.elapsed());
-                tx_t.send(outputs[0].to_owned()).unwrap();
-            }
-        });
+        // #[cfg(all(target_os = "android", target_arch = "aarch64"))]
+        // let session = session.with_nnapi().unwrap();
+        let session = session.with_model_from_file(model.as_ref()).unwrap();
 
         Ok(Model {
+            session,
             token_size,
             _kind: PhantomData,
-            tx,
-            rx,
-            handler,
         })
     }
-
-    // let environment = Environment::builder().build().unwrap();
-    // let mut session = environment
-    //     .new_session_builder()
-    //     .unwrap()
-    //     .with_optimization_level(GraphOptimizationLevel::DisableAll)
-    //     .unwrap()
-    //     .with_model_from_file(model.unwrap())
-    //     .unwrap();
-
-    // manager.bench_function(name, |bencher| {
-    //     bencher.iter(|| {
-    //         let encoding = tokenizer.encode(black_box(SEQUENCE));
-    //         let (token_ids, type_ids, _, _, _, _, attention_mask, _) = encoding.into();
-    //         let inputs = vec![
-    //             Array1::<i64>::from(token_ids).insert_axis(Axis(0)),
-    //             Array1::<i64>::from(attention_mask).insert_axis(Axis(0)),
-    //             Array1::<i64>::from(type_ids).insert_axis(Axis(0)),
-    //         ];
-    //         let outputs = session.run(inputs).unwrap();
-
-    //         black_box(Embedding2::from(outputs[0].slice(s![0, .., ..]).to_owned()));
-    //     })
-    // });
 
     /// Runs prediction on the encoded sequence.
     #[allow(clippy::unnecessary_wraps)]
@@ -200,12 +143,11 @@ where
         ];
 
         let start = Instant::now();
-        self.tx.send(inputs).unwrap();
-        let outputs = self.rx.recv().unwrap();
-        info!("session run with send time: {:?}", start.elapsed());
+        let outputs = self.session.run(inputs, false).unwrap();
+        info!("session run time: {:?}", start.elapsed());
         // debug_assert_eq!(outputs[0].shape(), [1, self.token_size, K::EMBEDDING_SIZE]);
 
-        Ok(Prediction(outputs))
+        Ok(Prediction(outputs[0].to_owned()))
     }
 }
 
