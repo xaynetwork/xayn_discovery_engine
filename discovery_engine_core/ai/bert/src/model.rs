@@ -17,6 +17,7 @@ use std::{
     marker::PhantomData,
     ops::RangeInclusive,
     path::Path,
+    sync::Arc,
     time::Instant,
 };
 
@@ -90,7 +91,7 @@ pub trait BertModel: Sized {
 ///
 /// The prediction is of shape `(1, token_size, embedding_size)`.
 #[derive(Clone, Deref, From)]
-pub(crate) struct Prediction(ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>);
+pub(crate) struct Prediction(Arc<ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>);
 
 impl<K> Model<K>
 where
@@ -144,10 +145,9 @@ where
 
         let start = Instant::now();
         let outputs = self.session.run(inputs, false).unwrap();
-        info!("session run time: {:?}", start.elapsed());
-        // debug_assert_eq!(outputs[0].shape(), [1, self.token_size, K::EMBEDDING_SIZE]);
+        info!("smbert session run time: {:?}", start.elapsed());
 
-        Ok(Prediction(outputs[0].to_owned()))
+        Ok(Prediction(Arc::new(outputs[0].to_owned())))
     }
 }
 

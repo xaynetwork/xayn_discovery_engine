@@ -1587,7 +1587,7 @@ checksum = "7709cef83f0c1f58f666e746a08b21e0085f7440fa6a29cc194d68aac97a4225"
 [[package]]
 name = "onnxruntime"
 version = "0.0.14"
-source = "git+https://github.com/xaynetwork/onnxruntime-rs?branch=android#2d198936b186bdc51e7f1ca2faffd5cd48d8a2bc"
+source = "git+https://github.com/xaynetwork/onnxruntime-rs?branch=android#cbe6dc0b41213e9eaddf749898de9766a511efdd"
 dependencies = [
  "lazy_static",
  "libc",
@@ -1600,7 +1600,7 @@ dependencies = [
 [[package]]
 name = "onnxruntime-sys"
 version = "0.0.14"
-source = "git+https://github.com/xaynetwork/onnxruntime-rs?branch=android#2d198936b186bdc51e7f1ca2faffd5cd48d8a2bc"
+source = "git+https://github.com/xaynetwork/onnxruntime-rs?branch=android#cbe6dc0b41213e9eaddf749898de9766a511efdd"
 dependencies = [
  "flate2",
  "git2",
@@ -3334,6 +3334,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "thiserror",
+ "tracing",
  "uuid",
  "xayn-discovery-engine-bert",
  "xayn-discovery-engine-kpe",
@@ -3434,7 +3435,9 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "ndarray",
+ "onnxruntime",
  "thiserror",
+ "tracing",
  "tract-onnx",
  "xayn-discovery-engine-layer",
  "xayn-discovery-engine-test-utils",

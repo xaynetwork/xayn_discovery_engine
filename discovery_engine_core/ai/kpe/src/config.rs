@@ -15,7 +15,7 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use displaydoc::Display;
@@ -41,7 +41,7 @@ pub enum ConfigError {
 #[must_use]
 pub struct Config<'a> {
     pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
-    pub(crate) model: Box<dyn Read + Send + 'a>,
+    pub(crate) model: PathBuf,
     pub(crate) cnn: Box<dyn Read + Send + 'a>,
     pub(crate) classifier: Box<dyn Read + Send + 'a>,
     pub(crate) accents: AccentChars,
@@ -55,7 +55,7 @@ impl<'a> Config<'a> {
     /// Creates a `KPE` configuration from readables.
     pub fn from_readers(
         vocab: Box<dyn BufRead + Send + 'a>,
-        model: Box<dyn Read + Send + 'a>,
+        model: PathBuf,
         cnn: Box<dyn Read + Send + 'a>,
         classifier: Box<dyn Read + Send + 'a>,
     ) -> Self {
@@ -80,10 +80,14 @@ impl<'a> Config<'a> {
         classifier: impl AsRef<Path>,
     ) -> Result<Self, ConfigError> {
         let vocab = Box::new(BufReader::new(File::open(vocab)?));
-        let model = Box::new(BufReader::new(File::open(model)?));
         let cnn = Box::new(BufReader::new(File::open(cnn)?));
         let classifier = Box::new(BufReader::new(File::open(classifier)?));
-        Ok(Self::from_readers(vocab, model, cnn, classifier))
+        Ok(Self::from_readers(
+            vocab,
+            model.as_ref().to_path_buf(),
+            cnn,
+            classifier,
+        ))
     }
 
     /// Whether the tokenizer keeps accents.

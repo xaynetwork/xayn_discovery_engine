@@ -223,12 +223,13 @@ fn unify(
                 .then(|| candidate)
         })
         .collect::<HashSet<_>>()
-        .into_iter()
+        .into_par_iter()
         .filter_map(|candidate| {
             smbert(&candidate)
                 .and_then(|point| KeyPhrase::new(candidate, point).map_err(Into::into))
                 .ok()
-        });
+        })
+        .collect::<Vec<KeyPhrase>>();
 
     key_phrases.into_iter().chain(candidates).collect()
 }

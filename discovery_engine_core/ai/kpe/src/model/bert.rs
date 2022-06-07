@@ -12,20 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{io::Read, ops::RangeInclusive, sync::Arc};
+use std::{ops::RangeInclusive, path::Path, sync::Arc, time::Instant};
 
 use derive_more::{Deref, From};
-use ndarray::{Array1, Array2, ErrorKind, ShapeError};
-use tract_onnx::prelude::{
-    tvec,
-    Datum,
-    Framework,
-    InferenceFact,
-    InferenceModelExt,
-    Tensor,
-    TypedModel,
-    TypedSimplePlan,
-};
+use ndarray::{Array1, Array2, ArrayBase, Dim, ErrorKind, IxDynImpl, OwnedRepr, ShapeError};
+use onnxruntime::{environment::Environment, session::Session, GraphOptimizationLevel};
+use tracing::info;
 
 use crate::{
     model::ModelError,
@@ -35,7 +27,7 @@ use crate::{
 /// A Bert onnx model.
 #[derive(Debug)]
 pub(crate) struct Bert {
-    plan: TypedSimplePlan<TypedModel>,
+    session: Session,
     token_size: usize,
 }
 
@@ -43,16 +35,12 @@ pub(crate) struct Bert {
 ///
 /// The embeddings are of shape `(1, token_size, embedding_size = 768)`.
 #[derive(Clone, Debug, Deref, From)]
-pub(crate) struct Embeddings(pub(crate) Arc<Tensor>);
+pub(crate) struct Embeddings(pub(crate) Arc<ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>);
 
 impl Embeddings {
     /// Checks if the embeddings are valid, i.e. finite.
     pub(crate) fn is_valid(&self) -> bool {
-        self.to_array_view::<f32>()
-            .unwrap()
-            .iter()
-            .copied()
-            .all(f32::is_finite)
+        self.iter().copied().all(f32::is_finite)
     }
 }
 
@@ -66,29 +54,34 @@ impl Bert {
     /// Creates a model from an onnx model file.
     ///
     /// Requires the maximum number of tokens per tokenized sequence.
-    pub(crate) fn new(mut model: impl Read, token_size: usize) -> Result<Self, ModelError> {
+    pub(crate) fn new(model: impl AsRef<Path>, token_size: usize) -> Result<Self, ModelError> {
         if !Self::TOKEN_RANGE.contains(&token_size) {
             return Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into());
         }
 
-        let input_fact = InferenceFact::dt_shape(i64::datum_type(), &[1, token_size]);
-        let plan = tract_onnx::onnx()
-            .model_for_read(&mut model)?
-            .with_input_fact(0, input_fact.clone())? // token ids
-            .with_input_fact(1, input_fact)? // attention mask
-            .into_optimized()?
-            .into_runnable()?;
+        let environment = Environment::builder().build().unwrap();
+        let session = environment
+            .new_session_builder()
+            .unwrap()
+            // .with_number_intra_threads(1)
+            // .unwrap()
+            // .with_number_inter_threads(1)
+            // .unwrap()
+            .with_optimization_level(GraphOptimizationLevel::All)
+            .unwrap();
 
-        if plan.model().output_fact(0)?.shape.as_concrete()
-            == Some(&[1, token_size, Self::EMBEDDING_SIZE])
-        {
-            Ok(Self { plan, token_size })
-        } else {
-            Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into())
-        }
+        // #[cfg(all(target_os = "android", target_arch = "aarch64"))]
+        // let session = session.with_nnapi().unwrap();
+        let session = session.with_model_from_file(model.as_ref()).unwrap();
+
+        Ok(Bert {
+            session,
+            token_size,
+        })
     }
 
     /// Runs the model on the encoded sequence to compute the embeddings.
+    #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn run(
         &self,
         token_ids: TokenIds,
@@ -98,16 +91,13 @@ impl Bert {
         debug_assert!(token_ids.is_valid(isize::MAX as usize));
         debug_assert_eq!(attention_mask.shape(), [1, self.token_size]);
         debug_assert!(attention_mask.is_valid());
-        let inputs = tvec![token_ids.0.into(), attention_mask.0.into()];
-        let outputs = self.plan.run(inputs)?;
-        let embeddings = Embeddings(outputs[0].clone());
-        debug_assert_eq!(
-            embeddings.shape(),
-            [1, self.token_size, Self::EMBEDDING_SIZE],
-        );
-        debug_assert!(embeddings.is_valid());
+        let inputs = vec![token_ids.0, attention_mask.0];
 
-        Ok(embeddings)
+        let start = Instant::now();
+        let outputs = self.session.run(inputs, false).unwrap();
+        info!("kpe bert session run time: {:?}", start.elapsed());
+
+        Ok(Embeddings(Arc::new(outputs[0].to_owned())))
     }
 }
 
@@ -118,7 +108,7 @@ impl Embeddings {
         debug_assert_eq!(self.shape()[2], Bert::EMBEDDING_SIZE);
         valid_mask
             .iter()
-            .zip(self.to_array_view::<f32>()?.rows())
+            .zip(self.rows())
             .filter_map(|(valid, embedding)| valid.then(|| embedding))
             .flatten()
             .copied()

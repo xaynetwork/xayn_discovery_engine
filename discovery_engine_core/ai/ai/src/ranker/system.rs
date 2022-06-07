@@ -12,12 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use displaydoc::Display;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 use xayn_discovery_engine_bert::SMBert;
 use xayn_discovery_engine_kpe::{Pipeline as KPE, RankedKeyPhrases};
 use xayn_discovery_engine_providers::Market;
@@ -128,6 +129,7 @@ impl Ranker {
         match user_feedback {
             UserFeedback::Relevant => {
                 let smbert = &self.smbert;
+                let start = Instant::now();
                 let key_phrases = self
                     .kpe
                     .run(snippet)
@@ -143,6 +145,8 @@ impl Ranker {
                         },
                         Into::into,
                     );
+                info!("key_phrases run time: {:?}", start.elapsed());
+                let start = Instant::now();
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
                     market,
@@ -151,6 +155,7 @@ impl Ranker {
                     key_phrases.as_slice(),
                     |words| smbert.run(words).map_err(Into::into),
                 );
+                info!("log_positive_user_reaction run time: {:?}", start.elapsed());
             }
             UserFeedback::Irrelevant => self
                 .coi
