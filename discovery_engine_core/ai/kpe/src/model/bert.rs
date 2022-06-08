@@ -16,7 +16,11 @@ use std::{ops::RangeInclusive, path::Path, sync::Arc, time::Instant};
 
 use derive_more::{Deref, From};
 use ndarray::{Array1, Array2, ArrayBase, Dim, ErrorKind, IxDynImpl, OwnedRepr, ShapeError};
-use onnxruntime::{environment::Environment, session::Session, GraphOptimizationLevel};
+use onnxruntime::{
+    environment::Environment,
+    session::Session,
+    GraphOptimizationLevel,
+};
 use tracing::info;
 
 use crate::{
@@ -63,10 +67,6 @@ impl Bert {
         let session = environment
             .new_session_builder()
             .unwrap()
-            // .with_number_intra_threads(1)
-            // .unwrap()
-            // .with_number_inter_threads(1)
-            // .unwrap()
             .with_optimization_level(GraphOptimizationLevel::All)
             .unwrap();
 

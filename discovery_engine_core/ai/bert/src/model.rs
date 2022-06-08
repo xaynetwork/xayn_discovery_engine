@@ -115,8 +115,6 @@ where
             .unwrap()
             .with_number_intra_threads(1)
             .unwrap()
-            .with_number_inter_threads(1)
-            .unwrap()
             .with_optimization_level(GraphOptimizationLevel::All)
             .unwrap();
 
