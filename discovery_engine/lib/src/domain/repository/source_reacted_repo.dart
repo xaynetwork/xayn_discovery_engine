@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,21 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const documentTypeId = 0;
-const userReactionTypeId = 1;
-const activeDocumentDataTypeId = 2;
-const documentIdTypeId = 3;
-const documentViewModeTypeId = 4;
-const newsResourceTypeId = 5;
-const uriTypeId = 6;
-const durationTypeId = 7;
-const stackIdTypeId = 8;
-const embeddingTypeId = 9;
-const feedMarketTypeId = 10;
-const searchTypeId = 11;
-const setSourceTypeId = 12;
-const sourceTypeId = 13;
-const sourceFilterTypeId = 14;
-const sourceFilterModeTypeId = 15;
-const searchByTypeId = 16;
-const sourceReactedTypeId = 17;
+import 'package:xayn_discovery_engine/discovery_engine.dart' show Source;
+import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart'
+    show SourceReacted;
+
+/// [SourceReacted] repository interface.
+abstract class SourceReactedRepository {
+  /// Fetch sources of documents with the given reaction.
+  Future<List<Source>> fetchByReaction(bool like);
+
+  /// Save [SourceReacted] to the repository.
+  Future<void> save(SourceReacted source);
+
+  /// Remove [SourceReacted] from the repository.
+  Future<void> remove(Source source);
+}

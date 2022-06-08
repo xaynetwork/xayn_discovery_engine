@@ -59,6 +59,7 @@ import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show mockedAvailableSources, Source;
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
     show SourcePreference, SourcePreferenceAdapter, PreferenceModeAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
@@ -79,7 +80,8 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         excludedSourcesBox,
         trustedSourcesBox,
         searchBox,
-        sourcePreferenceBox;
+        sourcePreferenceBox,
+        sourceReactedBox;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
@@ -341,6 +343,7 @@ class EventHandler {
     Hive.registerAdapter(SetSourceAdapter());
     Hive.registerAdapter(SourcePreferenceAdapter());
     Hive.registerAdapter(PreferenceModeAdapter());
+    Hive.registerAdapter(SourceReactedAdapter());
   }
 
   @visibleForTesting
@@ -363,6 +366,7 @@ class EventHandler {
       _openDbBox<Set<Source>>(trustedSourcesBox),
       _openDbBox<Set<Source>>(excludedSourcesBox),
       _openDbBox<SourcePreference>(sourcePreferenceBox),
+      _openDbBox<SourceReacted>(sourceReactedBox),
     ]);
   }
 
