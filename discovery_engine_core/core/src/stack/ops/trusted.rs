@@ -128,9 +128,8 @@ fn spawn_trusted_request(
             },
             trusted_sources: &sources,
             topic: None,
-            when: None,
-        }
-        .max_headline_age(max_headline_age_days);
+            max_age_days: Some(max_headline_age_days),
+        };
         client.query_articles(&query).await.map_err(Into::into)
     })
 }

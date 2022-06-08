@@ -566,7 +566,7 @@ where
                     let news_query = NewsQuery {
                         common,
                         filter,
-                        from: None,
+                        max_age_days: None,
                     };
                     self.client.query_articles(&news_query).await
                 }
@@ -575,7 +575,7 @@ where
                         common,
                         trusted_sources: &[],
                         topic: Some(topic),
-                        when: None,
+                        max_age_days: None,
                     };
                     self.client.query_articles(&headlines_query).await
                 }
@@ -634,7 +634,7 @@ where
                 excluded_sources,
             },
             filter,
-            from: None,
+            max_age_days: None,
         };
 
         let articles = self

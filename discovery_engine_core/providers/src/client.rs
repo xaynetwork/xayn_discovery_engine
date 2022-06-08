@@ -104,23 +104,20 @@ pub struct NewsQuery<'a, F> {
     pub common: CommonQueryParts<'a>,
     /// News filter.
     pub filter: F,
-    /// Starting point in time from which to start the search.
-    /// The format is YYYY/mm/dd. Default timezone is UTC.
-    /// Defaults to the last week.
-    pub from: Option<String>,
+    /// Maximum age of news items we want to include in the results
+    pub max_age_days: Option<usize>,
 }
 
 impl<F> NewsQuery<'_, F> {
-    /// See [`NewsQuery::from`]
-    #[must_use]
-    pub fn max_article_age(mut self, days: usize) -> Self {
-        // (lj): This _could_ overflow if we specified trillions of days, but I don't
-        // think that's worth guarding against.
-        let days = days as i64;
+    fn compute_from(&self) -> Option<String> {
+        self.max_age_days.map(|days| {
+            // (lj): This _could_ overflow if we specified trillions of days, but I don't
+            // think that's worth guarding against.
+            let days = days as i64;
 
-        let from = Utc::today() - chrono::Duration::days(days);
-        self.from = Some(from.format("%Y/%m/%d").to_string());
-        self
+            let from = Utc::today() - chrono::Duration::days(days);
+            from.format("%Y/%m/%d").to_string()
+        })
     }
 }
 
@@ -136,7 +133,7 @@ where
             .append_pair("sort_by", "relevancy")
             .append_pair("q", &self.filter.build());
 
-        if let Some(from) = &self.from {
+        if let Some(from) = &self.compute_from() {
             query.append_pair("from", from);
         }
 
@@ -154,18 +151,13 @@ pub struct HeadlinesQuery<'a> {
     pub trusted_sources: &'a [String],
     /// Headlines topic.
     pub topic: Option<&'a str>,
-    /// The time period you want to get the latest headlines for.
-    /// Can be specified in days (e.g. 3d) or hours (e.g. 24h).
-    /// Defaults to all data available for the subscriptions.
-    pub when: Option<String>,
+    /// Maximum age of news items we want to include in the results
+    pub max_age_days: Option<usize>,
 }
 
 impl HeadlinesQuery<'_> {
-    /// See [`HeadlinesQuery::when`]
-    #[must_use]
-    pub fn max_headline_age(mut self, days: usize) -> Self {
-        self.when = Some(format!("{}d", days));
-        self
+    fn compute_when(&self) -> Option<String> {
+        self.max_age_days.map(|days| format!("{}d", days))
     }
 }
 
@@ -180,7 +172,7 @@ impl Query for HeadlinesQuery<'_> {
         if let Some(topic) = self.topic {
             query.append_pair("topic", topic);
         }
-        if let Some(when) = &self.when {
+        if let Some(when) = &self.compute_when() {
             query.append_pair("when", when);
         }
         Ok(())
@@ -299,7 +291,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
-            from: None,
+            max_age_days: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -348,7 +340,7 @@ mod tests {
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
             },
             filter,
-            from: None,
+            max_age_days: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -400,9 +392,8 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
-            from: None,
-        }
-        .max_article_age(30);
+            max_age_days: Some(30),
+        };
 
         let docs = client.query_articles(&params).await.unwrap();
         assert_eq!(docs.len(), 2);
@@ -450,9 +441,8 @@ mod tests {
             },
             trusted_sources,
             topic: None,
-            when: None,
-        }
-        .max_headline_age(3);
+            max_age_days: Some(3),
+        };
 
         let docs = client.query_articles(&params).await.unwrap();
         assert_eq!(docs.len(), 2);

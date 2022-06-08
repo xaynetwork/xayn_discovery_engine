@@ -145,9 +145,8 @@ fn spawn_news_request(
                 excluded_sources: &excluded_sources,
             },
             filter,
-            from: None,
-        }
-        .max_article_age(max_article_age_days);
+            max_age_days: Some(max_article_age_days),
+        };
         client.query_articles(&query).await.map_err(Into::into)
     })
 }

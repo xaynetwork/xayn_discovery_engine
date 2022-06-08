@@ -134,9 +134,8 @@ fn spawn_headlines_request(
             },
             trusted_sources: &[],
             topic: None,
-            when: None,
-        }
-        .max_headline_age(max_headline_age_days);
+            max_age_days: Some(max_headline_age_days),
+        };
         client.query_articles(&query).await.map_err(Into::into)
     })
 }
