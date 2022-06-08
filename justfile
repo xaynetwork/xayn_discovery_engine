@@ -243,6 +243,7 @@ compile-android-ci target prod_flag="\"\"": _codegen-order-workaround
     set -eu
     if [[ {{prod_flag}} == "--prod" ]]; then
         RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-android {{target}}
+        echo "Don't forget to copy the libonnxruntime.so in target/aarch64-linux-android/release/build/onnxruntime-sys-xxxx/out/onnxruntime-download/lib to discovery_engine_flutter/android/src/main/jniLibs/arm64-v8a"
     else
         {{just_executable()}} _compile-android {{target}}
     fi

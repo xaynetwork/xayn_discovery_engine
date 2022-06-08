@@ -16,11 +16,7 @@ use std::{ops::RangeInclusive, path::Path, sync::Arc, time::Instant};
 
 use derive_more::{Deref, From};
 use ndarray::{Array1, Array2, ArrayBase, Dim, ErrorKind, IxDynImpl, OwnedRepr, ShapeError};
-use onnxruntime::{
-    environment::Environment,
-    session::Session,
-    GraphOptimizationLevel,
-};
+use onnxruntime::{environment::Environment, session::Session, GraphOptimizationLevel};
 use tracing::info;
 
 use crate::{
