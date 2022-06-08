@@ -59,10 +59,10 @@ class LocalNewsApiServer {
           break;
         case ReplyWith.data:
           switch (request.uri.path) {
-            case '/_sn':
+            case '/search':
               await _replyWithData(request, _snFile);
               break;
-            case '/_lh':
+            case '/latest_headlines':
               await _replyWithData(request, _lhFile);
               break;
             case '/_tt':

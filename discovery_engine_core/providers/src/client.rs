@@ -118,7 +118,7 @@ where
     F: Deref<Target = Filter> + Sync,
 {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "")?;
+        self.common.setup_url(url, "search")?;
 
         let mut query = url.query_pairs_mut();
         query
@@ -151,7 +151,7 @@ pub struct HeadlinesQuery<'a> {
 
 impl Query for HeadlinesQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_lh")?;
+        self.common.setup_url(url, "latest_headlines")?;
 
         let mut query = url.query_pairs_mut();
         if !self.trusted_sources.is_empty() {
@@ -260,7 +260,6 @@ mod tests {
     };
 
     #[tokio::test]
-    #[ignore]
     async fn test_simple_news_query() {
         let mock_server = MockServer::start().await;
         let client = Client::new("test-token", mock_server.uri());
@@ -269,14 +268,14 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/climate-change.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search"))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "AU"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -308,7 +307,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_simple_news_query_with_additional_parameters() {
         let mock_server = MockServer::start().await;
         let client = Client::new("test-token", mock_server.uri());
@@ -317,7 +315,7 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/climate-change.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search"))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
@@ -326,7 +324,7 @@ mod tests {
             .and(query_param("page", "1"))
             .and(query_param("not_sources", "dodo.com,dada.net"))
             .and(query_param("to_rank", "9000"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -358,7 +356,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_news_multiple_keywords() {
         let mock_server = MockServer::start().await;
         let client = Client::new("test-token", mock_server.uri());
@@ -367,14 +364,14 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/msft-vs-aapl.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_sn"))
+            .and(path("/search"))
             .and(query_param("q", "(Bill Gates) OR (Tim Cook)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
             .and(query_param("countries", "DE"))
             .and(query_param("page_size", "2"))
             .and(query_param("from", default_from()))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -410,7 +407,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_headlines() {
         let mock_server = MockServer::start().await;
         let client = Client::new("test-token", mock_server.uri());
@@ -419,14 +415,14 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("/latest_headlines"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "US"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("when", "3d"))
             .and(query_param("sources", "dodo.com,dada.net"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)

@@ -1149,7 +1149,7 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("/latest_headlines"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1356,7 +1356,7 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("/latest_headlines"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
