@@ -104,10 +104,21 @@ pub struct NewsQuery<'a, F> {
     pub common: CommonQueryParts<'a>,
     /// News filter.
     pub filter: F,
-    /// Starting point in time from which to start the search.
-    /// The format is YYYY/mm/dd. Default timezone is UTC.
-    /// Defaults to the last week.
-    pub from: Option<String>,
+    /// Maximum age of news items we want to include in the results
+    pub max_age_days: Option<usize>,
+}
+
+impl<F> NewsQuery<'_, F> {
+    fn compute_from(&self) -> Option<String> {
+        self.max_age_days.map(|days| {
+            // (lj): This _could_ overflow if we specified trillions of days, but I don't
+            // think that's worth guarding against.
+            let days = days as i64;
+
+            let from = Utc::today() - chrono::Duration::days(days);
+            from.format("%Y/%m/%d").to_string()
+        })
+    }
 }
 
 impl<F> Query for NewsQuery<'_, F>
@@ -122,7 +133,7 @@ where
             .append_pair("sort_by", "relevancy")
             .append_pair("q", &self.filter.build());
 
-        if let Some(from) = &self.from {
+        if let Some(from) = &self.compute_from() {
             query.append_pair("from", from);
         }
 
@@ -140,10 +151,14 @@ pub struct HeadlinesQuery<'a> {
     pub trusted_sources: &'a [String],
     /// Headlines topic.
     pub topic: Option<&'a str>,
-    /// The time period you want to get the latest headlines for.
-    /// Can be specified in days (e.g. 3d) or hours (e.g. 24h).
-    /// Defaults to all data available for the subscriptions.
-    pub when: Option<&'a str>,
+    /// Maximum age of news items we want to include in the results
+    pub max_age_days: Option<usize>,
+}
+
+impl HeadlinesQuery<'_> {
+    fn compute_when(&self) -> Option<String> {
+        self.max_age_days.map(|days| format!("{}d", days))
+    }
 }
 
 impl Query for HeadlinesQuery<'_> {
@@ -157,7 +172,7 @@ impl Query for HeadlinesQuery<'_> {
         if let Some(topic) = self.topic {
             query.append_pair("topic", topic);
         }
-        if let Some(when) = self.when {
+        if let Some(when) = &self.compute_when() {
             query.append_pair("when", when);
         }
         Ok(())
@@ -227,15 +242,6 @@ impl Client {
     }
 }
 
-/// Default `from` value for newscatcher news queries
-pub fn default_from() -> String {
-    let from = Utc::today() - chrono::Duration::days(30);
-    from.format("%Y/%m/%d").to_string()
-}
-
-/// Default `when` value for newscatcher headline queries
-pub const DEFAULT_WHEN: Option<&'static str> = Some("3d");
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -285,7 +291,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
-            from: None,
+            max_age_days: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -334,7 +340,7 @@ mod tests {
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
             },
             filter,
-            from: None,
+            max_age_days: None,
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -353,6 +359,9 @@ mod tests {
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/msft-vs-aapl.json"));
 
+        let from = (Utc::today() - chrono::Duration::days(30))
+            .format("%Y/%m/%d")
+            .to_string();
         Mock::given(method("GET"))
             .and(path("/_sn"))
             .and(query_param("q", "(Bill Gates) OR (Tim Cook)"))
@@ -360,7 +369,7 @@ mod tests {
             .and(query_param("lang", "de"))
             .and(query_param("countries", "DE"))
             .and(query_param("page_size", "2"))
-            .and(query_param("from", default_from()))
+            .and(query_param("from", from))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
             .expect(1)
@@ -383,7 +392,7 @@ mod tests {
                 excluded_sources: &[],
             },
             filter,
-            from: default_from().into(),
+            max_age_days: Some(30),
         };
 
         let docs = client.query_articles(&params).await.unwrap();
@@ -422,6 +431,7 @@ mod tests {
             lang_code: "en".to_string(),
             country_code: "US".to_string(),
         };
+        let trusted_sources = &["dodo.com".into(), "dada.net".into()];
         let params = HeadlinesQuery {
             common: CommonQueryParts {
                 market: Some(&market),
@@ -429,9 +439,9 @@ mod tests {
                 page: 1,
                 excluded_sources: &[],
             },
-            trusted_sources: &["dodo.com".into(), "dada.net".into()],
+            trusted_sources,
             topic: None,
-            when: DEFAULT_WHEN,
+            max_age_days: Some(3),
         };
 
         let docs = client.query_articles(&params).await.unwrap();

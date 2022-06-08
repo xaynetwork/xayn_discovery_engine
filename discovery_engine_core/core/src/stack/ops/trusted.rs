@@ -19,14 +19,7 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
-use xayn_discovery_engine_providers::{
-    Article,
-    Client,
-    CommonQueryParts,
-    HeadlinesQuery,
-    Market,
-    DEFAULT_WHEN,
-};
+use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -46,6 +39,7 @@ pub(crate) struct TrustedNews {
     page_size: usize,
     max_requests: u32,
     min_articles: usize,
+    max_headline_age_days: usize,
 }
 
 impl TrustedNews {
@@ -58,6 +52,7 @@ impl TrustedNews {
             page_size: config.page_size,
             max_requests: config.max_requests,
             min_articles: config.min_articles,
+            max_headline_age_days: config.max_headline_age_days,
         }
     }
 
@@ -102,6 +97,7 @@ impl Ops for TrustedNews {
                     self.page_size,
                     request_num as usize + 1,
                     sources.clone(),
+                    self.max_headline_age_days,
                 )
             },
             |articles| Self::filter_articles(history, stack, articles),
@@ -120,6 +116,7 @@ fn spawn_trusted_request(
     page_size: usize,
     page: usize,
     sources: Arc<Vec<String>>,
+    max_headline_age_days: usize,
 ) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
         let query = HeadlinesQuery {
@@ -131,7 +128,7 @@ fn spawn_trusted_request(
             },
             trusted_sources: &sources,
             topic: None,
-            when: DEFAULT_WHEN,
+            max_age_days: Some(max_headline_age_days),
         };
         client.query_articles(&query).await.map_err(Into::into)
     })

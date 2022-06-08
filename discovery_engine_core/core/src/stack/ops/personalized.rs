@@ -20,7 +20,6 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
-    default_from,
     Article,
     Client,
     CommonQueryParts,
@@ -47,6 +46,7 @@ pub(crate) struct PersonalizedNews {
     page_size: usize,
     max_requests: u32,
     min_articles: usize,
+    max_article_age_days: usize,
 }
 
 impl PersonalizedNews {
@@ -58,6 +58,7 @@ impl PersonalizedNews {
             excluded_sources: config.excluded_sources.clone(),
             max_requests: config.max_requests,
             min_articles: config.min_articles,
+            max_article_age_days: config.max_article_age_days,
         }
     }
 
@@ -111,6 +112,7 @@ impl Ops for PersonalizedNews {
                     self.page_size,
                     request_num as usize + 1,
                     excluded_sources.clone(),
+                    self.max_article_age_days,
                 )
             },
             |articles| Self::filter_articles(history, stack, articles, &excluded_sources),
@@ -131,6 +133,7 @@ fn spawn_news_request(
     page_size: usize,
     page: usize,
     excluded_sources: Arc<Vec<String>>,
+    max_article_age_days: usize,
 ) -> JoinHandle<Result<Vec<Article>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
@@ -142,7 +145,7 @@ fn spawn_news_request(
                 excluded_sources: &excluded_sources,
             },
             filter,
-            from: default_from().into(),
+            max_age_days: Some(max_article_age_days),
         };
         client.query_articles(&query).await.map_err(Into::into)
     })

@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
             },
             trusted_sources: &[],
             topic: None,
-            when: None,
+            max_age_days: None,
         };
         let raw_response = client.query_newscatcher(&params).await.unwrap();
         total_pages = raw_response.total_pages;
