@@ -85,7 +85,7 @@ export 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 export 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 export 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source;
+    show Source, AvailableSource;
 export 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
     show TrendingTopic;
 export 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
