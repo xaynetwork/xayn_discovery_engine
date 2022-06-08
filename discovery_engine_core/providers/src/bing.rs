@@ -25,7 +25,7 @@ pub struct TrendingQuery<'a> {
     pub market: &'a Market,
 }
 
-/// Bing implementation for tending topics.
+/// Bing implementation for trending topics.
 pub struct TrendingTopicsProvider(Endpoint);
 
 impl TrendingTopicsProvider {
