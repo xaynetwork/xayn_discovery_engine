@@ -90,17 +90,14 @@ class DocumentManager {
     if (userReaction != UserReaction.neutral) {
       final source = doc.resource.sourceDomain;
       final like = userReaction == UserReaction.positive;
-      final sourcesOpp = await _sourceRepo.fetchByReaction(!like);
-      if (sourcesOpp.any((s) => s.source == source)) {
+      final sourceReacted = await _sourceRepo.fetchBySource(source);
+
+      if (sourceReacted == null) {
+        await _sourceRepo.save(SourceReacted(source, like));
+      } else if (sourceReacted.liked != like) {
         await _sourceRepo.remove(source);
       } else {
-        final sources = await _sourceRepo.fetchByReaction(like);
-        final idx = sources.indexWhere((s) => s.source == source);
-        if (idx < 0) {
-          await _sourceRepo.save(SourceReacted(source, like));
-        } else {
-          await _sourceRepo.save(sources[idx]..update());
-        }
+        await _sourceRepo.save(sourceReacted..update());
       }
     }
 

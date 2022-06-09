@@ -26,16 +26,17 @@ class HiveSourceReactedRepository implements SourceReactedRepository {
   Box<SourceReacted> get box => Hive.box<SourceReacted>(sourceReactedBox);
 
   @override
+  Future<SourceReacted?> fetchBySource(Source source) async =>
+      box.get(source.value);
+
+  @override
   Future<List<SourceReacted>> fetchByReaction(bool like) async =>
       box.values.where((source) => source.liked == like).toList();
 
   @override
-  Future<void> save(SourceReacted source) async {
-    await box.put(source.source.value, source);
-  }
+  Future<void> save(SourceReacted source) =>
+      box.put(source.source.value, source);
 
   @override
-  Future<void> remove(Source source) async {
-    await box.delete(source.value);
-  }
+  Future<void> remove(Source source) => box.delete(source.value);
 }

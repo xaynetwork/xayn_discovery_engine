@@ -228,7 +228,7 @@ class EventHandler {
     final activeDataRepository = HiveActiveDocumentDataRepository();
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
-    final sourceReactedRespository = HiveSourceReactedRepository();
+    final sourceReactedRepository = HiveSourceReactedRepository();
     Future<void> clearAiState() async {
       await documentRepository.box.clear();
       await activeDataRepository.box.clear();
@@ -279,7 +279,7 @@ class EventHandler {
       activeDataRepository,
       engineStateRepository,
       _changedDocumentsReporter,
-      sourceReactedRespository,
+      sourceReactedRepository,
     );
     _feedManager = FeedManager(
       engine,
