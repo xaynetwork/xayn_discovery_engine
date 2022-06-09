@@ -26,10 +26,8 @@ class HiveSourceReactedRepository implements SourceReactedRepository {
   Box<SourceReacted> get box => Hive.box<SourceReacted>(sourceReactedBox);
 
   @override
-  Future<List<Source>> fetchByReaction(bool like) async => box.values
-      .where((source) => source.liked == like)
-      .map((source) => source.source)
-      .toList();
+  Future<List<SourceReacted>> fetchByReaction(bool like) async =>
+      box.values.where((source) => source.liked == like).toList();
 
   @override
   Future<void> save(SourceReacted source) async {
