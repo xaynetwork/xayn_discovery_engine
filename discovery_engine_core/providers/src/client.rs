@@ -53,10 +53,16 @@ pub trait Query: Seal + Sync {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error>;
 }
 
+/// A flag indicating whether to limit the rank for a market.
+pub enum Rank {
+    Limited,
+    Unlimited,
+}
+
 /// Elements shared between various Newscatcher queries.
 pub struct CommonQueryParts<'a> {
-    /// Market of news.
-    pub market: Option<&'a Market>,
+    /// Market of news along with a flag indicating whether to limit the rank for that market.
+    pub market: Option<(&'a Market, Rank)>,
     /// How many articles to return (per page).
     pub page_size: usize,
     /// The number of the page which should be returned.
@@ -75,12 +81,12 @@ impl CommonQueryParts<'_> {
 
         let query = &mut url.query_pairs_mut();
 
-        if let Some(market) = &self.market {
+        if let Some((market, rank)) = &self.market {
             query
                 .append_pair("lang", &market.lang_code)
                 .append_pair("countries", &market.country_code);
 
-            if let Some(limit) = market.news_quality_rank_limit() {
+            if let (Rank::Limited, Some(limit)) = (rank, market.news_quality_rank_limit()) {
                 query.append_pair("to_rank", &limit.to_string());
             }
         }
@@ -249,7 +255,7 @@ mod tests {
 
     use crate::newscatcher::Topic;
     use wiremock::{
-        matchers::{header, method, path, query_param},
+        matchers::{header, method, path, query_param, query_param_is_missing},
         Mock,
         MockServer,
         ResponseTemplate,
@@ -285,7 +291,7 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some(market),
+                market: Some((market, Rank::Limited)),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
@@ -334,7 +340,7 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some(market),
+                market: Some((market, Rank::Limited)),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
@@ -386,7 +392,7 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some(market),
+                market: Some((&market, Rank::Limited)),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
@@ -434,7 +440,7 @@ mod tests {
         let trusted_sources = &["dodo.com".into(), "dada.net".into()];
         let params = HeadlinesQuery {
             common: CommonQueryParts {
-                market: Some(&market),
+                market: Some((&market, Rank::Limited)),
                 page_size: 2,
                 page: 1,
                 excluded_sources: &[],
@@ -463,5 +469,38 @@ mod tests {
         };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
+    }
+
+    #[tokio::test]
+    async fn test_common_query_rank_unlimited() {
+        let mock_server = MockServer::start().await;
+        let client = Client::new("test-token", mock_server.uri());
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/_sn"))
+            .and(query_param_is_missing("to_rank"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = ("DE", "de").into();
+        let filter = &Filter::default().add_keyword("");
+
+        let params = NewsQuery {
+            common: CommonQueryParts {
+                market: Some((&market, Rank::Unlimited)),
+                page_size: 2,
+                page: 1,
+                excluded_sources: &[],
+            },
+            filter,
+            max_age_days: None,
+        };
+
+        client.query_articles(&params).await.unwrap();
     }
 }

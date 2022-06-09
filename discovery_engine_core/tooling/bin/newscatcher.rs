@@ -31,7 +31,7 @@
 )]
 
 use anyhow::{Context, Result};
-use xayn_discovery_engine_providers::{Client, CommonQueryParts, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{Client, CommonQueryParts, HeadlinesQuery, Market, Rank};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -59,7 +59,7 @@ async fn main() -> Result<()> {
         println!("Fetching page {} of {}", page, total_pages);
         let params = HeadlinesQuery {
             common: CommonQueryParts {
-                market: Some(&market),
+                market: Some((&market, Rank::Limited)),
                 page_size: 100,
                 page,
                 excluded_sources: &[],
