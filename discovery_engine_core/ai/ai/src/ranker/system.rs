@@ -95,7 +95,7 @@ impl Ranker {
         self.kpe.run(sequence).map_err(Into::into)
     }
 
-    /// Ranks the given documents based on the learned user interests.
+    /// Ranks the given documents in descending order based on the learned user interests.
     pub(crate) fn rank(&mut self, documents: &mut [impl Document]) {
         rank(documents, &self.state.user_interests, &self.coi.config);
     }
@@ -198,13 +198,13 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
     if let Ok(score_for_docs) = compute_score_for_docs(documents, user_interests, config) {
         documents.sort_unstable_by(|this, other| {
             nan_safe_f32_cmp(
-                score_for_docs.get(&this.id()).unwrap(),
                 score_for_docs.get(&other.id()).unwrap(),
+                score_for_docs.get(&this.id()).unwrap(),
             )
         });
     } else {
         documents
-            .sort_unstable_by(|this, other| this.date_published().cmp(&other.date_published()));
+            .sort_unstable_by(|this, other| other.date_published().cmp(&this.date_published()));
     }
 }
 
@@ -223,28 +223,28 @@ mod tests {
     #[test]
     fn test_rank() {
         let mut documents = vec![
-            TestDocument::new(0, arr1(&[3., 0., 0.]), "2000-01-01 00:00:03"),
-            TestDocument::new(1, arr1(&[1., 1., 0.]), "2000-01-01 00:00:02"),
-            TestDocument::new(2, arr1(&[1., 0., 0.]), "2000-01-01 00:00:01"),
-            TestDocument::new(3, arr1(&[5., 0., 0.]), "2000-01-01 00:00:00"),
+            TestDocument::new(0, arr1(&[3., 7., 0.]), "2000-01-01 00:00:03"),
+            TestDocument::new(1, arr1(&[1., 0., 0.]), "2000-01-01 00:00:02"),
+            TestDocument::new(2, arr1(&[1., 2., 0.]), "2000-01-01 00:00:01"),
+            TestDocument::new(3, arr1(&[5., 3., 0.]), "2000-01-01 00:00:00"),
         ];
 
         let config = Config::default()
-            .with_min_positive_cois(1)
+            .with_min_positive_cois(2)
             .unwrap()
             .with_min_negative_cois(1)
             .unwrap();
-        let positive = create_pos_cois(&[[1., 0., 0.]]);
-        let negative = create_neg_cois(&[[100., 0., 0.]]);
+        let positive = create_pos_cois(&[[1., 0., 0.], [4., 12., 2.]]);
+        let negative = create_neg_cois(&[[-100., -10., 0.]]);
 
         let user_interests = UserInterests { positive, negative };
 
         rank(&mut documents, &user_interests, &config);
 
-        assert_eq!(documents[0].id(), DocumentId::from_u128(0));
-        assert_eq!(documents[1].id(), DocumentId::from_u128(1));
+        assert_eq!(documents[0].id(), DocumentId::from_u128(1));
+        assert_eq!(documents[1].id(), DocumentId::from_u128(3));
         assert_eq!(documents[2].id(), DocumentId::from_u128(2));
-        assert_eq!(documents[3].id(), DocumentId::from_u128(3));
+        assert_eq!(documents[3].id(), DocumentId::from_u128(0));
     }
 
     #[test]
@@ -259,9 +259,9 @@ mod tests {
 
         rank(&mut documents, &UserInterests::default(), &config);
 
-        assert_eq!(documents[0].id(), DocumentId::from_u128(1));
+        assert_eq!(documents[0].id(), DocumentId::from_u128(0));
         assert_eq!(documents[1].id(), DocumentId::from_u128(2));
-        assert_eq!(documents[2].id(), DocumentId::from_u128(0));
+        assert_eq!(documents[2].id(), DocumentId::from_u128(1));
     }
 
     #[test]
