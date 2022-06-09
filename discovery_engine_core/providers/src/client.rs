@@ -83,9 +83,11 @@ impl CommonQueryParts<'_> {
                 .append_pair("lang", &market.lang_code)
                 .append_pair("countries", &market.country_code);
 
-            if let Some(limit) = market.news_quality_rank_limit() {
-                query.append_pair("to_rank", &limit.to_string());
-            }
+            // `to_rank` filtering is not supported on the API where we're testing the
+            // active search going back to 2020
+            // if let Some(limit) = market.news_quality_rank_limit() {
+            //     query.append_pair("to_rank", &limit.to_string());
+            // }
         }
 
         query
@@ -323,7 +325,6 @@ mod tests {
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("not_sources", "dodo.com,dada.net"))
-            .and(query_param("to_rank", "9000"))
             .and(header("x-api-key", "test-token"))
             .respond_with(tmpl)
             .expect(1)
