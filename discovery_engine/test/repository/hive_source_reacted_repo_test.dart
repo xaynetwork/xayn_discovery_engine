@@ -74,13 +74,13 @@ Future<void> main() async {
 
       final likes = await repo.fetchByReaction(true);
       expect(
-        likes.map((source) => source.value),
+        likes.map((source) => source.source.value),
         containsAll(<String>['sub.example.net', 'example.com']),
       );
 
       final dislikes = await repo.fetchByReaction(false);
       expect(
-        dislikes.map((source) => source.value).toSet(),
+        dislikes.map((source) => source.source.value).toSet(),
         containsAll(<String>['example.org', 'example.net']),
       );
     });
