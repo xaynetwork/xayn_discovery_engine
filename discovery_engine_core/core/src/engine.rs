@@ -256,7 +256,13 @@ where
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
     ) -> Result<Self, Error> {
-        let stack_data = |_| StackData::default();
+        let stack_data = |id| {
+            if id == BreakingNews::id() {
+                StackData::new(5., 1., Vec::new()).unwrap()
+            } else {
+                StackData::default()
+            }
+        };
 
         Self::from_stack_data(
             config,
