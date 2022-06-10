@@ -36,7 +36,6 @@ impl MalformedFilter {
         !article.title.is_empty()
             && !article.source_domain.is_empty()
             && !article.excerpt.is_empty()
-            && Url::parse(&article.media).is_ok()
             && Url::parse(&article.link).is_ok()
     }
 }
@@ -141,34 +140,6 @@ mod tests {
 
         assert_eq!(filtered, [
             "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
-            "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
-        ]);
-    }
-
-    #[test]
-    fn test_filter_media() {
-        let documents: Vec<Document> = vec![];
-        let valid_articles: Vec<Article> =
-            serde_json::from_str(include_str!("../../../test-fixtures/articles-valid.json"))
-                .unwrap();
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
-            "../../../test-fixtures/articles-some-malformed-media-urls.json"
-        ))
-        .unwrap();
-
-        let input: Vec<Article> = valid_articles
-            .iter()
-            .cloned()
-            .chain(malformed_articles.iter().cloned())
-            .collect();
-
-        let result = CommonFilter::apply(&[], documents.as_slice(), input).unwrap();
-        let titles = result.iter().map(|a| &a.title).sorted().collect::<Vec<_>>();
-
-        assert_eq!(titles.as_slice(), [
-            "Jerusalem blanketed in white after rare snowfall",
-            "Mensch mit d\u{00fc}sterer Prognose: \"Kollektiv versagt!\" N\u{00e4}chste Pandemie wird schlimmer als Covid-19",
-            "Olympic champion Lundby laments ski jumping's weight issues",
             "Porsche entwickelt Antrieb, der E-Mobilit\u{00e4}t teilweise \u{00fc}berlegen ist",
         ]);
     }
