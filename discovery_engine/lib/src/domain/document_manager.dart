@@ -22,6 +22,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -36,6 +37,7 @@ import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
     show EngineStateRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/source_reacted_repo.dart';
 
 /// Business logic concerning the management of documents.
 class DocumentManager {
@@ -44,6 +46,7 @@ class DocumentManager {
   final ActiveDocumentDataRepository _activeRepo;
   final EngineStateRepository _engineStateRepo;
   final ChangedDocumentsReporter _changedDocsReporter;
+  final SourceReactedRepository _sourceRepo;
 
   DocumentManager(
     this._engine,
@@ -51,6 +54,7 @@ class DocumentManager {
     this._activeRepo,
     this._engineStateRepo,
     this._changedDocsReporter,
+    this._sourceRepo,
   );
 
   /// Handle the given document client event.
@@ -80,6 +84,21 @@ class DocumentManager {
     final smbertEmbedding = await _activeRepo.smbertEmbeddingById(id);
     if (smbertEmbedding == null) {
       throw StateError('id $id does not have active data attached');
+    }
+
+    // update reacted sources repo if necessary
+    if (userReaction != UserReaction.neutral) {
+      final source = doc.resource.sourceDomain;
+      final like = userReaction == UserReaction.positive;
+      final sourceReacted = await _sourceRepo.fetchBySource(source);
+
+      if (sourceReacted == null) {
+        await _sourceRepo.save(SourceReacted(source, like));
+      } else if (sourceReacted.liked != like) {
+        await _sourceRepo.remove(source);
+      } else {
+        await _sourceRepo.save(sourceReacted..update());
+      }
     }
 
     await _documentRepo.update(doc..userReaction = userReaction);

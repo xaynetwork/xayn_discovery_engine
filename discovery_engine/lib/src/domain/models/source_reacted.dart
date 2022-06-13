@@ -37,4 +37,11 @@ class SourceReacted {
   SourceReacted(this.source, this.liked)
       : weight = liked ? 1 : -1,
         timestamp = DateTime.now().toUtc();
+
+  void update() {
+    timestamp = DateTime.now();
+    if (liked) {
+      weight++;
+    }
+  }
 }

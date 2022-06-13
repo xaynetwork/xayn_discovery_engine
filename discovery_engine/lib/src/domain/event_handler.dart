@@ -92,6 +92,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_
     show HiveEngineStateRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_preference_repo.dart'
     show HiveSourcePreferenceRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_reacted_repo.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
     show DurationAdapter;
 import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_embedding_adapter.dart'
@@ -227,6 +228,7 @@ class EventHandler {
     final activeDataRepository = HiveActiveDocumentDataRepository();
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
+    final sourceReactedRepository = HiveSourceReactedRepository();
     Future<void> clearAiState() async {
       await documentRepository.box.clear();
       await activeDataRepository.box.clear();
@@ -277,6 +279,7 @@ class EventHandler {
       activeDataRepository,
       engineStateRepository,
       _changedDocumentsReporter,
+      sourceReactedRepository,
     );
     _feedManager = FeedManager(
       engine,

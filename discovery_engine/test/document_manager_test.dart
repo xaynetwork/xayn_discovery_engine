@@ -44,6 +44,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_documen
     show HiveDocumentRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
     show HiveEngineStateRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_reacted_repo.dart';
 
 import 'discovery_engine/utils/utils.dart';
 import 'logging.dart' show setupLogging;
@@ -55,6 +56,7 @@ Future<void> main() async {
   late HiveDocumentRepository docRepo;
   late HiveActiveDocumentDataRepository activeRepo;
   late HiveEngineStateRepository engineStateRepo;
+  late HiveSourceReactedRepository sourceReactedRepo;
 
   group('DocumentManager', () {
     final data = ActiveDocumentData(Embedding.fromList([4, 1]));
@@ -93,12 +95,14 @@ Future<void> main() async {
       activeRepo = HiveActiveDocumentDataRepository();
       engineStateRepo = HiveEngineStateRepository();
       changedDocsReporter = ChangedDocumentsReporter();
+      sourceReactedRepo = HiveSourceReactedRepository();
       mgr = DocumentManager(
         engine,
         docRepo,
         activeRepo,
         engineStateRepo,
         changedDocsReporter,
+        sourceReactedRepo,
       );
 
       // doc1 is active & changed, doc2 is neither
