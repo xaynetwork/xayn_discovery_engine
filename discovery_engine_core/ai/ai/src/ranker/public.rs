@@ -53,7 +53,8 @@ impl Ranker {
         self.0.extract_key_phrases(sequence)
     }
 
-    /// Ranks the given documents in descending order based on the learned user interests.
+    /// Ranks the given documents in descending order of relevancy based on the
+    /// learned user interests.
     pub fn rank(&mut self, items: &mut [impl Document]) {
         self.0.rank(items);
     }

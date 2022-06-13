@@ -31,11 +31,12 @@ use crate::{
     },
     embedding::Embedding,
     error::GenericError,
+    nan_safe_f32_cmp_desc,
     ranker::{
         context::{compute_score_for_docs, Error as ContextError},
         document::{Document, UserFeedback},
     },
-    utils::{nan_safe_f32_cmp, serialize_with_version},
+    utils::serialize_with_version,
 };
 
 #[derive(Error, Debug, Display)]
@@ -95,7 +96,8 @@ impl Ranker {
         self.kpe.run(sequence).map_err(Into::into)
     }
 
-    /// Ranks the given documents in descending order based on the learned user interests.
+    /// Ranks the given documents in descending order of relevancy based on the
+    /// learned user interests.
     pub(crate) fn rank(&mut self, documents: &mut [impl Document]) {
         rank(documents, &self.state.user_interests, &self.coi.config);
     }
@@ -197,9 +199,9 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
 
     if let Ok(score_for_docs) = compute_score_for_docs(documents, user_interests, config) {
         documents.sort_unstable_by(|this, other| {
-            nan_safe_f32_cmp(
-                score_for_docs.get(&other.id()).unwrap(),
+            nan_safe_f32_cmp_desc(
                 score_for_docs.get(&this.id()).unwrap(),
+                score_for_docs.get(&other.id()).unwrap(),
             )
         });
     } else {
