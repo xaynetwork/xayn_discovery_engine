@@ -52,7 +52,7 @@ use xayn_discovery_engine_providers::{
     HeadlinesQuery,
     Market,
     NewsQuery,
-    Rank,
+    RankLimit,
     TrendingQuery,
     TrendingTopic as BingTopic,
 };
@@ -557,9 +557,10 @@ where
         let excluded_sources = self.config.excluded_sources.read().await.clone();
         for market in markets.iter() {
             let common = CommonQueryParts {
-                market: Some((market, Rank::Unlimited)),
+                market: Some(market),
                 page_size: scaled_page_size,
                 page: page as usize,
+                rank_limit: RankLimit::Unlimited,
                 excluded_sources: &excluded_sources,
             };
             let query_result = match by {
@@ -629,9 +630,10 @@ where
             });
         let query = NewsQuery {
             common: CommonQueryParts {
-                market: Some((market, Rank::Unlimited)),
+                market: Some(market),
                 page_size: self.core_config.deep_search_max,
                 page: 1,
+                rank_limit: RankLimit::Unlimited,
                 excluded_sources,
             },
             filter,

@@ -25,7 +25,7 @@ use xayn_discovery_engine_providers::{
     CommonQueryParts,
     HeadlinesQuery,
     Market,
-    Rank,
+    RankLimit,
 };
 
 use crate::{
@@ -134,9 +134,10 @@ fn spawn_headlines_request(
         let market = market;
         let query = HeadlinesQuery {
             common: CommonQueryParts {
-                market: Some((&market, Rank::Limited)),
+                market: Some(&market),
                 page_size,
                 page,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &excluded_sources,
             },
             trusted_sources: &[],

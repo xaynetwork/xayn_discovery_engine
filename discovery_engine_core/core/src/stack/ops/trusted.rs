@@ -19,7 +19,14 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
-use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{
+    Article,
+    Client,
+    CommonQueryParts,
+    HeadlinesQuery,
+    Market,
+    RankLimit,
+};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -124,6 +131,7 @@ fn spawn_trusted_request(
                 market: None,
                 page_size,
                 page,
+                rank_limit: RankLimit::Unlimited,
                 excluded_sources: &[],
             },
             trusted_sources: &sources,

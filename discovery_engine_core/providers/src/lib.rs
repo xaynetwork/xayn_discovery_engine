@@ -39,7 +39,7 @@ mod newscatcher;
 
 pub use bing::{TrendingQuery, TrendingTopic};
 pub use clean_query::clean_query;
-pub use client::{Client, CommonQueryParts, Error, HeadlinesQuery, NewsQuery, Query, Rank};
+pub use client::{Client, CommonQueryParts, Error, HeadlinesQuery, NewsQuery, Query, RankLimit};
 pub use filter::{Filter, Market};
 pub use newscatcher::{Article, Response, Topic};
 

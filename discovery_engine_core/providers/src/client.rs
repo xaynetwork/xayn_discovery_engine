@@ -53,22 +53,24 @@ pub trait Query: Seal + Sync {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error>;
 }
 
-/// A flag indicating whether to limit the rank for a market.
-pub enum Rank {
-    Limited,
+/// Page rank limiting strategy.
+pub enum RankLimit {
+    LimitedByMarket,
     Unlimited,
 }
 
 /// Elements shared between various Newscatcher queries.
 pub struct CommonQueryParts<'a> {
-    /// Market of news along with a flag indicating whether to limit the rank for that market.
-    pub market: Option<(&'a Market, Rank)>,
+    /// Market of news.
+    pub market: Option<&'a Market>,
     /// How many articles to return (per page).
     pub page_size: usize,
     /// The number of the page which should be returned.
     ///
     /// Paging starts with `1`.
     pub page: usize,
+    /// Page rank limiting strategy.
+    pub rank_limit: RankLimit,
     /// Exclude given sources.
     pub excluded_sources: &'a [String],
 }
@@ -81,12 +83,13 @@ impl CommonQueryParts<'_> {
 
         let query = &mut url.query_pairs_mut();
 
-        if let Some((market, rank)) = &self.market {
+        if let Some(market) = &self.market {
             query
                 .append_pair("lang", &market.lang_code)
                 .append_pair("countries", &market.country_code);
 
-            if let (Rank::Limited, Some(limit)) = (rank, market.news_quality_rank_limit()) {
+            let rank_limit = (&self.rank_limit, market.news_quality_rank_limit());
+            if let (RankLimit::LimitedByMarket, Some(limit)) = rank_limit {
                 query.append_pair("to_rank", &limit.to_string());
             }
         }
@@ -291,9 +294,10 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some((market, Rank::Limited)),
+                market: Some(market),
                 page_size: 2,
                 page: 1,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &[],
             },
             filter,
@@ -340,9 +344,10 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some((market, Rank::Limited)),
+                market: Some(market),
                 page_size: 2,
                 page: 1,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &["dodo.com".into(), "dada.net".into()],
             },
             filter,
@@ -392,9 +397,10 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some((&market, Rank::Limited)),
+                market: Some(market),
                 page_size: 2,
                 page: 1,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &[],
             },
             filter,
@@ -440,9 +446,10 @@ mod tests {
         let trusted_sources = &["dodo.com".into(), "dada.net".into()];
         let params = HeadlinesQuery {
             common: CommonQueryParts {
-                market: Some((&market, Rank::Limited)),
+                market: Some(&market),
                 page_size: 2,
                 page: 1,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &[],
             },
             trusted_sources,
@@ -492,9 +499,10 @@ mod tests {
 
         let params = NewsQuery {
             common: CommonQueryParts {
-                market: Some((&market, Rank::Unlimited)),
+                market: Some(&market),
                 page_size: 2,
                 page: 1,
+                rank_limit: RankLimit::Unlimited,
                 excluded_sources: &[],
             },
             filter,

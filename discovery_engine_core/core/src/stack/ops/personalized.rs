@@ -26,7 +26,7 @@ use xayn_discovery_engine_providers::{
     Filter,
     Market,
     NewsQuery,
-    Rank,
+    RankLimit,
 };
 
 use crate::{
@@ -140,9 +140,10 @@ fn spawn_news_request(
         let market = market;
         let query = NewsQuery {
             common: CommonQueryParts {
-                market: Some((&market, Rank::Limited)),
+                market: Some(&market),
                 page_size,
                 page,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &excluded_sources,
             },
             filter,
