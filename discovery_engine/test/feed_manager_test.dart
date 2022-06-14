@@ -16,11 +16,7 @@ import 'dart:io' show Directory;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show
-        ClientEventSucceeded,
-        ExcludedSourcesListRequestSucceeded,
-        TrustedSourcesListRequestSucceeded;
+import 'package:xayn_discovery_engine/src/api/api.dart' hide Document;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
@@ -35,8 +31,6 @@ import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show mockedAvailableSources, Source;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
@@ -230,8 +224,8 @@ Future<void> main() async {
       final response1 = await mgr.addExcludedSource(Source('test1.local'));
       final response2 = await mgr.addExcludedSource(Source('test2.local'));
 
-      expect(response1, isA<ClientEventSucceeded>());
-      expect(response2, isA<ClientEventSucceeded>());
+      expect(response1, isA<AddExcludedSourceRequestSucceeded>());
+      expect(response2, isA<AddExcludedSourceRequestSucceeded>());
 
       final content = await mgr.getExcludedSourcesList();
       expect(content, isA<ExcludedSourcesListRequestSucceeded>());
@@ -245,8 +239,8 @@ Future<void> main() async {
       final response1 = await mgr.addTrustedSource(Source('test3.local'));
       final response2 = await mgr.addTrustedSource(Source('test4.local'));
 
-      expect(response1, isA<ClientEventSucceeded>());
-      expect(response2, isA<ClientEventSucceeded>());
+      expect(response1, isA<AddTrustedSourceRequestSucceeded>());
+      expect(response2, isA<AddTrustedSourceRequestSucceeded>());
 
       final content = await mgr.getTrustedSourcesList();
       expect(content, isA<TrustedSourcesListRequestSucceeded>());
@@ -261,7 +255,7 @@ Future<void> main() async {
       await mgr.addExcludedSource(Source('test2.local'));
 
       final response = await mgr.removeExcludedSource(Source('test1.local'));
-      expect(response, isA<ClientEventSucceeded>());
+      expect(response, isA<RemoveExcludedSourceRequestSucceeded>());
 
       final content = await mgr.getExcludedSourcesList();
       expect(content, isA<ExcludedSourcesListRequestSucceeded>());
@@ -276,7 +270,7 @@ Future<void> main() async {
       await mgr.addTrustedSource(Source('test6.local'));
 
       final response = await mgr.removeTrustedSource(Source('test5.local'));
-      expect(response, isA<ClientEventSucceeded>());
+      expect(response, isA<RemoveTrustedSourceRequestSucceeded>());
 
       final content = await mgr.getTrustedSourcesList();
       expect(content, isA<TrustedSourcesListRequestSucceeded>());
@@ -317,8 +311,8 @@ Future<void> main() async {
         () async {
       final response1 = await mgr.addTrustedSource(Source('example.com'));
       final response2 = await mgr.addExcludedSource(Source('example.com'));
-      expect(response1, isA<ClientEventSucceeded>());
-      expect(response2, isA<ClientEventSucceeded>());
+      expect(response1, isA<AddTrustedSourceRequestSucceeded>());
+      expect(response2, isA<AddExcludedSourceRequestSucceeded>());
 
       var response = await mgr.getExcludedSourcesList();
       expect(response, isA<ExcludedSourcesListRequestSucceeded>());

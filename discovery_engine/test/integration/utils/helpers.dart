@@ -14,6 +14,7 @@
 
 import 'dart:io' show Directory, Link;
 
+import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
         Configuration,
@@ -78,4 +79,9 @@ Future<DiscoveryEngine> initEngine(
   return DiscoveryEngine.init(
     configuration: createConfig(data, serverPort),
   );
+}
+
+T expectEvent<T>(Object event) {
+  expect(event, isA<T>());
+  return event as T;
 }

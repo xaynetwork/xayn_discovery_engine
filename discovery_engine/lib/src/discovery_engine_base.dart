@@ -251,7 +251,7 @@ class DiscoveryEngine {
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        clientEventSucceeded: true,
+        addExcludedSourceRequestSucceeded: true,
         engineExceptionRaised: true,
       );
     });
@@ -269,7 +269,7 @@ class DiscoveryEngine {
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        clientEventSucceeded: true,
+        removeExcludedSourceRequestSucceeded: true,
         engineExceptionRaised: true,
       );
     });
@@ -291,6 +291,43 @@ class DiscoveryEngine {
       return response.mapEvent(
         excludedSourcesListRequestSucceeded: true,
         excludedSourcesListRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  Future<EngineEvent> addSourceToTrustedList(Source source) {
+    return _trySend(() async {
+      final event = ClientEvent.trustedSourceAdded(source);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        addTrustedSourceRequestSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  Future<EngineEvent> removeSourceFromTrustedList(Source source) {
+    return _trySend(() async {
+      final event = ClientEvent.trustedSourceRemoved(source);
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        removeTrustedSourceRequestSucceeded: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  Future<EngineEvent> getTrustedSourcesList() {
+    return _trySend(() async {
+      const event = ClientEvent.trustedSourcesListRequested();
+      final response = await _manager.send(event);
+
+      return response.mapEvent(
+        trustedSourcesListRequestSucceeded: true,
+        trustedSourcesListRequestFailed: true,
         engineExceptionRaised: true,
       );
     });
@@ -597,8 +634,14 @@ extension _MapEvent on EngineEvent {
     bool? nextFeedBatchRequestSucceeded,
     bool? nextFeedBatchRequestFailed,
     bool? nextFeedBatchAvailable,
+    bool? addExcludedSourceRequestSucceeded,
+    bool? removeExcludedSourceRequestSucceeded,
     bool? excludedSourcesListRequestSucceeded,
     bool? excludedSourcesListRequestFailed,
+    bool? addTrustedSourceRequestSucceeded,
+    bool? removeTrustedSourceRequestSucceeded,
+    bool? trustedSourcesListRequestSucceeded,
+    bool? trustedSourcesListRequestFailed,
     bool? fetchingAssetsStarted,
     bool? fetchingAssetsProgressed,
     bool? fetchingAssetsFinished,
@@ -618,8 +661,6 @@ extension _MapEvent on EngineEvent {
     bool? deepSearchRequestFailed,
     bool? trendingTopicsRequestSucceeded,
     bool? trendingTopicsRequestFailed,
-    bool? trustedSourcesListRequestSucceeded,
-    bool? trustedSourcesListRequestFailed,
     bool? availableSourcesListRequestSucceeded,
     bool? availableSourcesListRequestFailed,
   }) =>
@@ -631,10 +672,22 @@ extension _MapEvent on EngineEvent {
         nextFeedBatchRequestFailed:
             _maybePassThrough(nextFeedBatchRequestFailed),
         nextFeedBatchAvailable: _maybePassThrough(nextFeedBatchAvailable),
+        addExcludedSourceRequestSucceeded:
+            _maybePassThrough(addExcludedSourceRequestSucceeded),
+        removeExcludedSourceRequestSucceeded:
+            _maybePassThrough(removeExcludedSourceRequestSucceeded),
         excludedSourcesListRequestSucceeded:
             _maybePassThrough(excludedSourcesListRequestSucceeded),
         excludedSourcesListRequestFailed:
             _maybePassThrough(excludedSourcesListRequestFailed),
+        addTrustedSourceRequestSucceeded:
+            _maybePassThrough(addTrustedSourceRequestSucceeded),
+        removeTrustedSourceRequestSucceeded:
+            _maybePassThrough(removeTrustedSourceRequestSucceeded),
+        trustedSourcesListRequestSucceeded:
+            _maybePassThrough(trustedSourcesListRequestSucceeded),
+        trustedSourcesListRequestFailed:
+            _maybePassThrough(trustedSourcesListRequestFailed),
         fetchingAssetsStarted: _maybePassThrough(fetchingAssetsStarted),
         fetchingAssetsProgressed: _maybePassThrough(fetchingAssetsProgressed),
         fetchingAssetsFinished: _maybePassThrough(fetchingAssetsFinished),
@@ -663,10 +716,6 @@ extension _MapEvent on EngineEvent {
             _maybePassThrough(trendingTopicsRequestSucceeded),
         trendingTopicsRequestFailed:
             _maybePassThrough(trendingTopicsRequestFailed),
-        trustedSourcesListRequestSucceeded:
-            _maybePassThrough(trustedSourcesListRequestSucceeded),
-        trustedSourcesListRequestFailed:
-            _maybePassThrough(trustedSourcesListRequestFailed),
         availableSourcesListRequestSucceeded:
             _maybePassThrough(availableSourcesListRequestSucceeded),
         availableSourcesListRequestFailed:

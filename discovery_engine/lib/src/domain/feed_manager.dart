@@ -169,7 +169,7 @@ class FeedManager {
     await _sourcePreferenceRepository.save(pref);
 
     await _updateEngineSourcesOnAdd();
-    return const EngineEvent.clientEventSucceeded();
+    return EngineEvent.addExcludedSourceRequestSucceeded(source);
   }
 
   /// Removes a source to excluded sources set.
@@ -179,7 +179,7 @@ class FeedManager {
     final history = await _docRepo.fetchHistory();
     final sources = await _sourcePreferenceRepository.getExcluded();
     await _engine.setExcludedSources(history, sources);
-    return const EngineEvent.clientEventSucceeded();
+    return EngineEvent.removeExcludedSourceRequestSucceeded(source);
   }
 
   /// Returns excluded sources.
@@ -193,7 +193,7 @@ class FeedManager {
     await _sourcePreferenceRepository.save(pref);
 
     await _updateEngineSourcesOnAdd();
-    return const EngineEvent.clientEventSucceeded();
+    return EngineEvent.addTrustedSourceRequestSucceeded(source);
   }
 
   Future<EngineEvent> removeTrustedSource(Source source) async {
@@ -202,7 +202,7 @@ class FeedManager {
     final history = await _docRepo.fetchHistory();
     final sources = await _sourcePreferenceRepository.getTrusted();
     await _engine.setTrustedSources(history, sources);
-    return const EngineEvent.clientEventSucceeded();
+    return EngineEvent.removeTrustedSourceRequestSucceeded(source);
   }
 
   Future<EngineEvent> getTrustedSourcesList() async {
