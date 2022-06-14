@@ -26,6 +26,7 @@ use xayn_discovery_engine_providers::{
     Filter,
     Market,
     NewsQuery,
+    RankLimit,
 };
 
 use crate::{
@@ -142,6 +143,7 @@ fn spawn_news_request(
                 market: Some(&market),
                 page_size,
                 page,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &excluded_sources,
             },
             filter,

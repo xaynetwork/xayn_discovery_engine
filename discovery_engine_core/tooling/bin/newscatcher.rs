@@ -31,7 +31,13 @@
 )]
 
 use anyhow::{Context, Result};
-use xayn_discovery_engine_providers::{Client, CommonQueryParts, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{
+    Client,
+    CommonQueryParts,
+    HeadlinesQuery,
+    Market,
+    RankLimit,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -62,6 +68,7 @@ async fn main() -> Result<()> {
                 market: Some(&market),
                 page_size: 100,
                 page,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &[],
             },
             trusted_sources: &[],

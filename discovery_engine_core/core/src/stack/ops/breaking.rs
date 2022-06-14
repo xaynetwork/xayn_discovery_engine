@@ -19,7 +19,14 @@ use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
-use xayn_discovery_engine_providers::{Article, Client, CommonQueryParts, HeadlinesQuery, Market};
+use xayn_discovery_engine_providers::{
+    Article,
+    Client,
+    CommonQueryParts,
+    HeadlinesQuery,
+    Market,
+    RankLimit,
+};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -130,6 +137,7 @@ fn spawn_headlines_request(
                 market: Some(&market),
                 page_size,
                 page,
+                rank_limit: RankLimit::LimitedByMarket,
                 excluded_sources: &excluded_sources,
             },
             trusted_sources: &[],

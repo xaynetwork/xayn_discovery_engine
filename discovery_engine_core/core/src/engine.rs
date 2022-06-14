@@ -52,6 +52,7 @@ use xayn_discovery_engine_providers::{
     HeadlinesQuery,
     Market,
     NewsQuery,
+    RankLimit,
     TrendingQuery,
     TrendingTopic as BingTopic,
 };
@@ -559,6 +560,7 @@ where
                 market: Some(market),
                 page_size: scaled_page_size,
                 page: page as usize,
+                rank_limit: RankLimit::Unlimited,
                 excluded_sources: &excluded_sources,
             };
             let query_result = match by {
@@ -631,6 +633,7 @@ where
                 market: Some(market),
                 page_size: self.core_config.deep_search_max,
                 page: 1,
+                rank_limit: RankLimit::Unlimited,
                 excluded_sources,
             },
             filter,
