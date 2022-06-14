@@ -21,7 +21,7 @@ mod system;
 #[cfg(test)]
 pub(crate) use self::point::tests::{create_neg_cois, create_pos_cois};
 pub(crate) use point::find_closest_coi;
-pub(crate) use stats::{compute_coi_decay_factor, compute_coi_relevances};
+pub(crate) use stats::{compute_coi_decay_factor};
 pub(crate) use system::CoiSystem;
 
 use derive_more::From;

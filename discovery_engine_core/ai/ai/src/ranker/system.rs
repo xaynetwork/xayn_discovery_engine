@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use displaydoc::Display;
 
-use itertools::Itertools;
+// use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use xayn_discovery_engine_bert::SMBert;
@@ -159,7 +159,7 @@ impl Ranker {
             UserFeedback::NotGiven => {}
         };
 
-        tracing::error!("NEGATIVE: {:?}", self.state.user_interests.negative);
+        // tracing::error!("NEGATIVE: {:?}", self.state.user_interests.negative);
     }
 
     /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
@@ -206,8 +206,8 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
             )
         });
 
-        let docs = documents.iter().rev().map(|doc| doc.id()).collect_vec();
-        tracing::error!("docs {:?}", docs);
+        // let docs = documents.iter().rev().map(|doc| doc.id()).collect_vec();
+        // tracing::error!("docs {:?}", docs);
     } else {
         documents
             .sort_unstable_by(|this, other| this.date_published().cmp(&other.date_published()));

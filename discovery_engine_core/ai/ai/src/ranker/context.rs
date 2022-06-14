@@ -23,7 +23,6 @@ use thiserror::Error;
 use crate::{
     coi::{
         compute_coi_decay_factor,
-        compute_coi_relevances,
         config::Config,
         find_closest_coi,
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
@@ -46,7 +45,7 @@ pub(crate) enum Error {
 
 struct ClosestPositiveCoi {
     /// The ID of the closest positive centre of interest
-    id: CoiId,
+    _id: CoiId,
     /// Similarity to the closest positive centre of interest
     similarity: f32,
     last_view: SystemTime,
@@ -59,7 +58,7 @@ impl ClosestPositiveCoi {
     ) -> Result<Option<Self>, Error> {
         let this = find_closest_coi(positive_user_interests, embedding).map(|(coi, similarity)| {
             ClosestPositiveCoi {
-                id: coi.id(),
+                _id: coi.id(),
                 similarity,
                 last_view: coi.stats.last_view,
             }
