@@ -140,7 +140,7 @@ impl Stack {
             .map_err(Error::Merge)?;
         ranker.rank(&mut items).map_err(Error::Ranking)?;
         self.data.documents = items;
-
+        self.data.documents.reverse();
         Ok(())
     }
 
@@ -150,7 +150,9 @@ impl Stack {
     pub(crate) fn rank(&mut self, ranker: &mut impl Ranker) -> Result<(), Error> {
         ranker
             .rank(&mut self.data.documents)
-            .map_err(Error::Ranking)
+            .map_err(Error::Ranking)?;
+        self.data.documents.reverse();
+        Ok(())
     }
 
     /// Updates the relevance of the Stack based on the user feedback.

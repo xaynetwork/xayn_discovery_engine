@@ -58,7 +58,7 @@ pub fn nan_safe_f32_cmp(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp_base(a, b, true)
 }
 
-/// `nan_safe_f32_cmp_desc(a,b)` is syntax suggar for `nan_safe_f32_cmp(b, a)`
+/// `nan_safe_f32_cmp_desc(a,b)` is syntax sugar for `nan_safe_f32_cmp(b, a)`
 #[inline]
 #[allow(clippy::trivially_copy_pass_by_ref)] // required by calling functions
 pub fn nan_safe_f32_cmp_desc(a: &f32, b: &f32) -> Ordering {
