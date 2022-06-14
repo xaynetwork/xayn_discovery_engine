@@ -74,18 +74,22 @@ impl ClosestPositiveCoi {
 
     fn score(
         &self,
-        positive_user_interests: &[PositiveCoi],
+        _positive_user_interests: &[PositiveCoi],
         horizon: Duration,
         now: SystemTime,
     ) -> f32 {
         let decay = compute_coi_decay_factor(horizon, now, self.last_view);
+        /*
         let index = positive_user_interests
             .iter()
             .position(|coi| coi.id() == self.id)
             .unwrap();
-        let relevance = compute_coi_relevances(positive_user_interests, horizon, now)[index];
+        */
+        // let relevance = compute_coi_relevances(positive_user_interests, horizon, now)[index];
 
-        self.similarity * decay + relevance
+        // tracing::error!("POSITIVE similarity: {}, decay: {decay}, relevance: {relevance}", self.similarity);
+
+        self.similarity * decay // + relevance
     }
 }
 
@@ -116,6 +120,8 @@ impl ClosestNegativeCoi {
 
     fn score(&self, horizon: Duration, now: SystemTime) -> f32 {
         let decay = compute_coi_decay_factor(horizon, now, self.last_view);
+
+        tracing::error!("NEGATIVE similarity: {}, decay: {decay}", self.similarity);
 
         self.similarity * decay
     }
@@ -204,6 +210,9 @@ pub(super) fn compute_score_for_docs(
                 config.horizon(),
                 now,
             )?;
+
+            tracing::error!("DOC: {} -> {}", document.id(), score);
+
             Ok((document.id(), score))
         })
         .collect()
