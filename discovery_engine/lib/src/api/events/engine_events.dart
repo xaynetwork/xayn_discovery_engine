@@ -131,6 +131,26 @@ class EngineEvent with _$EngineEvent {
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.nextFeedBatchAvailable() = NextFeedBatchAvailable;
 
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.addExcludedSourceRequestSucceeded(
+    Source source,
+  ) = AddExcludedSourceRequestSucceeded;
+
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.removeExcludedSourceRequestSucceeded(
+    Source source,
+  ) = RemoveExcludedSourceRequestSucceeded;
+
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.addTrustedSourceRequestSucceeded(
+    Source source,
+  ) = AddTrustedSourceRequestSucceeded;
+
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.removeTrustedSourceRequestSucceeded(
+    Source source,
+  ) = RemoveTrustedSourceRequestSucceeded;
+
   /// Event created as a success response to ExcludedSourcesListRequested event.
   /// Passes a set of [Uri] of excluded sources back to the client.
   @Implements<FeedEngineEvent>()

@@ -17,18 +17,18 @@ import 'dart:io' show Directory;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
-        ClientEventSucceeded,
         DiscoveryEngine,
         ExcludedSourcesListRequestSucceeded,
         FeedFailureReason,
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded;
+import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
-    show TestEngineData, initEngine, setupTestEngineData;
+    show TestEngineData, initEngine, setupTestEngineData, expectEvent;
 import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 
 void main() {
@@ -40,6 +40,7 @@ void main() {
     late DiscoveryEngine engine;
 
     final exclude = Source('example.com');
+    final trusted = Source('xayn.com');
 
     setUp(() async {
       server = await LocalNewsApiServer.start();
@@ -54,22 +55,19 @@ void main() {
     });
 
     test('addSourceToExcludedList adds excluded source', () async {
-      var response = await engine.addSourceToExcludedList(exclude);
-      expect(response, isA<ClientEventSucceeded>());
-
-      final excluded = await engine.getExcludedSourcesList();
-      expect(excluded, isA<ExcludedSourcesListRequestSucceeded>());
-      expect(
-        (excluded as ExcludedSourcesListRequestSucceeded).excludedSources,
-        equals({exclude}),
+      expectEvent<AddExcludedSourceRequestSucceeded>(
+        await engine.addSourceToExcludedList(exclude),
       );
 
-      response = await engine.requestNextFeedBatch();
-      expect(response, isA<NextFeedBatchRequestFailed>());
-      expect(
-        (response as NextFeedBatchRequestFailed).reason,
-        FeedFailureReason.noNewsForMarket,
+      final listResponse = expectEvent<ExcludedSourcesListRequestSucceeded>(
+        await engine.getExcludedSourcesList(),
       );
+      expect(listResponse.excludedSources, equals({exclude}));
+
+      final nextBatchResponse = expectEvent<NextFeedBatchRequestFailed>(
+        await engine.requestNextFeedBatch(),
+      );
+      expect(nextBatchResponse.reason, FeedFailureReason.noNewsForMarket);
 
       expect(
         server.lastUri?.queryParameters['not_sources'],
@@ -79,29 +77,28 @@ void main() {
 
     test('removeSourceFromExcludedList removes the added excluded source',
         () async {
-      var response = await engine.addSourceToExcludedList(exclude);
-      expect(response, isA<ClientEventSucceeded>());
-
-      var excluded = await engine.getExcludedSourcesList();
-      expect(excluded, isA<ExcludedSourcesListRequestSucceeded>());
-      expect(
-        (excluded as ExcludedSourcesListRequestSucceeded).excludedSources,
-        equals({exclude}),
+      expectEvent<AddExcludedSourceRequestSucceeded>(
+        await engine.addSourceToExcludedList(exclude),
       );
 
-      response = await engine.removeSourceFromExcludedList(exclude);
-      expect(response, isA<ClientEventSucceeded>());
+      var listResponse = expectEvent<ExcludedSourcesListRequestSucceeded>(
+        await engine.getExcludedSourcesList(),
+      );
+      expect(listResponse.excludedSources, equals({exclude}));
 
-      excluded = await engine.getExcludedSourcesList();
-      expect(excluded, isA<ExcludedSourcesListRequestSucceeded>());
-      expect(
-        (excluded as ExcludedSourcesListRequestSucceeded).excludedSources,
-        isEmpty,
+      expectEvent<RemoveExcludedSourceRequestSucceeded>(
+        await engine.removeSourceFromExcludedList(exclude),
       );
 
-      response = await engine.requestNextFeedBatch();
-      expect(response, isA<NextFeedBatchRequestSucceeded>());
-      expect((response as NextFeedBatchRequestSucceeded).items, isNotEmpty);
+      listResponse = expectEvent<ExcludedSourcesListRequestSucceeded>(
+        await engine.getExcludedSourcesList(),
+      );
+      expect(listResponse.excludedSources, isEmpty);
+
+      final nextBatchResponse = expectEvent<NextFeedBatchRequestSucceeded>(
+        await engine.requestNextFeedBatch(),
+      );
+      expect(nextBatchResponse.items, isNotEmpty);
 
       expect(server.lastUri, isNotNull);
       expect(
@@ -111,13 +108,58 @@ void main() {
     });
 
     test('non-existent excluded source should have no effect', () async {
-      var response =
-          await engine.addSourceToExcludedList(Source('example.org'));
-      expect(response, isA<ClientEventSucceeded>());
+      expectEvent<AddExcludedSourceRequestSucceeded>(
+        await engine.addSourceToExcludedList(Source('example.org')),
+      );
 
-      response = await engine.requestNextFeedBatch();
-      expect(response, isA<NextFeedBatchRequestSucceeded>());
-      expect((response as NextFeedBatchRequestSucceeded).items, isNotEmpty);
+      final nextBatchResponse = expectEvent<NextFeedBatchRequestSucceeded>(
+        await engine.requestNextFeedBatch(),
+      );
+      expect(nextBatchResponse.items, isNotEmpty);
+    });
+
+    test('addSourceToTrustedList adds trusted source', () async {
+      final addResponse = expectEvent<AddTrustedSourceRequestSucceeded>(
+        await engine.addSourceToTrustedList(trusted),
+      );
+      expect(addResponse.source, equals(trusted));
+
+      final listResponse = expectEvent<TrustedSourcesListRequestSucceeded>(
+        await engine.getTrustedSourcesList(),
+      );
+      expect(listResponse.sources, equals({trusted}));
+    });
+
+    test('removeSourceFromTrustedList removes the added trusted source',
+        () async {
+      final someSource = Source('example.com');
+
+      expectEvent<AddTrustedSourceRequestSucceeded>(
+        await engine.addSourceToTrustedList(trusted),
+      );
+      expectEvent<AddTrustedSourceRequestSucceeded>(
+        await engine.addSourceToTrustedList(someSource),
+      );
+
+      var listResponse = expectEvent<TrustedSourcesListRequestSucceeded>(
+        await engine.getTrustedSourcesList(),
+      );
+      expect(
+        listResponse.sources,
+        equals({trusted, someSource}),
+      );
+      final removeResponse = expectEvent<RemoveTrustedSourceRequestSucceeded>(
+        await engine.removeSourceFromTrustedList(trusted),
+      );
+      expect(removeResponse.source, equals(trusted));
+
+      listResponse = expectEvent<TrustedSourcesListRequestSucceeded>(
+        await engine.getTrustedSourcesList(),
+      );
+      expect(
+        listResponse.sources,
+        equals({someSource}),
+      );
     });
   });
 }
