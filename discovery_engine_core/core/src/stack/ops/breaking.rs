@@ -17,6 +17,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use itertools::chain;
 use tokio::{sync::RwLock, task::JoinHandle};
+use tracing::Instrument;
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
@@ -139,6 +140,10 @@ fn spawn_headlines_request(
             topic: None,
             when: DEFAULT_WHEN,
         };
-        client.query_articles(&query).await.map_err(Into::into)
+        client
+            .query_articles(&query)
+            .instrument(tracing::info_span!("breaking news request"))
+            .await
+            .map_err(Into::into)
     })
 }
