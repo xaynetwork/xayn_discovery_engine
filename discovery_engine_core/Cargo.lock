@@ -3496,7 +3496,6 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "figment",
- "float-cmp",
  "futures",
  "itertools",
  "kodama",
