@@ -10,7 +10,7 @@ jobs:
       image: xaynetci/yellow:v3
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
 
       - name: Setup the CI.
         uses: ./.github/actions/setup-job-docker
@@ -26,7 +26,7 @@ jobs:
       image: xaynetci/yellow:v3
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
@@ -43,7 +43,7 @@ jobs:
       image: xaynetci/yellow:v3
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
@@ -62,7 +62,7 @@ jobs:
       image: xaynetci/yellow:v3
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
