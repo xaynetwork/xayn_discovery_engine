@@ -13,7 +13,7 @@ ndarray = { version = "=0.15.3", features = ["serde"] }
 rayon = "1.5.3"
 serde = { version = "1.0.137", features = ["derive"] }
 thiserror = "1.0.31"
-tract-onnx = "0.16.1"
+tract-onnx = "0.17.0"
 xayn-discovery-engine-tokenizer = { path = "../tokenizer" }
 
 # dev-dependencies which don't work for aarch targets
