@@ -19,10 +19,19 @@ import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart'
 /// [SourceReacted] repository interface.
 abstract class SourceReactedRepository {
   /// Fetch by matching source.
+  /// Returns null if no matching source found.
   Future<SourceReacted?> fetchBySource(Source source);
 
   /// Fetch sources of documents with the given reaction.
   Future<List<SourceReacted>> fetchByReaction(bool like);
+
+  /// Fetch liked source with minimum weight.
+  /// Returns null if repository is empty.
+  Future<SourceReacted?> fetchMinWeightLiked();
+
+  /// Fetch disliked source with oldest timestamp.
+  /// Returns null if repository is empty.
+  Future<SourceReacted?> fetchOldestDisliked();
 
   /// Save [SourceReacted] to the repository.
   Future<void> save(SourceReacted source);

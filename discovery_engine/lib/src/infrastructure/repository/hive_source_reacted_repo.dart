@@ -34,6 +34,27 @@ class HiveSourceReactedRepository implements SourceReactedRepository {
       box.values.where((source) => source.liked == like).toList();
 
   @override
+  Future<SourceReacted?> fetchMinWeightLiked() async {
+    final likes = box.values.where((source) => source.liked);
+    if (likes.isEmpty) return null;
+
+    return likes.reduce(
+      (lightest, source) => source.weight < lightest.weight ? source : lightest,
+    );
+  }
+
+  @override
+  Future<SourceReacted?> fetchOldestDisliked() async {
+    final dislikes = box.values.where((source) => !source.liked);
+    if (dislikes.isEmpty) return null;
+
+    return dislikes.reduce(
+      (oldest, source) =>
+          source.timestamp.isBefore(oldest.timestamp) ? source : oldest,
+    );
+  }
+
+  @override
   Future<void> save(SourceReacted source) =>
       box.put(source.source.value, source);
 
