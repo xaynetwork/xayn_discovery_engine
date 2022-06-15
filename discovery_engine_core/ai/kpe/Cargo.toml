@@ -14,7 +14,7 @@ tract-onnx = "0.16.1"
 tracing = "0.1.34"
 xayn-discovery-engine-layer = { path = "../layer" }
 xayn-discovery-engine-tokenizer = { path = "../tokenizer" }
-onnxruntime = { git = "https://github.com/xaynetwork/onnxruntime-rs", branch = "android" }
+onnxruntime = { git = "https://github.com/xaynetwork/onnxruntime-rs", branch = "android-and-ios" }
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["html_reports"] }

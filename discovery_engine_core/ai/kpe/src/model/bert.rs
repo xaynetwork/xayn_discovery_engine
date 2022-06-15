@@ -68,6 +68,8 @@ impl Bert {
 
         // #[cfg(all(target_os = "android", target_arch = "aarch64"))]
         // let session = session.with_nnapi().unwrap();
+        // #[cfg(all(target_os = "ios", target_arch = "aarch64"))]
+        // let session = session.with_coreml().unwrap();
         let session = session.with_model_from_file(model.as_ref()).unwrap();
 
         Ok(Bert {

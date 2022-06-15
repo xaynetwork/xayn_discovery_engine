@@ -268,7 +268,10 @@ compile-ios-ci target prod_flag="\"\"": _codegen-order-workaround
     set -eu
     if [[ {{prod_flag}} == "--prod" ]]; then
         RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-ios {{target}}
-        strip -S -x -r "$RUST_WORKSPACE/target/{{target}}/release/${IOS_LIB_BASE}.a"
+        TARGET={{target}}
+        cp "$RUST_WORKSPACE/target/$TARGET/release/${IOS_LIB_BASE}.a" "$FLUTTER_WORKSPACE/ios/${IOS_LIB_BASE}_${TARGET}.a"
+        echo "Don't forget to copy the libonnxruntime.a in target/aarch64-apple-ios/release/build/onnxruntime-sys-xxxx/out/onnxruntime-download/lib to discovery_engine_flutter/ios/onnxruntime"
+        # strip -S -x -r "$RUST_WORKSPACE/target/{{target}}/release/${IOS_LIB_BASE}.a" strip not working anymore?
     else
         {{just_executable()}} _compile-ios {{target}}
     fi

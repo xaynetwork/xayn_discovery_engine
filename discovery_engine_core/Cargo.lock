@@ -1587,7 +1587,7 @@ checksum = "7709cef83f0c1f58f666e746a08b21e0085f7440fa6a29cc194d68aac97a4225"
 [[package]]
 name = "onnxruntime"
 version = "0.0.14"
-source = "git+https://github.com/xaynetwork/onnxruntime-rs?branch=android#cbe6dc0b41213e9eaddf749898de9766a511efdd"
+source = "git+https://github.com/xaynetwork/onnxruntime-rs?branch=android-and-ios#7e3bb8455c9e461b58d4bb1149b88e47e0f432c7"
 dependencies = [
  "lazy_static",
  "libc",
@@ -1600,7 +1600,7 @@ dependencies = [
 [[package]]
 name = "onnxruntime-sys"
 version = "0.0.14"
-source = "git+https://github.com/xaynetwork/onnxruntime-rs?branch=android#cbe6dc0b41213e9eaddf749898de9766a511efdd"
+source = "git+https://github.com/xaynetwork/onnxruntime-rs?branch=android-and-ios#7e3bb8455c9e461b58d4bb1149b88e47e0f432c7"
 dependencies = [
  "flate2",
  "git2",

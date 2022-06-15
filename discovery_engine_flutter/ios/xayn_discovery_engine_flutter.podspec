@@ -15,7 +15,7 @@ Xayn Discovery Engine flutter plugin project.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.platform = :ios, '9.0'
+  s.platform = :ios, '13.0'
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = {
@@ -24,7 +24,10 @@ Xayn Discovery Engine flutter plugin project.
     # Forces loading the binaries
     'OTHER_LDFLAGS' =>
     ' -force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_x86_64-apple-ios.a"'\
-    ' -force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_aarch64-apple-ios.a"'
+    ' -force_load "${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/libxayn_discovery_engine_bindings_aarch64-apple-ios.a"'\
+    ' -L"${PODS_ROOT}/../.symlinks/plugins/xayn_discovery_engine_flutter/ios/onnxruntime"'
   }
+  s.ios.framework = 'CoreML'
+  s.ios.library = 'c++'
   s.swift_version = '5.0'
 end
