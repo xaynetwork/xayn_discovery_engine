@@ -3,15 +3,15 @@ set dotenv-load := true
 set shell := ["bash", "-uc"]
 
 # If CI is set and add rust flags
-export RUSTFLAGS := if env_var_or_default("CI", "false") == "true" {
+export RUSTFLAGS := if env_var_or_default("CI", "false") == "true" && env_var_or_default("DENY_WARNINGS", "true") == "true" {
     trim(env_var_or_default("RUSTFLAGS", "") + " -D warnings")
 } else {
     env_var_or_default("RUSTFLAGS", "")
 }
-export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
-    trim(env_var_or_default("RUSTFLAGS", "") + " -D warnings")
+export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" && env_var_or_default("DENY_WARNINGS", "true") == "true" {
+    trim(env_var_or_default("RUSTDOCFLAGS", "") + " -D warnings")
 } else {
-    env_var_or_default("RUSTFLAGS", "")
+    env_var_or_default("RUSTDOCFLAGS", "")
 }
 
 # Runs just --list
