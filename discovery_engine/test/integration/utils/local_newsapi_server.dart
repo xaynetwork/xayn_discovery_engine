@@ -33,6 +33,7 @@ enum ReplyWith {
   error,
   empty,
   data,
+  data2,
 }
 
 class LocalNewsApiServer {
@@ -74,6 +75,15 @@ class LocalNewsApiServer {
             default:
               _replyWithError(request);
               break;
+          }
+          break;
+        case ReplyWith.data2:
+          switch (request.uri.path) {
+            case '/_sn':
+              await _replyWithData(request, 'msft-vs-aapl.json');
+              break;
+            default:
+              throw Exception('Not supported');
           }
       }
 
