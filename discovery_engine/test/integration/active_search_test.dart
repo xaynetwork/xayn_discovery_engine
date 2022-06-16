@@ -29,7 +29,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart';
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
     show TestEngineData, initEngine, setupTestEngineData;
-import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
+import 'utils/local_newsapi_server.dart' show LocalNewsApiServer, ReplyWith;
 
 void main() {
   setupLogging();
@@ -114,6 +114,37 @@ void main() {
       expect(
         (restoreClosedResponse as RestoreActiveSearchFailed).reason,
         equals(SearchFailureReason.noActiveSearch),
+      );
+    });
+
+    test("request next batch doesn't work when there's no active search",
+        () async {
+      final nextBatchResponse = await engine.requestNextActiveSearchBatch();
+      expect(nextBatchResponse, isA<NextActiveSearchBatchRequestFailed>());
+      expect(
+        (nextBatchResponse as NextActiveSearchBatchRequestFailed).reason,
+        equals(SearchFailureReason.noActiveSearch),
+      );
+    });
+
+    test('request next batch fetches new feed items', () async {
+      // In order to request more items, we first need to initiate one
+      final searchResponse =
+          await engine.requestQuerySearch('some search query');
+      expect(searchResponse, isA<ActiveSearchRequestSucceeded>());
+      final items = (searchResponse as ActiveSearchRequestSucceeded).items;
+      expect(items, isNotEmpty);
+
+      server.replyWith = ReplyWith.data2;
+      final nextBatchResponse = await engine.requestNextActiveSearchBatch();
+      expect(nextBatchResponse, isA<NextActiveSearchBatchRequestSucceeded>());
+      final succeededResponse =
+          nextBatchResponse as NextActiveSearchBatchRequestSucceeded;
+
+      expect(succeededResponse.items, isNotEmpty);
+      expect(
+        succeededResponse.items[0].resource.title,
+        isNot(equals(items[0].resource.title)),
       );
     });
 
