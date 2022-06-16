@@ -6,18 +6,17 @@ on:
 permissions:
   contents: read
 
+env:
+  DENY_WARNINGS: false
+
 jobs:
   build-ios-libs:
     uses: ./.github/workflows/_reusable.build-ios.yml
-    env:
-      DENY_WARNINGS: false
     with:
       production: true
 
   build-android-libs:
     uses: ./.github/workflows/_reusable.build-android.yml
-    env:
-      DENY_WARNINGS: false
     with:
       production: true
 
