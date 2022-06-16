@@ -20,7 +20,7 @@ jobs:
   release:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v2
+      image: xaynetci/yellow:v3
     timeout-minutes: 10
     needs: [build-ios-libs, build-android-libs]
     steps:
