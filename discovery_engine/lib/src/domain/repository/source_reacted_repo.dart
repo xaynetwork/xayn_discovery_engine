@@ -25,12 +25,12 @@ abstract class SourceReactedRepository {
   /// Fetch sources of documents with the given reaction.
   Future<List<SourceReacted>> fetchByReaction(bool like);
 
-  /// Fetch liked source with minimum weight.
-  /// Returns null if repository is empty.
-  Future<SourceReacted?> fetchMinWeightLiked();
+  /// Fetch the liked source with minimum weight.
+  /// Returns null if there are no liked sources.
+  Future<SourceReacted?> fetchLightestLiked();
 
-  /// Fetch disliked source with oldest timestamp.
-  /// Returns null if repository is empty.
+  /// Fetch the disliked source with oldest timestamp.
+  /// Returns null if there are no disliked sources.
   Future<SourceReacted?> fetchOldestDisliked();
 
   /// Save [SourceReacted] to the repository.
