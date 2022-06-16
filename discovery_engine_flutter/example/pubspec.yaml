@@ -6,7 +6,8 @@ description: Demonstrates how to use the xayn_discovery_engine_flutter plugin.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
-  sdk: ">=2.17.3 <3.0.0"
+  sdk: '>=2.17.0 <3.0.0'
+  flutter: '>=3.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -17,7 +18,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  path_provider: 2.0.8
+  path_provider: 2.0.11
   xayn_discovery_engine_flutter:
     # When depending on this package from a real application you should use:
     #   xayn_discovery_engine_flutter: ^x.y.z
@@ -28,12 +29,12 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.2
+  cupertino_icons: ^1.0.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^1.0.0
+  flutter_lints: ^2.0.1
 
 # to use local version of xayn_discovery_engine we need to override it here
 dependency_overrides:

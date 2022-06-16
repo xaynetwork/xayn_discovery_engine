@@ -12,8 +12,8 @@ packages:
     dependency: transitive
     description:
       path: async_bindgen_dart_utils
-      ref: fe195d99954c691c5e606ebbb3c77d371ba0e65b
-      resolved-ref: fe195d99954c691c5e606ebbb3c77d371ba0e65b
+      ref: cae694e8411508ca4b5076b4d721d085e313fc0d
+      resolved-ref: cae694e8411508ca4b5076b4d721d085e313fc0d
       url: "https://github.com/xaynetwork/xayn_async_bindgen.git"
     source: git
     version: "0.1.0"
@@ -72,7 +72,7 @@ packages:
       name: cupertino_icons
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.4"
+    version: "1.0.5"
   equatable:
     dependency: transitive
     description:
@@ -112,7 +112,7 @@ packages:
       name: flutter_lints
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.4"
+    version: "2.0.1"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -124,7 +124,7 @@ packages:
       name: freezed_annotation
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.1.0"
+    version: "2.0.3"
   fuzzy:
     dependency: transitive
     description:
@@ -138,7 +138,7 @@ packages:
       name: hive
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.1.0"
+    version: "2.2.2"
   http:
     dependency: transitive
     description:
@@ -180,7 +180,7 @@ packages:
       name: lints
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.1"
+    version: "2.0.0"
   logger:
     dependency: transitive
     description:
@@ -222,7 +222,7 @@ packages:
       name: path_provider
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.0.8"
+    version: "2.0.11"
   path_provider_android:
     dependency: transitive
     description:
@@ -391,4 +391,4 @@ packages:
     version: "0.2.0+1"
 sdks:
   dart: ">=2.17.3 <3.0.0"
-  flutter: ">=3.0.2"
+  flutter: ">=3.0.0"

@@ -730,7 +730,7 @@ extension _MapEvent on EngineEvent {
   EngineEvent _passThrough(EngineEvent event) => event;
 
   // in case of a wrong event in response create an EngineExceptionRaised
-  EngineEvent _orElse(EngineEvent _event) =>
+  EngineEvent _orElse(EngineEvent event) =>
       const EngineEvent.engineExceptionRaised(
         EngineExceptionReason.wrongEventInResponse,
       );
