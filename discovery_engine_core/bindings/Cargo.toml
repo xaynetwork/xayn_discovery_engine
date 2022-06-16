@@ -10,11 +10,11 @@ cfg-if = "1.0.0"
 chrono = { version = "0.4.19", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
 ndarray = "=0.15.3"
-tokio = { version = "1.17.0", default-features = false, features = ["sync"] }
-tracing = "0.1.31"
-tracing-subscriber = "0.3.9"
+tokio = { version = "1.19.2", features = ["sync"] }
+tracing = "0.1.35"
+tracing-subscriber = "0.3.11"
 url = "2.2.2"
-uuid = "1.0.0"
+uuid = "1.1.2"
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-core = { path = "../core" }
 xayn-discovery-engine-providers = { path = "../providers" }
@@ -24,10 +24,10 @@ tracing-android = "0.2.0"
 
 [dev-dependencies]
 async-bindgen-gen-dart = "0.1.0"
-uuid = { version = "1.0.0", features = ["v4"] }
+uuid = { version = "1.1.2", features = ["v4"] }
 
 [build-dependencies]
-cbindgen = "=0.20.0"
+cbindgen = "=0.24.3"
 heck = "0.4.0"
 
 [lib]
