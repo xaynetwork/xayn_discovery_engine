@@ -30,7 +30,7 @@ jobs:
     outputs:
       artifact-dir-base: ${{ steps.build.outputs.artifact-dir-base }}
     steps:
-      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
@@ -55,7 +55,7 @@ jobs:
           just check-android-so
 
       - name: Upload library artifacts
-        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2.3.1
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v3.1.0
         with:
           name: ${{ steps.build.outputs.artifact-dir-base }}-${{ matrix.target }}-${{ github.sha }}
           retention-days: 1
