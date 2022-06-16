@@ -12,14 +12,13 @@ derive_more = { version = "0.99.17", default-features = false, features = ["dere
 displaydoc = "0.2.3"
 itertools = "0.10.3"
 lazy_static = "1.4.0"
-# to be kept in sync with xayn-discovery-engine-bert
-ndarray = "=0.15.3"
+ndarray = "0.15.4"
 rand = "0.8.5"
-rayon = "1.5.1"
-serde = { version = "1.0.136", features = ["derive", "rc"] }
+rayon = "1.5.3"
+serde = { version = "1.0.137", features = ["derive", "rc"] }
 smallvec = "1.8.0"
-thiserror = "1.0.30"
-uuid = { version = "1.0.0", features = ["serde", "v4"] }
+thiserror = "1.0.31"
+uuid = { version = "1.1.2", features = ["serde", "v4"] }
 xayn-discovery-engine-bert = { path = "../bert" }
 xayn-discovery-engine-kpe = { path = "../kpe" }
 xayn-discovery-engine-layer = { path = "../layer" }
@@ -27,10 +26,10 @@ xayn-discovery-engine-providers = { path = "../../providers" }
 
 [dev-dependencies]
 csv = "1.1.6"
-mockall = "0.11.0"
-once_cell = "1.10.0"
+mockall = "0.11.1"
+once_cell = "1.12.0"
 paste = "1.0.7"
-rstest = "0.12.0"
+rstest = "0.13.0"
 rstest_reuse = "0.3.0"
-serde_json = "1.0.79"
+serde_json = "1.0.81"
 xayn-discovery-engine-test-utils = { path = "../test-utils" }

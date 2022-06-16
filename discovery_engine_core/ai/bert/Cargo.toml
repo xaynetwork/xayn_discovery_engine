@@ -8,12 +8,11 @@ edition = "2021"
 derive_more = { version = "0.99.17", default-features = false, features = ["deref", "from"] }
 displaydoc = "0.2.3"
 float-cmp = "0.9.0"
-# to be kept in sync with tract-core
-ndarray = { version = "=0.15.3", features = ["serde"] }
-rayon = "1.5.1"
-serde = { version = "1.0.136", features = ["derive"] }
-thiserror = "1.0.30"
-tract-onnx = "0.16.1"
+ndarray = { version = "0.15.4", features = ["serde"] }
+rayon = "1.5.3"
+serde = { version = "1.0.137", features = ["derive"] }
+thiserror = "1.0.31"
+tract-onnx = "0.17.0"
 xayn-discovery-engine-tokenizer = { path = "../tokenizer" }
 
 # dev-dependencies which don't work for aarch targets

@@ -244,8 +244,7 @@ mod tests {
 
     use claim::{assert_matches, assert_none, assert_ok, assert_some};
     use uuid::Uuid;
-    // TODO use our own when exposed as a crate
-    use float_cmp::approx_eq;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use crate::stack::ops::MockOps;
 
@@ -438,8 +437,8 @@ mod tests {
 
         stack.update_relevance(UserReaction::Positive);
 
-        approx_eq!(f32, alpha + 1., stack.alpha());
-        approx_eq!(f32, beta, stack.beta());
+        assert_approx_eq!(f32, alpha + 1., stack.alpha());
+        assert_approx_eq!(f32, beta, stack.beta());
     }
 
     #[test]
@@ -453,8 +452,8 @@ mod tests {
 
         stack.update_relevance(UserReaction::Negative);
 
-        approx_eq!(f32, beta + 1., stack.beta());
-        approx_eq!(f32, alpha, stack.alpha());
+        assert_approx_eq!(f32, beta + 1., stack.beta());
+        assert_approx_eq!(f32, alpha, stack.alpha());
     }
 
     #[test]
@@ -468,7 +467,7 @@ mod tests {
 
         stack.update_relevance(UserReaction::Neutral);
 
-        approx_eq!(f32, beta, stack.beta());
-        approx_eq!(f32, alpha, stack.alpha());
+        assert_approx_eq!(f32, beta, stack.beta());
+        assert_approx_eq!(f32, alpha, stack.alpha());
     }
 }

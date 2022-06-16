@@ -7,10 +7,9 @@ edition = "2021"
 [dependencies]
 derive_more = { version = "0.99.17", default-features = false, features = ["deref", "from"] }
 displaydoc = "0.2.3"
-# to be kept in sync with tract-core
-ndarray = "=0.15.3"
-thiserror = "1.0.29"
-tract-onnx = "0.16.1"
+ndarray = "0.15.4"
+thiserror = "1.0.31"
+tract-onnx = "0.17.0"
 xayn-discovery-engine-layer = { path = "../layer" }
 xayn-discovery-engine-tokenizer = { path = "../tokenizer" }
 
