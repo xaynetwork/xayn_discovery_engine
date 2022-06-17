@@ -26,7 +26,7 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
-use xayn_discovery_engine_providers::{Article, Market, TrendingTopic as BingTopic};
+use xayn_discovery_engine_providers::{GenericArticle, Market, TrendingTopic as BingTopic};
 
 use crate::stack::Id as StackId;
 
@@ -93,11 +93,11 @@ pub struct Document {
     pub resource: NewsResource,
 }
 
-impl TryFrom<(Article, StackId, Embedding)> for Document {
+impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
     type Error = Error;
 
     fn try_from(
-        (article, stack_id, smbert_embedding): (Article, StackId, Embedding),
+        (article, stack_id, smbert_embedding): (GenericArticle, StackId, Embedding),
     ) -> Result<Self, Self::Error> {
         article.try_into().map(|resource| Self {
             id: Id::new(),
@@ -145,26 +145,24 @@ pub struct NewsResource {
     pub topic: String,
 }
 
-impl TryFrom<Article> for NewsResource {
+impl TryFrom<GenericArticle> for NewsResource {
     type Error = Error;
-    fn try_from(article: Article) -> Result<Self, Self::Error> {
-        let media = article.media;
-        let image = (!media.is_empty())
-            .then(|| Url::parse(&media))
-            .transpose()?;
+    fn try_from(content: GenericArticle) -> Result<Self, Self::Error> {
+        let source_domain = content.source_domain();
+        let rank = content.rank();
 
         Ok(Self {
-            title: article.title,
-            snippet: article.excerpt,
-            date_published: article.published_date,
-            url: Url::parse(&article.link)?,
-            source_domain: article.source_domain,
-            image,
-            rank: article.rank,
-            score: article.score,
-            country: article.country,
-            language: article.language,
-            topic: article.topic.to_string(),
+            title: content.title,
+            snippet: content.snippet,
+            date_published: content.date_published,
+            url: content.url.inner(),
+            source_domain,
+            image: content.image,
+            rank,
+            score: content.score,
+            country: content.country,
+            language: content.language,
+            topic: content.topic,
         })
     }
 }
@@ -274,9 +272,8 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
-    use claim::{assert_matches, assert_none};
 
-    use xayn_discovery_engine_providers::Topic;
+    use xayn_discovery_engine_providers::NewscatcherArticle;
 
     use super::*;
 
@@ -293,7 +290,7 @@ mod tests {
                 rank: 0,
                 country: "en".to_string(),
                 language: "en".to_string(),
-                topic: Topic::Unrecognized.to_string(),
+                topic: "news".to_string(),
             }
         }
     }
@@ -302,8 +299,8 @@ mod tests {
         Url::parse("https://example.net").unwrap(/* used only in tests */)
     }
 
-    fn mock_article() -> Article {
-        Article {
+    fn mock_newscatcher_article() -> NewscatcherArticle {
+        NewscatcherArticle {
             title: "title".to_string(),
             score: Some(0.75),
             rank: 10,
@@ -311,21 +308,25 @@ mod tests {
             excerpt: "summary of the article".to_string(),
             link: "https://example.com/news/".to_string(),
             media: "https://example.com/news/image/".to_string(),
-            topic: Topic::News,
+            topic: "news".to_string(),
             country: "EN".to_string(),
             language: "en".to_string(),
             published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
         }
     }
 
-    impl TryFrom<Article> for HistoricDocument {
+    fn mock_generic_article() -> GenericArticle {
+        mock_newscatcher_article().try_into().unwrap()
+    }
+
+    impl TryFrom<GenericArticle> for HistoricDocument {
         type Error = Error;
 
-        fn try_from(article: Article) -> Result<Self, Self::Error> {
+        fn try_from(article: GenericArticle) -> Result<Self, Self::Error> {
             Ok(Self {
                 id: Uuid::new_v4().into(),
-                url: Url::parse(&article.link)?,
-                snippet: article.excerpt,
+                url: article.url.inner(),
+                snippet: article.snippet,
                 title: article.title,
             })
         }
@@ -333,53 +334,25 @@ mod tests {
 
     #[test]
     fn test_news_resource_from_article() {
-        let article = mock_article();
+        let article = mock_generic_article();
 
         let resource: NewsResource = article.clone().try_into().unwrap();
 
+        let rank = article.rank();
+
         assert_eq!(article.title, resource.title);
-        assert_eq!(article.excerpt, resource.snippet);
-        assert_eq!(article.link, resource.url.to_string());
-        assert_eq!(article.source_domain, resource.source_domain);
-        assert_eq!(article.media, resource.image.unwrap().to_string());
+        assert_eq!(article.snippet, resource.snippet);
+        assert_eq!(article.url.to_string(), resource.url.to_string());
+        assert_eq!(article.source_domain(), resource.source_domain);
+        assert_eq!(
+            article.image.unwrap().to_string(),
+            resource.image.unwrap().to_string()
+        );
         assert_eq!(article.country, resource.country);
         assert_eq!(article.language, resource.language);
         assert_eq!(article.score, resource.score);
-        assert_eq!(article.rank, resource.rank);
-        assert_eq!(article.topic.to_string(), resource.topic);
-        assert_eq!(article.published_date, resource.date_published);
-    }
-
-    #[test]
-    fn test_news_resource_from_article_invalid_link() {
-        let invalid_url = Article {
-            link: String::new(),
-            ..mock_article()
-        };
-
-        let res: Result<NewsResource, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
-    }
-
-    #[test]
-    fn test_news_resource_from_article_empty_media() {
-        let article = Article {
-            media: "".to_string(),
-            ..mock_article()
-        };
-
-        let res: NewsResource = article.try_into().unwrap();
-        assert_none!(res.image);
-    }
-
-    #[test]
-    fn test_news_resource_from_article_invalid_media() {
-        let invalid_url = Article {
-            media: "invalid".to_string(),
-            ..mock_article()
-        };
-
-        let res: Result<NewsResource, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
+        assert_eq!(rank, resource.rank);
+        assert_eq!(article.topic, resource.topic);
+        assert_eq!(article.date_published, resource.date_published);
     }
 }

@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, HashSet};
-use xayn_discovery_engine_providers::Article;
+use xayn_discovery_engine_providers::GenericArticle;
 
 use crate::document::{Document, HistoricDocument, NewsResource};
 
@@ -28,17 +28,17 @@ pub(crate) trait Deduplicable {
     fn url(&self) -> &str;
 }
 
-impl Deduplicable for Article {
+impl Deduplicable for GenericArticle {
     fn title(&self) -> &str {
         &self.title
     }
 
     fn rank(&self) -> u64 {
-        self.rank
+        self.rank()
     }
 
     fn url(&self) -> &str {
-        self.link.as_str()
+        self.url.as_str()
     }
 }
 

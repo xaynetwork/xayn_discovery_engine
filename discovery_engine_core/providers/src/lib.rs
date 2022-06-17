@@ -33,15 +33,20 @@
 mod bing;
 mod clean_query;
 mod client;
+mod error;
 mod expression;
 mod filter;
+mod models;
 mod newscatcher;
+
+pub use models::{GenericArticle, UrlWithDomain};
 
 pub use bing::{TrendingQuery, TrendingTopic};
 pub use clean_query::clean_query;
-pub use client::{Client, CommonQueryParts, Error, HeadlinesQuery, NewsQuery, Query, RankLimit};
+pub use client::{Client, CommonQueryParts, HeadlinesQuery, NewsQuery, Query, RankLimit};
+pub use error::Error;
 pub use filter::{Filter, Market};
-pub use newscatcher::{Article, Response, Topic};
+pub use newscatcher::{Article as NewscatcherArticle, Response as NewscatcherResponse};
 
 mod seal {
     pub trait Seal {}

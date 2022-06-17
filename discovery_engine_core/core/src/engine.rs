@@ -45,10 +45,10 @@ use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
     clean_query,
-    Article,
     Client,
     CommonQueryParts,
     Filter,
+    GenericArticle,
     HeadlinesQuery,
     Market,
     NewsQuery,
@@ -940,7 +940,7 @@ async fn fetch_new_documents_for_stack(
 fn documentify_articles(
     stack_id: StackId,
     ranker: &(impl Ranker + Send + Sync),
-    articles: Vec<Article>,
+    articles: Vec<GenericArticle>,
 ) -> (Vec<Document>, Vec<Error>) {
     articles
         .into_par_iter()
@@ -1105,6 +1105,7 @@ mod tests {
         MockServer,
         ResponseTemplate,
     };
+    use xayn_discovery_engine_providers::NewscatcherArticle;
 
     use super::*;
 
@@ -1437,8 +1438,10 @@ mod tests {
             .collect()
     }
 
-    fn new_mock_article() -> Article {
-        serde_json::from_str(r#"{"link": "https://xayn.com"}"#).unwrap()
+    fn new_mock_article() -> GenericArticle {
+        let article: NewscatcherArticle =
+            serde_json::from_str(r#"{"link": "https://xayn.com"}"#).unwrap();
+        article.try_into().unwrap()
     }
 
     fn new_mock_stack_ops() -> MockOps {

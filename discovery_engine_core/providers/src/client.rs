@@ -17,35 +17,15 @@
 use std::{ops::Deref, time::Duration};
 
 use chrono::Utc;
-use displaydoc::Display as DisplayDoc;
-use thiserror::Error;
 use url::Url;
 
 use crate::{
     filter::{Filter, Market},
-    newscatcher::{Article, Response as NewscatcherResponse},
+    newscatcher::Response as NewscatcherResponse,
     seal::Seal,
+    Error,
+    GenericArticle,
 };
-
-/// Client errors.
-#[derive(Error, Debug, DisplayDoc)]
-pub enum Error {
-    /// Invalid API Url base
-    InvalidUrlBase(Option<url::ParseError>),
-    /// Failed to execute the HTTP request: {0}
-    RequestExecution(#[source] reqwest::Error),
-    /// Server returned a non-successful status code: {0}
-    StatusCode(#[source] reqwest::Error),
-    /// Failed to fetch from the server: {0}
-    Fetching(#[source] reqwest::Error),
-    /// Failed to decode the server's response: {0}
-    Decoding(#[source] serde_json::Error),
-    /// Failed to decode the server's response at JSON path {1}: {0}
-    DecodingAtPath(
-        String,
-        #[source] serde_path_to_error::Error<serde_json::Error>,
-    ),
-}
 
 /// Represents a Query to Newscatcher.
 pub trait Query: Seal + Sync {
@@ -219,10 +199,13 @@ impl Client {
     }
 
     /// Run a query for fetching `Article`s from Newscatcher.
-    pub async fn query_articles(&self, query: &impl Query) -> Result<Vec<Article>, Error> {
-        self.query_newscatcher(query)
+    pub async fn query_articles(&self, query: &impl Query) -> Result<Vec<GenericArticle>, Error> {
+        let articles = self
+            .query_newscatcher(query)
             .await
-            .map(|news| news.articles)
+            .map(|news| news.articles)?;
+
+        articles.into_iter().map(GenericArticle::try_from).collect()
     }
 
     /// Run a query against Newscatcher.
@@ -256,7 +239,6 @@ mod tests {
     use super::*;
     use chrono::NaiveDateTime;
 
-    use crate::newscatcher::Topic;
     use wiremock::{
         matchers::{header, method, path, query_param, query_param_is_missing},
         Mock,
@@ -461,7 +443,7 @@ mod tests {
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(1).unwrap();
-        let expected = Article {
+        let expected: GenericArticle = crate::newscatcher::Article {
             title: "Jerusalem blanketed in white after rare snowfall".to_string(),
             score: None,
             rank: 6510,
@@ -469,11 +451,11 @@ mod tests {
             excerpt: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
             link: "https://example.com".to_string(),
             media: "https://uploads.example.com/image.png".to_string(),
-            topic: Topic::Gaming,
+            topic: "gaming".to_string(),
             country: "US".to_string(),
             language: "en".to_string(),
             published_date: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
-        };
+        }.try_into().unwrap();
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
     }

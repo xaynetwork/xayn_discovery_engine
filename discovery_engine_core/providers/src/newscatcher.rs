@@ -13,38 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use chrono::NaiveDateTime;
-use derive_more::Display;
 use serde::{de, Deserialize, Deserializer, Serialize};
-
-/// Topic of the publisher.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Display)]
-#[serde(rename_all = "lowercase")]
-pub enum Topic {
-    News,
-    Sport,
-    Tech,
-    World,
-    Finance,
-    Politics,
-    Business,
-    Economics,
-    Entertainment,
-    Beauty,
-    Travel,
-    Music,
-    Food,
-    Science,
-    Gaming,
-    Energy,
-    #[serde(other)]
-    Unrecognized,
-}
-
-impl Default for Topic {
-    fn default() -> Self {
-        Topic::Unrecognized
-    }
-}
 
 /// A news article
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -88,8 +57,8 @@ pub struct Article {
     /// The main topic of the news publisher.
     /// Important: This parameter is not deducted on a per-article level:
     /// it is deducted on the per-publisher level.
-    #[serde(default, deserialize_with = "deserialize_topic")]
-    pub topic: Topic,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub topic: String,
 
     /// The country of the publisher.
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -108,15 +77,6 @@ pub struct Article {
         deserialize_with = "deserialize_naive_date_time_from_str"
     )]
     pub published_date: NaiveDateTime,
-}
-
-impl Article {
-    /// Gets the excerpt or falls back to the title if the excerpt is empty.
-    pub fn excerpt_or_title(&self) -> &str {
-        (!self.excerpt.is_empty())
-            .then(|| &self.excerpt)
-            .unwrap_or(&self.title)
-    }
 }
 
 fn default_published_date() -> NaiveDateTime {
@@ -152,15 +112,6 @@ where
 {
     let opt = Option::deserialize(deserializer)?;
     Ok(opt.unwrap_or(u64::MAX))
-}
-
-/// Null-value tolerant deserialization of topic
-fn deserialize_topic<'de, D>(deserializer: D) -> Result<Topic, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or(Topic::News))
 }
 
 /// Query response from the Newscatcher API
