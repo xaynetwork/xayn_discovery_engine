@@ -6,6 +6,9 @@ on:
 permissions:
   contents: read
 
+env:
+  DENY_WARNINGS: false
+
 jobs:
   build-ios-libs:
     uses: ./.github/workflows/_reusable.build-ios.yml
