@@ -54,8 +54,27 @@ pub struct Market {
 }
 
 impl Market {
-    /// Returns the default news quality rank limit for given country.
+    /// Returns the default quality rank limit for news.
     pub fn news_quality_rank_limit(&self) -> Option<usize> {
+        #[allow(clippy::match_same_arms)]
+        Some(match &*self.country_code {
+            "AT" => 70_000,
+            "BE" => 70_000,
+            "CA" => 70_000,
+            "CH" => 50_000,
+            "DE" => 9_000,
+            "ES" => 40_000,
+            "GB" => 14_000,
+            "IE" => 70_000,
+            "NL" => 60_000,
+            "PL" => 50_000,
+            "US" => 9_000,
+            _ => return None,
+        })
+    }
+
+    /// Returns the default quality rank limit for latest headlines.
+    pub fn headlines_quality_rank_limit(&self) -> Option<usize> {
         #[allow(clippy::match_same_arms)]
         Some(match &*self.country_code {
             "AT" => 70_000,

@@ -76,7 +76,12 @@ pub struct CommonQueryParts<'a> {
 }
 
 impl CommonQueryParts<'_> {
-    fn setup_url(&self, url: &mut Url, single_path_element_suffix: &str) -> Result<(), Error> {
+    fn setup_url(
+        &self,
+        url: &mut Url,
+        single_path_element_suffix: &str,
+        rank_limit_map: impl FnOnce(&Market) -> Option<usize>,
+    ) -> Result<(), Error> {
         url.path_segments_mut()
             .map_err(|_| Error::InvalidUrlBase(None))?
             .push(single_path_element_suffix);
@@ -88,7 +93,7 @@ impl CommonQueryParts<'_> {
                 .append_pair("lang", &market.lang_code)
                 .append_pair("countries", &market.country_code);
 
-            let rank_limit = (&self.rank_limit, market.news_quality_rank_limit());
+            let rank_limit = (&self.rank_limit, rank_limit_map(market));
             if let (RankLimit::LimitedByMarket, Some(limit)) = rank_limit {
                 query.append_pair("to_rank", &limit.to_string());
             }
@@ -135,7 +140,8 @@ where
     F: Deref<Target = Filter> + Sync,
 {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_sn")?;
+        self.common
+            .setup_url(url, "_sn", Market::news_quality_rank_limit)?;
 
         let mut query = url.query_pairs_mut();
         query
@@ -172,7 +178,8 @@ impl HeadlinesQuery<'_> {
 
 impl Query for HeadlinesQuery<'_> {
     fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        self.common.setup_url(url, "_lh")?;
+        self.common
+            .setup_url(url, "_lh", Market::headlines_quality_rank_limit)?;
 
         let mut query = url.query_pairs_mut();
         if !self.trusted_sources.is_empty() {
