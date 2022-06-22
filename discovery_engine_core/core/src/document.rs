@@ -243,6 +243,15 @@ pub struct HistoricDocument {
     pub title: String,
 }
 
+/// A source domain with an associated weight.
+#[derive(Serialize, Deserialize)]
+pub struct WeightedSource {
+    /// Source domain.
+    pub source: String,
+    /// Weight of the source in terms of user reactions.
+    pub weight: i32,
+}
+
 /// A trending topic.
 pub struct TrendingTopic {
     /// Id of the topic.

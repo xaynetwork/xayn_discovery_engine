@@ -18,7 +18,7 @@ use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use xayn_discovery_engine_ai::{nan_safe_f32_cmp, pairwise_cosine_similarity};
 
-use crate::document::Document;
+use crate::document::{Document, WeightedSource};
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
@@ -205,6 +205,7 @@ impl Default for SemanticFilterConfig {
 /// Filters the documents semantically.
 pub(crate) fn filter_semantically(
     documents: Vec<Document>,
+    _sources: &[WeightedSource], // TODO use it
     config: &SemanticFilterConfig,
 ) -> Vec<Document> {
     if documents.len() < 2 {

@@ -68,6 +68,7 @@ use crate::{
         TrendingTopic,
         UserReacted,
         UserReaction,
+        WeightedSource,
     },
     mab::{self, BetaSampler, Bucket, SelectionIter},
     ranker::Ranker,
@@ -168,6 +169,7 @@ where
         exploration_config: ExplorationConfig,
         ranker: R,
         history: &[HistoricDocument],
+        sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
@@ -205,7 +207,7 @@ where
         };
 
         engine
-            .update_stacks_for_all_markets(history, usize::MAX)
+            .update_stacks_for_all_markets(history, sources, usize::MAX)
             .await
             .ok();
 
@@ -215,6 +217,7 @@ where
     async fn update_stacks_for_all_markets(
         &mut self,
         history: &[HistoricDocument],
+        sources: &[WeightedSource],
         request_new: usize,
     ) -> Result<(), Error> {
         let markets = self.endpoint_config.markets.read().await;
@@ -225,6 +228,7 @@ where
             &mut self.exploration_stack,
             &mut self.ranker,
             history,
+            sources,
             self.core_config.take_top,
             self.core_config.keep_top,
             request_new,
@@ -264,6 +268,7 @@ where
     pub async fn set_markets(
         &mut self,
         history: &[HistoricDocument],
+        sources: &[WeightedSource],
         new_markets: Vec<Market>,
     ) -> Result<(), Error> {
         let mut markets_guard = self.endpoint_config.markets.write().await;
@@ -274,7 +279,7 @@ where
 
         self.clear_stack_data().await;
 
-        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+        self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
     }
 
@@ -293,13 +298,14 @@ where
     pub async fn get_feed_documents(
         &mut self,
         history: &[HistoricDocument],
+        sources: &[WeightedSource],
         max_documents: u32,
     ) -> Result<Vec<Document>, Error> {
         let request_new = (self.request_after < self.core_config.request_after)
             .then(|| self.core_config.request_new)
             .unwrap_or(usize::MAX);
 
-        self.update_stacks_for_all_markets(history, request_new)
+        self.update_stacks_for_all_markets(history, sources, request_new)
             .await?;
 
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
@@ -342,6 +348,7 @@ where
     pub async fn user_reacted(
         &mut self,
         history: Option<&[HistoricDocument]>,
+        sources: &[WeightedSource],
         reacted: &UserReacted,
     ) -> Result<(), Error> {
         let mut stacks = self.stacks.write().await;
@@ -371,6 +378,7 @@ where
                     &mut self.exploration_stack,
                     &mut self.ranker,
                     history,
+                    sources,
                     self.core_config.take_top,
                     self.core_config.keep_top,
                     usize::MAX,
@@ -579,10 +587,11 @@ where
     pub async fn set_trusted_sources(
         &mut self,
         history: &[HistoricDocument],
-        sources: Vec<String>,
+        sources: &[WeightedSource],
+        trusted: Vec<String>,
     ) -> Result<(), Error> {
-        let sources_set = sources.iter().cloned().collect::<HashSet<_>>();
-        *self.endpoint_config.trusted_sources.write().await = sources;
+        let sources_set = trusted.iter().cloned().collect::<HashSet<_>>();
+        *self.endpoint_config.trusted_sources.write().await = trusted;
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
@@ -591,7 +600,7 @@ where
         drop(stacks); // guard
         self.exploration_stack.prune_by_sources(&sources_set, false);
 
-        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+        self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
     }
 
@@ -599,10 +608,11 @@ where
     pub async fn set_excluded_sources(
         &mut self,
         history: &[HistoricDocument],
-        excluded_sources: Vec<String>,
+        sources: &[WeightedSource],
+        excluded: Vec<String>,
     ) -> Result<(), Error> {
-        let exclusion_set = excluded_sources.iter().cloned().collect::<HashSet<_>>();
-        *self.endpoint_config.excluded_sources.write().await = excluded_sources;
+        let exclusion_set = excluded.iter().cloned().collect::<HashSet<_>>();
+        *self.endpoint_config.excluded_sources.write().await = excluded;
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
@@ -612,7 +622,7 @@ where
         self.exploration_stack
             .prune_by_sources(&exclusion_set, true);
 
-        self.update_stacks_for_all_markets(history, self.core_config.request_new)
+        self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
     }
 
@@ -624,7 +634,7 @@ where
                 .map_err(Error::InvalidStack)?;
         self.ranker.reset_ai();
 
-        self.update_stacks_for_all_markets(&[], self.core_config.request_new)
+        self.update_stacks_for_all_markets(&[], &[], self.core_config.request_new)
             .await
             .ok();
 
@@ -665,6 +675,7 @@ async fn update_stacks<'a>(
     exploration_stack: &mut Exploration,
     ranker: &mut (impl Ranker + Send + Sync),
     history: &[HistoricDocument],
+    sources: &[WeightedSource],
     take_top: usize,
     keep_top: usize,
     request_new: usize,
@@ -741,6 +752,7 @@ async fn update_stacks<'a>(
     let max_clusters = all_documents.len() / 2;
     all_documents = filter_semantically(
         all_documents,
+        sources,
         &SemanticFilterConfig {
             criterion: Criterion::MaxClusters(max_clusters),
             ..SemanticFilterConfig::default()
@@ -891,6 +903,7 @@ impl XaynAiEngine {
         config: InitConfig,
         state: Option<&[u8]>,
         history: &[HistoricDocument],
+        sources: &[WeightedSource],
     ) -> Result<Self, Error> {
         let de_config = de_config_from_json(config.de_config.as_deref().unwrap_or("{}"));
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
