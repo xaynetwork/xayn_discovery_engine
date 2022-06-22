@@ -52,6 +52,8 @@ pub struct InitConfig {
     pub kpe_classifier: String,
     /// DE config in JSON format.
     pub de_config: Option<String>,
+    /// Log file path
+    pub log_file: Option<String>,
 }
 
 /// Discovery Engine endpoint settings.

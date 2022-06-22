@@ -46,6 +46,7 @@ class InitConfigFfi with EquatableMixin {
   final String kpeCnn;
   final String kpeClassifier;
   final String? deConfig;
+  final String? logFile;
 
   @override
   List<Object?> get props => [
@@ -61,6 +62,7 @@ class InitConfigFfi with EquatableMixin {
         kpeCnn,
         kpeClassifier,
         deConfig,
+        logFile,
       ];
 
   factory InitConfigFfi(
@@ -69,6 +71,7 @@ class InitConfigFfi with EquatableMixin {
     Set<Source> trustedSources,
     Set<Source> excludedSources, {
     String? deConfig,
+    String? logFile,
   }) =>
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
@@ -83,6 +86,7 @@ class InitConfigFfi with EquatableMixin {
         kpeCnn: setupData.kpeCnn,
         kpeClassifier: setupData.kpeClassifier,
         deConfig: deConfig,
+        logFile: logFile,
       );
 
   InitConfigFfi.fromParts({
@@ -98,6 +102,7 @@ class InitConfigFfi with EquatableMixin {
     required this.kpeCnn,
     required this.kpeClassifier,
     this.deConfig,
+    this.logFile,
   });
 
   /// Allocates a `Box<RustInitConfig>` initialized based on this instance.
@@ -121,6 +126,7 @@ class InitConfigFfi with EquatableMixin {
     kpeCnn.writeNative(ffi.init_config_place_of_kpe_cnn(place));
     kpeClassifier.writeNative(ffi.init_config_place_of_kpe_classifier(place));
     deConfig.writeNative(ffi.init_config_place_of_de_config(place));
+    logFile.writeNative(ffi.init_config_place_of_log_file(place));
   }
 
   @visibleForTesting
@@ -150,6 +156,9 @@ class InitConfigFfi with EquatableMixin {
           StringFfi.readNative(ffi.init_config_place_of_kpe_classifier(config)),
       deConfig: OptionStringFfi.readNative(
         ffi.init_config_place_of_de_config(config),
+      ),
+      logFile: OptionStringFfi.readNative(
+        ffi.init_config_place_of_log_file(config),
       ),
     );
   }
