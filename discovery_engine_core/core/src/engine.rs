@@ -17,6 +17,7 @@ use std::{
     iter::once,
     mem::replace,
     sync::Arc,
+    time::Instant,
 };
 
 use displaydoc::Display;
@@ -30,7 +31,7 @@ use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::error;
+use tracing::{error, info};
 
 use xayn_discovery_engine_ai::{
     cosine_similarity,
@@ -942,7 +943,8 @@ fn documentify_articles(
     ranker: &(impl Ranker + Send + Sync),
     articles: Vec<Article>,
 ) -> (Vec<Document>, Vec<Error>) {
-    articles
+    let start = Instant::now();
+    let a = articles
         .into_par_iter()
         .map(|article| {
             let embedding = ranker
@@ -961,7 +963,9 @@ fn documentify_articles(
         .partition_map(|result| match result {
             Ok(document) => Either::Left(document),
             Err(error) => Either::Right(error),
-        })
+        });
+    info!("documentify_articles run time: {:?}", start.elapsed());
+    a
 }
 
 fn documentify_topics(

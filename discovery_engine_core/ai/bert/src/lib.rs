@@ -25,7 +25,6 @@
     clippy::pedantic,
     noop_method_call,
     rust_2018_idioms,
-    unsafe_code,
     unused_qualifications
 )]
 #![warn(unreachable_pub, rustdoc::missing_crate_level_docs)]

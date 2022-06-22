@@ -13,10 +13,10 @@ rayon = "1.5.3"
 serde = { version = "1.0.137", features = ["derive"] }
 thiserror = "1.0.31"
 tract-onnx = "0.17.0"
+tracing = "0.1.34"
 xayn-discovery-engine-tokenizer = { path = "../tokenizer" }
+onnxruntime = { git = "https://github.com/xaynetwork/onnxruntime-rs", branch = "android-and-ios", features = ["nnapi"] }
 
-# dev-dependencies which don't work for aarch targets
-onnxruntime = { version = "0.0.13", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["html_reports"] }
@@ -31,10 +31,8 @@ test = false
 [[example]]
 name = "validate"
 test = false
-required-features = ["onnxruntime"]
 
 [[bench]]
 name = "mbert"
 harness = false
 test = false
-required-features = ["onnxruntime"]

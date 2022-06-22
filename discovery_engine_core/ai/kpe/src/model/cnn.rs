@@ -137,11 +137,7 @@ impl Cnn {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array3;
-    use tract_onnx::prelude::IntoArcTensor;
-
     use super::*;
-    use xayn_discovery_engine_test_utils::kpe::cnn;
 
     #[test]
     fn test_model_shapes() {
@@ -154,75 +150,6 @@ mod tests {
         matches!(
             Cnn::new(BinParams::default()).unwrap_err(),
             ModelError::Cnn(_),
-        );
-    }
-
-    #[test]
-    fn test_run_full() {
-        let token_size = 4 * Cnn::KEY_PHRASE_SIZE;
-        let model = Cnn::new(BinParams::deserialize_from_file(cnn().unwrap()).unwrap()).unwrap();
-        let embeddings = Array3::<f32>::default((1, token_size, Bert::EMBEDDING_SIZE))
-            .into_arc_tensor()
-            .into();
-        let valid_mask = vec![true; token_size].into();
-
-        let features = model.run(&embeddings, &valid_mask).unwrap();
-        assert_eq!(
-            features.shape(),
-            [Cnn::CHANNEL_OUT_SIZE, Cnn::output_size(token_size)],
-        );
-    }
-
-    #[test]
-    fn test_run_sparse() {
-        let token_size = 4 * Cnn::KEY_PHRASE_SIZE;
-        let model = Cnn::new(BinParams::deserialize_from_file(cnn().unwrap()).unwrap()).unwrap();
-        let embeddings = Array3::<f32>::default((1, token_size, Bert::EMBEDDING_SIZE))
-            .into_arc_tensor()
-            .into();
-        let valid_mask = (1..=token_size)
-            .into_iter()
-            .map(|e| e % 2 == 0)
-            .collect::<Vec<_>>()
-            .into();
-        assert_eq!(
-            model.run(&embeddings, &valid_mask).unwrap().shape(),
-            [Cnn::CHANNEL_OUT_SIZE, Cnn::output_size(token_size / 2)],
-        );
-    }
-
-    #[test]
-    fn test_run_min() {
-        let token_size = 4 * Cnn::KEY_PHRASE_SIZE;
-        let model = Cnn::new(BinParams::deserialize_from_file(cnn().unwrap()).unwrap()).unwrap();
-        let embeddings = Array3::<f32>::default((1, token_size, Bert::EMBEDDING_SIZE))
-            .into_arc_tensor()
-            .into();
-        let valid_mask = (1..=token_size)
-            .into_iter()
-            .map(|e| e <= Cnn::KEY_PHRASE_SIZE)
-            .collect::<Vec<_>>()
-            .into();
-        assert_eq!(
-            model.run(&embeddings, &valid_mask).unwrap().shape(),
-            [
-                Cnn::CHANNEL_OUT_SIZE,
-                Cnn::output_size(Cnn::KEY_PHRASE_SIZE),
-            ],
-        );
-    }
-
-    #[test]
-    fn test_run_empty() {
-        let token_size = 4 * Cnn::KEY_PHRASE_SIZE;
-        let model = Cnn::new(BinParams::deserialize_from_file(cnn().unwrap()).unwrap()).unwrap();
-        let embeddings = Array3::<f32>::default((1, token_size, Bert::EMBEDDING_SIZE))
-            .into_arc_tensor()
-            .into();
-        let valid_mask = vec![false; token_size].into();
-        matches!(
-            model.run(&embeddings, &valid_mask).unwrap_err(),
-            ModelError::NotEnoughWords,
         );
     }
 }

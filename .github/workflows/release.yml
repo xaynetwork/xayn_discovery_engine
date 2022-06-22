@@ -66,6 +66,14 @@ jobs:
         shell: bash
         run: just dart-build
 
+      - name: Generate Files
+        shell: bash
+        run: |
+          curl http://s3-de-central.profitbricks.com/xayn-yellow-bert/onnxruntime/ios-aarch64-lvl-11-v1.11.1/libonnxruntime.a -o "${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/ios/onnxruntime/libonnxruntime_aarch64.a"
+          curl http://s3-de-central.profitbricks.com/xayn-yellow-bert/onnxruntime/ios-x86_64-lvl-11-v1.11.1/libonnxruntime.a -o "${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/ios/onnxruntime/libonnxruntime_x86_64.a"
+          curl http://s3-de-central.profitbricks.com/xayn-yellow-bert/onnxruntime/android-arm-lvl-27-v1.11.1/libonnxruntime.so -o "${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/android/src/main/jniLibs/armeabi-v7a/libonnxruntime.so"
+          curl http://s3-de-central.profitbricks.com/xayn-yellow-bert/onnxruntime/android-aarch64-lvl-27-v1.11.1/libonnxruntime.so -o "${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/android/src/main/jniLibs/arm64-v8a/libonnxruntime.so"
+
       - name: Configure Git
         shell: bash
         run: |

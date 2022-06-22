@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::time::Instant;
+
 use chrono::NaiveDateTime;
+use tracing::info;
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{
@@ -109,7 +112,10 @@ impl Ranker for xayn_discovery_engine_ai::Ranker {
     }
 
     fn compute_smbert(&self, sequence: &str) -> Result<Embedding, GenericError> {
-        self.compute_smbert(sequence).map_err(Into::into)
+        let start = Instant::now();
+        let a = self.compute_smbert(sequence).map_err(Into::into);
+        info!("compute_smbert run time: {:?}", start.elapsed());
+        a
     }
 
     fn extract_key_phrases(&self, sequence: &str) -> Result<RankedKeyPhrases, GenericError> {

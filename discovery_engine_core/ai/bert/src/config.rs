@@ -14,9 +14,9 @@
 
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Read},
+    io::{BufRead, BufReader},
     marker::PhantomData,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use displaydoc::Display;
@@ -39,7 +39,7 @@ pub enum ConfigError {
 pub struct Config<'a, K, P> {
     pub(crate) model_kind: PhantomData<K>,
     pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
-    pub(crate) model: Box<dyn Read + Send + 'a>,
+    pub(crate) model: PathBuf,
     pub(crate) accents: AccentChars,
     pub(crate) case: CaseChars,
     pub(crate) token_size: usize,
@@ -48,10 +48,7 @@ pub struct Config<'a, K, P> {
 
 impl<'a, K: BertModel> Config<'a, K, NonePooler> {
     /// Creates a `BertModel` configuration from readables.
-    pub fn from_readers(
-        vocab: Box<dyn BufRead + Send + 'a>,
-        model: Box<dyn Read + Send + 'a>,
-    ) -> Self {
+    pub fn from_readers(vocab: Box<dyn BufRead + Send + 'a>, model: PathBuf) -> Self {
         Config {
             model_kind: PhantomData,
             vocab,
@@ -69,8 +66,8 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
         model: impl AsRef<Path>,
     ) -> Result<Self, ConfigError> {
         let vocab = Box::new(BufReader::new(File::open(vocab)?));
-        let model = Box::new(BufReader::new(File::open(model)?));
-        Ok(Self::from_readers(vocab, model))
+        // let model = Box::new(BufReader::new(File::open(model)?));
+        Ok(Self::from_readers(vocab, model.as_ref().to_path_buf()))
     }
 }
 

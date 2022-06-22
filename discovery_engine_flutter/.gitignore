@@ -11,3 +11,4 @@ build/
 # DELETE_AFTER_THIS_IN_RELEASE
 android/src/main/jniLibs/
 ios/libxayn_discovery_engine_bindings_*.a
+ios/onnxruntime/libonnxruntime_*.a

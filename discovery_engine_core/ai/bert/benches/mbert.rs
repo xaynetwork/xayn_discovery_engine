@@ -17,14 +17,13 @@
 use std::{io::Result, path::Path};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ndarray::{s, Array1, Axis};
+use ndarray::{Array1, ArrayBase, Axis, Dim, IxDynImpl};
 use onnxruntime::{environment::Environment, GraphOptimizationLevel};
 
 use xayn_discovery_engine_bert::{
     kinds::SMBert,
     AveragePooler,
     Config,
-    Embedding2,
     FirstPooler,
     NonePooler,
     Pipeline,
@@ -89,7 +88,7 @@ fn bench_onnx(
         .build()
         .unwrap();
     let environment = Environment::builder().build().unwrap();
-    let mut session = environment
+    let session = environment
         .new_session_builder()
         .unwrap()
         .with_optimization_level(GraphOptimizationLevel::DisableAll)
@@ -106,9 +105,9 @@ fn bench_onnx(
                 Array1::<i64>::from(attention_mask).insert_axis(Axis(0)),
                 Array1::<i64>::from(type_ids).insert_axis(Axis(0)),
             ];
-            let outputs = session.run(inputs).unwrap();
-
-            black_box(Embedding2::from(outputs[0].slice(s![0, .., ..]).to_owned()));
+            let outputs = session.run(inputs, false).unwrap();
+            let e: ArrayBase<ndarray::OwnedRepr<f32>, Dim<IxDynImpl>> = outputs[0].to_owned();
+            black_box(e);
         })
     });
 }

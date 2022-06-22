@@ -10,8 +10,10 @@ displaydoc = "0.2.3"
 ndarray = "0.15.4"
 thiserror = "1.0.31"
 tract-onnx = "0.17.0"
+tracing = "0.1.34"
 xayn-discovery-engine-layer = { path = "../layer" }
 xayn-discovery-engine-tokenizer = { path = "../tokenizer" }
+onnxruntime = { git = "https://github.com/xaynetwork/onnxruntime-rs", branch = "android-and-ios", features = ["nnapi"] }
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["html_reports"] }

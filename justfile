@@ -103,7 +103,7 @@ flutter-test: dart-build flutter-deps
 # replaced by a better workaround.
 _codegen-order-workaround:
     cd "$RUST_WORKSPACE"; \
-    cargo check --quiet 2>/dev/null || :
+    cargo check # --quiet  2>/dev/null || :
 
 # Checks rust code, fails on warnings on CI
 rust-check: _codegen-order-workaround
@@ -251,6 +251,7 @@ compile-android-ci target prod_flag="\"\"": _codegen-order-workaround
     set -eu
     if [[ {{prod_flag}} == "--prod" ]]; then
         RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-android {{target}}
+        echo "Don't forget to copy the libonnxruntime.so in target/aarch64-linux-android/release/build/onnxruntime-sys-xxxx/out/onnxruntime-download/lib to discovery_engine_flutter/android/src/main/jniLibs/arm64-v8a"
     else
         {{just_executable()}} _compile-android {{target}}
     fi
@@ -275,7 +276,10 @@ compile-ios-ci target prod_flag="\"\"": _codegen-order-workaround
     set -eu
     if [[ {{prod_flag}} == "--prod" ]]; then
         RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-ios {{target}}
-        strip -S -x -r "$RUST_WORKSPACE/target/{{target}}/release/${IOS_LIB_BASE}.a"
+        TARGET={{target}}
+        cp "$RUST_WORKSPACE/target/$TARGET/release/${IOS_LIB_BASE}.a" "$FLUTTER_WORKSPACE/ios/${IOS_LIB_BASE}_${TARGET}.a"
+        echo "Don't forget to copy the libonnxruntime.a in target/aarch64-apple-ios/release/build/onnxruntime-sys-xxxx/out/onnxruntime-download/lib to discovery_engine_flutter/ios/onnxruntime"
+        # strip -S -x -r "$RUST_WORKSPACE/target/{{target}}/release/${IOS_LIB_BASE}.a" strip not working anymore?
     else
         {{just_executable()}} _compile-ios {{target}}
     fi

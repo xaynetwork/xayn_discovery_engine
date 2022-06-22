@@ -13,27 +13,21 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    io::{Error as IoError, Read},
+    io::Error as IoError,
     marker::PhantomData,
     ops::RangeInclusive,
+    path::Path,
     sync::Arc,
+    time::Instant,
 };
 
 use derive_more::{Deref, From};
 use displaydoc::Display;
-use ndarray::{ErrorKind, ShapeError};
+use ndarray::{ArrayBase, Dim, ErrorKind, IxDynImpl, OwnedRepr, ShapeError};
+use onnxruntime::{environment::Environment, session::Session, GraphOptimizationLevel};
 use thiserror::Error;
-use tract_onnx::prelude::{
-    tvec,
-    Datum,
-    Framework,
-    InferenceFact,
-    InferenceModelExt,
-    Tensor,
-    TractError,
-    TypedModel,
-    TypedSimplePlan,
-};
+use tracing::info;
+use tract_onnx::prelude::TractError;
 
 use crate::tokenizer::Encoding;
 
@@ -68,7 +62,7 @@ pub mod kinds {
 /// A Bert onnx model.
 #[derive(Debug)]
 pub(crate) struct Model<K> {
-    plan: TypedSimplePlan<TypedModel>,
+    session: Session,
     pub(crate) token_size: usize,
     _kind: PhantomData<K>,
 }
@@ -97,7 +91,7 @@ pub trait BertModel: Sized {
 ///
 /// The prediction is of shape `(1, token_size, embedding_size)`.
 #[derive(Clone, Deref, From)]
-pub(crate) struct Prediction(Arc<Tensor>);
+pub(crate) struct Prediction(Arc<ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>);
 
 impl<K> Model<K>
 where
@@ -108,59 +102,57 @@ where
     /// Requires the maximum number of tokens per tokenized sequence.
     pub(crate) fn new(
         // `Read` instead of `AsRef<Path>` is needed for wasm
-        mut model: impl Read,
+        model: impl AsRef<Path>,
         token_size: usize,
     ) -> Result<Self, ModelError> {
         if !K::TOKEN_RANGE.contains(&token_size) {
             return Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into());
         }
 
-        let input_fact = InferenceFact::dt_shape(i64::datum_type(), &[1, token_size]);
-        let plan = tract_onnx::onnx()
-            .model_for_read(&mut model)?
-            .with_input_fact(0, input_fact.clone())?
-            .with_input_fact(1, input_fact.clone())?
-            .with_input_fact(2, input_fact)?
-            .into_optimized()?
-            .into_runnable()?;
+        let environment = Environment::builder().build().unwrap();
+        let session = environment
+            .new_session_builder()
+            .unwrap()
+            .with_number_intra_threads(1)
+            .unwrap()
+            .with_optimization_level(GraphOptimizationLevel::All)
+            .unwrap();
 
-        if plan.model().output_fact(0)?.shape.as_concrete()
-            == Some(&[1, token_size, K::EMBEDDING_SIZE])
-        {
-            Ok(Model {
-                plan,
-                token_size,
-                _kind: PhantomData,
-            })
-        } else {
-            Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into())
-        }
+        #[cfg(all(target_os = "android"))]
+        let session = session.with_nnapi().unwrap();
+        // #[cfg(all(target_os = "ios", target_arch = "aarch64"))]
+        // let session = session.with_coreml().unwrap();
+        let session = session.with_model_from_file(model.as_ref()).unwrap();
+
+        Ok(Model {
+            session,
+            token_size,
+            _kind: PhantomData,
+        })
     }
 
     /// Runs prediction on the encoded sequence.
+    #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction, ModelError> {
         debug_assert_eq!(encoding.token_ids.shape(), [1, self.token_size]);
         debug_assert_eq!(encoding.attention_mask.shape(), [1, self.token_size]);
         debug_assert_eq!(encoding.type_ids.shape(), [1, self.token_size]);
-        let inputs = tvec![
-            encoding.token_ids.0.into(),
-            encoding.attention_mask.0.into(),
-            encoding.type_ids.0.into()
+        let inputs = vec![
+            encoding.token_ids.0,
+            encoding.attention_mask.0,
+            encoding.type_ids.0,
         ];
-        let outputs = self.plan.run(inputs)?;
-        debug_assert_eq!(outputs[0].shape(), [1, self.token_size, K::EMBEDDING_SIZE]);
 
-        Ok(outputs[0].clone().into())
+        let start = Instant::now();
+        let outputs = self.session.run(inputs, false).unwrap();
+        info!("smbert session run time: {:?}", start.elapsed());
+
+        Ok(Prediction(Arc::new(outputs[0].to_owned())))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array2;
-    use std::{fs::File, io::BufReader};
-
-    use xayn_discovery_engine_test_utils::smbert::model;
-
     use super::*;
 
     #[test]
@@ -172,46 +164,46 @@ mod tests {
         assert_eq!(kinds::QAMBert::EMBEDDING_SIZE, 128);
     }
 
-    #[test]
-    fn test_model_empty() {
-        assert!(matches!(
-            Model::<kinds::SMBert>::new(Vec::new().as_slice(), 10).unwrap_err(),
-            ModelError::Tract(_),
-        ));
-    }
+    // #[test]
+    // fn test_model_empty() {
+    //     assert!(matches!(
+    //         Model::<kinds::SMBert>::new(Vec::new().as_slice(), 10).unwrap_err(),
+    //         ModelError::Tract(_),
+    //     ));
+    // }
 
-    #[test]
-    fn test_model_invalid() {
-        assert!(matches!(
-            Model::<kinds::SMBert>::new([0].as_ref(), 10).unwrap_err(),
-            ModelError::Tract(_),
-        ));
-    }
+    // #[test]
+    // fn test_model_invalid() {
+    //     assert!(matches!(
+    //         Model::<kinds::SMBert>::new([0].as_ref(), 10).unwrap_err(),
+    //         ModelError::Tract(_),
+    //     ));
+    // }
 
-    #[test]
-    fn test_token_size_invalid() {
-        let model = BufReader::new(File::open(model().unwrap()).unwrap());
-        assert!(matches!(
-            Model::<kinds::SMBert>::new(model, 0).unwrap_err(),
-            ModelError::Shape(_),
-        ));
-    }
+    // #[test]
+    // fn test_token_size_invalid() {
+    //     let model = BufReader::new(File::open(model().unwrap()).unwrap());
+    //     assert!(matches!(
+    //         Model::<kinds::SMBert>::new(model, 0).unwrap_err(),
+    //         ModelError::Shape(_),
+    //     ));
+    // }
 
-    #[test]
-    fn test_predict() {
-        let shape = (1, 64);
-        let model = BufReader::new(File::open(model().unwrap()).unwrap());
-        let model = Model::<kinds::SMBert>::new(model, shape.1).unwrap();
+    // #[test]
+    // fn test_predict() {
+    //     let shape = (1, 64);
+    //     let model = BufReader::new(File::open(model().unwrap()).unwrap());
+    //     let model = Model::<kinds::SMBert>::new(model, shape.1).unwrap();
 
-        let encoding = Encoding {
-            token_ids: Array2::from_elem(shape, 0).into(),
-            attention_mask: Array2::from_elem(shape, 1).into(),
-            type_ids: Array2::from_elem(shape, 0).into(),
-        };
-        let prediction = model.predict(encoding).unwrap();
-        assert_eq!(
-            prediction.shape(),
-            [shape.0, shape.1, kinds::SMBert::EMBEDDING_SIZE],
-        );
-    }
+    //     let encoding = Encoding {
+    //         token_ids: Array2::from_elem(shape, 0).into(),
+    //         attention_mask: Array2::from_elem(shape, 1).into(),
+    //         type_ids: Array2::from_elem(shape, 0).into(),
+    //     };
+    //     let prediction = model.predict(encoding).unwrap();
+    //     assert_eq!(
+    //         prediction.shape(),
+    //         [shape.0, shape.1, kinds::SMBert::EMBEDDING_SIZE],
+    //     );
+    // }
 }
