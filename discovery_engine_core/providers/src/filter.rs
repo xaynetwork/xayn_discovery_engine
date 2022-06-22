@@ -54,7 +54,7 @@ pub struct Market {
 }
 
 impl Market {
-    /// Returns the default news quality rank limit for given country for search news.
+    /// Returns the default quality rank limit for news.
     pub fn news_quality_rank_limit(&self) -> Option<usize> {
         #[allow(clippy::match_same_arms)]
         Some(match &*self.country_code {
@@ -73,7 +73,7 @@ impl Market {
         })
     }
 
-    /// Returns the default news quality rank limit for given country for latest headlines.
+    /// Returns the default quality rank limit for latest headlines.
     pub fn headlines_quality_rank_limit(&self) -> Option<usize> {
         #[allow(clippy::match_same_arms)]
         Some(match &*self.country_code {
