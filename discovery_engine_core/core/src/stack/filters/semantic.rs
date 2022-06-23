@@ -370,16 +370,18 @@ mod tests {
     #[test]
     fn test_filter_semantically_empty() {
         let documents = vec![];
+        let sources = &[];
         let config = SemanticFilterConfig::default();
-        let filtered = filter_semantically(documents, &config);
+        let filtered = filter_semantically(documents, sources, &config);
         assert!(filtered.is_empty());
     }
 
     #[test]
     fn test_filter_semantically_single() {
         let documents = vec![Document::default()];
+        let sources = &[];
         let config = SemanticFilterConfig::default();
-        let filtered = filter_semantically(documents.clone(), &config);
+        let filtered = filter_semantically(documents.clone(), sources, &config);
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id, documents[0].id);
     }
@@ -391,8 +393,9 @@ mod tests {
             Document::default(),
             Document::default(),
         ];
+        let sources = &[];
         let config = SemanticFilterConfig::default();
-        let filtered = filter_semantically(documents.clone(), &config);
+        let filtered = filter_semantically(documents.clone(), sources, &config);
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id, documents[0].id);
     }
@@ -404,11 +407,12 @@ mod tests {
             Document::default(),
             Document::default(),
         ];
+        let sources = &[];
         let config = SemanticFilterConfig {
             criterion: Criterion::MaxDissimilarity(0.),
             ..SemanticFilterConfig::default()
         };
-        let filtered = filter_semantically(documents.clone(), &config);
+        let filtered = filter_semantically(documents.clone(), sources, &config);
         assert_eq!(filtered.len(), 3);
         assert_eq!(filtered[0].id, documents[0].id);
         assert_eq!(filtered[1].id, documents[1].id);

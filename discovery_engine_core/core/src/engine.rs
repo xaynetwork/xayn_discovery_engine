@@ -1138,6 +1138,7 @@ mod tests {
             &mut exploration_stack,
             &mut no_op_ranker,
             &[],
+            &[],
             10,
             10,
             10,
@@ -1162,6 +1163,7 @@ mod tests {
             &mut stacks,
             &mut exploration_stack,
             &mut no_op_ranker,
+            &[],
             &[],
             10,
             10,
@@ -1198,6 +1200,7 @@ mod tests {
             &mut stacks,
             &mut exploration_stack,
             &mut no_op_ranker,
+            &[],
             &[],
             10,
             10,
@@ -1237,6 +1240,7 @@ mod tests {
             &mut exploration_stack,
             &mut no_op_ranker,
             &[],
+            &[],
             10,
             10,
             10,
@@ -1266,6 +1270,7 @@ mod tests {
             &mut stacks,
             &mut exploration_stack,
             &mut no_op_ranker,
+            &[],
             &[],
             10,
             10,
@@ -1326,13 +1331,17 @@ mod tests {
         // be the same as when it's initialized for the first time after the app is downloaded.
         let state = None;
         let history = &[];
-        let mut engine = XaynAiEngine::from_config(config, state, history)
+        let sources = &[];
+        let mut engine = XaynAiEngine::from_config(config, state, history, sources)
             .await
             .unwrap();
 
         // Finally, we instruct the engine to fetch some articles and check whether or not
         // the expected articles from the mock show up in the results.
-        let res = engine.get_feed_documents(history, 2).await.unwrap();
+        let res = engine
+            .get_feed_documents(history, sources, 2)
+            .await
+            .unwrap();
 
         assert_eq!(1, res.len());
         assert_eq!(
