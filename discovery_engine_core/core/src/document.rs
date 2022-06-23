@@ -99,7 +99,8 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
     fn try_from(
         (article, stack_id, smbert_embedding): (GenericArticle, StackId, Embedding),
     ) -> Result<Self, Self::Error> {
-        article.try_into().map(|resource| Self {
+        let resource: NewsResource = article.into();
+        Ok(Self {
             id: Id::new(),
             stack_id,
             smbert_embedding,
@@ -145,25 +146,23 @@ pub struct NewsResource {
     pub topic: String,
 }
 
-impl TryFrom<GenericArticle> for NewsResource {
-    type Error = Error;
-    fn try_from(content: GenericArticle) -> Result<Self, Self::Error> {
-        let source_domain = content.source_domain();
-        let rank = content.rank();
-
-        Ok(Self {
-            title: content.title,
-            snippet: content.snippet,
-            date_published: content.date_published,
-            url: content.url.inner(),
+impl From<GenericArticle> for NewsResource {
+    fn from(article: GenericArticle) -> Self {
+        let source_domain = article.source_domain();
+        let rank = article.rank();
+        Self {
+            title: article.title,
+            snippet: article.snippet,
+            date_published: article.date_published,
+            url: article.url.inner(),
             source_domain,
-            image: content.image,
+            image: article.image,
             rank,
-            score: content.score,
-            country: content.country,
-            language: content.language,
-            topic: content.topic,
-        })
+            score: article.score,
+            country: article.country,
+            language: article.language,
+            topic: article.topic,
+        }
     }
 }
 
@@ -319,16 +318,14 @@ mod tests {
         mock_newscatcher_article().try_into().unwrap()
     }
 
-    impl TryFrom<GenericArticle> for HistoricDocument {
-        type Error = Error;
-
-        fn try_from(article: GenericArticle) -> Result<Self, Self::Error> {
-            Ok(Self {
+    impl From<GenericArticle> for HistoricDocument {
+        fn from(article: GenericArticle) -> Self {
+            Self {
                 id: Uuid::new_v4().into(),
                 url: article.url.inner(),
                 snippet: article.snippet,
                 title: article.title,
-            })
+            }
         }
     }
 

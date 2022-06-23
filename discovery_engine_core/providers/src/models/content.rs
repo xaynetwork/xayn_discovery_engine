@@ -14,21 +14,14 @@
 
 use crate::{Error, NewscatcherArticle};
 use chrono::NaiveDateTime;
+use derive_more::Deref;
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
 use url::Url;
 
 /// A helper type used to ensure that, within the [`GenericArticle`] struct,
 /// we never use a URL which does not have a domain, such as `file:///foo/bar`.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Deref)]
 pub struct UrlWithDomain(Url);
-
-impl Deref for UrlWithDomain {
-    type Target = Url;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 impl UrlWithDomain {
     pub fn new(url: Url) -> Option<Self> {
@@ -57,7 +50,7 @@ impl TryFrom<&str> for UrlWithDomain {
     }
 }
 
-/// Represents a news that is delivered by an external content API.
+/// Represents an article that is delivered by an external content API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenericArticle {
     pub title: String,
@@ -135,40 +128,26 @@ mod tests {
 
     use super::*;
 
-    fn mock_resource() -> GenericArticle {
-        GenericArticle {
-            title: String::default(),
-            snippet: String::default(),
-            url: example_url(),
-            image: None,
-            date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
-            score: None,
-            rank: Some(0),
-            country: "en".to_string(),
-            language: "en".to_string(),
-            topic: "news".to_string(),
+    impl Default for GenericArticle {
+        fn default() -> Self {
+            GenericArticle {
+                title: String::default(),
+                snippet: String::default(),
+                url: example_url(),
+                image: None,
+                date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+                score: None,
+                rank: Some(0),
+                country: "en".to_string(),
+                language: "en".to_string(),
+                topic: "news".to_string(),
+            }
         }
     }
 
     fn example_url() -> UrlWithDomain {
         let url = Url::parse("https://example.net").unwrap(/* used only in tests */);
         UrlWithDomain::new(url).unwrap(/* used only in tests */)
-    }
-
-    fn mock_article() -> NewscatcherArticle {
-        NewscatcherArticle {
-            title: "title".to_string(),
-            score: Some(0.75),
-            rank: 10,
-            source_domain: "example.com".to_string(),
-            excerpt: "summary of the article".to_string(),
-            link: "https://example.com/news/".to_string(),
-            media: "https://example.com/news/image/".to_string(),
-            topic: "news".to_string(),
-            country: "EN".to_string(),
-            language: "en".to_string(),
-            published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
-        }
     }
 
     #[test]
@@ -180,13 +159,13 @@ mod tests {
 
     #[test]
     fn test_source_domain_extraction() {
-        let res = mock_resource();
+        let res = GenericArticle::default();
         assert_eq!(res.source_domain(), "example.net");
     }
 
     #[test]
     fn test_news_resource_from_article() {
-        let article = mock_article();
+        let article = NewscatcherArticle::default();
 
         let resource: GenericArticle = article.clone().try_into().unwrap();
 
@@ -207,7 +186,7 @@ mod tests {
     fn test_news_resource_from_article_invalid_link() {
         let invalid_url = NewscatcherArticle {
             link: String::new(),
-            ..mock_article()
+            ..NewscatcherArticle::default()
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
@@ -218,7 +197,7 @@ mod tests {
     fn test_news_resource_from_article_empty_media() {
         let article = NewscatcherArticle {
             media: "".to_string(),
-            ..mock_article()
+            ..NewscatcherArticle::default()
         };
 
         let res: GenericArticle = article.try_into().unwrap();
@@ -229,7 +208,7 @@ mod tests {
     fn test_news_resource_from_article_invalid_media() {
         let invalid_url = NewscatcherArticle {
             media: "invalid".to_string(),
-            ..mock_article()
+            ..NewscatcherArticle::default()
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();

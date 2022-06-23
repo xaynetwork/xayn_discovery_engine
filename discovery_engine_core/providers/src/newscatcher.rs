@@ -129,6 +129,25 @@ pub struct Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
+
+    impl Default for Article {
+        fn default() -> Self {
+            Article {
+                title: "title".to_string(),
+                score: Some(0.75),
+                rank: 10,
+                source_domain: "example.com".to_string(),
+                excerpt: "summary of the article".to_string(),
+                link: "https://example.com/news/".to_string(),
+                media: "https://example.com/news/image/".to_string(),
+                topic: "news".to_string(),
+                country: "EN".to_string(),
+                language: "en".to_string(),
+                published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            }
+        }
+    }
 
     #[test]
     // In order to make sure that our API clients don't throw errors if some articles
