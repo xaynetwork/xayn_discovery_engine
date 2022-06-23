@@ -120,6 +120,7 @@ impl Ranker {
     }
 
     /// Logs the user reaction and updates the user interests based on the given information.
+    #[instrument(skip(self), level = "debug")]
     pub(crate) fn log_user_reaction(
         &mut self,
         user_feedback: UserFeedback,
@@ -159,6 +160,9 @@ impl Ranker {
                 .coi
                 .log_negative_user_reaction(&mut self.state.user_interests.negative, embedding),
             UserFeedback::NotGiven => {}
+        }
+        if tracing::enabled!(Level::DEBUG) {
+            debug!(user_interests = ?self.state.user_interests);
         }
     }
 
