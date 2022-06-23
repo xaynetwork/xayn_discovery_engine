@@ -18,6 +18,7 @@ use displaydoc::Display;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::{debug, info, instrument, Level};
 use xayn_discovery_engine_bert::SMBert;
 use xayn_discovery_engine_kpe::{Pipeline as KPE, RankedKeyPhrases};
 use xayn_discovery_engine_providers::Market;
@@ -192,12 +193,18 @@ impl Ranker {
     }
 }
 
+#[instrument(skip_all)]
 fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config: &Config) {
     if documents.len() < 2 {
         return;
     }
 
     if let Ok(score_for_docs) = compute_score_for_docs(documents, user_interests, config) {
+        if tracing::enabled!(Level::DEBUG) {
+            for (document, score) in &score_for_docs {
+                debug!(document=%document, score=score);
+            }
+        }
         documents.sort_unstable_by(|this, other| {
             nan_safe_f32_cmp_desc(
                 score_for_docs.get(&this.id()).unwrap(),
@@ -205,6 +212,7 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
             )
         });
     } else {
+        info!(message = "no scores could be computed");
         documents
             .sort_unstable_by(|this, other| other.date_published().cmp(&this.date_published()));
     }
