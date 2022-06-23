@@ -205,7 +205,11 @@ impl Client {
             .await
             .map(|news| news.articles)?;
 
-        articles.into_iter().map(GenericArticle::try_from).collect()
+        let articles: Vec<GenericArticle> = articles
+            .into_iter()
+            .flat_map(GenericArticle::try_from)
+            .collect();
+        Ok(articles)
     }
 
     /// Run a query against Newscatcher.
@@ -239,6 +243,7 @@ mod tests {
     use super::*;
     use chrono::NaiveDateTime;
 
+    use crate::{Rank, UrlWithDomain};
     use wiremock::{
         matchers::{header, method, path, query_param, query_param_is_missing},
         Mock,
@@ -443,19 +448,18 @@ mod tests {
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(1).unwrap();
-        let expected: GenericArticle = crate::newscatcher::Article {
+        let expected = GenericArticle {
             title: "Jerusalem blanketed in white after rare snowfall".to_string(),
             score: None,
-            rank: 6510,
-            source_domain: "example.com".to_string(),
-            excerpt: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
-            link: "https://example.com".to_string(),
-            media: "https://uploads.example.com/image.png".to_string(),
+            rank: Rank::new(6510),
+            snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
+            url: UrlWithDomain::parse("https://example.com").unwrap(),
+            image: Some(Url::parse("https://uploads.example.com/image.png").unwrap()),
             topic: "gaming".to_string(),
             country: "US".to_string(),
             language: "en".to_string(),
-            published_date: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
-        }.try_into().unwrap();
+            date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+        };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
     }
@@ -492,5 +496,43 @@ mod tests {
         };
 
         client.query_articles(&params).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_valid_articles_should_be_preserved_invalid_ones_rejected() {
+        let mock_server = MockServer::start().await;
+        let client = Client::new("test-token", mock_server.uri());
+
+        let tmpl = ResponseTemplate::new(200).set_body_string(include_str!(
+            "../test-fixtures/invalid-and-valid-articles-mixed.json"
+        ));
+
+        Mock::given(method("GET"))
+            .and(path("/_sn"))
+            .and(query_param_is_missing("to_rank"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = ("DE", "de").into();
+        let filter = &Filter::default().add_keyword("");
+
+        let params = NewsQuery {
+            common: CommonQueryParts {
+                market: Some(&market),
+                page_size: 2,
+                page: 1,
+                rank_limit: RankLimit::Unlimited,
+                excluded_sources: &[],
+            },
+            filter,
+            max_age_days: None,
+        };
+
+        let articles = client.query_articles(&params).await.unwrap();
+        // Out of the three articles, only one is valid, and that one we want to return
+        assert_eq!(articles.len(), 1);
+        assert_eq!("valid article", articles[0].title);
     }
 }

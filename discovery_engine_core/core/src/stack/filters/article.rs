@@ -78,7 +78,7 @@ mod tests {
 
     use crate::document::Document;
     use itertools::Itertools;
-    
+
     use xayn_discovery_engine_providers::{NewscatcherArticle, Rank};
 
     use super::*;

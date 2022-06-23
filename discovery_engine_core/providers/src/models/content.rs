@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Error, NewscatcherArticle};
+use crate::{Error, Error::InvalidUrl, NewscatcherArticle};
 use chrono::NaiveDateTime;
 use derive_more::Deref;
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,11 @@ impl UrlWithDomain {
         }
     }
 
+    pub fn parse(input: &str) -> Result<Self, Error> {
+        let url = Url::parse(input).map_err(InvalidUrl)?;
+        UrlWithDomain::new(url).ok_or_else(|| Error::MissingDomainInUrl(input.to_string()))
+    }
+
     #[allow(clippy::missing_panics_doc)]
     pub fn domain(&self) -> &str {
         self.0.domain().unwrap(/* constructor makes sure we have a domain */)
@@ -46,10 +51,7 @@ impl TryFrom<&str> for UrlWithDomain {
     type Error = Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let url = Url::parse(value)?;
-        let url =
-            UrlWithDomain::new(url).ok_or_else(|| Error::MissingDomainInUrl(value.to_string()))?;
-        Ok(url)
+        UrlWithDomain::parse(value)
     }
 }
 
@@ -101,10 +103,7 @@ impl TryFrom<NewscatcherArticle> for GenericArticle {
             .then(|| Url::parse(&media))
             .transpose()?;
 
-        let url = Url::parse(&article.link)?;
-        let url = UrlWithDomain::new(url)
-            .ok_or_else(|| Error::MissingDomainInUrl(article.link.clone()))?;
-
+        let url = UrlWithDomain::parse(&article.link)?;
         Ok(Self {
             title: article.title,
             snippet: article.excerpt,
@@ -189,7 +188,7 @@ mod tests {
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
+        assert_matches!(res.unwrap_err(), InvalidUrl(_));
     }
 
     #[test]
@@ -211,6 +210,6 @@ mod tests {
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), Error::InvalidUrl(_));
+        assert_matches!(res.unwrap_err(), InvalidUrl(_));
     }
 }
