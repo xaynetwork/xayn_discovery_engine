@@ -26,7 +26,7 @@ use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::error;
+use tracing::{debug, error, info, instrument, Level};
 
 use xayn_discovery_engine_ai::{
     cosine_similarity,
@@ -708,6 +708,7 @@ fn rank_stacks<'a>(
 
 /// Updates the stacks with data related to the top key phrases of the current data.
 #[allow(clippy::too_many_arguments)]
+#[instrument(skip(stacks, exploration_stack, ranker, history))]
 async fn update_stacks<'a>(
     stacks: &mut HashMap<Id, Stack>,
     exploration_stack: &mut exploration::Stack,
@@ -730,6 +731,7 @@ async fn update_stacks<'a>(
 
     // return early if there are no stacks to be updated
     if needy_stacks.is_empty() {
+        info!(message = "no stacks needed an update");
         return Ok(());
     }
 
@@ -828,6 +830,23 @@ async fn update_stacks<'a>(
         errors.push(error);
     } else {
         exploration_stack.data.retain_top(keep_top);
+    }
+
+    if tracing::enabled!(Level::DEBUG) {
+        for (id, data) in stacks
+            .values()
+            .map(|stack| (stack.id(), &stack.data))
+            .chain(once((exploration::Stack::id(), &exploration_stack.data)))
+        {
+            for (ranking, document) in data.documents.iter().rev().enumerate() {
+                debug!(
+                    stack = %id,
+                    document = %document.id,
+                    stack_ranking = ranking,
+                    title = %document.resource.title
+                );
+            }
+        }
     }
 
     // only return an error if all stacks that were ready to get new items failed
