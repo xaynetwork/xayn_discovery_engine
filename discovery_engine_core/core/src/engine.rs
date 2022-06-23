@@ -58,6 +58,8 @@ use xayn_discovery_engine_providers::{
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
+#[cfg(feature = "storage")]
+use crate::storage::{self, SqlLiteStorage, Storage};
 use crate::{
     document::{
         self,
@@ -131,6 +133,10 @@ pub enum Error {
 
     /// List of errors/warnings. {0:?}
     Errors(Vec<Error>),
+
+    #[cfg(feature = "storage")]
+    /// Storage error" {0}.
+    Storage(#[from] storage::Error),
 }
 
 /// Configuration settings to initialize Discovery Engine with a
@@ -243,6 +249,9 @@ pub struct Engine<R> {
     exploration_stack: exploration::Stack,
     ranker: R,
     request_after: usize,
+    #[cfg(feature = "storage")]
+    #[allow(dead_code)]
+    storage: Box<dyn Storage<StorageError = storage::Error> + Send + Sync>,
 }
 
 impl<R> Engine<R>
@@ -256,6 +265,9 @@ where
         history: &[HistoricDocument],
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
+        #[cfg(feature = "storage")] storage: Box<
+            dyn Storage<StorageError = storage::Error> + Send + Sync,
+        >,
     ) -> Result<Self, Error> {
         let stack_data = |_| StackData::default();
 
@@ -267,6 +279,8 @@ where
             StackData::default(),
             stack_ops,
             client,
+            #[cfg(feature = "storage")]
+            storage,
         )
         .await
     }
@@ -282,6 +296,9 @@ where
         history: &'a [HistoricDocument],
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
+        #[cfg(feature = "storage")] storage: Box<
+            dyn Storage<StorageError = storage::Error> + Send + Sync,
+        >,
     ) -> Result<Self, Error> {
         if stack_ops.is_empty() {
             return Err(Error::NoStackOps);
@@ -302,6 +319,8 @@ where
             exploration_stack_data,
             stack_ops,
             client,
+            #[cfg(feature = "storage")]
+            storage,
         )
         .await
     }
@@ -314,6 +333,9 @@ where
         exploration_stack_data: StackData,
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
+        #[cfg(feature = "storage")] storage: Box<
+            dyn Storage<StorageError = storage::Error> + Send + Sync,
+        >,
     ) -> Result<Self, Error> {
         let stacks = stack_ops
             .into_iter()
@@ -338,6 +360,8 @@ where
             exploration_stack,
             ranker,
             request_after: 0,
+            #[cfg(feature = "storage")]
+            storage,
         };
 
         engine
@@ -1042,6 +1066,12 @@ impl XaynAiEngine {
             Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
         ];
 
+        #[cfg(feature = "storage")]
+        let storage = {
+            let storage = SqlLiteStorage::connect(":memory:").await?;
+            storage.init_database().await?;
+            Box::new(storage) as _
+        };
         if let Some(state) = state {
             let state: State = bincode::deserialize(state).map_err(Error::Deserialization)?;
             let ranker = builder.with_serialized_state(&state.ranker.0)?.build()?;
@@ -1052,11 +1082,22 @@ impl XaynAiEngine {
                 history,
                 stack_ops,
                 client,
+                #[cfg(feature = "storage")]
+                storage,
             )
             .await
         } else {
             let ranker = builder.build()?;
-            Self::new(endpoint_config, ranker, history, stack_ops, client).await
+            Self::new(
+                endpoint_config,
+                ranker,
+                history,
+                stack_ops,
+                client,
+                #[cfg(feature = "storage")]
+                storage,
+            )
+            .await
         }
     }
 }
