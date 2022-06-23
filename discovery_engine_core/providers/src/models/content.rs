@@ -37,16 +37,28 @@ impl UrlWithDomain {
         self.0.domain().unwrap(/* constructor makes sure we have a domain */)
     }
 
-    pub fn inner(&self) -> Url {
+    pub fn to_inner(&self) -> Url {
         self.0.clone()
     }
 }
 
 impl TryFrom<&str> for UrlWithDomain {
-    type Error = ();
+    type Error = Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(UrlWithDomain::new(Url::parse(value).unwrap()).unwrap())
+        let url = Url::parse(value)?;
+        let url =
+            UrlWithDomain::new(url).ok_or_else(|| Error::MissingDomainInUrl(value.to_string()))?;
+        Ok(url)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Deref, Default)]
+pub struct Rank(pub u64);
+
+impl Rank {
+    pub fn new(rank: u64) -> Self {
+        Rank(rank)
     }
 }
 
@@ -61,10 +73,7 @@ pub struct GenericArticle {
     pub language: String,
     pub topic: String,
     pub image: Option<Url>,
-
-    /// Private so that we can centrally control the default
-    /// value of `rank`
-    rank: Option<u64>,
+    pub rank: Rank,
 
     /// How much the article match the query.
     pub score: Option<f32>,
@@ -74,16 +83,6 @@ impl GenericArticle {
     /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
     pub fn source_domain(&self) -> String {
         self.url.domain().to_string()
-    }
-
-    /// The rank of the domain of the source
-    pub fn rank(&self) -> u64 {
-        // TODO: What should the default value here be?
-        self.rank.unwrap_or(0)
-    }
-
-    pub fn set_rank(&mut self, rank: u64) {
-        self.rank = Some(rank);
     }
 
     /// Gets the excerpt or falls back to the title if the excerpt is empty.
@@ -112,7 +111,7 @@ impl TryFrom<NewscatcherArticle> for GenericArticle {
             date_published: article.published_date,
             url,
             image,
-            rank: Some(article.rank),
+            rank: Rank::new(article.rank),
             score: article.score,
             country: article.country,
             language: article.language,
@@ -137,7 +136,7 @@ mod tests {
                 image: None,
                 date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
                 score: None,
-                rank: Some(0),
+                rank: Rank::default(),
                 country: "en".to_string(),
                 language: "en".to_string(),
                 topic: "news".to_string(),
@@ -177,7 +176,7 @@ mod tests {
         assert_eq!(article.country, resource.country);
         assert_eq!(article.language, resource.language);
         assert_eq!(article.score, resource.score);
-        assert_eq!(article.rank, resource.rank.unwrap());
+        assert_eq!(article.rank, resource.rank.0);
         assert_eq!(article.topic, resource.topic);
         assert_eq!(article.published_date, resource.date_published);
     }

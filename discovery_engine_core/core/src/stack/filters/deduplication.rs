@@ -34,7 +34,7 @@ impl Deduplicable for GenericArticle {
     }
 
     fn rank(&self) -> u64 {
-        self.rank()
+        self.rank.0
     }
 
     fn url(&self) -> &str {

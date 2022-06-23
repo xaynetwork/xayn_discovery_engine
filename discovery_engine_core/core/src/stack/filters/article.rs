@@ -78,8 +78,8 @@ mod tests {
 
     use crate::document::Document;
     use itertools::Itertools;
-
-    use xayn_discovery_engine_providers::NewscatcherArticle;
+    
+    use xayn_discovery_engine_providers::{NewscatcherArticle, Rank};
 
     use super::*;
 
@@ -202,7 +202,7 @@ mod tests {
         articles.push({
             let mut article = valid_articles[1].clone();
             article.url = "https://with_same_link.test".try_into().unwrap();
-            article.set_rank(u64::MAX);
+            article.rank = Rank::new(u64::MAX);
             article
         });
         articles.push({
@@ -222,7 +222,7 @@ mod tests {
             .unwrap()
             .into_iter()
             .map(|article| {
-                let rank = article.rank();
+                let rank = article.rank.0;
                 (article.title, rank)
             })
             .collect::<Vec<_>>();
@@ -232,22 +232,22 @@ mod tests {
         let filtered = HashMap::<_, _>::from_iter(filtered);
         assert_eq!(
             filtered.get(&valid_articles[0].title),
-            Some(&valid_articles[0].rank())
+            Some(&valid_articles[0].rank.0)
         );
         assert_eq!(
             filtered.get(&valid_articles[1].title),
-            Some(&valid_articles[1].rank())
+            Some(&valid_articles[1].rank.0)
         );
         assert_eq!(
             filtered
                 .get("With same url")
                 .xor(filtered.get(&valid_articles[2].title)),
-            Some(&valid_articles[2].rank())
+            Some(&valid_articles[2].rank.0)
         );
         assert_eq!(
             filtered.get(&valid_articles[3].title),
-            Some(&valid_articles[3].rank())
+            Some(&valid_articles[3].rank.0)
         );
-        assert_eq!(filtered.get("Unique"), Some(&valid_articles[3].rank()));
+        assert_eq!(filtered.get("Unique"), Some(&valid_articles[3].rank.0));
     }
 }

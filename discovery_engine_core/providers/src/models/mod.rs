@@ -14,4 +14,4 @@
 
 mod content;
 
-pub use content::{GenericArticle, UrlWithDomain};
+pub use content::{GenericArticle, Rank, UrlWithDomain};

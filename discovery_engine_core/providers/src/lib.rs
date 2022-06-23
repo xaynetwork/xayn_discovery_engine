@@ -39,7 +39,7 @@ mod filter;
 mod models;
 mod newscatcher;
 
-pub use models::{GenericArticle, UrlWithDomain};
+pub use models::{GenericArticle, Rank, UrlWithDomain};
 
 pub use bing::{TrendingQuery, TrendingTopic};
 pub use clean_query::clean_query;

@@ -149,12 +149,12 @@ pub struct NewsResource {
 impl From<GenericArticle> for NewsResource {
     fn from(article: GenericArticle) -> Self {
         let source_domain = article.source_domain();
-        let rank = article.rank();
+        let rank = article.rank.0;
         Self {
             title: article.title,
             snippet: article.snippet,
             date_published: article.date_published,
-            url: article.url.inner(),
+            url: article.url.to_inner(),
             source_domain,
             image: article.image,
             rank,
@@ -272,7 +272,7 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
 mod tests {
     use chrono::NaiveDate;
 
-    use xayn_discovery_engine_providers::NewscatcherArticle;
+    use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
 
     use super::*;
 
@@ -298,31 +298,26 @@ mod tests {
         Url::parse("https://example.net").unwrap(/* used only in tests */)
     }
 
-    fn mock_newscatcher_article() -> NewscatcherArticle {
-        NewscatcherArticle {
+    fn mock_generic_article() -> GenericArticle {
+        GenericArticle {
             title: "title".to_string(),
             score: Some(0.75),
-            rank: 10,
-            source_domain: "example.com".to_string(),
-            excerpt: "summary of the article".to_string(),
-            link: "https://example.com/news/".to_string(),
-            media: "https://example.com/news/image/".to_string(),
+            rank: Rank::new(10),
+            snippet: "summary of the article".to_string(),
             topic: "news".to_string(),
             country: "EN".to_string(),
             language: "en".to_string(),
-            published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            url: UrlWithDomain::new(Url::parse("https://example.com/news/").unwrap()).unwrap(),
+            image: Some(Url::parse("https://example.com/news/image.jpg").unwrap()),
         }
-    }
-
-    fn mock_generic_article() -> GenericArticle {
-        mock_newscatcher_article().try_into().unwrap()
     }
 
     impl From<GenericArticle> for HistoricDocument {
         fn from(article: GenericArticle) -> Self {
             Self {
                 id: Uuid::new_v4().into(),
-                url: article.url.inner(),
+                url: article.url.to_inner(),
                 snippet: article.snippet,
                 title: article.title,
             }
@@ -335,7 +330,7 @@ mod tests {
 
         let resource: NewsResource = article.clone().try_into().unwrap();
 
-        let rank = article.rank();
+        let rank = article.rank.0;
 
         assert_eq!(article.title, resource.title);
         assert_eq!(article.snippet, resource.snippet);
