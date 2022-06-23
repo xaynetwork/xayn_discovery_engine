@@ -349,6 +349,7 @@ where
     }
 
     /// Returns at most `max_documents` [`Document`]s for the feed.
+    #[instrument(skip(self, history))]
     pub async fn get_feed_documents(
         &mut self,
         history: &[HistoricDocument],
@@ -370,9 +371,20 @@ where
         )
         .collect::<Vec<&mut dyn Bucket<_>>>();
 
-        SelectionIter::new(BetaSampler, all_stacks.iter_mut())
-            .select(max_documents as usize)
-            .map_err(Into::into)
+        let documents: Vec<Document> = SelectionIter::new(BetaSampler, all_stacks.iter_mut())
+            .select(max_documents as usize)?;
+
+        if tracing::enabled!(Level::DEBUG) {
+            for document in &documents {
+                debug!(
+                    document = %document.id,
+                    stack = %document.stack_id,
+                    title = %document.resource.title,
+                );
+            }
+        }
+
+        Ok(documents)
     }
 
     /// Process the feedback about the user spending some time on a document.
