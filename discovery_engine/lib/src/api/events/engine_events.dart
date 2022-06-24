@@ -15,9 +15,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:xayn_discovery_engine/src/api/models/active_search.dart';
 import 'package:xayn_discovery_engine/src/api/models/document.dart';
-import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show AvailableSource, Source;
+import 'package:xayn_discovery_engine/src/domain/models/source.dart';
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart';
+import 'package:xayn_discovery_engine/src/generators/annotations.dart';
 
 part 'engine_events.freezed.dart';
 part 'engine_events.g.dart';
@@ -93,6 +93,7 @@ enum EngineExceptionReason {
 }
 
 @freezed
+@generateEventMap
 class EngineEvent with _$EngineEvent {
   /// Event created as a success response to RestoreFeedRequested event.
   /// Passes a list of [Document] entities back to the client.
