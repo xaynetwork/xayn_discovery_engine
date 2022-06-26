@@ -103,7 +103,7 @@ flutter-test: dart-build flutter-deps
 # replaced by a better workaround.
 _codegen-order-workaround:
     cd "$RUST_WORKSPACE"; \
-    cargo check # --quiet  2>/dev/null || :
+    cargo check --quiet  2>/dev/null || :
 
 # Checks rust code, fails on warnings on CI
 rust-check: _codegen-order-workaround
