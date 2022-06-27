@@ -1068,7 +1068,7 @@ impl XaynAiEngine {
 
         #[cfg(feature = "storage")]
         let storage = {
-            let storage = SqliteStorage::connect(":memory:").await?;
+            let storage = SqliteStorage::connect("sqlite::memory:").await?;
             storage.init_database().await?;
             Box::new(storage) as _
         };

@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::Path;
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use displaydoc::Display;
@@ -42,9 +42,9 @@ pub(crate) struct SqliteStorage {
 }
 
 impl SqliteStorage {
-    pub(crate) async fn connect(path: impl AsRef<Path> + Send) -> Result<Self, Error> {
-        let opt = SqliteConnectOptions::default()
-            .filename(path.as_ref())
+    pub(crate) async fn connect(uri: &str) -> Result<Self, Error> {
+        let opt = SqliteConnectOptions::from_str(uri)
+            .map_err(Error::Init)?
             .create_if_missing(true);
 
         let pool = SqlitePoolOptions::new()
@@ -61,6 +61,7 @@ impl Storage for SqliteStorage {
     type StorageError = Error;
 
     async fn init_database(&self) -> Result<(), <Self as Storage>::StorageError> {
+        // todo in TY-2971
         Ok(())
     }
 }
