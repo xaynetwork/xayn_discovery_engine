@@ -16,7 +16,8 @@
 
 use std::{fs::OpenOptions, io, path::Path, sync::Once};
 
-use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing::metadata::LevelFilter;
+use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt};
 
 static INIT_TRACING: Once = Once::new();
 
@@ -28,56 +29,47 @@ pub(crate) fn init_tracing(log_file: Option<&Path>) {
 }
 
 fn init_tracing_once(log_file: Option<&Path>) {
-    let max_level = LevelFilter::INFO;
+    let stdout_log = tracing_subscriber::fmt::layer();
 
-    let error = if let Some(log_file) = log_file {
-        match init_with_file_logging(max_level, log_file) {
-            Ok(()) => return,
-            Err(err) => Some(err),
-        }
-    } else {
-        None
-    };
-
-    init_normal_logging(max_level);
-
-    if let Some(error) = error {
-        tracing::error!("Initializing file logging faile: {}", error);
-    }
-}
-
-fn init_with_file_logging(max_level: LevelFilter, log_file: &Path) -> io::Result<()> {
-    let writer = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .create(true)
-        .open(log_file)?;
-
-    let layer = tracing_subscriber::fmt::layer()
-        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
-        .with_ansi(false)
-        .with_writer(writer);
-
-    tracing_subscriber::fmt()
-        .with_max_level(max_level)
-        .finish()
-        .with(layer)
-        .init();
-
-    Ok(())
-}
-
-fn init_normal_logging(max_level: LevelFilter) {
-    let subscriber = tracing_subscriber::fmt().with_max_level(max_level).finish();
-
+    let android_logging;
     cfg_if::cfg_if! {
         if #[cfg(target_os = "android")] {
-            use tracing_subscriber::layer::SubscriberExt;
-            let layer = tracing_android::layer("xayn_discovery_engine").ok();
-            subscriber.with(layer).init();
+            android_logging = tracing_android::layer("xayn_discovery_engine").ok()
         } else {
-            subscriber.init();
+            // workaround to not have to specify a alternative type per hand
+            android_logging = false.then(|| tracing_subscriber::fmt::layer())
         }
+    };
+
+    let file_log = log_file.map(|log_file| -> io::Result<_> {
+        let writer = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(log_file)?;
+
+        Ok(tracing_subscriber::fmt::layer()
+            .with_writer(writer)
+            .json()
+            .with_span_events(FmtSpan::CLOSE))
+    });
+
+    let (file_log, file_error) = match file_log {
+        None => (None, None),
+        Some(Ok(log)) => (Some(log), None),
+        Some(Err(err)) => (None, Some(err)),
+    };
+
+    tracing_subscriber::registry()
+        .with(stdout_log)
+        .with(android_logging)
+        .with(file_log)
+        //FIXME configurable add env logging?
+        .with(LevelFilter::INFO)
+        .init();
+
+    if let Some(file_error) = file_error {
+        tracing::error!(file_error=%file_error, "Initializing file logging faile");
     }
 }
 

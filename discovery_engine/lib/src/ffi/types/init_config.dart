@@ -71,7 +71,6 @@ class InitConfigFfi with EquatableMixin {
     Set<Source> trustedSources,
     Set<Source> excludedSources, {
     String? deConfig,
-    String? logFile,
   }) =>
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
@@ -86,7 +85,7 @@ class InitConfigFfi with EquatableMixin {
         kpeCnn: setupData.kpeCnn,
         kpeClassifier: setupData.kpeClassifier,
         deConfig: deConfig,
-        logFile: logFile,
+        logFile: configuration.logFile,
       );
 
   InitConfigFfi.fromParts({
