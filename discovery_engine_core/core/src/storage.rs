@@ -33,17 +33,15 @@ pub trait Storage {
 pub enum Error {
     /// Failed to initialize database: {0}
     Init(#[source] sqlx::Error),
-
-    /// Failed to acquire connection: {0}
-    AcquireConnection(#[source] sqlx::Error),
 }
 
 #[derive(Clone)]
-pub(crate) struct SqlLiteStorage {
+pub(crate) struct SqliteStorage {
+    #[allow(dead_code)]
     pool: Pool<Sqlite>,
 }
 
-impl SqlLiteStorage {
+impl SqliteStorage {
     pub(crate) async fn connect(path: impl AsRef<Path> + Send) -> Result<Self, Error> {
         let opt = SqliteConnectOptions::default()
             .filename(path.as_ref())
@@ -59,16 +57,10 @@ impl SqlLiteStorage {
 }
 
 #[async_trait]
-impl Storage for SqlLiteStorage {
+impl Storage for SqliteStorage {
     type StorageError = Error;
 
     async fn init_database(&self) -> Result<(), <Self as Storage>::StorageError> {
-        let _con = self
-            .pool
-            .acquire()
-            .await
-            .map_err(Error::AcquireConnection)?;
-        // create tables
         Ok(())
     }
 }

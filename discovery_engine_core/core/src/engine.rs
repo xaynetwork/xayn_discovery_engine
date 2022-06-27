@@ -59,7 +59,7 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[cfg(feature = "storage")]
-use crate::storage::{self, SqlLiteStorage, Storage};
+use crate::storage::{self, SqliteStorage, Storage};
 use crate::{
     document::{
         self,
@@ -1068,7 +1068,7 @@ impl XaynAiEngine {
 
         #[cfg(feature = "storage")]
         let storage = {
-            let storage = SqlLiteStorage::connect(":memory:").await?;
+            let storage = SqliteStorage::connect(":memory:").await?;
             storage.init_database().await?;
             Box::new(storage) as _
         };
