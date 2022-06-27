@@ -33,13 +33,14 @@ fn init_tracing_once(log_file: Option<&Path>) {
 
     let stdout_log = tracing_subscriber::fmt::layer();
 
+    #[allow(clippy::needless_late_init)]
     let android_logging;
     cfg_if::cfg_if! {
         if #[cfg(target_os = "android")] {
             android_logging = tracing_android::layer("xayn_discovery_engine").ok()
         } else {
             // workaround to not have to specify a alternative type per hand
-            android_logging = false.then(|| tracing_subscriber::fmt::layer())
+            android_logging = false.then(tracing_subscriber::fmt::layer)
         }
     };
 
@@ -78,7 +79,6 @@ fn init_tracing_once(log_file: Option<&Path>) {
 /// If `RUST_LOG` is not set/empty `DISCOVERY_ENGINE_LOG` will
 /// be used instead in the form of `info,xayn_=${DISCOVERY_ENGINE_LOG}`,
 /// if that fails `info` is used.
-///
 fn build_env_filter(errors: &mut Vec<Box<dyn Error>>) -> EnvFilter {
     if let Some(directives) = env_var("RUST_LOG", errors) {
         match directives.parse() {
@@ -103,7 +103,7 @@ fn build_env_filter(errors: &mut Vec<Box<dyn Error>>) -> EnvFilter {
 
 fn env_var(var: &str, errors: &mut Vec<Box<dyn Error>>) -> Option<String> {
     match std::env::var(var) {
-        Ok(val) if !val.trim().is_empty() => return Some(val),
+        Ok(var) if !var.trim().is_empty() => return Some(var),
         Err(err @ VarError::NotUnicode(_)) => {
             errors.push(Box::new(err));
         }
