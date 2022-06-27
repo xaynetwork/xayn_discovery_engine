@@ -29,8 +29,8 @@ use xayn_discovery_engine_providers::{
 };
 
 use crate::{
+    config::EndpointConfig,
     document::{Document, HistoricDocument},
-    engine::EndpointConfig,
     stack::{
         filters::{ArticleFilter, CommonFilter, SourcesFilter},
         Id,
