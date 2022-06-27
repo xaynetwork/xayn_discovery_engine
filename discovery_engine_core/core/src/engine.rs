@@ -56,7 +56,7 @@ use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 #[cfg(feature = "storage")]
 use crate::storage::{self, SqliteStorage, Storage};
 use crate::{
-    config::{ai_config_from_json, CoreConfig, EndpointConfig, InitConfig},
+    config::{config_from_json, CoreConfig, EndpointConfig, InitConfig},
     document::{
         self,
         Document,
@@ -917,7 +917,7 @@ impl XaynAiEngine {
         state: Option<&[u8]>,
         history: &[HistoricDocument],
     ) -> Result<Self, Error> {
-        let ai_config = ai_config_from_json(config.ai_config.as_deref().unwrap_or("{}"));
+        let ai_config = config_from_json(config.ai_config.as_deref().unwrap_or("{}"));
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(

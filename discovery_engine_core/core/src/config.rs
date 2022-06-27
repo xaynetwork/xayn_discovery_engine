@@ -124,7 +124,8 @@ impl Default for CoreConfig {
     }
 }
 
-pub(crate) fn ai_config_from_json(json: &str) -> Figment {
+/// Reads the configurations from json and sets defaults for missing fields.
+pub(crate) fn config_from_json(json: &str) -> Figment {
     Figment::new()
         .merge(Serialized::defaults(CoiSystemConfig::default()))
         .merge(Serialized::default("kpe.token_size", 150))
@@ -139,8 +140,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ai_config_from_json_default() -> Result<(), GenericError> {
-        let ai_config = ai_config_from_json("{}");
+    fn test_config_from_json_default() -> Result<(), GenericError> {
+        let ai_config = config_from_json("{}");
         assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
         assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
@@ -151,8 +152,8 @@ mod tests {
     }
 
     #[test]
-    fn test_ai_config_from_json_modified() -> Result<(), GenericError> {
-        let ai_config = ai_config_from_json(
+    fn test_config_from_json_modified() -> Result<(), GenericError> {
+        let ai_config = config_from_json(
             r#"{
                 "coi": {
                     "threshold": 0.42
