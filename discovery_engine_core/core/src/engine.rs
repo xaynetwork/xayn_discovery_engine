@@ -138,7 +138,7 @@ pub enum Error {
 /// Discovery Engine.
 pub struct Engine<R> {
     client: Arc<Client>,
-    config: EndpointConfig,
+    endpoint_config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
     exploration_stack: exploration::Stack,
@@ -155,7 +155,7 @@ where
 {
     /// Creates a new `Engine`.
     async fn new(
-        config: EndpointConfig,
+        endpoint_config: EndpointConfig,
         ranker: R,
         history: &[HistoricDocument],
         stack_ops: Vec<BoxedOps>,
@@ -167,7 +167,7 @@ where
         let stack_data = |_| StackData::default();
 
         Self::from_stack_data(
-            config,
+            endpoint_config,
             ranker,
             history,
             stack_data,
@@ -186,7 +186,7 @@ where
     /// Data related to missing operations will be dropped.
     async fn from_state<'a>(
         state: &'a StackState,
-        config: EndpointConfig,
+        endpoint_config: EndpointConfig,
         ranker: R,
         history: &'a [HistoricDocument],
         stack_ops: Vec<BoxedOps>,
@@ -207,7 +207,7 @@ where
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
         Self::from_stack_data(
-            config,
+            endpoint_config,
             ranker,
             history,
             stack_data,
@@ -221,7 +221,7 @@ where
     }
 
     async fn from_stack_data(
-        config: EndpointConfig,
+        endpoint_config: EndpointConfig,
         ranker: R,
         history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
@@ -249,7 +249,7 @@ where
         // we don't want to fail initialization if there are network problems
         let mut engine = Self {
             client,
-            config,
+            endpoint_config,
             core_config,
             stacks: RwLock::new(stacks),
             exploration_stack,
@@ -272,7 +272,7 @@ where
         history: &[HistoricDocument],
         request_new: usize,
     ) -> Result<(), Error> {
-        let markets = self.config.markets.read().await;
+        let markets = self.endpoint_config.markets.read().await;
         let mut stacks = self.stacks.write().await;
 
         update_stacks(
@@ -321,7 +321,7 @@ where
         history: &[HistoricDocument],
         new_markets: Vec<Market>,
     ) -> Result<(), Error> {
-        let mut markets_guard = self.config.markets.write().await;
+        let mut markets_guard = self.endpoint_config.markets.write().await;
         let mut old_markets = replace(&mut *markets_guard, new_markets);
         old_markets.retain(|market| !markets_guard.contains(market));
         self.ranker.remove_key_phrases(&old_markets);
@@ -471,9 +471,9 @@ where
         let mut errors = Vec::new();
         let mut articles = Vec::new();
 
-        let markets = self.config.markets.read().await;
+        let markets = self.endpoint_config.markets.read().await;
         let scaled_page_size = page_size as usize / markets.len() + 1;
-        let excluded_sources = self.config.excluded_sources.read().await.clone();
+        let excluded_sources = self.endpoint_config.excluded_sources.read().await.clone();
         for market in markets.iter() {
             let common = CommonQueryParts {
                 market: Some(market),
@@ -540,7 +540,7 @@ where
             return Ok(Vec::new());
         }
 
-        let excluded_sources = &self.config.excluded_sources.read().await.clone();
+        let excluded_sources = &self.endpoint_config.excluded_sources.read().await.clone();
         let filter = &key_phrases
             .iter()
             .take(self.core_config.deep_search_top)
@@ -598,7 +598,7 @@ where
         let mut errors = Vec::new();
         let mut topics = Vec::new();
 
-        let markets = self.config.markets.read().await;
+        let markets = self.endpoint_config.markets.read().await;
         for market in markets.iter() {
             let query = TrendingQuery { market };
             match self.client.query_trending(&query).await {
@@ -627,7 +627,7 @@ where
         sources: Vec<String>,
     ) -> Result<(), Error> {
         let sources_set = sources.iter().cloned().collect::<HashSet<_>>();
-        *self.config.trusted_sources.write().await = sources;
+        *self.endpoint_config.trusted_sources.write().await = sources;
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
@@ -647,7 +647,7 @@ where
         excluded_sources: Vec<String>,
     ) -> Result<(), Error> {
         let exclusion_set = excluded_sources.iter().cloned().collect::<HashSet<_>>();
-        *self.config.excluded_sources.write().await = excluded_sources;
+        *self.endpoint_config.excluded_sources.write().await = excluded_sources;
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
