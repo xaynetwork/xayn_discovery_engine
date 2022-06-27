@@ -156,6 +156,7 @@ where
     /// Creates a new `Engine`.
     async fn new(
         endpoint_config: EndpointConfig,
+        core_config: CoreConfig,
         ranker: R,
         history: &[HistoricDocument],
         stack_ops: Vec<BoxedOps>,
@@ -168,6 +169,7 @@ where
 
         Self::from_stack_data(
             endpoint_config,
+            core_config,
             ranker,
             history,
             stack_data,
@@ -187,6 +189,7 @@ where
     async fn from_state<'a>(
         state: &'a StackState,
         endpoint_config: EndpointConfig,
+        core_config: CoreConfig,
         ranker: R,
         history: &'a [HistoricDocument],
         stack_ops: Vec<BoxedOps>,
@@ -208,6 +211,7 @@ where
 
         Self::from_stack_data(
             endpoint_config,
+            core_config,
             ranker,
             history,
             stack_data,
@@ -220,8 +224,10 @@ where
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn from_stack_data(
         endpoint_config: EndpointConfig,
+        core_config: CoreConfig,
         ranker: R,
         history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
@@ -241,7 +247,6 @@ where
             })
             .collect::<Result<HashMap<_, _>, _>>()
             .map_err(Error::InvalidStack)?;
-        let core_config = CoreConfig::default();
 
         let exploration_stack =
             exploration::Stack::new(exploration_stack_data).map_err(Error::InvalidStack)?;
@@ -954,7 +959,14 @@ impl XaynAiEngine {
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
         let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
-        let endpoint_config = EndpointConfig::default().with_init_config(config);
+        let endpoint_config = ai_config
+            .extract_inner::<EndpointConfig>("endpoint")
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_init_config(config)
+            .await;
+        let core_config = ai_config
+            .extract_inner("core")
+            .map_err(|err| Error::Ranker(err.into()))?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
             Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
@@ -973,6 +985,7 @@ impl XaynAiEngine {
             Self::from_state(
                 &state.engine,
                 endpoint_config,
+                core_config,
                 ranker,
                 history,
                 stack_ops,
@@ -985,6 +998,7 @@ impl XaynAiEngine {
             let ranker = builder.build()?;
             Self::new(
                 endpoint_config,
+                core_config,
                 ranker,
                 history,
                 stack_ops,
@@ -1070,7 +1084,9 @@ mod tests {
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
             ai_config: None,
         };
-        let endpoint_config = EndpointConfig::default().with_init_config(config.clone());
+        let endpoint_config = EndpointConfig::default()
+            .with_init_config(config.clone())
+            .await;
         let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
 
         // We assume that, if de-duplication works between two stacks, it'll work between

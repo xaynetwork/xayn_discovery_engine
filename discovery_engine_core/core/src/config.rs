@@ -19,14 +19,14 @@ use figment::{
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
+use tokio::{join, sync::RwLock};
 
 use xayn_discovery_engine_ai::CoiSystemConfig;
 use xayn_discovery_engine_providers::Market;
 
 /// Configuration settings to initialize Discovery Engine with a
 /// [`xayn_discovery_engine_ai::Ranker`].
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct InitConfig {
     /// Key for accessing the API.
     pub api_key: String,
@@ -57,6 +57,7 @@ pub struct InitConfig {
 /// Discovery Engine endpoint settings.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(derivative::Derivative), derivative(Eq, PartialEq))]
+#[allow(clippy::unsafe_derive_deserialize)] // false positive?
 pub(crate) struct EndpointConfig {
     /// Page size setting for API.
     pub(crate) page_size: usize,
@@ -100,10 +101,19 @@ impl Default for EndpointConfig {
 }
 
 impl EndpointConfig {
-    pub(crate) fn with_init_config(mut self, config: InitConfig) -> Self {
-        self.markets = Arc::new(RwLock::new(config.markets));
-        self.trusted_sources = Arc::new(RwLock::new(config.trusted_sources));
-        self.excluded_sources = Arc::new(RwLock::new(config.excluded_sources));
+    pub(crate) async fn with_init_config(self, config: InitConfig) -> Self {
+        join!(
+            async {
+                *self.markets.write().await = config.markets;
+            },
+            async {
+                *self.trusted_sources.write().await = config.trusted_sources;
+            },
+            async {
+                *self.excluded_sources.write().await = config.excluded_sources;
+            },
+        );
+
         self
     }
 }
