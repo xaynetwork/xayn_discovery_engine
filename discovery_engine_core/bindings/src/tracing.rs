@@ -39,8 +39,11 @@ fn init_tracing_once(log_file: Option<&Path>) {
     let android_logging;
     cfg_if::cfg_if! {
         if #[cfg(target_os = "android")] {
-            //TODO error
-            android_logging = tracing_android::layer("xayn_discovery_engine").ok()
+            android_logging = tracing_android::layer("xayn_discovery_engine")
+                .map_err(|err| {
+                    delayed_errors.push(Box::new(err) as _);
+                })
+                .ok()
         } else {
             // workaround to not have to specify a alternative type per hand
             android_logging = false.then(|| tracing_subscriber::fmt::layer())
@@ -63,7 +66,6 @@ fn init_tracing_once(log_file: Option<&Path>) {
         .transpose()
         .map_err(|err| {
             delayed_errors.push(Box::new(err) as _);
-            ()
         })
         .ok();
 
