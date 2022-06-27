@@ -55,14 +55,22 @@ pub struct InitConfig {
 }
 
 /// Discovery Engine endpoint settings.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(test, derive(derivative::Derivative), derivative(Eq, PartialEq))]
 pub(crate) struct EndpointConfig {
     /// Page size setting for API.
     pub(crate) page_size: usize,
     /// Write-exclusive access to markets list.
+    #[serde(skip)]
+    #[cfg_attr(test, derivative(PartialEq = "ignore"))]
     pub(crate) markets: Arc<RwLock<Vec<Market>>>,
     /// Trusted sources for news queries.
+    #[serde(skip)]
+    #[cfg_attr(test, derivative(PartialEq = "ignore"))]
     pub(crate) trusted_sources: Arc<RwLock<Vec<String>>>,
     /// Sources to exclude for news queries.
+    #[serde(skip)]
+    #[cfg_attr(test, derivative(PartialEq = "ignore"))]
     pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
     /// The maximum number of requests to try to reach the number of `min_articles`.
     pub(crate) max_requests: u32,
@@ -76,13 +84,13 @@ pub(crate) struct EndpointConfig {
     pub(crate) max_article_age_days: usize,
 }
 
-impl From<InitConfig> for EndpointConfig {
-    fn from(config: InitConfig) -> Self {
+impl Default for EndpointConfig {
+    fn default() -> Self {
         Self {
             page_size: 100,
-            markets: Arc::new(RwLock::new(config.markets)),
-            trusted_sources: Arc::new(RwLock::new(config.trusted_sources)),
-            excluded_sources: Arc::new(RwLock::new(config.excluded_sources)),
+            markets: Arc::default(),
+            trusted_sources: Arc::default(),
+            excluded_sources: Arc::default(),
             max_requests: 5,
             min_articles: 20,
             max_headline_age_days: 3,
@@ -91,8 +99,18 @@ impl From<InitConfig> for EndpointConfig {
     }
 }
 
+impl EndpointConfig {
+    pub(crate) fn with_init_config(mut self, config: InitConfig) -> Self {
+        self.markets = Arc::new(RwLock::new(config.markets));
+        self.trusted_sources = Arc::new(RwLock::new(config.trusted_sources));
+        self.excluded_sources = Arc::new(RwLock::new(config.excluded_sources));
+        self
+    }
+}
+
 /// Internal config to allow for configurations within the core without a mirroring outside impl.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct CoreConfig {
     /// The number of taken top key phrases while updating the stacks.
     pub(crate) take_top: usize,
@@ -111,9 +129,6 @@ pub(crate) struct CoreConfig {
     /// the deep search are discarded.
     pub(crate) deep_search_sim: f32,
 }
-
-// the f32 fields are never NaN by construction
-impl Eq for CoreConfig {}
 
 impl Default for CoreConfig {
     fn default() -> Self {
@@ -136,6 +151,7 @@ pub(crate) fn config_from_json(json: &str) -> Figment {
         .join(Serialized::default("smbert.token_size", 150))
         .join(Serialized::defaults(CoiSystemConfig::default()))
         .join(Serialized::default("core", CoreConfig::default()))
+        .join(Serialized::default("endpoint", EndpointConfig::default()))
 }
 
 #[cfg(test)]
@@ -143,6 +159,9 @@ mod tests {
     use xayn_discovery_engine_ai::GenericError;
 
     use super::*;
+
+    // the f32 fields are never NaN by construction
+    impl Eq for CoreConfig {}
 
     #[test]
     fn test_config_from_json_default() -> Result<(), GenericError> {
@@ -156,6 +175,10 @@ mod tests {
         assert_eq!(
             config.extract_inner::<CoreConfig>("core")?,
             CoreConfig::default(),
+        );
+        assert_eq!(
+            config.extract_inner::<EndpointConfig>("endpoint")?,
+            EndpointConfig::default(),
         );
         Ok(())
     }
@@ -188,6 +211,10 @@ mod tests {
         assert_eq!(
             config.extract_inner::<CoreConfig>("core")?,
             CoreConfig::default(),
+        );
+        assert_eq!(
+            config.extract_inner::<EndpointConfig>("endpoint")?,
+            EndpointConfig::default(),
         );
         Ok(())
     }

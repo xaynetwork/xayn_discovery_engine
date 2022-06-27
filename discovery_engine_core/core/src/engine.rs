@@ -954,7 +954,7 @@ impl XaynAiEngine {
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
         let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
-        let endpoint_config = config.into();
+        let endpoint_config = EndpointConfig::default().with_init_config(config);
         let stack_ops = vec![
             Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
             Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
@@ -1070,7 +1070,7 @@ mod tests {
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
             ai_config: None,
         };
-        let endpoint_config = config.clone().into();
+        let endpoint_config = EndpointConfig::default().with_init_config(config.clone());
         let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
 
         // We assume that, if de-duplication works between two stacks, it'll work between
