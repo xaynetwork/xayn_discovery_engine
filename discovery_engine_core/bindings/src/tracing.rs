@@ -14,13 +14,10 @@
 
 //! Setup tracing on different platform.
 
-use std::{error::Error, fs::OpenOptions, io, path::Path, sync::Once};
+use std::{env::VarError, error::Error, fs::OpenOptions, io, path::Path, sync::Once};
 
 use tracing::metadata::LevelFilter;
-use tracing_subscriber::{
-    fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt,
-    EnvFilter,
-};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 static INIT_TRACING: Once = Once::new();
 
@@ -39,11 +36,7 @@ fn init_tracing_once(log_file: Option<&Path>) {
     let android_logging;
     cfg_if::cfg_if! {
         if #[cfg(target_os = "android")] {
-            android_logging = tracing_android::layer("xayn_discovery_engine")
-                .map_err(|err| {
-                    delayed_errors.push(Box::new(err) as _);
-                })
-                .ok()
+            android_logging = tracing_android::layer("xayn_discovery_engine").ok()
         } else {
             // workaround to not have to specify a alternative type per hand
             android_logging = false.then(|| tracing_subscriber::fmt::layer())
@@ -58,10 +51,7 @@ fn init_tracing_once(log_file: Option<&Path>) {
                 .create(true)
                 .open(log_file)?;
 
-            Ok(tracing_subscriber::fmt::layer()
-                .with_writer(writer)
-                .json()
-                .with_span_events(FmtSpan::CLOSE))
+            Ok(tracing_subscriber::fmt::layer().with_writer(writer).json())
         })
         .transpose()
         .map_err(|err| {
@@ -85,16 +75,41 @@ fn init_tracing_once(log_file: Option<&Path>) {
 
 /// Crates an [`EnvFilter`] based on the env of `RUST_LOG`.
 ///
-/// If `RUST_LOG` is empty/not set it will fall back to
-/// `info` level, malformed directives are ignored but
-/// and error is logged after logging is setup.
+/// If `RUST_LOG` is not set/empty `DISCOVERY_ENGINE_LOG` will
+/// be used instead in the form of `info,xayn_=${DISCOVERY_ENGINE_LOG}`,
+/// if that fails `info` is used.
+///
 fn build_env_filter(errors: &mut Vec<Box<dyn Error>>) -> EnvFilter {
-    let env_builder = EnvFilter::builder().with_default_directive(LevelFilter::INFO.into());
+    if let Some(directives) = env_var("RUST_LOG", errors) {
+        match directives.parse() {
+            Ok(val) => return val,
+            Err(err) => {
+                errors.push(Box::new(err));
+            }
+        }
+    }
 
-    env_builder.from_env().unwrap_or_else(|err| {
-        errors.push(Box::new(err));
-        env_builder.from_env_lossy()
-    })
+    if let Some(de_level) = env_var("DISCOVERY_ENGINE_LOG", errors) {
+        match format!("info,xayn_={}", de_level).parse() {
+            Ok(val) => return val,
+            Err(err) => {
+                errors.push(Box::new(err));
+            }
+        }
+    }
+
+    EnvFilter::default().add_directive(LevelFilter::INFO.into())
+}
+
+fn env_var(var: &str, errors: &mut Vec<Box<dyn Error>>) -> Option<String> {
+    match std::env::var(var) {
+        Ok(val) if !val.trim().is_empty() => return Some(val),
+        Err(err @ VarError::NotUnicode(_)) => {
+            errors.push(Box::new(err));
+        }
+        _ => (),
+    }
+    None
 }
 
 fn init_panic_logging() {
