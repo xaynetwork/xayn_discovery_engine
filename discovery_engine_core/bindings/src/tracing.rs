@@ -33,14 +33,12 @@ fn init_tracing_once(log_file: Option<&Path>) {
 
     let stdout_log = tracing_subscriber::fmt::layer();
 
-    #[allow(clippy::needless_late_init)]
-    let android_logging;
+    let subscriber = tracing_subscriber::registry();
+
     cfg_if::cfg_if! {
         if #[cfg(target_os = "android")] {
-            android_logging = tracing_android::layer("xayn_discovery_engine").ok()
-        } else {
-            // workaround to not have to specify a alternative type per hand
-            android_logging = false.then(tracing_subscriber::fmt::layer)
+            let layer = tracing_android::layer("xayn_discovery_engine").ok();
+            let subscriber = subscriber.with(layer);
         }
     };
 
@@ -62,9 +60,8 @@ fn init_tracing_once(log_file: Option<&Path>) {
 
     let filter = build_env_filter(&mut delayed_errors);
 
-    tracing_subscriber::registry()
+    subscriber
         .with(stdout_log)
-        .with(android_logging)
         .with(file_log)
         .with(filter)
         .init();
