@@ -14,10 +14,13 @@
 
 //! Setup tracing on different platform.
 
-use std::{fs::OpenOptions, io, path::Path, sync::Once};
+use std::{error::Error, fs::OpenOptions, io, path::Path, sync::Once};
 
 use tracing::metadata::LevelFilter;
-use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{
+    fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt,
+    EnvFilter,
+};
 
 static INIT_TRACING: Once = Once::new();
 
@@ -29,11 +32,14 @@ pub(crate) fn init_tracing(log_file: Option<&Path>) {
 }
 
 fn init_tracing_once(log_file: Option<&Path>) {
+    let mut delayed_errors = Vec::new();
+
     let stdout_log = tracing_subscriber::fmt::layer();
 
     let android_logging;
     cfg_if::cfg_if! {
         if #[cfg(target_os = "android")] {
+            //TODO error
             android_logging = tracing_android::layer("xayn_discovery_engine").ok()
         } else {
             // workaround to not have to specify a alternative type per hand
@@ -41,36 +47,52 @@ fn init_tracing_once(log_file: Option<&Path>) {
         }
     };
 
-    let file_log = log_file.map(|log_file| -> io::Result<_> {
-        let writer = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(log_file)?;
+    let file_log = log_file
+        .map(|log_file| -> io::Result<_> {
+            let writer = OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(log_file)?;
 
-        Ok(tracing_subscriber::fmt::layer()
-            .with_writer(writer)
-            .json()
-            .with_span_events(FmtSpan::CLOSE))
-    });
+            Ok(tracing_subscriber::fmt::layer()
+                .with_writer(writer)
+                .json()
+                .with_span_events(FmtSpan::CLOSE))
+        })
+        .transpose()
+        .map_err(|err| {
+            delayed_errors.push(Box::new(err) as _);
+            ()
+        })
+        .ok();
 
-    let (file_log, file_error) = match file_log {
-        None => (None, None),
-        Some(Ok(log)) => (Some(log), None),
-        Some(Err(err)) => (None, Some(err)),
-    };
+    let filter = build_env_filter(&mut delayed_errors);
 
     tracing_subscriber::registry()
         .with(stdout_log)
         .with(android_logging)
         .with(file_log)
-        //FIXME configurable add env logging?
-        .with(LevelFilter::INFO)
+        .with(filter)
         .init();
 
-    if let Some(file_error) = file_error {
-        tracing::error!(file_error=%file_error, "Initializing file logging faile");
+    for error in delayed_errors {
+        tracing::error!(error=%error, "logging setup failed");
     }
+}
+
+/// Crates an [`EnvFilter`] based on the env of `RUST_LOG`.
+///
+/// If `RUST_LOG` is empty/not set it will fall back to
+/// `info` level, malformed directives are ignored but
+/// and error is logged after logging is setup.
+fn build_env_filter(errors: &mut Vec<Box<dyn Error>>) -> EnvFilter {
+    let env_builder = EnvFilter::builder().with_default_directive(LevelFilter::INFO.into());
+
+    env_builder.from_env().unwrap_or_else(|err| {
+        errors.push(Box::new(err));
+        env_builder.from_env_lossy()
+    })
 }
 
 fn init_panic_logging() {
