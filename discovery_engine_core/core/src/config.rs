@@ -18,6 +18,7 @@ use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use xayn_discovery_engine_ai::CoiSystemConfig;
@@ -91,6 +92,7 @@ impl From<InitConfig> for EndpointConfig {
 }
 
 /// Internal config to allow for configurations within the core without a mirroring outside impl.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) struct CoreConfig {
     /// The number of taken top key phrases while updating the stacks.
     pub(crate) take_top: usize,
@@ -110,6 +112,9 @@ pub(crate) struct CoreConfig {
     pub(crate) deep_search_sim: f32,
 }
 
+// the f32 fields are never NaN by construction
+impl Eq for CoreConfig {}
+
 impl Default for CoreConfig {
     fn default() -> Self {
         Self {
@@ -126,11 +131,11 @@ impl Default for CoreConfig {
 
 /// Reads the configurations from json and sets defaults for missing fields.
 pub(crate) fn config_from_json(json: &str) -> Figment {
-    Figment::new()
-        .merge(Serialized::defaults(CoiSystemConfig::default()))
-        .merge(Serialized::default("kpe.token_size", 150))
-        .merge(Serialized::default("smbert.token_size", 150))
-        .merge(Json::string(json))
+    Figment::from(Json::string(json))
+        .join(Serialized::default("kpe.token_size", 150))
+        .join(Serialized::default("smbert.token_size", 150))
+        .join(Serialized::defaults(CoiSystemConfig::default()))
+        .join(Serialized::default("core", CoreConfig::default()))
 }
 
 #[cfg(test)]
@@ -141,19 +146,23 @@ mod tests {
 
     #[test]
     fn test_config_from_json_default() -> Result<(), GenericError> {
-        let ai_config = config_from_json("{}");
-        assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
-        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 150);
+        let config = config_from_json("{}");
+        assert_eq!(config.extract_inner::<usize>("kpe.token_size")?, 150);
+        assert_eq!(config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
-            ai_config.extract::<CoiSystemConfig>()?,
+            config.extract::<CoiSystemConfig>()?,
             CoiSystemConfig::default(),
+        );
+        assert_eq!(
+            config.extract_inner::<CoreConfig>("core")?,
+            CoreConfig::default(),
         );
         Ok(())
     }
 
     #[test]
     fn test_config_from_json_modified() -> Result<(), GenericError> {
-        let ai_config = config_from_json(
+        let config = config_from_json(
             r#"{
                 "coi": {
                     "threshold": 0.42
@@ -168,13 +177,17 @@ mod tests {
                 "baz": 0
             }"#,
         );
-        assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
-        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 42);
+        assert_eq!(config.extract_inner::<usize>("kpe.token_size")?, 150);
+        assert_eq!(config.extract_inner::<usize>("smbert.token_size")?, 42);
         assert_eq!(
-            ai_config.extract::<CoiSystemConfig>()?,
+            config.extract::<CoiSystemConfig>()?,
             CoiSystemConfig::default()
                 .with_threshold(0.42)?
                 .with_penalty(&[0.99, 0.66, 0.33])?,
+        );
+        assert_eq!(
+            config.extract_inner::<CoreConfig>("core")?,
+            CoreConfig::default(),
         );
         Ok(())
     }
