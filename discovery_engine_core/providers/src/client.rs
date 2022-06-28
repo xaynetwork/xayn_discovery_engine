@@ -207,7 +207,7 @@ impl Client {
             .map(|news| news.articles)?;
 
         // If we don't receive any articles from the news source, we don't treat this
-        // as an error...
+        // as an error, because this is expected if we're e.g. on the last page of results...
         if articles.is_empty() {
             return Ok(vec![]);
         }
@@ -216,13 +216,7 @@ impl Client {
             .into_iter()
             .filter_map(|article| {
                 GenericArticle::try_from(article.clone())
-                    .map_err(|e| {
-                        trace!(
-                            "Malformed article could not be convert ({:?}): {:?}",
-                            e,
-                            article
-                        )
-                    })
+                    .map_err(|e| trace!("Malformed article could not be converted: {:?}", e))
                     .ok()
             })
             .collect();
