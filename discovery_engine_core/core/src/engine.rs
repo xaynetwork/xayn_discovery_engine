@@ -131,11 +131,11 @@ pub enum Error {
     /// Invalid search term.
     InvalidTerm,
 
-    /// List of errors/warnings. {0:?}
+    /// List of errors/warnings: {0:?}.
     Errors(Vec<Error>),
 
     #[cfg(feature = "storage")]
-    /// Storage error" {0}.
+    /// Storage error: {0}.
     Storage(#[from] storage::Error),
 }
 
