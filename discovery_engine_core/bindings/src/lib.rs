@@ -35,6 +35,8 @@ pub mod async_bindings;
 mod tracing;
 pub mod types;
 
+use std::path::Path;
+
 use xayn_discovery_engine_core::Engine;
 
 #[async_bindgen::api(
@@ -55,7 +57,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         state: Option<Box<Vec<u8>>>,
         history: Box<Vec<HistoricDocument>>,
     ) -> Box<Result<SharedEngine, String>> {
-        tracing::init_tracing();
+        tracing::init_tracing(config.log_file.as_deref().map(Path::new));
 
         Box::new(
             Engine::from_config(*config, state.as_deref().map(Vec::as_slice), &history)

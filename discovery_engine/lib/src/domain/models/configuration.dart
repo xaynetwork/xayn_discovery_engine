@@ -34,6 +34,7 @@ class Configuration with _$Configuration {
     required String applicationDirectoryPath,
     required FeedMarkets feedMarkets,
     required Manifest manifest,
+    String? logFile,
   }) = _Configuration;
 
   factory Configuration.fromJson(Map<String, Object?> json) =>

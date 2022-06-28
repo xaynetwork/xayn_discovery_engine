@@ -1083,6 +1083,7 @@ mod tests {
             kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
             de_config: None,
+            log_file: None,
         };
         let endpoint_config = EndpointConfig::default()
             .with_init_config(config.clone())
@@ -1296,6 +1297,7 @@ mod tests {
             kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
             de_config: None,
+            log_file: None,
         };
 
         // Now we can initialize the engine with no previous history or state. This should

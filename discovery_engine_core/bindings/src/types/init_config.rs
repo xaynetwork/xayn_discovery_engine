@@ -159,6 +159,19 @@ pub unsafe extern "C" fn init_config_place_of_de_config(
     unsafe { addr_of_mut!((*place).de_config) }
 }
 
+/// Returns a pointer to the `log_file` field of a configuration.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`InitConfig`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_config_place_of_log_file(
+    place: *mut InitConfig,
+) -> *mut Option<String> {
+    unsafe { addr_of_mut!((*place).log_file) }
+}
+
 /// Alloc an uninitialized `Box<InitConfig>`, mainly used for testing.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_init_config() -> *mut InitConfig {

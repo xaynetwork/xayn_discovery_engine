@@ -12,39 +12,62 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Setup tracing on different platform.
+//! Setup tracing on different platforms.
 
-use std::sync::Once;
+use std::{fs::OpenOptions, path::Path, sync::Once};
 
-use tracing_subscriber::{filter::LevelFilter, util::SubscriberInitExt};
+use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 static INIT_TRACING: Once = Once::new();
 
-pub(crate) fn init_tracing() {
+pub(crate) fn init_tracing(log_file: Option<&Path>) {
     INIT_TRACING.call_once(|| {
-        init_tracing_once();
+        init_tracing_once(log_file);
+        init_panic_logging();
     });
 }
 
-fn init_tracing_once() {
-    let subscriber = tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::INFO)
-        .finish();
+fn init_tracing_once(log_file: Option<&Path>) {
+    let stdout_log = tracing_subscriber::fmt::layer();
+
+    let subscriber = tracing_subscriber::registry();
 
     cfg_if::cfg_if! {
         if #[cfg(target_os = "android")] {
-            use tracing_subscriber::layer::SubscriberExt;
             let layer = tracing_android::layer("xayn_discovery_engine").ok();
-            subscriber.with(layer).init();
-        } else {
-            subscriber.init();
+            let subscriber = subscriber.with(layer);
         }
-    }
+    };
 
-    log_panic();
+    let file_log = log_file
+        .map(|log_file| {
+            OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(log_file)
+                .map(|writer| tracing_subscriber::fmt::layer().with_writer(writer).json())
+        })
+        .transpose()
+        .map_err(|error| {
+            tracing::error!(%error, "logging setup failed");
+        })
+        .ok();
+
+    let level = if log_file.is_some() {
+        LevelFilter::DEBUG
+    } else {
+        LevelFilter::INFO
+    };
+
+    subscriber
+        .with(stdout_log)
+        .with(file_log)
+        .with(level)
+        .init();
 }
 
-fn log_panic() {
+fn init_panic_logging() {
     std::panic::set_hook(Box::new(|panic| {
         if let Some(location) = panic.location() {
             tracing::error!(

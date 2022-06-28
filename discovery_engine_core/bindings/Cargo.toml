@@ -12,7 +12,7 @@ derive_more = { version = "0.99.17", default-features = false, features = ["as_r
 ndarray = "0.15.4"
 tokio = { version = "1.19.2", features = ["sync"] }
 tracing = "0.1.35"
-tracing-subscriber = "0.3.11"
+tracing-subscriber = { version = "0.3.11", features = ["json"] }
 url = "2.2.2"
 uuid = "1.1.2"
 xayn-discovery-engine-ai = { path = "../ai/ai" }
