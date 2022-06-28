@@ -18,15 +18,11 @@ use std::collections::HashSet;
 use uuid::uuid;
 
 use crate::{
+    config::ExplorationConfig as Config,
     document::{Document, UserReaction},
     mab::Bucket,
     ranker::Ranker,
-    stack::{
-        self,
-        exploration::selection::{document_selection, Config},
-        Data,
-        Id,
-    },
+    stack::{self, exploration::selection::document_selection, Data, Id},
 };
 
 mod selection;

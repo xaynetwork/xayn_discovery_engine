@@ -156,6 +156,24 @@ impl Default for CoreConfig {
     }
 }
 
+/// Configurations for the exploration stack.
+#[derive(Debug)]
+pub(crate) struct ExplorationConfig {
+    /// The number of candidates.
+    pub(crate) number_of_candidates: usize,
+    /// The maximum number of documents to keep.
+    pub(crate) max_selected_docs: usize,
+}
+
+impl Default for ExplorationConfig {
+    fn default() -> Self {
+        Self {
+            number_of_candidates: 40,
+            max_selected_docs: 20,
+        }
+    }
+}
+
 /// Reads the DE configurations from json and sets defaults for missing fields (if possible).
 pub(crate) fn de_config_from_json(json: &str) -> Figment {
     Figment::from(Json::string(json))
