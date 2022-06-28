@@ -36,10 +36,10 @@ pub(crate) enum Error {
 pub(crate) struct Data {
     /// The alpha parameter of the beta distribution.
     #[derivative(Default(value = "1."))]
-    pub(super) alpha: f32,
+    pub(crate) alpha: f32,
     /// The beta parameter of the beta distribution.
     #[derivative(Default(value = "1."))]
-    pub(super) beta: f32,
+    pub(crate) beta: f32,
     /// Documents in the [`Stack`](super::Stack).
     pub(crate) documents: Vec<Document>,
 }
