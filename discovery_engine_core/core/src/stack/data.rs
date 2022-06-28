@@ -41,7 +41,7 @@ pub(crate) struct Data {
     #[derivative(Default(value = "1."))]
     pub(super) beta: f32,
     /// Documents in the [`Stack`](super::Stack).
-    pub(super) documents: Vec<Document>,
+    pub(crate) documents: Vec<Document>,
 }
 
 impl Data {

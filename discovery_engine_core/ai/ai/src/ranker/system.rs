@@ -18,6 +18,7 @@ use displaydoc::Display;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::{debug, info, instrument};
 use xayn_discovery_engine_bert::SMBert;
 use xayn_discovery_engine_kpe::{Pipeline as KPE, RankedKeyPhrases};
 use xayn_discovery_engine_providers::Market;
@@ -119,6 +120,7 @@ impl Ranker {
     }
 
     /// Logs the user reaction and updates the user interests based on the given information.
+    #[instrument(skip(self), level = "debug")]
     pub(crate) fn log_user_reaction(
         &mut self,
         user_feedback: UserFeedback,
@@ -159,6 +161,7 @@ impl Ranker {
                 .log_negative_user_reaction(&mut self.state.user_interests.negative, embedding),
             UserFeedback::NotGiven => {}
         }
+        debug!(user_interests = ?self.state.user_interests);
     }
 
     /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
@@ -192,12 +195,16 @@ impl Ranker {
     }
 }
 
+#[instrument(skip_all)]
 fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config: &Config) {
     if documents.len() < 2 {
         return;
     }
 
     if let Ok(score_for_docs) = compute_score_for_docs(documents, user_interests, config) {
+        for (document, score) in &score_for_docs {
+            debug!(%document, score);
+        }
         documents.sort_unstable_by(|this, other| {
             nan_safe_f32_cmp_desc(
                 score_for_docs.get(&this.id()).unwrap(),
@@ -205,6 +212,7 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
             )
         });
     } else {
+        info!(message = "no scores could be computed");
         documents
             .sort_unstable_by(|this, other| other.date_published().cmp(&this.date_published()));
     }

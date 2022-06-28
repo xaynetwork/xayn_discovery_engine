@@ -3803,6 +3803,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "thiserror",
+ "tracing",
  "uuid",
  "xayn-discovery-engine-bert",
  "xayn-discovery-engine-kpe",
