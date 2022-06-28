@@ -18,7 +18,7 @@ use displaydoc::Display;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::{debug, info, instrument, Level};
+use tracing::{debug, info, instrument};
 use xayn_discovery_engine_bert::SMBert;
 use xayn_discovery_engine_kpe::{Pipeline as KPE, RankedKeyPhrases};
 use xayn_discovery_engine_providers::Market;
@@ -161,9 +161,7 @@ impl Ranker {
                 .log_negative_user_reaction(&mut self.state.user_interests.negative, embedding),
             UserFeedback::NotGiven => {}
         }
-        if tracing::enabled!(Level::DEBUG) {
-            debug!(user_interests = ?self.state.user_interests);
-        }
+        debug!(user_interests = ?self.state.user_interests);
     }
 
     /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
@@ -204,10 +202,8 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
     }
 
     if let Ok(score_for_docs) = compute_score_for_docs(documents, user_interests, config) {
-        if tracing::enabled!(Level::DEBUG) {
-            for (document, score) in &score_for_docs {
-                debug!(document=%document, score=score);
-            }
+        for (document, score) in &score_for_docs {
+            debug!(%document, score);
         }
         documents.sort_unstable_by(|this, other| {
             nan_safe_f32_cmp_desc(
