@@ -778,7 +778,7 @@ async fn update_stacks<'a>(
         for (id, data) in stacks
             .values()
             .map(|stack| (stack.id(), &stack.data))
-            .chain(once((exploration::Stack::id(), &exploration_stack.data)))
+            .chain(once((Exploration::id(), &exploration_stack.data)))
         {
             for (ranking, document) in data.documents.iter().rev().enumerate() {
                 debug!(
