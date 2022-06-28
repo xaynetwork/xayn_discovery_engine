@@ -38,4 +38,6 @@ pub enum Error {
     InvalidUrl(#[from] url::ParseError),
     /// The provided Url is missing a domain: {0}
     MissingDomainInUrl(String),
+    /// None of the received articles were well-formed. See trace logs for details.
+    NoValidArticles,
 }

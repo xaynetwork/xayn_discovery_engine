@@ -17,6 +17,7 @@
 use std::{ops::Deref, time::Duration};
 
 use chrono::Utc;
+use tracing::trace;
 use url::Url;
 
 use crate::{
@@ -205,11 +206,35 @@ impl Client {
             .await
             .map(|news| news.articles)?;
 
-        let articles: Vec<GenericArticle> = articles
+        // If we don't receive any articles from the news source, we don't treat this
+        // as an error...
+        if articles.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let generic_articles: Vec<GenericArticle> = articles
             .into_iter()
-            .flat_map(GenericArticle::try_from)
+            .filter_map(|article| {
+                GenericArticle::try_from(article.clone())
+                    .map_err(|e| {
+                        trace!(
+                            "Malformed article could not be convert ({:?}): {:?}",
+                            e,
+                            article
+                        )
+                    })
+                    .ok()
+            })
             .collect();
-        Ok(articles)
+
+        // ... but if we _did_ receive articles from the news source, but couldn't convert
+        // any of them into GenericArticles (which likely means they're malformed in some way)
+        // then we _do_ treat that as an error.
+        if generic_articles.is_empty() {
+            return Err(Error::NoValidArticles);
+        }
+
+        Ok(generic_articles)
     }
 
     /// Run a query against Newscatcher.
@@ -242,6 +267,7 @@ impl Client {
 mod tests {
     use super::*;
     use chrono::NaiveDateTime;
+    use claim::assert_matches;
 
     use crate::{Rank, UrlWithDomain};
     use wiremock::{
@@ -509,7 +535,6 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/_sn"))
-            .and(query_param_is_missing("to_rank"))
             .respond_with(tmpl)
             .expect(1)
             .mount(&mock_server)
@@ -534,5 +559,39 @@ mod tests {
         // Out of the three articles, only one is valid, and that one we want to return
         assert_eq!(articles.len(), 1);
         assert_eq!("valid article", articles[0].title);
+    }
+
+    #[tokio::test]
+    async fn test_no_valid_articles_yields_an_error() {
+        let mock_server = MockServer::start().await;
+        let client = Client::new("test-token", mock_server.uri());
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/invalid-articles-only.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/_sn"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = ("DE", "de").into();
+        let filter = &Filter::default().add_keyword("");
+
+        let params = NewsQuery {
+            common: CommonQueryParts {
+                market: Some(&market),
+                page_size: 2,
+                page: 1,
+                rank_limit: RankLimit::Unlimited,
+                excluded_sources: &[],
+            },
+            filter,
+            max_age_days: None,
+        };
+
+        let result = client.query_articles(&params).await;
+        assert_matches!(result, Err(Error::NoValidArticles));
     }
 }
