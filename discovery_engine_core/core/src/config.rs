@@ -57,7 +57,7 @@ pub struct InitConfig {
 /// Discovery Engine endpoint settings.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(derivative::Derivative), derivative(Eq, PartialEq))]
-#[allow(clippy::unsafe_derive_deserialize)] // false positive?
+#[allow(clippy::unsafe_derive_deserialize)] // probably triggered by join! macro in the method
 pub(crate) struct EndpointConfig {
     /// Page size setting for API.
     pub(crate) page_size: usize,
