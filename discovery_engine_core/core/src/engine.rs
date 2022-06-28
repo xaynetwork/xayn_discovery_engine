@@ -56,7 +56,7 @@ use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 #[cfg(feature = "storage")]
 use crate::storage::{self, SqliteStorage, Storage};
 use crate::{
-    config::{config_from_json, CoreConfig, EndpointConfig, InitConfig},
+    config::{de_config_from_json, CoreConfig, EndpointConfig, InitConfig},
     document::{
         self,
         Document,
@@ -922,11 +922,11 @@ impl XaynAiEngine {
         state: Option<&[u8]>,
         history: &[HistoricDocument],
     ) -> Result<Self, Error> {
-        let ai_config = config_from_json(config.ai_config.as_deref().unwrap_or("{}"));
+        let de_config = de_config_from_json(config.de_config.as_deref().unwrap_or("{}"));
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(
-                ai_config
+                de_config
                     .extract_inner("smbert.token_size")
                     .map_err(|err| Error::Ranker(err.into()))?,
             )
@@ -943,7 +943,7 @@ impl XaynAiEngine {
         )
         .map_err(|err| Error::Ranker(err.into()))?
         .with_token_size(
-            ai_config
+            de_config
                 .extract_inner("kpe.token_size")
                 .map_err(|err| Error::Ranker(err.into()))?,
         )
@@ -951,7 +951,7 @@ impl XaynAiEngine {
         .with_accents(AccentChars::Cleanse)
         .with_case(CaseChars::Keep);
 
-        let coi_system_config = ai_config
+        let coi_system_config = de_config
             .extract()
             .map_err(|err| Error::Ranker(err.into()))?;
 
@@ -959,12 +959,12 @@ impl XaynAiEngine {
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
         let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
-        let endpoint_config = ai_config
+        let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?
             .with_init_config(config)
             .await;
-        let core_config = ai_config
+        let core_config = de_config
             .extract_inner("core")
             .map_err(|err| Error::Ranker(err.into()))?;
         let stack_ops = vec![
@@ -1082,7 +1082,7 @@ mod tests {
             kpe_model: format!("{}/kpe_v0001/bert-mocked.onnx", asset_base),
             kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
-            ai_config: None,
+            de_config: None,
         };
         let endpoint_config = EndpointConfig::default()
             .with_init_config(config.clone())
@@ -1295,7 +1295,7 @@ mod tests {
             kpe_model: format!("{}/kpe_v0001/bert-mocked.onnx", asset_base),
             kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
-            ai_config: None,
+            de_config: None,
         };
 
         // Now we can initialize the engine with no previous history or state. This should

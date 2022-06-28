@@ -58,7 +58,7 @@ void main() {
       kpeModel: 'yo.lo',
       kpeCnn: 'abc',
       kpeClassifier: 'magic',
-      aiConfig: '{ "key": "value" }',
+      deConfig: '{ "key": "value" }',
     );
     final boxed = config.allocNative();
     final res = InitConfigFfi.readNative(boxed.ref);

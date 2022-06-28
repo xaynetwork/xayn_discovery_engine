@@ -55,10 +55,10 @@ class ClientEvent with _$ClientEvent {
   /// for the engine to work, like personalisation and feed market
   /// (for performing background queries).
   @Implements<SystemClientEvent>()
-  @Assert('aiConfig == null || aiConfig != ""')
+  @Assert('deConfig == null || deConfig != ""')
   const factory ClientEvent.init(
     Configuration configuration, {
-    String? aiConfig,
+    String? deConfig,
   }) = Init;
 
   /// Event created when the user changes market or count (nb of items per page)

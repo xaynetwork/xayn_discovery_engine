@@ -59,7 +59,7 @@ void main() {
           setupData: setupData,
           engineState: null,
           history: [],
-          aiConfig: null,
+          deConfig: null,
           trustedSources: {},
           excludedSources: {},
         ),

@@ -50,8 +50,8 @@ pub struct InitConfig {
     pub kpe_cnn: String,
     /// KPE classifier path.
     pub kpe_classifier: String,
-    /// AI config in JSON format.
-    pub ai_config: Option<String>,
+    /// DE config in JSON format.
+    pub de_config: Option<String>,
 }
 
 /// Discovery Engine endpoint settings.
@@ -154,8 +154,8 @@ impl Default for CoreConfig {
     }
 }
 
-/// Reads the configurations from json and sets defaults for missing fields.
-pub(crate) fn config_from_json(json: &str) -> Figment {
+/// Reads the DE configurations from json and sets defaults for missing fields (if possible).
+pub(crate) fn de_config_from_json(json: &str) -> Figment {
     Figment::from(Json::string(json))
         .join(Serialized::default("kpe.token_size", 150))
         .join(Serialized::default("smbert.token_size", 150))
@@ -174,28 +174,28 @@ mod tests {
     impl Eq for CoreConfig {}
 
     #[test]
-    fn test_config_from_json_default() -> Result<(), GenericError> {
-        let config = config_from_json("{}");
-        assert_eq!(config.extract_inner::<usize>("kpe.token_size")?, 150);
-        assert_eq!(config.extract_inner::<usize>("smbert.token_size")?, 150);
+    fn test_de_config_from_json_default() -> Result<(), GenericError> {
+        let de_config = de_config_from_json("{}");
+        assert_eq!(de_config.extract_inner::<usize>("kpe.token_size")?, 150);
+        assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
-            config.extract::<CoiSystemConfig>()?,
+            de_config.extract::<CoiSystemConfig>()?,
             CoiSystemConfig::default(),
         );
         assert_eq!(
-            config.extract_inner::<CoreConfig>("core")?,
+            de_config.extract_inner::<CoreConfig>("core")?,
             CoreConfig::default(),
         );
         assert_eq!(
-            config.extract_inner::<EndpointConfig>("endpoint")?,
+            de_config.extract_inner::<EndpointConfig>("endpoint")?,
             EndpointConfig::default(),
         );
         Ok(())
     }
 
     #[test]
-    fn test_config_from_json_modified() -> Result<(), GenericError> {
-        let config = config_from_json(
+    fn test_de_config_from_json_modified() -> Result<(), GenericError> {
+        let de_config = de_config_from_json(
             r#"{
                 "coi": {
                     "threshold": 0.42
@@ -210,20 +210,20 @@ mod tests {
                 "baz": 0
             }"#,
         );
-        assert_eq!(config.extract_inner::<usize>("kpe.token_size")?, 150);
-        assert_eq!(config.extract_inner::<usize>("smbert.token_size")?, 42);
+        assert_eq!(de_config.extract_inner::<usize>("kpe.token_size")?, 150);
+        assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 42);
         assert_eq!(
-            config.extract::<CoiSystemConfig>()?,
+            de_config.extract::<CoiSystemConfig>()?,
             CoiSystemConfig::default()
                 .with_threshold(0.42)?
                 .with_penalty(&[0.99, 0.66, 0.33])?,
         );
         assert_eq!(
-            config.extract_inner::<CoreConfig>("core")?,
+            de_config.extract_inner::<CoreConfig>("core")?,
             CoreConfig::default(),
         );
         assert_eq!(
-            config.extract_inner::<EndpointConfig>("endpoint")?,
+            de_config.extract_inner::<EndpointConfig>("endpoint")?,
             EndpointConfig::default(),
         );
         Ok(())

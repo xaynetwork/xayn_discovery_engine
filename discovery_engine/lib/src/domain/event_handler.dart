@@ -162,7 +162,7 @@ class EventHandler {
       try {
         return await _initEngine(
           clientEvent.configuration,
-          aiConfig: clientEvent.aiConfig,
+          deConfig: clientEvent.deConfig,
         );
       } catch (e, st) {
         logger.e('failed to initialize the engine', e, st);
@@ -217,7 +217,7 @@ class EventHandler {
 
   Future<EngineEvent> _initEngine(
     Configuration config, {
-    String? aiConfig,
+    String? deConfig,
   }) async {
     // init hive
     registerHiveAdapters();
@@ -255,7 +255,7 @@ class EventHandler {
           setupData: setupData,
           engineState: engineState,
           history: history,
-          aiConfig: aiConfig,
+          deConfig: deConfig,
           trustedSources: trustedSources,
           excludedSources: excludedSources,
         ),

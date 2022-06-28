@@ -93,7 +93,7 @@ class DiscoveryEngineFfi implements Engine {
         setupData,
         initializer.trustedSources,
         initializer.excludedSources,
-        aiConfig: initializer.aiConfig,
+        deConfig: initializer.deConfig,
       ).allocNative().move(),
       initializer.engineState?.allocNative().move() ?? nullptr,
       initializer.history.allocNative().move(),

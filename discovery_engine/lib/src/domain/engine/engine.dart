@@ -124,8 +124,8 @@ class EngineInitializer with EquatableMixin {
   /// The history to use for filtering initial results.
   final List<HistoricDocument> history;
 
-  /// An opaque encoded configuration for the AI in the ranker.
-  final String? aiConfig;
+  /// An opaque encoded configuration for the DE.
+  final String? deConfig;
 
   /// A set of favourite sources.
   final Set<Source> trustedSources;
@@ -138,7 +138,7 @@ class EngineInitializer with EquatableMixin {
     required this.setupData,
     required this.engineState,
     required this.history,
-    required this.aiConfig,
+    required this.deConfig,
     required this.trustedSources,
     required this.excludedSources,
   });
@@ -149,7 +149,7 @@ class EngineInitializer with EquatableMixin {
         setupData,
         engineState,
         history,
-        aiConfig,
+        deConfig,
         trustedSources,
         excludedSources,
       ];
