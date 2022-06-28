@@ -67,11 +67,11 @@ fn init_tracing_once(log_file: Option<&Path>) {
         .init();
 
     for error in delayed_errors {
-        tracing::error!(error=%error, "logging setup failed");
+        tracing::error!(%error, "logging setup failed");
     }
 }
 
-/// Crates an [`EnvFilter`] based on the env of `RUST_LOG`.
+/// Creates an [`EnvFilter`] based on the env of `RUST_LOG`.
 ///
 /// If `RUST_LOG` is not set/empty `DISCOVERY_ENGINE_LOG` will
 /// be used instead in the form of `info,xayn_=${DISCOVERY_ENGINE_LOG}`,
