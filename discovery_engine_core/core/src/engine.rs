@@ -20,10 +20,6 @@ use std::{
 };
 
 use displaydoc::Display;
-use figment::{
-    providers::{Format, Json, Serialized},
-    Figment,
-};
 use futures::future::join_all;
 use itertools::{chain, Itertools};
 use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
@@ -36,7 +32,6 @@ use xayn_discovery_engine_ai::{
     cosine_similarity,
     nan_safe_f32_cmp,
     Builder,
-    CoiSystemConfig,
     Embedding,
     GenericError,
     KeyPhrase,
@@ -61,6 +56,7 @@ use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 #[cfg(feature = "storage")]
 use crate::storage::{self, SqliteStorage, Storage};
 use crate::{
+    config::{de_config_from_json, CoreConfig, EndpointConfig, InitConfig},
     document::{
         self,
         Document,
@@ -139,111 +135,10 @@ pub enum Error {
     Storage(#[from] storage::Error),
 }
 
-/// Configuration settings to initialize Discovery Engine with a
-/// [`xayn_discovery_engine_ai::Ranker`].
-#[derive(Clone)]
-pub struct InitConfig {
-    /// Key for accessing the API.
-    pub api_key: String,
-    /// API base url.
-    pub api_base_url: String,
-    /// List of markets to use.
-    pub markets: Vec<Market>,
-    /// List of trusted sources to use.
-    pub trusted_sources: Vec<String>,
-    /// List of excluded sources to use.
-    pub excluded_sources: Vec<String>,
-    /// S-mBert vocabulary path.
-    pub smbert_vocab: String,
-    /// S-mBert model path.
-    pub smbert_model: String,
-    /// KPE vocabulary path.
-    pub kpe_vocab: String,
-    /// KPE model path.
-    pub kpe_model: String,
-    /// KPE CNN path.
-    pub kpe_cnn: String,
-    /// KPE classifier path.
-    pub kpe_classifier: String,
-    /// AI config in JSON format.
-    pub ai_config: Option<String>,
-}
-
-/// Discovery Engine endpoint settings.
-pub(crate) struct EndpointConfig {
-    /// Page size setting for API.
-    pub(crate) page_size: usize,
-    /// Write-exclusive access to markets list.
-    pub(crate) markets: Arc<RwLock<Vec<Market>>>,
-    /// Trusted sources for news queries.
-    pub(crate) trusted_sources: Arc<RwLock<Vec<String>>>,
-    /// Sources to exclude for news queries.
-    pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
-    /// The maximum number of requests to try to reach the number of `min_articles`.
-    pub(crate) max_requests: u32,
-    /// The minimum number of new articles to try to return when updating the stack.
-    pub(crate) min_articles: usize,
-    /// The maximum age of a headline, in days, after which we no longer
-    /// want to display them
-    pub(crate) max_headline_age_days: usize,
-    /// The maximum age of a news article, in days, after which we no longer
-    /// want to display them
-    pub(crate) max_article_age_days: usize,
-}
-
-impl From<InitConfig> for EndpointConfig {
-    fn from(config: InitConfig) -> Self {
-        Self {
-            page_size: 100,
-            markets: Arc::new(RwLock::new(config.markets)),
-            trusted_sources: Arc::new(RwLock::new(config.trusted_sources)),
-            excluded_sources: Arc::new(RwLock::new(config.excluded_sources)),
-            max_requests: 5,
-            min_articles: 20,
-            max_headline_age_days: 3,
-            max_article_age_days: 30,
-        }
-    }
-}
-
-/// Temporary config to allow for configurations within the core without a mirroring outside impl.
-struct CoreConfig {
-    /// The number of taken top key phrases while updating the stacks.
-    take_top: usize,
-    /// The number of top documents per stack to keep while filtering the stacks.
-    keep_top: usize,
-    /// The lower bound of documents per stack at which new items are requested.
-    request_new: usize,
-    /// The number of times to get feed documents after which the stacks are updated without the
-    /// limitation of `request_new`.
-    request_after: usize,
-    /// The maximum number of top key phrases extracted from the search term in the deep search.
-    deep_search_top: usize,
-    /// The maximum number of documents returned from the deep search.
-    deep_search_max: usize,
-    /// The minimum cosine similarity wrt the original document below which documents returned from
-    /// the deep search are discarded.
-    deep_search_sim: f32,
-}
-
-impl Default for CoreConfig {
-    fn default() -> Self {
-        Self {
-            take_top: 3,
-            keep_top: 20,
-            request_new: 3,
-            request_after: 2,
-            deep_search_top: 3,
-            deep_search_max: 20,
-            deep_search_sim: 0.2,
-        }
-    }
-}
-
 /// Discovery Engine.
 pub struct Engine<R> {
     client: Arc<Client>,
-    config: EndpointConfig,
+    endpoint_config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
     exploration_stack: exploration::Stack,
@@ -260,7 +155,8 @@ where
 {
     /// Creates a new `Engine`.
     async fn new(
-        config: EndpointConfig,
+        endpoint_config: EndpointConfig,
+        core_config: CoreConfig,
         ranker: R,
         history: &[HistoricDocument],
         stack_ops: Vec<BoxedOps>,
@@ -272,7 +168,8 @@ where
         let stack_data = |_| StackData::default();
 
         Self::from_stack_data(
-            config,
+            endpoint_config,
+            core_config,
             ranker,
             history,
             stack_data,
@@ -291,7 +188,8 @@ where
     /// Data related to missing operations will be dropped.
     async fn from_state<'a>(
         state: &'a StackState,
-        config: EndpointConfig,
+        endpoint_config: EndpointConfig,
+        core_config: CoreConfig,
         ranker: R,
         history: &'a [HistoricDocument],
         stack_ops: Vec<BoxedOps>,
@@ -312,7 +210,8 @@ where
         let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
 
         Self::from_stack_data(
-            config,
+            endpoint_config,
+            core_config,
             ranker,
             history,
             stack_data,
@@ -325,8 +224,10 @@ where
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn from_stack_data(
-        config: EndpointConfig,
+        endpoint_config: EndpointConfig,
+        core_config: CoreConfig,
         ranker: R,
         history: &[HistoricDocument],
         mut stack_data: impl FnMut(StackId) -> StackData + Send,
@@ -346,7 +247,6 @@ where
             })
             .collect::<Result<HashMap<_, _>, _>>()
             .map_err(Error::InvalidStack)?;
-        let core_config = CoreConfig::default();
 
         let exploration_stack =
             exploration::Stack::new(exploration_stack_data).map_err(Error::InvalidStack)?;
@@ -354,7 +254,7 @@ where
         // we don't want to fail initialization if there are network problems
         let mut engine = Self {
             client,
-            config,
+            endpoint_config,
             core_config,
             stacks: RwLock::new(stacks),
             exploration_stack,
@@ -377,7 +277,7 @@ where
         history: &[HistoricDocument],
         request_new: usize,
     ) -> Result<(), Error> {
-        let markets = self.config.markets.read().await;
+        let markets = self.endpoint_config.markets.read().await;
         let mut stacks = self.stacks.write().await;
 
         update_stacks(
@@ -426,7 +326,7 @@ where
         history: &[HistoricDocument],
         new_markets: Vec<Market>,
     ) -> Result<(), Error> {
-        let mut markets_guard = self.config.markets.write().await;
+        let mut markets_guard = self.endpoint_config.markets.write().await;
         let mut old_markets = replace(&mut *markets_guard, new_markets);
         old_markets.retain(|market| !markets_guard.contains(market));
         self.ranker.remove_key_phrases(&old_markets);
@@ -576,9 +476,9 @@ where
         let mut errors = Vec::new();
         let mut articles = Vec::new();
 
-        let markets = self.config.markets.read().await;
+        let markets = self.endpoint_config.markets.read().await;
         let scaled_page_size = page_size as usize / markets.len() + 1;
-        let excluded_sources = self.config.excluded_sources.read().await.clone();
+        let excluded_sources = self.endpoint_config.excluded_sources.read().await.clone();
         for market in markets.iter() {
             let common = CommonQueryParts {
                 market: Some(market),
@@ -645,7 +545,7 @@ where
             return Ok(Vec::new());
         }
 
-        let excluded_sources = &self.config.excluded_sources.read().await.clone();
+        let excluded_sources = &self.endpoint_config.excluded_sources.read().await.clone();
         let filter = &key_phrases
             .iter()
             .take(self.core_config.deep_search_top)
@@ -703,7 +603,7 @@ where
         let mut errors = Vec::new();
         let mut topics = Vec::new();
 
-        let markets = self.config.markets.read().await;
+        let markets = self.endpoint_config.markets.read().await;
         for market in markets.iter() {
             let query = TrendingQuery { market };
             match self.client.query_trending(&query).await {
@@ -732,7 +632,7 @@ where
         sources: Vec<String>,
     ) -> Result<(), Error> {
         let sources_set = sources.iter().cloned().collect::<HashSet<_>>();
-        *self.config.trusted_sources.write().await = sources;
+        *self.endpoint_config.trusted_sources.write().await = sources;
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
@@ -752,7 +652,7 @@ where
         excluded_sources: Vec<String>,
     ) -> Result<(), Error> {
         let exclusion_set = excluded_sources.iter().cloned().collect::<HashSet<_>>();
-        *self.config.excluded_sources.write().await = excluded_sources;
+        *self.endpoint_config.excluded_sources.write().await = excluded_sources;
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
@@ -1022,11 +922,11 @@ impl XaynAiEngine {
         state: Option<&[u8]>,
         history: &[HistoricDocument],
     ) -> Result<Self, Error> {
-        let ai_config = ai_config_from_json(config.ai_config.as_deref().unwrap_or("{}"));
+        let de_config = de_config_from_json(config.de_config.as_deref().unwrap_or("{}"));
         let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(
-                ai_config
+                de_config
                     .extract_inner("smbert.token_size")
                     .map_err(|err| Error::Ranker(err.into()))?,
             )
@@ -1043,7 +943,7 @@ impl XaynAiEngine {
         )
         .map_err(|err| Error::Ranker(err.into()))?
         .with_token_size(
-            ai_config
+            de_config
                 .extract_inner("kpe.token_size")
                 .map_err(|err| Error::Ranker(err.into()))?,
         )
@@ -1051,7 +951,7 @@ impl XaynAiEngine {
         .with_accents(AccentChars::Cleanse)
         .with_case(CaseChars::Keep);
 
-        let coi_system_config = ai_config
+        let coi_system_config = de_config
             .extract()
             .map_err(|err| Error::Ranker(err.into()))?;
 
@@ -1059,7 +959,14 @@ impl XaynAiEngine {
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
         let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
-        let endpoint_config = config.into();
+        let endpoint_config = de_config
+            .extract_inner::<EndpointConfig>("endpoint")
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_init_config(config)
+            .await;
+        let core_config = de_config
+            .extract_inner("core")
+            .map_err(|err| Error::Ranker(err.into()))?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
             Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
@@ -1078,6 +985,7 @@ impl XaynAiEngine {
             Self::from_state(
                 &state.engine,
                 endpoint_config,
+                core_config,
                 ranker,
                 history,
                 stack_ops,
@@ -1090,6 +998,7 @@ impl XaynAiEngine {
             let ranker = builder.build()?;
             Self::new(
                 endpoint_config,
+                core_config,
                 ranker,
                 history,
                 stack_ops,
@@ -1100,14 +1009,6 @@ impl XaynAiEngine {
             .await
         }
     }
-}
-
-fn ai_config_from_json(json: &str) -> Figment {
-    Figment::new()
-        .merge(Serialized::defaults(CoiSystemConfig::default()))
-        .merge(Serialized::default("kpe.token_size", 150))
-        .merge(Serialized::default("smbert.token_size", 150))
-        .merge(Json::string(json))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -1150,46 +1051,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ai_config_from_json_default() -> Result<(), GenericError> {
-        let ai_config = ai_config_from_json("{}");
-        assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
-        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 150);
-        assert_eq!(
-            ai_config.extract::<CoiSystemConfig>()?,
-            CoiSystemConfig::default(),
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn test_ai_config_from_json_modified() -> Result<(), GenericError> {
-        let ai_config = ai_config_from_json(
-            r#"{
-                "coi": {
-                    "threshold": 0.42
-                },
-                "kpe": {
-                    "penalty": [0.99, 0.66, 0.33]
-                },
-                "smbert": {
-                    "token_size": 42,
-                    "foo": "bar"
-                },
-                "baz": 0
-            }"#,
-        );
-        assert_eq!(ai_config.extract_inner::<usize>("kpe.token_size")?, 150);
-        assert_eq!(ai_config.extract_inner::<usize>("smbert.token_size")?, 42);
-        assert_eq!(
-            ai_config.extract::<CoiSystemConfig>()?,
-            CoiSystemConfig::default()
-                .with_threshold(0.42)?
-                .with_penalty(&[0.99, 0.66, 0.33])?,
-        );
-        Ok(())
-    }
-
-    #[test]
     fn test_usize_not_to_small() {
         assert!(size_of::<usize>() >= size_of::<u32>());
     }
@@ -1221,9 +1082,11 @@ mod tests {
             kpe_model: format!("{}/kpe_v0001/bert-mocked.onnx", asset_base),
             kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
-            ai_config: None,
+            de_config: None,
         };
-        let endpoint_config = config.clone().into();
+        let endpoint_config = EndpointConfig::default()
+            .with_init_config(config.clone())
+            .await;
         let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
 
         // We assume that, if de-duplication works between two stacks, it'll work between
@@ -1432,7 +1295,7 @@ mod tests {
             kpe_model: format!("{}/kpe_v0001/bert-mocked.onnx", asset_base),
             kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
-            ai_config: None,
+            de_config: None,
         };
 
         // Now we can initialize the engine with no previous history or state. This should

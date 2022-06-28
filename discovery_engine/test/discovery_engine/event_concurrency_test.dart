@@ -68,7 +68,7 @@ class MockedDiscoveryEngineWorker extends DiscoveryEngineWorker {
   @override
   Future<void> handleMessage(OneshotRequest<ClientEvent> request) async {
     final response = await request.payload.maybeWhen(
-      init: (configuration, aiConfig) async =>
+      init: (configuration, deConfig) async =>
           const EngineEvent.clientEventSucceeded(),
       restoreFeedRequested: () async {
         await Future<void>.delayed(const Duration(milliseconds: 300));

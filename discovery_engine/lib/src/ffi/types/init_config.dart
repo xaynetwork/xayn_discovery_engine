@@ -45,7 +45,7 @@ class InitConfigFfi with EquatableMixin {
   final String kpeModel;
   final String kpeCnn;
   final String kpeClassifier;
-  final String? aiConfig;
+  final String? deConfig;
 
   @override
   List<Object?> get props => [
@@ -60,7 +60,7 @@ class InitConfigFfi with EquatableMixin {
         kpeModel,
         kpeCnn,
         kpeClassifier,
-        aiConfig,
+        deConfig,
       ];
 
   factory InitConfigFfi(
@@ -68,7 +68,7 @@ class InitConfigFfi with EquatableMixin {
     NativeSetupData setupData,
     Set<Source> trustedSources,
     Set<Source> excludedSources, {
-    String? aiConfig,
+    String? deConfig,
   }) =>
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
@@ -82,7 +82,7 @@ class InitConfigFfi with EquatableMixin {
         kpeModel: setupData.kpeModel,
         kpeCnn: setupData.kpeCnn,
         kpeClassifier: setupData.kpeClassifier,
-        aiConfig: aiConfig,
+        deConfig: deConfig,
       );
 
   InitConfigFfi.fromParts({
@@ -97,7 +97,7 @@ class InitConfigFfi with EquatableMixin {
     required this.kpeModel,
     required this.kpeCnn,
     required this.kpeClassifier,
-    this.aiConfig,
+    this.deConfig,
   });
 
   /// Allocates a `Box<RustInitConfig>` initialized based on this instance.
@@ -120,7 +120,7 @@ class InitConfigFfi with EquatableMixin {
     kpeModel.writeNative(ffi.init_config_place_of_kpe_model(place));
     kpeCnn.writeNative(ffi.init_config_place_of_kpe_cnn(place));
     kpeClassifier.writeNative(ffi.init_config_place_of_kpe_classifier(place));
-    aiConfig.writeNative(ffi.init_config_place_of_ai_config(place));
+    deConfig.writeNative(ffi.init_config_place_of_de_config(place));
   }
 
   @visibleForTesting
@@ -148,8 +148,8 @@ class InitConfigFfi with EquatableMixin {
       kpeCnn: StringFfi.readNative(ffi.init_config_place_of_kpe_cnn(config)),
       kpeClassifier:
           StringFfi.readNative(ffi.init_config_place_of_kpe_classifier(config)),
-      aiConfig: OptionStringFfi.readNative(
-        ffi.init_config_place_of_ai_config(config),
+      deConfig: OptionStringFfi.readNative(
+        ffi.init_config_place_of_de_config(config),
       ),
     );
   }
