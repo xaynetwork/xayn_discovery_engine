@@ -1098,6 +1098,7 @@ mod tests {
         stack::{ops::MockOps, Data},
     };
 
+    use crate::document::tests::mock_generic_article;
     use std::mem::size_of;
     use wiremock::{
         matchers::{method, path},
@@ -1105,7 +1106,6 @@ mod tests {
         MockServer,
         ResponseTemplate,
     };
-    use xayn_discovery_engine_providers::NewscatcherArticle;
 
     use super::*;
 
@@ -1290,7 +1290,7 @@ mod tests {
         let mut mock_ops_ok = new_mock_stack_ops();
         mock_ops_ok
             .expect_new_items()
-            .returning(|_, _, _, _| Ok(vec![new_mock_article()]));
+            .returning(|_, _, _, _| Ok(vec![mock_generic_article()]));
 
         let mut mock_ops_failed = new_mock_stack_ops();
         mock_ops_failed
@@ -1436,12 +1436,6 @@ mod tests {
                 (stack.id(), stack)
             })
             .collect()
-    }
-
-    fn new_mock_article() -> GenericArticle {
-        let article: NewscatcherArticle =
-            serde_json::from_str(r#"{"link": "https://xayn.com"}"#).unwrap();
-        article.try_into().unwrap()
     }
 
     fn new_mock_stack_ops() -> MockOps {

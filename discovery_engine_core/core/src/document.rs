@@ -269,7 +269,7 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use chrono::NaiveDate;
 
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
@@ -298,7 +298,7 @@ mod tests {
         Url::parse("https://example.net").unwrap(/* used only in tests */)
     }
 
-    fn mock_generic_article() -> GenericArticle {
+    pub(crate) fn mock_generic_article() -> GenericArticle {
         GenericArticle {
             title: "title".to_string(),
             score: Some(0.75),

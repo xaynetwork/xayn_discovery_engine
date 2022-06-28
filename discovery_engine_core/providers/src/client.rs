@@ -215,7 +215,7 @@ impl Client {
         let generic_articles: Vec<GenericArticle> = articles
             .into_iter()
             .filter_map(|article| {
-                GenericArticle::try_from(article.clone())
+                GenericArticle::try_from(article)
                     .map_err(|e| trace!("Malformed article could not be converted: {:?}", e))
                     .ok()
             })
