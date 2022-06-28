@@ -24,6 +24,8 @@ use tokio::{join, sync::RwLock};
 use xayn_discovery_engine_ai::CoiSystemConfig;
 use xayn_discovery_engine_providers::Market;
 
+use crate::stack::exploration::Stack as Exploration;
+
 /// Configuration settings to initialize Discovery Engine with a
 /// [`xayn_discovery_engine_ai::Ranker`].
 #[derive(Clone, Debug)]
@@ -157,7 +159,8 @@ impl Default for CoreConfig {
 }
 
 /// Configurations for the exploration stack.
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
 pub(crate) struct ExplorationConfig {
     /// The number of candidates.
     pub(crate) number_of_candidates: usize,
@@ -182,11 +185,16 @@ pub(crate) fn de_config_from_json(json: &str) -> Figment {
         .join(Serialized::defaults(CoiSystemConfig::default()))
         .join(Serialized::default("core", CoreConfig::default()))
         .join(Serialized::default("endpoint", EndpointConfig::default()))
+        .join(Serialized::default(
+            &Exploration::id().to_string(),
+            ExplorationConfig::default(),
+        ))
 }
 
 #[cfg(test)]
 mod tests {
     use xayn_discovery_engine_ai::GenericError;
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
 
@@ -210,6 +218,10 @@ mod tests {
             de_config.extract_inner::<EndpointConfig>("endpoint")?,
             EndpointConfig::default(),
         );
+        assert_eq!(
+            de_config.extract_inner::<ExplorationConfig>(&Exploration::id().to_string())?,
+            ExplorationConfig::default(),
+        );
         Ok(())
     }
 
@@ -227,7 +239,11 @@ mod tests {
                     "token_size": 42,
                     "foo": "bar"
                 },
-                "baz": 0
+                "baz": 0,
+                "77cf9280-bb93-4158-b660-8732927e0dcc": {
+                    "number_of_candidates": 42,
+                    "alpha": 0.42
+                }
             }"#,
         );
         assert_eq!(de_config.extract_inner::<usize>("kpe.token_size")?, 150);
@@ -246,6 +262,21 @@ mod tests {
             de_config.extract_inner::<EndpointConfig>("endpoint")?,
             EndpointConfig::default(),
         );
+        assert_eq!(
+            de_config.extract_inner::<ExplorationConfig>(&Exploration::id().to_string())?,
+            ExplorationConfig {
+                number_of_candidates: 42,
+                ..ExplorationConfig::default()
+            },
+        );
+        assert_approx_eq!(
+            f32,
+            de_config.extract_inner::<f32>(&format!("{}.alpha", Exploration::id()))?,
+            0.42,
+        );
+        assert!(de_config
+            .extract_inner::<f32>(&format!("{}.beta", Exploration::id()))
+            .is_err());
         Ok(())
     }
 }

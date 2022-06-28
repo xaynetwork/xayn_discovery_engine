@@ -56,7 +56,7 @@ use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 #[cfg(feature = "storage")]
 use crate::storage::{self, SqliteStorage, Storage};
 use crate::{
-    config::{de_config_from_json, CoreConfig, EndpointConfig, InitConfig},
+    config::{de_config_from_json, CoreConfig, EndpointConfig, ExplorationConfig, InitConfig},
     document::{
         self,
         Document,
@@ -158,9 +158,11 @@ where
     ///
     /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
+    #[allow(clippy::too_many_arguments)]
     async fn new(
         endpoint_config: EndpointConfig,
         core_config: CoreConfig,
+        exploration_config: ExplorationConfig,
         ranker: R,
         history: &[HistoricDocument],
         mut stack_data: HashMap<StackId, StackData>,
@@ -180,9 +182,11 @@ where
             .collect::<Result<HashMap<_, _>, _>>()
             .map_err(Error::InvalidStack)?;
 
-        let exploration_stack =
-            Exploration::new(stack_data.remove(&Exploration::id()).unwrap_or_default())
-                .map_err(Error::InvalidStack)?;
+        let exploration_stack = Exploration::new(
+            stack_data.remove(&Exploration::id()).unwrap_or_default(),
+            exploration_config,
+        )
+        .map_err(Error::InvalidStack)?;
 
         // we don't want to fail initialization if there are network problems
         let mut engine = Self {
@@ -613,7 +617,8 @@ where
     pub async fn reset_ai(&mut self) -> Result<(), Error> {
         self.clear_stack_data().await;
         self.exploration_stack =
-            Exploration::new(StackData::default()).map_err(Error::InvalidStack)?;
+            Exploration::new(StackData::default(), ExplorationConfig::default())
+                .map_err(Error::InvalidStack)?;
         self.ranker.reset_ai();
 
         self.update_stacks_for_all_markets(&[], self.core_config.request_new)
@@ -929,6 +934,9 @@ impl XaynAiEngine {
         let core_config = de_config
             .extract_inner("core")
             .map_err(|err| Error::Ranker(err.into()))?;
+        let exploration_config = de_config
+            .extract_inner(&Exploration::id().to_string())
+            .map_err(|err| Error::Ranker(err.into()))?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
             Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
@@ -963,6 +971,7 @@ impl XaynAiEngine {
         Self::new(
             endpoint_config,
             core_config,
+            exploration_config,
             ranker,
             history,
             stack_data,
@@ -1097,7 +1106,8 @@ mod tests {
         // this is essentially a no-op ranker.
         let mut no_op_ranker = new_no_op_ranker();
         let mut stacks = create_stacks_from_stack_ops(stack_ops);
-        let mut exploration_stack = Exploration::new(StackData::default()).unwrap();
+        let mut exploration_stack =
+            Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
 
         // Stacks should be empty before we start fetching anything
         assert_eq!(stacks.get(&breaking_news_id).unwrap().len(), 0);
@@ -1165,7 +1175,8 @@ mod tests {
 
         let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack = Exploration::new(StackData::default()).unwrap();
+        let mut exploration_stack =
+            Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
 
         let result = update_stacks(
             &mut stacks,
@@ -1202,7 +1213,8 @@ mod tests {
 
         let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack = Exploration::new(StackData::default()).unwrap();
+        let mut exploration_stack =
+            Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
 
         let result = update_stacks(
             &mut stacks,
@@ -1231,7 +1243,8 @@ mod tests {
 
         let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack = Exploration::new(StackData::default()).unwrap();
+        let mut exploration_stack =
+            Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
 
         let result = update_stacks(
             &mut stacks,
