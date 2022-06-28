@@ -36,4 +36,7 @@ mod mab;
 mod ranker;
 pub mod stack;
 
+#[cfg(feature = "storage")]
+pub mod storage;
+
 pub use crate::engine::{Engine, Error, InitConfig, XaynAiEngine};

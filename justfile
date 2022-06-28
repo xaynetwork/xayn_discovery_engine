@@ -181,6 +181,7 @@ rust-test: _codegen-order-workaround download-assets
     cd "$RUST_WORKSPACE";
     cargo test --lib --bins --tests --quiet --locked
     cargo test --doc --quiet --locked
+    cargo test --lib --features "storage" --quiet --locked
 
 # Tests dart and rust
 test: rust-test dart-test flutter-test
