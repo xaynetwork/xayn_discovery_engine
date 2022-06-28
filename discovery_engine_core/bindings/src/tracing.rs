@@ -14,7 +14,7 @@
 
 //! Setup tracing on different platforms.
 
-use std::{fs::OpenOptions, io, path::Path, sync::Once};
+use std::{fs::OpenOptions, path::Path, sync::Once};
 
 use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -40,14 +40,13 @@ fn init_tracing_once(log_file: Option<&Path>) {
     };
 
     let file_log = log_file
-        .map(|log_file| -> io::Result<_> {
-            let writer = OpenOptions::new()
+        .map(|log_file| {
+            OpenOptions::new()
                 .write(true)
                 .truncate(true)
                 .create(true)
-                .open(log_file)?;
-
-            Ok(tracing_subscriber::fmt::layer().with_writer(writer).json())
+                .open(log_file)
+                .map(|writer| tracing_subscriber::fmt::layer().with_writer(writer).json())
         })
         .transpose()
         .map_err(|error| {
