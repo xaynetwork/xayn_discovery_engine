@@ -73,6 +73,36 @@ pub trait Ops {
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
 }
 
+/// Convenience type that boxes an [`ops::Ops`] and adds [`Send`] and [`Sync`].
+pub type BoxedOps = Box<dyn Ops + Send + Sync>;
+
+#[async_trait]
+impl Ops for BoxedOps {
+    fn id(&self) -> Id {
+        self.as_ref().id()
+    }
+
+    async fn new_items(
+        &self,
+        key_phrases: &[KeyPhrase],
+        history: &[HistoricDocument],
+        stack: &[Document],
+        market: &Market,
+    ) -> Result<Vec<Article>, NewItemsError> {
+        self.as_ref()
+            .new_items(key_phrases, history, stack, market)
+            .await
+    }
+
+    fn needs_key_phrases(&self) -> bool {
+        self.as_ref().needs_key_phrases()
+    }
+
+    fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
+        self.as_ref().merge(stack, new)
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -81,5 +111,6 @@ pub(crate) mod tests {
     #[test]
     fn check_ops_obj_safe() {
         let _: Option<&dyn Ops> = None;
+        let _: Option<BoxedOps> = None;
     }
 }
