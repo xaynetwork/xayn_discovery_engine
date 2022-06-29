@@ -88,7 +88,7 @@ impl Ops for BoxedOps {
         history: &[HistoricDocument],
         stack: &[Document],
         market: &Market,
-    ) -> Result<Vec<Article>, NewItemsError> {
+    ) -> Result<Vec<GenericArticle>, NewItemsError> {
         self.as_ref()
             .new_items(key_phrases, history, stack, market)
             .await
