@@ -40,10 +40,10 @@ use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
     clean_query,
-    Article,
     Client,
     CommonQueryParts,
     Filter,
+    GenericArticle,
     HeadlinesQuery,
     Market,
     NewsQuery,
@@ -893,7 +893,7 @@ async fn fetch_new_documents_for_stack(
 fn documentify_articles(
     stack_id: StackId,
     ranker: &(impl Ranker + Send + Sync),
-    articles: Vec<Article>,
+    articles: Vec<GenericArticle>,
 ) -> (Vec<Document>, Vec<Error>) {
     articles
         .into_par_iter()
@@ -1069,6 +1069,7 @@ mod tests {
         stack::{ops::MockOps, Data},
     };
 
+    use crate::document::tests::mock_generic_article;
     use std::mem::size_of;
     use wiremock::{
         matchers::{method, path},
@@ -1223,7 +1224,7 @@ mod tests {
         let mut mock_ops_ok = new_mock_stack_ops();
         mock_ops_ok
             .expect_new_items()
-            .returning(|_, _, _, _| Ok(vec![new_mock_article()]));
+            .returning(|_, _, _, _| Ok(vec![mock_generic_article()]));
 
         let mut mock_ops_failed = new_mock_stack_ops();
         mock_ops_failed
@@ -1370,10 +1371,6 @@ mod tests {
                 (stack.id(), stack)
             })
             .collect()
-    }
-
-    fn new_mock_article() -> Article {
-        serde_json::from_str(r#"{"link": "https://xayn.com"}"#).unwrap()
     }
 
     fn new_mock_stack_ops() -> MockOps {

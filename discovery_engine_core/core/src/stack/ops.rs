@@ -19,7 +19,7 @@ use mockall::automock;
 use thiserror::Error;
 
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
-use xayn_discovery_engine_providers::{Article, Market};
+use xayn_discovery_engine_providers::{GenericArticle, Market};
 
 use crate::{
     document::{Document, HistoricDocument},
@@ -64,7 +64,7 @@ pub trait Ops {
         history: &[HistoricDocument],
         stack: &[Document],
         market: &Market,
-    ) -> Result<Vec<Article>, NewItemsError>;
+    ) -> Result<Vec<GenericArticle>, NewItemsError>;
 
     /// Returns if `[new_items]` needs the key phrases to work.
     fn needs_key_phrases(&self) -> bool;

@@ -20,9 +20,9 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
-    Article,
     Client,
     CommonQueryParts,
+    GenericArticle,
     HeadlinesQuery,
     Market,
     RankLimit,
@@ -66,8 +66,8 @@ impl TrustedNews {
     fn filter_articles(
         history: &[HistoricDocument],
         stack: &[Document],
-        articles: Vec<Article>,
-    ) -> Result<Vec<Article>, GenericError> {
+        articles: Vec<GenericArticle>,
+    ) -> Result<Vec<GenericArticle>, GenericError> {
         CommonFilter::apply(history, stack, articles)
     }
 }
@@ -88,7 +88,7 @@ impl Ops for TrustedNews {
         history: &[HistoricDocument],
         stack: &[Document],
         _market: &Market,
-    ) -> Result<Vec<Article>, NewItemsError> {
+    ) -> Result<Vec<GenericArticle>, NewItemsError> {
         let sources = Arc::new(self.sources.read().await.clone());
         if sources.is_empty() {
             return Err(NewItemsError::NotReady);
@@ -124,7 +124,7 @@ fn spawn_trusted_request(
     page: usize,
     sources: Arc<Vec<String>>,
     max_headline_age_days: usize,
-) -> JoinHandle<Result<Vec<Article>, GenericError>> {
+) -> JoinHandle<Result<Vec<GenericArticle>, GenericError>> {
     tokio::spawn(async move {
         let query = HeadlinesQuery {
             common: CommonQueryParts {

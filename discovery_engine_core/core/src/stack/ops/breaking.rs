@@ -20,9 +20,9 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
-    Article,
     Client,
     CommonQueryParts,
+    GenericArticle,
     HeadlinesQuery,
     Market,
     RankLimit,
@@ -70,9 +70,9 @@ impl BreakingNews {
     fn filter_articles(
         history: &[HistoricDocument],
         stack: &[Document],
-        articles: Vec<Article>,
+        articles: Vec<GenericArticle>,
         excluded_sources: &[String],
-    ) -> Result<Vec<Article>, GenericError> {
+    ) -> Result<Vec<GenericArticle>, GenericError> {
         let articles = SourcesFilter::apply(articles, excluded_sources);
         CommonFilter::apply(history, stack, articles)
     }
@@ -94,7 +94,7 @@ impl Ops for BreakingNews {
         history: &[HistoricDocument],
         stack: &[Document],
         market: &Market,
-    ) -> Result<Vec<Article>, NewItemsError> {
+    ) -> Result<Vec<GenericArticle>, NewItemsError> {
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
 
         request_min_new_items(
@@ -129,7 +129,7 @@ fn spawn_headlines_request(
     page: usize,
     excluded_sources: Arc<Vec<String>>,
     max_headline_age_days: usize,
-) -> JoinHandle<Result<Vec<Article>, GenericError>> {
+) -> JoinHandle<Result<Vec<GenericArticle>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
         let query = HeadlinesQuery {

@@ -17,35 +17,16 @@
 use std::{ops::Deref, time::Duration};
 
 use chrono::Utc;
-use displaydoc::Display as DisplayDoc;
-use thiserror::Error;
+use tracing::trace;
 use url::Url;
 
 use crate::{
     filter::{Filter, Market},
-    newscatcher::{Article, Response as NewscatcherResponse},
+    newscatcher::Response as NewscatcherResponse,
     seal::Seal,
+    Error,
+    GenericArticle,
 };
-
-/// Client errors.
-#[derive(Error, Debug, DisplayDoc)]
-pub enum Error {
-    /// Invalid API Url base
-    InvalidUrlBase(Option<url::ParseError>),
-    /// Failed to execute the HTTP request: {0}
-    RequestExecution(#[source] reqwest::Error),
-    /// Server returned a non-successful status code: {0}
-    StatusCode(#[source] reqwest::Error),
-    /// Failed to fetch from the server: {0}
-    Fetching(#[source] reqwest::Error),
-    /// Failed to decode the server's response: {0}
-    Decoding(#[source] serde_json::Error),
-    /// Failed to decode the server's response at JSON path {1}: {0}
-    DecodingAtPath(
-        String,
-        #[source] serde_path_to_error::Error<serde_json::Error>,
-    ),
-}
 
 /// Represents a Query to Newscatcher.
 pub trait Query: Seal + Sync {
@@ -226,10 +207,35 @@ impl Client {
     }
 
     /// Run a query for fetching `Article`s from Newscatcher.
-    pub async fn query_articles(&self, query: &impl Query) -> Result<Vec<Article>, Error> {
-        self.query_newscatcher(query)
+    pub async fn query_articles(&self, query: &impl Query) -> Result<Vec<GenericArticle>, Error> {
+        let articles = self
+            .query_newscatcher(query)
             .await
-            .map(|news| news.articles)
+            .map(|news| news.articles)?;
+
+        // If we don't receive any articles from the news source, we don't treat this
+        // as an error, because this is expected if we're e.g. on the last page of results...
+        if articles.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let generic_articles: Vec<GenericArticle> = articles
+            .into_iter()
+            .filter_map(|article| {
+                GenericArticle::try_from(article)
+                    .map_err(|e| trace!("Malformed article could not be converted: {:?}", e))
+                    .ok()
+            })
+            .collect();
+
+        // ... but if we _did_ receive articles from the news source, but couldn't convert
+        // any of them into GenericArticles (which likely means they're malformed in some way)
+        // then we _do_ treat that as an error.
+        if generic_articles.is_empty() {
+            return Err(Error::NoValidArticles);
+        }
+
+        Ok(generic_articles)
     }
 
     /// Run a query against Newscatcher.
@@ -262,8 +268,9 @@ impl Client {
 mod tests {
     use super::*;
     use chrono::NaiveDateTime;
+    use claim::assert_matches;
 
-    use crate::newscatcher::Topic;
+    use crate::{Rank, UrlWithDomain};
     use wiremock::{
         matchers::{header, method, path, query_param, query_param_is_missing},
         Mock,
@@ -468,18 +475,17 @@ mod tests {
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(1).unwrap();
-        let expected = Article {
+        let expected = GenericArticle {
             title: "Jerusalem blanketed in white after rare snowfall".to_string(),
             score: None,
-            rank: 6510,
-            source_domain: "example.com".to_string(),
-            excerpt: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
-            link: "https://example.com".to_string(),
-            media: "https://uploads.example.com/image.png".to_string(),
-            topic: Topic::Gaming,
+            rank: Rank::new(6510),
+            snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
+            url: UrlWithDomain::parse("https://example.com").unwrap(),
+            image: Some(Url::parse("https://uploads.example.com/image.png").unwrap()),
+            topic: "gaming".to_string(),
             country: "US".to_string(),
             language: "en".to_string(),
-            published_date: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+            date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
         };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
@@ -517,5 +523,76 @@ mod tests {
         };
 
         client.query_articles(&params).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_valid_articles_should_be_preserved_invalid_ones_rejected() {
+        let mock_server = MockServer::start().await;
+        let client = Client::new("test-token", mock_server.uri());
+
+        let tmpl = ResponseTemplate::new(200).set_body_string(include_str!(
+            "../test-fixtures/invalid-and-valid-articles-mixed.json"
+        ));
+
+        Mock::given(method("GET"))
+            .and(path("/_sn"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = ("DE", "de").into();
+        let filter = &Filter::default().add_keyword("");
+
+        let params = NewsQuery {
+            common: CommonQueryParts {
+                market: Some(&market),
+                page_size: 2,
+                page: 1,
+                rank_limit: RankLimit::Unlimited,
+                excluded_sources: &[],
+            },
+            filter,
+            max_age_days: None,
+        };
+
+        let articles = client.query_articles(&params).await.unwrap();
+        // Out of the three articles, only one is valid, and that one we want to return
+        assert_eq!(articles.len(), 1);
+        assert_eq!("valid article", articles[0].title);
+    }
+
+    #[tokio::test]
+    async fn test_no_valid_articles_yields_an_error() {
+        let mock_server = MockServer::start().await;
+        let client = Client::new("test-token", mock_server.uri());
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/invalid-articles-only.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/_sn"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = ("DE", "de").into();
+        let filter = &Filter::default().add_keyword("");
+
+        let params = NewsQuery {
+            common: CommonQueryParts {
+                market: Some(&market),
+                page_size: 2,
+                page: 1,
+                rank_limit: RankLimit::Unlimited,
+                excluded_sources: &[],
+            },
+            filter,
+            max_age_days: None,
+        };
+
+        let result = client.query_articles(&params).await;
+        assert_matches!(result, Err(Error::NoValidArticles));
     }
 }

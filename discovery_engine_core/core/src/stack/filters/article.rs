@@ -12,31 +12,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use url::Url;
-
 use crate::{
     document::{Document, HistoricDocument},
     stack::filters::DuplicateFilter,
 };
 use xayn_discovery_engine_ai::GenericError;
-use xayn_discovery_engine_providers::Article;
+use xayn_discovery_engine_providers::GenericArticle;
 
 pub(crate) trait ArticleFilter {
     fn apply(
         history: &[HistoricDocument],
         stack: &[Document],
-        articles: Vec<Article>,
-    ) -> Result<Vec<Article>, GenericError>;
+        articles: Vec<GenericArticle>,
+    ) -> Result<Vec<GenericArticle>, GenericError>;
 }
 
 pub(crate) struct MalformedFilter;
 
 impl MalformedFilter {
-    fn is_valid(article: &Article) -> bool {
-        !article.title.is_empty()
-            && !article.source_domain.is_empty()
-            && !article.excerpt.is_empty()
-            && Url::parse(&article.link).is_ok()
+    fn is_valid(article: &GenericArticle) -> bool {
+        !article.title.is_empty() && !article.snippet.is_empty()
     }
 }
 
@@ -44,8 +39,8 @@ impl ArticleFilter for MalformedFilter {
     fn apply(
         _history: &[HistoricDocument],
         _stack: &[Document],
-        mut articles: Vec<Article>,
-    ) -> Result<Vec<Article>, GenericError> {
+        mut articles: Vec<GenericArticle>,
+    ) -> Result<Vec<GenericArticle>, GenericError> {
         articles.retain(MalformedFilter::is_valid);
         Ok(articles)
     }
@@ -57,8 +52,8 @@ impl ArticleFilter for CommonFilter {
     fn apply(
         history: &[HistoricDocument],
         stack: &[Document],
-        articles: Vec<Article>,
-    ) -> Result<Vec<Article>, GenericError> {
+        articles: Vec<GenericArticle>,
+    ) -> Result<Vec<GenericArticle>, GenericError> {
         MalformedFilter::apply(history, stack, articles)
             .map(|articles| DuplicateFilter::apply(history, stack, articles))
     }
@@ -68,8 +63,11 @@ pub(crate) struct SourcesFilter;
 
 impl SourcesFilter {
     /// Discard articles with an excluded source domain.
-    pub(crate) fn apply(mut articles: Vec<Article>, excluded_sources: &[String]) -> Vec<Article> {
-        articles.retain(|art| !excluded_sources.contains(&art.source_domain));
+    pub(crate) fn apply(
+        mut articles: Vec<GenericArticle>,
+        excluded_sources: &[String],
+    ) -> Vec<GenericArticle> {
+        articles.retain(|art| !excluded_sources.contains(&art.source_domain()));
         articles
     }
 }
@@ -80,15 +78,27 @@ mod tests {
 
     use crate::document::Document;
     use itertools::Itertools;
-    use xayn_discovery_engine_providers::Article;
+
+    use xayn_discovery_engine_providers::{NewscatcherArticle, Rank};
 
     use super::*;
 
+    pub(crate) fn to_generic_article(articles: Vec<NewscatcherArticle>) -> Vec<GenericArticle> {
+        articles
+            .into_iter()
+            .map(|x| x.try_into().unwrap())
+            .collect()
+    }
+
+    fn load_articles_from_json(json: &'static str) -> Vec<GenericArticle> {
+        let articles: Vec<NewscatcherArticle> = serde_json::from_str(json).unwrap();
+        to_generic_article(articles)
+    }
+
     #[test]
     fn test_filter_duplicate_stack() {
-        let valid_articles: Vec<Article> =
-            serde_json::from_str(include_str!("../../../test-fixtures/articles-valid.json"))
-                .unwrap();
+        let valid_articles =
+            load_articles_from_json(include_str!("../../../test-fixtures/articles-valid.json"));
         assert_eq!(valid_articles.len(), 4);
 
         let documents = valid_articles
@@ -117,10 +127,8 @@ mod tests {
 
     #[test]
     fn test_filter_duplicate_history() {
-        let valid_articles = serde_json::from_str::<Vec<Article>>(include_str!(
-            "../../../test-fixtures/articles-valid.json"
-        ))
-        .unwrap();
+        let valid_articles =
+            load_articles_from_json(include_str!("../../../test-fixtures/articles-valid.json"));
         assert_eq!(valid_articles.len(), 4);
 
         let history = valid_articles
@@ -146,23 +154,10 @@ mod tests {
 
     #[test]
     fn test_filter_title() {
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
+        let malformed_articles = load_articles_from_json(include_str!(
             "../../../test-fixtures/articles-invalid-title.json"
-        ))
-        .unwrap();
+        ));
         assert_eq!(malformed_articles.len(), 2);
-
-        let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_filter_link() {
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
-            "../../../test-fixtures/articles-invalid-link.json"
-        ))
-        .unwrap();
-        assert_eq!(malformed_articles.len(), 3);
 
         let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
         assert!(result.is_empty());
@@ -170,22 +165,9 @@ mod tests {
 
     #[test]
     fn test_filter_excerpt() {
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
+        let malformed_articles = load_articles_from_json(include_str!(
             "../../../test-fixtures/articles-invalid-excerpt.json"
-        ))
-        .unwrap();
-        assert_eq!(malformed_articles.len(), 2);
-
-        let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_filter_clean_url() {
-        let malformed_articles: Vec<Article> = serde_json::from_str(include_str!(
-            "../../../test-fixtures/articles-invalid-clean-url.json"
-        ))
-        .unwrap();
+        ));
         assert_eq!(malformed_articles.len(), 2);
 
         let result = CommonFilter::apply(&[], &[], malformed_articles).unwrap();
@@ -194,9 +176,8 @@ mod tests {
 
     #[test]
     fn test_filter_sources() {
-        let articles: Vec<Article> =
-            serde_json::from_str(include_str!("../../../test-fixtures/articles-valid.json"))
-                .unwrap();
+        let articles =
+            load_articles_from_json(include_str!("../../../test-fixtures/articles-valid.json"));
         assert_eq!(articles.len(), 4);
 
         // all 4 articles have source domain example.com
@@ -209,11 +190,9 @@ mod tests {
 
     #[test]
     fn test_dedup_articles_them_self() {
-        let valid_articles = serde_json::from_str::<Vec<Article>>(include_str!(
-            "../../../test-fixtures/articles-valid.json"
-        ))
-        .unwrap();
-        assert!(valid_articles.len() >= 4);
+        let valid_articles =
+            load_articles_from_json(include_str!("../../../test-fixtures/articles-valid.json"));
+        assert_eq!(valid_articles.len(), 4);
 
         // start with 4 articles {0, 1, 2, 3}
         let mut articles = valid_articles.clone();
@@ -222,8 +201,8 @@ mod tests {
         articles.push(valid_articles[0].clone());
         articles.push({
             let mut article = valid_articles[1].clone();
-            article.link = "https://with_same_link.test".to_owned();
-            article.rank = u64::MAX;
+            article.url = "https://with_same_link.test".try_into().unwrap();
+            article.rank = Rank::new(u64::MAX);
             article
         });
         articles.push({
@@ -233,7 +212,7 @@ mod tests {
         });
         articles.push({
             let mut article = valid_articles[3].clone();
-            article.link = "https://unique.test".to_owned();
+            article.url = "https://unique.test".try_into().unwrap();
             article.title = "Unique".to_owned();
             article
         });
@@ -242,7 +221,10 @@ mod tests {
         let filtered = CommonFilter::apply(&[], &[], articles)
             .unwrap()
             .into_iter()
-            .map(|article| (article.title, article.rank))
+            .map(|article| {
+                let rank = article.rank.0;
+                (article.title, rank)
+            })
             .collect::<Vec<_>>();
 
         assert_eq!(filtered.len(), 5, "Unexpected len for: {:?}", filtered);
@@ -250,22 +232,22 @@ mod tests {
         let filtered = HashMap::<_, _>::from_iter(filtered);
         assert_eq!(
             filtered.get(&valid_articles[0].title),
-            Some(&valid_articles[0].rank)
+            Some(&valid_articles[0].rank.0)
         );
         assert_eq!(
             filtered.get(&valid_articles[1].title),
-            Some(&valid_articles[1].rank)
+            Some(&valid_articles[1].rank.0)
         );
         assert_eq!(
             filtered
                 .get("With same url")
                 .xor(filtered.get(&valid_articles[2].title)),
-            Some(&valid_articles[2].rank)
+            Some(&valid_articles[2].rank.0)
         );
         assert_eq!(
             filtered.get(&valid_articles[3].title),
-            Some(&valid_articles[3].rank)
+            Some(&valid_articles[3].rank.0)
         );
-        assert_eq!(filtered.get("Unique"), Some(&valid_articles[3].rank));
+        assert_eq!(filtered.get("Unique"), Some(&valid_articles[3].rank.0));
     }
 }

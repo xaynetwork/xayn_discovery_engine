@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
-use xayn_discovery_engine_providers::{Article, Market};
+use xayn_discovery_engine_providers::{GenericArticle, Market};
 
 use crate::{
     document::{Document, HistoricDocument, Id as DocumentId, UserReaction},
@@ -200,7 +200,7 @@ impl Stack {
         key_phrases: &[KeyPhrase],
         history: &[HistoricDocument],
         market: &Market,
-    ) -> Result<Vec<Article>, Error> {
+    ) -> Result<Vec<GenericArticle>, Error> {
         self.ops
             .new_items(key_phrases, history, &self.data.documents, market)
             .await
