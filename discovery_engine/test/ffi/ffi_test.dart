@@ -59,6 +59,7 @@ void main() {
           setupData: setupData,
           engineState: null,
           history: [],
+          reactedSources: [],
           deConfig: null,
           trustedSources: {},
           excludedSources: {},

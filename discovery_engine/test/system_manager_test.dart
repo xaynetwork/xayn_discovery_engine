@@ -31,6 +31,7 @@ import 'package:xayn_discovery_engine/src/domain/system_manager.dart'
     show SystemManager;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_reacted_repo.dart';
 
 import 'discovery_engine/utils/utils.dart';
 import 'logging.dart' show setupLogging;
@@ -40,6 +41,7 @@ Future<void> main() async {
 
   group('SystemManager', () {
     late HiveDocumentRepository docRepo;
+    late HiveSourceReactedRepository sourceReactedRepo;
     late SystemManager mgr;
 
     final engine = MockEngine();
@@ -54,10 +56,12 @@ Future<void> main() async {
       await EventHandler.initDatabase(dir.path);
 
       docRepo = HiveDocumentRepository();
+      sourceReactedRepo = HiveSourceReactedRepository();
       mgr = SystemManager(
         engine,
         config,
         docRepo,
+        sourceReactedRepo,
         () async => docRepo.box.clear(),
       );
 
