@@ -38,4 +38,7 @@ class SourcePreference {
   final PreferenceMode mode;
 
   SourcePreference(this.source, this.mode);
+
+  const SourcePreference.trusted(this.source) : mode = PreferenceMode.trusted;
+  const SourcePreference.excluded(this.source) : mode = PreferenceMode.excluded;
 }

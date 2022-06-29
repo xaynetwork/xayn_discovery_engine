@@ -47,7 +47,17 @@ class HiveSourcePreferenceRepository implements SourcePreferenceRepository {
   }
 
   @override
+  Future<void> saveAll(Map<String, SourcePreference> filters) async {
+    await box.putAll(filters);
+  }
+
+  @override
   Future<void> remove(Source source) async {
     await box.delete(source.value);
+  }
+
+  @override
+  Future<void> clear() async {
+    await box.clear();
   }
 }

@@ -74,6 +74,7 @@ class FeedManager {
         trustedSourceRemoved: removeTrustedSource,
         trustedSourcesListRequested: getTrustedSourcesList,
         availableSourcesListRequested: getAvailableSourcesList,
+        setSourcesRequested: setSources,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -161,6 +162,56 @@ class FeedManager {
     final trustedSources = await _sourcePreferenceRepository.getTrusted();
     await _engine.setExcludedSources(history, excludedSources);
     await _engine.setTrustedSources(history, trustedSources);
+  }
+
+  /// Override current trusted and excluded sources with the new ones provided
+  /// by the client.
+  Future<EngineEvent> setSources(
+    Set<Source> trustedSources,
+    Set<Source> excludedSources,
+  ) async {
+    final duplicates = trustedSources.intersection(excludedSources);
+    if (duplicates.isNotEmpty) {
+      return EngineEvent.setSourcesRequestFailed(duplicates);
+    }
+
+    final filters = {
+      ...trustedSources.map(SourcePreference.trusted),
+      ...excludedSources.map(SourcePreference.excluded),
+    };
+    final dbEntries = <String, SourcePreference>{
+      for (final filter in filters) filter.source.value: filter,
+    };
+
+    final currentTrusted = await _sourcePreferenceRepository.getTrusted();
+    final currentExcluded = await _sourcePreferenceRepository.getExcluded();
+    final history = await _docRepo.fetchHistory();
+    await _sourcePreferenceRepository.clear();
+    await _sourcePreferenceRepository.saveAll(dbEntries);
+
+    if (!_setEquals(trustedSources, currentTrusted)) {
+      await _engine.setTrustedSources(history, trustedSources);
+    }
+
+    if (!_setEquals(excludedSources, currentExcluded)) {
+      await _engine.setExcludedSources(history, excludedSources);
+    }
+
+    return EngineEvent.setSourcesRequestSucceeded(
+      trustedSources: trustedSources,
+      excludedSources: excludedSources,
+    );
+  }
+
+  // based on the flutter's setEquals
+  // https://api.flutter.dev/flutter/foundation/setEquals.html
+  bool _setEquals<T>(Set<T> a, Set<T> b) {
+    if (a.length != b.length) return false;
+    if (identical(a, b)) return true;
+    for (final T value in a) {
+      if (!b.contains(value)) return false;
+    }
+    return true;
   }
 
   /// Adds a source to excluded sources set.

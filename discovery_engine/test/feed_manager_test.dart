@@ -220,6 +220,96 @@ Future<void> main() async {
       await Hive.deleteFromDisk();
     });
 
+    test('setSources', () async {
+      final response1 = await mgr.setSources(
+        {Source('trusted1.local')},
+        {Source('excluded1.local')},
+      );
+
+      expect(response1, isA<SetSourcesRequestSucceeded>());
+      expect(
+        await sourcePreferenceRepo.getTrusted(),
+        equals({Source('trusted1.local')}),
+      );
+      expect(
+        await sourcePreferenceRepo.getExcluded(),
+        equals({Source('excluded1.local')}),
+      );
+
+      final response2 = await mgr.setSources({
+        Source('trusted2.local'),
+        Source('duplicate.local')
+      }, {
+        Source('excluded2.local'),
+        Source('duplicate.local'),
+      });
+
+      expect(response2, isA<SetSourcesRequestFailed>());
+      expect(
+        (response2 as SetSourcesRequestFailed).duplicateSources,
+        equals({Source('duplicate.local')}),
+      );
+      expect(
+        await sourcePreferenceRepo.getTrusted(),
+        equals({Source('trusted1.local')}),
+      );
+      expect(
+        await sourcePreferenceRepo.getExcluded(),
+        equals({Source('excluded1.local')}),
+      );
+
+      final response3 = await mgr.setSources(
+        {Source('trusted1.local'), Source('trusted3.local')},
+        {},
+      );
+      expect(response3, isA<SetSourcesRequestSucceeded>());
+      expect(
+        (response3 as SetSourcesRequestSucceeded).trustedSources,
+        equals({Source('trusted1.local'), Source('trusted3.local')}),
+      );
+      expect(response3.excludedSources, equals(<Source>{}));
+      expect(
+        await sourcePreferenceRepo.getTrusted(),
+        equals({Source('trusted1.local'), Source('trusted3.local')}),
+      );
+      expect(
+        await sourcePreferenceRepo.getExcluded(),
+        equals(<Source>{}),
+      );
+    });
+
+    test('setSources should call the engine methods only when sources change',
+        () async {
+      final response1 = await mgr.setSources(
+        {Source('trusted1.local'), Source('trusted2.local')},
+        {Source('excluded1.local')},
+      );
+      expect(response1, isA<SetSourcesRequestSucceeded>());
+      expect(engine.getCallCount('setTrustedSources'), equals(1));
+      expect(engine.getCallCount('setExcludedSources'), equals(1));
+
+      engine.resetCallCounter();
+
+      final response2 = await mgr.setSources(
+        {Source('trusted2.local'), Source('trusted3.local')},
+        {Source('excluded1.local')},
+      );
+      expect(response2, isA<SetSourcesRequestSucceeded>());
+      expect(engine.getCallCount('setTrustedSources'), equals(1));
+      expect(engine.getCallCount('setExcludedSources'), equals(0));
+
+      engine.resetCallCounter();
+
+      final response3 = await mgr.setSources(
+        // here we've changed the order
+        {Source('trusted3.local'), Source('trusted2.local')},
+        {Source('excluded1.local')},
+      );
+      expect(response3, isA<SetSourcesRequestSucceeded>());
+      expect(engine.getCallCount('setTrustedSources'), equals(0));
+      expect(engine.getCallCount('setExcludedSources'), equals(0));
+    });
+
     test('addExcludedSource', () async {
       final response1 = await mgr.addExcludedSource(Source('test1.local'));
       final response2 = await mgr.addExcludedSource(Source('test2.local'));

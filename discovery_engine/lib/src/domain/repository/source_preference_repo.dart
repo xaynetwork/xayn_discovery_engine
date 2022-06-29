@@ -23,5 +23,9 @@ abstract class SourcePreferenceRepository {
 
   Future<void> save(SourcePreference filter);
 
+  Future<void> saveAll(Map<String, SourcePreference> filters);
+
   Future<void> remove(Source source);
+
+  Future<void> clear();
 }
