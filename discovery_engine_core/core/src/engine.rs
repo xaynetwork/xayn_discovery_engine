@@ -85,6 +85,7 @@ use crate::{
         Id as StackId,
         Id,
         NewItemsError,
+        Ops,
         PersonalizedNews,
         Stack,
         TrustedNews,
@@ -934,7 +935,7 @@ impl XaynAiEngine {
             Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
         ];
 
-        let (stack_data, builder) = if let Some(state) = state {
+        let (mut stack_data, builder) = if let Some(state) = state {
             if stack_ops.is_empty() {
                 return Err(Error::NoStackOps);
             }
@@ -942,6 +943,15 @@ impl XaynAiEngine {
         } else {
             (HashMap::default(), builder)
         };
+        for id in stack_ops.iter().map(Ops::id).chain(once(Exploration::id())) {
+            if let Ok(alpha) = de_config.extract_inner::<f32>(&format!("{id}.alpha")) {
+                stack_data.entry(id).or_default().alpha = alpha;
+            }
+            if let Ok(beta) = de_config.extract_inner::<f32>(&format!("{id}.beta")) {
+                stack_data.entry(id).or_default().beta = beta;
+            }
+        }
+
         let ranker = builder.build()?;
         #[cfg(feature = "storage")]
         let storage = {

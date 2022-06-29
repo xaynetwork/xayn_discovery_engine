@@ -73,13 +73,44 @@ pub trait Ops {
     fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError>;
 }
 
+/// Convenience type that boxes an [`Ops`] and adds [`Send`] and [`Sync`].
+pub type BoxedOps = Box<dyn Ops + Send + Sync>;
+
+#[async_trait]
+impl Ops for BoxedOps {
+    fn id(&self) -> Id {
+        self.as_ref().id()
+    }
+
+    async fn new_items(
+        &self,
+        key_phrases: &[KeyPhrase],
+        history: &[HistoricDocument],
+        stack: &[Document],
+        market: &Market,
+    ) -> Result<Vec<GenericArticle>, NewItemsError> {
+        self.as_ref()
+            .new_items(key_phrases, history, stack, market)
+            .await
+    }
+
+    fn needs_key_phrases(&self) -> bool {
+        self.as_ref().needs_key_phrases()
+    }
+
+    fn merge(&self, stack: &[Document], new: &[Document]) -> Result<Vec<Document>, GenericError> {
+        self.as_ref().merge(stack, new)
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
 
-    // check that Ops is object safe
     #[test]
-    fn check_ops_obj_safe() {
+    fn test_ops_trait_is_object_safe() {
         let _: Option<&dyn Ops> = None;
+        #[allow(clippy::let_underscore_drop)]
+        let _: Option<BoxedOps> = None;
     }
 }

@@ -36,7 +36,7 @@ pub(crate) mod exploration;
 pub(crate) mod filters;
 pub(crate) mod ops;
 
-pub use self::ops::Ops;
+pub use self::ops::{BoxedOps, Ops};
 pub(crate) use self::{
     data::Data,
     ops::{
@@ -78,9 +78,6 @@ pub enum Error {
     /// Failed to select new items: {0}.
     Selection(#[from] exploration::Error),
 }
-
-/// Convenience type that boxes an [`ops::Ops`] and adds [`Send`] and [`Sync`].
-pub type BoxedOps = Box<dyn Ops + Send + Sync>;
 
 /// Id of a stack.
 ///
