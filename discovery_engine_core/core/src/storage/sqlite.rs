@@ -186,11 +186,11 @@ mod tests {
 
         let history = storage.fetch_history().await.unwrap();
         assert_eq!(history.len(), docs.len());
-        docs.iter().zip(history).for_each(|(a, b)| {
-            assert_eq!(a.0.id, b.id);
-            assert_eq!(a.1.url, b.url);
-            assert_eq!(a.1.snippet, b.snippet);
-            assert_eq!(a.1.title, b.title);
+        history.iter().zip(docs).for_each(|(history, doc)| {
+            assert_eq!(history.id, doc.0.id);
+            assert_eq!(history.url, doc.1.url);
+            assert_eq!(history.snippet, doc.1.snippet);
+            assert_eq!(history.title, doc.1.title);
         });
     }
 }
