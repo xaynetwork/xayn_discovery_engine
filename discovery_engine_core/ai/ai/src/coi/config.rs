@@ -85,8 +85,6 @@ pub enum Error {
     Threshold,
     /// Invalid minimum number of positive cois, expected positive value
     MinPositiveCois,
-    /// Invalid minimum number of negative cois, expected positive value
-    MinNegativeCois,
     /// Invalid coi gamma, expected value from the unit interval
     Gamma,
     /// Invalid coi penalty, expected non-empty, finite and sorted values
@@ -156,16 +154,9 @@ impl Config {
     }
 
     /// Sets the minimum number of negative cois.
-    ///
-    /// # Errors
-    /// Fails if the minimum number is zero.
-    pub fn with_min_negative_cois(mut self, min_negative_cois: usize) -> Result<Self, Error> {
-        if min_negative_cois > 0 {
-            self.coi.min_negative_cois = min_negative_cois;
-            Ok(self)
-        } else {
-            Err(Error::MinNegativeCois)
-        }
+    pub fn with_min_negative_cois(mut self, min_negative_cois: usize) -> Self {
+        self.coi.min_negative_cois = min_negative_cois;
+        self
     }
 
     /// The time since the last view after which a coi becomes irrelevant.

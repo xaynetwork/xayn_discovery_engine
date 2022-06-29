@@ -242,8 +242,7 @@ mod tests {
         let config = Config::default()
             .with_min_positive_cois(2)
             .unwrap()
-            .with_min_negative_cois(1)
-            .unwrap();
+            .with_min_negative_cois(1);
         let positive = create_pos_cois(&[[1., 0., 0.], [4., 12., 2.]]);
         let negative = create_neg_cois(&[[-100., -10., 0.]]);
 
