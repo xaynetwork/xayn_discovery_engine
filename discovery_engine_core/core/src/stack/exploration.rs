@@ -18,15 +18,11 @@ use std::collections::HashSet;
 use uuid::uuid;
 
 use crate::{
+    config::ExplorationConfig as Config,
     document::{Document, UserReaction},
     mab::Bucket,
     ranker::Ranker,
-    stack::{
-        self,
-        exploration::selection::{document_selection, Config},
-        Data,
-        Id,
-    },
+    stack::{self, exploration::selection::document_selection, Data, Id},
 };
 
 mod selection;
@@ -41,9 +37,8 @@ pub(crate) struct Stack {
 
 impl Stack {
     /// Create a new `Stack` with the given [`Data`].
-    pub(crate) fn new(data: Data) -> Result<Self, stack::Error> {
+    pub(crate) fn new(data: Data, config: Config) -> Result<Self, stack::Error> {
         Self::validate_documents_stack_id(&data.documents, Stack::id())?;
-        let config = Config::default();
         Ok(Self { data, config })
     }
 

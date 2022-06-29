@@ -28,30 +28,12 @@ use xayn_discovery_engine_ai::{
     PositiveCoi,
 };
 
-use crate::document::Document;
+use crate::{config::ExplorationConfig as Config, document::Document};
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// Not enough cois
     NotEnoughCois,
-}
-
-/// Configurations for the exploration stack.
-#[derive(Debug)]
-pub(crate) struct Config {
-    /// The number of candidates.
-    number_of_candidates: usize,
-    /// The maximum number of documents to keep.
-    max_selected_docs: usize,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            number_of_candidates: 40,
-            max_selected_docs: 20,
-        }
-    }
 }
 
 /// Selects documents by randomization with a threshold.
