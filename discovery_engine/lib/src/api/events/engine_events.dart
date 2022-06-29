@@ -193,8 +193,9 @@ class EngineEvent with _$EngineEvent {
     required Set<Source> excludedSources,
   }) = SetSourcesRequestSucceeded;
 
-  /// Event created as a success response to SetSourcesRequested event.
-  /// Returns a set of duplicate [Source]s back to the client.
+  /// Event created as a failure response to SetSourcesRequested event.
+  /// Returns a set of duplicate [Source]s found between trusted and excluded
+  /// sets, that were sent by the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.setSourcesRequestFailed(
     Set<Source> duplicateSources,

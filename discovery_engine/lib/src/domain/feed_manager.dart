@@ -170,28 +170,24 @@ class FeedManager {
     Set<Source> trustedSources,
     Set<Source> excludedSources,
   ) async {
-    final trustedFilters = trustedSources.map(SourcePreference.trusted);
-    final excludedFilters = excludedSources.map(SourcePreference.excluded);
-    final filters = {...trustedFilters, ...excludedFilters};
-    final entries = <String, SourcePreference>{};
-    final duplicates = <Source>{};
-
-    for (final filter in filters) {
-      final entry = entries.putIfAbsent(filter.source.value, () => filter);
-      if (entry.mode != filter.mode) {
-        duplicates.add(filter.source);
-      }
-    }
-
+    final duplicates = trustedSources.intersection(excludedSources);
     if (duplicates.isNotEmpty) {
       return EngineEvent.setSourcesRequestFailed(duplicates);
     }
+
+    final filters = {
+      ...trustedSources.map(SourcePreference.trusted),
+      ...excludedSources.map(SourcePreference.excluded),
+    };
+    final dbEntries = <String, SourcePreference>{
+      for (final filter in filters) filter.source.value: filter,
+    };
 
     final currentTrusted = await _sourcePreferenceRepository.getTrusted();
     final currentExcluded = await _sourcePreferenceRepository.getExcluded();
     final history = await _docRepo.fetchHistory();
     await _sourcePreferenceRepository.clear();
-    await _sourcePreferenceRepository.saveAll(entries);
+    await _sourcePreferenceRepository.saveAll(dbEntries);
 
     if (!_setEquals(trustedSources, currentTrusted)) {
       await _engine.setTrustedSources(history, trustedSources);
