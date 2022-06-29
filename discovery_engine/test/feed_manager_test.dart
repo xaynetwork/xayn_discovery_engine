@@ -278,6 +278,38 @@ Future<void> main() async {
       );
     });
 
+    test('setSources should call the engine methods only when sources change',
+        () async {
+      final response1 = await mgr.setSources(
+        {Source('trusted1.local'), Source('trusted2.local')},
+        {Source('excluded1.local')},
+      );
+      expect(response1, isA<SetSourcesRequestSucceeded>());
+      expect(engine.getCallCount('setTrustedSources'), equals(1));
+      expect(engine.getCallCount('setExcludedSources'), equals(1));
+
+      engine.resetCallCounter();
+
+      final response2 = await mgr.setSources(
+        {Source('trusted2.local'), Source('trusted3.local')},
+        {Source('excluded1.local')},
+      );
+      expect(response2, isA<SetSourcesRequestSucceeded>());
+      expect(engine.getCallCount('setTrustedSources'), equals(1));
+      expect(engine.getCallCount('setExcludedSources'), equals(0));
+
+      engine.resetCallCounter();
+
+      final response3 = await mgr.setSources(
+        // here we've changed the order
+        {Source('trusted3.local'), Source('trusted2.local')},
+        {Source('excluded1.local')},
+      );
+      expect(response3, isA<SetSourcesRequestSucceeded>());
+      expect(engine.getCallCount('setTrustedSources'), equals(0));
+      expect(engine.getCallCount('setExcludedSources'), equals(0));
+    });
+
     test('addExcludedSource', () async {
       final response1 = await mgr.addExcludedSource(Source('test1.local'));
       final response2 = await mgr.addExcludedSource(Source('test2.local'));

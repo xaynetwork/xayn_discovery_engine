@@ -187,16 +187,35 @@ class FeedManager {
       return EngineEvent.setSourcesRequestFailed(duplicates);
     }
 
+    final currentTrusted = await _sourcePreferenceRepository.getTrusted();
+    final currentExcluded = await _sourcePreferenceRepository.getExcluded();
     final history = await _docRepo.fetchHistory();
     await _sourcePreferenceRepository.clear();
     await _sourcePreferenceRepository.saveAll(entries);
-    await _engine.setTrustedSources(history, trustedSources);
-    await _engine.setExcludedSources(history, excludedSources);
+
+    if (!_setEquals(trustedSources, currentTrusted)) {
+      await _engine.setTrustedSources(history, trustedSources);
+    }
+
+    if (!_setEquals(excludedSources, currentExcluded)) {
+      await _engine.setExcludedSources(history, excludedSources);
+    }
 
     return EngineEvent.setSourcesRequestSucceeded(
       trustedSources: trustedSources,
       excludedSources: excludedSources,
     );
+  }
+
+  // based on the flutter's setEquals
+  // https://api.flutter.dev/flutter/foundation/setEquals.html
+  bool _setEquals<T>(Set<T> a, Set<T> b) {
+    if (a.length != b.length) return false;
+    if (identical(a, b)) return true;
+    for (final T value in a) {
+      if (!b.contains(value)) return false;
+    }
+    return true;
   }
 
   /// Adds a source to excluded sources set.

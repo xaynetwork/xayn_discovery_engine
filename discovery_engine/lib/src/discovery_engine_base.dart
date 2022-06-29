@@ -303,7 +303,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [SetSourcesRequestSucceeded] indicating a successful operation,
-  /// containing sets of both trusted and exclued [Source]s.
+  /// containing sets of both trusted and excluded [Source]s.
   /// - [SetSourcesRequestFailed] indicating a failed operation because of
   /// duplicates found in provided sets, containing a set of said duplicates.
   /// - [EngineExceptionReason] indicating a failed operation, with a reason

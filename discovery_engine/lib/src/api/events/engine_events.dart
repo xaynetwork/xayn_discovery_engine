@@ -194,7 +194,7 @@ class EngineEvent with _$EngineEvent {
   }) = SetSourcesRequestSucceeded;
 
   /// Event created as a success response to SetSourcesRequested event.
-  /// Returns a set of duplicates [Source]s back to the client.
+  /// Returns a set of duplicate [Source]s back to the client.
   @Implements<FeedEngineEvent>()
   const factory EngineEvent.setSourcesRequestFailed(
     Set<Source> duplicateSources,
