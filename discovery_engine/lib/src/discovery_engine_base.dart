@@ -33,6 +33,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextFeedBatchRequestSucceeded,
         ExcludedSourcesListRequestSucceeded,
         ExcludedSourcesListRequestFailed,
+        SetSourcesRequestSucceeded,
+        SetSourcesRequestFailed,
         ActiveSearchRequestSucceeded,
         ActiveSearchRequestFailed,
         NextActiveSearchBatchRequestSucceeded,
@@ -291,6 +293,36 @@ class DiscoveryEngine {
       return response.mapEvent(
         excludedSourcesListRequestSucceeded: true,
         excludedSourcesListRequestFailed: true,
+        engineExceptionRaised: true,
+      );
+    });
+  }
+
+  /// Overrides both trusted and excluded [Source]s which means provided sets
+  /// will replace the current [Source]s.
+  ///
+  /// In response it can return:
+  /// - [SetSourcesRequestSucceeded] indicating a successful operation,
+  /// containing sets of both trusted and exclued [Source]s.
+  /// - [SetSourcesRequestFailed] indicating a failed operation because of
+  /// duplicates found in provided sets, containing a set of said duplicates.
+  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// for such failure.
+  Future<EngineEvent> overrideSources({
+    required Set<Source> trustedSources,
+    required Set<Source> excludedSources,
+  }) {
+    return _trySend(() async {
+      final response = await _manager.send(
+        ClientEvent.setSourcesRequested(
+          trustedSources: trustedSources,
+          excludedSources: excludedSources,
+        ),
+      );
+
+      return response.mapEvent(
+        setSourcesRequestSucceeded: true,
+        setSourcesRequestFailed: true,
         engineExceptionRaised: true,
       );
     });
@@ -663,6 +695,8 @@ extension _MapEvent on EngineEvent {
     bool? trendingTopicsRequestFailed,
     bool? availableSourcesListRequestSucceeded,
     bool? availableSourcesListRequestFailed,
+    bool? setSourcesRequestSucceeded,
+    bool? setSourcesRequestFailed,
   }) =>
       map(
         restoreFeedSucceeded: _maybePassThrough(restoreFeedSucceeded),
@@ -720,6 +754,9 @@ extension _MapEvent on EngineEvent {
             _maybePassThrough(availableSourcesListRequestSucceeded),
         availableSourcesListRequestFailed:
             _maybePassThrough(availableSourcesListRequestFailed),
+        setSourcesRequestSucceeded:
+            _maybePassThrough(setSourcesRequestSucceeded),
+        setSourcesRequestFailed: _maybePassThrough(setSourcesRequestFailed),
       );
 
   EngineEvent Function(EngineEvent) _maybePassThrough(bool? condition) {

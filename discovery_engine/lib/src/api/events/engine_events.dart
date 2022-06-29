@@ -185,6 +185,21 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.availableSourcesListRequestFailed() =
       AvailableSourcesListRequestFailed;
 
+  /// Event created as a success response to SetSourcesRequested event.
+  /// Returns both sets of trusted and excluded [Source]s back to the client.
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.setSourcesRequestSucceeded({
+    required Set<Source> trustedSources,
+    required Set<Source> excludedSources,
+  }) = SetSourcesRequestSucceeded;
+
+  /// Event created as a success response to SetSourcesRequested event.
+  /// Returns a set of duplicates [Source]s back to the client.
+  @Implements<FeedEngineEvent>()
+  const factory EngineEvent.setSourcesRequestFailed(
+    Set<Source> duplicateSources,
+  ) = SetSourcesRequestFailed;
+
   /// Event created when fetching of AI assets has started.
   @Implements<AssetsStatusEngineEvent>()
   const factory EngineEvent.fetchingAssetsStarted() = FetchingAssetsStarted;

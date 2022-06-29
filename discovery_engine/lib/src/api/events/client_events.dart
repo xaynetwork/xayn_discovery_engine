@@ -99,15 +99,21 @@ class ClientEvent with _$ClientEvent {
     Set<DocumentId> documentIds,
   ) = FeedDocumentsClosed;
 
+  /// Event created when the client wants to override both excluded and trusted
+  /// [Source]s.
+  @Implements<FeedClientEvent>()
+  const factory ClientEvent.setSourcesRequested({
+    required Set<Source> trustedSources,
+    required Set<Source> excludedSources,
+  }) = SetSourcesRequested;
+
   /// Event created when a source is added to the list of excluded sources.
   @Implements<FeedClientEvent>()
-  @Assert('source != ""')
   const factory ClientEvent.excludedSourceAdded(Source source) =
       ExcludedSourceAdded;
 
   /// Event created when a source is removed from the list of excluded sources.
   @Implements<FeedClientEvent>()
-  @Assert('source != ""')
   const factory ClientEvent.excludedSourceRemoved(Source source) =
       ExcludedSourceRemoved;
 
@@ -118,13 +124,11 @@ class ClientEvent with _$ClientEvent {
 
   /// Event created when a source is added to the list of trusted sources.
   @Implements<FeedClientEvent>()
-  @Assert('source != ""')
   const factory ClientEvent.trustedSourceAdded(Source source) =
       TrustedSourceAdded;
 
   /// Event created when a source is removed from the list of trusted sources.
   @Implements<FeedClientEvent>()
-  @Assert('source != ""')
   const factory ClientEvent.trustedSourceRemoved(Source source) =
       TrustedSourceRemoved;
 

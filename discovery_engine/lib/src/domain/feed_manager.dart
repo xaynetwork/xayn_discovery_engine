@@ -74,6 +74,7 @@ class FeedManager {
         trustedSourceRemoved: removeTrustedSource,
         trustedSourcesListRequested: getTrustedSourcesList,
         availableSourcesListRequested: getAvailableSourcesList,
+        setSourcesRequested: setSources,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -161,6 +162,41 @@ class FeedManager {
     final trustedSources = await _sourcePreferenceRepository.getTrusted();
     await _engine.setExcludedSources(history, excludedSources);
     await _engine.setTrustedSources(history, trustedSources);
+  }
+
+  /// Override current trusted and excluded sources with the new ones provided
+  /// by the client.
+  Future<EngineEvent> setSources(
+    Set<Source> trustedSources,
+    Set<Source> excludedSources,
+  ) async {
+    final trustedFilters = trustedSources.map(SourcePreference.trusted);
+    final excludedFilters = excludedSources.map(SourcePreference.excluded);
+    final filters = {...trustedFilters, ...excludedFilters};
+    final entries = <String, SourcePreference>{};
+    final duplicates = <Source>{};
+
+    for (final filter in filters) {
+      final entry = entries.putIfAbsent(filter.source.value, () => filter);
+      if (entry.mode != filter.mode) {
+        duplicates.add(filter.source);
+      }
+    }
+
+    if (duplicates.isNotEmpty) {
+      return EngineEvent.setSourcesRequestFailed(duplicates);
+    }
+
+    final history = await _docRepo.fetchHistory();
+    await _sourcePreferenceRepository.clear();
+    await _sourcePreferenceRepository.saveAll(entries);
+    await _engine.setTrustedSources(history, trustedSources);
+    await _engine.setExcludedSources(history, excludedSources);
+
+    return EngineEvent.setSourcesRequestSucceeded(
+      trustedSources: trustedSources,
+      excludedSources: excludedSources,
+    );
   }
 
   /// Adds a source to excluded sources set.

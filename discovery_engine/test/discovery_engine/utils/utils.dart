@@ -66,6 +66,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent deepSearchRequestedResponse;
   final EngineEvent trendingTopicsRequestedResponse;
   final EngineEvent resetAiRequestedResponse;
+  final EngineEvent setSourcesRequestedResponse;
 
   MockDiscoveryEngineWorker(
     Object initialMessage, {
@@ -99,6 +100,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
         const EngineEvent.trendingTopicsRequestSucceeded([]),
     EngineEvent? availableSourcesListRequestedResponse,
     this.resetAiRequestedResponse = const EngineEvent.clientEventSucceeded(),
+    EngineEvent? setSourcesRequestedResponse,
   })  : activeSearchRequestedResponse =
             EngineEvent.activeSearchRequestSucceeded(
           mockActiveSearch.toApiRepr(),
@@ -113,6 +115,11 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
           mockActiveSearch.toApiRepr(),
           [],
         ),
+        setSourcesRequestedResponse = setSourcesRequestedResponse ??
+            EngineEvent.setSourcesRequestSucceeded(
+              trustedSources: {Source('trusted.example.com')},
+              excludedSources: {Source('excluded.example.com')},
+            ),
         excludedSourcesListRequestedResponse =
             excludedSourcesListRequestedResponse ??
                 EngineEvent.excludedSourcesListRequestSucceeded(
@@ -157,6 +164,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       deepSearchRequested: (_) => deepSearchRequestedResponse,
       trendingTopicsRequested: (_) => trendingTopicsRequestedResponse,
       resetAi: (_) => resetAiRequestedResponse,
+      setSourcesRequested: (_) => setSourcesRequestedResponse,
     );
     return send(response, request.sender);
   }
