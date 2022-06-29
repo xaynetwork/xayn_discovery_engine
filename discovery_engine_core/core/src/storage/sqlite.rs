@@ -185,7 +185,7 @@ mod tests {
         insert_historic_documents(&storage, docs.clone()).await;
 
         let history = storage.fetch_history().await.unwrap();
-        assert_eq!(docs.len(), history.len());
+        assert_eq!(history.len(), docs.len());
         docs.iter().zip(history).for_each(|(a, b)| {
             assert_eq!(a.0.id, b.id);
             assert_eq!(a.1.url, b.url);
