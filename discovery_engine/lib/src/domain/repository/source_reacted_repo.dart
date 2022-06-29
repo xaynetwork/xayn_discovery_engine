@@ -18,6 +18,9 @@ import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart'
 
 /// [SourceReacted] repository interface.
 abstract class SourceReactedRepository {
+  /// Fetch all sources.
+  Future<List<SourceReacted>> fetchAll();
+
   /// Fetch by matching source.
   /// Returns null if no matching source found.
   Future<SourceReacted?> fetchBySource(Source source);
