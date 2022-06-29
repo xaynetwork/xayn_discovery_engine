@@ -70,7 +70,7 @@ use crate::{
     ranker::Ranker,
     stack::{
         self,
-        exploration,
+        exploration::Stack as Exploration,
         filters::{
             filter_semantically,
             ArticleFilter,
@@ -141,7 +141,7 @@ pub struct Engine<R> {
     endpoint_config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
-    exploration_stack: exploration::Stack,
+    exploration_stack: Exploration,
     ranker: R,
     request_after: usize,
     #[cfg(feature = "storage")]
@@ -153,85 +153,16 @@ impl<R> Engine<R>
 where
     R: Ranker + Send + Sync,
 {
-    /// Creates a new `Engine`.
+    /// Creates an `Engine`.
+    ///
+    /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
+    /// Data related to missing operations will be dropped.
     async fn new(
         endpoint_config: EndpointConfig,
         core_config: CoreConfig,
         ranker: R,
         history: &[HistoricDocument],
-        stack_ops: Vec<BoxedOps>,
-        client: Arc<Client>,
-        #[cfg(feature = "storage")] storage: Box<
-            dyn Storage<StorageError = storage::Error> + Send + Sync,
-        >,
-    ) -> Result<Self, Error> {
-        let stack_data = |_| StackData::default();
-
-        Self::from_stack_data(
-            endpoint_config,
-            core_config,
-            ranker,
-            history,
-            stack_data,
-            StackData::default(),
-            stack_ops,
-            client,
-            #[cfg(feature = "storage")]
-            storage,
-        )
-        .await
-    }
-
-    /// Creates a new `Engine` from serialized state and stack operations.
-    ///
-    /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
-    /// Data related to missing operations will be dropped.
-    async fn from_state<'a>(
-        state: &'a StackState,
-        endpoint_config: EndpointConfig,
-        core_config: CoreConfig,
-        ranker: R,
-        history: &'a [HistoricDocument],
-        stack_ops: Vec<BoxedOps>,
-        client: Arc<Client>,
-        #[cfg(feature = "storage")] storage: Box<
-            dyn Storage<StorageError = storage::Error> + Send + Sync,
-        >,
-    ) -> Result<Self, Error> {
-        if stack_ops.is_empty() {
-            return Err(Error::NoStackOps);
-        }
-
-        let mut stack_data = bincode::deserialize::<HashMap<StackId, _>>(&state.0)
-            .map_err(Error::Deserialization)?;
-        let exploration_stack_data = stack_data
-            .remove(&exploration::Stack::id())
-            .unwrap_or_default();
-        let stack_data = |id| stack_data.remove(&id).unwrap_or_default();
-
-        Self::from_stack_data(
-            endpoint_config,
-            core_config,
-            ranker,
-            history,
-            stack_data,
-            exploration_stack_data,
-            stack_ops,
-            client,
-            #[cfg(feature = "storage")]
-            storage,
-        )
-        .await
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn from_stack_data(
-        endpoint_config: EndpointConfig,
-        core_config: CoreConfig,
-        ranker: R,
-        history: &[HistoricDocument],
-        mut stack_data: impl FnMut(StackId) -> StackData + Send,
-        exploration_stack_data: StackData,
+        mut stack_data: HashMap<StackId, StackData>,
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
         #[cfg(feature = "storage")] storage: Box<
@@ -242,14 +173,15 @@ where
             .into_iter()
             .map(|ops| {
                 let id = ops.id();
-                let data = stack_data(id);
+                let data = stack_data.remove(&id).unwrap_or_default();
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
             .collect::<Result<HashMap<_, _>, _>>()
             .map_err(Error::InvalidStack)?;
 
         let exploration_stack =
-            exploration::Stack::new(exploration_stack_data).map_err(Error::InvalidStack)?;
+            Exploration::new(stack_data.remove(&Exploration::id()).unwrap_or_default())
+                .map_err(Error::InvalidStack)?;
 
         // we don't want to fail initialization if there are network problems
         let mut engine = Self {
@@ -300,7 +232,7 @@ where
             .iter()
             .map(|(id, stack)| (id, &stack.data))
             .collect::<HashMap<_, _>>();
-        let exploration_stack_id = exploration::Stack::id();
+        let exploration_stack_id = Exploration::id();
         stacks_data.insert(&exploration_stack_id, &self.exploration_stack.data);
 
         let engine = bincode::serialize(&stacks_data)
@@ -410,7 +342,7 @@ where
         if !reacted.stack_id.is_nil() {
             if let Some(stack) = stacks.get_mut(&reacted.stack_id) {
                 stack.update_relevance(reacted.reaction);
-            } else if reacted.stack_id == exploration::Stack::id() {
+            } else if reacted.stack_id == Exploration::id() {
                 self.exploration_stack.update_relevance(reacted.reaction);
             } else {
                 return Err(Error::InvalidStackId(reacted.stack_id));
@@ -680,7 +612,7 @@ where
     pub async fn reset_ai(&mut self) -> Result<(), Error> {
         self.clear_stack_data().await;
         self.exploration_stack =
-            exploration::Stack::new(StackData::default()).map_err(Error::InvalidStack)?;
+            Exploration::new(StackData::default()).map_err(Error::InvalidStack)?;
         self.ranker.reset_ai();
 
         self.update_stacks_for_all_markets(&[], self.core_config.request_new)
@@ -694,7 +626,7 @@ where
 /// The ranker could rank the documents in a different order so we update the stacks with it.
 fn rank_stacks<'a>(
     stacks: impl Iterator<Item = &'a mut Stack>,
-    exploration_stack: &mut exploration::Stack,
+    exploration_stack: &mut Exploration,
     ranker: &mut impl Ranker,
 ) -> Result<(), Error> {
     let mut errors = stacks.fold(Vec::new(), |mut errors, stack| {
@@ -721,7 +653,7 @@ fn rank_stacks<'a>(
 #[instrument(skip(stacks, exploration_stack, ranker, history))]
 async fn update_stacks<'a>(
     stacks: &mut HashMap<Id, Stack>,
-    exploration_stack: &mut exploration::Stack,
+    exploration_stack: &mut Exploration,
     ranker: &mut (impl Ranker + Send + Sync),
     history: &[HistoricDocument],
     take_top: usize,
@@ -810,7 +742,7 @@ async fn update_stacks<'a>(
     // to keep the loop below simple.
     let (mut exploration_docs, other_docs): (Vec<Document>, Vec<Document>) = all_documents
         .into_iter()
-        .partition(|doc| doc.stack_id == exploration::Stack::id());
+        .partition(|doc| doc.stack_id == Exploration::id());
 
     // Finally, we can update the stacks with their respective documents. To do this, we
     // have to group the fetched documents by `stack_id`, then `update` the stacks.
@@ -846,7 +778,7 @@ async fn update_stacks<'a>(
         for (id, data) in stacks
             .values()
             .map(|stack| (stack.id(), &stack.data))
-            .chain(once((exploration::Stack::id(), &exploration_stack.data)))
+            .chain(once((Exploration::id(), &exploration_stack.data)))
         {
             for (ranking, document) in data.documents.iter().rev().enumerate() {
                 debug!(
@@ -1002,49 +934,57 @@ impl XaynAiEngine {
             Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
         ];
 
+        let (stack_data, builder) = if let Some(state) = state {
+            if stack_ops.is_empty() {
+                return Err(Error::NoStackOps);
+            }
+            State::deserialize(state, builder)?
+        } else {
+            (HashMap::default(), builder)
+        };
+        let ranker = builder.build()?;
         #[cfg(feature = "storage")]
         let storage = {
             let storage = SqliteStorage::connect("sqlite::memory:").await?;
             storage.init_database().await?;
             Box::new(storage) as _
         };
-        if let Some(state) = state {
-            let state: State = bincode::deserialize(state).map_err(Error::Deserialization)?;
-            let ranker = builder.with_serialized_state(&state.ranker.0)?.build()?;
-            Self::from_state(
-                &state.engine,
-                endpoint_config,
-                core_config,
-                ranker,
-                history,
-                stack_ops,
-                client,
-                #[cfg(feature = "storage")]
-                storage,
-            )
-            .await
-        } else {
-            let ranker = builder.build()?;
-            Self::new(
-                endpoint_config,
-                core_config,
-                ranker,
-                history,
-                stack_ops,
-                client,
-                #[cfg(feature = "storage")]
-                storage,
-            )
-            .await
-        }
+
+        Self::new(
+            endpoint_config,
+            core_config,
+            ranker,
+            history,
+            stack_data,
+            stack_ops,
+            client,
+            #[cfg(feature = "storage")]
+            storage,
+        )
+        .await
     }
 }
 
 #[derive(Serialize, Deserialize)]
 struct StackState(Vec<u8>);
 
+impl StackState {
+    fn deserialize(&self) -> Result<HashMap<StackId, StackData>, Error> {
+        bincode::deserialize(&self.0).map_err(Error::Deserialization)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct RankerState(Vec<u8>);
+
+impl RankerState {
+    fn deserialize<'a>(
+        &self,
+        builder: Builder<'a, AveragePooler>,
+    ) -> Result<Builder<'a, AveragePooler>, Error> {
+        builder.with_serialized_state(&self.0).map_err(Into::into)
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 struct State {
@@ -1052,6 +992,19 @@ struct State {
     engine: StackState,
     /// The serialized ranker state.
     ranker: RankerState,
+}
+
+impl State {
+    fn deserialize<'a>(
+        state: &'a [u8],
+        builder: Builder<'a, AveragePooler>,
+    ) -> Result<(HashMap<StackId, StackData>, Builder<'a, AveragePooler>), Error> {
+        let state = bincode::deserialize::<Self>(state).map_err(Error::Deserialization)?;
+        let stack_data = state.engine.deserialize()?;
+        let builder = state.ranker.deserialize(builder)?;
+
+        Ok((stack_data, builder))
+    }
 }
 
 /// Active search mode.
@@ -1134,7 +1087,7 @@ mod tests {
         // this is essentially a no-op ranker.
         let mut no_op_ranker = new_no_op_ranker();
         let mut stacks = create_stacks_from_stack_ops(stack_ops);
-        let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
+        let mut exploration_stack = Exploration::new(StackData::default()).unwrap();
 
         // Stacks should be empty before we start fetching anything
         assert_eq!(stacks.get(&breaking_news_id).unwrap().len(), 0);
@@ -1202,7 +1155,7 @@ mod tests {
 
         let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
+        let mut exploration_stack = Exploration::new(StackData::default()).unwrap();
 
         let result = update_stacks(
             &mut stacks,
@@ -1239,7 +1192,7 @@ mod tests {
 
         let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
+        let mut exploration_stack = Exploration::new(StackData::default()).unwrap();
 
         let result = update_stacks(
             &mut stacks,
@@ -1268,7 +1221,7 @@ mod tests {
 
         let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack = exploration::Stack::new(StackData::default()).unwrap();
+        let mut exploration_stack = Exploration::new(StackData::default()).unwrap();
 
         let result = update_stacks(
             &mut stacks,
