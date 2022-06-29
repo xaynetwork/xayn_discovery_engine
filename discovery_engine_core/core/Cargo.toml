@@ -33,7 +33,7 @@ xayn-discovery-engine-providers = { path = "../providers" }
 xayn-discovery-engine-tokenizer = { path = "../ai/tokenizer" }
 
 # feature storage
-sqlx = { version = "0.6.0", features = ["runtime-tokio-rustls", "sqlite"], optional = true }
+sqlx = { version = "0.6.0", features = ["runtime-tokio-rustls", "sqlite", "uuid"], optional = true }
 
 [dev-dependencies]
 claim = "0.5.0"
