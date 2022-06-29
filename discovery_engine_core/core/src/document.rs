@@ -55,7 +55,7 @@ impl Id {
         Self(Uuid::new_v4())
     }
 
-    #[cfg(all(feature = "storage", test))]
+    #[cfg(feature = "storage")]
     pub(crate) fn as_uuid(&self) -> &Uuid {
         &self.0
     }
@@ -175,6 +175,7 @@ impl From<GenericArticle> for NewsResource {
 /// essentially if the user "liked" or "disliked" the document.
 #[derive(Clone, Copy, Debug, Derivative, PartialEq, Serialize_repr, Deserialize_repr)]
 #[derivative(Default)]
+#[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
 #[repr(u8)]
 pub enum UserReaction {
     /// No reaction from the user.

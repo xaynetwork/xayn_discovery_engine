@@ -1,0 +1,54 @@
+--  Copyright 2022 Xayn AG
+--
+--  This program is free software: you can redistribute it and/or modify
+--  it under the terms of the GNU Affero General Public License as
+--  published by the Free Software Foundation, version 3.
+--
+--  This program is distributed in the hope that it will be useful,
+--  but WITHOUT ANY WARRANTY; without even the implied warranty of
+--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--  GNU Affero General Public License for more details.
+--
+--  You should have received a copy of the GNU Affero General Public License
+--  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+CREATE TABLE IF NOT EXISTS FeedDocument (
+    document BLOB NOT NULL
+        PRIMARY KEY
+        REFERENCES HistoricDocument(document) ON DELETE CASCADE
+);
+
+CREATE TRIGGER IF NOT EXISTS feed_history_sync
+    BEFORE INSERT
+    ON FeedDocument
+    BEGIN
+      INSERT INTO HistoricDocument(document)
+        VALUES (new.document)
+        ON CONFLICT DO NOTHING;
+    END;
+
+-- ordering of documents based on when they have
+-- been first presented to the app (user)
+CREATE TABLE IF NOT EXISTS PresentationOrdering(
+    document BLOB NOT NULL
+        PRIMARY KEY
+        REFERENCES Document(id) ON DELETE CASCADE,
+    -- unix epoch timestamp in seconds
+    -- you can't use DEFAULT as it must be the same
+    -- for all documents added in the same batch
+    timestamp INTEGER NOT NULL,
+    -- index in the batch of document which where
+    -- presented to the app (user) at the same time
+    inBatchIndex INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_presentation_ordering_sort
+  ON PresentationOrdering(timestamp, inBatchIndex);
+
+CREATE TABLE IF NOT EXISTS UserReaction (
+    document BLOB NOT NULL
+        PRIMARY KEY
+        REFERENCES HistoricDocument(document) ON DELETE CASCADE,
+
+    userReaction INTEGER NOT NULL DEFAULT 0
+);

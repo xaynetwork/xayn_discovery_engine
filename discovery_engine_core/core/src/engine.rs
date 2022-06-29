@@ -94,6 +94,13 @@ use crate::{
     },
 };
 
+#[cfg(feature = "storage")]
+type BoxedStorage = Box<
+    dyn Storage<StorageError = sqlite::StorageError, FeedScopeError = sqlite::FeedScopeError>
+        + Send
+        + Sync,
+>;
+
 /// Discovery engine errors.
 #[derive(Error, Debug, Display)]
 pub enum Error {
@@ -135,7 +142,7 @@ pub enum Error {
 
     #[cfg(feature = "storage")]
     /// Storage error: {0}.
-    Storage(#[from] sqlite::Error),
+    Storage(#[from] sqlite::StorageError),
 
     /// Provider error: {0}
     ProviderError(#[source] xayn_discovery_engine_providers::Error),
@@ -151,7 +158,7 @@ pub struct Engine<R> {
     request_after: usize,
     #[cfg(feature = "storage")]
     #[allow(dead_code)]
-    storage: Box<dyn Storage<StorageError = sqlite::Error> + Send + Sync>,
+    storage: BoxedStorage,
     providers: Providers,
 }
 
@@ -173,9 +180,8 @@ where
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
         stack_ops: Vec<BoxedOps>,
-        #[cfg(feature = "storage")] storage: Box<
-            dyn Storage<StorageError = sqlite::Error> + Send + Sync,
-        >,
+        client: Arc<Client>,
+        #[cfg(feature = "storage")] storage: BoxedStorage,
         providers: Providers,
     ) -> Result<Self, Error> {
         let stacks = stack_ops

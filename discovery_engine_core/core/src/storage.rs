@@ -14,16 +14,101 @@
 
 use async_trait::async_trait;
 
-use crate::document::HistoricDocument;
+use crate::document::{self, HistoricDocument};
+
+use self::models::ApiDocumentView;
 
 pub mod sqlite;
 
 #[async_trait]
-pub trait Storage {
+pub trait Storage: FeedScope {
     type StorageError;
 
     async fn init_database(&self) -> Result<(), <Self as Storage>::StorageError>;
 
     async fn fetch_history(&self)
         -> Result<Vec<HistoricDocument>, <Self as Storage>::StorageError>;
+
+    fn feed(
+        &self,
+    ) -> &(dyn FeedScope<FeedScopeError = <Self as FeedScope>::FeedScopeError> + Send + Sync);
+}
+
+#[async_trait]
+pub trait FeedScope {
+    type FeedScopeError;
+
+    async fn close_feed_document(&self, document: document::Id)
+        -> Result<(), Self::FeedScopeError>;
+
+    async fn clear_feed(&self) -> Result<(), Self::FeedScopeError>;
+
+    async fn fetch_feed(&self) -> Result<Vec<ApiDocumentView>, Self::FeedScopeError>;
+
+    // helper function. will be replaced later by move_from_stacks_to_feed
+    async fn store_documents(
+        &self,
+        documents: &[document::Document],
+    ) -> Result<(), Self::FeedScopeError>;
+}
+
+pub mod models {
+
+    use chrono::NaiveDateTime;
+    use url::Url;
+    use xayn_discovery_engine_ai::Embedding;
+    use xayn_discovery_engine_providers::Market;
+
+    use crate::document::{self, UserReaction};
+
+    pub struct NewDocument {
+        pub id: document::Id,
+        pub news_resource: NewsResource,
+        pub newscatcher: NewscatcherData,
+        pub embedding: Embedding,
+    }
+
+    pub struct ApiDocumentView {
+        pub document: document::Id,
+        pub news_resource: NewsResource,
+        pub newscatcher_data: NewscatcherData,
+        pub user_reacted: Option<UserReaction>,
+        // //FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
+        pub in_batch_index: usize,
+    }
+
+    /// Represents a news that is delivered by an external content API.
+    #[derive(Debug, Clone)]
+    pub struct NewsResource {
+        /// Title of the resource.
+        pub title: String,
+
+        /// Snippet of the resource.
+        pub snippet: String,
+
+        /// Main topic of the publisher.
+        pub topic: String,
+
+        /// Url to reach the resource.
+        pub url: Url,
+
+        /// Image attached to the news.
+        pub image: Option<Url>,
+
+        /// Publishing date.
+        //FIXME it's NativeDateTime in the current codebase but we can't compare
+        //      NativeDateTimes across different markets, but we do! So this needs to be
+        //      at least a Utc DateTime.
+        pub date_published: NaiveDateTime,
+
+        /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
+        pub source: String,
+
+        pub market: Market,
+    }
+
+    pub struct NewscatcherData {
+        pub domain_rank: usize,
+        pub score: Option<f32>,
+    }
 }
