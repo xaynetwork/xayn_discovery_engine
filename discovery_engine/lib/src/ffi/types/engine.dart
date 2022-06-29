@@ -27,6 +27,7 @@ import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source, ToStringListExt;
+import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -66,6 +67,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show StringFfi, StringListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart'
     show TrendingTopicSliceFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/weighted_source_vec.dart'
+    show WeightedSourceListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
@@ -97,6 +100,7 @@ class DiscoveryEngineFfi implements Engine {
       ).allocNative().move(),
       initializer.engineState?.allocNative().move() ?? nullptr,
       initializer.history.allocNative().move(),
+      initializer.reactedSources.allocBoxedVec().move(),
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
 
@@ -115,12 +119,14 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<void> setMarkets(
     final List<HistoricDocument> history,
+    final List<SourceReacted> sources,
     final FeedMarkets markets,
   ) async {
     final result = await asyncFfi.setMarkets(
       _engine.ref,
       markets.toList().allocVec().move(),
       history.allocNative().move(),
+      sources.allocBoxedVec().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
@@ -130,12 +136,14 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<void> setExcludedSources(
     List<HistoricDocument> history,
-    Set<Source> sources,
+    List<SourceReacted> sources,
+    Set<Source> excluded,
   ) async {
     final result = await asyncFfi.setExcludedSources(
       _engine.ref,
       history.allocNative().move(),
-      sources.toStringList().allocNative().move(),
+      sources.allocBoxedVec().move(),
+      excluded.toStringList().allocNative().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
@@ -144,12 +152,14 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<void> setTrustedSources(
     List<HistoricDocument> history,
-    Set<Source> sources,
+    List<SourceReacted> sources,
+    Set<Source> trusted,
   ) async {
     final result = await asyncFfi.setTrustedSources(
       _engine.ref,
       history.allocNative().move(),
-      sources.toStringList().allocNative().move(),
+      sources.allocBoxedVec().move(),
+      trusted.toStringList().allocNative().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
@@ -159,11 +169,13 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     final List<HistoricDocument> history,
+    final List<SourceReacted> sources,
     final int maxDocuments,
   ) async {
     final result = await asyncFfi.getFeedDocuments(
       _engine.ref,
       history.allocNative().move(),
+      sources.allocBoxedVec().move(),
       maxDocuments,
     );
 
@@ -187,12 +199,14 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<void> userReacted(
     final List<HistoricDocument>? history,
+    final List<SourceReacted> sources,
     final UserReacted userReacted,
   ) async {
     final boxedUserReacted = userReacted.allocNative();
     final result = await asyncFfi.userReacted(
       _engine.ref,
       history?.allocNative().move() ?? nullptr,
+      sources.allocBoxedVec().move(),
       boxedUserReacted.move(),
     );
 

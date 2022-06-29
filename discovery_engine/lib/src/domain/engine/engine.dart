@@ -29,6 +29,7 @@ import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
+import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -44,24 +45,28 @@ abstract class Engine {
   /// Changes the currently supported markets.
   Future<void> setMarkets(
     List<HistoricDocument> history,
+    List<SourceReacted> sources,
     FeedMarkets markets,
   );
 
   /// Changes the currently excluded sources.
   Future<void> setExcludedSources(
     List<HistoricDocument> history,
-    Set<Source> sources,
+    List<SourceReacted> sources,
+    Set<Source> excluded,
   );
 
   /// Changes the trusted sources.
   Future<void> setTrustedSources(
     List<HistoricDocument> history,
-    Set<Source> sources,
+    List<SourceReacted> sources,
+    Set<Source> trusted,
   );
 
   /// Retrieves at most [maxDocuments] feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
+    List<SourceReacted> sources,
     int maxDocuments,
   );
 
@@ -73,6 +78,7 @@ abstract class Engine {
   /// The history is only required for positive reactions.
   Future<void> userReacted(
     List<HistoricDocument>? history,
+    List<SourceReacted> sources,
     UserReacted userReacted,
   );
 
@@ -124,6 +130,9 @@ class EngineInitializer with EquatableMixin {
   /// The history to use for filtering initial results.
   final List<HistoricDocument> history;
 
+  // Information about previously reacted sources.
+  final List<SourceReacted> reactedSources; // TODO maybe Set<>
+
   /// An opaque encoded configuration for the DE.
   final String? deConfig;
 
@@ -138,6 +147,7 @@ class EngineInitializer with EquatableMixin {
     required this.setupData,
     required this.engineState,
     required this.history,
+    required this.reactedSources,
     required this.deConfig,
     required this.trustedSources,
     required this.excludedSources,
@@ -149,6 +159,7 @@ class EngineInitializer with EquatableMixin {
         setupData,
         engineState,
         history,
+        reactedSources,
         deConfig,
         trustedSources,
         excludedSources,
