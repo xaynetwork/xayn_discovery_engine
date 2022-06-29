@@ -106,6 +106,7 @@ class DocumentManager {
       userReaction == UserReaction.positive
           ? await _documentRepo.fetchHistory()
           : null,
+      await _sourceRepo.fetchAll(),
       UserReacted(
         id: id,
         stackId: doc.stackId,

@@ -38,6 +38,7 @@ import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.da
     show EngineStateRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/source_preference_repo.dart'
     show SourcePreferenceRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/source_reacted_repo.dart';
 
 /// Business logic concerning the management of the feed.
 class FeedManager {
@@ -46,6 +47,7 @@ class FeedManager {
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
   final EngineStateRepository _engineStateRepo;
+  final SourceReactedRepository _sourceReactedRepo;
   final SourcePreferenceRepository _sourcePreferenceRepository;
   final AvailableSources _availableSources;
 
@@ -55,6 +57,7 @@ class FeedManager {
     this._docRepo,
     this._activeRepo,
     this._engineStateRepo,
+    this._sourceReactedRepo,
     this._sourcePreferenceRepository,
     this._availableSources,
   );
@@ -107,9 +110,11 @@ class FeedManager {
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
     final history = await _docRepo.fetchHistory();
+    final sources = await _sourceReactedRepo.fetchAll();
     final List<DocumentWithActiveData> feedDocs;
     try {
-      feedDocs = await _engine.getFeedDocuments(history, _config.maxFeedDocs);
+      feedDocs =
+          await _engine.getFeedDocuments(history, sources, _config.maxFeedDocs);
     } catch (e) {
       return EngineEvent.nextFeedBatchRequestFailed(
         FeedFailureReason.stacksOpsError,
@@ -158,10 +163,11 @@ class FeedManager {
   /// be removed from the list of excluded sources.
   Future<void> _updateEngineSourcesOnAdd() async {
     final history = await _docRepo.fetchHistory();
+    final sources = await _sourceReactedRepo.fetchAll();
     final excludedSources = await _sourcePreferenceRepository.getExcluded();
     final trustedSources = await _sourcePreferenceRepository.getTrusted();
-    await _engine.setExcludedSources(history, excludedSources);
-    await _engine.setTrustedSources(history, trustedSources);
+    await _engine.setExcludedSources(history, sources, excludedSources);
+    await _engine.setTrustedSources(history, sources, trustedSources);
   }
 
   /// Override current trusted and excluded sources with the new ones provided
@@ -228,8 +234,9 @@ class FeedManager {
     await _sourcePreferenceRepository.remove(source);
 
     final history = await _docRepo.fetchHistory();
-    final sources = await _sourcePreferenceRepository.getExcluded();
-    await _engine.setExcludedSources(history, sources);
+    final sources = await _sourceReactedRepo.fetchAll();
+    final excluded = await _sourcePreferenceRepository.getExcluded();
+    await _engine.setExcludedSources(history, sources, excluded);
     return EngineEvent.removeExcludedSourceRequestSucceeded(source);
   }
 
@@ -251,8 +258,9 @@ class FeedManager {
     await _sourcePreferenceRepository.remove(source);
 
     final history = await _docRepo.fetchHistory();
-    final sources = await _sourcePreferenceRepository.getTrusted();
-    await _engine.setTrustedSources(history, sources);
+    final sources = await _sourceReactedRepo.fetchAll();
+    final trusted = await _sourcePreferenceRepository.getTrusted();
+    await _engine.setTrustedSources(history, sources, trusted);
     return EngineEvent.removeTrustedSourceRequestSucceeded(source);
   }
 
