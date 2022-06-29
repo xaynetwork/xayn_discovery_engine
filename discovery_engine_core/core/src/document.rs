@@ -244,7 +244,7 @@ pub struct HistoricDocument {
 }
 
 /// A source domain with an associated weight.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WeightedSource {
     /// Source domain.
     pub source: String,

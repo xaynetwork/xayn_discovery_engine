@@ -990,6 +990,7 @@ impl XaynAiEngine {
             exploration_config,
             ranker,
             history,
+            sources,
             stack_data,
             stack_ops,
             client,
