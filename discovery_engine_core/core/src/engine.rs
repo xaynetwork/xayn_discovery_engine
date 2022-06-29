@@ -54,7 +54,10 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[cfg(feature = "storage")]
-use crate::storage::{self, SqliteStorage, Storage};
+use crate::storage::{
+    sqlite::{self, SqliteStorage},
+    Storage,
+};
 use crate::{
     config::{de_config_from_json, CoreConfig, EndpointConfig, ExplorationConfig, InitConfig},
     document::{
@@ -133,7 +136,7 @@ pub enum Error {
 
     #[cfg(feature = "storage")]
     /// Storage error: {0}.
-    Storage(#[from] storage::Error),
+    Storage(#[from] sqlite::Error),
 }
 
 /// Discovery Engine.
@@ -147,7 +150,7 @@ pub struct Engine<R> {
     request_after: usize,
     #[cfg(feature = "storage")]
     #[allow(dead_code)]
-    storage: Box<dyn Storage<StorageError = storage::Error> + Send + Sync>,
+    storage: Box<dyn Storage<StorageError = sqlite::Error> + Send + Sync>,
 }
 
 impl<R> Engine<R>
@@ -169,7 +172,7 @@ where
         stack_ops: Vec<BoxedOps>,
         client: Arc<Client>,
         #[cfg(feature = "storage")] storage: Box<
-            dyn Storage<StorageError = storage::Error> + Send + Sync,
+            dyn Storage<StorageError = sqlite::Error> + Send + Sync,
         >,
     ) -> Result<Self, Error> {
         let stacks = stack_ops

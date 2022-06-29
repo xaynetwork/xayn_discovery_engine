@@ -12,18 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use async_trait::async_trait;
-
-use crate::document::HistoricDocument;
-
-pub mod sqlite;
-
-#[async_trait]
-pub trait Storage {
-    type StorageError;
-
-    async fn init_database(&self) -> Result<(), <Self as Storage>::StorageError>;
-
-    async fn fetch_history(&self)
-        -> Result<Vec<HistoricDocument>, <Self as Storage>::StorageError>;
+fn main() {
+    println!("cargo:rerun-if-changed=src/storage/migrations");
 }

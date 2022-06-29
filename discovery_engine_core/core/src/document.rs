@@ -54,6 +54,11 @@ impl Id {
     pub(crate) fn new() -> Self {
         Self(Uuid::new_v4())
     }
+
+    #[cfg(all(feature = "storage", test))]
+    pub(crate) fn as_uuid(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl From<Uuid> for Id {
