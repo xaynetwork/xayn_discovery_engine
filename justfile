@@ -117,7 +117,8 @@ check: rust-check dart-check flutter-check
 # Checks if dart documentation can be build without issues
 dart-check-doc: dart-build
     cd "$DART_WORKSPACE"; \
-    dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
+    # dart pub global run dartdoc:dartdoc --no-generate-docs --no-quiet
+    dart doc --verbose --dry-run --validate-links
 
 # Checks if rust documentation can be build without issues
 rust-check-doc: _codegen-order-workaround
@@ -127,7 +128,8 @@ rust-check-doc: _codegen-order-workaround
 # Builds dart documentation
 dart-doc *args: dart-build
     cd "$DART_WORKSPACE"; \
-    dart pub global run dartdoc:dartdoc {{args}}
+    # dart pub global run dartdoc:dartdoc {{args}}
+    dart doc {{args}}
 
 # Builds rust documentation
 rust-doc *args:

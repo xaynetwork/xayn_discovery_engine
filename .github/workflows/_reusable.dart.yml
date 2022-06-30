@@ -72,9 +72,9 @@ jobs:
           dart: true
           rust: true
 
-      - name: Install dartdoc
-        working-directory: ${{ env.DART_WORKSPACE }}
-        run: dart pub global activate dartdoc
+      # - name: Install dartdoc
+      #   working-directory: ${{ env.DART_WORKSPACE }}
+      #   run: dart pub global activate dartdoc
 
       - name: Check documentation
         run: just dart-check-doc
