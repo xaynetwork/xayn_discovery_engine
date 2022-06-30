@@ -192,15 +192,16 @@ class FeedManager {
     final currentTrusted = await _sourcePreferenceRepository.getTrusted();
     final currentExcluded = await _sourcePreferenceRepository.getExcluded();
     final history = await _docRepo.fetchHistory();
+    final sources = await _sourceReactedRepo.fetchAll();
     await _sourcePreferenceRepository.clear();
     await _sourcePreferenceRepository.saveAll(dbEntries);
 
     if (!_setEquals(trustedSources, currentTrusted)) {
-      await _engine.setTrustedSources(history, trustedSources);
+      await _engine.setTrustedSources(history, sources, trustedSources);
     }
 
     if (!_setEquals(excludedSources, currentExcluded)) {
-      await _engine.setExcludedSources(history, excludedSources);
+      await _engine.setExcludedSources(history, sources, excludedSources);
     }
 
     return EngineEvent.setSourcesRequestSucceeded(
