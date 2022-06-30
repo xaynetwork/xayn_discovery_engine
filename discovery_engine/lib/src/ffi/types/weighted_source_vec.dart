@@ -45,7 +45,7 @@ extension WeightedSourceListFfi on List<SourceReacted> {
     return Boxed(place, ffi.drop_weighted_source_vec);
   }
 
-  static List<WeightedSourceFfi> consumeBoxedVec(
+  static List<WeightedSourceFfi> consumeVec(
     Boxed<RustVecWeightedSource> boxedVec,
   ) {
     final res = _adapter.readVec(boxedVec.ref);
