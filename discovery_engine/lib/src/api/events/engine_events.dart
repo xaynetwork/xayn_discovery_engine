@@ -66,6 +66,8 @@ enum SearchFailureReason {
   noActiveSearch,
   @JsonValue(1)
   noResultsAvailable,
+  @JsonValue(2)
+  openActiveSearch,
 }
 
 enum EngineExceptionReason {
@@ -302,6 +304,19 @@ class EngineEvent with _$EngineEvent {
   const factory EngineEvent.activeSearchTermRequestFailed(
     SearchFailureReason reason,
   ) = ActiveSearchTermRequestFailed;
+
+  /// Event created as a success response to ActiveSearchClosed event.
+  /// Passes the current search term back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.activeSearchClosedSucceeded() =
+      ActiveSearchClosedSucceeded;
+
+  /// Event created as a failure response to ActiveSearchClosed event.
+  /// Passes a failure reason back to the client.
+  @Implements<SearchEngineEvent>()
+  const factory EngineEvent.activeSearchClosedFailed(
+    SearchFailureReason reason,
+  ) = ActiveSearchClosedFailed;
 
   /// Event created as a success response to DeepSearchRequested event.
   /// Passes a list of [Document] entities back to the client.
