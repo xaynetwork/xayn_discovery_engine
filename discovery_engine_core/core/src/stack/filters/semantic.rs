@@ -205,7 +205,7 @@ impl Default for SemanticFilterConfig {
 /// Filters the documents semantically.
 pub(crate) fn filter_semantically(
     documents: Vec<Document>,
-    _sources: &[WeightedSource], // TODO use it
+    _sources: &[WeightedSource], // TODO use in follow up pr
     config: &SemanticFilterConfig,
 ) -> Vec<Document> {
     if documents.len() < 2 {

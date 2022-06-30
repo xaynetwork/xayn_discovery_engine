@@ -100,7 +100,7 @@ class DiscoveryEngineFfi implements Engine {
       ).allocNative().move(),
       initializer.engineState?.allocNative().move() ?? nullptr,
       initializer.history.allocNative().move(),
-      initializer.reactedSources.allocBoxedVec().move(),
+      initializer.reactedSources.allocVec().move(),
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
 
@@ -126,7 +126,7 @@ class DiscoveryEngineFfi implements Engine {
       _engine.ref,
       markets.toList().allocVec().move(),
       history.allocNative().move(),
-      sources.allocBoxedVec().move(),
+      sources.allocVec().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
@@ -142,7 +142,7 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.setExcludedSources(
       _engine.ref,
       history.allocNative().move(),
-      sources.allocBoxedVec().move(),
+      sources.allocVec().move(),
       excluded.toStringList().allocNative().move(),
     );
 
@@ -158,7 +158,7 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.setTrustedSources(
       _engine.ref,
       history.allocNative().move(),
-      sources.allocBoxedVec().move(),
+      sources.allocVec().move(),
       trusted.toStringList().allocNative().move(),
     );
 
@@ -175,7 +175,7 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.getFeedDocuments(
       _engine.ref,
       history.allocNative().move(),
-      sources.allocBoxedVec().move(),
+      sources.allocVec().move(),
       maxDocuments,
     );
 
@@ -206,7 +206,7 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.userReacted(
       _engine.ref,
       history?.allocNative().move() ?? nullptr,
-      sources.allocBoxedVec().move(),
+      sources.allocVec().move(),
       boxedUserReacted.move(),
     );
 

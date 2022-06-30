@@ -38,7 +38,7 @@ extension WeightedSourceListFfi on List<SourceReacted> {
   ) =>
       _adapter.readSlice(ptr, len);
 
-  Boxed<RustVecWeightedSource> allocBoxedVec() {
+  Boxed<RustVecWeightedSource> allocVec() {
     final place = ffi.alloc_uninitialized_weighted_source_vec();
     final list = map(WeightedSourceFfi.fromSourceReacted).toList();
     _adapter.writeVec(list, place);
