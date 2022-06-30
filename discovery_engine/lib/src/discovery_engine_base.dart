@@ -26,6 +26,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         DocumentId,
         DocumentViewMode,
         EngineEvent,
+        EngineExceptionRaised,
         EngineExceptionReason,
         FeedMarkets,
         NextFeedBatchAvailable,
@@ -152,7 +153,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> changeConfiguration({
     FeedMarkets? feedMarkets,
@@ -181,7 +182,7 @@ class DiscoveryEngine {
   /// - [RestoreFeedSucceeded] for successful response, containing a list of
   /// [Document]s
   /// - [RestoreFeedFailed] for failed response, with a reason for failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> restoreFeed() async {
     return _trySend(() async {
@@ -206,7 +207,7 @@ class DiscoveryEngine {
   /// a list of [Document]s
   /// - [NextFeedBatchRequestFailed] for failed response, with a reason for
   /// failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> requestNextFeedBatch() {
     return _trySend(() async {
@@ -229,7 +230,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> closeFeedDocuments(Set<DocumentId> documentIds) {
     return _trySend(() async {
@@ -247,7 +248,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> addSourceToExcludedList(Source source) {
     return _trySend(() async {
@@ -265,7 +266,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> removeSourceFromExcludedList(Source source) {
     return _trySend(() async {
@@ -285,7 +286,7 @@ class DiscoveryEngine {
   /// - [ExcludedSourcesListRequestSucceeded] indicating a successful operation,
   /// containing a set of sources.
   /// - [ExcludedSourcesListRequestFailed] indicating a failed operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> getExcludedSourcesList() {
     return _trySend(() async {
@@ -308,7 +309,7 @@ class DiscoveryEngine {
   /// containing sets of both trusted and excluded [Source]s.
   /// - [SetSourcesRequestFailed] indicating a failed operation because of
   /// duplicates found in provided sets, containing a set of said duplicates.
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> overrideSources({
     required Set<Source> trustedSources,
@@ -373,7 +374,7 @@ class DiscoveryEngine {
   /// - [AvailableSourcesListRequestSucceeded] indicating a successful operation,
   /// containing a set of available sources.
   /// - [AvailableSourcesListRequestFailed] indicating a failed operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> getAvailableSourcesList(String fuzzySearchTerm) {
     return _trySend(() async {
@@ -393,7 +394,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> logDocumentTime({
     required DocumentId documentId,
@@ -420,7 +421,7 @@ class DiscoveryEngine {
   ///
   /// In response it can return:
   /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> changeUserReaction({
     required DocumentId documentId,
@@ -443,7 +444,7 @@ class DiscoveryEngine {
   /// - [ActiveSearchRequestSucceeded] for successful response, containing a list of
   /// [Document]s
   /// - [ActiveSearchRequestFailed] for failed response, with a reason for failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> requestQuerySearch(String queryTerm) {
     return _trySend(() async {
@@ -465,7 +466,7 @@ class DiscoveryEngine {
   /// - [ActiveSearchRequestSucceeded] for successful response, containing a list of
   /// [Document]s
   /// - [ActiveSearchRequestFailed] for failed response, with a reason for failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> requestTopicSearch(String topic) {
     return _trySend(() async {
@@ -486,7 +487,7 @@ class DiscoveryEngine {
   /// - [NextActiveSearchBatchRequestSucceeded] for successful response, containing a list of
   /// [Document]s
   /// - [NextActiveSearchBatchRequestFailed] for failed response, with a reason for failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> requestNextActiveSearchBatch() {
     return _trySend(() async {
@@ -507,7 +508,7 @@ class DiscoveryEngine {
   /// - [RestoreActiveSearchSucceeded] for successful response, containing a list of
   /// [Document]s
   /// - [RestoreActiveSearchFailed] for failed response, with a reason for failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> restoreActiveSearch() {
     return _trySend(() async {
@@ -528,7 +529,7 @@ class DiscoveryEngine {
   /// - [ActiveSearchTermRequestSucceeded] for successful response, containing the
   /// search term
   /// - [ActiveSearchTermRequestFailed] for failed response, with a reason for failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> getActiveSearchTerm() {
     return _trySend(() async {
@@ -554,7 +555,7 @@ class DiscoveryEngine {
   /// - [ActiveSearchClosedSucceeded] indicating a successful operation
   /// - [ActiveSearchClosedFailed] indicating a failed operation, with a reason
   /// for such failure.
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> closeActiveSearch() {
     return _trySend(() async {
@@ -575,7 +576,7 @@ class DiscoveryEngine {
   /// - [DeepSearchRequestSucceeded] for successful response, containing a list of
   /// [Document]s
   /// - [DeepSearchRequestFailed] for failed response, with a reason for failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> requestDeepSearch(DocumentId id) {
     return _trySend(() async {
@@ -596,7 +597,7 @@ class DiscoveryEngine {
   /// - [TrendingTopicsRequestSucceeded] for successful response, containing a list of
   /// [TrendingTopic]s
   /// - [TrendingTopicsRequestFailed] for failed response, with a reason for failure
-  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
   /// for such failure.
   Future<EngineEvent> requestTrendingTopics() {
     return _trySend(() async {
