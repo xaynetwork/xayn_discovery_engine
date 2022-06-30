@@ -82,10 +82,10 @@ pub(crate) struct EndpointConfig {
     /// The minimum number of new articles to try to return when updating the stack.
     pub(crate) min_articles: usize,
     /// The maximum age of a headline, in days, after which we no longer
-    /// want to display them
+    /// want to display them.
     pub(crate) max_headline_age_days: usize,
     /// The maximum age of a news article, in days, after which we no longer
-    /// want to display them
+    /// want to display them.
     pub(crate) max_article_age_days: usize,
 }
 
