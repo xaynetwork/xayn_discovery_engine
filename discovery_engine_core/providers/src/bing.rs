@@ -14,63 +14,46 @@
 
 //! Client to retrieve trending topics.
 
+use async_trait::async_trait;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::sync::Arc;
 use url::Url;
 
-use crate::{seal::Seal, Client, Error, Market, Query};
+use crate::{models::TrendingTopicsQuery, Error, RestEndpoint, TrendingTopicsProvider};
 
-const URL_SUFFIX: &str = "_tt";
-
-/// Parameters for fetching trending news topics.
-pub struct TrendingQuery<'a> {
-    /// Market to fetch results from.
-    pub market: &'a Market,
+pub struct BingTrendingTopicsProvider {
+    endpoint: RestEndpoint,
 }
 
-impl Query for TrendingQuery<'_> {
-    fn setup_url(&self, url: &mut Url) -> Result<(), Error> {
-        url.path_segments_mut()
-            .map_err(|_| Error::InvalidUrlBase(None))?
-            .push(URL_SUFFIX);
+impl BingTrendingTopicsProvider {
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self {
+            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+        }
+    }
 
-        let query = &mut url.query_pairs_mut();
-
-        let lang = &self.market.lang_code;
-        let country = &self.market.country_code;
-        query.append_pair("mkt", &format!("{}-{}", lang, country));
-
-        Ok(())
+    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn TrendingTopicsProvider> {
+        Arc::new(Self { endpoint })
     }
 }
 
-impl Seal for TrendingQuery<'_> {}
-
-impl Client {
+#[async_trait]
+impl TrendingTopicsProvider for BingTrendingTopicsProvider {
     /// Run query for fetching trending topics from Bing.
-    pub async fn query_trending(&self, query: &impl Query) -> Result<Vec<TrendingTopic>, Error> {
-        self.query_bing(query).await.map(|trending| trending.value)
-    }
-
-    /// Run a query against Bing.
-    pub async fn query_bing(&self, query: &impl Query) -> Result<Response, Error> {
-        let mut url = Url::parse(&self.url).map_err(|e| Error::InvalidUrlBase(Some(e)))?;
-        query.setup_url(&mut url)?;
-
+    async fn query_trending_topics(
+        &self,
+        request: &TrendingTopicsQuery<'_>,
+    ) -> Result<Vec<TrendingTopic>, Error> {
         let response = self
-            .client
-            .get(url)
-            .timeout(self.timeout)
-            .bearer_auth(&self.token)
-            .send()
-            .await
-            .map_err(Error::RequestExecution)?
-            .error_for_status()
-            .map_err(Error::StatusCode)?;
+            .endpoint
+            .get_request::<Response, _>(|mut query| {
+                let lang = &request.market.lang_code;
+                let country = &request.market.country_code;
+                query.append_pair("mkt", &format!("{}-{}", lang, country));
+            })
+            .await?;
 
-        let raw_response = response.bytes().await.map_err(Error::Fetching)?;
-        let deserializer = &mut serde_json::Deserializer::from_slice(&raw_response);
-        serde_path_to_error::deserialize(deserializer)
-            .map_err(|error| Error::DecodingAtPath(error.path().to_string(), error))
+        Ok(response.value)
     }
 }
 
@@ -127,6 +110,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::{Market, TrendingTopicsQuery};
     use wiremock::{
         matchers::{header, method, path, query_param},
         Mock,
@@ -147,13 +131,14 @@ mod tests {
     #[tokio::test]
     async fn test_trending() {
         let mock_server = MockServer::start().await;
-        let client = Client::new("test-token", mock_server.uri());
+        let endpoint_url = Url::parse(&mock_server.uri()).unwrap();
+        let provider = BingTrendingTopicsProvider::new(endpoint_url, "test-token".to_string());
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/trending-topics.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_tt"))
+            .and(path("/"))
             .and(query_param("mkt", "en-US"))
             .and(header("Authorization", "Bearer test-token"))
             .respond_with(tmpl)
@@ -165,9 +150,9 @@ mod tests {
             lang_code: "en".to_string(),
             country_code: "US".to_string(),
         };
-        let params = TrendingQuery { market };
+        let params = TrendingTopicsQuery { market };
 
-        let topics = client.query_trending(&params).await.unwrap();
+        let topics = provider.query_trending_topics(&params).await.unwrap();
         assert_eq!(topics.len(), 25);
 
         let topic = topics.get(0).unwrap();

@@ -28,6 +28,8 @@ Future<void> runExample() async {
     applicationDirectoryPath: appDirPath,
     feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
     manifest: manifest,
+    headlinesProviderPath: '/newscatcher/v1/latest-headlines',
+    newsProviderPath: '/newscatcher/v1/search-news',
   );
 
   DiscoveryEngine? engine;

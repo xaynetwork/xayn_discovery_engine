@@ -20,12 +20,11 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
-    Client,
-    CommonQueryParts,
     GenericArticle,
-    HeadlinesQuery,
     Market,
     RankLimit,
+    TrustedHeadlinesProvider,
+    TrustedHeadlinesQuery,
 };
 
 use crate::{
@@ -41,7 +40,7 @@ use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for trusted news.
 pub(crate) struct TrustedNews {
-    client: Arc<Client>,
+    client: Arc<dyn TrustedHeadlinesProvider>,
     sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: u32,
@@ -52,7 +51,7 @@ pub(crate) struct TrustedNews {
 impl TrustedNews {
     #[allow(unused)]
     /// Creates a trusted news stack.
-    pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn TrustedHeadlinesProvider>) -> Self {
         Self {
             client,
             sources: config.trusted_sources.clone(),
@@ -119,25 +118,25 @@ impl Ops for TrustedNews {
 }
 
 fn spawn_trusted_request(
-    client: Arc<Client>,
+    client: Arc<dyn TrustedHeadlinesProvider>,
     page_size: usize,
     page: usize,
     sources: Arc<Vec<String>>,
     max_headline_age_days: usize,
 ) -> JoinHandle<Result<Vec<GenericArticle>, GenericError>> {
     tokio::spawn(async move {
-        let query = HeadlinesQuery {
-            common: CommonQueryParts {
-                market: None,
-                page_size,
-                page,
-                rank_limit: RankLimit::Unlimited,
-                excluded_sources: &[],
-            },
+        let query = TrustedHeadlinesQuery {
+            market: None,
+            page_size,
+            page,
+            rank_limit: RankLimit::Unlimited,
+            excluded_sources: &[],
             trusted_sources: &sources,
-            topic: None,
             max_age_days: Some(max_headline_age_days),
         };
-        client.query_articles(&query).await.map_err(Into::into)
+        client
+            .query_trusted_sources(&query)
+            .await
+            .map_err(Into::into)
     })
 }

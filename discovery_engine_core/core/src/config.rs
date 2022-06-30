@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use tokio::{join, sync::RwLock};
 
 use xayn_discovery_engine_ai::CoiSystemConfig;
-use xayn_discovery_engine_providers::Market;
+use xayn_discovery_engine_providers::{Market, ProviderConfig};
 
 use crate::stack::exploration::Stack as Exploration;
 
@@ -34,6 +34,10 @@ pub struct InitConfig {
     pub api_key: String,
     /// API base url.
     pub api_base_url: String,
+    /// Url path for the news search provider.
+    pub news_provider_path: String,
+    /// Url path for the latest headlines provider.
+    pub headlines_provider_path: String,
     /// List of markets to use.
     pub markets: Vec<Market>,
     /// List of trusted sources to use.
@@ -56,6 +60,17 @@ pub struct InitConfig {
     pub de_config: Option<String>,
     /// Log file path.
     pub log_file: Option<String>,
+}
+
+impl From<InitConfig> for ProviderConfig {
+    fn from(config: InitConfig) -> Self {
+        ProviderConfig {
+            api_base_url: config.api_base_url,
+            api_key: config.api_key,
+            news_provider_path: config.news_provider_path,
+            headlines_provider_path: config.headlines_provider_path,
+        }
+    }
 }
 
 /// Discovery Engine endpoint settings.

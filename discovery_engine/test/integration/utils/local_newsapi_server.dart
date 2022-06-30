@@ -60,13 +60,14 @@ class LocalNewsApiServer {
           break;
         case ReplyWith.data:
           switch (request.uri.path) {
-            case '/_sn':
+            case '/newscatcher/v1/search-news':
               await _replyWithData(request, _snFile);
               break;
-            case '/_lh':
+            case '/newscatcher/v1/latest-headlines':
+            case '/newscatcher/v2/trusted-sources':
               await _replyWithData(request, _lhFile);
               break;
-            case '/_tt':
+            case '/bing/v1/trending-topics':
               await _replyWithData(request, _ttFile);
               break;
             case '/_health':
@@ -79,11 +80,13 @@ class LocalNewsApiServer {
           break;
         case ReplyWith.data2:
           switch (request.uri.path) {
-            case '/_sn':
+            case '/newscatcher/v1/search-news':
               await _replyWithData(request, 'msft-vs-aapl.json');
               break;
             default:
-              throw Exception('Not supported');
+              throw Exception(
+                'News API mock: Endpoint not supported: "${request.uri.path}"',
+              );
           }
       }
 

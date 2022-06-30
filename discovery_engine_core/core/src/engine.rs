@@ -16,7 +16,6 @@ use std::{
     collections::{HashMap, HashSet},
     iter::once,
     mem::replace,
-    sync::Arc,
 };
 
 use displaydoc::Display;
@@ -40,16 +39,15 @@ use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
 use xayn_discovery_engine_kpe::Config as KpeConfig;
 use xayn_discovery_engine_providers::{
     clean_query,
-    Client,
-    CommonQueryParts,
     Filter,
     GenericArticle,
     HeadlinesQuery,
     Market,
     NewsQuery,
+    Providers,
     RankLimit,
-    TrendingQuery,
     TrendingTopic as BingTopic,
+    TrendingTopicsQuery,
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
@@ -138,11 +136,13 @@ pub enum Error {
     #[cfg(feature = "storage")]
     /// Storage error: {0}.
     Storage(#[from] sqlite::Error),
+
+    /// Provider error: {0}
+    ProviderError(#[source] xayn_discovery_engine_providers::Error),
 }
 
 /// Discovery Engine.
 pub struct Engine<R> {
-    client: Arc<Client>,
     endpoint_config: EndpointConfig,
     core_config: CoreConfig,
     stacks: RwLock<HashMap<StackId, Stack>>,
@@ -152,6 +152,7 @@ pub struct Engine<R> {
     #[cfg(feature = "storage")]
     #[allow(dead_code)]
     storage: Box<dyn Storage<StorageError = sqlite::Error> + Send + Sync>,
+    providers: Providers,
 }
 
 impl<R> Engine<R>
@@ -172,10 +173,10 @@ where
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
         stack_ops: Vec<BoxedOps>,
-        client: Arc<Client>,
         #[cfg(feature = "storage")] storage: Box<
             dyn Storage<StorageError = sqlite::Error> + Send + Sync,
         >,
+        providers: Providers,
     ) -> Result<Self, Error> {
         let stacks = stack_ops
             .into_iter()
@@ -195,7 +196,6 @@ where
 
         // we don't want to fail initialization if there are network problems
         let mut engine = Self {
-            client,
             endpoint_config,
             core_config,
             stacks: RwLock::new(stacks),
@@ -204,6 +204,7 @@ where
             request_after: 0,
             #[cfg(feature = "storage")]
             storage,
+            providers,
         };
 
         engine
@@ -438,30 +439,34 @@ where
         let scaled_page_size = page_size as usize / markets.len() + 1;
         let excluded_sources = self.endpoint_config.excluded_sources.read().await.clone();
         for market in markets.iter() {
-            let common = CommonQueryParts {
-                market: Some(market),
-                page_size: scaled_page_size,
-                page: page as usize,
-                rank_limit: RankLimit::Unlimited,
-                excluded_sources: &excluded_sources,
-            };
             let query_result = match by {
                 SearchBy::Query(filter) => {
                     let news_query = NewsQuery {
-                        common,
                         filter,
                         max_age_days: None,
+                        market,
+                        page_size: scaled_page_size,
+                        page: page as usize,
+                        rank_limit: RankLimit::Unlimited,
+                        excluded_sources: &excluded_sources,
                     };
-                    self.client.query_articles(&news_query).await
+                    self.providers.news.query_news(&news_query).await
                 }
                 SearchBy::Topic(topic) => {
                     let headlines_query = HeadlinesQuery {
-                        common,
                         trusted_sources: &[],
                         topic: Some(topic),
                         max_age_days: None,
+                        market,
+                        page_size: scaled_page_size,
+                        page: page as usize,
+                        rank_limit: RankLimit::Unlimited,
+                        excluded_sources: &excluded_sources,
                     };
-                    self.client.query_articles(&headlines_query).await
+                    self.providers
+                        .headlines
+                        .query_headlines(&headlines_query)
+                        .await
                 }
             };
             query_result.map_or_else(
@@ -511,20 +516,19 @@ where
                 filter.add_keyword(key_phrase)
             });
         let query = NewsQuery {
-            common: CommonQueryParts {
-                market: Some(market),
-                page_size: self.core_config.deep_search_max,
-                page: 1,
-                rank_limit: RankLimit::Unlimited,
-                excluded_sources,
-            },
+            market,
+            page_size: self.core_config.deep_search_max,
+            page: 1,
+            rank_limit: RankLimit::Unlimited,
+            excluded_sources,
             filter,
             max_age_days: None,
         };
 
         let articles = self
-            .client
-            .query_articles(&query)
+            .providers
+            .news
+            .query_news(&query)
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
@@ -563,8 +567,13 @@ where
 
         let markets = self.endpoint_config.markets.read().await;
         for market in markets.iter() {
-            let query = TrendingQuery { market };
-            match self.client.query_trending(&query).await {
+            let query = TrendingTopicsQuery { market };
+            match self
+                .providers
+                .trending_topics
+                .query_trending_topics(&query)
+                .await
+            {
                 Ok(batch) => topics.extend(batch),
                 Err(err) => errors.push(Error::Client(err.into())),
             };
@@ -941,7 +950,7 @@ impl XaynAiEngine {
         let builder =
             Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
 
-        let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
+        let providers = Providers::new(&config.clone().into()).map_err(Error::ProviderError)?;
         let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?
@@ -954,9 +963,18 @@ impl XaynAiEngine {
             .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
         let stack_ops = vec![
-            Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
-            Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
-            Box::new(PersonalizedNews::new(&endpoint_config, client.clone())) as BoxedOps,
+            Box::new(BreakingNews::new(
+                &endpoint_config,
+                providers.headlines.clone(),
+            )) as BoxedOps,
+            Box::new(TrustedNews::new(
+                &endpoint_config,
+                providers.trusted_headlines.clone(),
+            )) as BoxedOps,
+            Box::new(PersonalizedNews::new(
+                &endpoint_config,
+                providers.news.clone(),
+            )) as BoxedOps,
         ];
 
         let (mut stack_data, builder) = if let Some(state) = state {
@@ -993,9 +1011,9 @@ impl XaynAiEngine {
             sources,
             stack_data,
             stack_ops,
-            client,
             #[cfg(feature = "storage")]
             storage,
+            providers,
         )
         .await
     }
@@ -1059,7 +1077,7 @@ mod tests {
     };
 
     use crate::document::tests::mock_generic_article;
-    use std::mem::size_of;
+    use std::{mem::size_of, sync::Arc};
     use wiremock::{
         matchers::{method, path},
         Mock,
@@ -1081,7 +1099,7 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("/newscatcher/headlines-endpoint-name"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1103,17 +1121,25 @@ mod tests {
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
             de_config: None,
             log_file: None,
+            news_provider_path: "newscatcher/news-endpoint-name".to_string(),
+            headlines_provider_path: "newscatcher/headlines-endpoint-name".to_string(),
         };
         let endpoint_config = EndpointConfig::default()
             .with_init_config(config.clone())
             .await;
-        let client = Arc::new(Client::new(&config.api_key, &config.api_base_url));
+        let providers = Arc::new(Providers::new(&config.clone().into()).unwrap());
 
         // We assume that, if de-duplication works between two stacks, it'll work between
         // any number of stacks. So we just create two.
         let stack_ops = vec![
-            Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
-            Box::new(TrustedNews::new(&endpoint_config, client.clone())) as BoxedOps,
+            Box::new(BreakingNews::new(
+                &endpoint_config,
+                providers.headlines.clone(),
+            )) as BoxedOps,
+            Box::new(TrustedNews::new(
+                &endpoint_config,
+                providers.trusted_headlines.clone(),
+            )) as BoxedOps,
         ];
 
         let breaking_news_id = stack_ops.get(0).unwrap().id();
@@ -1280,9 +1306,9 @@ mod tests {
         )
         .await;
 
-        if let Err(crate::Error::Errors(errors)) = result {
+        if let Err(Error::Errors(errors)) = result {
             match &errors.as_slice() {
-                &[crate::Error::StackOpFailed(stack::Error::New(NewItemsError::Error(msg)))] => {
+                &[Error::StackOpFailed(stack::Error::New(NewItemsError::Error(msg)))] => {
                     assert_eq!(msg.to_string(), "mock_ops_failed_error".to_string());
                 }
                 x => panic!("Wrong result returned: {:?}", x),
@@ -1300,7 +1326,7 @@ mod tests {
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
         Mock::given(method("GET"))
-            .and(path("/_lh"))
+            .and(path("newscatcher/headlines-endpoint-name"))
             .respond_with(tmpl)
             .mount(&mock_server)
             .await;
@@ -1326,6 +1352,8 @@ mod tests {
             kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
             de_config: None,
             log_file: None,
+            news_provider_path: "newscatcher/news-endpoint-name".to_string(),
+            headlines_provider_path: "newscatcher/headlines-endpoint-name".to_string(),
         };
 
         // Now we can initialize the engine with no previous history or state. This should
