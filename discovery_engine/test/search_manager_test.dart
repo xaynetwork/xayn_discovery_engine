@@ -19,7 +19,6 @@ import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
-        ClientEventSucceeded,
         NextActiveSearchBatchRequestFailed,
         NextActiveSearchBatchRequestSucceeded,
         RestoreActiveSearchFailed,
@@ -28,6 +27,7 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         ActiveSearchRequestSucceeded,
         ActiveSearchTermRequestFailed,
         ActiveSearchTermRequestSucceeded,
+        ActiveSearchClosedSucceeded,
         TrendingTopicsRequestFailed,
         TrendingTopicsRequestSucceeded;
 import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
@@ -359,7 +359,7 @@ Future<void> main() async {
     group('activeSearchClosed', () {
       test(
           'when there are no search documents it should return '
-          '"ClientEventSucceeded" event in response and clear only '
+          '"ActiveSearchClosedSucceeded" event in response and clear only '
           'the active search repo', () async {
         doc1 = doc1..isSearched = false;
         doc2 = doc2..isSearched = false;
@@ -367,7 +367,7 @@ Future<void> main() async {
 
         final response = await mgr.activeSearchClosed();
 
-        expect(response, isA<ClientEventSucceeded>());
+        expect(response, isA<ActiveSearchClosedSucceeded>());
         expect(searchRepo.box.isEmpty, isTrue);
         expect(activeRepo.box.length, equals(2));
         expect(docRepo.box.length, equals(2));
@@ -402,7 +402,7 @@ Future<void> main() async {
 
         final response = await mgr.activeSearchClosed();
 
-        expect(response, isA<ClientEventSucceeded>());
+        expect(response, isA<ActiveSearchClosedSucceeded>());
         expect(searchRepo.box.isEmpty, isTrue);
         // only doc1 should be left in the active data and changed doc boxes
         expect(activeRepo.box.length, equals(1));

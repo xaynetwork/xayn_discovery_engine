@@ -72,6 +72,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         RestoreActiveSearchFailed,
         ActiveSearchTermRequestSucceeded,
         ActiveSearchTermRequestFailed,
+        ActiveSearchClosedSucceeded,
+        ActiveSearchClosedFailed,
         DeepSearchRequestSucceeded,
         DeepSearchRequestFailed,
         SearchFailureReason,

@@ -18,9 +18,10 @@ import 'package:test/test.dart';
 
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show
+        ActiveSearchClosedFailed,
+        ActiveSearchClosedSucceeded,
         ActiveSearchRequestFailed,
         ActiveSearchRequestSucceeded,
-        ClientEventSucceeded,
         DiscoveryEngine,
         RestoreActiveSearchFailed,
         SearchFailureReason;
@@ -106,7 +107,7 @@ void main() {
 
       // Closing the search should work, since a search is active
       final closeResponse = await engine.closeActiveSearch();
-      expect(closeResponse, isA<ClientEventSucceeded>());
+      expect(closeResponse, isA<ActiveSearchClosedSucceeded>());
 
       // Restoring now should fail, as there the active search has been closed
       final restoreClosedResponse = await engine.restoreActiveSearch();
@@ -148,15 +149,16 @@ void main() {
       );
     });
 
-    /// TODO: This is the behaviour we want, but not what we have at the moment
     test(
-      'closing when no active search is running returns an error',
-      () async {
-        final response = await engine.closeActiveSearch();
-        expect(response, isA<EngineExceptionRaised>());
-      },
-      skip: true,
-    );
+        'closing when no active search is running returns an "ActiveSearchClosedFailed" error',
+        () async {
+      final response = await engine.closeActiveSearch();
+      expect(response, isA<ActiveSearchClosedFailed>());
+      expect(
+        (response as ActiveSearchClosedFailed).reason,
+        equals(SearchFailureReason.noActiveSearch),
+      );
+    });
 
     /// TODO: This is not currently enabled, but is intended behaviour for
     ///       the future.

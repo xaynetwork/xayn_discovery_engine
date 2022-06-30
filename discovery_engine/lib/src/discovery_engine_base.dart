@@ -41,6 +41,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         NextActiveSearchBatchRequestFailed,
         ActiveSearchTermRequestSucceeded,
         ActiveSearchTermRequestFailed,
+        ActiveSearchClosedSucceeded,
+        ActiveSearchClosedFailed,
         RestoreActiveSearchSucceeded,
         RestoreActiveSearchFailed,
         DeepSearchRequestSucceeded,
@@ -549,8 +551,8 @@ class DiscoveryEngine {
   /// **can NOT interact** with them.
   ///
   /// In response it can return:
-  /// - [ClientEventSucceeded] indicating a successful operation
-  /// - [EngineExceptionReason] indicating a failed operation, with a reason
+  /// - [ActiveSearchClosedSucceeded] indicating a successful operation
+  /// - [ActiveSearchClosedFailed] indicating a failed operation, with a reason
   /// for such failure.
   Future<EngineEvent> closeActiveSearch() {
     return _trySend(() async {
@@ -558,7 +560,8 @@ class DiscoveryEngine {
       final response = await _manager.send(event);
 
       return response.mapEvent(
-        clientEventSucceeded: true,
+        activeSearchClosedSucceeded: true,
+        activeSearchClosedFailed: true,
         engineExceptionRaised: true,
       );
     });
@@ -689,6 +692,8 @@ extension _MapEvent on EngineEvent {
     bool? restoreActiveSearchFailed,
     bool? activeSearchTermRequestSucceeded,
     bool? activeSearchTermRequestFailed,
+    bool? activeSearchClosedSucceeded,
+    bool? activeSearchClosedFailed,
     bool? deepSearchRequestSucceeded,
     bool? deepSearchRequestFailed,
     bool? trendingTopicsRequestSucceeded,
@@ -743,6 +748,9 @@ extension _MapEvent on EngineEvent {
             _maybePassThrough(activeSearchTermRequestSucceeded),
         activeSearchTermRequestFailed:
             _maybePassThrough(activeSearchTermRequestFailed),
+        activeSearchClosedSucceeded:
+            _maybePassThrough(activeSearchClosedSucceeded),
+        activeSearchClosedFailed: _maybePassThrough(activeSearchClosedFailed),
         deepSearchRequestSucceeded:
             _maybePassThrough(deepSearchRequestSucceeded),
         deepSearchRequestFailed: _maybePassThrough(deepSearchRequestFailed),

@@ -258,6 +258,11 @@ class SearchManager {
 
   /// Clear the active search and deactivate interacted search documents.
   Future<EngineEvent> activeSearchClosed() async {
+    if (await _searchRepo.getCurrent() == null) {
+      const reason = SearchFailureReason.noActiveSearch;
+      return const EngineEvent.activeSearchClosedFailed(reason);
+    }
+
     await _searchRepo.clear();
 
     final allDocs = await _docRepo.fetchAll();
@@ -266,7 +271,7 @@ class SearchManager {
         .where((doc) => doc.isSearched && doc.isActive);
 
     if (searchDocs.isEmpty) {
-      return const EngineEvent.clientEventSucceeded();
+      return const EngineEvent.activeSearchClosedSucceeded();
     }
 
     final ids = searchDocs.map((doc) => doc.documentId);
@@ -294,6 +299,6 @@ class SearchManager {
     final nonInteractedIds = nonInteracted.map((doc) => doc.documentId).toSet();
     await _docRepo.removeByIds(nonInteractedIds);
 
-    return const EngineEvent.clientEventSucceeded();
+    return const EngineEvent.activeSearchClosedSucceeded();
   }
 }
