@@ -160,23 +160,21 @@ void main() {
       );
     });
 
-    /// TODO: This is not currently enabled, but is intended behaviour for
-    ///       the future.
-    test(
-      'starting a second, concurrent search throws an error',
-      () async {
-        final response1 = await engine.requestQuerySearch('first search');
-        final response2 = await engine.requestQuerySearch('second search');
+    test('starting a second, concurrent search throws an error', () async {
+      final response1 = await engine.requestQuerySearch('first search');
+      final response2 = await engine.requestQuerySearch('second search');
 
-        expect(response1, isA<ActiveSearchRequestSucceeded>());
-        expect(
-          (response1 as ActiveSearchRequestSucceeded).items,
-          isNotEmpty,
-        );
+      expect(response1, isA<ActiveSearchRequestSucceeded>());
+      expect(
+        (response1 as ActiveSearchRequestSucceeded).items,
+        isNotEmpty,
+      );
 
-        expect(response2, isA<ActiveSearchRequestFailed>());
-      },
-      skip: true,
-    );
+      expect(response2, isA<ActiveSearchRequestFailed>());
+      expect(
+        (response2 as ActiveSearchRequestFailed).reason,
+        equals(SearchFailureReason.openActiveSearch),
+      );
+    });
   });
 }

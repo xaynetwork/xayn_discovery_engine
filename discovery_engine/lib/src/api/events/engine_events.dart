@@ -66,6 +66,8 @@ enum SearchFailureReason {
   noActiveSearch,
   @JsonValue(1)
   noResultsAvailable,
+  @JsonValue(2)
+  openActiveSearch,
 }
 
 enum EngineExceptionReason {

@@ -134,9 +134,9 @@ Future<void> main() async {
 
     group('activeSearchRequested', () {
       test(
-          'given a query term a proper active search object is persisted, '
-          'and new document and active data entries are added to the database',
-          () async {
+          'when there is no active search stored, given a query term a proper '
+          'active search object is persisted, and new document and active '
+          'data entries are added to the database', () async {
         doc1 = doc1..isSearched = false;
         doc2 = doc2..isSearched = false;
         await docRepo.updateMany([doc1, doc2]);
@@ -148,6 +148,7 @@ Future<void> main() async {
           searchBy: SearchBy.query,
         );
 
+        await searchRepo.clear();
         final response =
             await mgr.activeSearchRequested('example query', SearchBy.query);
 

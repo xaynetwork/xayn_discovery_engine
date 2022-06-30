@@ -118,7 +118,10 @@ class SearchManager {
     String searchTerm,
     SearchBy searchBy,
   ) async {
-    await activeSearchClosed();
+    if (await _searchRepo.getCurrent() != null) {
+      const reason = SearchFailureReason.openActiveSearch;
+      return const EngineEvent.activeSearchRequestFailed(reason);
+    }
 
     final search = ActiveSearch(
       searchTerm: searchTerm,

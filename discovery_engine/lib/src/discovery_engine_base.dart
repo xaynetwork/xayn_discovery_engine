@@ -554,6 +554,8 @@ class DiscoveryEngine {
   /// - [ActiveSearchClosedSucceeded] indicating a successful operation
   /// - [ActiveSearchClosedFailed] indicating a failed operation, with a reason
   /// for such failure.
+  /// - [EngineExceptionReason] for unexpected exception raised, with a reason
+  /// for such failure.
   Future<EngineEvent> closeActiveSearch() {
     return _trySend(() async {
       const event = ClientEvent.activeSearchClosed();
