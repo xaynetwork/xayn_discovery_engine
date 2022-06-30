@@ -26,6 +26,9 @@ class HiveSourceReactedRepository implements SourceReactedRepository {
   Box<SourceReacted> get box => Hive.box<SourceReacted>(sourceReactedBox);
 
   @override
+  Future<List<SourceReacted>> fetchAll() async => box.values.toList();
+
+  @override
   Future<SourceReacted?> fetchBySource(Source source) async =>
       box.get(source.value);
 

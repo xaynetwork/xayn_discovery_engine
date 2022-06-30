@@ -51,3 +51,5 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "Vec_String" = "RustVecString"
 "Vec_TrendingTopic" = "RustVecTrendingTopic"
 "Vec_u8" = "RustVecU8"
+"Vec_WeightedSource" = "RustVecWeightedSource"
+"WeightedSource" = "RustWeightedSource"

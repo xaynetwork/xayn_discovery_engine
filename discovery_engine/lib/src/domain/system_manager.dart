@@ -25,18 +25,21 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
+import 'package:xayn_discovery_engine/src/domain/repository/source_reacted_repo.dart';
 
 /// Business logic concerning the management of the engine system.
 class SystemManager {
   final Engine _engine;
   final EventConfig _config;
   final DocumentRepository _docRepo;
+  final SourceReactedRepository _sourceReactedRepo;
   final Future<void> Function() _clearAiState;
 
   SystemManager(
     this._engine,
     this._config,
     this._docRepo,
+    this._sourceReactedRepo,
     this._clearAiState,
   );
 
@@ -65,8 +68,9 @@ class SystemManager {
   ) async {
     if (feedMarkets != null) {
       final history = await _docRepo.fetchHistory();
+      final sources = await _sourceReactedRepo.fetchAll();
       try {
-        await _engine.setMarkets(history, feedMarkets);
+        await _engine.setMarkets(history, sources, feedMarkets);
       } catch (e, st) {
         return EngineEvent.engineExceptionRaised(
           EngineExceptionReason.genericError,

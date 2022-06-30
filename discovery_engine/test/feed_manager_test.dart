@@ -39,6 +39,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_
     show HiveEngineStateRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_preference_repo.dart'
     show HiveSourcePreferenceRepository;
+import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_reacted_repo.dart';
 
 import 'discovery_engine/utils/utils.dart' show mockDocuments, mockNewsResource;
 import 'logging.dart' show setupLogging;
@@ -49,6 +50,7 @@ Future<void> main() async {
   late HiveDocumentRepository docRepo;
   late HiveActiveDocumentDataRepository activeRepo;
   late HiveEngineStateRepository engineStateRepo;
+  late HiveSourceReactedRepository sourceReactedRepo;
   late HiveSourcePreferenceRepository sourcePreferenceRepo;
   late FeedManager mgr;
 
@@ -70,6 +72,7 @@ Future<void> main() async {
       docRepo = HiveDocumentRepository();
       activeRepo = HiveActiveDocumentDataRepository();
       engineStateRepo = HiveEngineStateRepository();
+      sourceReactedRepo = HiveSourceReactedRepository();
       sourcePreferenceRepo = HiveSourcePreferenceRepository();
       mgr = FeedManager(
         engine,
@@ -77,6 +80,7 @@ Future<void> main() async {
         docRepo,
         activeRepo,
         engineStateRepo,
+        sourceReactedRepo,
         sourcePreferenceRepo,
         mockedAvailableSources,
       );
@@ -203,6 +207,7 @@ Future<void> main() async {
       docRepo = HiveDocumentRepository();
       activeRepo = HiveActiveDocumentDataRepository();
       engineStateRepo = HiveEngineStateRepository();
+      sourceReactedRepo = HiveSourceReactedRepository();
       sourcePreferenceRepo = HiveSourcePreferenceRepository();
       mgr = FeedManager(
         engine,
@@ -210,6 +215,7 @@ Future<void> main() async {
         docRepo,
         activeRepo,
         engineStateRepo,
+        sourceReactedRepo,
         sourcePreferenceRepo,
         mockedAvailableSources,
       );

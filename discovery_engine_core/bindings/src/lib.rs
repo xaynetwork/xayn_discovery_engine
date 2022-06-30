@@ -42,7 +42,7 @@ use xayn_discovery_engine_core::Engine;
 #[async_bindgen::api(
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_core::{
-        document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted},
+        document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, WeightedSource},
         InitConfig,
     };
     use xayn_discovery_engine_providers::Market;
@@ -56,14 +56,20 @@ impl XaynDiscoveryEngineAsyncFfi {
         config: Box<InitConfig>,
         state: Option<Box<Vec<u8>>>,
         history: Box<Vec<HistoricDocument>>,
+        sources: Box<Vec<WeightedSource>>,
     ) -> Box<Result<SharedEngine, String>> {
         tracing::init_tracing(config.log_file.as_deref().map(Path::new));
 
         Box::new(
-            Engine::from_config(*config, state.as_deref().map(Vec::as_slice), &history)
-                .await
-                .map(|engine| tokio::sync::Mutex::new(engine).into())
-                .map_err(|error| error.to_string()),
+            Engine::from_config(
+                *config,
+                state.as_deref().map(Vec::as_slice),
+                &history,
+                &sources,
+            )
+            .await
+            .map(|engine| tokio::sync::Mutex::new(engine).into())
+            .map_err(|error| error.to_string()),
         )
     }
 
@@ -86,13 +92,14 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine: &SharedEngine,
         markets: Box<Vec<Market>>,
         history: Box<Vec<HistoricDocument>>,
+        sources: Box<Vec<WeightedSource>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .set_markets(&history, *markets)
+                .set_markets(&history, &sources, *markets)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -103,6 +110,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn get_feed_documents(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
+        sources: Box<Vec<WeightedSource>>,
         max_documents: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
@@ -110,7 +118,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .get_feed_documents(&history, max_documents)
+                .get_feed_documents(&history, &sources, max_documents)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -139,6 +147,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn user_reacted(
         engine: &SharedEngine,
         history: Option<Box<Vec<HistoricDocument>>>,
+        sources: Box<Vec<WeightedSource>>,
         reacted: Box<UserReacted>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -146,7 +155,11 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .user_reacted(history.as_deref().map(Vec::as_slice), reacted.as_ref())
+                .user_reacted(
+                    history.as_deref().map(Vec::as_slice),
+                    &sources,
+                    reacted.as_ref(),
+                )
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -227,14 +240,15 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn set_trusted_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<String>>,
+        sources: Box<Vec<WeightedSource>>,
+        trusted: Box<Vec<String>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .set_trusted_sources(&history, *sources)
+                .set_trusted_sources(&history, &sources, *trusted)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -245,14 +259,15 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn set_excluded_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<String>>,
+        sources: Box<Vec<WeightedSource>>,
+        excluded: Box<Vec<String>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .set_excluded_sources(&history, *sources)
+                .set_excluded_sources(&history, &sources, *excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )

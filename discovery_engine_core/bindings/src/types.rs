@@ -38,3 +38,5 @@ pub mod trending_topic_vec;
 pub mod url;
 pub mod uuid;
 pub mod vec;
+pub mod weighted_source;
+pub mod weighted_source_vec;

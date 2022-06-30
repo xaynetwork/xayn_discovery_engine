@@ -26,6 +26,7 @@ import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
+import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -70,6 +71,7 @@ class MockEngine implements Engine {
   @override
   Future<void> setMarkets(
     List<HistoricDocument> history,
+    List<SourceReacted> sources,
     FeedMarkets markets,
   ) async {
     _incrementCount('setMarkets');
@@ -78,24 +80,27 @@ class MockEngine implements Engine {
   @override
   Future<void> setExcludedSources(
     List<HistoricDocument> history,
-    Set<Source> sources,
+    List<SourceReacted> sources,
+    Set<Source> excluded,
   ) async {
     _incrementCount('setExcludedSources');
-    excludedSources = sources;
+    excludedSources = excluded;
   }
 
   @override
   Future<void> setTrustedSources(
     List<HistoricDocument> history,
-    Set<Source> sources,
+    List<SourceReacted> sources,
+    Set<Source> trusted,
   ) async {
     _incrementCount('setTrustedSources');
-    trustedSources = sources;
+    trustedSources = trusted;
   }
 
   @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
+    List<SourceReacted> sources,
     int maxDocuments,
   ) async {
     _incrementCount('getFeedDocuments');
@@ -110,6 +115,7 @@ class MockEngine implements Engine {
   @override
   Future<void> userReacted(
     List<HistoricDocument>? history,
+    List<SourceReacted> sources,
     UserReacted userReacted,
   ) async {
     _incrementCount('userReacted');

@@ -241,6 +241,7 @@ class EventHandler {
     final setupData = await _fetchAssets(config);
     final engineState = await engineStateRepository.load();
     final history = await documentRepository.fetchHistory();
+    final reactedSources = await sourceReactedRepository.fetchAll();
     final trustedSources = await sourcePreferenceRepository.getTrusted();
     final excludedSources = await sourcePreferenceRepository.getExcluded();
     final availableSources = config.isMocked()
@@ -255,6 +256,7 @@ class EventHandler {
           setupData: setupData,
           engineState: engineState,
           history: history,
+          reactedSources: reactedSources,
           deConfig: deConfig,
           trustedSources: trustedSources,
           excludedSources: excludedSources,
@@ -287,6 +289,7 @@ class EventHandler {
       documentRepository,
       activeDataRepository,
       engineStateRepository,
+      sourceReactedRepository,
       sourcePreferenceRepository,
       availableSources,
     );
@@ -302,6 +305,7 @@ class EventHandler {
       engine,
       eventConfig,
       documentRepository,
+      sourceReactedRepository,
       clearAiState,
     );
 

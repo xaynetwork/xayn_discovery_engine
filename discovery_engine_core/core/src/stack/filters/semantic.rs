@@ -18,7 +18,7 @@ use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use xayn_discovery_engine_ai::{nan_safe_f32_cmp, pairwise_cosine_similarity};
 
-use crate::document::Document;
+use crate::document::{Document, WeightedSource};
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
@@ -205,6 +205,7 @@ impl Default for SemanticFilterConfig {
 /// Filters the documents semantically.
 pub(crate) fn filter_semantically(
     documents: Vec<Document>,
+    _sources: &[WeightedSource], // TODO use in follow up pr
     config: &SemanticFilterConfig,
 ) -> Vec<Document> {
     if documents.len() < 2 {
@@ -369,16 +370,18 @@ mod tests {
     #[test]
     fn test_filter_semantically_empty() {
         let documents = vec![];
+        let sources = &[];
         let config = SemanticFilterConfig::default();
-        let filtered = filter_semantically(documents, &config);
+        let filtered = filter_semantically(documents, sources, &config);
         assert!(filtered.is_empty());
     }
 
     #[test]
     fn test_filter_semantically_single() {
         let documents = vec![Document::default()];
+        let sources = &[];
         let config = SemanticFilterConfig::default();
-        let filtered = filter_semantically(documents.clone(), &config);
+        let filtered = filter_semantically(documents.clone(), sources, &config);
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id, documents[0].id);
     }
@@ -390,8 +393,9 @@ mod tests {
             Document::default(),
             Document::default(),
         ];
+        let sources = &[];
         let config = SemanticFilterConfig::default();
-        let filtered = filter_semantically(documents.clone(), &config);
+        let filtered = filter_semantically(documents.clone(), sources, &config);
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id, documents[0].id);
     }
@@ -403,11 +407,12 @@ mod tests {
             Document::default(),
             Document::default(),
         ];
+        let sources = &[];
         let config = SemanticFilterConfig {
             criterion: Criterion::MaxDissimilarity(0.),
             ..SemanticFilterConfig::default()
         };
-        let filtered = filter_semantically(documents.clone(), &config);
+        let filtered = filter_semantically(documents.clone(), sources, &config);
         assert_eq!(filtered.len(), 3);
         assert_eq!(filtered[0].id, documents[0].id);
         assert_eq!(filtered[1].id, documents[1].id);
