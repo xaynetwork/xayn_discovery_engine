@@ -41,5 +41,5 @@ CREATE TABLE IF NOT EXISTS UserReaction (
         PRIMARY KEY
         REFERENCES HistoricDocument(documentId) ON DELETE CASCADE,
 
-    userReaction INTEGER NOT NULL DEFAULT 0
+    userReaction INTEGER NOT NULL
 );
