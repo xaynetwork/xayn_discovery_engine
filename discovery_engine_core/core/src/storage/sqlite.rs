@@ -223,7 +223,7 @@ impl FeedScope for SqliteStorage {
             let user_reacted = doc.user_reaction.and_then(FromPrimitive::from_u32);
 
             Ok(ApiDocumentView {
-                document: document::Id::from(doc.document_id),
+                document_id: document::Id::from(doc.document_id),
                 news_resource,
                 newscatcher_data,
                 user_reacted,
@@ -327,6 +327,8 @@ impl FeedScope for SqliteStorage {
             "INSERT INTO PresentationOrdering (documentId, timestamp, inBatchIndex) ",
         );
         query_builder.push_values(documents.enumerate(), |mut stm, (id, doc)| {
+            #[allow(clippy::cast_possible_truncation)]
+            // we won't have so many documents that id > u32
             stm.push_bind(doc.id.as_uuid())
                 .push_bind(timestamp)
                 .push_bind(id as u32);

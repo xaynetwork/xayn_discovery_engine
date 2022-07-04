@@ -68,7 +68,7 @@ pub mod models {
     }
 
     pub struct ApiDocumentView {
-        pub document: document::Id,
+        pub document_id: document::Id,
         pub news_resource: NewsResource,
         pub newscatcher_data: NewscatcherData,
         pub user_reacted: Option<UserReaction>,
@@ -103,6 +103,7 @@ pub mod models {
         /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
         pub source: String,
 
+        /// The market of news.
         pub market: Market,
     }
 
