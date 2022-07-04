@@ -39,8 +39,12 @@ impl Filter {
 
     /// Build the expression.
     pub(crate) fn build(&self) -> String {
-        let keywords = Expr::or_from_iter(self.keywords.iter().map(|k| format!("({})", k)));
-        keywords.build()
+        if self.keywords.is_empty() {
+            "*".into()
+        } else {
+            let keywords = Expr::or_from_iter(self.keywords.iter().map(|k| format!("({})", k)));
+            keywords.build()
+        }
     }
 }
 
@@ -129,5 +133,10 @@ mod tests {
     fn test_filter_remove_invalid_char() {
         let filter = Filter::default().add_keyword("a\"b");
         assert_eq!("(ab)", filter.build());
+    }
+
+    #[test]
+    fn test_empty_filter_is_wildcard() {
+        assert_eq!(Filter::default().build(), "*");
     }
 }
