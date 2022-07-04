@@ -27,7 +27,7 @@ use uuid::Uuid;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    document::{self, HistoricDocument},
+    document::{self, HistoricDocument, UserReaction},
     storage::{
         self,
         models::{ApiDocumentView, NewsResource, NewscatcherData},
@@ -216,6 +216,7 @@ impl FeedScope for SqliteStorage {
         .collect()
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn store_documents(
         &self,
         documents: &[document::Document],
@@ -300,6 +301,20 @@ impl FeedScope for SqliteStorage {
         let mut query_builder = QueryBuilder::new("INSERT INTO FeedDocument (documentId) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid());
+        });
+        query_builder
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
+
+        // insert data into UserReaction table
+        let mut query_builder =
+            QueryBuilder::new("INSERT INTO UserReaction (documentId, userReaction) ");
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
+            stm.push_bind(doc.id.as_uuid())
+                .push_bind(UserReaction::Neutral as u32);
         });
         query_builder
             .build()
