@@ -62,7 +62,7 @@ impl BreakingNews {
         }
     }
 
-    pub(crate) fn id() -> Id {
+    pub(crate) const fn id() -> Id {
         Id(uuid!("1ce442c8-8a96-433e-91db-c0bee37e5a83"))
     }
 

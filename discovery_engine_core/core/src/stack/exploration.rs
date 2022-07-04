@@ -43,7 +43,7 @@ impl Stack {
     }
 
     /// [`Id`] of this `Stack`.
-    pub(crate) fn id() -> Id {
+    pub(crate) const fn id() -> Id {
         Id(uuid!("77cf9280-bb93-4158-b660-8732927e0dcc"))
     }
 
