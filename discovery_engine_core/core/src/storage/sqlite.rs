@@ -85,9 +85,11 @@ impl Storage for SqliteStorage {
             .map_err(|err| storage::Error::Database(err.into()))?;
 
         sqlx::query_as::<_, _HistoricDocument>(
-            "SELECT nr.documentId, nr.title, nr.snippet, nr.url
-                FROM HistoricDocument AS hd, NewsResource AS nr
-                ON hd.documentId = nr.documentId;",
+            "SELECT
+                nr.documentId, nr.title, nr.snippet, nr.url
+            FROM
+                HistoricDocument AS hd, NewsResource AS nr
+            ON hd.documentId = nr.documentId;",
         )
         .fetch_all(&mut con)
         .await
@@ -112,7 +114,7 @@ impl Storage for SqliteStorage {
 
 #[async_trait]
 impl FeedScope for SqliteStorage {
-    async fn close_document(&self, document: document::Id) -> Result<(), storage::Error> {
+    async fn close_document(&self, document: &document::Id) -> Result<(), storage::Error> {
         let mut con = self
             .pool
             .acquire()
@@ -164,13 +166,17 @@ impl FeedScope for SqliteStorage {
             .await
             .map_err(|err| storage::Error::Database(err.into()))?;
         sqlx::query_as::<_, _ApiDocumentView>(
-            "SELECT nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
-            nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score, ur.userReaction,
-            po.inBatchIndex
-            FROM NewsResource as nr, NewscatcherData as nc, UserReaction as ur,
-            FeedDocument as fd, PresentationOrdering as po
-            ON fd.documentId = nr.documentId AND fd.documentId = nc.documentId AND
-            fd.documentId = ur.documentId AND fd.documentId = po.documentId
+            "SELECT
+                nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
+                ur.userReaction, po.inBatchIndex
+            FROM
+                NewsResource AS nr, NewscatcherData AS nc, UserReaction AS ur,
+                FeedDocument AS fd, PresentationOrdering AS po
+            ON fd.documentId = nr.documentId
+            AND fd.documentId = nc.documentId
+            AND fd.documentId = ur.documentId
+            AND fd.documentId = po.documentId
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut con)
@@ -225,18 +231,18 @@ impl FeedScope for SqliteStorage {
             return Ok(());
         }
 
-        // The amount of documents that we can store via bulk inserts is limited by
-        // the sqlite bind limit.
+        // The amount of documents that we can store via bulk inserts
+        // (https://docs.rs/sqlx-core/latest/sqlx_core/query_builder/struct.QueryBuilder.html#method.push_values)
+        // is limited by the sqlite bind limit.
         // bind_limit divided by the number of fields in the largest tuple (NewsResource)
         let documents = documents.iter().take(BIND_LIMIT / 9);
 
+        // Begin transaction
         let mut tx = self
             .pool
             .begin()
             .await
             .map_err(|err| storage::Error::Database(err.into()))?;
-        // Bulk inserts
-        // https://docs.rs/sqlx-core/latest/sqlx_core/query_builder/struct.QueryBuilder.html#method.push_values
 
         // insert id into Document table (fk of HistoricDocument)
         let mut query_builder = QueryBuilder::new("INSERT INTO Document (id) ");
@@ -328,12 +334,12 @@ impl FeedScope for SqliteStorage {
         let mut query_builder = QueryBuilder::new(
             "INSERT INTO PresentationOrdering (documentId, timestamp, inBatchIndex) ",
         );
-        query_builder.push_values(documents.enumerate(), |mut stm, (id, doc)| {
+        query_builder.push_values(documents.enumerate(), |mut stm, (idx, doc)| {
             #[allow(clippy::cast_possible_truncation)]
-            // we won't have so many documents that id > u32
+            // we won't have so many documents that idx > u32
             stm.push_bind(doc.id.as_uuid())
                 .push_bind(timestamp)
-                .push_bind(id as u32);
+                .push_bind(idx as u32);
         });
         query_builder
             .build()
@@ -354,13 +360,17 @@ mod tests {
 
     use super::*;
 
-    fn create_documents(n: u32) -> Vec<document::Document> {
+    fn create_documents(n: u64) -> Vec<document::Document> {
         (0..n)
             .map(|i| {
+                let id = document::Id::new();
                 let title = format!("title-{}", i);
                 let snippet = format!("snippet-{}", i);
-                let url = Url::parse("http://example.com").unwrap();
-                let id = document::Id::new();
+                let url = Url::parse(&format!("http://example-{}.com", i)).unwrap();
+                let source_domain = format!("example-{}.com", i);
+                let image = Url::parse(&format!("http://example-image-{}.com", i)).unwrap();
+                let topic = format!("topic-{}", i);
+                #[allow(clippy::cast_precision_loss)]
                 document::Document {
                     id,
                     stack_id: stack::Id::new_random(),
@@ -368,7 +378,12 @@ mod tests {
                         title,
                         snippet,
                         url,
-                        ..Default::default()
+                        source_domain,
+                        image: (i != 0).then(|| image),
+                        rank: i,
+                        score: (i != 0).then(|| i as f32),
+                        topic,
+                        ..NewsResource::default()
                     },
                     ..document::Document::default()
                 }
@@ -390,9 +405,9 @@ mod tests {
         assert_eq!(history.len(), docs.len());
         history.iter().zip(docs).for_each(|(history, doc)| {
             assert_eq!(history.id, doc.id);
-            assert_eq!(history.url, doc.resource.url);
-            assert_eq!(history.snippet, doc.resource.snippet);
             assert_eq!(history.title, doc.resource.title);
+            assert_eq!(history.snippet, doc.resource.snippet);
+            assert_eq!(history.url, doc.resource.url);
         });
     }
 
@@ -407,7 +422,41 @@ mod tests {
         storage.feed().store_documents(&docs).await.unwrap();
 
         let feed = storage.feed().fetch().await.unwrap();
-
         assert_eq!(feed.len(), docs.len());
+        #[allow(clippy::cast_possible_truncation)]
+        feed.iter()
+            .enumerate()
+            .zip(docs.iter())
+            .for_each(|((idx, feed), doc)| {
+                assert_eq!(feed.document_id, doc.id);
+                assert_eq!(feed.news_resource.title, doc.resource.title);
+                assert_eq!(feed.news_resource.snippet, doc.resource.snippet);
+                assert_eq!(feed.news_resource.topic, doc.resource.topic);
+                assert_eq!(feed.news_resource.url, doc.resource.url);
+                assert_eq!(feed.news_resource.image, doc.resource.image);
+                assert_eq!(
+                    feed.news_resource.date_published,
+                    doc.resource.date_published
+                );
+                assert_eq!(feed.news_resource.source, doc.resource.source_domain);
+                assert_eq!(
+                    feed.news_resource.market,
+                    (&doc.resource.country, &doc.resource.language).into()
+                );
+                assert_eq!(feed.newscatcher_data.domain_rank, doc.resource.rank as u32);
+                assert_eq!(
+                    feed.newscatcher_data.score,
+                    doc.resource.score.or(Some(0.0))
+                );
+                assert_eq!(feed.in_batch_index, idx as u32);
+            });
+
+        storage.feed().close_document(&docs[0].id).await.unwrap();
+        let feed = storage.feed().fetch().await.unwrap();
+        assert!(!feed.iter().any(|feed| feed.document_id == docs[0].id));
+
+        storage.feed().clear().await.unwrap();
+        let feed = storage.feed().fetch().await.unwrap();
+        assert!(feed.is_empty());
     }
 }

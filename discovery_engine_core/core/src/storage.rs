@@ -42,7 +42,7 @@ pub(crate) trait Storage {
 
 #[async_trait]
 pub(crate) trait FeedScope {
-    async fn close_document(&self, document: document::Id) -> Result<(), Error>;
+    async fn close_document(&self, document: &document::Id) -> Result<(), Error>;
 
     async fn clear(&self) -> Result<(), Error>;
 
