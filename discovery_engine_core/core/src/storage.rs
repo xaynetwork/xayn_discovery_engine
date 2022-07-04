@@ -13,6 +13,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use async_trait::async_trait;
+use displaydoc::Display;
+use thiserror::Error;
+use xayn_discovery_engine_ai::GenericError;
 
 use crate::document::{self, HistoricDocument};
 
@@ -20,39 +23,37 @@ use self::models::ApiDocumentView;
 
 pub mod sqlite;
 
-#[async_trait]
-pub trait Storage: FeedScope {
-    type StorageError;
+pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
 
-    async fn init_database(&self) -> Result<(), <Self as Storage>::StorageError>;
-
-    async fn fetch_history(&self)
-        -> Result<Vec<HistoricDocument>, <Self as Storage>::StorageError>;
-
-    fn feed(
-        &self,
-    ) -> &(dyn FeedScope<FeedScopeError = <Self as FeedScope>::FeedScopeError> + Send + Sync);
+#[derive(Error, Debug, Display)]
+pub enum Error {
+    /// Database error: {0}
+    Database(#[source] GenericError),
 }
 
 #[async_trait]
-pub trait FeedScope {
-    type FeedScopeError;
+pub(crate) trait Storage {
+    async fn init_database(&self) -> Result<(), Error>;
 
-    async fn close_document(&self, document: document::Id) -> Result<(), Self::FeedScopeError>;
+    async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error>;
 
-    async fn clear(&self) -> Result<(), Self::FeedScopeError>;
+    fn feed(&self) -> &(dyn FeedScope + Send + Sync);
+}
 
-    async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Self::FeedScopeError>;
+#[async_trait]
+pub(crate) trait FeedScope {
+    async fn close_document(&self, document: document::Id) -> Result<(), Error>;
+
+    async fn clear(&self) -> Result<(), Error>;
+
+    async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error>;
 
     // helper function. will be replaced later by move_from_stacks_to_feed
-    async fn store_documents(
-        &self,
-        documents: &[document::Document],
-    ) -> Result<(), Self::FeedScopeError>;
+    async fn store_documents(&self, documents: &[document::Document]) -> Result<(), Error>;
 }
 
+#[allow(dead_code)]
 pub mod models {
-
     use chrono::NaiveDateTime;
     use url::Url;
     use xayn_discovery_engine_ai::Embedding;
@@ -60,55 +61,55 @@ pub mod models {
 
     use crate::document::{self, UserReaction};
 
-    pub struct NewDocument {
-        pub id: document::Id,
-        pub news_resource: NewsResource,
-        pub newscatcher: NewscatcherData,
-        pub embedding: Embedding,
+    pub(crate) struct NewDocument {
+        pub(crate) id: document::Id,
+        pub(crate) news_resource: NewsResource,
+        pub(crate) newscatcher: NewscatcherData,
+        pub(crate) embedding: Embedding,
     }
 
-    pub struct ApiDocumentView {
-        pub document_id: document::Id,
-        pub news_resource: NewsResource,
-        pub newscatcher_data: NewscatcherData,
-        pub user_reacted: Option<UserReaction>,
+    pub(crate) struct ApiDocumentView {
+        pub(crate) document_id: document::Id,
+        pub(crate) news_resource: NewsResource,
+        pub(crate) newscatcher_data: NewscatcherData,
+        pub(crate) user_reacted: Option<UserReaction>,
         // //FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
-        pub in_batch_index: u32,
+        pub(crate) in_batch_index: u32,
     }
 
     /// Represents a news that is delivered by an external content API.
     #[derive(Debug, Clone)]
-    pub struct NewsResource {
+    pub(crate) struct NewsResource {
         /// Title of the resource.
-        pub title: String,
+        pub(crate) title: String,
 
         /// Snippet of the resource.
-        pub snippet: String,
+        pub(crate) snippet: String,
 
         /// Main topic of the publisher.
-        pub topic: String,
+        pub(crate) topic: String,
 
         /// Url to reach the resource.
-        pub url: Url,
+        pub(crate) url: Url,
 
         /// Image attached to the news.
-        pub image: Option<Url>,
+        pub(crate) image: Option<Url>,
 
         /// Publishing date.
         //FIXME it's NativeDateTime in the current codebase but we can't compare
         //      NativeDateTimes across different markets, but we do! So this needs to be
         //      at least a Utc DateTime.
-        pub date_published: NaiveDateTime,
+        pub(crate) date_published: NaiveDateTime,
 
         /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
-        pub source: String,
+        pub(crate) source: String,
 
         /// The market of news.
-        pub market: Market,
+        pub(crate) market: Market,
     }
 
-    pub struct NewscatcherData {
-        pub domain_rank: u32,
-        pub score: Option<f32>,
+    pub(crate) struct NewscatcherData {
+        pub(crate) domain_rank: u32,
+        pub(crate) score: Option<f32>,
     }
 }

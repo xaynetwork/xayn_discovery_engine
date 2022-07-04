@@ -16,47 +16,28 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
-use displaydoc::Display;
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
     Pool,
     QueryBuilder,
 };
-use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_providers::Market;
 
-use crate::document::{self, HistoricDocument};
-
-use super::{
-    models::{ApiDocumentView, NewsResource, NewscatcherData},
-    FeedScope,
-    Storage,
+use crate::{
+    document::{self, HistoricDocument},
+    storage::{
+        self,
+        models::{ApiDocumentView, NewsResource, NewscatcherData},
+        FeedScope,
+        Storage,
+    },
 };
 
 // Sqlite bind limit
 const BIND_LIMIT: usize = 32766;
-
-#[derive(Error, Debug, Display)]
-pub enum DatabaseError {
-    /// Failed to migrate database: {0}
-    Migration(#[from] sqlx::migrate::MigrateError),
-
-    /// Sql error: {0}
-    Sql(#[source] sqlx::Error),
-
-    /// Failed to covert type: {0}
-    TypeConversion(#[source] GenericError),
-}
-
-#[derive(Error, Debug, Display)]
-pub enum StorageError {
-    /// Database error: {0}
-    Database(#[from] DatabaseError),
-}
 
 #[derive(Clone)]
 pub(crate) struct SqliteStorage {
@@ -64,15 +45,15 @@ pub(crate) struct SqliteStorage {
 }
 
 impl SqliteStorage {
-    pub(crate) async fn connect(uri: &str) -> Result<Self, StorageError> {
+    pub(crate) async fn connect(uri: &str) -> Result<Self, storage::Error> {
         let opt = SqliteConnectOptions::from_str(uri)
-            .map_err(DatabaseError::Sql)?
+            .map_err(|err| storage::Error::Database(err.into()))?
             .create_if_missing(true);
 
         let pool = SqlitePoolOptions::new()
             .connect_with(opt)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
 
         Ok(Self { pool })
     }
@@ -80,18 +61,14 @@ impl SqliteStorage {
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    type StorageError = StorageError;
-
-    async fn init_database(&self) -> Result<(), <Self as Storage>::StorageError> {
+    async fn init_database(&self) -> Result<(), storage::Error> {
         sqlx::migrate!("src/storage/migrations")
             .run(&self.pool)
             .await
-            .map_err(|err| DatabaseError::Migration(err).into())
+            .map_err(|err| storage::Error::Database(err.into()))
     }
 
-    async fn fetch_history(
-        &self,
-    ) -> Result<Vec<HistoricDocument>, <Self as Storage>::StorageError> {
+    async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, storage::Error> {
         #[derive(sqlx::FromRow)]
         #[sqlx(rename_all = "camelCase")]
         struct _HistoricDocument {
@@ -101,7 +78,11 @@ impl Storage for SqliteStorage {
             url: String,
         }
 
-        let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
+        let mut con = self
+            .pool
+            .acquire()
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
 
         sqlx::query_as::<_, _HistoricDocument>(
             "SELECT nr.documentId, nr.title, nr.snippet, nr.url
@@ -110,10 +91,10 @@ impl Storage for SqliteStorage {
         )
         .fetch_all(&mut con)
         .await
-        .map_err(DatabaseError::Sql)?
+        .map_err(|err| storage::Error::Database(err.into()))?
         .into_iter()
         .map(|hd| {
-            let url = Url::parse(&hd.url).map_err(|e| DatabaseError::TypeConversion(e.into()))?;
+            let url = Url::parse(&hd.url).map_err(|err| storage::Error::Database(err.into()))?;
             Ok(HistoricDocument {
                 id: document::Id::from(hd.document_id),
                 url,
@@ -124,43 +105,41 @@ impl Storage for SqliteStorage {
         .collect()
     }
 
-    fn feed(
-        &self,
-    ) -> &(dyn FeedScope<FeedScopeError = <Self as FeedScope>::FeedScopeError> + Send + Sync) {
+    fn feed(&self) -> &(dyn FeedScope + Send + Sync) {
         self
     }
 }
 
-#[derive(Error, Debug, Display)]
-pub enum FeedScopeError {
-    /// Database error: {0}
-    Database(#[from] DatabaseError),
-}
-
 #[async_trait]
 impl FeedScope for SqliteStorage {
-    type FeedScopeError = FeedScopeError;
-
-    async fn close_document(&self, document: document::Id) -> Result<(), Self::FeedScopeError> {
-        let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
+    async fn close_document(&self, document: document::Id) -> Result<(), storage::Error> {
+        let mut con = self
+            .pool
+            .acquire()
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
         sqlx::query("DELETE FROM FeedDocument WHERE documentId = ?;")
             .bind(document.as_uuid())
             .execute(&mut con)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
         Ok(())
     }
 
-    async fn clear(&self) -> Result<(), Self::FeedScopeError> {
-        let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
+    async fn clear(&self) -> Result<(), storage::Error> {
+        let mut con = self
+            .pool
+            .acquire()
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
         sqlx::query("DELETE FROM FeedDocument;")
             .execute(&mut con)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
         Ok(())
     }
 
-    async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Self::FeedScopeError> {
+    async fn fetch(&self) -> Result<Vec<ApiDocumentView>, storage::Error> {
         #[derive(sqlx::FromRow)]
         #[sqlx(rename_all = "camelCase")]
         struct _ApiDocumentView {
@@ -179,7 +158,11 @@ impl FeedScope for SqliteStorage {
             in_batch_index: u32,
         }
 
-        let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
+        let mut con = self
+            .pool
+            .acquire()
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
         sqlx::query_as::<_, _ApiDocumentView>(
             "SELECT nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
             nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score, ur.userReaction,
@@ -192,13 +175,13 @@ impl FeedScope for SqliteStorage {
         )
         .fetch_all(&mut con)
         .await
-        .map_err(DatabaseError::Sql)?
+        .map_err(|err| storage::Error::Database(err.into()))?
         .into_iter()
         .map(|doc| {
-            let url = Url::parse(&doc.url).map_err(|e| DatabaseError::TypeConversion(e.into()))?;
+            let url = Url::parse(&doc.url).map_err(|err| storage::Error::Database(err.into()))?;
             let image = doc
                 .image
-                .map(|url| Url::parse(&url).map_err(|e| DatabaseError::TypeConversion(e.into())))
+                .map(|url| Url::parse(&url).map_err(|err| storage::Error::Database(err.into())))
                 .transpose()?;
             let (lang_code, country_code) = doc.market.split_at(2);
             let market = Market {
@@ -236,7 +219,7 @@ impl FeedScope for SqliteStorage {
     async fn store_documents(
         &self,
         documents: &[document::Document],
-    ) -> Result<(), Self::FeedScopeError> {
+    ) -> Result<(), storage::Error> {
         if documents.is_empty() {
             return Ok(());
         }
@@ -246,7 +229,11 @@ impl FeedScope for SqliteStorage {
         // bind_limit divided by the number of fields in the largest tuple (NewsResource)
         let documents = documents.iter().take(BIND_LIMIT / 9);
 
-        let mut tx = self.pool.begin().await.map_err(DatabaseError::Sql)?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
         // Bulk inserts
         // https://docs.rs/sqlx-core/latest/sqlx_core/query_builder/struct.QueryBuilder.html#method.push_values
 
@@ -260,7 +247,7 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
 
         // insert id into HistoricDocument table
         let mut query_builder = QueryBuilder::new("INSERT INTO HistoricDocument (documentId) ");
@@ -272,7 +259,7 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
 
         // insert data into NewsResource table
         let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ");
@@ -292,7 +279,7 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
 
         // insert data into NewscatcherData table
         let mut query_builder =
@@ -307,7 +294,7 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
 
         // insert data into FeedDocument table
         let mut query_builder = QueryBuilder::new("INSERT INTO FeedDocument (documentId) ");
@@ -319,7 +306,7 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
 
         // insert data into PresentationOrdering table
         let timestamp = Utc::now();
@@ -338,11 +325,11 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(DatabaseError::Sql)?;
+            .map_err(|err| storage::Error::Database(err.into()))?;
 
         tx.commit()
             .await
-            .map_err(|err| DatabaseError::Sql(err).into())
+            .map_err(|err| storage::Error::Database(err.into()))
     }
 }
 

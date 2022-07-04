@@ -52,10 +52,7 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[cfg(feature = "storage")]
-use crate::storage::{
-    sqlite::{self, SqliteStorage},
-    Storage,
-};
+use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
 use crate::{
     config::{de_config_from_json, CoreConfig, EndpointConfig, ExplorationConfig, InitConfig},
     document::{
@@ -93,13 +90,6 @@ use crate::{
         TrustedNews,
     },
 };
-
-#[cfg(feature = "storage")]
-type BoxedStorage = Box<
-    dyn Storage<StorageError = sqlite::StorageError, FeedScopeError = sqlite::FeedScopeError>
-        + Send
-        + Sync,
->;
 
 /// Discovery engine errors.
 #[derive(Error, Debug, Display)]
@@ -142,7 +132,7 @@ pub enum Error {
 
     #[cfg(feature = "storage")]
     /// Storage error: {0}.
-    Storage(#[from] sqlite::StorageError),
+    Storage(#[from] storage::Error),
 
     /// Provider error: {0}
     ProviderError(#[source] xayn_discovery_engine_providers::Error),
