@@ -29,6 +29,8 @@ pub enum Error {
     Fetching(#[source] reqwest::Error),
     /// Failed to decode the server's response: {0}
     Decoding(#[source] serde_json::Error),
+    /// Failed to encode the query: {0}
+    Encoding(#[source] serde_json::Error),
     /// Failed to decode the server's response at JSON path {1}: {0}
     DecodingAtPath(
         String,
