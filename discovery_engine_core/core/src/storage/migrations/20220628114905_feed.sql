@@ -13,24 +13,24 @@
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 CREATE TABLE IF NOT EXISTS FeedDocument (
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES HistoricDocument(document) ON DELETE CASCADE
+        REFERENCES HistoricDocument(documentId) ON DELETE CASCADE
 );
 
 CREATE TRIGGER IF NOT EXISTS feed_history_sync
     BEFORE INSERT
     ON FeedDocument
     BEGIN
-      INSERT INTO HistoricDocument(document)
-        VALUES (new.document)
+      INSERT INTO HistoricDocument(documentId)
+        VALUES (new.documentId)
         ON CONFLICT DO NOTHING;
     END;
 
 -- ordering of documents based on when they have
 -- been first presented to the app (user)
 CREATE TABLE IF NOT EXISTS PresentationOrdering(
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
         REFERENCES Document(id) ON DELETE CASCADE,
     -- unix epoch timestamp in seconds
@@ -46,9 +46,9 @@ CREATE INDEX IF NOT EXISTS idx_presentation_ordering_sort
   ON PresentationOrdering(timestamp, inBatchIndex);
 
 CREATE TABLE IF NOT EXISTS UserReaction (
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES HistoricDocument(document) ON DELETE CASCADE,
+        REFERENCES HistoricDocument(documentId) ON DELETE CASCADE,
 
     userReaction INTEGER NOT NULL DEFAULT 0
 );

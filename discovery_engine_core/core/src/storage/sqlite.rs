@@ -93,8 +93,9 @@ impl Storage for SqliteStorage {
         &self,
     ) -> Result<Vec<HistoricDocument>, <Self as Storage>::StorageError> {
         #[derive(sqlx::FromRow)]
+        #[sqlx(rename_all = "camelCase")]
         struct _HistoricDocument {
-            document: Uuid,
+            document_id: Uuid,
             title: String,
             snippet: String,
             url: String,
@@ -103,9 +104,9 @@ impl Storage for SqliteStorage {
         let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
 
         sqlx::query_as::<_, _HistoricDocument>(
-            "SELECT nr.document, nr.title, nr.snippet, nr.url
+            "SELECT nr.documentId, nr.title, nr.snippet, nr.url
                 FROM HistoricDocument AS hd, NewsResource AS nr
-                ON hd.document = nr.document;",
+                ON hd.documentId = nr.documentId;",
         )
         .fetch_all(&mut con)
         .await
@@ -114,7 +115,7 @@ impl Storage for SqliteStorage {
         .map(|hd| {
             let url = Url::parse(&hd.url).map_err(|e| DatabaseError::TypeConversion(e.into()))?;
             Ok(HistoricDocument {
-                id: document::Id::from(hd.document),
+                id: document::Id::from(hd.document_id),
                 url,
                 snippet: hd.snippet,
                 title: hd.title,
@@ -142,7 +143,7 @@ impl FeedScope for SqliteStorage {
 
     async fn close_document(&self, document: document::Id) -> Result<(), Self::FeedScopeError> {
         let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
-        sqlx::query("DELETE FROM FeedDocument WHERE document = ?;")
+        sqlx::query("DELETE FROM FeedDocument WHERE documentId = ?;")
             .bind(document.as_uuid())
             .execute(&mut con)
             .await
@@ -161,8 +162,9 @@ impl FeedScope for SqliteStorage {
 
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Self::FeedScopeError> {
         #[derive(sqlx::FromRow)]
+        #[sqlx(rename_all = "camelCase")]
         struct _ApiDocumentView {
-            document: Uuid,
+            document_id: Uuid,
             title: String,
             snippet: String,
             topic: String,
@@ -179,13 +181,13 @@ impl FeedScope for SqliteStorage {
 
         let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
         sqlx::query_as::<_, _ApiDocumentView>(
-            "SELECT nr.document, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+            "SELECT nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
             nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score, ur.userReaction,
             po.inBatchIndex
             FROM NewsResource as nr, NewscatcherData as nc, UserReaction as ur,
             FeedDocuments as fd, PresentationOrdering as po
-            ON fd.document = nr.document, fd.document = nc.document,
-            fd.document = ur.document, fd.document = po.document
+            ON fd.documentId = nr.documentId, fd.documentId = nc.documentId,
+            fd.documentId = ur.documentId, fd.documentId = po.documentId
             ORDERED BY po.timestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut con)
@@ -221,7 +223,7 @@ impl FeedScope for SqliteStorage {
             let user_reacted = doc.user_reaction.and_then(FromPrimitive::from_u32);
 
             Ok(ApiDocumentView {
-                document: document::Id::from(doc.document),
+                document: document::Id::from(doc.document_id),
                 news_resource,
                 newscatcher_data,
                 user_reacted,
@@ -261,7 +263,7 @@ impl FeedScope for SqliteStorage {
             .map_err(DatabaseError::Sql)?;
 
         // insert id into HistoricDocument table
-        let mut query_builder = QueryBuilder::new("INSERT INTO HistoricDocument (document) ");
+        let mut query_builder = QueryBuilder::new("INSERT INTO HistoricDocument (documentId) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid());
         });
@@ -273,7 +275,7 @@ impl FeedScope for SqliteStorage {
             .map_err(DatabaseError::Sql)?;
 
         // insert data into NewsResource table
-        let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (document, title, snippet, topic, url, image, datePublished, source, market) ");
+        let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
                 .push_bind(&doc.resource.title)
@@ -294,7 +296,7 @@ impl FeedScope for SqliteStorage {
 
         // insert data into NewscatcherData table
         let mut query_builder =
-            QueryBuilder::new("INSERT INTO NewscatcherData (document, domainRank, score) ");
+            QueryBuilder::new("INSERT INTO NewscatcherData (documentId, domainRank, score) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
                 .push_bind(doc.resource.rank as u32)
@@ -308,7 +310,7 @@ impl FeedScope for SqliteStorage {
             .map_err(DatabaseError::Sql)?;
 
         // insert data into FeedDocument table
-        let mut query_builder = QueryBuilder::new("INSERT INTO FeedDocument (document) ");
+        let mut query_builder = QueryBuilder::new("INSERT INTO FeedDocument (documentId) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid());
         });
@@ -322,7 +324,7 @@ impl FeedScope for SqliteStorage {
         // insert data into PresentationOrdering table
         let timestamp = Utc::now();
         let mut query_builder = QueryBuilder::new(
-            "INSERT INTO PresentationOrdering (document, timestamp, inBatchIndex) ",
+            "INSERT INTO PresentationOrdering (documentId, timestamp, inBatchIndex) ",
         );
         query_builder.push_values(documents.enumerate(), |mut stm, (id, doc)| {
             stm.push_bind(doc.id.as_uuid())

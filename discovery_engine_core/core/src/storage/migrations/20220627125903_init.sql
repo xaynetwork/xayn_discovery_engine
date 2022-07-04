@@ -18,13 +18,13 @@ CREATE TABLE IF NOT EXISTS Document (
 );
 
 CREATE TABLE IF NOT EXISTS HistoricDocument (
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
         REFERENCES Document(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS NewsResource (
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
         REFERENCES Document(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -44,9 +44,9 @@ CREATE TABLE IF NOT EXISTS NewsResource (
 );
 
 CREATE TABLE IF NOT EXISTS NewscatcherData (
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES NewsResource(document) ON DELETE CASCADE,
+        REFERENCES NewsResource(documentId) ON DELETE CASCADE,
     domainRank INTEGER NOT NULL,
     score REAL NOT NULL
 );
