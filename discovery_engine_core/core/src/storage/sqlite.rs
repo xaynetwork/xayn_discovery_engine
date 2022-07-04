@@ -37,6 +37,9 @@ use super::{
     Storage,
 };
 
+// Sqlite bind limit
+const BIND_LIMIT: usize = 32766;
+
 #[derive(Error, Debug, Display)]
 pub enum DatabaseError {
     /// Failed to migrate database: {0}
@@ -239,10 +242,10 @@ impl FeedScope for SqliteStorage {
             return Ok(());
         }
 
-        // const BIND_LIMIT: usize = 32766;
-        // if documents.len() > BIND_LIMIT || documents.len() * 9 > BIND_LIMIT / 9 {
-        //     panic!();
-        // }
+        // The amount of documents that we can store via bulk inserts is limited by
+        // the sqlite bind limit.
+        // bind_limit divided by the number of fields in the largest tuple (NewsResource)
+        let documents = documents.iter().take(BIND_LIMIT / 9);
 
         let mut tx = self.pool.begin().await.map_err(DatabaseError::Sql)?;
         // Bulk inserts
@@ -250,7 +253,7 @@ impl FeedScope for SqliteStorage {
 
         // insert id into Document table (fk of HistoricDocument)
         let mut query_builder = QueryBuilder::new("INSERT INTO Document (id) ");
-        query_builder.push_values(documents.iter(), |mut stm, doc| {
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid());
         });
         query_builder
@@ -262,7 +265,7 @@ impl FeedScope for SqliteStorage {
 
         // insert id into HistoricDocument table
         let mut query_builder = QueryBuilder::new("INSERT INTO HistoricDocument (document) ");
-        query_builder.push_values(documents.iter(), |mut stm, doc| {
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid());
         });
         query_builder
@@ -274,7 +277,7 @@ impl FeedScope for SqliteStorage {
 
         // insert data into NewsResource table
         let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (document, title, snippet, topic, url, image, datePublished, source, market) ");
-        query_builder.push_values(documents.iter(), |mut stm, doc| {
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
                 .push_bind(&doc.resource.title)
                 .push_bind(&doc.resource.snippet)
@@ -295,7 +298,7 @@ impl FeedScope for SqliteStorage {
         // insert data into NewscatcherData table
         let mut query_builder =
             QueryBuilder::new("INSERT INTO NewscatcherData (document, domainRank, score) ");
-        query_builder.push_values(documents.iter(), |mut stm, doc| {
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
                 .push_bind(doc.resource.rank as u32)
                 .push_bind(doc.resource.score.unwrap_or_default());
@@ -309,7 +312,7 @@ impl FeedScope for SqliteStorage {
 
         // insert data into FeedDocument table
         let mut query_builder = QueryBuilder::new("INSERT INTO FeedDocument (document) ");
-        query_builder.push_values(documents.iter(), |mut stm, doc| {
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid());
         });
         query_builder
@@ -324,7 +327,7 @@ impl FeedScope for SqliteStorage {
         let mut query_builder = QueryBuilder::new(
             "INSERT INTO PresentationOrdering (document, timestamp, inBatchIndex) ",
         );
-        query_builder.push_values(documents.iter().enumerate(), |mut stm, (id, doc)| {
+        query_builder.push_values(documents.enumerate(), |mut stm, (id, doc)| {
             stm.push_bind(doc.id.as_uuid())
                 .push_bind(timestamp)
                 .push_bind(id as u32);
