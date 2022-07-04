@@ -74,7 +74,7 @@ pub mod models {
         pub newscatcher_data: NewscatcherData,
         pub user_reacted: Option<UserReaction>,
         // //FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
-        pub in_batch_index: usize,
+        pub in_batch_index: u32,
     }
 
     /// Represents a news that is delivered by an external content API.
@@ -108,7 +108,7 @@ pub mod models {
     }
 
     pub struct NewscatcherData {
-        pub domain_rank: usize,
+        pub domain_rank: u32,
         pub score: Option<f32>,
     }
 }

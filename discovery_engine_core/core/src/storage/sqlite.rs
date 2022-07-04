@@ -215,7 +215,7 @@ impl FeedScope for SqliteStorage {
                 market,
             };
             let newscatcher_data = NewscatcherData {
-                domain_rank: doc.domain_rank as usize,
+                domain_rank: doc.domain_rank,
                 score: Some(doc.score),
             };
             let user_reacted = doc.user_reaction.and_then(FromPrimitive::from_u32);
@@ -225,7 +225,7 @@ impl FeedScope for SqliteStorage {
                 news_resource,
                 newscatcher_data,
                 user_reacted,
-                in_batch_index: doc.in_batch_index as usize,
+                in_batch_index: doc.in_batch_index,
             })
         })
         .collect()
