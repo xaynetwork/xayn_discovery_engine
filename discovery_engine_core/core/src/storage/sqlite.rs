@@ -140,10 +140,7 @@ pub enum FeedScopeError {
 impl FeedScope for SqliteStorage {
     type FeedScopeError = FeedScopeError;
 
-    async fn close_feed_document(
-        &self,
-        document: document::Id,
-    ) -> Result<(), Self::FeedScopeError> {
+    async fn close_document(&self, document: document::Id) -> Result<(), Self::FeedScopeError> {
         let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
         sqlx::query("DELETE FROM FeedDocument WHERE document = ?;")
             .bind(document.as_uuid())
@@ -153,7 +150,7 @@ impl FeedScope for SqliteStorage {
         Ok(())
     }
 
-    async fn clear_feed(&self) -> Result<(), Self::FeedScopeError> {
+    async fn clear(&self) -> Result<(), Self::FeedScopeError> {
         let mut con = self.pool.acquire().await.map_err(DatabaseError::Sql)?;
         sqlx::query("DELETE FROM FeedDocument;")
             .execute(&mut con)
@@ -162,7 +159,7 @@ impl FeedScope for SqliteStorage {
         Ok(())
     }
 
-    async fn fetch_feed(&self) -> Result<Vec<ApiDocumentView>, Self::FeedScopeError> {
+    async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Self::FeedScopeError> {
         #[derive(sqlx::FromRow)]
         struct _ApiDocumentView {
             document: Uuid,

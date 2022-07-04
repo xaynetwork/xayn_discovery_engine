@@ -38,12 +38,11 @@ pub trait Storage: FeedScope {
 pub trait FeedScope {
     type FeedScopeError;
 
-    async fn close_feed_document(&self, document: document::Id)
-        -> Result<(), Self::FeedScopeError>;
+    async fn close_document(&self, document: document::Id) -> Result<(), Self::FeedScopeError>;
 
-    async fn clear_feed(&self) -> Result<(), Self::FeedScopeError>;
+    async fn clear(&self) -> Result<(), Self::FeedScopeError>;
 
-    async fn fetch_feed(&self) -> Result<Vec<ApiDocumentView>, Self::FeedScopeError>;
+    async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Self::FeedScopeError>;
 
     // helper function. will be replaced later by move_from_stacks_to_feed
     async fn store_documents(
