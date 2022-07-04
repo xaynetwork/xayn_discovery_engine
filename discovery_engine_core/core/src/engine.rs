@@ -951,7 +951,7 @@ impl XaynAiEngine {
             .extract_inner("core")
             .map_err(|err| Error::Ranker(err.into()))?;
         let exploration_config = de_config
-            .extract_inner(&Exploration::id().to_string())
+            .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(&endpoint_config, client.clone())) as BoxedOps,
@@ -968,10 +968,10 @@ impl XaynAiEngine {
             (HashMap::default(), builder)
         };
         for id in stack_ops.iter().map(Ops::id).chain(once(Exploration::id())) {
-            if let Ok(alpha) = de_config.extract_inner::<f32>(&format!("{id}.alpha")) {
+            if let Ok(alpha) = de_config.extract_inner::<f32>(&format!("stacks.{id}.alpha")) {
                 stack_data.entry(id).or_default().alpha = alpha;
             }
-            if let Ok(beta) = de_config.extract_inner::<f32>(&format!("{id}.beta")) {
+            if let Ok(beta) = de_config.extract_inner::<f32>(&format!("stacks.{id}.beta")) {
                 stack_data.entry(id).or_default().beta = beta;
             }
         }

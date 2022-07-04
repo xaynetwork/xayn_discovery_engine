@@ -186,7 +186,7 @@ pub(crate) fn de_config_from_json(json: &str) -> Figment {
         .join(Serialized::default("core", CoreConfig::default()))
         .join(Serialized::default("endpoint", EndpointConfig::default()))
         .join(Serialized::default(
-            &Exploration::id().to_string(),
+            &format!("stacks.{}", Exploration::id()),
             ExplorationConfig::default(),
         ))
 }
@@ -219,7 +219,8 @@ mod tests {
             EndpointConfig::default(),
         );
         assert_eq!(
-            de_config.extract_inner::<ExplorationConfig>(&Exploration::id().to_string())?,
+            de_config
+                .extract_inner::<ExplorationConfig>(&format!("stacks.{}", Exploration::id()))?,
             ExplorationConfig::default(),
         );
         Ok(())
@@ -240,9 +241,11 @@ mod tests {
                     "foo": "bar"
                 },
                 "baz": 0,
-                "77cf9280-bb93-4158-b660-8732927e0dcc": {
-                    "number_of_candidates": 42,
-                    "alpha": 0.42
+                "stacks": {
+                    "77cf9280-bb93-4158-b660-8732927e0dcc": {
+                        "number_of_candidates": 42,
+                        "alpha": 0.42
+                    }
                 }
             }"#,
         );
@@ -263,7 +266,8 @@ mod tests {
             EndpointConfig::default(),
         );
         assert_eq!(
-            de_config.extract_inner::<ExplorationConfig>(&Exploration::id().to_string())?,
+            de_config
+                .extract_inner::<ExplorationConfig>(&format!("stacks.{}", Exploration::id()))?,
             ExplorationConfig {
                 number_of_candidates: 42,
                 ..ExplorationConfig::default()
@@ -271,11 +275,11 @@ mod tests {
         );
         assert_approx_eq!(
             f32,
-            de_config.extract_inner::<f32>(&format!("{}.alpha", Exploration::id()))?,
+            de_config.extract_inner::<f32>(&format!("stacks.{}.alpha", Exploration::id()))?,
             0.42,
         );
         assert!(de_config
-            .extract_inner::<f32>(&format!("{}.beta", Exploration::id()))
+            .extract_inner::<f32>(&format!("stacks.{}.beta", Exploration::id()))
             .is_err());
         Ok(())
     }
