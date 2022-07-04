@@ -168,10 +168,10 @@ impl FeedScope for SqliteStorage {
             nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score, ur.userReaction,
             po.inBatchIndex
             FROM NewsResource as nr, NewscatcherData as nc, UserReaction as ur,
-            FeedDocuments as fd, PresentationOrdering as po
-            ON fd.documentId = nr.documentId, fd.documentId = nc.documentId,
-            fd.documentId = ur.documentId, fd.documentId = po.documentId
-            ORDERED BY po.timestamp, po.inBatchIndex ASC;",
+            FeedDocument as fd, PresentationOrdering as po
+            ON fd.documentId = nr.documentId AND fd.documentId = nc.documentId AND
+            fd.documentId = ur.documentId AND fd.documentId = po.documentId
+            ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut con)
         .await
@@ -379,5 +379,20 @@ mod tests {
             assert_eq!(history.snippet, doc.resource.snippet);
             assert_eq!(history.title, doc.resource.title);
         });
+    }
+
+    #[tokio::test]
+    async fn test_feed_methods() {
+        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        storage.init_database().await.unwrap();
+        let feed = storage.feed().fetch().await.unwrap();
+        assert!(feed.is_empty());
+
+        let docs = create_documents(10);
+        storage.feed().store_documents(&docs).await.unwrap();
+
+        let feed = storage.feed().fetch().await.unwrap();
+
+        assert_eq!(feed.len(), docs.len());
     }
 }
