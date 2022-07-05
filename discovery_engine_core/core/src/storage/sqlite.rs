@@ -25,6 +25,7 @@ use sqlx::{
 };
 use url::Url;
 use uuid::Uuid;
+use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -359,7 +360,17 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
             domain_rank: doc.domain_rank,
             score: doc.score,
         };
-        let user_reacted = doc.user_reaction.and_then(FromPrimitive::from_u32);
+        let user_reacted: Option<UserReaction> = doc
+            .user_reaction
+            .map(|value| {
+                UserReaction::from_u32(value).ok_or_else(|| {
+                    Error::Database(GenericError::from(format!(
+                        "Failed to convert {} to UserReaction",
+                        value
+                    )))
+                })
+            })
+            .transpose()?;
 
         Ok(ApiDocumentView {
             document_id: doc.document_id.into(),
