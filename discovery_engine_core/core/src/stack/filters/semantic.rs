@@ -12,13 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use xayn_discovery_engine_ai::{nan_safe_f32_cmp, pairwise_cosine_similarity};
 
 use crate::document::{Document, WeightedSource};
+
+use super::position_max_by_source;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
@@ -205,7 +207,7 @@ impl Default for SemanticFilterConfig {
 /// Filters the documents semantically.
 pub(crate) fn filter_semantically(
     documents: Vec<Document>,
-    _sources: &[WeightedSource], // TODO use in follow up pr
+    sources: &[WeightedSource],
     config: &SemanticFilterConfig,
 ) -> Vec<Document> {
     if documents.len() < 2 {
@@ -220,9 +222,17 @@ pub(crate) fn filter_semantically(
         Criterion::MaxClusters(max_clusters) => find_n_clusters(&dendrogram, max_clusters),
     };
 
+    // among documents with the same label, keep the one with heaviest source weight
     izip!(documents, labels)
-        .unique_by(|(_, label)| *label)
-        .map(|(document, _)| document)
+        .fold(HashMap::new(), |mut map, (doc, label)| {
+            map.entry(label).or_insert_with(Vec::new).push(doc);
+            map
+        })
+        .into_values()
+        .map(|mut docs| {
+            let pos = position_max_by_source(&docs, sources).unwrap(/* safe by construction */);
+            docs.swap_remove(pos)
+        })
         .collect()
 }
 
