@@ -135,15 +135,6 @@ impl Storage for SqliteStorage {
     }
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error> {
-        #[derive(sqlx::FromRow)]
-        #[sqlx(rename_all = "camelCase")]
-        struct _HistoricDocument {
-            document_id: Uuid,
-            title: String,
-            snippet: String,
-            url: String,
-        }
-
         let mut con = self
             .pool
             .acquire()
@@ -161,15 +152,7 @@ impl Storage for SqliteStorage {
         .await
         .map_err(|err| Error::Database(err.into()))?
         .into_iter()
-        .map(|hd| {
-            let url = Url::parse(&hd.url).map_err(|err| Error::Database(err.into()))?;
-            Ok(HistoricDocument {
-                id: document::Id::from(hd.document_id),
-                url,
-                snippet: hd.snippet,
-                title: hd.title,
-            })
-        })
+        .map(TryInto::try_into)
         .collect()
     }
 
@@ -208,24 +191,6 @@ impl FeedScope for SqliteStorage {
     }
 
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error> {
-        #[derive(sqlx::FromRow)]
-        #[sqlx(rename_all = "camelCase")]
-        struct _ApiDocumentView {
-            document_id: Uuid,
-            title: String,
-            snippet: String,
-            topic: String,
-            url: String,
-            image: Option<String>,
-            date_published: NaiveDateTime,
-            source: String,
-            market: String,
-            domain_rank: u32,
-            score: Option<f32>,
-            user_reaction: Option<u32>,
-            in_batch_index: u32,
-        }
-
         let mut con = self
             .pool
             .acquire()
@@ -249,42 +214,7 @@ impl FeedScope for SqliteStorage {
         .await
         .map_err(|err| Error::Database(err.into()))?
         .into_iter()
-        .map(|doc| {
-            let url = Url::parse(&doc.url).map_err(|err| Error::Database(err.into()))?;
-            let image = doc
-                .image
-                .map(|url| Url::parse(&url).map_err(|err| Error::Database(err.into())))
-                .transpose()?;
-            let (lang_code, country_code) = doc.market.split_at(2);
-            let market = Market {
-                lang_code: lang_code.to_string(),
-                country_code: country_code.to_string(),
-            };
-
-            let news_resource = NewsResource {
-                title: doc.title,
-                snippet: doc.snippet,
-                topic: doc.topic,
-                url,
-                image,
-                date_published: doc.date_published,
-                source: doc.source,
-                market,
-            };
-            let newscatcher_data = NewscatcherData {
-                domain_rank: doc.domain_rank,
-                score: doc.score,
-            };
-            let user_reacted = doc.user_reaction.and_then(FromPrimitive::from_u32);
-
-            Ok(ApiDocumentView {
-                document_id: doc.document_id.into(),
-                news_resource,
-                newscatcher_data,
-                user_reacted,
-                in_batch_index: doc.in_batch_index,
-            })
-        })
+        .map(TryInto::try_into)
         .collect()
     }
 
@@ -356,6 +286,88 @@ impl FeedScope for SqliteStorage {
             .map_err(|err| Error::Database(err.into()))?;
 
         tx.commit().await.map_err(|err| Error::Database(err.into()))
+    }
+}
+
+#[derive(sqlx::FromRow)]
+#[sqlx(rename_all = "camelCase")]
+struct _HistoricDocument {
+    document_id: Uuid,
+    title: String,
+    snippet: String,
+    url: String,
+}
+
+impl TryFrom<_HistoricDocument> for HistoricDocument {
+    type Error = Error;
+
+    fn try_from(doc: _HistoricDocument) -> Result<Self, Self::Error> {
+        let url = Url::parse(&doc.url).map_err(|err| Error::Database(err.into()))?;
+        Ok(HistoricDocument {
+            id: document::Id::from(doc.document_id),
+            url,
+            snippet: doc.snippet,
+            title: doc.title,
+        })
+    }
+}
+
+#[derive(sqlx::FromRow)]
+#[sqlx(rename_all = "camelCase")]
+struct _ApiDocumentView {
+    document_id: Uuid,
+    title: String,
+    snippet: String,
+    topic: String,
+    url: String,
+    image: Option<String>,
+    date_published: NaiveDateTime,
+    source: String,
+    market: String,
+    domain_rank: u32,
+    score: Option<f32>,
+    user_reaction: Option<u32>,
+    in_batch_index: u32,
+}
+
+impl TryFrom<_ApiDocumentView> for ApiDocumentView {
+    type Error = Error;
+
+    fn try_from(doc: _ApiDocumentView) -> Result<Self, Self::Error> {
+        let url = Url::parse(&doc.url).map_err(|err| Error::Database(err.into()))?;
+        let image = doc
+            .image
+            .map(|url| Url::parse(&url).map_err(|err| Error::Database(err.into())))
+            .transpose()?;
+        let (lang_code, country_code) = doc.market.split_at(2);
+        let market = Market {
+            lang_code: lang_code.to_string(),
+            country_code: country_code.to_string(),
+        };
+
+        let news_resource = NewsResource {
+            title: doc.title,
+            snippet: doc.snippet,
+            topic: doc.topic,
+            url,
+            image,
+            date_published: doc.date_published,
+            source: doc.source,
+            market,
+        };
+        let newscatcher_data = NewscatcherData {
+            domain_rank: doc.domain_rank,
+            score: doc.score,
+        };
+        let user_reacted = doc.user_reaction.and_then(FromPrimitive::from_u32);
+
+        Ok(ApiDocumentView {
+            document_id: doc.document_id.into(),
+            news_resource,
+            newscatcher_data,
+            user_reacted,
+            in_batch_index: doc.in_batch_index,
+        })
     }
 }
 
