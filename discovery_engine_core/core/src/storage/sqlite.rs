@@ -30,8 +30,8 @@ use xayn_discovery_engine_providers::Market;
 use crate::{
     document::{self, HistoricDocument, UserReaction},
     storage::{
-        self,
         models::{ApiDocumentView, NewsResource, NewscatcherData},
+        Error,
         FeedScope,
         Storage,
     },
@@ -46,15 +46,15 @@ pub(crate) struct SqliteStorage {
 }
 
 impl SqliteStorage {
-    pub(crate) async fn connect(uri: &str) -> Result<Self, storage::Error> {
+    pub(crate) async fn connect(uri: &str) -> Result<Self, Error> {
         let opt = SqliteConnectOptions::from_str(uri)
-            .map_err(|err| storage::Error::Database(err.into()))?
+            .map_err(|err| Error::Database(err.into()))?
             .create_if_missing(true);
 
         let pool = SqlitePoolOptions::new()
             .connect_with(opt)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         Ok(Self { pool })
     }
@@ -62,7 +62,7 @@ impl SqliteStorage {
     async fn store_new_documents<'a>(
         mut tx: Transaction<'a, Sqlite>,
         documents: impl Iterator<Item = &document::Document> + Clone + Send,
-    ) -> Result<Transaction<'a, Sqlite>, storage::Error> {
+    ) -> Result<Transaction<'a, Sqlite>, Error> {
         // insert id into Document table (fk of HistoricDocument)
         let mut query_builder = QueryBuilder::new("INSERT INTO Document (id) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
@@ -73,7 +73,7 @@ impl SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         // insert id into HistoricDocument table
         let mut query_builder = QueryBuilder::new("INSERT INTO HistoricDocument (documentId) ");
@@ -85,7 +85,7 @@ impl SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         // insert data into NewsResource table
         let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ");
@@ -105,7 +105,7 @@ impl SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         // insert data into NewscatcherData table
         let mut query_builder =
@@ -120,21 +120,21 @@ impl SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
         Ok(tx)
     }
 }
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    async fn init_database(&self) -> Result<(), storage::Error> {
+    async fn init_database(&self) -> Result<(), Error> {
         sqlx::migrate!("src/storage/migrations")
             .run(&self.pool)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))
+            .map_err(|err| Error::Database(err.into()))
     }
 
-    async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, storage::Error> {
+    async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error> {
         #[derive(sqlx::FromRow)]
         #[sqlx(rename_all = "camelCase")]
         struct _HistoricDocument {
@@ -148,7 +148,7 @@ impl Storage for SqliteStorage {
             .pool
             .acquire()
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         sqlx::query_as::<_, _HistoricDocument>(
             "SELECT
@@ -159,10 +159,10 @@ impl Storage for SqliteStorage {
         )
         .fetch_all(&mut con)
         .await
-        .map_err(|err| storage::Error::Database(err.into()))?
+        .map_err(|err| Error::Database(err.into()))?
         .into_iter()
         .map(|hd| {
-            let url = Url::parse(&hd.url).map_err(|err| storage::Error::Database(err.into()))?;
+            let url = Url::parse(&hd.url).map_err(|err| Error::Database(err.into()))?;
             Ok(HistoricDocument {
                 id: document::Id::from(hd.document_id),
                 url,
@@ -180,34 +180,34 @@ impl Storage for SqliteStorage {
 
 #[async_trait]
 impl FeedScope for SqliteStorage {
-    async fn close_document(&self, document: &document::Id) -> Result<(), storage::Error> {
+    async fn close_document(&self, document: &document::Id) -> Result<(), Error> {
         let mut con = self
             .pool
             .acquire()
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
         sqlx::query("DELETE FROM FeedDocument WHERE documentId = ?;")
             .bind(document.as_uuid())
             .execute(&mut con)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
         Ok(())
     }
 
-    async fn clear(&self) -> Result<(), storage::Error> {
+    async fn clear(&self) -> Result<(), Error> {
         let mut con = self
             .pool
             .acquire()
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
         sqlx::query("DELETE FROM FeedDocument;")
             .execute(&mut con)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
         Ok(())
     }
 
-    async fn fetch(&self) -> Result<Vec<ApiDocumentView>, storage::Error> {
+    async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error> {
         #[derive(sqlx::FromRow)]
         #[sqlx(rename_all = "camelCase")]
         struct _ApiDocumentView {
@@ -230,7 +230,7 @@ impl FeedScope for SqliteStorage {
             .pool
             .acquire()
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
         sqlx::query_as::<_, _ApiDocumentView>(
             "SELECT
                 nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
@@ -247,13 +247,13 @@ impl FeedScope for SqliteStorage {
         )
         .fetch_all(&mut con)
         .await
-        .map_err(|err| storage::Error::Database(err.into()))?
+        .map_err(|err| Error::Database(err.into()))?
         .into_iter()
         .map(|doc| {
-            let url = Url::parse(&doc.url).map_err(|err| storage::Error::Database(err.into()))?;
+            let url = Url::parse(&doc.url).map_err(|err| Error::Database(err.into()))?;
             let image = doc
                 .image
-                .map(|url| Url::parse(&url).map_err(|err| storage::Error::Database(err.into())))
+                .map(|url| Url::parse(&url).map_err(|err| Error::Database(err.into())))
                 .transpose()?;
             let (lang_code, country_code) = doc.market.split_at(2);
             let market = Market {
@@ -288,10 +288,7 @@ impl FeedScope for SqliteStorage {
         .collect()
     }
 
-    async fn store_documents(
-        &self,
-        documents: &[document::Document],
-    ) -> Result<(), storage::Error> {
+    async fn store_documents(&self, documents: &[document::Document]) -> Result<(), Error> {
         if documents.is_empty() {
             return Ok(());
         }
@@ -307,11 +304,11 @@ impl FeedScope for SqliteStorage {
             .pool
             .begin()
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         let mut tx = SqliteStorage::store_new_documents(tx, documents.clone())
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         // insert data into FeedDocument table
         let mut query_builder = QueryBuilder::new("INSERT INTO FeedDocument (documentId) ");
@@ -323,7 +320,7 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         // insert data into UserReaction table
         let mut query_builder =
@@ -337,7 +334,7 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
         // insert data into PresentationOrdering table
         let timestamp = Utc::now();
@@ -356,11 +353,9 @@ impl FeedScope for SqliteStorage {
             .persistent(false)
             .execute(&mut tx)
             .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
+            .map_err(|err| Error::Database(err.into()))?;
 
-        tx.commit()
-            .await
-            .map_err(|err| storage::Error::Database(err.into()))
+        tx.commit().await.map_err(|err| Error::Database(err.into()))
     }
 }
 
