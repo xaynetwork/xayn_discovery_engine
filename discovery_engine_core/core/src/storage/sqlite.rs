@@ -21,6 +21,7 @@ use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
     Pool,
     QueryBuilder,
+    Transaction,
 };
 use url::Url;
 use uuid::Uuid;
@@ -56,6 +57,71 @@ impl SqliteStorage {
             .map_err(|err| storage::Error::Database(err.into()))?;
 
         Ok(Self { pool })
+    }
+
+    async fn store_new_documents<'a>(
+        mut tx: Transaction<'a, Sqlite>,
+        documents: impl Iterator<Item = &document::Document> + Clone + Send,
+    ) -> Result<Transaction<'a, Sqlite>, storage::Error> {
+        // insert id into Document table (fk of HistoricDocument)
+        let mut query_builder = QueryBuilder::new("INSERT INTO Document (id) ");
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
+            stm.push_bind(doc.id.as_uuid());
+        });
+        query_builder
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
+
+        // insert id into HistoricDocument table
+        let mut query_builder = QueryBuilder::new("INSERT INTO HistoricDocument (documentId) ");
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
+            stm.push_bind(doc.id.as_uuid());
+        });
+        query_builder
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
+
+        // insert data into NewsResource table
+        let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ");
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
+            stm.push_bind(doc.id.as_uuid())
+                .push_bind(&doc.resource.title)
+                .push_bind(&doc.resource.snippet)
+                .push_bind(&doc.resource.topic)
+                .push_bind(doc.resource.url.to_string())
+                .push_bind(doc.resource.image.as_ref().map(ToString::to_string))
+                .push_bind(&doc.resource.date_published)
+                .push_bind(&doc.resource.source_domain)
+                .push_bind(format!("{}{}", doc.resource.language, doc.resource.country));
+        });
+        query_builder
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
+
+        // insert data into NewscatcherData table
+        let mut query_builder =
+            QueryBuilder::new("INSERT INTO NewscatcherData (documentId, domainRank, score) ");
+        query_builder.push_values(documents.clone(), |mut stm, doc| {
+            stm.push_bind(doc.id.as_uuid())
+                .push_bind(doc.resource.rank as u32)
+                .push_bind(doc.resource.score.unwrap_or_default());
+        });
+        query_builder
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| storage::Error::Database(err.into()))?;
+        Ok(tx)
     }
 }
 
@@ -222,7 +288,6 @@ impl FeedScope for SqliteStorage {
         .collect()
     }
 
-    #[allow(clippy::too_many_lines)]
     async fn store_documents(
         &self,
         documents: &[document::Document],
@@ -238,68 +303,13 @@ impl FeedScope for SqliteStorage {
         let documents = documents.iter().take(BIND_LIMIT / 9);
 
         // Begin transaction
-        let mut tx = self
+        let tx = self
             .pool
             .begin()
             .await
             .map_err(|err| storage::Error::Database(err.into()))?;
 
-        // insert id into Document table (fk of HistoricDocument)
-        let mut query_builder = QueryBuilder::new("INSERT INTO Document (id) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
-        query_builder
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
-
-        // insert id into HistoricDocument table
-        let mut query_builder = QueryBuilder::new("INSERT INTO HistoricDocument (documentId) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
-        query_builder
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
-
-        // insert data into NewsResource table
-        let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid())
-                .push_bind(&doc.resource.title)
-                .push_bind(&doc.resource.snippet)
-                .push_bind(&doc.resource.topic)
-                .push_bind(doc.resource.url.to_string())
-                .push_bind(doc.resource.image.as_ref().map(ToString::to_string))
-                .push_bind(&doc.resource.date_published)
-                .push_bind(&doc.resource.source_domain)
-                .push_bind(format!("{}{}", doc.resource.language, doc.resource.country));
-        });
-        query_builder
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| storage::Error::Database(err.into()))?;
-
-        // insert data into NewscatcherData table
-        let mut query_builder =
-            QueryBuilder::new("INSERT INTO NewscatcherData (documentId, domainRank, score) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid())
-                .push_bind(doc.resource.rank as u32)
-                .push_bind(doc.resource.score.unwrap_or_default());
-        });
-        query_builder
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
+        let mut tx = SqliteStorage::store_new_documents(tx, documents.clone())
             .await
             .map_err(|err| storage::Error::Database(err.into()))?;
 
