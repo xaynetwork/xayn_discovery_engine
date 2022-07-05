@@ -68,6 +68,15 @@ class DocumentId extends UniqueId {
 
 /// Unique identifier of a stack that the [Document] belongs to.
 class StackId extends UniqueId {
+  static const _names = {
+    '77cf9280-bb93-4158-b660-8732927e0dcc': 'Exploration',
+    '1ce442c8-8a96-433e-91db-c0bee37e5a83': 'BreakingNews',
+    '311dc7eb-5fc7-4aa4-8232-e119f7e80e76': 'PersonalizedNews',
+    'd0f699d8-60d2-4008-b3a1-df1cffc4b8a3': 'TrustedNews',
+  };
+
+  String get name => _names[toString()] ?? 'UnknownStack';
+
   StackId() : super();
   StackId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
   StackId.fromJson(Map<String, Object> json) : super.fromJson(json);
