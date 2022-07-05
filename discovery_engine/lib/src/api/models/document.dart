@@ -19,7 +19,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart';
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 
 export 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
@@ -35,6 +35,7 @@ class Document with _$Document {
 
   const factory Document({
     required DocumentId documentId,
+    required StackId stackId,
     required NewsResource resource,
     required UserReaction userReaction,
     required int batchIndex,
@@ -49,6 +50,7 @@ class Document with _$Document {
 extension DocumentApiConversion on domain.Document {
   Document toApiRepr() => Document(
         documentId: documentId,
+        stackId: stackId,
         resource: resource,
         userReaction: userReaction,
         batchIndex: batchIndex,
