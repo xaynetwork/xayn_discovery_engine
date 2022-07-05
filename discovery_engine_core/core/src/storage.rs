@@ -19,7 +19,7 @@ use xayn_discovery_engine_ai::GenericError;
 
 use crate::document::{self, HistoricDocument};
 
-use self::models::ApiDocumentView;
+use self::models::{ApiDocumentView, NewDocument};
 
 pub mod sqlite;
 
@@ -49,7 +49,7 @@ pub(crate) trait FeedScope {
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error>;
 
     // helper function. will be replaced later by move_from_stacks_to_feed
-    async fn store_documents(&self, documents: &[document::Document]) -> Result<(), Error>;
+    async fn store_documents(&self, documents: &[NewDocument]) -> Result<(), Error>;
 }
 
 #[allow(dead_code)]
@@ -64,8 +64,40 @@ pub mod models {
     pub(crate) struct NewDocument {
         pub(crate) id: document::Id,
         pub(crate) news_resource: NewsResource,
-        pub(crate) newscatcher: NewscatcherData,
+        pub(crate) newscatcher_data: NewscatcherData,
         pub(crate) embedding: Embedding,
+    }
+
+    impl From<document::Document> for NewDocument {
+        fn from(doc: document::Document) -> Self {
+            let (news_resource, newscatcher_data) = doc.resource.into();
+            Self {
+                id: doc.id,
+                news_resource,
+                newscatcher_data,
+                embedding: doc.smbert_embedding,
+            }
+        }
+    }
+
+    impl From<document::NewsResource> for (NewsResource, NewscatcherData) {
+        fn from(resource: document::NewsResource) -> Self {
+            let news_resource = NewsResource {
+                title: resource.title,
+                snippet: resource.snippet,
+                topic: resource.topic,
+                url: resource.url,
+                image: resource.image,
+                date_published: resource.date_published,
+                source: resource.source_domain,
+                market: (resource.country, resource.language).into(),
+            };
+            let newscatcher_data = NewscatcherData {
+                domain_rank: resource.rank as u32,
+                score: resource.score,
+            };
+            (news_resource, newscatcher_data)
+        }
     }
 
     pub(crate) struct ApiDocumentView {

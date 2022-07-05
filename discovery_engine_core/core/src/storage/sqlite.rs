@@ -26,12 +26,11 @@ use sqlx::{
 use url::Url;
 use uuid::Uuid;
 use xayn_discovery_engine_ai::GenericError;
-use xayn_discovery_engine_providers::Market;
 
 use crate::{
     document::{self, HistoricDocument, UserReaction},
     storage::{
-        models::{ApiDocumentView, NewsResource, NewscatcherData},
+        models::{ApiDocumentView, NewDocument, NewsResource, NewscatcherData},
         Error,
         FeedScope,
         Storage,
@@ -62,7 +61,7 @@ impl SqliteStorage {
 
     async fn store_new_documents<'a>(
         mut tx: Transaction<'a, Sqlite>,
-        documents: impl Iterator<Item = &document::Document> + Clone + Send,
+        documents: impl Iterator<Item = &NewDocument> + Clone + Send,
     ) -> Result<Transaction<'a, Sqlite>, Error> {
         // insert id into Document table (fk of HistoricDocument)
         let mut query_builder = QueryBuilder::new("INSERT INTO Document (id) ");
@@ -92,14 +91,17 @@ impl SqliteStorage {
         let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
-                .push_bind(&doc.resource.title)
-                .push_bind(&doc.resource.snippet)
-                .push_bind(&doc.resource.topic)
-                .push_bind(doc.resource.url.to_string())
-                .push_bind(doc.resource.image.as_ref().map(ToString::to_string))
-                .push_bind(&doc.resource.date_published)
-                .push_bind(&doc.resource.source_domain)
-                .push_bind(format!("{}{}", doc.resource.language, doc.resource.country));
+                .push_bind(&doc.news_resource.title)
+                .push_bind(&doc.news_resource.snippet)
+                .push_bind(&doc.news_resource.topic)
+                .push_bind(doc.news_resource.url.to_string())
+                .push_bind(doc.news_resource.image.as_ref().map(ToString::to_string))
+                .push_bind(&doc.news_resource.date_published)
+                .push_bind(&doc.news_resource.source)
+                .push_bind(format!(
+                    "{}{}",
+                    doc.news_resource.market.country_code, doc.news_resource.market.lang_code,
+                ));
         });
         query_builder
             .build()
@@ -113,8 +115,8 @@ impl SqliteStorage {
             QueryBuilder::new("INSERT INTO NewscatcherData (documentId, domainRank, score) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
-                .push_bind(doc.resource.rank as u32)
-                .push_bind(doc.resource.score);
+                .push_bind(doc.newscatcher_data.domain_rank)
+                .push_bind(doc.newscatcher_data.score);
         });
         query_builder
             .build()
@@ -219,7 +221,7 @@ impl FeedScope for SqliteStorage {
         .collect()
     }
 
-    async fn store_documents(&self, documents: &[document::Document]) -> Result<(), Error> {
+    async fn store_documents(&self, documents: &[NewDocument]) -> Result<(), Error> {
         if documents.is_empty() {
             return Ok(());
         }
@@ -340,11 +342,7 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
             .image
             .map(|url| Url::parse(&url).map_err(|err| Error::Database(err.into())))
             .transpose()?;
-        let (lang_code, country_code) = doc.market.split_at(2);
-        let market = Market {
-            lang_code: lang_code.to_string(),
-            country_code: country_code.to_string(),
-        };
+        let market = doc.market.split_at(2);
 
         let news_resource = NewsResource {
             title: doc.title,
@@ -354,7 +352,7 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
             image,
             date_published: doc.date_published,
             source: doc.source,
-            market,
+            market: market.into(),
         };
         let newscatcher_data = NewscatcherData {
             domain_rank: doc.domain_rank,
@@ -384,11 +382,11 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
 
 #[cfg(test)]
 mod tests {
-    use crate::{document::NewsResource, stack};
+    use crate::{document::NewsResource, stack, storage::models::NewDocument};
 
     use super::*;
 
-    fn create_documents(n: u64) -> Vec<document::Document> {
+    fn create_documents(n: u64) -> Vec<NewDocument> {
         (0..n)
             .map(|i| {
                 let id = document::Id::new();
@@ -415,6 +413,7 @@ mod tests {
                     },
                     ..document::Document::default()
                 }
+                .into()
             })
             .collect()
     }
@@ -433,9 +432,9 @@ mod tests {
         assert_eq!(history.len(), docs.len());
         history.iter().zip(docs).for_each(|(history, doc)| {
             assert_eq!(history.id, doc.id);
-            assert_eq!(history.title, doc.resource.title);
-            assert_eq!(history.snippet, doc.resource.snippet);
-            assert_eq!(history.url, doc.resource.url);
+            assert_eq!(history.title, doc.news_resource.title);
+            assert_eq!(history.snippet, doc.news_resource.snippet);
+            assert_eq!(history.url, doc.news_resource.url);
         });
     }
 
@@ -457,22 +456,22 @@ mod tests {
             .zip(docs.iter())
             .for_each(|((idx, feed), doc)| {
                 assert_eq!(feed.document_id, doc.id);
-                assert_eq!(feed.news_resource.title, doc.resource.title);
-                assert_eq!(feed.news_resource.snippet, doc.resource.snippet);
-                assert_eq!(feed.news_resource.topic, doc.resource.topic);
-                assert_eq!(feed.news_resource.url, doc.resource.url);
-                assert_eq!(feed.news_resource.image, doc.resource.image);
+                assert_eq!(feed.news_resource.title, doc.news_resource.title);
+                assert_eq!(feed.news_resource.snippet, doc.news_resource.snippet);
+                assert_eq!(feed.news_resource.topic, doc.news_resource.topic);
+                assert_eq!(feed.news_resource.url, doc.news_resource.url);
+                assert_eq!(feed.news_resource.image, doc.news_resource.image);
                 assert_eq!(
                     feed.news_resource.date_published,
-                    doc.resource.date_published
+                    doc.news_resource.date_published
                 );
-                assert_eq!(feed.news_resource.source, doc.resource.source_domain);
+                assert_eq!(feed.news_resource.source, doc.news_resource.source);
+                assert_eq!(feed.news_resource.market, doc.news_resource.market);
                 assert_eq!(
-                    feed.news_resource.market,
-                    (&doc.resource.country, &doc.resource.language).into()
+                    feed.newscatcher_data.domain_rank,
+                    doc.newscatcher_data.domain_rank
                 );
-                assert_eq!(feed.newscatcher_data.domain_rank, doc.resource.rank as u32);
-                assert_eq!(feed.newscatcher_data.score, doc.resource.score);
+                assert_eq!(feed.newscatcher_data.score, doc.newscatcher_data.score);
                 assert_eq!(feed.in_batch_index, idx as u32);
             });
 

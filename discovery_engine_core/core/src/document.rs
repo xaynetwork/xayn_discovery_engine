@@ -302,7 +302,7 @@ pub(crate) mod tests {
                 date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
                 score: None,
                 rank: 0,
-                country: "en".to_string(),
+                country: "GB".to_string(),
                 language: "en".to_string(),
                 topic: "news".to_string(),
             }
@@ -320,7 +320,7 @@ pub(crate) mod tests {
             rank: Rank::new(10),
             snippet: "summary of the article".to_string(),
             topic: "news".to_string(),
-            country: "EN".to_string(),
+            country: "GB".to_string(),
             language: "en".to_string(),
             date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
             url: UrlWithDomain::new(Url::parse("https://example.com/news/").unwrap()).unwrap(),
