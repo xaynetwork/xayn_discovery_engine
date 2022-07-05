@@ -212,7 +212,7 @@ impl FeedScope for SqliteStorage {
             let user_reacted = doc.user_reaction.and_then(FromPrimitive::from_u32);
 
             Ok(ApiDocumentView {
-                document_id: document::Id::from(doc.document_id),
+                document_id: doc.document_id.into(),
                 news_resource,
                 newscatcher_data,
                 user_reacted,
