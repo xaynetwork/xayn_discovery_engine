@@ -115,8 +115,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_filter_empty() {
-        assert_eq!("", Filter::default().build());
+    fn test_filter_empty_allows_all() {
+        assert_eq!(Filter::default().build(), "*");
     }
 
     #[test]
@@ -133,10 +133,5 @@ mod tests {
     fn test_filter_remove_invalid_char() {
         let filter = Filter::default().add_keyword("a\"b");
         assert_eq!("(ab)", filter.build());
-    }
-
-    #[test]
-    fn test_empty_filter_is_wildcard() {
-        assert_eq!(Filter::default().build(), "*");
     }
 }
