@@ -113,7 +113,7 @@ impl SqliteStorage {
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
                 .push_bind(doc.resource.rank as u32)
-                .push_bind(doc.resource.score.unwrap_or_default());
+                .push_bind(doc.resource.score);
         });
         query_builder
             .build()
@@ -221,7 +221,7 @@ impl FeedScope for SqliteStorage {
             source: String,
             market: String,
             domain_rank: u32,
-            score: f32,
+            score: Option<f32>,
             user_reaction: Option<u32>,
             in_batch_index: u32,
         }
@@ -273,7 +273,7 @@ impl FeedScope for SqliteStorage {
             };
             let newscatcher_data = NewscatcherData {
                 domain_rank: doc.domain_rank,
-                score: Some(doc.score),
+                score: doc.score,
             };
             let user_reacted = doc.user_reaction.and_then(FromPrimitive::from_u32);
 
@@ -454,10 +454,7 @@ mod tests {
                     (&doc.resource.country, &doc.resource.language).into()
                 );
                 assert_eq!(feed.newscatcher_data.domain_rank, doc.resource.rank as u32);
-                assert_eq!(
-                    feed.newscatcher_data.score,
-                    doc.resource.score.or(Some(0.0))
-                );
+                assert_eq!(feed.newscatcher_data.score, doc.resource.score);
                 assert_eq!(feed.in_batch_index, idx as u32);
             });
 
