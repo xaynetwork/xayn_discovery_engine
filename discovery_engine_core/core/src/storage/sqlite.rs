@@ -320,7 +320,7 @@ impl FeedScope for SqliteStorage {
             QueryBuilder::new("INSERT INTO UserReaction (documentId, userReaction) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
-                .push_bind(UserReaction::Neutral as u32);
+                .push_bind(UserReaction::default() as u32);
         });
         query_builder
             .build()
