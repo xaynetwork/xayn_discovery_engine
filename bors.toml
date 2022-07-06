@@ -1,5 +1,5 @@
 status = [ "ci-ok"]
-timeout_sec = 18000 # five hours
+timeout_sec = 3600 # 1 hours
 required_approvals = 1
 use_squash_merge = true
 delete_merged_branches = true
