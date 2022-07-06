@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:async' show StreamSubscription;
+
 import 'package:universal_platform/universal_platform.dart'
     show UniversalPlatform;
 import 'package:xayn_discovery_engine/src/api/api.dart'
@@ -55,6 +56,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         TrendingTopicsRequestSucceeded,
         TrendingTopicsRequestFailed,
         SearchBy;
+import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
+    show MapEvent;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -663,123 +666,4 @@ class DiscoveryEngine {
       );
     }
   }
-}
-
-extension _MapEvent on EngineEvent {
-  EngineEvent mapEvent({
-    bool? restoreFeedSucceeded,
-    bool? restoreFeedFailed,
-    bool? nextFeedBatchRequestSucceeded,
-    bool? nextFeedBatchRequestFailed,
-    bool? nextFeedBatchAvailable,
-    bool? addExcludedSourceRequestSucceeded,
-    bool? removeExcludedSourceRequestSucceeded,
-    bool? excludedSourcesListRequestSucceeded,
-    bool? excludedSourcesListRequestFailed,
-    bool? addTrustedSourceRequestSucceeded,
-    bool? removeTrustedSourceRequestSucceeded,
-    bool? trustedSourcesListRequestSucceeded,
-    bool? trustedSourcesListRequestFailed,
-    bool? fetchingAssetsStarted,
-    bool? fetchingAssetsProgressed,
-    bool? fetchingAssetsFinished,
-    bool? clientEventSucceeded,
-    bool? resetAiSucceeded,
-    bool? engineExceptionRaised,
-    bool? documentsUpdated,
-    bool? activeSearchRequestSucceeded,
-    bool? activeSearchRequestFailed,
-    bool? nextActiveSearchBatchRequestSucceeded,
-    bool? nextActiveSearchBatchRequestFailed,
-    bool? restoreActiveSearchSucceeded,
-    bool? restoreActiveSearchFailed,
-    bool? activeSearchTermRequestSucceeded,
-    bool? activeSearchTermRequestFailed,
-    bool? activeSearchClosedSucceeded,
-    bool? activeSearchClosedFailed,
-    bool? deepSearchRequestSucceeded,
-    bool? deepSearchRequestFailed,
-    bool? trendingTopicsRequestSucceeded,
-    bool? trendingTopicsRequestFailed,
-    bool? availableSourcesListRequestSucceeded,
-    bool? availableSourcesListRequestFailed,
-    bool? setSourcesRequestSucceeded,
-    bool? setSourcesRequestFailed,
-  }) =>
-      map(
-        restoreFeedSucceeded: _maybePassThrough(restoreFeedSucceeded),
-        restoreFeedFailed: _maybePassThrough(restoreFeedFailed),
-        nextFeedBatchRequestSucceeded:
-            _maybePassThrough(nextFeedBatchRequestSucceeded),
-        nextFeedBatchRequestFailed:
-            _maybePassThrough(nextFeedBatchRequestFailed),
-        nextFeedBatchAvailable: _maybePassThrough(nextFeedBatchAvailable),
-        addExcludedSourceRequestSucceeded:
-            _maybePassThrough(addExcludedSourceRequestSucceeded),
-        removeExcludedSourceRequestSucceeded:
-            _maybePassThrough(removeExcludedSourceRequestSucceeded),
-        excludedSourcesListRequestSucceeded:
-            _maybePassThrough(excludedSourcesListRequestSucceeded),
-        excludedSourcesListRequestFailed:
-            _maybePassThrough(excludedSourcesListRequestFailed),
-        addTrustedSourceRequestSucceeded:
-            _maybePassThrough(addTrustedSourceRequestSucceeded),
-        removeTrustedSourceRequestSucceeded:
-            _maybePassThrough(removeTrustedSourceRequestSucceeded),
-        trustedSourcesListRequestSucceeded:
-            _maybePassThrough(trustedSourcesListRequestSucceeded),
-        trustedSourcesListRequestFailed:
-            _maybePassThrough(trustedSourcesListRequestFailed),
-        fetchingAssetsStarted: _maybePassThrough(fetchingAssetsStarted),
-        fetchingAssetsProgressed: _maybePassThrough(fetchingAssetsProgressed),
-        fetchingAssetsFinished: _maybePassThrough(fetchingAssetsFinished),
-        clientEventSucceeded: _maybePassThrough(clientEventSucceeded),
-        resetAiSucceeded: _maybePassThrough(resetAiSucceeded),
-        engineExceptionRaised: _maybePassThrough(engineExceptionRaised),
-        documentsUpdated: _maybePassThrough(documentsUpdated),
-        activeSearchRequestSucceeded:
-            _maybePassThrough(activeSearchRequestSucceeded),
-        activeSearchRequestFailed: _maybePassThrough(activeSearchRequestFailed),
-        nextActiveSearchBatchRequestSucceeded:
-            _maybePassThrough(nextActiveSearchBatchRequestSucceeded),
-        nextActiveSearchBatchRequestFailed:
-            _maybePassThrough(nextActiveSearchBatchRequestFailed),
-        restoreActiveSearchSucceeded:
-            _maybePassThrough(restoreActiveSearchSucceeded),
-        restoreActiveSearchFailed: _maybePassThrough(restoreActiveSearchFailed),
-        activeSearchTermRequestSucceeded:
-            _maybePassThrough(activeSearchTermRequestSucceeded),
-        activeSearchTermRequestFailed:
-            _maybePassThrough(activeSearchTermRequestFailed),
-        activeSearchClosedSucceeded:
-            _maybePassThrough(activeSearchClosedSucceeded),
-        activeSearchClosedFailed: _maybePassThrough(activeSearchClosedFailed),
-        deepSearchRequestSucceeded:
-            _maybePassThrough(deepSearchRequestSucceeded),
-        deepSearchRequestFailed: _maybePassThrough(deepSearchRequestFailed),
-        trendingTopicsRequestSucceeded:
-            _maybePassThrough(trendingTopicsRequestSucceeded),
-        trendingTopicsRequestFailed:
-            _maybePassThrough(trendingTopicsRequestFailed),
-        availableSourcesListRequestSucceeded:
-            _maybePassThrough(availableSourcesListRequestSucceeded),
-        availableSourcesListRequestFailed:
-            _maybePassThrough(availableSourcesListRequestFailed),
-        setSourcesRequestSucceeded:
-            _maybePassThrough(setSourcesRequestSucceeded),
-        setSourcesRequestFailed: _maybePassThrough(setSourcesRequestFailed),
-      );
-
-  EngineEvent Function(EngineEvent) _maybePassThrough(bool? condition) {
-    return condition ?? false ? _passThrough : _orElse;
-  }
-
-  // just pass through the original event
-  EngineEvent _passThrough(EngineEvent event) => event;
-
-  // in case of a wrong event in response create an EngineExceptionRaised
-  EngineEvent _orElse(EngineEvent event) =>
-      const EngineEvent.engineExceptionRaised(
-        EngineExceptionReason.wrongEventInResponse,
-      );
 }
