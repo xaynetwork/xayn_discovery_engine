@@ -39,8 +39,12 @@ impl Filter {
 
     /// Build the expression.
     pub(crate) fn build(&self) -> String {
-        let keywords = Expr::or_from_iter(self.keywords.iter().map(|k| format!("({})", k)));
-        keywords.build()
+        if self.keywords.is_empty() {
+            "*".into()
+        } else {
+            let keywords = Expr::or_from_iter(self.keywords.iter().map(|k| format!("({})", k)));
+            keywords.build()
+        }
     }
 }
 
@@ -111,8 +115,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_filter_empty() {
-        assert_eq!("", Filter::default().build());
+    fn test_filter_empty_allows_all() {
+        assert_eq!(Filter::default().build(), "*");
     }
 
     #[test]
