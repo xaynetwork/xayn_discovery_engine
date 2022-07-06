@@ -42,6 +42,8 @@ void main() {
       applicationDirectoryPath: '',
       feedMarkets: {const FeedMarket(countryCode: '', langCode: '')},
       manifest: Manifest([]),
+      headlinesProviderPath: '',
+      newsProviderPath: '',
     );
     final setupData = NativeSetupData(
       smbertVocab: '',

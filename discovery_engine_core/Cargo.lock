@@ -3928,6 +3928,7 @@ dependencies = [
 name = "xayn-discovery-engine-providers"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "claim",
  "derive_more",
@@ -3935,6 +3936,7 @@ dependencies = [
  "itertools",
  "lazy_static",
  "maplit",
+ "once_cell",
  "regex",
  "reqwest",
  "serde",
@@ -3981,6 +3983,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "tokio",
+ "url",
  "xayn-discovery-engine-providers",
 ]
 

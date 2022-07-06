@@ -20,9 +20,8 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
-    Client,
-    CommonQueryParts,
     GenericArticle,
+    HeadlinesProvider,
     HeadlinesQuery,
     Market,
     RankLimit,
@@ -41,7 +40,7 @@ use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for breaking news items.
 pub(crate) struct BreakingNews {
-    client: Arc<Client>,
+    client: Arc<dyn HeadlinesProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: u32,
@@ -51,7 +50,7 @@ pub(crate) struct BreakingNews {
 
 impl BreakingNews {
     /// Creates a breaking news stack.
-    pub(crate) fn new(config: &EndpointConfig, client: Arc<Client>) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn HeadlinesProvider>) -> Self {
         Self {
             client,
             excluded_sources: config.excluded_sources.clone(),
@@ -123,7 +122,7 @@ impl Ops for BreakingNews {
 }
 
 fn spawn_headlines_request(
-    client: Arc<Client>,
+    client: Arc<dyn HeadlinesProvider>,
     market: Market,
     page_size: usize,
     page: usize,
@@ -133,17 +132,15 @@ fn spawn_headlines_request(
     tokio::spawn(async move {
         let market = market;
         let query = HeadlinesQuery {
-            common: CommonQueryParts {
-                market: Some(&market),
-                page_size,
-                page,
-                rank_limit: RankLimit::LimitedByMarket,
-                excluded_sources: &excluded_sources,
-            },
+            market: &market,
+            page_size,
+            page,
+            rank_limit: RankLimit::LimitedByMarket,
+            excluded_sources: &excluded_sources,
             trusted_sources: &[],
             topic: None,
             max_age_days: Some(max_headline_age_days),
         };
-        client.query_articles(&query).await.map_err(Into::into)
+        client.query_headlines(&query).await.map_err(Into::into)
     })
 }

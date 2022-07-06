@@ -39,6 +39,8 @@ class InitConfigFfi with EquatableMixin {
   final List<FeedMarket> feedMarkets;
   final List<String> trustedSources;
   final List<String> excludedSources;
+  final String newsProviderPath;
+  final String headlinesProviderPath;
   final String smbertVocab;
   final String smbertModel;
   final String kpeVocab;
@@ -55,6 +57,8 @@ class InitConfigFfi with EquatableMixin {
         feedMarkets,
         trustedSources,
         excludedSources,
+        newsProviderPath,
+        headlinesProviderPath,
         smbertVocab,
         smbertModel,
         kpeVocab,
@@ -78,6 +82,8 @@ class InitConfigFfi with EquatableMixin {
         feedMarkets: configuration.feedMarkets.toList(),
         trustedSources: trustedSources.toStringList(),
         excludedSources: excludedSources.toStringList(),
+        newsProviderPath: configuration.newsProviderPath,
+        headlinesProviderPath: configuration.headlinesProviderPath,
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
         kpeVocab: setupData.kpeVocab,
@@ -94,6 +100,8 @@ class InitConfigFfi with EquatableMixin {
     required this.feedMarkets,
     required this.trustedSources,
     required this.excludedSources,
+    required this.newsProviderPath,
+    required this.headlinesProviderPath,
     required this.smbertVocab,
     required this.smbertModel,
     required this.kpeVocab,
@@ -118,6 +126,10 @@ class InitConfigFfi with EquatableMixin {
     trustedSources.writeNative(ffi.init_config_place_of_trusted_sources(place));
     excludedSources
         .writeNative(ffi.init_config_place_of_excluded_sources(place));
+    newsProviderPath
+        .writeNative(ffi.init_config_place_of_news_provider_path(place));
+    headlinesProviderPath
+        .writeNative(ffi.init_config_place_of_headlines_provider_path(place));
     smbertVocab.writeNative(ffi.init_config_place_of_smbert_vocab(place));
     smbertModel.writeNative(ffi.init_config_place_of_smbert_model(place));
     kpeVocab.writeNative(ffi.init_config_place_of_kpe_vocab(place));
@@ -141,6 +153,12 @@ class InitConfigFfi with EquatableMixin {
       ),
       excludedSources: StringListFfi.readNative(
         ffi.init_config_place_of_excluded_sources(config),
+      ),
+      newsProviderPath: StringFfi.readNative(
+        ffi.init_config_place_of_news_provider_path(config),
+      ),
+      headlinesProviderPath: StringFfi.readNative(
+        ffi.init_config_place_of_headlines_provider_path(config),
       ),
       smbertVocab:
           StringFfi.readNative(ffi.init_config_place_of_smbert_vocab(config)),

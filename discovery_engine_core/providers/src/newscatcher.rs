@@ -12,8 +12,202 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use chrono::NaiveDateTime;
+use crate::{
+    helpers::rest_endpoint::RestEndpoint,
+    models::NewsQuery,
+    Error,
+    GenericArticle,
+    HeadlinesProvider,
+    HeadlinesQuery,
+    Market,
+    NewsProvider,
+    RankLimit,
+    TrustedHeadlinesProvider,
+    TrustedHeadlinesQuery,
+};
+use async_trait::async_trait;
+use chrono::{NaiveDateTime, Utc};
+use derive_more::Deref;
+use std::sync::Arc;
+
 use serde::{de, Deserialize, Deserializer, Serialize};
+use url::{form_urlencoded, Url, UrlQuery};
+
+#[derive(Deref)]
+pub struct NewscatcherNewsProvider {
+    endpoint: RestEndpoint,
+}
+
+impl NewscatcherNewsProvider {
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self {
+            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+        }
+    }
+
+    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn NewsProvider> {
+        Arc::new(Self { endpoint })
+    }
+}
+
+fn max_age_to_date_string(max_age_days: usize) -> String {
+    // (lj): This _could_ overflow if we specified trillions of days, but I don't
+    // think that's worth guarding against.
+    let days = max_age_days as i64;
+
+    let from = Utc::today() - chrono::Duration::days(days);
+    from.format("%Y/%m/%d").to_string()
+}
+
+#[allow(clippy::unnecessary_wraps)]
+fn to_generic_articles(articles: Vec<Article>) -> Result<Vec<GenericArticle>, Error> {
+    let articles = articles
+        .into_iter()
+        .flat_map(GenericArticle::try_from)
+        .collect();
+    Ok(articles)
+}
+
+#[async_trait]
+impl NewsProvider for NewscatcherNewsProvider {
+    async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error> {
+        let response = self
+            .endpoint
+            .get_request::<Response, _>(|mut query| {
+                query
+                    .append_pair("page_size", &request.page_size.to_string())
+                    .append_pair("page", &request.page.to_string());
+
+                if !request.excluded_sources.is_empty() {
+                    query.append_pair("not_sources", &request.excluded_sources.join(","));
+                }
+
+                query.append_pair("sort_by", "relevancy");
+                append_market(&mut query, request.market, &request.rank_limit);
+                query.append_pair("q", &request.filter.build());
+
+                if let Some(days) = &request.max_age_days {
+                    query.append_pair("from", &max_age_to_date_string(*days));
+                }
+            })
+            .await?;
+
+        to_generic_articles(response.articles)
+    }
+}
+
+pub struct NewscatcherHeadlinesProvider {
+    endpoint: RestEndpoint,
+}
+
+impl NewscatcherHeadlinesProvider {
+    /// Create a new provider.
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self {
+            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+        }
+    }
+
+    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn HeadlinesProvider> {
+        Arc::new(Self { endpoint })
+    }
+}
+
+#[async_trait]
+impl HeadlinesProvider for NewscatcherHeadlinesProvider {
+    async fn query_headlines(
+        &self,
+        request: &HeadlinesQuery<'_>,
+    ) -> Result<Vec<GenericArticle>, Error> {
+        let response = self
+            .endpoint
+            .get_request::<Response, _>(|mut query| {
+                query
+                    .append_pair("page_size", &request.page_size.to_string())
+                    .append_pair("page", &request.page.to_string());
+
+                if !request.excluded_sources.is_empty() {
+                    query.append_pair("not_sources", &request.excluded_sources.join(","));
+                }
+
+                append_market(&mut query, request.market, &request.rank_limit);
+
+                if let Some(days) = request.max_age_days {
+                    query.append_pair("when", &format!("{}d", days));
+                }
+
+                if let Some(topic) = &request.topic {
+                    query.append_pair("topic", topic);
+                }
+            })
+            .await?;
+
+        to_generic_articles(response.articles)
+    }
+}
+
+/// Newscatcher based implementation of a `TrustedSourcesProvider`.
+pub struct NewscatcherTrustedHeadlinesProvider {
+    endpoint: RestEndpoint,
+}
+
+impl NewscatcherTrustedHeadlinesProvider {
+    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+        Self {
+            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+        }
+    }
+
+    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn TrustedHeadlinesProvider> {
+        Arc::new(Self { endpoint })
+    }
+}
+
+#[async_trait]
+impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
+    async fn query_trusted_sources(
+        &self,
+        request: &TrustedHeadlinesQuery<'_>,
+    ) -> Result<Vec<GenericArticle>, Error> {
+        let response = self
+            .endpoint
+            .get_request::<Response, _>(|mut query| {
+                query
+                    .append_pair("page_size", &request.page_size.to_string())
+                    .append_pair("page", &request.page.to_string());
+
+                if !request.excluded_sources.is_empty() {
+                    query.append_pair("not_sources", &request.excluded_sources.join(","));
+                }
+
+                if let Some(days) = request.max_age_days {
+                    query.append_pair("when", &format!("{}d", days));
+                }
+
+                if !request.trusted_sources.is_empty() {
+                    query.append_pair("sources", &request.trusted_sources.join(","));
+                }
+            })
+            .await?;
+
+        to_generic_articles(response.articles)
+    }
+}
+
+fn append_market(
+    query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>,
+    market: &Market,
+    rank_limit: &RankLimit,
+) {
+    query
+        .append_pair("lang", &market.lang_code)
+        .append_pair("countries", &market.country_code);
+
+    let rank_limit = (rank_limit, market.quality_rank_limit());
+    if let (RankLimit::LimitedByMarket, Some(limit)) = rank_limit {
+        query.append_pair("to_rank", &limit.to_string());
+    }
+}
 
 /// A news article
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -130,6 +324,334 @@ pub struct Response {
 mod tests {
     use super::*;
     use chrono::NaiveDate;
+
+    use crate::{Filter, HeadlinesQuery, Market, Rank, UrlWithDomain};
+
+    use chrono::NaiveDateTime;
+
+    use crate::models::RankLimit;
+    use wiremock::{
+        matchers::{header, method, path, query_param, query_param_is_missing},
+        Mock,
+        MockServer,
+        ResponseTemplate,
+    };
+
+    #[tokio::test]
+    async fn test_simple_news_query() {
+        let mock_server = MockServer::start().await;
+        let provider = NewscatcherNewsProvider::new(
+            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v1/search-news"))
+            .and(query_param("q", "(Climate change)"))
+            .and(query_param("sort_by", "relevancy"))
+            .and(query_param("lang", "en"))
+            .and(query_param("countries", "AU"))
+            .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = &Market {
+            lang_code: "en".to_string(),
+            country_code: "AU".to_string(),
+        };
+        let filter = &Filter::default().add_keyword("Climate change");
+
+        let params = NewsQuery {
+            page_size: 2,
+            page: 1,
+            rank_limit: RankLimit::LimitedByMarket,
+            excluded_sources: &[],
+            market,
+            filter,
+            max_age_days: None,
+        };
+
+        let docs = provider.query_news(&params).await.unwrap();
+
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        assert_eq!(doc.title, "Businesses \u{2018}more concerned than ever'");
+    }
+
+    #[tokio::test]
+    async fn test_news_rank_limit() {
+        let mock_server = MockServer::start().await;
+        let provider = NewscatcherNewsProvider::new(
+            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v1/search-news"))
+            .and(query_param("q", "(Climate change)"))
+            .and(query_param("sort_by", "relevancy"))
+            .and(query_param("lang", "de"))
+            .and(query_param("countries", "AT"))
+            .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
+            .and(query_param("to_rank", "70000"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = &Market {
+            lang_code: "de".to_string(),
+            country_code: "AT".to_string(),
+        };
+        let filter = &Filter::default().add_keyword("Climate change");
+
+        let params = NewsQuery {
+            page_size: 2,
+            page: 1,
+            rank_limit: RankLimit::LimitedByMarket,
+            excluded_sources: &[],
+            market,
+            filter,
+            max_age_days: None,
+        };
+
+        let docs = provider.query_news(&params).await.unwrap();
+
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        assert_eq!(doc.title, "Businesses \u{2018}more concerned than ever'");
+    }
+
+    #[tokio::test]
+    async fn test_simple_news_query_with_additional_parameters() {
+        let mock_server = MockServer::start().await;
+        let provider = NewscatcherNewsProvider::new(
+            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v1/search-news"))
+            .and(query_param("q", "(Climate change)"))
+            .and(query_param("sort_by", "relevancy"))
+            .and(query_param("lang", "de"))
+            .and(query_param("countries", "DE"))
+            .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
+            .and(query_param("from", max_age_to_date_string(3)))
+            .and(query_param("not_sources", "dodo.com,dada.net"))
+            .and(query_param("to_rank", "9000"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = &Market {
+            lang_code: "de".to_string(),
+            country_code: "DE".to_string(),
+        };
+        let filter = &Filter::default().add_keyword("Climate change");
+
+        let params = NewsQuery {
+            page_size: 2,
+            page: 1,
+            rank_limit: RankLimit::LimitedByMarket,
+            excluded_sources: &["dodo.com".into(), "dada.net".into()],
+            market,
+            filter,
+            max_age_days: Some(3),
+        };
+
+        let docs = provider.query_news(&params).await.unwrap();
+
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        assert_eq!(doc.title, "Businesses \u{2018}more concerned than ever'");
+    }
+
+    #[tokio::test]
+    async fn test_news_multiple_keywords() {
+        let mock_server = MockServer::start().await;
+        let provider = NewscatcherNewsProvider::new(
+            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/msft-vs-aapl.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v1/search-news"))
+            .and(query_param("q", "(Bill Gates) OR (Tim Cook)"))
+            .and(query_param("sort_by", "relevancy"))
+            .and(query_param("lang", "de"))
+            .and(query_param("countries", "DE"))
+            .and(query_param("page_size", "2"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let market = &Market {
+            lang_code: "de".to_string(),
+            country_code: "DE".to_string(),
+        };
+        let filter = &Filter::default()
+            .add_keyword("Bill Gates")
+            .add_keyword("Tim Cook");
+
+        let params = NewsQuery {
+            page_size: 2,
+            page: 1,
+            rank_limit: RankLimit::LimitedByMarket,
+            excluded_sources: &[],
+            market,
+            filter,
+            max_age_days: None,
+        };
+
+        let docs = provider.query_news(&params).await.unwrap();
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(0).unwrap();
+        assert_eq!(
+            doc.title,
+            "Porsche entwickelt Antrieb, der E-Mobilit\u{e4}t teilweise \u{fc}berlegen ist"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_headlines() {
+        let mock_server = MockServer::start().await;
+        let provider = NewscatcherHeadlinesProvider::new(
+            Url::parse(&format!("{}/v1/latest-headlines", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v1/latest-headlines"))
+            .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
+            .and(query_param("lang", "en"))
+            .and(query_param("countries", "US"))
+            .and(query_param("topic", "games"))
+            .and(query_param("when", "3d"))
+            // `sort_by` only supported by the news endpoint
+            .and(query_param_is_missing("sort_by"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let params = HeadlinesQuery {
+            page_size: 2,
+            page: 1,
+            rank_limit: RankLimit::LimitedByMarket,
+            excluded_sources: &[],
+            market: &("US", "en").into(),
+            topic: Some("games"),
+            max_age_days: Some(3),
+            trusted_sources: &[],
+        };
+
+        let docs = provider.query_headlines(&params).await.unwrap();
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        let expected = GenericArticle {
+            title: "Jerusalem blanketed in white after rare snowfall".to_string(),
+            score: None,
+            rank: Rank::new(6510),
+            snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
+            url: UrlWithDomain::parse("https://example.com").unwrap(),
+            image: Some(Url::parse("https://uploads.example.com/image.png").unwrap()),
+            topic: "gaming".to_string(),
+            date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+            country: "US".to_string(),
+            language: "en".to_string()
+        };
+
+        assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
+    }
+
+    #[tokio::test]
+    async fn test_trusted_sources() {
+        let mock_server = MockServer::start().await;
+        let provider = NewscatcherTrustedHeadlinesProvider::new(
+            Url::parse(&format!("{}/v2/trusted-sources", mock_server.uri())).unwrap(),
+            "test-token".into(),
+        );
+
+        let tmpl = ResponseTemplate::new(200)
+            .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
+
+        Mock::given(method("GET"))
+            .and(path("/v2/trusted-sources"))
+            .and(query_param("page_size", "2"))
+            .and(query_param("page", "1"))
+            .and(query_param("sources", "dodo.com,dada.net"))
+            .and(query_param("when", "3d"))
+            // `sort_by` only supported by the news endpoint
+            .and(query_param_is_missing("sort_by"))
+            .and(header("Authorization", "Bearer test-token"))
+            .respond_with(tmpl)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let params = TrustedHeadlinesQuery {
+            market: None,
+            page_size: 2,
+            page: 1,
+            rank_limit: RankLimit::LimitedByMarket,
+            excluded_sources: &[],
+            trusted_sources: &["dodo.com".into(), "dada.net".into()],
+            max_age_days: Some(3),
+        };
+
+        let docs = provider.query_trusted_sources(&params).await.unwrap();
+        assert_eq!(docs.len(), 2);
+
+        let doc = docs.get(1).unwrap();
+        let expected = GenericArticle {
+            title: "Jerusalem blanketed in white after rare snowfall".to_string(),
+            score: None,
+            rank: Rank::new(6510),
+            snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
+            url: UrlWithDomain::parse("https://example.com").unwrap(),
+            image: Some(Url::parse("https://uploads.example.com/image.png").unwrap()),
+            topic: "gaming".to_string(),
+            date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+            country: "US".to_string(),
+            language: "en".to_string()
+        };
+
+        assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
+    }
 
     impl Default for Article {
         fn default() -> Self {

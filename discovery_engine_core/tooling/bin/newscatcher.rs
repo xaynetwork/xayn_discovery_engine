@@ -31,17 +31,18 @@
 )]
 
 use anyhow::{Context, Result};
+use url::Url;
 use xayn_discovery_engine_providers::{
-    Client,
-    CommonQueryParts,
+    HeadlinesProvider,
     HeadlinesQuery,
     Market,
+    NewscatcherHeadlinesProvider,
     RankLimit,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let url = "https://api-gw.xaynet.dev".to_string();
+    let url = Url::parse("https://api-gw.xaynet.dev/newscatcher/v1/latest-headlines").unwrap();
     let token = std::env::var("NEWSCATCHER_DEV_BEARER_AUTH_TOKEN").context(
         "Please provide the NEWSCATCHER_DEV_BEARER_AUTH_TOKEN environment variable for the dev environment. \
                   The token can be found in 1Password",
@@ -51,7 +52,7 @@ async fn main() -> Result<()> {
         .await
         .context("Failed to create download directory. Does it already exist?")?;
 
-    let client = Client::new(token, url);
+    let provider = NewscatcherHeadlinesProvider::new(url, token);
     let market = Market {
         lang_code: "en".to_string(),
         country_code: "US".to_string(),
@@ -59,26 +60,25 @@ async fn main() -> Result<()> {
 
     // This is updated every iteration, based on the response from Newscatcher. So in reality,
     // we'll be fetching more than one page.
-    let mut total_pages = 1;
     let mut page = 1;
-    while page <= total_pages {
-        println!("Fetching page {} of {}", page, total_pages);
+    loop {
+        println!("Fetching page {}", page);
         let params = HeadlinesQuery {
-            common: CommonQueryParts {
-                market: Some(&market),
-                page_size: 100,
-                page,
-                rank_limit: RankLimit::LimitedByMarket,
-                excluded_sources: &[],
-            },
+            market: &market,
+            page_size: 100,
+            page,
+            rank_limit: RankLimit::LimitedByMarket,
+            excluded_sources: &[],
             trusted_sources: &[],
             topic: None,
             max_age_days: None,
         };
-        let raw_response = client.query_newscatcher(&params).await.unwrap();
-        total_pages = raw_response.total_pages;
+        let articles = provider.query_headlines(&params).await.unwrap();
+        if articles.is_empty() {
+            break;
+        }
 
-        let content = serde_json::to_string_pretty(&raw_response.articles)?;
+        let content = serde_json::to_string_pretty(&articles)?;
         tokio::fs::write(
             format!("./headlines_download/page_{:03}.json", page),
             content,
