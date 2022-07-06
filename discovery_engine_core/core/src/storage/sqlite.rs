@@ -26,6 +26,7 @@ use sqlx::{
 use url::Url;
 use uuid::Uuid;
 use xayn_discovery_engine_ai::GenericError;
+use xayn_discovery_engine_providers::Market;
 
 use crate::{
     document::{self, HistoricDocument, UserReaction},
@@ -100,7 +101,7 @@ impl SqliteStorage {
                 .push_bind(&doc.news_resource.source)
                 .push_bind(format!(
                     "{}{}",
-                    doc.news_resource.market.country_code, doc.news_resource.market.lang_code,
+                    doc.news_resource.market.lang_code, doc.news_resource.market.country_code,
                 ));
         });
         query_builder
@@ -342,7 +343,7 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
             .image
             .map(|url| Url::parse(&url).map_err(|err| Error::Database(err.into())))
             .transpose()?;
-        let market = doc.market.split_at(2);
+        let (lang, country) = doc.market.split_at(2);
 
         let news_resource = NewsResource {
             title: doc.title,
@@ -352,7 +353,10 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
             image,
             date_published: doc.date_published,
             source: doc.source,
-            market: market.into(),
+            market: Market {
+                lang_code: lang.to_string(),
+                country_code: country.to_string(),
+            },
         };
         let newscatcher_data = NewscatcherData {
             domain_rank: doc.domain_rank,

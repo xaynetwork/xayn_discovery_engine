@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS NewsResource (
     -- implied by url, but allows us to easier implement
     -- things like pruning history when excluding a source
     source TEXT NOT NULL,
-    -- compound format <2-letter-state><2-letter-lang>
+    -- compound format <2-letter-language><2-letter-country>
     -- should be same as market primary key
     -- but for now it can't be a foreign key
     market TEXT
