@@ -116,7 +116,7 @@ impl SqliteStorage {
             QueryBuilder::new("INSERT INTO NewscatcherData (documentId, domainRank, score) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
             stm.push_bind(doc.id.as_uuid())
-                .push_bind(i64::try_from(doc.newscatcher_data.domain_rank).unwrap_or(i64::MAX))
+                .push_bind(doc.newscatcher_data.domain_rank.to_string())
                 .push_bind(doc.newscatcher_data.score);
         });
         query_builder
@@ -328,7 +328,7 @@ struct _ApiDocumentView {
     date_published: NaiveDateTime,
     source: String,
     market: String,
-    domain_rank: i64,
+    domain_rank: String,
     score: Option<f32>,
     user_reaction: Option<u32>,
     in_batch_index: u32,
@@ -359,7 +359,7 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
             },
         };
         let newscatcher_data = NewscatcherData {
-            domain_rank: u64::try_from(doc.domain_rank).unwrap_or(u64::MIN),
+            domain_rank: u64::from_str(&doc.domain_rank).unwrap_or(u64::MIN),
             score: doc.score,
         };
         let user_reacted: Option<UserReaction> = doc
@@ -502,9 +502,6 @@ mod tests {
         storage.feed().store_documents(&docs).await.unwrap();
         let feed = storage.feed().fetch().await.unwrap();
 
-        assert_eq!(
-            feed[0].newscatcher_data.domain_rank,
-            u64::try_from(i64::MAX).unwrap()
-        );
+        assert_eq!(feed[0].newscatcher_data.domain_rank, u64::MAX);
     }
 }

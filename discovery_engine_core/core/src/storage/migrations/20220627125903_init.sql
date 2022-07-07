@@ -47,6 +47,6 @@ CREATE TABLE IF NOT EXISTS NewscatcherData (
     documentId BLOB NOT NULL
         PRIMARY KEY
         REFERENCES NewsResource(documentId) ON DELETE CASCADE,
-    domainRank BIGINT NOT NULL,
+    domainRank TEXT NOT NULL,
     score REAL
 );
