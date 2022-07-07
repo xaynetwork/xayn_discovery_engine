@@ -170,7 +170,6 @@ where
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
         stack_ops: Vec<BoxedOps>,
-        client: Arc<Client>,
         #[cfg(feature = "storage")] storage: BoxedStorage,
         providers: Providers,
     ) -> Result<Self, Error> {
