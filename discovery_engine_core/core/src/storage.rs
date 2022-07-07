@@ -93,7 +93,7 @@ pub mod models {
                 market: (resource.country, resource.language).into(),
             };
             let newscatcher_data = NewscatcherData {
-                domain_rank: resource.rank as u32,
+                domain_rank: resource.rank,
                 score: resource.score,
             };
             (news_resource, newscatcher_data)
@@ -141,7 +141,7 @@ pub mod models {
     }
 
     pub(crate) struct NewscatcherData {
-        pub(crate) domain_rank: u32,
+        pub(crate) domain_rank: u64,
         pub(crate) score: Option<f32>,
     }
 }
