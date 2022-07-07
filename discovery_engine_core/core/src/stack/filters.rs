@@ -21,5 +21,5 @@ pub(crate) use self::{
     article::{ArticleFilter, CommonFilter, MalformedFilter, SourcesFilter},
     deduplication::DuplicateFilter,
     semantic::{filter_semantically, Criterion, SemanticFilterConfig},
-    source::position_max_by_source,
+    source::source_weight,
 };

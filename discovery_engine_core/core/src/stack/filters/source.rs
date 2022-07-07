@@ -17,29 +17,29 @@ use itertools::Itertools;
 use crate::document::{Document, WeightedSource};
 
 #[allow(dead_code)]
-/// Sorts `documents` by decreasing order of source weight.
+/// Sorts `documents` by increasing order of source weight.
 pub(crate) fn sort_by_source(documents: &mut [Document], sources: &[WeightedSource]) {
-    documents.sort_by_cached_key(|doc| {
-        let source = &doc.resource.source_domain;
-        sources
-            .iter()
-            .find_map(|weighted| (&weighted.source == source).then(|| -weighted.weight))
-            .unwrap_or(0)
-    });
+    documents.sort_by_cached_key(|doc| source_weight(doc, sources));
 }
 
+#[allow(dead_code)]
 /// Returns the position of the document with heaviest source weight.
 pub(crate) fn position_max_by_source(
     documents: &[Document],
     sources: &[WeightedSource],
 ) -> Option<usize> {
-    documents.iter().position_max_by_key(|doc| {
-        let source = &doc.resource.source_domain;
-        sources
-            .iter()
-            .find_map(|weighted| (&weighted.source == source).then(|| weighted.weight))
-            .unwrap_or(0)
-    })
+    documents
+        .iter()
+        .position_max_by_key(|doc| source_weight(doc, sources))
+}
+
+/// Source weight of a document.
+pub(crate) fn source_weight(document: &Document, sources: &[WeightedSource]) -> i32 {
+    let source = &document.resource.source_domain;
+    sources
+        .iter()
+        .find_map(|weighted| (&weighted.source == source).then(|| weighted.weight))
+        .unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -119,8 +119,8 @@ mod tests {
         ];
 
         sort_by_source(&mut docs, &sources);
-        assert_eq!(&docs[0].resource.source_domain, "example.net");
+        assert_eq!(&docs[0].resource.source_domain, "example.org");
         assert_eq!(&docs[1].resource.source_domain, "example.com");
-        assert_eq!(&docs[2].resource.source_domain, "example.org");
+        assert_eq!(&docs[2].resource.source_domain, "example.net");
     }
 }

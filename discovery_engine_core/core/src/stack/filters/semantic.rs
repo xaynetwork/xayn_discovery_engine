@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
@@ -20,7 +20,7 @@ use xayn_discovery_engine_ai::{nan_safe_f32_cmp, pairwise_cosine_similarity};
 
 use crate::document::{Document, WeightedSource};
 
-use super::position_max_by_source;
+use super::source_weight;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
@@ -223,16 +223,10 @@ pub(crate) fn filter_semantically(
     };
 
     // among documents with the same label, keep the one with heaviest source weight
-    izip!(documents, labels)
-        .fold(HashMap::new(), |mut map, (doc, label)| {
-            map.entry(label).or_insert_with(Vec::new).push(doc);
-            map
-        })
+    izip!(labels, documents)
+        .into_grouping_map()
+        .max_by_key(|_label, doc| source_weight(doc, sources))
         .into_values()
-        .map(|mut docs| {
-            let pos = position_max_by_source(&docs, sources).unwrap(/* safe by construction */);
-            docs.swap_remove(pos)
-        })
         .collect()
 }
 
