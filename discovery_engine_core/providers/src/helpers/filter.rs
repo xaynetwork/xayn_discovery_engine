@@ -51,13 +51,20 @@ impl Filter {
 /// Define area and language of interests.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct Market {
-    /// Country code as defined in ISO 3166-1 alpha-2.
-    pub country_code: String,
     /// Language code as defined in ISO 639-1 — 2 letter code, e.g. 'de' or 'en'
     pub lang_code: String,
+    /// Country code as defined in ISO 3166-1 alpha-2.
+    pub country_code: String,
 }
 
 impl Market {
+    pub fn new(lang_code: impl Into<String>, country_code: impl Into<String>) -> Self {
+        Self {
+            lang_code: lang_code.into(),
+            country_code: country_code.into(),
+        }
+    }
+
     /// Returns the default quality rank limit
     pub fn quality_rank_limit(&self) -> Option<usize> {
         #[allow(clippy::match_same_arms)]
@@ -75,19 +82,6 @@ impl Market {
             "US" => 9_000,
             _ => return None,
         })
-    }
-}
-
-impl<C, L> From<(C, L)> for Market
-where
-    C: Into<String>,
-    L: Into<String>,
-{
-    fn from((country_code, lang_code): (C, L)) -> Self {
-        Self {
-            country_code: country_code.into(),
-            lang_code: lang_code.into(),
-        }
     }
 }
 

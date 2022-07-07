@@ -180,7 +180,7 @@ mod tests {
 
         log_positive_user_reaction(
             &mut cois,
-            &("AA", "aa").into(),
+            &Market::new("aa", "AA"),
             &embedding,
             &config,
             &mut key_phrases,
@@ -206,7 +206,7 @@ mod tests {
 
         log_positive_user_reaction(
             &mut cois,
-            &("AA", "aa").into(),
+            &Market::new("aa", "AA"),
             &embedding,
             &config,
             &mut key_phrases,

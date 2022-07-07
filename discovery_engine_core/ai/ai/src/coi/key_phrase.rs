@@ -476,9 +476,9 @@ mod tests {
             iter: impl IntoIterator<Item = (CoiId, (&'a str, &'a str), &'a str, [f32; N])>,
         ) -> Self {
             let mut this = Self::default();
-            for (coi_id, market, words, point) in iter {
+            for (coi_id, (lang_code, country_code), words, point) in iter {
                 this.selected
-                    .entry((coi_id, market.into()))
+                    .entry((coi_id, Market::new(lang_code, country_code)))
                     .or_default()
                     .push(KeyPhrase::new(words, point).unwrap());
             }
@@ -799,7 +799,7 @@ mod tests {
     fn test_update_key_phrases_empty() {
         let mut key_phrases = KeyPhrases::default();
         let cois = create_pos_cois(&[[1., 0., 0.]]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let candidates = [];
         let smbert = |_: &str| unreachable!();
         let config = Config::default();
@@ -820,10 +820,10 @@ mod tests {
     fn test_update_key_phrases_no_candidates() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [1., 1., 0.]),
-            (cois[0].id, ("AA", "aa"), "phrase", [1., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "key", [1., 1., 0.]),
+            (cois[0].id, ("aa", "AA"), "phrase", [1., 1., 1.]),
         ]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let candidates = [];
         let smbert = |_: &str| unreachable!();
         let config = Config::default();
@@ -848,7 +848,7 @@ mod tests {
     fn test_update_key_phrases_only_candidates() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::default();
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let candidates = ["key".into(), "phrase".into()];
         let smbert = |words: &str| match words {
             "key" => Ok([1., 1., 0.].into()),
@@ -877,7 +877,7 @@ mod tests {
     fn test_update_key_phrases_candidates_words_cleaned() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::default();
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let candidates = ["  a  !@#$%  b  ".into()];
         let smbert = |_: &str| Ok([1., 1., 0.].into());
         let config = Config::default();
@@ -899,10 +899,10 @@ mod tests {
     fn test_update_key_phrases_max() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [2., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "phrase", [1., 1., 0.]),
+            (cois[0].id, ("aa", "AA"), "key", [2., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "phrase", [1., 1., 0.]),
         ]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let candidates = ["test".into(), "words".into()];
         let smbert = |words: &str| match words {
             "test" => Ok([1., 1., 1.].into()),
@@ -931,8 +931,8 @@ mod tests {
     #[test]
     fn test_update_key_phrases_duplicate() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
-        let mut key_phrases = KeyPhrases::new([(cois[0].id, ("AA", "aa"), "key", [1., 1., 0.])]);
-        let market = ("AA", "aa").into();
+        let mut key_phrases = KeyPhrases::new([(cois[0].id, ("aa", "AA"), "key", [1., 1., 0.])]);
+        let market = Market::new("aa", "AA");
         let candidates = ["phrase".into(), "phrase".into()];
         let smbert = |words: &str| match words {
             "phrase" => Ok([1., 1., 1.].into()),
@@ -960,10 +960,10 @@ mod tests {
     fn test_update_key_phrases_markets() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [2., 1., 0.]),
-            (cois[0].id, ("BB", "bb"), "phrase", [1., 1., 0.]),
+            (cois[0].id, ("aa", "AA"), "key", [2., 1., 0.]),
+            (cois[0].id, ("bb", "BB"), "phrase", [1., 1., 0.]),
         ]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let candidates = ["words".into()];
         let smbert = |words: &str| match words {
             "words" => Ok([3., 1., 0.].into()),
@@ -985,7 +985,7 @@ mod tests {
             ["words", "key"],
         );
         assert_eq!(
-            key_phrases.selected[&(cois[0].id, ("BB", "bb").into())],
+            key_phrases.selected[&(cois[0].id, Market::new("bb", "BB"))],
             ["phrase"],
         );
         assert!(key_phrases.removed.is_empty());
@@ -995,8 +995,8 @@ mod tests {
     fn test_refresh_key_phrases_empty_cois() {
         let cois = create_pos_cois(&[] as &[[f32; 0]]);
         let coi_id = CoiId::mocked(1);
-        let market = ("AA", "aa").into();
-        let mut key_phrases = KeyPhrases::new([(coi_id, ("AA", "aa"), "key", [1., 1., 1.])]);
+        let market = Market::new("aa", "AA");
+        let mut key_phrases = KeyPhrases::new([(coi_id, ("aa", "AA"), "key", [1., 1., 1.])]);
         swap(&mut key_phrases.selected, &mut key_phrases.removed);
         let config = Config::default();
 
@@ -1009,8 +1009,8 @@ mod tests {
     #[test]
     fn test_refresh_key_phrases_empty_markets() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
-        let market = ("BB", "bb").into();
-        let mut key_phrases = KeyPhrases::new([(cois[0].id, ("AA", "aa"), "key", [1., 1., 1.])]);
+        let market = Market::new("bb", "BB");
+        let mut key_phrases = KeyPhrases::new([(cois[0].id, ("aa", "AA"), "key", [1., 1., 1.])]);
         swap(&mut key_phrases.selected, &mut key_phrases.removed);
         let config = Config::default();
 
@@ -1018,7 +1018,7 @@ mod tests {
         assert!(key_phrases.selected.is_empty());
         assert_eq!(key_phrases.removed.len(), 1);
         assert_eq!(
-            key_phrases.removed[&(cois[0].id, ("AA", "aa").into())],
+            key_phrases.removed[&(cois[0].id, Market::new("aa", "AA"))],
             ["key"],
         );
     }
@@ -1026,7 +1026,7 @@ mod tests {
     #[test]
     fn test_refresh_key_phrases_empty_key_phrases() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::default();
         let config = Config::default();
 
@@ -1038,17 +1038,17 @@ mod tests {
     #[test]
     fn test_refresh_key_phrases_too_many_key_phrases() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.]]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [1., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "phrase", [2., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "words", [3., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "and", [4., 1., 1.]),
-            (cois[0].id, ("BB", "bb"), "more", [6., 1., 1.]),
-            (cois[0].id, ("BB", "bb"), "stuff", [5., 1., 1.]),
-            (cois[1].id, ("AA", "aa"), "still", [1., 3., 1.]),
-            (cois[1].id, ("AA", "aa"), "not", [1., 2., 1.]),
-            (cois[1].id, ("BB", "bb"), "enough", [1., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "key", [1., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "phrase", [2., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "words", [3., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "and", [4., 1., 1.]),
+            (cois[0].id, ("bb", "BB"), "more", [6., 1., 1.]),
+            (cois[0].id, ("bb", "BB"), "stuff", [5., 1., 1.]),
+            (cois[1].id, ("aa", "AA"), "still", [1., 3., 1.]),
+            (cois[1].id, ("aa", "AA"), "not", [1., 2., 1.]),
+            (cois[1].id, ("bb", "BB"), "enough", [1., 1., 1.]),
         ]);
         swap(&mut key_phrases.selected, &mut key_phrases.removed);
         let config = Config::default();
@@ -1066,18 +1066,18 @@ mod tests {
         );
         assert_eq!(key_phrases.removed.len(), 2);
         assert_eq!(
-            key_phrases.removed[&(cois[0].id, ("BB", "bb").into())],
+            key_phrases.removed[&(cois[0].id, Market::new("bb", "BB"))],
             ["more", "stuff"],
         );
         assert_eq!(
-            key_phrases.removed[&(cois[1].id, ("BB", "bb").into())],
+            key_phrases.removed[&(cois[1].id, Market::new("bb", "BB"))],
             ["enough"],
         );
 
         key_phrases.selected.remove(&(cois[1].id, market.clone()));
         key_phrases
             .removed
-            .remove(&(cois[1].id, ("BB", "bb").into()));
+            .remove(&(cois[1].id, Market::new("bb", "BB")));
         key_phrases.refresh(&cois, &market, config.max_key_phrases(), config.gamma());
         assert_eq!(key_phrases.selected.len(), 1);
         assert_eq!(
@@ -1086,7 +1086,7 @@ mod tests {
         );
         assert_eq!(key_phrases.removed.len(), 1);
         assert_eq!(
-            key_phrases.removed[&(cois[0].id, ("BB", "bb").into())],
+            key_phrases.removed[&(cois[0].id, Market::new("bb", "BB"))],
             ["more", "stuff"],
         );
     }
@@ -1094,17 +1094,17 @@ mod tests {
     #[test]
     fn test_penalize() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [3., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "phrase", [2., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "words", [1., 1., 1.]),
-            (cois[1].id, ("AA", "aa"), "and", [1., 6., 1.]),
-            (cois[1].id, ("AA", "aa"), "more", [1., 5., 1.]),
-            (cois[1].id, ("BB", "bb"), "stuff", [1., 4., 1.]),
-            (cois[2].id, ("AA", "aa"), "still", [1., 1., 9.]),
-            (cois[2].id, ("BB", "bb"), "not", [1., 1., 8.]),
-            (cois[2].id, ("BB", "bb"), "enough", [1., 1., 7.]),
+            (cois[0].id, ("aa", "AA"), "key", [3., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "phrase", [2., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "words", [1., 1., 1.]),
+            (cois[1].id, ("aa", "AA"), "and", [1., 6., 1.]),
+            (cois[1].id, ("aa", "AA"), "more", [1., 5., 1.]),
+            (cois[1].id, ("bb", "BB"), "stuff", [1., 4., 1.]),
+            (cois[2].id, ("aa", "AA"), "still", [1., 1., 9.]),
+            (cois[2].id, ("bb", "BB"), "not", [1., 1., 8.]),
+            (cois[2].id, ("bb", "BB"), "enough", [1., 1., 7.]),
         ]);
         let penalty = [1., 0.8, 0.6];
         let relevances = vec![1., 2., 3.];
@@ -1127,7 +1127,7 @@ mod tests {
     #[test]
     fn test_remove_missing() {
         let coi_id = CoiId::mocked(1);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let key_phrase = KeyPhrase::new("key", [1., 1., 1.]).unwrap();
         let mut key_phrases = KeyPhrases::default();
 
@@ -1140,12 +1140,12 @@ mod tests {
     #[test]
     fn test_remove_existent() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.]]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let key_phrase = KeyPhrase::new("key", [1., 1., 1.]).unwrap();
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [1., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "phrase", [1., 1., 0.]),
-            (cois[1].id, ("AA", "aa"), "words", [0., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "key", [1., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "phrase", [1., 1., 0.]),
+            (cois[1].id, ("aa", "AA"), "words", [0., 1., 1.]),
         ]);
 
         let key_phrase = remove(&mut key_phrases, cois[0].id, &market, key_phrase);
@@ -1183,8 +1183,8 @@ mod tests {
     fn test_take_key_phrases_empty_cois() {
         let cois = create_pos_cois(&[] as &[[f32; 0]]);
         let coi_id = CoiId::mocked(1);
-        let market = ("AA", "aa").into();
-        let mut key_phrases = KeyPhrases::new([(coi_id, ("AA", "aa"), "key", [1., 1., 1.])]);
+        let market = Market::new("aa", "AA");
+        let mut key_phrases = KeyPhrases::new([(coi_id, ("aa", "AA"), "key", [1., 1., 1.])]);
         let config = Config::default();
 
         let top_key_phrases = key_phrases.take(
@@ -1204,8 +1204,8 @@ mod tests {
     #[test]
     fn test_take_key_phrases_empty_markets() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
-        let market = ("BB", "bb").into();
-        let mut key_phrases = KeyPhrases::new([(cois[0].id, ("AA", "aa"), "key", [1., 1., 1.])]);
+        let market = Market::new("bb", "BB");
+        let mut key_phrases = KeyPhrases::new([(cois[0].id, ("aa", "AA"), "key", [1., 1., 1.])]);
         let config = Config::default();
 
         let top_key_phrases = key_phrases.take(
@@ -1219,7 +1219,7 @@ mod tests {
         assert!(top_key_phrases.is_empty());
         assert_eq!(key_phrases.selected.len(), 1);
         assert_eq!(
-            key_phrases.selected[&(cois[0].id, ("AA", "aa").into())],
+            key_phrases.selected[&(cois[0].id, Market::new("aa", "AA"))],
             ["key"],
         );
         assert!(key_phrases.removed.is_empty());
@@ -1228,7 +1228,7 @@ mod tests {
     #[test]
     fn test_take_key_phrases_empty_key_phrases() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::default();
         let config = Config::default();
 
@@ -1248,11 +1248,11 @@ mod tests {
     #[test]
     fn test_take_key_phrases_zero() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [1., 1., 1.]),
-            (cois[1].id, ("AA", "aa"), "phrase", [2., 1., 1.]),
-            (cois[2].id, ("AA", "aa"), "words", [3., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "key", [1., 1., 1.]),
+            (cois[1].id, ("aa", "AA"), "phrase", [2., 1., 1.]),
+            (cois[2].id, ("aa", "AA"), "words", [3., 1., 1.]),
         ]);
         let config = Config::default();
 
@@ -1284,17 +1284,17 @@ mod tests {
         cois[0].log_time(Duration::from_secs(11));
         cois[1].log_time(Duration::from_secs(12));
         cois[2].log_time(Duration::from_secs(13));
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [3., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "phrase", [2., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "words", [1., 1., 1.]),
-            (cois[1].id, ("AA", "aa"), "and", [1., 6., 1.]),
-            (cois[1].id, ("AA", "aa"), "more", [1., 5., 1.]),
-            (cois[1].id, ("AA", "aa"), "stuff", [1., 4., 1.]),
-            (cois[2].id, ("AA", "aa"), "still", [1., 1., 9.]),
-            (cois[2].id, ("AA", "aa"), "not", [1., 1., 8.]),
-            (cois[2].id, ("AA", "aa"), "enough", [1., 1., 7.]),
+            (cois[0].id, ("aa", "AA"), "key", [3., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "phrase", [2., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "words", [1., 1., 1.]),
+            (cois[1].id, ("aa", "AA"), "and", [1., 6., 1.]),
+            (cois[1].id, ("aa", "AA"), "more", [1., 5., 1.]),
+            (cois[1].id, ("aa", "AA"), "stuff", [1., 4., 1.]),
+            (cois[2].id, ("aa", "AA"), "still", [1., 1., 9.]),
+            (cois[2].id, ("aa", "AA"), "not", [1., 1., 8.]),
+            (cois[2].id, ("aa", "AA"), "enough", [1., 1., 7.]),
         ]);
         let config = Config::default();
 
@@ -1333,17 +1333,17 @@ mod tests {
         cois[0].log_time(Duration::from_secs(11));
         cois[1].log_time(Duration::from_secs(12));
         cois[2].log_time(Duration::from_secs(13));
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [3., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "phrase", [2., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "words", [1., 1., 1.]),
-            (cois[1].id, ("AA", "aa"), "and", [1., 6., 1.]),
-            (cois[1].id, ("AA", "aa"), "more", [1., 5., 1.]),
-            (cois[1].id, ("BB", "bb"), "stuff", [1., 4., 1.]),
-            (cois[2].id, ("AA", "aa"), "still", [1., 1., 9.]),
-            (cois[2].id, ("BB", "bb"), "not", [1., 1., 8.]),
-            (cois[2].id, ("BB", "bb"), "enough", [1., 1., 7.]),
+            (cois[0].id, ("aa", "AA"), "key", [3., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "phrase", [2., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "words", [1., 1., 1.]),
+            (cois[1].id, ("aa", "AA"), "and", [1., 6., 1.]),
+            (cois[1].id, ("aa", "AA"), "more", [1., 5., 1.]),
+            (cois[1].id, ("bb", "BB"), "stuff", [1., 4., 1.]),
+            (cois[2].id, ("aa", "AA"), "still", [1., 1., 9.]),
+            (cois[2].id, ("bb", "BB"), "not", [1., 1., 8.]),
+            (cois[2].id, ("bb", "BB"), "enough", [1., 1., 7.]),
         ]);
         let config = Config::default();
 
@@ -1362,11 +1362,11 @@ mod tests {
         );
         assert_eq!(key_phrases.selected.len(), 2);
         assert_eq!(
-            key_phrases.selected[&(cois[1].id, ("BB", "bb").into())],
+            key_phrases.selected[&(cois[1].id, Market::new("bb", "BB"))],
             ["stuff"],
         );
         assert_eq!(
-            key_phrases.selected[&(cois[2].id, ("BB", "bb").into())],
+            key_phrases.selected[&(cois[2].id, Market::new("bb", "BB"))],
             ["not", "enough"],
         );
         assert_eq!(key_phrases.removed.len(), 3);
@@ -1390,17 +1390,17 @@ mod tests {
         cois[0].log_time(Duration::from_secs(11));
         cois[1].log_time(Duration::from_secs(12));
         cois[2].log_time(Duration::from_secs(13));
-        let market = ("AA", "aa").into();
+        let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [3., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "phrase", [2., 1., 1.]),
-            (cois[0].id, ("AA", "aa"), "words", [1., 1., 1.]),
-            (cois[1].id, ("AA", "aa"), "and", [1., 6., 1.]),
-            (cois[1].id, ("AA", "aa"), "more", [1., 5., 1.]),
-            (cois[1].id, ("BB", "bb"), "stuff", [1., 4., 1.]),
-            (cois[2].id, ("AA", "aa"), "still", [1., 1., 9.]),
-            (cois[2].id, ("BB", "bb"), "not", [1., 1., 8.]),
-            (cois[2].id, ("BB", "bb"), "enough", [1., 1., 7.]),
+            (cois[0].id, ("aa", "AA"), "key", [3., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "phrase", [2., 1., 1.]),
+            (cois[0].id, ("aa", "AA"), "words", [1., 1., 1.]),
+            (cois[1].id, ("aa", "AA"), "and", [1., 6., 1.]),
+            (cois[1].id, ("aa", "AA"), "more", [1., 5., 1.]),
+            (cois[1].id, ("bb", "BB"), "stuff", [1., 4., 1.]),
+            (cois[2].id, ("aa", "AA"), "still", [1., 1., 9.]),
+            (cois[2].id, ("bb", "BB"), "not", [1., 1., 8.]),
+            (cois[2].id, ("bb", "BB"), "enough", [1., 1., 7.]),
         ]);
         let config = Config::default();
 
@@ -1425,7 +1425,7 @@ mod tests {
 
     #[test]
     fn test_remove_key_phrases_empty_key_phrases() {
-        let markets = [("AA", "aa").into()];
+        let markets = [Market::new("aa", "AA")];
         let mut key_phrases = KeyPhrases::default();
 
         key_phrases.remove(&markets);
@@ -1437,12 +1437,12 @@ mod tests {
     fn test_remove_key_phrases_empty_markets() {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let markets = [];
-        let mut key_phrases = KeyPhrases::new([(cois[0].id, ("AA", "aa"), "key", [1., 1., 1.])]);
+        let mut key_phrases = KeyPhrases::new([(cois[0].id, ("aa", "AA"), "key", [1., 1., 1.])]);
 
         key_phrases.remove(&markets);
         assert_eq!(key_phrases.selected.len(), cois.len());
         assert_eq!(
-            key_phrases.selected[&(cois[0].id, ("AA", "aa").into())],
+            key_phrases.selected[&(cois[0].id, Market::new("aa", "AA"))],
             ["key"],
         );
         assert!(key_phrases.removed.is_empty());
@@ -1451,11 +1451,11 @@ mod tests {
     #[test]
     fn test_remove_key_phrases_same_markets() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.]]);
-        let markets = [("AA", "aa").into(), ("BB", "bb").into()];
+        let markets = [Market::new("aa", "AA"), Market::new("bb", "BB")];
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [1., 1., 1.]),
-            (cois[0].id, ("BB", "bb"), "phrase", [1., 0., 1.]),
-            (cois[1].id, ("BB", "bb"), "words", [1., 1., 0.]),
+            (cois[0].id, ("aa", "AA"), "key", [1., 1., 1.]),
+            (cois[0].id, ("bb", "BB"), "phrase", [1., 0., 1.]),
+            (cois[1].id, ("bb", "BB"), "words", [1., 1., 0.]),
         ]);
 
         key_phrases.remove(&markets);
@@ -1466,25 +1466,25 @@ mod tests {
     #[test]
     fn test_remove_key_phrases_different_markets() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.]]);
-        let markets = [("CC", "cc").into()];
+        let markets = [Market::new("cc", "CC")];
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [1., 1., 1.]),
-            (cois[0].id, ("BB", "bb"), "phrase", [1., 0., 1.]),
-            (cois[1].id, ("BB", "bb"), "words", [1., 1., 0.]),
+            (cois[0].id, ("aa", "AA"), "key", [1., 1., 1.]),
+            (cois[0].id, ("bb", "BB"), "phrase", [1., 0., 1.]),
+            (cois[1].id, ("bb", "BB"), "words", [1., 1., 0.]),
         ]);
 
         key_phrases.remove(&markets);
         assert_eq!(key_phrases.selected.len(), 3);
         assert_eq!(
-            key_phrases.selected[&(cois[0].id, ("AA", "aa").into())],
+            key_phrases.selected[&(cois[0].id, Market::new("aa", "AA"))],
             ["key"],
         );
         assert_eq!(
-            key_phrases.selected[&(cois[0].id, ("BB", "bb").into())],
+            key_phrases.selected[&(cois[0].id, Market::new("bb", "BB"))],
             ["phrase"],
         );
         assert_eq!(
-            key_phrases.selected[&(cois[1].id, ("BB", "bb").into())],
+            key_phrases.selected[&(cois[1].id, Market::new("bb", "BB"))],
             ["words"],
         );
         assert!(key_phrases.removed.is_empty());
@@ -1493,17 +1493,17 @@ mod tests {
     #[test]
     fn test_remove_key_phrases_mixed_markets() {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.]]);
-        let markets = [("BB", "bb").into(), ("CC", "cc").into()];
+        let markets = [Market::new("bb", "BB"), Market::new("cc", "CC")];
         let mut key_phrases = KeyPhrases::new([
-            (cois[0].id, ("AA", "aa"), "key", [1., 1., 1.]),
-            (cois[0].id, ("BB", "bb"), "phrase", [1., 0., 1.]),
-            (cois[1].id, ("BB", "bb"), "words", [1., 1., 0.]),
+            (cois[0].id, ("aa", "AA"), "key", [1., 1., 1.]),
+            (cois[0].id, ("bb", "BB"), "phrase", [1., 0., 1.]),
+            (cois[1].id, ("bb", "BB"), "words", [1., 1., 0.]),
         ]);
 
         key_phrases.remove(&markets);
         assert_eq!(key_phrases.selected.len(), 1);
         assert_eq!(
-            key_phrases.selected[&(cois[0].id, ("AA", "aa").into())],
+            key_phrases.selected[&(cois[0].id, Market::new("aa", "AA"))],
             ["key"],
         );
         assert!(key_phrases.removed.is_empty());

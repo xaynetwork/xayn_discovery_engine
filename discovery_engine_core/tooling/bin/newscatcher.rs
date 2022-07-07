@@ -53,10 +53,7 @@ async fn main() -> Result<()> {
         .context("Failed to create download directory. Does it already exist?")?;
 
     let provider = NewscatcherHeadlinesProvider::new(url, token);
-    let market = Market {
-        lang_code: "en".to_string(),
-        country_code: "US".to_string(),
-    };
+    let market = Market::new("en", "US");
 
     // This is updated every iteration, based on the response from Newscatcher. So in reality,
     // we'll be fetching more than one page.
