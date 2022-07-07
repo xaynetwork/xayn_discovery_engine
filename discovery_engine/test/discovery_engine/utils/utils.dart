@@ -201,7 +201,7 @@ final mockNewsResource = NewsResource(
   image: Uri.parse('http://thumbnail.example.com'),
   rank: 10,
   score: 0.1,
-  country: 'EN',
+  country: 'US',
   language: 'en',
   topic: 'news',
 );

@@ -32,8 +32,8 @@ void main() {
       datePublished: DateTime.now(),
       rank: 12,
       score: 32.25,
-      country: 'Germany',
-      language: 'German',
+      country: 'DE',
+      language: 'de',
       topic: 'FunFun',
     );
     final place = ffi.alloc_uninitialized_news_resource();

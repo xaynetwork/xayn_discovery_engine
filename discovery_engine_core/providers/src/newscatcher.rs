@@ -652,7 +652,7 @@ mod tests {
                 link: "https://example.com/news/".to_string(),
                 media: "https://example.com/news/image/".to_string(),
                 topic: "news".to_string(),
-                country: "EN".to_string(),
+                country: "US".to_string(),
                 language: "en".to_string(),
                 published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
             }

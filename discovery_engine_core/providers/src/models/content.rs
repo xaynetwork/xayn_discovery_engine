@@ -136,7 +136,7 @@ mod tests {
                 date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
                 score: None,
                 rank: Rank::default(),
-                country: "en".to_string(),
+                country: "US".to_string(),
                 language: "en".to_string(),
                 topic: "news".to_string(),
             }

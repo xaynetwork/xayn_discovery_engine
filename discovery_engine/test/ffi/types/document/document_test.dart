@@ -40,8 +40,8 @@ DocumentFfi arbitraryDocumentFfi() => DocumentFfi(
         datePublished: DateTime.now(),
         rank: 12,
         score: 32.5,
-        country: 'Germany',
-        language: 'German',
+        country: 'DE',
+        language: 'de',
         topic: 'FunFun',
       ),
     );
