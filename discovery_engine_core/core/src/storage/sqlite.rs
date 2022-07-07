@@ -115,8 +115,10 @@ impl SqliteStorage {
         let mut query_builder =
             QueryBuilder::new("INSERT INTO NewscatcherData (documentId, domainRank, score) ");
         query_builder.push_values(documents.clone(), |mut stm, doc| {
+            #[allow(clippy::cast_possible_wrap)]
+            // fine as we convert it back to u64 when we fetch it from the database
             stm.push_bind(doc.id.as_uuid())
-                .push_bind(doc.newscatcher_data.domain_rank.to_string())
+                .push_bind(doc.newscatcher_data.domain_rank as i64)
                 .push_bind(doc.newscatcher_data.score);
         });
         query_builder
@@ -328,7 +330,7 @@ struct _ApiDocumentView {
     date_published: NaiveDateTime,
     source: String,
     market: String,
-    domain_rank: String,
+    domain_rank: i64,
     score: Option<f32>,
     user_reaction: Option<u32>,
     in_batch_index: u32,
@@ -358,8 +360,9 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
                 country_code: country.to_string(),
             },
         };
+        #[allow(clippy::cast_sign_loss)]
         let newscatcher_data = NewscatcherData {
-            domain_rank: u64::from_str(&doc.domain_rank).unwrap_or(u64::MIN),
+            domain_rank: doc.domain_rank as u64,
             score: doc.score,
         };
         let user_reacted: Option<UserReaction> = doc
@@ -492,16 +495,14 @@ mod tests {
     async fn test_rank_conversion() {
         let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
         storage.init_database().await.unwrap();
-        let docs = create_documents(1)
-            .into_iter()
-            .map(|mut doc| {
-                doc.newscatcher_data.domain_rank = u64::MAX;
-                doc
-            })
-            .collect::<Vec<NewDocument>>();
+        let mut docs = create_documents(1);
+        docs[0].newscatcher_data.domain_rank = u64::MAX;
         storage.feed().store_documents(&docs).await.unwrap();
         let feed = storage.feed().fetch().await.unwrap();
 
-        assert_eq!(feed[0].newscatcher_data.domain_rank, u64::MAX);
+        assert_eq!(
+            feed[0].newscatcher_data.domain_rank,
+            docs[0].newscatcher_data.domain_rank
+        );
     }
 }
