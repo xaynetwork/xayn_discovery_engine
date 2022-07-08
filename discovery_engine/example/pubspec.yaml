@@ -10,6 +10,10 @@ dependencies:
   xayn_discovery_engine:
     path: ../
 
+dependency_overrides:
+  async_bindgen_dart_utils:
+    path: ../../async_bindgen_dart_utils/
+
 dev_dependencies:
   build_runner: ^2.1.11
   build_web_compilers: ^3.2.3

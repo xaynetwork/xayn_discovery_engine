@@ -40,6 +40,8 @@ dev_dependencies:
 dependency_overrides:
   xayn_discovery_engine:
     path: ../../discovery_engine
+  async_bindgen_dart_utils:
+    path: ../../async_bindgen_dart_utils/
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

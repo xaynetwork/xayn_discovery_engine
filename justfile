@@ -27,13 +27,16 @@ default:
     @{{just_executable()}} --list
 
 # Gets/updates dart deps
-dart-deps:
+_dart-deps $WORKSPACE:
     #!/usr/bin/env sh
     set -eux
-    cd "$DART_WORKSPACE";
+    cd "$WORKSPACE";
     dart pub get
-    cd example
-    dart pub get
+
+dart-deps:
+    @{{just_executable()}} _dart-deps "$DART_WORKSPACE"
+    @{{just_executable()}} _dart-deps "$DART_WORKSPACE/example"
+    @{{just_executable()}} _dart-deps "$BINDGEN_DART_WORKSPACE"
 
 # Gets/updates flutter project deps
 flutter-deps:
@@ -45,28 +48,22 @@ flutter-deps:
     flutter pub get
 
 # Fetches rust dependencies
-rust-deps: install-async-bindgen
+rust-deps:
     cd "$RUST_WORKSPACE"; \
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
-# Installs the async-bindgen CLI tool (--force can be passed in)
-install-async-bindgen *args:
-    if [[ "{{args}}" =~ "--force" || ! -f "cargo-installs/bin/async-bindgen-gen-dart" ]]; then \
-        cargo install \
-            --git https://github.com/xaynetwork/xayn_async_bindgen.git \
-            {{args}} \
-            async-bindgen-gen-dart; \
-    fi
-
 # Get/Update/Fetch/Install all dependencies
-deps: flutter-deps dart-deps rust-deps install-async-bindgen
+deps: flutter-deps dart-deps rust-deps
+
+_dart-fmt $WORKSPACE:
+    cd "$WORKSPACE"; \
+    dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
 
 # Formats dart (checks only on CI)
 dart-fmt:
-    cd "$DART_WORKSPACE"; \
-    dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
-    cd "$FLUTTER_WORKSPACE"; \
-    dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
+    @{{just_executable()}} _dart-fmt "$DART_WORKSPACE"
+    @{{just_executable()}} _dart-fmt "$FLUTTER_WORKSPACE"
+    @{{just_executable()}} _dart-fmt "$BINDGEN_DART_WORKSPACE"
 
 # Formats rust (checks only on CI)
 rust-fmt:
@@ -79,14 +76,17 @@ rust-fmt:
 # Formats all code (checks only on CI)
 fmt: rust-fmt dart-fmt
 
-# Checks dart code, fails on info on CI
-dart-check: dart-build
-    cd "$DART_WORKSPACE"; \
+_dart-analyze $WORKSPACE:
+    cd "$WORKSPACE"; \
     dart analyze --fatal-infos
 
+# Checks dart code, fails on info on CI
+dart-check: dart-build
+    @{{just_executable()}} _dart-analyze "$DART_WORKSPACE"
+    @{{just_executable()}} _dart-analyze "$BINDGEN_DART_WORKSPACE"
+
 flutter-check: dart-build flutter-deps
-    cd "$FLUTTER_WORKSPACE"; \
-    dart analyze --fatal-infos
+    @{{just_executable()}} _dart-analyze "$FLUTTER_WORKSPACE"
 
 flutter-test: dart-build flutter-deps
     cd "$FLUTTER_WORKSPACE"; \
@@ -149,8 +149,8 @@ _run-ffigen:
     dart run ffigen --config ffigen.yaml
 
 _run-async-bindgen:
-    cd "$RUST_WORKSPACE"; \
-    "{{justfile_directory()}}/$CARGO_INSTALL_ROOT/bin/async-bindgen-gen-dart" \
+    cd "$RUST_WORKSPACE" && \
+    cargo run -p async-bindgen-gen-dart -- \
         --ffi-class XaynDiscoveryEngineBindingsFfi \
         --genesis ../"$DART_WORKSPACE"/lib/src/ffi/genesis.ffigen.dart
 
@@ -203,7 +203,7 @@ rust-clean:
 
 # Cleans up darts build cache
 dart-clean:
-    find "$DART_WORKSPACE" -type d -name .dart_tool -prune -exec rm -r '{}' \;
+    find -type d -name .dart_tool -prune -exec rm -r '{}' \;
 
 # Removes all local cargo installs
 clean-tools:
@@ -295,6 +295,42 @@ download-assets:
 
 check-android-so:
     {{justfile_directory()}}/.github/scripts/check_android_so.sh "$FLUTTER_WORKSPACE"/android/src/main/jniLibs/
+
+_dart-publish $WORKSPACE:
+    #!/usr/bin/env sh
+    set -eux
+    cd "$WORKSPACE"
+
+    SED_CMD="sed"
+    # Default macOS doesn't support `sed -i`
+    # Use `brew install gnu-sed`
+    if [[ "{{os()}}" == "macos" ]]; then
+        SED_CMD="gsed"
+    fi
+
+    # `dart pub` refuses to publish packages with symlinks
+    # deleting them from the test directories should do no harm
+    find ./test -type l -exec rm {} \;
+
+    # Dependency overrides are not allowed in published dart packages
+    $SED_CMD -i s/dependency_overrides/x_dependency_overrides/ ./pubspec.yaml
+
+    # Make it easier to figure out which builds came from `main`, and order the builds
+    # by Github's "run ID". Note that this ID is reset if you change the name of the
+    # workflow.
+    BUILD_ID="${GITHUB_RUN_ID:-missingRunId}.$(git rev-parse HEAD)"
+    if [[ "$(git rev-parse --abbrev-ref HEAD)" == "main" ]]; then
+        BUILD_ID="main.${BUILD_ID}"
+    fi
+
+    $SED_CMD -i s/change.me.to.commit.ref/${BUILD_ID}/ ./pubspec.yaml
+    dart pub publish --force
+
+# This should only be run by the CI
+_ci-dart-publish:
+    {{just_executable()}} _dart-publish "$DART_UTILS_WORKSPACE"
+    {{just_executable()}} _dart-publish "$DART_WORKSPACE"
+    {{just_executable()}} _dart-publish "$FLUTTER_WORKSPACE"
 
 alias d := dart-test
 alias r := rust-test

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "ai/*",
+    "async-bindgen/*",
     "bindings",
     "core",
     "providers",
@@ -8,12 +9,10 @@ members = [
 ]
 
 [patch.crates-io.async-bindgen]
-git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
-branch = "main"
+path = "./async-bindgen/async-bindgen"
 
 [patch.crates-io.async-bindgen-gen-dart]
-git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
-branch = "main"
+path = "./async-bindgen/async-bindgen-gen-dart"
 
 [patch.crates-io.xayn-dart-api-dl]
 git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"

@@ -5,6 +5,10 @@ inputs:
     description: 'Setup dart'
     default: "false"
     required: false
+  bindgen_dart:
+    description: 'Setup dart'
+    default: "false"
+    required: false
   rust:
     description: 'Setup rust'
     default: "false"
@@ -12,6 +16,10 @@ inputs:
   cache-key:
     description: 'An optional key that is added to the automatic cache key'
     default: ""
+    required: false
+  jfrog_token:
+    description: Token for accessing our Jfrog instance
+    default: "false"
     required: false
 runs:
   using: "composite"
@@ -39,7 +47,25 @@ runs:
         mkdir -p cargo-installs/bin
         cp /usr/local/cargo/bin/async-bindgen-gen-dart cargo-installs/bin/async-bindgen-gen-dart
 
+    - name: Jfrog authentication
+      shell: bash
+      if: ${{ inputs.jfrog_token != 'false' }}
+      env:
+          JFROG_TOKEN: ${{ inputs.jfrog_token }}
+      run: |
+        if [ -z "${JFROG_TOKEN}" ]; then
+          echo "JFROG access token missing"
+          exit 1
+        fi
+        echo "${JFROG_TOKEN}" | dart pub token add "https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private"
+
     - name: dart deps
       shell: bash
       if: ${{ inputs.dart != 'false' }}
+      run: just dart-deps
+
+    - name: bindgen dart deps
+      shell: bash
+      working-directory: async_bindgen
+      if: ${{ inputs.bindgen_dart != 'false' }}
       run: just dart-deps

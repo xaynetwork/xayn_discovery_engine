@@ -46,6 +46,7 @@ jobs:
         with:
           dart: true
           rust: true
+          jfrog_token: ${{ secrets.JFROG_TOKEN }}
 
       - name: Download artifacts
         id: artifacts
@@ -66,12 +67,7 @@ jobs:
         shell: bash
         run: just dart-build
 
-      - name: Configure Git
+      - name: Release packages
         shell: bash
-        run: |
-          git config --global user.email "ci@xayn.com"
-          git config --global user.name "ci"
+        run: just _ci-dart-publish
 
-      - name: Copy Repository
-        shell: bash
-        run: .github/scripts/release.sh --do-push
