@@ -55,7 +55,8 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         TrendingTopic,
         TrendingTopicsRequestSucceeded,
         TrendingTopicsRequestFailed,
-        SearchBy;
+        SearchBy,
+        ResetAiSucceeded;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show MapEvent;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
@@ -619,6 +620,11 @@ class DiscoveryEngine {
   ///
   /// This will not touch configurations like the
   /// market or trusted/excluded sources.
+  ///
+  /// In response it can return:
+  /// - [ResetAiSucceeded] for successful response
+  /// - [EngineExceptionRaised] for unexpected exception raised, with a reason
+  /// for such failure.
   Future<EngineEvent> resetAi() {
     return _trySend(() async {
       const event = ClientEvent.resetAi();

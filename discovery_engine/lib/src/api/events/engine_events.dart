@@ -13,6 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
+    show ResetAiRequested;
 import 'package:xayn_discovery_engine/src/api/models/active_search.dart';
 import 'package:xayn_discovery_engine/src/api/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source.dart';
@@ -222,8 +224,7 @@ class EngineEvent with _$EngineEvent {
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.clientEventSucceeded() = ClientEventSucceeded;
 
-  /// Event created as a success response to various client events, like
-  /// UserReactionChanged.
+  /// Event created as a success response to [ResetAiRequested] event.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.resetAiSucceeded() = ResetAiSucceeded;
 
