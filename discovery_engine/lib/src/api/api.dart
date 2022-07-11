@@ -40,7 +40,8 @@ export 'package:xayn_discovery_engine/src/api/events/client_events.dart'
         ActiveSearchTermRequested,
         ActiveSearchClosed,
         DeepSearchRequested,
-        TrendingTopicsRequested;
+        TrendingTopicsRequested,
+        ResetAiRequested;
 export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
         AvailableSourcesListRequestSucceeded,
@@ -88,7 +89,8 @@ export 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
         DocumentEngineEvent,
         DocumentsUpdated,
         EngineExceptionRaised,
-        EngineExceptionReason;
+        EngineExceptionReason,
+        ResetAiSucceeded;
 export 'package:xayn_discovery_engine/src/api/models/active_search.dart'
     hide ActiveSearchApiConversion;
 export 'package:xayn_discovery_engine/src/api/models/document.dart'
