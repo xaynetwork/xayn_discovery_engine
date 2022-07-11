@@ -18,13 +18,13 @@ CREATE TABLE IF NOT EXISTS Document (
 );
 
 CREATE TABLE IF NOT EXISTS HistoricDocument (
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
         REFERENCES Document(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS NewsResource (
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
         REFERENCES Document(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -37,16 +37,16 @@ CREATE TABLE IF NOT EXISTS NewsResource (
     -- implied by url, but allows us to easier implement
     -- things like pruning history when excluding a source
     source TEXT NOT NULL,
-    -- compound format <2-letter-lang><2-letter-state>
+    -- compound format <2-letter-language><2-letter-country>
     -- should be same as market primary key
     -- but for now it can't be a foreign key
     market TEXT
 );
 
 CREATE TABLE IF NOT EXISTS NewscatcherData (
-    document BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES NewsResource(document) ON DELETE CASCADE,
-    domainRank INTEGER NOT NULL,
-    score REAL NOT NULL
+        REFERENCES NewsResource(documentId) ON DELETE CASCADE,
+    domainRank BIGINT NOT NULL,
+    score REAL
 );

@@ -52,10 +52,7 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[cfg(feature = "storage")]
-use crate::storage::{
-    sqlite::{self, SqliteStorage},
-    Storage,
-};
+use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
 use crate::{
     config::{de_config_from_json, CoreConfig, EndpointConfig, ExplorationConfig, InitConfig},
     document::{
@@ -135,7 +132,7 @@ pub enum Error {
 
     #[cfg(feature = "storage")]
     /// Storage error: {0}.
-    Storage(#[from] sqlite::Error),
+    Storage(#[from] storage::Error),
 
     /// Provider error: {0}
     ProviderError(#[source] xayn_discovery_engine_providers::Error),
@@ -151,7 +148,7 @@ pub struct Engine<R> {
     request_after: usize,
     #[cfg(feature = "storage")]
     #[allow(dead_code)]
-    storage: Box<dyn Storage<StorageError = sqlite::Error> + Send + Sync>,
+    storage: BoxedStorage,
     providers: Providers,
 }
 
@@ -173,9 +170,7 @@ where
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
         stack_ops: Vec<BoxedOps>,
-        #[cfg(feature = "storage")] storage: Box<
-            dyn Storage<StorageError = sqlite::Error> + Send + Sync,
-        >,
+        #[cfg(feature = "storage")] storage: BoxedStorage,
         providers: Providers,
     ) -> Result<Self, Error> {
         let stacks = stack_ops
