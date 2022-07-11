@@ -67,7 +67,7 @@ Configuration createConfig(
     maxItemsPerFeedBatch: 50,
     maxItemsPerSearchBatch: 20,
     applicationDirectoryPath: data.applicationDirectoryPath,
-    feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+    feedMarkets: {const FeedMarket(langCode: 'de', countryCode: 'DE')},
     manifest: data.manifest,
     headlinesProviderPath: '/newscatcher/v1/latest-headlines',
     newsProviderPath: '/newscatcher/v1/search-news',

@@ -27,11 +27,11 @@ typedef FeedMarkets = Set<FeedMarket>;
 class FeedMarket with _$FeedMarket {
   @HiveType(typeId: feedMarketTypeId)
   const factory FeedMarket({
-    /// Country code as per ISO 3166-1 alpha-2 definition.
-    @HiveField(0) required String countryCode,
-
     /// Language code as per ISO ISO 639-1 definition.
     @HiveField(1) required String langCode,
+
+    /// Country code as per ISO 3166-1 alpha-2 definition.
+    @HiveField(0) required String countryCode,
   }) = _FeedMarket;
 
   factory FeedMarket.fromJson(Map<String, Object?> json) =>

@@ -20,10 +20,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
 
 void main() {
   test('reading written FeedMarked works', () {
-    const market = FeedMarket(
-      countryCode: 'this is a string',
-      langCode: 'another string',
-    );
+    const market =
+        FeedMarket(langCode: 'this is a string', countryCode: 'another string');
     final place = ffi.alloc_uninitialized_market();
     market.writeNative(place);
     final res = FeedMarketFfi.readNative(place);

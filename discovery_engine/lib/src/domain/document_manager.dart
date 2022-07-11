@@ -115,8 +115,8 @@ class DocumentManager {
         smbertEmbedding: smbertEmbedding,
         reaction: userReaction,
         market: FeedMarket(
-          countryCode: doc.resource.country,
           langCode: doc.resource.language,
+          countryCode: doc.resource.country,
         ),
       ),
     );

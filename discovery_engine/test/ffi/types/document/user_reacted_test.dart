@@ -35,10 +35,7 @@ void main() {
       snippet: 'Cloning brought back the dodo.',
       smbertEmbedding: Embedding.fromList([.9, .1]),
       reaction: UserReaction.negative,
-      market: const FeedMarket(
-        countryCode: 'DE',
-        langCode: 'de',
-      ),
+      market: const FeedMarket(langCode: 'de', countryCode: 'DE'),
     );
     final boxed = document.allocNative();
     final res = UserReactedFfi.readNative(boxed.ref);

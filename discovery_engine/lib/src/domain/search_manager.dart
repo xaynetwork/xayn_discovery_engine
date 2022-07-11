@@ -212,8 +212,8 @@ class SearchManager {
         ? doc.resource.snippet
         : doc.resource.title;
     final market = FeedMarket(
-      countryCode: doc.resource.country,
       langCode: doc.resource.language,
+      countryCode: doc.resource.country,
     );
     final embedding = data.smbertEmbedding;
 

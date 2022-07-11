@@ -21,14 +21,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
 void main() {
   test('reading written FeedMarked works', () {
     const market = [
-      FeedMarket(
-        countryCode: 'this is a string',
-        langCode: 'another string',
-      ),
-      FeedMarket(
-        countryCode: 'DE',
-        langCode: 'de',
-      )
+      FeedMarket(langCode: 'this is a string', countryCode: 'another string'),
+      FeedMarket(langCode: 'de', countryCode: 'DE')
     ];
     final boxed = market.allocVec();
     final res = FeedMarketSliceFfi.readVec(boxed.ref);

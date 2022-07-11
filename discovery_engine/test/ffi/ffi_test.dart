@@ -40,7 +40,7 @@ void main() {
       maxItemsPerFeedBatch: 0,
       maxItemsPerSearchBatch: 0,
       applicationDirectoryPath: '',
-      feedMarkets: {const FeedMarket(countryCode: '', langCode: '')},
+      feedMarkets: {const FeedMarket(langCode: '', countryCode: '')},
       manifest: Manifest([]),
       headlinesProviderPath: '',
       newsProviderPath: '',

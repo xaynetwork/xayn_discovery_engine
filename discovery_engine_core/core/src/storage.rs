@@ -90,7 +90,7 @@ pub mod models {
                 image: resource.image,
                 date_published: resource.date_published,
                 source: resource.source_domain,
-                market: (resource.country, resource.language).into(),
+                market: Market::new(resource.language, resource.country),
             };
             let newscatcher_data = NewscatcherData {
                 domain_rank: resource.rank,

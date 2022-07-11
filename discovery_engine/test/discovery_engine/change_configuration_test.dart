@@ -56,7 +56,7 @@ void main() {
       final engine = await createEngineWithEntryPoint(withErrorResponse);
 
       final response = await engine.changeConfiguration(
-        feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+        feedMarkets: {const FeedMarket(langCode: 'de', countryCode: 'DE')},
       );
 
       expect(response, isA<EngineExceptionRaised>());
