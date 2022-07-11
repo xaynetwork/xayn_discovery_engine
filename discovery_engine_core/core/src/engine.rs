@@ -1093,7 +1093,7 @@ mod tests {
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
-        Mock::given(method("GET"))
+        Mock::given(method("POST"))
             .and(path("/newscatcher/headlines-endpoint-name"))
             .respond_with(tmpl)
             .mount(&mock_server)
@@ -1317,7 +1317,7 @@ mod tests {
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
-        Mock::given(method("GET"))
+        Mock::given(method("POST"))
             .and(path("newscatcher/headlines-endpoint-name"))
             .respond_with(tmpl)
             .mount(&mock_server)
