@@ -17,7 +17,8 @@ use std::{sync::Arc, time::Duration};
 use once_cell::sync::OnceCell;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
-use url::{form_urlencoded, Url, UrlQuery};
+use serde_json::{Map, Value};
+use url::Url;
 
 use crate::Error;
 
@@ -30,6 +31,7 @@ pub struct RestEndpoint {
     url: Url,
     auth_token: String,
     timeout: Duration,
+    get_as_post: bool,
 }
 
 impl RestEndpoint {
@@ -48,6 +50,7 @@ impl RestEndpoint {
             url,
             auth_token,
             timeout: Duration::from_millis(3500),
+            get_as_post: false,
         }
     }
 
@@ -60,6 +63,18 @@ impl RestEndpoint {
         self
     }
 
+    /// Configures if we should use POST for GET requests.
+    ///
+    /// This is sometimes needed when the server
+    /// puts limits on the length of the query.
+    ///
+    /// It's semantically still a GET request.
+    #[must_use = "dropped changed client"]
+    pub fn with_get_as_post(mut self, get_as_post: bool) -> Self {
+        self.get_as_post = get_as_post;
+        self
+    }
+
     /// Return a reference to the Url of the endpoint.
     pub fn url(&self) -> &Url {
         &self.url
@@ -67,18 +82,30 @@ impl RestEndpoint {
 
     pub async fn get_request<
         D: DeserializeOwned + Send,
-        FN: FnOnce(form_urlencoded::Serializer<'_, UrlQuery<'_>>) + Send,
+        F: FnOnce(&mut dyn FnMut(&str, String)) + Send,
     >(
         &self,
-        setup_query_params: FN,
+        setup_query_params: F,
     ) -> Result<D, Error> {
         let mut url = self.url.clone();
 
-        setup_query_params(url.query_pairs_mut());
+        let query_builder = if self.get_as_post {
+            let mut query = Map::new();
+            setup_query_params(&mut |key, value| {
+                query.insert(key.into(), Value::String(value));
+            });
+            let body = serde_json::to_vec(&Value::Object(query)).map_err(Error::Encoding)?;
+            self.client.post(url).body(body)
+        } else {
+            let mut query_mut = url.query_pairs_mut();
+            setup_query_params(&mut |key, value| {
+                query_mut.append_pair(key, &value);
+            });
+            drop(query_mut);
+            self.client.get(url)
+        };
 
-        let response = self
-            .client
-            .get(url)
+        let response = query_builder
             .timeout(self.timeout)
             .bearer_auth(&self.auth_token)
             .send()

@@ -46,10 +46,10 @@ impl TrendingTopicsProvider for BingTrendingTopicsProvider {
     ) -> Result<Vec<TrendingTopic>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|mut query| {
+            .get_request::<Response, _>(|query_append| {
                 let lang = &request.market.lang_code;
                 let country = &request.market.country_code;
-                query.append_pair("mkt", &format!("{}-{}", lang, country));
+                query_append("mkt", format!("{}-{}", lang, country));
             })
             .await?;
 

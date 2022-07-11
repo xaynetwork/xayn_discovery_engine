@@ -31,7 +31,7 @@ use derive_more::Deref;
 use std::sync::Arc;
 
 use serde::{de, Deserialize, Deserializer, Serialize};
-use url::{form_urlencoded, Url, UrlQuery};
+use url::Url;
 
 #[derive(Deref)]
 pub struct NewscatcherNewsProvider {
@@ -73,21 +73,20 @@ impl NewsProvider for NewscatcherNewsProvider {
     async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|mut query| {
-                query
-                    .append_pair("page_size", &request.page_size.to_string())
-                    .append_pair("page", &request.page.to_string());
+            .get_request::<Response, _>(|query_append| {
+                query_append("page_size", request.page_size.to_string());
+                query_append("page", request.page.to_string());
 
                 if !request.excluded_sources.is_empty() {
-                    query.append_pair("not_sources", &request.excluded_sources.join(","));
+                    query_append("not_sources", request.excluded_sources.join(","));
                 }
 
-                query.append_pair("sort_by", "relevancy");
-                append_market(&mut query, request.market, &request.rank_limit);
-                query.append_pair("q", &request.filter.build());
+                query_append("sort_by", "relevancy".to_owned());
+                append_market(query_append, request.market, &request.rank_limit);
+                query_append("q", request.filter.build());
 
                 if let Some(days) = &request.max_age_days {
-                    query.append_pair("from", &max_age_to_date_string(*days));
+                    query_append("from", max_age_to_date_string(*days));
                 }
             })
             .await?;
@@ -121,23 +120,22 @@ impl HeadlinesProvider for NewscatcherHeadlinesProvider {
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|mut query| {
-                query
-                    .append_pair("page_size", &request.page_size.to_string())
-                    .append_pair("page", &request.page.to_string());
+            .get_request::<Response, _>(|query_append| {
+                query_append("page_size", request.page_size.to_string());
+                query_append("page", request.page.to_string());
 
                 if !request.excluded_sources.is_empty() {
-                    query.append_pair("not_sources", &request.excluded_sources.join(","));
+                    query_append("not_sources", request.excluded_sources.join(","));
                 }
 
-                append_market(&mut query, request.market, &request.rank_limit);
+                append_market(query_append, request.market, &request.rank_limit);
 
                 if let Some(days) = request.max_age_days {
-                    query.append_pair("when", &format!("{}d", days));
+                    query_append("when", format!("{}d", days));
                 }
 
-                if let Some(topic) = &request.topic {
-                    query.append_pair("topic", topic);
+                if let Some(topic) = request.topic {
+                    query_append("topic", topic.to_owned());
                 }
             })
             .await?;
@@ -171,21 +169,20 @@ impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|mut query| {
-                query
-                    .append_pair("page_size", &request.page_size.to_string())
-                    .append_pair("page", &request.page.to_string());
+            .get_request::<Response, _>(|query_append| {
+                query_append("page_size", request.page_size.to_string());
+                query_append("page", request.page.to_string());
 
                 if !request.excluded_sources.is_empty() {
-                    query.append_pair("not_sources", &request.excluded_sources.join(","));
+                    query_append("not_sources", request.excluded_sources.join(","));
                 }
 
                 if let Some(days) = request.max_age_days {
-                    query.append_pair("when", &format!("{}d", days));
+                    query_append("when", format!("{}d", days));
                 }
 
                 if !request.trusted_sources.is_empty() {
-                    query.append_pair("sources", &request.trusted_sources.join(","));
+                    query_append("sources", request.trusted_sources.join(","));
                 }
             })
             .await?;
@@ -195,17 +192,16 @@ impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
 }
 
 fn append_market(
-    query: &mut form_urlencoded::Serializer<'_, UrlQuery<'_>>,
+    query_append: &mut dyn FnMut(&str, String),
     market: &Market,
     rank_limit: &RankLimit,
 ) {
-    query
-        .append_pair("lang", &market.lang_code)
-        .append_pair("countries", &market.country_code);
+    query_append("lang", market.lang_code.clone());
+    query_append("countries", market.country_code.clone());
 
     let rank_limit = (rank_limit, market.quality_rank_limit());
     if let (RankLimit::LimitedByMarket, Some(limit)) = rank_limit {
-        query.append_pair("to_rank", &limit.to_string());
+        query_append("to_rank", limit.to_string());
     }
 }
 
