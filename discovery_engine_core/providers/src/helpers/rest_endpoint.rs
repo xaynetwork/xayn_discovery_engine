@@ -65,9 +65,8 @@ impl RestEndpoint {
 
     /// Configures if we should use POST for GET requests.
     ///
-    /// This is sometimes needed when some part of the serve
-    /// pipeline puts to strict limits on the length of the
-    /// path/query.
+    /// This is sometimes needed when the server
+    /// puts limits on the length of the query.
     ///
     /// It's semantically still a GET request.
     #[must_use = "dropped changed client"]
@@ -83,10 +82,10 @@ impl RestEndpoint {
 
     pub async fn get_request<
         D: DeserializeOwned + Send,
-        FN: FnOnce(&mut dyn FnMut(&str, String)) + Send,
+        F: FnOnce(&mut dyn FnMut(&str, String)) + Send,
     >(
         &self,
-        setup_query_params: FN,
+        setup_query_params: F,
     ) -> Result<D, Error> {
         let mut url = self.url.clone();
 
