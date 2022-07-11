@@ -146,10 +146,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &Market {
-            lang_code: "en".to_string(),
-            country_code: "US".to_string(),
-        };
+        let market = &Market::new("en", "US");
         let params = TrendingTopicsQuery { market };
 
         let topics = provider.query_trending_topics(&params).await.unwrap();

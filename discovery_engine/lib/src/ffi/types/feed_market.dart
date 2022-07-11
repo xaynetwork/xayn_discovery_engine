@@ -24,15 +24,15 @@ import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 
 extension FeedMarketFfi on FeedMarket {
   void writeNative(Pointer<RustMarket> place) {
-    countryCode.writeNative(ffi.market_place_of_country_code(place));
     langCode.writeNative(ffi.market_place_of_lang_code(place));
+    countryCode.writeNative(ffi.market_place_of_country_code(place));
   }
 
   static FeedMarket readNative(Pointer<RustMarket> market) {
     return FeedMarket(
+      langCode: StringFfi.readNative(ffi.market_place_of_lang_code(market)),
       countryCode:
           StringFfi.readNative(ffi.market_place_of_country_code(market)),
-      langCode: StringFfi.readNative(ffi.market_place_of_lang_code(market)),
     );
   }
 

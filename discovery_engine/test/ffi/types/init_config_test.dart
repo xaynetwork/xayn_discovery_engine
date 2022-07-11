@@ -24,8 +24,8 @@ void main() {
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
       feedMarkets: [
-        const FeedMarket(countryCode: 'DE', langCode: 'de'),
-        const FeedMarket(countryCode: 'US', langCode: 'en'),
+        const FeedMarket(langCode: 'de', countryCode: 'DE'),
+        const FeedMarket(langCode: 'en', countryCode: 'US'),
       ],
       trustedSources: [],
       excludedSources: [],
@@ -49,8 +49,8 @@ void main() {
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
       feedMarkets: [
-        const FeedMarket(countryCode: 'DE', langCode: 'de'),
-        const FeedMarket(countryCode: 'US', langCode: 'en'),
+        const FeedMarket(langCode: 'de', countryCode: 'DE'),
+        const FeedMarket(langCode: 'en', countryCode: 'US'),
       ],
       trustedSources: [],
       excludedSources: [],

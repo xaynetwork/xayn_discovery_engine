@@ -362,10 +362,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &Market {
-            lang_code: "en".to_string(),
-            country_code: "AU".to_string(),
-        };
+        let market = &Market::new("en", "AU");
         let filter = &Filter::default().add_keyword("Climate change");
 
         let params = NewsQuery {
@@ -412,10 +409,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &Market {
-            lang_code: "de".to_string(),
-            country_code: "AT".to_string(),
-        };
+        let market = &Market::new("de", "AT");
         let filter = &Filter::default().add_keyword("Climate change");
 
         let params = NewsQuery {
@@ -464,10 +458,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &Market {
-            lang_code: "de".to_string(),
-            country_code: "DE".to_string(),
-        };
+        let market = &Market::new("de", "DE");
         let filter = &Filter::default().add_keyword("Climate change");
 
         let params = NewsQuery {
@@ -512,10 +503,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let market = &Market {
-            lang_code: "de".to_string(),
-            country_code: "DE".to_string(),
-        };
+        let market = &Market::new("de", "DE");
         let filter = &Filter::default()
             .add_keyword("Bill Gates")
             .add_keyword("Tim Cook");
@@ -572,7 +560,7 @@ mod tests {
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
             excluded_sources: &[],
-            market: &("US", "en").into(),
+            market: &Market::new("en", "US"),
             topic: Some("games"),
             max_age_days: Some(3),
             trusted_sources: &[],
@@ -664,7 +652,7 @@ mod tests {
                 link: "https://example.com/news/".to_string(),
                 media: "https://example.com/news/image/".to_string(),
                 topic: "news".to_string(),
-                country: "EN".to_string(),
+                country: "US".to_string(),
                 language: "en".to_string(),
                 published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
             }

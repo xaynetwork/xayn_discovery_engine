@@ -186,7 +186,7 @@ final mockConfig = Configuration(
   maxItemsPerFeedBatch: 50,
   maxItemsPerSearchBatch: 20,
   applicationDirectoryPath: './',
-  feedMarkets: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+  feedMarkets: {const FeedMarket(langCode: 'de', countryCode: 'DE')},
   manifest: Manifest.fromJson(goodJson),
   headlinesProviderPath: '/newscatcher/v1/latest-headlines',
   newsProviderPath: '/newscatcher/v1/search-news',
@@ -201,7 +201,7 @@ final mockNewsResource = NewsResource(
   image: Uri.parse('http://thumbnail.example.com'),
   rank: 10,
   score: 0.1,
-  country: 'EN',
+  country: 'US',
   language: 'en',
   topic: 'news',
 );

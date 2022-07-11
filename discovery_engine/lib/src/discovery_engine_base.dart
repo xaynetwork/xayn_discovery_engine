@@ -101,7 +101,7 @@ class DiscoveryEngine {
   ///     assetsUrl: 'https://ai-assets.dev',
   ///     maxItemsPerFeedBatch: 20,
   ///     maxItemsPerSearchBatch: 20,
-  ///     feedMarket: {const FeedMarket(countryCode: 'DE', langCode: 'de')},
+  ///     feedMarket: {const FeedMarket(langCode: 'de', countryCode: 'DE')},
   ///     applicationDirectoryPath: './',
   ///     manifest: Manifest.fromJson({}),
   ///   );

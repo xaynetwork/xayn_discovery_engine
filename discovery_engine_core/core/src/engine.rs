@@ -1100,11 +1100,11 @@ mod tests {
             .await;
 
         let asset_base = "../../discovery_engine_flutter/example/assets/";
-        let market = ("US", "en");
+        let market = Market::new("en", "US");
         let config = InitConfig {
             api_key: "test-token".to_string(),
             api_base_url: mock_server.uri(),
-            markets: vec![market.into()],
+            markets: vec![market.clone()],
             // This triggers the trusted sources stack to also fetch articles
             trusted_sources: vec!["example.com".to_string()],
             excluded_sources: vec![],
@@ -1164,7 +1164,7 @@ mod tests {
             10,
             10,
             10,
-            &[market.into()],
+            &[market.clone()],
         )
         .await
         .unwrap();
@@ -1190,7 +1190,7 @@ mod tests {
             10,
             10,
             10,
-            &[market.into()],
+            &[market],
         )
         .await
         .unwrap();
@@ -1213,7 +1213,6 @@ mod tests {
         let stack_ops = vec![Box::new(mock_ops) as BoxedOps];
         let mut stacks = create_stacks_from_stack_ops(stack_ops);
 
-        let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
         let mut exploration_stack =
             Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
@@ -1227,7 +1226,7 @@ mod tests {
             10,
             10,
             10,
-            &[market.into()],
+            &[Market::new("en", "US")],
         )
         .await;
 
@@ -1252,7 +1251,6 @@ mod tests {
         ];
         let mut stacks = create_stacks_from_stack_ops(stack_ops);
 
-        let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
         let mut exploration_stack =
             Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
@@ -1266,7 +1264,7 @@ mod tests {
             10,
             10,
             10,
-            &[market.into()],
+            &[Market::new("en", "US")],
         )
         .await;
 
@@ -1283,7 +1281,6 @@ mod tests {
         let stack_ops = vec![Box::new(mock_ops_failed) as BoxedOps];
         let mut stacks = create_stacks_from_stack_ops(stack_ops);
 
-        let market = ("US", "en");
         let mut no_op_ranker = new_no_op_ranker();
         let mut exploration_stack =
             Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
@@ -1297,7 +1294,7 @@ mod tests {
             10,
             10,
             10,
-            &[market.into()],
+            &[Market::new("en", "US")],
         )
         .await;
 
@@ -1332,10 +1329,7 @@ mod tests {
         let config = InitConfig {
             api_key: "test-token".to_string(),
             api_base_url: mock_server.uri(),
-            markets: vec![Market {
-                country_code: "US".to_string(),
-                lang_code: "en".to_string(),
-            }],
+            markets: vec![Market::new("en", "US")],
             // This triggers the trusted sources stack to also fetch articles
             trusted_sources: vec!["example.com".to_string()],
             excluded_sources: vec![],

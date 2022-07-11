@@ -18,17 +18,6 @@ use std::ptr::addr_of_mut;
 
 use xayn_discovery_engine_providers::Market;
 
-/// Returns a pointer to the `country_code` field of a [`Market`].
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`Market`] memory object, it
-/// might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn market_place_of_country_code(place: *mut Market) -> *mut String {
-    unsafe { addr_of_mut!((*place).country_code) }
-}
-
 /// Returns a pointer to the `lang_code` field of a [`Market`].
 ///
 /// # Safety
@@ -38,6 +27,17 @@ pub unsafe extern "C" fn market_place_of_country_code(place: *mut Market) -> *mu
 #[no_mangle]
 pub unsafe extern "C" fn market_place_of_lang_code(place: *mut Market) -> *mut String {
     unsafe { addr_of_mut!((*place).lang_code) }
+}
+
+/// Returns a pointer to the `country_code` field of a [`Market`].
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`Market`] memory object, it
+/// might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn market_place_of_country_code(place: *mut Market) -> *mut String {
+    unsafe { addr_of_mut!((*place).country_code) }
 }
 
 /// Alloc an uninitialized `Box<Market>`, mainly used for testing.

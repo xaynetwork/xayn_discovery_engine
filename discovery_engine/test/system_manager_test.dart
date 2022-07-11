@@ -90,9 +90,7 @@ Future<void> main() async {
     });
 
     test('change configuration feedMarkets', () async {
-      final markets = {
-        const FeedMarket(countryCode: 'Country', langCode: 'language')
-      };
+      final markets = {const FeedMarket(langCode: 'de', countryCode: 'DE')};
       final evt = await mgr.changeConfiguration(markets, null, null);
       expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
     });
