@@ -37,11 +37,11 @@ use warp::{hyper::StatusCode, Filter};
 #[tokio::main]
 async fn main() {
     // TODO: TY-3011 - add filepath env var for documents data json file
-    let port = env::var("PORT")
+    let port = env::var("DE_PORT")
         .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()
         .unwrap();
-    let ip_addr = env::var("IP_ADDR")
+    let ip_addr = env::var("DE_IP_ADDR")
         .unwrap_or_else(|_| "127.0.0.1".to_string())
         .parse::<IpAddr>()
         .unwrap();
