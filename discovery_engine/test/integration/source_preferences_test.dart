@@ -69,10 +69,9 @@ void main() {
       );
       expect(nextBatchResponse.reason, FeedFailureReason.noNewsForMarket);
 
-      expect(
-        server.lastUri?.queryParameters['not_sources'],
-        equals(exclude.toString()),
-      );
+      expect(server.lastCapturedRequest, isNotNull);
+      server.lastCapturedRequest!
+          .expectJsonQueryParams({'not_sources': exclude.toString()});
     });
 
     test('removeSourceFromExcludedList removes the added excluded source',
@@ -100,9 +99,12 @@ void main() {
       );
       expect(nextBatchResponse.items, isNotEmpty);
 
-      expect(server.lastUri, isNotNull);
+      expect(server.lastCapturedRequest, isNotNull);
+      final json = server.lastCapturedRequest!.expectJsonBody();
+      expect(json, isA<Map<String, Object?>>());
+      final jsonMap = json as Map<String, Object?>;
       expect(
-        server.lastUri?.queryParameters['not_sources'] ?? '',
+        jsonMap['not_sources'] ?? '',
         isEmpty,
       );
     });

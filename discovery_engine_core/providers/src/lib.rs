@@ -167,7 +167,8 @@ impl Providers {
         let headlines_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, &config.headlines_provider_path)?,
             config.api_key.clone(),
-        );
+        )
+        .with_get_as_post(true);
 
         let headlines = select_provider(
             headlines_endpoint,
@@ -177,7 +178,8 @@ impl Providers {
         let news_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, &config.news_provider_path)?,
             config.api_key.clone(),
-        );
+        )
+        .with_get_as_post(true);
 
         let news = select_provider(news_endpoint, NewscatcherNewsProvider::from_endpoint)?;
 
@@ -185,7 +187,8 @@ impl Providers {
         let trusted_headlines_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, "newscatcher/v2/trusted-sources")?,
             config.api_key.clone(),
-        );
+        )
+        .with_get_as_post(true);
         let trusted_headlines =
             NewscatcherTrustedHeadlinesProvider::from_endpoint(trusted_headlines_endpoint);
 

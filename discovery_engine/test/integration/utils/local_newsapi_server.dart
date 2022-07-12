@@ -12,19 +12,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:convert' show utf8;
+import 'dart:convert' show json, utf8;
 
 import 'dart:io'
     show
         Directory,
         File,
+        HttpClient,
+        HttpClientRequest,
+        HttpClientResponse,
+        HttpHeaders,
         HttpRequest,
         HttpServer,
         HttpStatus,
-        InternetAddress,
-        HttpClient,
-        HttpClientRequest,
-        HttpClientResponse;
+        InternetAddress;
+
+import 'package:test/expect.dart';
 
 const kMockDataPath = '/test/integration/utils/data/';
 const kMaxCheckAttempts = 5;
@@ -42,7 +45,7 @@ class LocalNewsApiServer {
   String _snFile = 'climate-change.json';
   String _lhFile = 'latest-headlines.json';
   String _ttFile = 'trending-topics.json';
-  Uri? lastUri;
+  CapturedRequest? lastCapturedRequest;
 
   LocalNewsApiServer._(this._server) {
     _handleRequests();
@@ -50,7 +53,7 @@ class LocalNewsApiServer {
 
   Future<void> _handleRequests() async {
     await for (final request in _server) {
-      lastUri = request.uri;
+      lastCapturedRequest = await CapturedRequest.capture(request);
       switch (_replyWith) {
         case ReplyWith.error:
           _replyWithError(request);
@@ -113,6 +116,43 @@ class LocalNewsApiServer {
 
   Future<void> close() async {
     await _server.close();
+  }
+}
+
+class CapturedRequest {
+  final Uri uri;
+  final String? contentType;
+  final List<int> content;
+
+  CapturedRequest(this.uri, this.contentType, this.content);
+
+  static Future<CapturedRequest> capture(HttpRequest request) async {
+    final uri = request.uri;
+    final contentType = request.headers.value(HttpHeaders.contentTypeHeader);
+    final content = await request.fold<List<int>>([], (prev, cur) {
+      prev.addAll(cur);
+      return prev;
+    });
+    return CapturedRequest(uri, contentType, content);
+  }
+
+  String expectUtf8Body(String contentType) {
+    expect(contentType, equals(this.contentType));
+    return utf8.decode(content);
+  }
+
+  Object? expectJsonBody() {
+    final string = expectUtf8Body('application/json');
+    return json.decode(string);
+  }
+
+  void expectJsonQueryParams(Map<String, String> expectedQuery) {
+    final json = expectJsonBody();
+    expect(json, isA<Map<String, Object?>>());
+    final jsonMap = json as Map<String, Object?>;
+    for (final entry in expectedQuery.entries) {
+      expect(jsonMap[entry.key], equals(entry.value));
+    }
   }
 }
 
