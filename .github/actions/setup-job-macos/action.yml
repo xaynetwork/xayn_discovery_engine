@@ -76,7 +76,7 @@ runs:
 
     - name: Install rustup
       shell: bash
-      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
 
     - name: Install rust toolchain
       working-directory: ${{ env.RUST_WORKSPACE }}
