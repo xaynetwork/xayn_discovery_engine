@@ -84,7 +84,7 @@ runs:
       run: |
           # Rustup when used will automatically install the toolchain
           # specified in rust-toolchain.toml
-          rustup show
+          rustup show active-toolchain
 
     - name: Install rust target
       if: inputs.rust-target != ''
