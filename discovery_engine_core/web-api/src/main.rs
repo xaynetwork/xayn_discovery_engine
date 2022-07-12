@@ -30,47 +30,46 @@
     clippy::must_use_candidate
 )]
 
-use serde::{Deserialize, Serialize};
-use std::{
-    convert::Infallible,
-    net::{IpAddr, Ipv4Addr},
-};
+use std::{convert::Infallible, env, net::IpAddr};
 use uuid::Uuid;
 use warp::{hyper::StatusCode, Filter};
 
 #[tokio::main]
 async fn main() {
-    // GET /ranked-documents/:userId
-    let ranked_documents = warp::path("ranked-documents")
-        .and(warp::path::param::<Uuid>())
+    // TODO: TY-3011 - add filepath env var for documents data json file
+    let port = env::var("PORT")
+        .unwrap_or_else(|_| "3000".to_string())
+        .parse::<u16>()
+        .unwrap();
+    let ip_addr = env::var("IP_ADDR")
+        .unwrap_or_else(|_| "127.0.0.1".to_string())
+        .parse::<IpAddr>()
+        .unwrap();
+
+    // PATH /user/:user_id
+    let user_route = warp::path("user").and(warp::path::param::<Uuid>());
+
+    // GET /user/:user_id/documents
+    let ranked_documents = user_route
+        .and(warp::path("documents"))
         .and(warp::get())
         .and_then(handle_ranked_documents);
 
-    // POST /user-interaction
-    let user_interaction = warp::path("user-interaction")
+    // POST /user/:user_id/interaction/:document_id
+    let user_interaction = user_route
+        .and(warp::path("interaction"))
+        .and(warp::path::param::<Uuid>())
         .and(warp::post())
-        .and(warp::body::content_length_limit(1024 * 16).and(warp::body::json()))
         .and_then(handle_user_interaction);
 
-    // DELETE /clean-state
-    let clean_state = warp::path("clean-state")
-        .and(warp::header::exact("authorization", "Bearer token"))
+    // DELETE /internal-state
+    let clean_state = warp::path("internal-state")
         .and(warp::delete())
         .and_then(handle_clean_state);
 
     let routes = ranked_documents.or(user_interaction).or(clean_state);
 
-    // TODO: TY-3012
-    let ip_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
-    let port = 3000;
-
     warp::serve(routes).run((ip_addr, port)).await;
-}
-
-#[derive(Serialize, Deserialize)]
-struct UserInteractionDto {
-    user_id: Uuid,
-    document_id: Uuid,
 }
 
 // TODO: TY-3013
@@ -80,7 +79,8 @@ async fn handle_ranked_documents(_user_id: Uuid) -> Result<impl warp::Reply, Inf
 
 // TODO: TY-3014
 async fn handle_user_interaction(
-    _body: UserInteractionDto,
+    _user_id: Uuid,
+    _document_id: Uuid,
 ) -> Result<impl warp::Reply, Infallible> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
