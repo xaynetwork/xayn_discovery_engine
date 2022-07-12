@@ -137,7 +137,7 @@ class CapturedRequest {
   }
 
   String expectUtf8Body(String contentType) {
-    expect(contentType, equals(contentType));
+    expect(contentType, equals(this.contentType));
     return utf8.decode(content);
   }
 
