@@ -17,8 +17,8 @@
 use derive_more::{AsRef, From};
 use tokio::sync::Mutex;
 
-use xayn_discovery_engine_core::XaynAiEngine;
+use xayn_discovery_engine_core::Engine;
 
 /// A shared discovery engine with a lock.
 #[derive(AsRef, From)]
-pub struct SharedEngine(Mutex<XaynAiEngine>);
+pub struct SharedEngine(Mutex<Engine>);

@@ -22,7 +22,12 @@ use std::{
 use displaydoc::Display;
 use thiserror::Error;
 
-use crate::{model::BertModel, NonePooler};
+use crate::{
+    model::{BertModel, Model},
+    pipeline::{Pipeline, PipelineError},
+    tokenizer::Tokenizer,
+    NonePooler,
+};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 /// `BertModel` configuration errors.
@@ -37,13 +42,13 @@ pub enum ConfigError {
 /// A `BertModel` configuration.
 #[must_use]
 pub struct Config<'a, K, P> {
-    pub(crate) model_kind: PhantomData<K>,
-    pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
-    pub(crate) model: Box<dyn Read + Send + 'a>,
-    pub(crate) accents: AccentChars,
-    pub(crate) case: CaseChars,
-    pub(crate) token_size: usize,
-    pub(crate) pooler: PhantomData<P>,
+    model_kind: PhantomData<K>,
+    vocab: Box<dyn BufRead + Send + 'a>,
+    model: Box<dyn Read + Send + 'a>,
+    accents: AccentChars,
+    case: CaseChars,
+    token_size: usize,
+    pooler: PhantomData<P>,
 }
 
 impl<'a, K: BertModel> Config<'a, K, NonePooler> {
@@ -119,5 +124,19 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
             token_size: self.token_size,
             pooler: PhantomData,
         }
+    }
+
+    /// Creates a `BertModel` pipeline from a configuration.
+    pub fn build(self) -> Result<Pipeline<K, P>, PipelineError> {
+        let tokenizer = Tokenizer::new(self.vocab, self.accents, self.case, self.token_size)
+            .map_err(PipelineError::TokenizerBuild)?;
+
+        let model = Model::new(self.model, self.token_size).map_err(PipelineError::ModelBuild)?;
+
+        Ok(Pipeline {
+            tokenizer,
+            model,
+            pooler: self.pooler,
+        })
     }
 }

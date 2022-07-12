@@ -16,12 +16,12 @@
 
 use std::collections::HashSet;
 use uuid::uuid;
+use xayn_discovery_engine_ai::{CoiSystem, UserInterests};
 
 use crate::{
     config::ExplorationConfig as Config,
     document::{Document, UserReaction},
     mab::Bucket,
-    ranker::Ranker,
     stack::{self, exploration::selection::document_selection, Data, Id},
 };
 
@@ -51,9 +51,10 @@ impl Stack {
     pub(crate) fn update(
         &mut self,
         new_documents: &[Document],
-        ranker: &mut impl Ranker,
+        coi: &CoiSystem,
+        user_interests: &UserInterests,
     ) -> Result<(), stack::Error> {
-        if ranker.positive_cois().is_empty() && ranker.negative_cois().is_empty() {
+        if user_interests.positive.is_empty() && user_interests.negative.is_empty() {
             // we are not ready to run the exploration stack
             return Ok(());
         }
@@ -72,12 +73,12 @@ impl Stack {
             .collect();
 
         let mut items = document_selection(
-            ranker.positive_cois(),
-            ranker.negative_cois(),
+            &user_interests.positive,
+            &user_interests.negative,
             documents,
             &self.config,
         )?;
-        ranker.rank(&mut items).map_err(stack::Error::Ranking)?;
+        coi.rank(&mut items, user_interests);
         self.data.documents = items;
         self.data.documents.reverse();
         Ok(())
@@ -85,13 +86,12 @@ impl Stack {
 
     /// Rank the internal documents.
     ///
-    /// This is useful when the [`Ranker`] has been updated.
-    pub(crate) fn rank(&mut self, ranker: &mut impl Ranker) -> Result<(), stack::Error> {
-        ranker
-            .rank(&mut self.data.documents)
-            .map_err(stack::Error::Ranking)?;
+    /// This is useful when the [`Engine`] has been updated.
+    ///
+    /// [`Engine`]: crate::engine::Engine
+    pub(crate) fn rank(&mut self, coi: &CoiSystem, user_interests: &UserInterests) {
+        coi.rank(&mut self.data.documents, user_interests);
         self.data.documents.reverse();
-        Ok(())
     }
 
     /// Updates the relevance of the Stack based on the user feedback.

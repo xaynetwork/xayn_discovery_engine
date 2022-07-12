@@ -30,7 +30,7 @@ use xayn_discovery_engine_providers::{clean_query, Market};
 
 use crate::{
     coi::{point::PositiveCoi, stats::compute_coi_relevances, CoiError, CoiId},
-    embedding::{utils::pairwise_cosine_similarity, Embedding},
+    embedding::{pairwise_cosine_similarity, Embedding},
     error::GenericError,
     utils::{nan_safe_f32_cmp, system_time_now},
 };
@@ -50,10 +50,7 @@ pub struct KeyPhrase(Arc<KP>);
 
 impl KeyPhrase {
     /// Creates a key phrase after validating the inputs.
-    pub(super) fn new(
-        words: impl Into<String>,
-        point: impl Into<Embedding>,
-    ) -> Result<Self, CoiError> {
+    fn new(words: impl Into<String>, point: impl Into<Embedding>) -> Result<Self, CoiError> {
         let words = words.into();
         let point = point.into();
 
@@ -103,7 +100,7 @@ impl PositiveCoi {
 
 /// Sorted maps from cois and markets to key phrases.
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub(crate) struct KeyPhrases {
+pub struct KeyPhrases {
     // invariant: each vector of selected key phrases must be non-empty and sorted in descending relevance
     selected: HashMap<(CoiId, Market), Vec<KeyPhrase>>,
     removed: HashMap<(CoiId, Market), Vec<KeyPhrase>>,

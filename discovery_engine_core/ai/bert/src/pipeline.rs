@@ -22,20 +22,19 @@ use crate::{
     pooler::{Embedding1, Embedding2, PoolerError},
     tokenizer::{Tokenizer, TokenizerError},
     AveragePooler,
-    Config,
     FirstPooler,
     NonePooler,
 };
 
 /// A pipeline for a bert model.
 ///
-/// Can be created passing a [`Config`] and consists of a tokenizer, a model and a pooler.
+/// Can be built from a [`Config`] and consists of a tokenizer, a model and a pooler.
 ///
-/// [`Builder`]: crate::builder::Builder
+/// [`Config`]: crate::config::Config
 pub struct Pipeline<K, P> {
     pub(crate) tokenizer: Tokenizer,
     pub(crate) model: Model<K>,
-    pooler: PhantomData<P>,
+    pub(crate) pooler: PhantomData<P>,
 }
 
 /// The potential errors of the [`Pipeline`].
@@ -51,27 +50,6 @@ pub enum PipelineError {
     TokenizerBuild(#[source] TokenizerError),
     /// Failed to build the model: {0}
     ModelBuild(#[source] ModelError),
-}
-
-impl<K, P> Pipeline<K, P>
-where
-    K: BertModel,
-{
-    /// Creates a `BertModel` pipeline from a configuration.
-    pub fn from(config: Config<'_, K, P>) -> Result<Self, PipelineError> {
-        let tokenizer =
-            Tokenizer::new(config.vocab, config.accents, config.case, config.token_size)
-                .map_err(PipelineError::TokenizerBuild)?;
-
-        let model =
-            Model::new(config.model, config.token_size).map_err(PipelineError::ModelBuild)?;
-
-        Ok(Pipeline {
-            tokenizer,
-            model,
-            pooler: config.pooler,
-        })
-    }
 }
 
 impl<K> Pipeline<K, NonePooler>
@@ -132,16 +110,17 @@ mod tests {
 
     use super::*;
     use crate::{
+        config::Config,
         model::kinds::SMBert,
         pooler::{AveragePooler, FirstPooler, NonePooler},
     };
 
     fn pipeline<P>() -> Pipeline<SMBert, P> {
-        let config = Config::from_files(vocab().unwrap(), model().unwrap())
+        Config::from_files(vocab().unwrap(), model().unwrap())
             .unwrap()
-            .with_pooling();
-
-        Pipeline::from(config).unwrap()
+            .with_pooling()
+            .build()
+            .unwrap()
     }
 
     #[test]

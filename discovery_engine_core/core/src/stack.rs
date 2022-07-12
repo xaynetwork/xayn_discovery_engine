@@ -22,13 +22,12 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
+use xayn_discovery_engine_ai::{CoiSystem, GenericError, KeyPhrase, UserInterests};
 use xayn_discovery_engine_providers::{GenericArticle, Market};
 
 use crate::{
     document::{Document, HistoricDocument, Id as DocumentId, UserReaction},
     mab::Bucket,
-    ranker::Ranker,
 };
 
 mod data;
@@ -52,9 +51,6 @@ pub(crate) use self::{
 pub enum Error {
     /// Failed to merge current documents with new ones.
     Merge(#[source] GenericError),
-
-    /// Failed to rank documents when updating the stack: {0}.
-    Ranking(#[source] GenericError),
 
     /// [`Document`] {document_id} has stack id {document_stack_id} instead of {stack_id}.
     InvalidDocument {
@@ -127,7 +123,8 @@ impl Stack {
     pub(crate) fn update(
         &mut self,
         new_documents: &[Document],
-        ranker: &mut impl Ranker,
+        coi: &CoiSystem,
+        user_interests: &UserInterests,
     ) -> Result<(), Error> {
         Self::validate_documents_stack_id(new_documents, self.ops.id())?;
 
@@ -135,7 +132,7 @@ impl Stack {
             .ops
             .merge(&self.data.documents, new_documents)
             .map_err(Error::Merge)?;
-        ranker.rank(&mut items).map_err(Error::Ranking)?;
+        coi.rank(&mut items, user_interests);
         self.data.documents = items;
         self.data.documents.reverse();
         Ok(())
@@ -143,13 +140,12 @@ impl Stack {
 
     /// Rank the internal documents.
     ///
-    /// This is useful when the [`Ranker`] has been updated.
-    pub(crate) fn rank(&mut self, ranker: &mut impl Ranker) -> Result<(), Error> {
-        ranker
-            .rank(&mut self.data.documents)
-            .map_err(Error::Ranking)?;
+    /// This is useful when the [`Engine`] has been updated.
+    ///
+    /// [`Engine`]: crate::engine::Engine
+    pub(crate) fn rank(&mut self, coi: &CoiSystem, user_interests: &UserInterests) {
+        coi.rank(&mut self.data.documents, user_interests);
         self.data.documents.reverse();
-        Ok(())
     }
 
     /// Updates the relevance of the Stack based on the user feedback.

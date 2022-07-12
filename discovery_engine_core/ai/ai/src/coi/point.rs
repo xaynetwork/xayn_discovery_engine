@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     coi::{stats::CoiStats, CoiId},
-    embedding::{utils::cosine_similarity, Embedding},
+    embedding::{cosine_similarity, Embedding},
     utils::system_time_now,
 };
 
@@ -106,9 +106,9 @@ impl_coi_point! {
 
 /// The `CoI`s of a user.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(crate) struct UserInterests {
-    pub(crate) positive: Vec<PositiveCoi>,
-    pub(crate) negative: Vec<NegativeCoi>,
+pub struct UserInterests {
+    pub positive: Vec<PositiveCoi>,
+    pub negative: Vec<NegativeCoi>,
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.

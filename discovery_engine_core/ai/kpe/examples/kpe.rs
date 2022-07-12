@@ -14,15 +14,13 @@
 
 //! Run as `cargo run --example kpe
 
-use xayn_discovery_engine_kpe::{Config, Pipeline};
+use xayn_discovery_engine_kpe::Config;
 use xayn_discovery_engine_test_utils::kpe::{bert, classifier, cnn, vocab};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config =
-        Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?.with_token_size(128)?;
-
-    let kpe = Pipeline::from(config)?;
-
+    let kpe = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
+        .with_token_size(128)?
+        .build()?;
     let key_phrases = kpe.run("Berlin & Brandenburg")?;
     println!("{:?}", key_phrases);
     assert_eq!(key_phrases.len(), 30);

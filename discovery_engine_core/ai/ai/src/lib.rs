@@ -32,34 +32,25 @@
 )]
 
 mod coi;
+mod document;
 mod embedding;
 mod error;
-mod ranker;
 mod utils;
 
 pub use crate::{
     coi::{
         config::{Config as CoiSystemConfig, Error as CoiSystemConfigError},
-        key_phrase::KeyPhrase,
-        point::{CoiPoint, NegativeCoi, PositiveCoi},
+        key_phrase::{KeyPhrase, KeyPhrases},
+        point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+        state::State as CoiSystemState,
+        system::CoiSystem,
         CoiId,
     },
-    embedding::{
-        utils::{cosine_similarity, pairwise_cosine_similarity, COSINE_SIMILARITY_RANGE},
-        Embedding,
-    },
+    document::{Document, DocumentId},
+    embedding::{cosine_similarity, pairwise_cosine_similarity, Embedding},
     error::GenericError,
-    ranker::{
-        document::{Document, DocumentId, UserFeedback},
-        public::{Builder, Ranker},
-    },
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
 };
 
-// we need to export rstest_reuse from the root for it to work.
-// `use rstest_reuse` will trigger `clippy::single_component_path_imports`
-// which is not possible to silence.
-#[cfg(test)]
-#[allow(unused_imports)]
-#[rustfmt::skip]
-pub(crate) use rstest_reuse as rstest_reuse;
+#[cfg(doc)]
+pub use crate::embedding::COSINE_SIMILARITY_RANGE;

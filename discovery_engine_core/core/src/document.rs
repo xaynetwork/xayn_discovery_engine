@@ -26,6 +26,7 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
+use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId};
 use xayn_discovery_engine_providers::{GenericArticle, Market, TrendingTopic as BingTopic};
 
 use crate::stack::Id as StackId;
@@ -73,6 +74,12 @@ impl From<Id> for Uuid {
     }
 }
 
+impl From<Id> for DocumentId {
+    fn from(id: Id) -> Self {
+        Uuid::from(id).into()
+    }
+}
+
 impl TryFrom<&[u8]> for Id {
     type Error = Error;
 
@@ -111,6 +118,20 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
             smbert_embedding,
             resource,
         })
+    }
+}
+
+impl AiDocument for Document {
+    fn id(&self) -> DocumentId {
+        self.id.into()
+    }
+
+    fn smbert_embedding(&self) -> &Embedding {
+        &self.smbert_embedding
+    }
+
+    fn date_published(&self) -> NaiveDateTime {
+        self.resource.date_published
     }
 }
 
@@ -208,6 +229,7 @@ pub struct TimeSpent {
 }
 
 /// User reacted to a document.
+#[derive(Debug)]
 pub struct UserReacted {
     /// Id of the document.
     pub id: Id,
@@ -280,6 +302,21 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
             query: topic.query.text,
             image,
         })
+    }
+}
+
+impl AiDocument for TrendingTopic {
+    fn id(&self) -> DocumentId {
+        self.id.into()
+    }
+
+    fn smbert_embedding(&self) -> &Embedding {
+        &self.smbert_embedding
+    }
+
+    fn date_published(&self) -> NaiveDateTime {
+        // return a default value as there is no `date_published` for trending topics
+        chrono::naive::MIN_DATETIME
     }
 }
 

@@ -14,15 +14,14 @@
 
 /// Clean a query from from symbols and multiple spaces.
 pub fn clean_query(query: impl AsRef<str>) -> String {
-    use lazy_static::lazy_static;
+    use once_cell::sync::Lazy;
     use regex::Regex;
 
-    lazy_static! {
-        // match any sequence of symbols and spaces that can follow
-        static ref SYMBOLS: Regex = Regex::new(r"[\p{Symbol}\p{Punctuation}]+\p{Separator}*").unwrap();
-        // match any sequence spaces
-        static ref SEPARATORS: Regex = Regex::new(r"\p{Separator}+").unwrap();
-    }
+    /// match any sequence of symbols and spaces that can follow
+    static SYMBOLS: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"[\p{Symbol}\p{Punctuation}]+\p{Separator}*").unwrap());
+    /// match any sequence spaces
+    static SEPARATORS: Lazy<Regex> = Lazy::new(|| Regex::new(r"\p{Separator}+").unwrap());
 
     // we replace a symbol with a space
     let no_symbols = SYMBOLS.replace_all(query.as_ref(), " ");

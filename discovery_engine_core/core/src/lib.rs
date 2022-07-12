@@ -34,12 +34,11 @@ mod config;
 pub mod document;
 mod engine;
 mod mab;
-mod ranker;
 pub mod stack;
 #[cfg(feature = "storage")]
 pub mod storage;
 
 pub use crate::{
     config::InitConfig,
-    engine::{Engine, Error, XaynAiEngine},
+    engine::{Engine, Error},
 };

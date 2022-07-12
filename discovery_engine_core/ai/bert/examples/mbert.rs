@@ -14,15 +14,14 @@
 
 //! Run as `cargo run --example mbert
 
-use xayn_discovery_engine_bert::{Config, FirstPooler, Pipeline, SMBert, SMBertConfig};
+use xayn_discovery_engine_bert::{FirstPooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_test_utils::smbert;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config: SMBertConfig<_> = Config::from_files(smbert::vocab()?, smbert::model()?)?
+    let mbert = SMBertConfig::from_files(smbert::vocab()?, smbert::model()?)?
         .with_pooling::<FirstPooler>()
-        .with_token_size(64)?;
-
-    let mbert = Pipeline::from(config)?;
+        .with_token_size(64)?
+        .build()?;
     let embedding = mbert.run("This is a sequence.")?;
     let size = SMBert::embedding_size();
 
