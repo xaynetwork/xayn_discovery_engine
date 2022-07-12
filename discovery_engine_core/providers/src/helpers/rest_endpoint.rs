@@ -94,8 +94,7 @@ impl RestEndpoint {
             setup_query_params(&mut |key, value| {
                 query.insert(key.into(), Value::String(value));
             });
-            let body = serde_json::to_vec(&Value::Object(query)).map_err(Error::Encoding)?;
-            self.client.post(url).body(body)
+            self.client.post(url).json(&Value::Object(query))
         } else {
             let mut query_mut = url.query_pairs_mut();
             setup_query_params(&mut |key, value| {
