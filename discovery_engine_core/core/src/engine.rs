@@ -191,6 +191,7 @@ impl Engine {
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
             .collect::<Result<HashMap<_, _>, _>>()
+            .map(RwLock::new)
             .map_err(Error::InvalidStack)?;
 
         let exploration_stack = Exploration::new(
@@ -208,7 +209,7 @@ impl Engine {
             coi,
             kpe,
             providers,
-            stacks: RwLock::new(stacks),
+            stacks,
             exploration_stack,
             state,
             #[cfg(feature = "storage")]
@@ -1147,14 +1148,14 @@ pub(crate) mod tests {
     /// can optionally be updated once like in a freshly started engine.
     async fn init_engine<'a, I, F>(
         stack_ops: I,
-        update_after_cleanse: bool,
+        update_after_reset: bool,
     ) -> MappedMutexGuard<'a, Engine>
     where
         I: IntoIterator<Item = F> + Send,
         <I as IntoIterator>::IntoIter: Send,
         F: FnOnce(&EndpointConfig, &Providers) -> BoxedOps,
     {
-        let engine = async move {
+        let init_engine = async move {
             // We need a mock server from which the initialized stacks can fetch articles
             let server = MockServer::start().await;
             let tmpl = ResponseTemplate::new(200)
@@ -1194,25 +1195,29 @@ pub(crate) mod tests {
 
             Mutex::new((server, engine))
         };
-        let mut engine = MutexGuard::map(ENGINE.get_or_init(engine).await.lock().await, |engine| {
-            &mut engine.1
-        });
+        let mut engine = MutexGuard::map(
+            ENGINE.get_or_init(init_engine).await.lock().await,
+            |engine| &mut engine.1,
+        );
 
-        // set the stacks and cleanse the states
-        *engine.stacks.write().await = stack_ops
-            .into_iter()
-            .map(|stack_ops_new| {
-                let stack = Stack::new(
-                    StackData::default(),
-                    stack_ops_new(&engine.endpoint_config, &engine.providers),
-                )
-                .unwrap();
-                (stack.id(), stack)
-            })
-            .collect();
+        // reset the stacks and states
+        engine.stacks = RwLock::new(
+            stack_ops
+                .into_iter()
+                .map(|stack_ops_new| {
+                    let stack = Stack::new(
+                        StackData::default(),
+                        stack_ops_new(&engine.endpoint_config, &engine.providers),
+                    )
+                    .unwrap();
+                    (stack.id(), stack)
+                })
+                .collect(),
+        );
         engine.exploration_stack.data = StackData::default();
         engine.state = CoiSystemState::default();
-        if update_after_cleanse {
+
+        if update_after_reset {
             engine
                 .update_stacks_for_all_markets(&[], &[], usize::MAX)
                 .await
