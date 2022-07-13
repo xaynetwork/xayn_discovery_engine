@@ -8,12 +8,6 @@ members = [
     "tooling",
 ]
 
-[patch.crates-io.async-bindgen]
-path = "./async-bindgen/async-bindgen"
-
-[patch.crates-io.async-bindgen-gen-dart]
-path = "./async-bindgen/async-bindgen-gen-dart"
-
 [patch.crates-io.xayn-dart-api-dl]
 git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
 branch = "main"
