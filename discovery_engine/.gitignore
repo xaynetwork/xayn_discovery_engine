@@ -14,7 +14,6 @@ engine_data/
 pubspec.lock
 
 # Omit generated files
-# DELETE_AFTER_THIS_IN_RELEASE
 *.g.dart
 *.mocks.dart
 *.freezed.dart

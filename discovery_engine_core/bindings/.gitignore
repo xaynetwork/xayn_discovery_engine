@@ -1,4 +1,4 @@
 # Omit generated files
-# DELETE_AFTER_THIS_IN_RELEASE
+#NOTE if we want to publish this to crates.io auto generated fiels need some special care
 src/async_bindings/*.rs
 include/
