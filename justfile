@@ -223,13 +223,6 @@ _pre-push: deps clean-gen-files fmt check test
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
-# Dry-run the release script.
-_dry-run-release: clean deps dart-build
-    {{justfile_directory()}}/.github/scripts/release.sh --dry-run
-
-dry-run-release:
-     @CI=true {{just_executable()}} _dry-run-release
-
 _compile-android target:
     # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
     cd "$RUST_WORKSPACE"; \
