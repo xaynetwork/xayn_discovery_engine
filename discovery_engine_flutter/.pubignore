@@ -1,2 +1,8 @@
+# include otherwide git ignored build artifacts
 !ios/*.a
 !android/src/main/jniLibs/
+
+# do not publish the example or tests
+# (especially not the assets in example)
+example/
+test/

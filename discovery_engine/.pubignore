@@ -4,3 +4,7 @@
 !*.freezed.dart
 !*.ffigen.dart
 !*.ext.dart
+
+# Do ommit test and example
+example/
+test/
