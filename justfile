@@ -28,10 +28,7 @@ default:
 
 # Gets/updates dart deps
 _dart-deps $WORKSPACE:
-    #!/usr/bin/env sh
-    set -eux
-    cd "$WORKSPACE";
-    dart pub get
+    cd "$WORKSPACE" && dart pub get
 
 dart-deps:
     @{{just_executable()}} _dart-deps "$DART_WORKSPACE"
