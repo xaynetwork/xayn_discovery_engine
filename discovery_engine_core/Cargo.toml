@@ -5,6 +5,7 @@ members = [
     "core",
     "providers",
     "tooling",
+    "web-api",
 ]
 
 [patch.crates-io.async-bindgen]
