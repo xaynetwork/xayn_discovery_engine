@@ -5,10 +5,6 @@ inputs:
     description: 'Setup dart'
     default: "false"
     required: false
-  bindgen_dart:
-    description: 'Setup dart'
-    default: "false"
-    required: false
   rust:
     description: 'Setup rust'
     default: "false"
@@ -41,12 +37,6 @@ runs:
         # slowing all builds down.
         echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
 
-    - name: Setup dependencies
-      shell: bash
-      run: |
-        mkdir -p cargo-installs/bin
-        cp /usr/local/cargo/bin/async-bindgen-gen-dart cargo-installs/bin/async-bindgen-gen-dart
-
     - name: Jfrog authentication
       shell: bash
       if: ${{ inputs.jfrog_token != 'false' }}
@@ -62,10 +52,4 @@ runs:
     - name: dart deps
       shell: bash
       if: ${{ inputs.dart != 'false' }}
-      run: just dart-deps
-
-    - name: bindgen dart deps
-      shell: bash
-      working-directory: async_bindgen
-      if: ${{ inputs.bindgen_dart != 'false' }}
       run: just dart-deps
