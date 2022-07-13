@@ -75,6 +75,7 @@ async fn main() {
 }
 
 // TODO: TY-3013
+#[allow(clippy::unused_async)]
 async fn handle_ranked_documents(_user_id: Uuid) -> Result<impl warp::Reply, Infallible> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
@@ -85,6 +86,7 @@ struct UserInteractionDto {
 }
 
 // TODO: TY-3014
+#[allow(clippy::unused_async)]
 async fn handle_user_interaction(
     _user_id: Uuid,
     _body: UserInteractionDto,
@@ -93,6 +95,7 @@ async fn handle_user_interaction(
 }
 
 // TODO: TY-3015
+#[allow(clippy::unused_async)]
 async fn handle_clean_state() -> Result<impl warp::Reply, Infallible> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
