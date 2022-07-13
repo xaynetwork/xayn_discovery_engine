@@ -1,0 +1,6 @@
+# Do not omit generated files
+!*.g.dart
+!*.mocks.dart
+!*.freezed.dart
+!*.ffigen.dart
+!*.ext.dart
