@@ -305,10 +305,6 @@ _dart-publish $WORKSPACE:
         SED_CMD="gsed"
     fi
 
-    # `dart pub` refuses to publish packages with symlinks
-    # deleting them from the test directories should do no harm
-    find ./test -type l -exec rm {} \;
-
     # Dependency overrides are not allowed in published dart packages
     $SED_CMD -i s/dependency_overrides/x_dependency_overrides/ ./pubspec.yaml
 
