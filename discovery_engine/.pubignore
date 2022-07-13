@@ -1,10 +1,11 @@
-# Do not omit generated files
-!*.g.dart
-!*.mocks.dart
-!*.freezed.dart
-!*.ffigen.dart
-!*.ext.dart
+# Replaces .gitignore for package publishing
 
-# Do ommit test and example
+# ignore everything from .gitignore
+build/
+**/doc/api/
+engine_data/
+pubspec.lock
+
+# also ginore example/, test/
 example/
 test/

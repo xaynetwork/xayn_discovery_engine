@@ -1,8 +1,10 @@
-# include otherwide git ignored build artifacts
-!ios/*.a
-!android/src/main/jniLibs/
+# Replaces .gitignore for package publishing
 
-# do not publish the example or tests
-# (especially not the assets in example)
+# ignore everything from .gitignore
+/pubspec.lock
+**/doc/api/
+build/
+
+# also ginore example/, test/
 example/
 test/
