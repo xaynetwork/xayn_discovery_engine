@@ -316,6 +316,7 @@ _dart-publish $WORKSPACE:
     # by Github's "run ID". Note that this ID is reset if you change the name of the
     # workflow.
     BUILD_ID="${GITHUB_RUN_ID:-missingRunId}.$(git rev-parse HEAD)"
+    echo "Build Id: $BUILD_ID"
     if [[ "$(git rev-parse --abbrev-ref HEAD)" == "main" ]]; then
         BUILD_ID="main.${BUILD_ID}"
     fi
