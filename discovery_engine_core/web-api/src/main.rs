@@ -30,6 +30,7 @@
     clippy::must_use_candidate
 )]
 
+use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, env, net::IpAddr};
 use uuid::Uuid;
 use warp::{hyper::StatusCode, Filter};
@@ -42,7 +43,7 @@ async fn main() {
         .parse::<u16>()
         .unwrap();
     let ip_addr = env::var("DE_IP_ADDR")
-        .unwrap_or_else(|_| "127.0.0.1".to_string())
+        .unwrap_or_else(|_| "0.0.0.0".to_string())
         .parse::<IpAddr>()
         .unwrap();
 
@@ -55,11 +56,12 @@ async fn main() {
         .and(warp::get())
         .and_then(handle_ranked_documents);
 
-    // POST /user/:user_id/interaction/:document_id
+    // POST /user/:user_id/interaction
     let user_interaction = user_route
         .and(warp::path("interaction"))
-        .and(warp::path::param::<Uuid>())
         .and(warp::post())
+        .and(warp::body::content_length_limit(1024))
+        .and(warp::body::json())
         .and_then(handle_user_interaction);
 
     // DELETE /internal-state
@@ -77,10 +79,15 @@ async fn handle_ranked_documents(_user_id: Uuid) -> Result<impl warp::Reply, Inf
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
+#[derive(Serialize, Deserialize)]
+struct UserInteractionDto {
+    document_id: Uuid,
+}
+
 // TODO: TY-3014
 async fn handle_user_interaction(
     _user_id: Uuid,
-    _document_id: Uuid,
+    _body: UserInteractionDto,
 ) -> Result<impl warp::Reply, Infallible> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
