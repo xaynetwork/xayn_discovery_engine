@@ -449,16 +449,15 @@ mod tests {
             assert_approx_eq!(f32, distances, expected);
         }
 
-        let smbert_config =
-            SMBertConfig::from_files(smbert::vocab().unwrap(), smbert::model().unwrap())
-                .unwrap()
-                .with_token_size(52)
-                .unwrap()
-                .with_accents(AccentChars::Cleanse)
-                .with_case(CaseChars::Lower)
-                .with_pooling::<AveragePooler>();
-
-        let smbert = SMBert::from(smbert_config).unwrap();
+        let smbert = SMBertConfig::from_files(smbert::vocab().unwrap(), smbert::model().unwrap())
+            .unwrap()
+            .with_token_size(52)
+            .unwrap()
+            .with_accents(AccentChars::Cleanse)
+            .with_case(CaseChars::Lower)
+            .with_pooling::<AveragePooler>()
+            .build()
+            .unwrap();
 
         let titles_en = [
             ("How To Start A New Life With Less Than $100", 0),

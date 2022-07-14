@@ -21,7 +21,12 @@ use std::{
 use displaydoc::Display;
 use thiserror::Error;
 
-use crate::model::bert::Bert;
+use crate::{
+    model::{bert::Bert, classifier::Classifier, cnn::Cnn},
+    pipeline::{Pipeline, PipelineError},
+    tokenizer::Tokenizer,
+};
+use xayn_discovery_engine_layer::io::BinParams;
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 /// `KPE` configuration errors.
@@ -40,15 +45,15 @@ pub enum ConfigError {
 /// A `KPE` configuration.
 #[must_use]
 pub struct Config<'a> {
-    pub(crate) vocab: Box<dyn BufRead + Send + 'a>,
-    pub(crate) model: Box<dyn Read + Send + 'a>,
-    pub(crate) cnn: Box<dyn Read + Send + 'a>,
-    pub(crate) classifier: Box<dyn Read + Send + 'a>,
-    pub(crate) accents: AccentChars,
-    pub(crate) case: CaseChars,
-    pub(crate) token_size: usize,
-    pub(crate) key_phrase_max_count: Option<usize>,
-    pub(crate) key_phrase_min_score: Option<f32>,
+    vocab: Box<dyn BufRead + Send + 'a>,
+    model: Box<dyn Read + Send + 'a>,
+    cnn: Box<dyn Read + Send + 'a>,
+    classifier: Box<dyn Read + Send + 'a>,
+    accents: AccentChars,
+    case: CaseChars,
+    token_size: usize,
+    key_phrase_max_count: Option<usize>,
+    key_phrase_min_score: Option<f32>,
 }
 
 impl<'a> Config<'a> {
@@ -147,5 +152,28 @@ impl<'a> Config<'a> {
         } else {
             Err(ConfigError::KeyPhraseMinScore)
         }
+    }
+
+    /// Creates a `KPE` pipeline from a configuration.
+    pub fn build(self) -> Result<Pipeline, PipelineError> {
+        let tokenizer = Tokenizer::new(
+            self.vocab,
+            self.accents,
+            self.case,
+            self.token_size,
+            self.key_phrase_max_count,
+            self.key_phrase_min_score,
+        )?;
+        let bert = Bert::new(self.model, self.token_size).map_err(PipelineError::ModelBuild)?;
+        let cnn = Cnn::new(BinParams::deserialize_from(self.cnn)?)?;
+        let classifier = Classifier::new(BinParams::deserialize_from(self.classifier)?)
+            .map_err(PipelineError::ModelBuild)?;
+
+        Ok(Pipeline {
+            tokenizer,
+            bert,
+            cnn,
+            classifier,
+        })
     }
 }

@@ -19,7 +19,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    embedding::utils::COSINE_SIMILARITY_RANGE,
+    coi::system::CoiSystem,
+    embedding::COSINE_SIMILARITY_RANGE,
     utils::{nan_safe_f32_cmp_desc, serde_duration_as_days, SECONDS_PER_DAY_U64},
 };
 
@@ -119,6 +120,8 @@ impl Config {
     ///
     /// # Errors
     /// Fails if the threshold is not within [`COSINE_SIMILARITY_RANGE`].
+    ///
+    /// [`COSINE_SIMILARITY_RANGE`]: crate::embedding::COSINE_SIMILARITY_RANGE
     pub fn with_threshold(mut self, threshold: f32) -> Result<Self, Error> {
         if COSINE_SIMILARITY_RANGE.contains(&threshold) {
             self.coi.threshold = threshold;
@@ -219,5 +222,10 @@ impl Config {
     /// The maximum number of key phrases picked during the coi key phrase selection.
     pub fn max_key_phrases(&self) -> usize {
         self.kpe.penalty.len()
+    }
+
+    /// Creates a centre of interest system.
+    pub fn build(self) -> CoiSystem {
+        CoiSystem { config: self }
     }
 }

@@ -26,8 +26,9 @@ use xayn_discovery_engine_providers::{Market, ProviderConfig};
 
 use crate::stack::exploration::Stack as Exploration;
 
-/// Configuration settings to initialize Discovery Engine with a
-/// [`xayn_discovery_engine_ai::Ranker`].
+/// Configuration settings to initialize the Discovery [`Engine`].
+///
+/// [`Engine`]: crate::engine::Engine
 #[derive(Clone, Debug)]
 pub struct InitConfig {
     /// Key for accessing the API.

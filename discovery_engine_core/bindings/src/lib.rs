@@ -125,19 +125,13 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Processes time spent.
-    pub async fn time_spent(
-        engine: &SharedEngine,
-        time_spent: Box<TimeSpent>,
-    ) -> Box<Result<(), String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .time_spent(time_spent.as_ref())
-                .await
-                .map_err(|error| error.to_string()),
-        )
+    pub async fn time_spent(engine: &SharedEngine, time_spent: Box<TimeSpent>) {
+        engine
+            .as_ref()
+            .lock()
+            .await
+            .time_spent(time_spent.as_ref())
+            .await;
     }
 
     /// Processes user reaction.

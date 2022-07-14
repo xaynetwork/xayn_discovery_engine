@@ -14,18 +14,19 @@
 
 use displaydoc::Display;
 use thiserror::Error;
-use xayn_discovery_engine_layer::io::{BinParams, LoadingBinParamsFailed};
+use xayn_discovery_engine_layer::io::LoadingBinParamsFailed;
 
 use crate::{
-    config::Config,
     model::{bert::Bert, classifier::Classifier, cnn::Cnn, ModelError},
     tokenizer::{key_phrase::RankedKeyPhrases, Tokenizer, TokenizerError},
 };
 
 /// A pipeline for a KPE model.
 ///
-/// Can be created passing a [`Config`] and consists of a tokenizer, a Bert model, a CNN model and a
+/// Can be built from a [`Config`] and consists of a tokenizer, a Bert model, a CNN model and a
 /// Classifier model.
+///
+/// [`Config`]: crate::config::Config
 pub struct Pipeline {
     pub(crate) tokenizer: Tokenizer<{ Cnn::KEY_PHRASE_SIZE }>,
     pub(crate) bert: Bert,
@@ -47,29 +48,6 @@ pub enum PipelineError {
 }
 
 impl Pipeline {
-    /// Creates a `KPE` pipeline from a configuration.
-    pub fn from(config: Config<'_>) -> Result<Self, PipelineError> {
-        let tokenizer = Tokenizer::new(
-            config.vocab,
-            config.accents,
-            config.case,
-            config.token_size,
-            config.key_phrase_max_count,
-            config.key_phrase_min_score,
-        )?;
-        let bert = Bert::new(config.model, config.token_size).map_err(PipelineError::ModelBuild)?;
-        let cnn = Cnn::new(BinParams::deserialize_from(config.cnn)?)?;
-        let classifier = Classifier::new(BinParams::deserialize_from(config.classifier)?)
-            .map_err(PipelineError::ModelBuild)?;
-
-        Ok(Pipeline {
-            tokenizer,
-            bert,
-            cnn,
-            classifier,
-        })
-    }
-
     /// Extracts the key phrases from the sequence ranked in descending order.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<RankedKeyPhrases, PipelineError> {
         let (encoding, key_phrases) = self
@@ -91,19 +69,16 @@ mod tests {
     use xayn_discovery_engine_test_utils::kpe::{bert, classifier, cnn, vocab};
     use xayn_discovery_engine_tokenizer::CaseChars;
 
-    use super::*;
+    use crate::config::Config;
 
     #[test]
     fn test_run_unique() -> Result<(), Box<dyn Error>> {
-        let config = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
+        let kpe = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
             .with_token_size(8)?
-            .with_case(CaseChars::Keep);
+            .with_case(CaseChars::Keep)
+            .build()?;
 
-        let actual = Pipeline::from(config)?
-            .run("A b c d e.")?
-            .0
-            .into_iter()
-            .collect::<HashSet<_>>();
+        let actual = kpe.run("A b c d e.")?.0.into_iter().collect::<HashSet<_>>();
         let expected = [
             "a",
             "b",
@@ -130,15 +105,12 @@ mod tests {
 
     #[test]
     fn test_run_duplicate() -> Result<(), Box<dyn Error>> {
-        let config = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
+        let kpe = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
             .with_token_size(7)?
-            .with_case(CaseChars::Keep);
+            .with_case(CaseChars::Keep)
+            .build()?;
 
-        let actual = Pipeline::from(config)?
-            .run("A a A a A")?
-            .0
-            .into_iter()
-            .collect::<HashSet<_>>();
+        let actual = kpe.run("A a A a A")?.0.into_iter().collect::<HashSet<_>>();
         let expected = ["a", "a a", "a a a", "a a a a", "a a a a a"]
             .iter()
             .map(ToString::to_string)

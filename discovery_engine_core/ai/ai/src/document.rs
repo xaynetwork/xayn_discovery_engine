@@ -28,25 +28,6 @@ impl From<Uuid> for DocumentId {
     }
 }
 
-#[cfg(test)]
-impl DocumentId {
-    /// Creates a `DocumentId` from a 128bit value in big-endian order.
-    pub const fn from_u128(id: u128) -> Self {
-        DocumentId(Uuid::from_u128(id))
-    }
-}
-
-/// The various kinds of user feedback.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum UserFeedback {
-    /// The user considers this as relevant.
-    Relevant,
-    /// The user considers this as irrelevant.
-    Irrelevant,
-    /// The user doesn't give feedback.
-    NotGiven,
-}
-
 /// Common document properties.
 pub trait Document {
     /// Gets the document id.
@@ -60,35 +41,44 @@ pub trait Document {
 }
 
 #[cfg(test)]
-pub(super) struct TestDocument {
-    pub(super) id: DocumentId,
-    pub(super) smbert_embedding: Embedding,
-    pub(super) date_published: NaiveDateTime,
-}
+pub(crate) mod tests {
+    use super::*;
 
-#[cfg(test)]
-impl TestDocument {
-    pub(super) fn new(id: u128, embedding: impl Into<Embedding>, date_published: &str) -> Self {
-        Self {
-            id: DocumentId::from_u128(id),
-            smbert_embedding: embedding.into(),
-            date_published: NaiveDateTime::parse_from_str(date_published, "%Y-%m-%d %H:%M:%S")
-                .unwrap(),
+    impl DocumentId {
+        /// Creates a `DocumentId` from a 128bit value in big-endian order.
+        pub const fn from_u128(id: u128) -> Self {
+            DocumentId(Uuid::from_u128(id))
         }
     }
-}
 
-#[cfg(test)]
-impl Document for TestDocument {
-    fn id(&self) -> DocumentId {
-        self.id
+    pub(crate) struct TestDocument {
+        pub(crate) id: DocumentId,
+        pub(crate) smbert_embedding: Embedding,
+        pub(crate) date_published: NaiveDateTime,
     }
 
-    fn smbert_embedding(&self) -> &Embedding {
-        &self.smbert_embedding
+    impl TestDocument {
+        pub(crate) fn new(id: u128, embedding: impl Into<Embedding>, date_published: &str) -> Self {
+            Self {
+                id: DocumentId::from_u128(id),
+                smbert_embedding: embedding.into(),
+                date_published: NaiveDateTime::parse_from_str(date_published, "%Y-%m-%d %H:%M:%S")
+                    .unwrap(),
+            }
+        }
     }
 
-    fn date_published(&self) -> NaiveDateTime {
-        self.date_published
+    impl Document for TestDocument {
+        fn id(&self) -> DocumentId {
+            self.id
+        }
+
+        fn smbert_embedding(&self) -> &Embedding {
+            &self.smbert_embedding
+        }
+
+        fn date_published(&self) -> NaiveDateTime {
+            self.date_published
+        }
     }
 }

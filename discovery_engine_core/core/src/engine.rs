@@ -30,13 +30,16 @@ use tracing::{debug, error, info, instrument, Level};
 use xayn_discovery_engine_ai::{
     cosine_similarity,
     nan_safe_f32_cmp,
-    Builder,
+    CoiSystem,
+    CoiSystemConfig,
+    CoiSystemState,
     Embedding,
     GenericError,
     KeyPhrase,
+    UserInterests,
 };
-use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
-use xayn_discovery_engine_kpe::Config as KpeConfig;
+use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
+use xayn_discovery_engine_kpe::{Config as KpeConfig, Pipeline as KPE};
 use xayn_discovery_engine_providers::{
     clean_query,
     Filter,
@@ -66,7 +69,6 @@ use crate::{
         WeightedSource,
     },
     mab::{self, BetaSampler, Bucket, SelectionIter},
-    ranker::Ranker,
     stack::{
         self,
         exploration::Stack as Exploration,
@@ -139,33 +141,41 @@ pub enum Error {
 }
 
 /// Discovery Engine.
-pub struct Engine<R> {
+pub struct Engine {
+    // configs
     endpoint_config: EndpointConfig,
     core_config: CoreConfig,
+    request_after: usize,
+
+    // systems
+    smbert: SMBert,
+    coi: CoiSystem,
+    kpe: KPE,
+    providers: Providers,
+
+    // states
     stacks: RwLock<HashMap<StackId, Stack>>,
     exploration_stack: Exploration,
-    ranker: R,
-    request_after: usize,
+    state: CoiSystemState,
     #[cfg(feature = "storage")]
     #[allow(dead_code)]
     storage: BoxedStorage,
-    providers: Providers,
 }
 
-impl<R> Engine<R>
-where
-    R: Ranker + Send + Sync,
-{
-    /// Creates an `Engine`.
+impl Engine {
+    /// Creates a discovery [`Engine`].
     ///
-    /// The `Engine` only keeps in its state data related to the current [`BoxedOps`].
+    /// The engine only keeps in its state data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
     #[allow(clippy::too_many_arguments)]
     async fn new(
         endpoint_config: EndpointConfig,
         core_config: CoreConfig,
         exploration_config: ExplorationConfig,
-        ranker: R,
+        smbert: SMBert,
+        coi: CoiSystem,
+        kpe: KPE,
+        state: CoiSystemState,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
@@ -181,6 +191,7 @@ where
                 Stack::new(data, ops).map(|stack| (id, stack))
             })
             .collect::<Result<HashMap<_, _>, _>>()
+            .map(RwLock::new)
             .map_err(Error::InvalidStack)?;
 
         let exploration_stack = Exploration::new(
@@ -193,13 +204,16 @@ where
         let mut engine = Self {
             endpoint_config,
             core_config,
-            stacks: RwLock::new(stacks),
-            exploration_stack,
-            ranker,
             request_after: 0,
+            smbert,
+            coi,
+            kpe,
+            providers,
+            stacks,
+            exploration_stack,
+            state,
             #[cfg(feature = "storage")]
             storage,
-            providers,
         };
 
         engine
@@ -208,6 +222,124 @@ where
             .ok();
 
         Ok(engine)
+    }
+
+    /// Creates a discovery [`Engine`] from a configuration and optional state.
+    #[allow(clippy::too_many_lines)]
+    pub async fn from_config(
+        config: InitConfig,
+        state: Option<&[u8]>,
+        history: &[HistoricDocument],
+        sources: &[WeightedSource],
+    ) -> Result<Self, Error> {
+        let de_config = de_config_from_json(config.de_config.as_deref().unwrap_or("{}"));
+
+        // build the systems
+        let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_token_size(
+                de_config
+                    .extract_inner("smbert.token_size")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_accents(AccentChars::Cleanse)
+            .with_case(CaseChars::Lower)
+            .with_pooling::<AveragePooler>()
+            .build()
+            .map_err(GenericError::from)?;
+        let coi = de_config
+            .extract::<CoiSystemConfig>()
+            .map_err(|err| Error::Ranker(err.into()))?
+            .build();
+        let kpe = KpeConfig::from_files(
+            &config.kpe_vocab,
+            &config.kpe_model,
+            &config.kpe_cnn,
+            &config.kpe_classifier,
+        )
+        .map_err(|err| Error::Ranker(err.into()))?
+        .with_token_size(
+            de_config
+                .extract_inner("kpe.token_size")
+                .map_err(|err| Error::Ranker(err.into()))?,
+        )
+        .map_err(|err| Error::Ranker(err.into()))?
+        .with_accents(AccentChars::Cleanse)
+        .with_case(CaseChars::Keep)
+        .build()
+        .map_err(GenericError::from)?;
+        let providers = Providers::new(&config.clone().into()).map_err(Error::ProviderError)?;
+
+        // read the configs
+        let endpoint_config = de_config
+            .extract_inner::<EndpointConfig>("endpoint")
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_init_config(config)
+            .await;
+        let core_config = de_config
+            .extract_inner("core")
+            .map_err(|err| Error::Ranker(err.into()))?;
+        let exploration_config = de_config
+            .extract_inner(&format!("stacks.{}", Exploration::id()))
+            .map_err(|err| Error::Ranker(err.into()))?;
+
+        // set the states
+        let stack_ops = vec![
+            Box::new(BreakingNews::new(
+                &endpoint_config,
+                providers.headlines.clone(),
+            )) as _,
+            Box::new(TrustedNews::new(
+                &endpoint_config,
+                providers.trusted_headlines.clone(),
+            )) as _,
+            Box::new(PersonalizedNews::new(
+                &endpoint_config,
+                providers.news.clone(),
+            )) as _,
+        ];
+        let (mut stack_data, state) = if let Some(state) = state {
+            if stack_ops.is_empty() {
+                return Err(Error::NoStackOps);
+            }
+            SerializedState::deserialize(state)?
+        } else {
+            (HashMap::default(), CoiSystemState::default())
+        };
+        for id in stack_ops.iter().map(Ops::id).chain(once(Exploration::id())) {
+            if let Ok(alpha) = de_config.extract_inner::<f32>(&format!("stacks.{id}.alpha")) {
+                stack_data.entry(id).or_default().alpha = alpha;
+            }
+            if let Ok(beta) = de_config.extract_inner::<f32>(&format!("stacks.{id}.beta")) {
+                stack_data.entry(id).or_default().beta = beta;
+            }
+        }
+
+        #[cfg(feature = "storage")]
+        let storage = {
+            let storage = SqliteStorage::connect("sqlite::memory:").await?;
+            storage.init_database().await?;
+            Box::new(storage) as _
+        };
+
+        Self::new(
+            endpoint_config,
+            core_config,
+            exploration_config,
+            smbert,
+            coi,
+            kpe,
+            state,
+            history,
+            sources,
+            stack_data,
+            stack_ops,
+            #[cfg(feature = "storage")]
+            storage,
+            providers,
+        )
+        .await
     }
 
     async fn update_stacks_for_all_markets(
@@ -222,7 +354,9 @@ where
         update_stacks(
             &mut stacks,
             &mut self.exploration_stack,
-            &mut self.ranker,
+            &self.smbert,
+            &self.coi,
+            &mut self.state,
             history,
             sources,
             self.core_config.take_top,
@@ -243,19 +377,18 @@ where
         let exploration_stack_id = Exploration::id();
         stacks_data.insert(&exploration_stack_id, &self.exploration_stack.data);
 
-        let engine = bincode::serialize(&stacks_data)
-            .map(StackState)
+        let stacks = bincode::serialize(&stacks_data)
+            .map(SerializedStackState)
             .map_err(|err| Error::Serialization(err.into()))?;
 
-        let ranker = self
-            .ranker
+        let coi = self
+            .state
             .serialize()
-            .map(RankerState)
+            .map(SerializedCoiSystemState)
             .map_err(Error::Serialization)?;
 
-        let state_data = State { engine, ranker };
-
-        bincode::serialize(&state_data).map_err(|err| Error::Serialization(err.into()))
+        bincode::serialize(&SerializedState { stacks, coi })
+            .map_err(|err| Error::Serialization(err.into()))
     }
 
     /// Updates the markets configuration.
@@ -270,7 +403,7 @@ where
         let mut markets_guard = self.endpoint_config.markets.write().await;
         let mut old_markets = replace(&mut *markets_guard, new_markets);
         old_markets.retain(|market| !markets_guard.contains(market));
-        self.ranker.remove_key_phrases(&old_markets);
+        CoiSystem::remove_key_phrases(&old_markets, &mut self.state.key_phrases);
         drop(markets_guard);
 
         self.clear_stack_data().await;
@@ -328,19 +461,27 @@ where
     }
 
     /// Process the feedback about the user spending some time on a document.
-    pub async fn time_spent(&mut self, time_spent: &TimeSpent) -> Result<(), Error> {
-        self.ranker.log_document_view_time(time_spent)?;
+    pub async fn time_spent(&mut self, time_spent: &TimeSpent) {
+        if let UserReaction::Positive | UserReaction::Neutral = time_spent.reaction {
+            CoiSystem::log_document_view_time(
+                &mut self.state.user_interests.positive,
+                &time_spent.smbert_embedding,
+                time_spent.time,
+            );
+        }
 
         rank_stacks(
             self.stacks.write().await.values_mut(),
             &mut self.exploration_stack,
-            &mut self.ranker,
-        )
+            &self.coi,
+            &self.state.user_interests,
+        );
     }
 
     /// Process the feedback about the user reacting to a document.
     ///
     /// The history is only required for positive reactions.
+    #[instrument(skip(self), level = "debug")]
     pub async fn user_reacted(
         &mut self,
         history: Option<&[HistoricDocument]>,
@@ -360,19 +501,58 @@ where
             }
         };
 
-        self.ranker.log_user_reaction(reacted)?;
+        match reacted.reaction {
+            UserReaction::Positive => {
+                let smbert = &self.smbert;
+                let key_phrases = self
+                    .kpe
+                    .run(&reacted.snippet)
+                    .or_else(|_| {
+                        self.kpe
+                            .run(format!("{} {}", reacted.title, reacted.snippet))
+                    })
+                    .map_or_else(
+                        #[allow(clippy::if_not_else)]
+                        |_| {
+                            vec![if !reacted.title.is_empty() {
+                                reacted.title.to_string()
+                            } else {
+                                reacted.snippet.to_string()
+                            }]
+                        },
+                        Into::into,
+                    );
+                self.coi.log_positive_user_reaction(
+                    &mut self.state.user_interests.positive,
+                    &reacted.market,
+                    &mut self.state.key_phrases,
+                    &reacted.smbert_embedding,
+                    &key_phrases,
+                    |words| smbert.run(words).map_err(Into::into),
+                );
+            }
+            UserReaction::Negative => self.coi.log_negative_user_reaction(
+                &mut self.state.user_interests.negative,
+                &reacted.smbert_embedding,
+            ),
+            UserReaction::Neutral => {}
+        }
+        debug!(user_interests = ?self.state.user_interests);
 
         rank_stacks(
             stacks.values_mut(),
             &mut self.exploration_stack,
-            &mut self.ranker,
-        )?;
+            &self.coi,
+            &self.state.user_interests,
+        );
         if let UserReaction::Positive = reacted.reaction {
             if let Some(history) = history {
                 update_stacks(
                     &mut stacks,
                     &mut self.exploration_stack,
-                    &mut self.ranker,
+                    &self.smbert,
+                    &self.coi,
+                    &mut self.state,
                     history,
                     sources,
                     self.core_config.take_top,
@@ -472,14 +652,12 @@ where
 
         let (mut documents, article_errors) = documentify_articles(
             StackId::nil(), // these documents are not associated with a stack
-            &self.ranker,
+            &self.smbert,
             articles,
         );
         errors.extend(article_errors);
 
-        if let Err(err) = self.ranker.rank(&mut documents) {
-            errors.push(Error::Ranker(err));
-        };
+        self.coi.rank(&mut documents, &self.state.user_interests);
         if documents.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
@@ -498,7 +676,10 @@ where
         market: &Market,
         embedding: &Embedding,
     ) -> Result<Vec<Document>, Error> {
-        let key_phrases = self.ranker.extract_key_phrases(&clean_query(term))?;
+        let key_phrases = self
+            .kpe
+            .run(clean_query(term))
+            .map_err(GenericError::from)?;
         if key_phrases.is_empty() {
             return Ok(Vec::new());
         }
@@ -529,7 +710,7 @@ where
         let articles = MalformedFilter::apply(&[], &[], articles)?;
         let (documents, errors) = documentify_articles(
             StackId::nil(), // these documents are not associated with a stack
-            &self.ranker,
+            &self.smbert,
             articles,
         );
 
@@ -574,12 +755,10 @@ where
             };
         }
 
-        let (mut topics, topic_errors) = documentify_topics(&self.ranker, topics);
+        let (mut topics, topic_errors) = documentify_topics(&self.smbert, topics);
         errors.extend(topic_errors);
 
-        if let Err(err) = self.ranker.rank(&mut topics) {
-            errors.push(Error::Ranker(err));
-        };
+        self.coi.rank(&mut topics, &self.state.user_interests);
         if topics.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
@@ -636,7 +815,7 @@ where
         self.exploration_stack =
             Exploration::new(StackData::default(), ExplorationConfig::default())
                 .map_err(Error::InvalidStack)?;
-        self.ranker.reset_ai();
+        self.state.reset();
 
         self.update_stacks_for_all_markets(&[], &[], self.core_config.request_new)
             .await
@@ -650,34 +829,24 @@ where
 fn rank_stacks<'a>(
     stacks: impl Iterator<Item = &'a mut Stack>,
     exploration_stack: &mut Exploration,
-    ranker: &mut impl Ranker,
-) -> Result<(), Error> {
-    let mut errors = stacks.fold(Vec::new(), |mut errors, stack| {
-        if let Err(error) = stack.rank(ranker) {
-            errors.push(Error::StackOpFailed(error));
-        }
-
-        errors
-    });
-
-    if let Err(error) = exploration_stack.rank(ranker) {
-        errors.push(Error::StackOpFailed(error));
+    coi: &CoiSystem,
+    user_interests: &UserInterests,
+) {
+    for stack in stacks {
+        stack.rank(coi, user_interests);
     }
-
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(Error::Errors(errors))
-    }
+    exploration_stack.rank(coi, user_interests);
 }
 
 /// Updates the stacks with data related to the top key phrases of the current data.
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip(stacks, exploration_stack, ranker, history))]
+#[instrument(skip(stacks, exploration_stack, smbert, coi, state, history))]
 async fn update_stacks<'a>(
     stacks: &mut HashMap<Id, Stack>,
     exploration_stack: &mut Exploration,
-    ranker: &mut (impl Ranker + Send + Sync),
+    smbert: &SMBert,
+    coi: &CoiSystem,
+    state: &mut CoiSystemState,
     history: &[HistoricDocument],
     sources: &[WeightedSource],
     take_top: usize,
@@ -707,7 +876,15 @@ async fn update_stacks<'a>(
         .then(|| {
             markets
                 .iter()
-                .map(|market| (market, ranker.take_key_phrases(market, take_top)))
+                .map(|market| {
+                    let key_phrases = coi.take_key_phrases(
+                        &state.user_interests.positive,
+                        market,
+                        &mut state.key_phrases,
+                        take_top,
+                    );
+                    (market, key_phrases)
+                })
                 .collect::<HashMap<_, _>>()
         })
         .unwrap_or_default();
@@ -722,7 +899,7 @@ async fn update_stacks<'a>(
                 let key_phrases = key_phrases_by_market
                     .get(market)
                     .map_or(&[] as &[_], Vec::as_slice);
-                fetch_new_documents_for_stack(stack, ranker, key_phrases, history, market)
+                fetch_new_documents_for_stack(stack, smbert, key_phrases, history, market)
             })
         })
         .collect_vec();
@@ -779,7 +956,7 @@ async fn update_stacks<'a>(
         // to the exploration stack have been filtered before.
         let stack = stacks.get_mut(&stack_id).unwrap();
 
-        if let Err(error) = stack.update(&documents_group, ranker) {
+        if let Err(error) = stack.update(&documents_group, coi, &state.user_interests) {
             let error = Error::StackOpFailed(error);
             error!("{}", error);
             errors.push(error);
@@ -791,7 +968,7 @@ async fn update_stacks<'a>(
         }
     }
 
-    if let Err(error) = exploration_stack.update(&exploration_docs, ranker) {
+    if let Err(error) = exploration_stack.update(&exploration_docs, coi, &state.user_interests) {
         let error = Error::StackOpFailed(error);
         error!("{}", error);
         errors.push(error);
@@ -826,7 +1003,7 @@ async fn update_stacks<'a>(
 
 async fn fetch_new_documents_for_stack(
     stack: &Stack,
-    ranker: &(impl Ranker + Send + Sync),
+    smbert: &SMBert,
     key_phrases: &[KeyPhrase],
     history: &[HistoricDocument],
     market: &Market,
@@ -837,7 +1014,7 @@ async fn fetch_new_documents_for_stack(
             return Err(Error::StackOpFailed(error));
         }
     };
-    let (documents, errors) = documentify_articles(stack.id(), ranker, articles);
+    let (documents, errors) = documentify_articles(stack.id(), smbert, articles);
 
     // only return an error if all articles failed
     if documents.is_empty() && !errors.is_empty() {
@@ -849,19 +1026,17 @@ async fn fetch_new_documents_for_stack(
 
 fn documentify_articles(
     stack_id: StackId,
-    ranker: &(impl Ranker + Send + Sync),
+    smbert: &SMBert,
     articles: Vec<GenericArticle>,
 ) -> (Vec<Document>, Vec<Error>) {
     articles
         .into_par_iter()
         .map(|article| {
-            let embedding = ranker
-                .compute_smbert(article.excerpt_or_title())
-                .map_err(|error| {
-                    let error = Error::Ranker(error);
-                    error!("{}", error);
-                    error
-                })?;
+            let embedding = smbert.run(article.excerpt_or_title()).map_err(|error| {
+                let error = Error::Ranker(error.into());
+                error!("{}", error);
+                error
+            })?;
             (article, stack_id, embedding).try_into().map_err(|error| {
                 let error = Error::Document(error);
                 error!("{}", error);
@@ -874,185 +1049,60 @@ fn documentify_articles(
         })
 }
 
-fn documentify_topics(
-    ranker: &(impl Ranker + Send + Sync),
-    topics: Vec<BingTopic>,
-) -> (Vec<TrendingTopic>, Vec<Error>) {
+fn documentify_topics(smbert: &SMBert, topics: Vec<BingTopic>) -> (Vec<TrendingTopic>, Vec<Error>) {
     topics
         .into_par_iter()
         .map(|topic| {
-            let embedding = ranker.compute_smbert(&topic.name).map_err(|err| {
-                let error = Error::Ranker(err);
+            let embedding = smbert.run(&topic.name).map_err(|error| {
+                let error = Error::Ranker(error.into());
                 error!("{}", error);
                 error
             })?;
-            (topic, embedding).try_into().map_err(|err| {
-                let error = Error::Document(err);
+            (topic, embedding).try_into().map_err(|error| {
+                let error = Error::Document(error);
                 error!("{}", error);
                 error
             })
         })
         .partition_map(|result| match result {
             Ok(topic) => Either::Left(topic),
-            Err(err) => Either::Right(err),
+            Err(error) => Either::Right(error),
         })
 }
 
-/// A discovery engine with [`xayn_discovery_engine_ai::Ranker`] as a ranker.
-pub type XaynAiEngine = Engine<xayn_discovery_engine_ai::Ranker>;
-
-impl XaynAiEngine {
-    /// Creates a discovery engine with [`xayn_discovery_engine_ai::Ranker`] as a ranker.
-    pub async fn from_config(
-        config: InitConfig,
-        state: Option<&[u8]>,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-    ) -> Result<Self, Error> {
-        let de_config = de_config_from_json(config.de_config.as_deref().unwrap_or("{}"));
-        let smbert_config = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
-            .map_err(|err| Error::Ranker(err.into()))?
-            .with_token_size(
-                de_config
-                    .extract_inner("smbert.token_size")
-                    .map_err(|err| Error::Ranker(err.into()))?,
-            )
-            .map_err(|err| Error::Ranker(err.into()))?
-            .with_accents(AccentChars::Cleanse)
-            .with_case(CaseChars::Lower)
-            .with_pooling::<AveragePooler>();
-
-        let kpe_config = KpeConfig::from_files(
-            &config.kpe_vocab,
-            &config.kpe_model,
-            &config.kpe_cnn,
-            &config.kpe_classifier,
-        )
-        .map_err(|err| Error::Ranker(err.into()))?
-        .with_token_size(
-            de_config
-                .extract_inner("kpe.token_size")
-                .map_err(|err| Error::Ranker(err.into()))?,
-        )
-        .map_err(|err| Error::Ranker(err.into()))?
-        .with_accents(AccentChars::Cleanse)
-        .with_case(CaseChars::Keep);
-
-        let coi_system_config = de_config
-            .extract()
-            .map_err(|err| Error::Ranker(err.into()))?;
-
-        let builder =
-            Builder::from(smbert_config, kpe_config).with_coi_system_config(coi_system_config);
-
-        let providers = Providers::new(&config.clone().into()).map_err(Error::ProviderError)?;
-        let endpoint_config = de_config
-            .extract_inner::<EndpointConfig>("endpoint")
-            .map_err(|err| Error::Ranker(err.into()))?
-            .with_init_config(config)
-            .await;
-        let core_config = de_config
-            .extract_inner("core")
-            .map_err(|err| Error::Ranker(err.into()))?;
-        let exploration_config = de_config
-            .extract_inner(&format!("stacks.{}", Exploration::id()))
-            .map_err(|err| Error::Ranker(err.into()))?;
-        let stack_ops = vec![
-            Box::new(BreakingNews::new(
-                &endpoint_config,
-                providers.headlines.clone(),
-            )) as BoxedOps,
-            Box::new(TrustedNews::new(
-                &endpoint_config,
-                providers.trusted_headlines.clone(),
-            )) as BoxedOps,
-            Box::new(PersonalizedNews::new(
-                &endpoint_config,
-                providers.news.clone(),
-            )) as BoxedOps,
-        ];
-
-        let (mut stack_data, builder) = if let Some(state) = state {
-            if stack_ops.is_empty() {
-                return Err(Error::NoStackOps);
-            }
-            State::deserialize(state, builder)?
-        } else {
-            (HashMap::default(), builder)
-        };
-        for id in stack_ops.iter().map(Ops::id).chain(once(Exploration::id())) {
-            if let Ok(alpha) = de_config.extract_inner::<f32>(&format!("stacks.{id}.alpha")) {
-                stack_data.entry(id).or_default().alpha = alpha;
-            }
-            if let Ok(beta) = de_config.extract_inner::<f32>(&format!("stacks.{id}.beta")) {
-                stack_data.entry(id).or_default().beta = beta;
-            }
-        }
-
-        let ranker = builder.build()?;
-        #[cfg(feature = "storage")]
-        let storage = {
-            let storage = SqliteStorage::connect("sqlite::memory:").await?;
-            storage.init_database().await?;
-            Box::new(storage) as _
-        };
-
-        Self::new(
-            endpoint_config,
-            core_config,
-            exploration_config,
-            ranker,
-            history,
-            sources,
-            stack_data,
-            stack_ops,
-            #[cfg(feature = "storage")]
-            storage,
-            providers,
-        )
-        .await
-    }
-}
-
 #[derive(Serialize, Deserialize)]
-struct StackState(Vec<u8>);
+struct SerializedStackState(Vec<u8>);
 
-impl StackState {
+impl SerializedStackState {
     fn deserialize(&self) -> Result<HashMap<StackId, StackData>, Error> {
         bincode::deserialize(&self.0).map_err(Error::Deserialization)
     }
 }
 
 #[derive(Serialize, Deserialize)]
-struct RankerState(Vec<u8>);
+struct SerializedCoiSystemState(Vec<u8>);
 
-impl RankerState {
-    fn deserialize<'a>(
-        &self,
-        builder: Builder<'a, AveragePooler>,
-    ) -> Result<Builder<'a, AveragePooler>, Error> {
-        builder.with_serialized_state(&self.0).map_err(Into::into)
+impl SerializedCoiSystemState {
+    fn deserialize(&self) -> Result<CoiSystemState, Error> {
+        CoiSystemState::deserialize(&self.0).map_err(Into::into)
     }
 }
 
 #[derive(Serialize, Deserialize)]
-struct State {
-    /// The serialized engine state.
-    engine: StackState,
-    /// The serialized ranker state.
-    ranker: RankerState,
+struct SerializedState {
+    /// The serialized stacks state.
+    stacks: SerializedStackState,
+    /// The serialized coi system state.
+    coi: SerializedCoiSystemState,
 }
 
-impl State {
-    fn deserialize<'a>(
-        state: &'a [u8],
-        builder: Builder<'a, AveragePooler>,
-    ) -> Result<(HashMap<StackId, StackData>, Builder<'a, AveragePooler>), Error> {
+impl SerializedState {
+    fn deserialize(state: &[u8]) -> Result<(HashMap<StackId, StackData>, CoiSystemState), Error> {
         let state = bincode::deserialize::<Self>(state).map_err(Error::Deserialization)?;
-        let stack_data = state.engine.deserialize()?;
-        let builder = state.ranker.deserialize(builder)?;
+        let stacks = state.stacks.deserialize()?;
+        let coi = state.coi.deserialize()?;
 
-        Ok((stack_data, builder))
+        Ok((stacks, coi))
     }
 }
 
@@ -1065,20 +1115,19 @@ enum SearchBy<'a> {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::{
-        ranker,
-        stack::{ops::MockOps, Data},
-    };
+pub(crate) mod tests {
+    use std::mem::size_of;
 
-    use crate::document::tests::mock_generic_article;
-    use std::{mem::size_of, sync::Arc};
+    use async_once_cell::OnceCell;
+    use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
     use wiremock::{
         matchers::{method, path},
         Mock,
         MockServer,
         ResponseTemplate,
     };
+
+    use crate::{document::tests::mock_generic_article, stack::ops::MockOps};
 
     use super::*;
 
@@ -1087,69 +1136,133 @@ mod tests {
         assert!(size_of::<usize>() >= size_of::<u32>());
     }
 
+    /// A shared test engine.
+    ///
+    /// The systems are only initialized once to save time and the states can be configured for each
+    /// test via [`init_engine()`].
+    static ENGINE: OnceCell<Mutex<(MockServer, Engine)>> = OnceCell::new();
+
+    /// Initializes the states of the test [`ENGINE`].
+    ///
+    /// The stacks can be configured with specific stack ops. The stack states are either blank or
+    /// can optionally be updated once like in a freshly started engine.
+    async fn init_engine<'a, I, F>(
+        stack_ops: I,
+        update_after_reset: bool,
+    ) -> MappedMutexGuard<'a, Engine>
+    where
+        I: IntoIterator<Item = F> + Send,
+        <I as IntoIterator>::IntoIter: Send,
+        F: FnOnce(&EndpointConfig, &Providers) -> BoxedOps,
+    {
+        let init_engine = async move {
+            // We need a mock server from which the initialized stacks can fetch articles
+            let server = MockServer::start().await;
+            let tmpl = ResponseTemplate::new(200)
+                .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
+
+            Mock::given(method("POST"))
+                .and(path("/newscatcher/headlines-endpoint-name"))
+                .respond_with(tmpl)
+                .mount(&server)
+                .await;
+
+            // The config mostly tells the engine were to find the model assets.
+            // Here we use the mocked ones, for speed.
+            let asset_base = "../../discovery_engine_flutter/example/assets/";
+            let config = InitConfig {
+                api_key: "test-token".into(),
+                api_base_url: server.uri(),
+                markets: vec![Market::new("en", "US")],
+                // This triggers the trusted sources stack to also fetch articles
+                trusted_sources: vec!["example.com".into()],
+                excluded_sources: vec![],
+                smbert_vocab: format!("{asset_base}/smbert_v0001/vocab.txt"),
+                smbert_model: format!("{asset_base}/smbert_v0001/smbert-mocked.onnx"),
+                kpe_vocab: format!("{asset_base}/kpe_v0001/vocab.txt"),
+                kpe_model: format!("{asset_base}/kpe_v0001/bert-mocked.onnx"),
+                kpe_cnn: format!("{asset_base}/kpe_v0001/cnn.binparams"),
+                kpe_classifier: format!("{asset_base}/kpe_v0001/classifier.binparams"),
+                de_config: None,
+                log_file: None,
+                news_provider_path: "newscatcher/news-endpoint-name".into(),
+                headlines_provider_path: "newscatcher/headlines-endpoint-name".into(),
+            };
+
+            // Now we can initialize the engine with no previous history or state. This should
+            // be the same as when it's initialized for the first time after the app is downloaded.
+            let engine = Engine::from_config(config, None, &[], &[]).await.unwrap();
+
+            Mutex::new((server, engine))
+        };
+        let mut engine = MutexGuard::map(
+            ENGINE.get_or_init(init_engine).await.lock().await,
+            |engine| &mut engine.1,
+        );
+
+        // reset the stacks and states
+        engine.stacks = RwLock::new(
+            stack_ops
+                .into_iter()
+                .map(|stack_ops_new| {
+                    let stack = Stack::new(
+                        StackData::default(),
+                        stack_ops_new(&engine.endpoint_config, &engine.providers),
+                    )
+                    .unwrap();
+                    (stack.id(), stack)
+                })
+                .collect(),
+        );
+        engine.exploration_stack.data = StackData::default();
+        engine.state = CoiSystemState::default();
+
+        if update_after_reset {
+            engine
+                .update_stacks_for_all_markets(&[], &[], usize::MAX)
+                .await
+                .unwrap();
+        }
+
+        engine
+    }
+
+    fn new_mock_stack_ops() -> MockOps {
+        let stack_id = Id::new_random();
+        let mut mock_ops = MockOps::new();
+        mock_ops.expect_id().returning(move || stack_id);
+        mock_ops.expect_needs_key_phrases().returning(|| true);
+        mock_ops
+            .expect_merge()
+            .returning(|stack, new| Ok(chain!(stack, new).cloned().collect()));
+        mock_ops
+    }
+
     #[tokio::test]
     async fn test_cross_stack_deduplication() {
-        let mock_server = MockServer::start().await;
-        let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
-
-        Mock::given(method("POST"))
-            .and(path("/newscatcher/headlines-endpoint-name"))
-            .respond_with(tmpl)
-            .mount(&mock_server)
-            .await;
-
-        let asset_base = "../../discovery_engine_flutter/example/assets/";
-        let market = Market::new("en", "US");
-        let config = InitConfig {
-            api_key: "test-token".to_string(),
-            api_base_url: mock_server.uri(),
-            markets: vec![market.clone()],
-            // This triggers the trusted sources stack to also fetch articles
-            trusted_sources: vec!["example.com".to_string()],
-            excluded_sources: vec![],
-            smbert_vocab: format!("{}/smbert_v0001/vocab.txt", asset_base),
-            smbert_model: format!("{}/smbert_v0001/smbert-mocked.onnx", asset_base),
-            kpe_vocab: format!("{}/kpe_v0001/vocab.txt", asset_base),
-            kpe_model: format!("{}/kpe_v0001/bert-mocked.onnx", asset_base),
-            kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
-            kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
-            de_config: None,
-            log_file: None,
-            news_provider_path: "newscatcher/news-endpoint-name".to_string(),
-            headlines_provider_path: "newscatcher/headlines-endpoint-name".to_string(),
-        };
-        let endpoint_config = EndpointConfig::default()
-            .with_init_config(config.clone())
-            .await;
-        let providers = Arc::new(Providers::new(&config.clone().into()).unwrap());
-
         // We assume that, if de-duplication works between two stacks, it'll work between
         // any number of stacks. So we just create two.
-        let stack_ops = vec![
-            Box::new(BreakingNews::new(
-                &endpoint_config,
-                providers.headlines.clone(),
-            )) as BoxedOps,
-            Box::new(TrustedNews::new(
-                &endpoint_config,
-                providers.trusted_headlines.clone(),
-            )) as BoxedOps,
-        ];
-
-        let breaking_news_id = stack_ops.get(0).unwrap().id();
-        let trusted_news_id = stack_ops.get(1).unwrap().id();
-
-        // To test de-duplication we don't really need any ranking, so this
-        // this is essentially a no-op ranker.
-        let mut no_op_ranker = new_no_op_ranker();
-        let mut stacks = create_stacks_from_stack_ops(stack_ops);
-        let mut exploration_stack =
-            Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
+        let engine = &mut *init_engine(
+            [
+                |config: &EndpointConfig, providers: &Providers| {
+                    Box::new(BreakingNews::new(config, providers.headlines.clone())) as _
+                },
+                |config: &EndpointConfig, providers: &Providers| {
+                    Box::new(TrustedNews::new(
+                        config,
+                        providers.trusted_headlines.clone(),
+                    )) as _
+                },
+            ],
+            false,
+        )
+        .await;
 
         // Stacks should be empty before we start fetching anything
-        assert_eq!(stacks.get(&breaking_news_id).unwrap().len(), 0);
-        assert_eq!(stacks.get(&trusted_news_id).unwrap().len(), 0);
+        let mut stacks = engine.stacks.write().await;
+        for stack in stacks.values() {
+            assert!(stack.is_empty());
+        }
 
         // Update stacks does a lot of things, what's relevant for us is that
         //      a) it fetches new documents
@@ -1157,14 +1270,16 @@ mod tests {
         // in that order.
         update_stacks(
             &mut stacks,
-            &mut exploration_stack,
-            &mut no_op_ranker,
+            &mut engine.exploration_stack,
+            &engine.smbert,
+            &engine.coi,
+            &mut engine.state,
             &[],
             &[],
             10,
             10,
             10,
-            &[market.clone()],
+            &[Market::new("en", "US")],
         )
         .await
         .unwrap();
@@ -1172,55 +1287,51 @@ mod tests {
         // After calling `update_stacks` once, one of the two stacks should contain one document.
         // Both stacks fetched the same item, but de-duplication should prevent the same document
         // being added to both stacks.
-        assert_eq!(
-            stacks.get(&breaking_news_id).unwrap().len()
-                + stacks.get(&trusted_news_id).unwrap().len(),
-            1,
-        );
+        assert_eq!(stacks.values().map(Stack::len).sum::<usize>(), 1);
 
         // Now we call `update_stacks` again. We do this to ensure that de-duplication also takes
         // into account the items that are already present inside the stacks, and not only the
         // newly fetched documents.
         update_stacks(
             &mut stacks,
-            &mut exploration_stack,
-            &mut no_op_ranker,
+            &mut engine.exploration_stack,
+            &engine.smbert,
+            &engine.coi,
+            &mut engine.state,
             &[],
             &[],
             10,
             10,
             10,
-            &[market],
+            &[Market::new("en", "US")],
         )
         .await
         .unwrap();
 
         // No new documents should have been added by the second `update_stacks` call.
-        assert_eq!(
-            stacks.get(&breaking_news_id).unwrap().len()
-                + stacks.get(&trusted_news_id).unwrap().len(),
-            1,
-        );
+        assert_eq!(stacks.values().map(Stack::len).sum::<usize>(), 1);
     }
 
     #[tokio::test]
     async fn test_update_stack_no_error_when_no_stack_is_ready() {
-        let mut mock_ops = new_mock_stack_ops();
-        mock_ops
-            .expect_new_items()
-            .returning(|_, _, _, _| Err(NewItemsError::NotReady));
+        let engine = &mut *init_engine(
+            [|_: &'_ _, _: &'_ _| {
+                let mut mock_ops = new_mock_stack_ops();
+                mock_ops
+                    .expect_new_items()
+                    .returning(|_, _, _, _| Err(NewItemsError::NotReady));
+                Box::new(mock_ops) as _
+            }],
+            false,
+        )
+        .await;
 
-        let stack_ops = vec![Box::new(mock_ops) as BoxedOps];
-        let mut stacks = create_stacks_from_stack_ops(stack_ops);
-
-        let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack =
-            Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
-
-        let result = update_stacks(
-            &mut stacks,
-            &mut exploration_stack,
-            &mut no_op_ranker,
+        update_stacks(
+            &mut *engine.stacks.write().await,
+            &mut engine.exploration_stack,
+            &engine.smbert,
+            &engine.coi,
+            &mut engine.state,
             &[],
             &[],
             10,
@@ -1228,37 +1339,39 @@ mod tests {
             10,
             &[Market::new("en", "US")],
         )
-        .await;
-
-        assert!(result.is_ok());
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
     async fn test_update_stack_no_error_when_one_stack_is_successful() {
-        let mut mock_ops_ok = new_mock_stack_ops();
-        mock_ops_ok
-            .expect_new_items()
-            .returning(|_, _, _, _| Ok(vec![mock_generic_article()]));
+        let engine = &mut *init_engine(
+            [
+                |_: &'_ _, _: &'_ _| {
+                    let mut mock_ops_ok = new_mock_stack_ops();
+                    mock_ops_ok
+                        .expect_new_items()
+                        .returning(|_, _, _, _| Ok(vec![mock_generic_article()]));
+                    Box::new(mock_ops_ok) as _
+                },
+                |_: &'_ _, _: &'_ _| {
+                    let mut mock_ops_failed = new_mock_stack_ops();
+                    mock_ops_failed.expect_new_items().returning(|_, _, _, _| {
+                        Err(NewItemsError::Error("mock_ops_failed_error".into()))
+                    });
+                    Box::new(mock_ops_failed) as _
+                },
+            ],
+            false,
+        )
+        .await;
 
-        let mut mock_ops_failed = new_mock_stack_ops();
-        mock_ops_failed
-            .expect_new_items()
-            .returning(|_, _, _, _| Err(NewItemsError::Error("mock_ops_failed_error".into())));
-
-        let stack_ops = vec![
-            Box::new(mock_ops_ok) as BoxedOps,
-            Box::new(mock_ops_failed) as BoxedOps,
-        ];
-        let mut stacks = create_stacks_from_stack_ops(stack_ops);
-
-        let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack =
-            Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
-
-        let result = update_stacks(
-            &mut stacks,
-            &mut exploration_stack,
-            &mut no_op_ranker,
+        update_stacks(
+            &mut *engine.stacks.write().await,
+            &mut engine.exploration_stack,
+            &engine.smbert,
+            &engine.coi,
+            &mut engine.state,
             &[],
             &[],
             10,
@@ -1266,29 +1379,30 @@ mod tests {
             10,
             &[Market::new("en", "US")],
         )
-        .await;
-
-        result.unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
     async fn test_update_stack_should_error_when_all_stacks_fail() {
-        let mut mock_ops_failed = new_mock_stack_ops();
-        mock_ops_failed
-            .expect_new_items()
-            .returning(|_, _, _, _| Err(NewItemsError::Error("mock_ops_failed_error".into())));
-
-        let stack_ops = vec![Box::new(mock_ops_failed) as BoxedOps];
-        let mut stacks = create_stacks_from_stack_ops(stack_ops);
-
-        let mut no_op_ranker = new_no_op_ranker();
-        let mut exploration_stack =
-            Exploration::new(StackData::default(), ExplorationConfig::default()).unwrap();
+        let engine = &mut *init_engine(
+            [|_: &'_ _, _: &'_ _| {
+                let mut mock_ops_failed = new_mock_stack_ops();
+                mock_ops_failed.expect_new_items().returning(|_, _, _, _| {
+                    Err(NewItemsError::Error("mock_ops_failed_error".into()))
+                });
+                Box::new(mock_ops_failed) as _
+            }],
+            false,
+        )
+        .await;
 
         let result = update_stacks(
-            &mut stacks,
-            &mut exploration_stack,
-            &mut no_op_ranker,
+            &mut *engine.stacks.write().await,
+            &mut engine.exploration_stack,
+            &engine.smbert,
+            &engine.coi,
+            &mut engine.state,
             &[],
             &[],
             10,
@@ -1312,94 +1426,33 @@ mod tests {
 
     #[tokio::test]
     async fn test_basic_engine_integration() {
-        // We need a mock server from which the initialized stacks can fetch articles
-        let mock_server = MockServer::start().await;
-        let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
-
-        Mock::given(method("POST"))
-            .and(path("newscatcher/headlines-endpoint-name"))
-            .respond_with(tmpl)
-            .mount(&mock_server)
-            .await;
-
-        // The config mostly tells the engine were to find the model assets.
-        // Here we use the mocked ones, for speed.
-        let asset_base = "../../discovery_engine_flutter/example/assets/";
-        let config = InitConfig {
-            api_key: "test-token".to_string(),
-            api_base_url: mock_server.uri(),
-            markets: vec![Market::new("en", "US")],
-            // This triggers the trusted sources stack to also fetch articles
-            trusted_sources: vec!["example.com".to_string()],
-            excluded_sources: vec![],
-            smbert_vocab: format!("{}/smbert_v0001/vocab.txt", asset_base),
-            smbert_model: format!("{}/smbert_v0001/smbert-mocked.onnx", asset_base),
-            kpe_vocab: format!("{}/kpe_v0001/vocab.txt", asset_base),
-            kpe_model: format!("{}/kpe_v0001/bert-mocked.onnx", asset_base),
-            kpe_cnn: format!("{}/kpe_v0001/cnn.binparams", asset_base),
-            kpe_classifier: format!("{}/kpe_v0001/classifier.binparams", asset_base),
-            de_config: None,
-            log_file: None,
-            news_provider_path: "newscatcher/news-endpoint-name".to_string(),
-            headlines_provider_path: "newscatcher/headlines-endpoint-name".to_string(),
-        };
-
-        // Now we can initialize the engine with no previous history or state. This should
-        // be the same as when it's initialized for the first time after the app is downloaded.
-        let state = None;
-        let history = &[];
-        let sources = &[];
-        let mut engine = XaynAiEngine::from_config(config, state, history, sources)
-            .await
-            .unwrap();
+        let engine = &mut *init_engine(
+            [
+                |config: &EndpointConfig, providers: &Providers| {
+                    Box::new(BreakingNews::new(config, providers.headlines.clone())) as _
+                },
+                |config: &EndpointConfig, providers: &Providers| {
+                    Box::new(TrustedNews::new(
+                        config,
+                        providers.trusted_headlines.clone(),
+                    )) as _
+                },
+                |config: &EndpointConfig, providers: &Providers| {
+                    Box::new(PersonalizedNews::new(config, providers.news.clone())) as _
+                },
+            ],
+            true,
+        )
+        .await;
 
         // Finally, we instruct the engine to fetch some articles and check whether or not
         // the expected articles from the mock show up in the results.
-        let res = engine
-            .get_feed_documents(history, sources, 2)
-            .await
-            .unwrap();
+        let res = engine.get_feed_documents(&[], &[], 2).await.unwrap();
 
         assert_eq!(1, res.len());
         assert_eq!(
             res.get(0).unwrap().resource.title,
             "Some really important article",
         );
-    }
-
-    fn new_no_op_ranker() -> impl Ranker {
-        let mut ranker = ranker::MockRanker::new();
-        ranker.expect_rank().returning(|_: &mut [Document]| Ok(()));
-        ranker.expect_take_key_phrases().returning(|_, _| vec![]);
-        ranker.expect_positive_cois().return_const(vec![]);
-        ranker.expect_negative_cois().return_const(vec![]);
-        ranker.expect_compute_smbert().returning(|_| {
-            let embedding: Embedding = [0.0].into();
-            Ok(embedding)
-        });
-        ranker
-    }
-
-    fn create_stacks_from_stack_ops(stack_ops: Vec<BoxedOps>) -> HashMap<Id, Stack> {
-        stack_ops
-            .into_iter()
-            .map(|ops| {
-                let data = Data::new(1.0, 1.0, vec![]).unwrap();
-                let stack = Stack::new(data, ops).unwrap();
-                (stack.id(), stack)
-            })
-            .collect()
-    }
-
-    fn new_mock_stack_ops() -> MockOps {
-        let stack_id = Id::new_random();
-        let mut mock_ops = MockOps::new();
-        mock_ops.expect_id().returning(move || stack_id);
-        mock_ops.expect_needs_key_phrases().returning(|| true);
-        mock_ops
-            .expect_merge()
-            .returning(|stack, new| Ok(chain!(stack, new).cloned().collect()));
-        mock_ops
     }
 }

@@ -200,7 +200,7 @@ impl Pipeline {
                     .unwrap()
                     .with_pooling::<NonePooler>();
 
-                Self::TractSMBert(BertPipeline::from(config).unwrap())
+                Self::TractSMBert(config.build().unwrap())
             }
             ModelKind::TractQAMBert => {
                 let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
@@ -211,7 +211,7 @@ impl Pipeline {
                     .unwrap()
                     .with_pooling::<NonePooler>();
 
-                Self::TractQAMBert(BertPipeline::from(config).unwrap())
+                Self::TractQAMBert(config.build().unwrap())
             }
         }
     }

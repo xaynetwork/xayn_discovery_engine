@@ -14,10 +14,6 @@
 
 use std::{cmp::Ordering, time::SystemTime};
 
-use serde::Serialize;
-
-use crate::GenericError;
-
 /// Pretend that f32 has a total ordering.
 ///
 /// `NaN` is treated as the lowest possible value if `nan_min`, similar to what [`f32::max`] does.
@@ -65,21 +61,6 @@ pub fn nan_safe_f32_cmp_desc(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp(b, a)
 }
 
-/// Serializes the given data, tagged with the given version number.
-pub(crate) fn serialize_with_version(
-    data: &impl Serialize,
-    version: u8,
-) -> Result<Vec<u8>, GenericError> {
-    let size = bincode::serialized_size(data)? + 1;
-    #[allow(clippy::cast_possible_truncation)] // bounded by architecture
-    let mut serialized = Vec::with_capacity(size as usize);
-    // version is encoded in the first byte
-    serialized.push(version);
-    bincode::serialize_into(&mut serialized, data)?;
-
-    Ok(serialized)
-}
-
 /// The number of seconds per day (without leap seconds).
 pub(crate) const SECONDS_PER_DAY_F32: f32 = 86400.;
 
@@ -118,7 +99,7 @@ pub(crate) mod serde_duration_as_days {
 mod tests {
     use std::{error::Error, time::Duration};
 
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
     use serde_json::{from_str, to_string};
 
     use super::*;

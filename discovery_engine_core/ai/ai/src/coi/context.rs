@@ -22,16 +22,14 @@ use thiserror::Error;
 
 use crate::{
     coi::{
-        compute_coi_decay_factor,
-        compute_coi_relevances,
         config::Config,
-        find_closest_coi,
-        point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+        point::{find_closest_coi, CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+        stats::{compute_coi_decay_factor, compute_coi_relevances},
+        CoiId,
     },
+    document::Document,
     embedding::Embedding,
-    ranker::document::Document,
     utils::system_time_now,
-    CoiId,
     DocumentId,
 };
 
@@ -174,14 +172,14 @@ fn has_enough_cois(
         && user_interests.negative.len() >= min_negative_cois
 }
 
-/// Computes the score for all documents based on the given information.
+/// Computes the scores for all documents based on the given information.
 ///
 /// <https://xainag.atlassian.net/wiki/spaces/M2D/pages/2240708609/Discovery+engine+workflow#The-weighting-of-the-CoI>
 /// outlines parts of the score calculation.
 ///
 /// # Errors
 /// Fails if the required number of positive or negative cois is not present.
-pub(super) fn compute_score_for_docs(
+pub(crate) fn compute_scores_for_docs(
     documents: &[impl Document],
     user_interests: &UserInterests,
     config: &Config,
@@ -215,7 +213,7 @@ mod tests {
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use crate::{
-        coi::{create_neg_cois, create_pos_cois},
+        coi::point::tests::{create_neg_cois, create_pos_cois},
         utils::SECONDS_PER_DAY_F32,
     };
 
