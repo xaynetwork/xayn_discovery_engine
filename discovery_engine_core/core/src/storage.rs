@@ -17,7 +17,7 @@ use displaydoc::Display;
 use thiserror::Error;
 use xayn_discovery_engine_ai::GenericError;
 
-use crate::document::{self, HistoricDocument};
+use crate::document::{self, HistoricDocument, UserReaction};
 
 use self::models::{ApiDocumentView, NewDocument, Search};
 
@@ -44,6 +44,8 @@ pub(crate) trait Storage {
     fn feed(&self) -> &(dyn FeedScope + Send + Sync);
 
     fn search(&self) -> &(dyn SearchScope + Send + Sync);
+
+    fn feedback(&self) -> &(dyn FeedbackScope + Send + Sync);
 }
 
 #[async_trait]
@@ -77,6 +79,16 @@ pub(crate) trait SearchScope {
     async fn clear(&self) -> Result<bool, Error>;
 }
 
+#[async_trait]
+pub(crate) trait FeedbackScope {
+    async fn update_user_reaction(
+        &self,
+        document: document::Id,
+        reaction: UserReaction,
+    ) -> Result<(), Error>;
+}
+
+#[allow(dead_code)]
 pub mod models {
     use chrono::NaiveDateTime;
     use url::Url;
