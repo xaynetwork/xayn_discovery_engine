@@ -243,6 +243,8 @@ impl FeedScope for SqliteStorage {
         if documents.is_empty() {
             return Ok(());
         }
+
+        let mut tx = self.begin_tx().await?;
         let mut query_builder = QueryBuilder::new("INSERT INTO ");
         let timestamp = Utc::now();
 
@@ -251,8 +253,6 @@ impl FeedScope for SqliteStorage {
         // is limited by the sqlite bind limit.
         // BIND_LIMIT divided by the number of fields in the largest tuple (NewsResource)
         for documents in documents.chunks(BIND_LIMIT / 9) {
-            let mut tx = self.begin_tx().await?;
-
             SqliteStorage::store_new_documents(&mut tx, documents).await?;
 
             // insert data into FeedDocument table
@@ -298,11 +298,9 @@ impl FeedScope for SqliteStorage {
                 .execute(&mut tx)
                 .await
                 .map_err(|err| Error::Database(err.into()))?;
-
-            Self::commit_tx(tx).await?;
         }
 
-        Ok(())
+        Self::commit_tx(tx).await
     }
 }
 
