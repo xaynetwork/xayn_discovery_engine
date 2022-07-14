@@ -458,7 +458,7 @@ impl Engine {
 
         #[cfg(feature = "storage")]
         {
-            let documents = documents.clone().into_iter().map(Into::into).collect_vec();
+            let documents = documents.iter().cloned().map_into().collect_vec();
             self.storage.feed().store_documents(&documents).await?;
         }
 
