@@ -4,7 +4,7 @@
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, version 3.
 //
-// This program is distributed in the hope that it will be useful,
+// This program is distrib&uted in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
@@ -180,19 +180,6 @@ impl SqliteStorage {
                 .execute(&mut *tx)
                 .await?;
 
-            // insert data into UserReaction table
-            query_builder
-                .reset()
-                .push("UserReaction (documentId, userReaction) ")
-                .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(&doc.id)
-                        .push_bind(UserReaction::default() as u32);
-                })
-                .build()
-                .persistent(false)
-                .execute(&mut *tx)
-                .await?;
-
             // insert data into PresentationOrdering table
             query_builder
                 .reset()
@@ -291,6 +278,10 @@ impl Storage for SqliteStorage {
     fn search(&self) -> &(dyn SearchScope + Send + Sync) {
         self
     }
+
+    fn feedback(&self) -> &(dyn FeedbackScope + Send + Sync) {
+        self
+    }
 }
 
 #[async_trait]
@@ -329,9 +320,9 @@ impl FeedScope for SqliteStorage {
             JOIN NewsResource           AS nr   USING (documentId)
             JOIN NewscatcherData        AS nc   USING (documentId)
             JOIN PresentationOrdering   AS po   USING (documentId)
-            JOIN UserReaction           AS ur   USING (documentId)
             JOIN Embedding              AS em   USING (documentId)
             JOIN StackDocument          As st   USING (documentId)
+            LEFT JOIN UserReaction      AS ur   USING (documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut tx)
@@ -466,8 +457,8 @@ impl SearchScope for SqliteStorage {
             JOIN NewsResource           AS nr   USING (documentId)
             JOIN NewscatcherData        AS nc   USING (documentId)
             JOIN PresentationOrdering   AS po   USING (documentId)
-            JOIN UserReaction           AS ur   USING (documentId)
             JOIN Embedding              AS em   USING (documentId)
+            LEFT JOIN UserReaction      AS ur   USING (documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut tx)
@@ -489,10 +480,10 @@ impl SearchScope for SqliteStorage {
 
         // delete data from Document table where user reaction is neutral
         let ids = sqlx::query_as::<_, document::Id>(
-            "SELECT ur.documentId
-                FROM UserReaction   AS ur
-                JOIN SearchDocument AS sd   USING (documentId)
-                WHERE ur.userReaction = ?;",
+            "SELECT sd.documentId
+                FROM SearchDocument     AS sd
+                LEFT JOIN UserReaction  AS ur   USING (documentId)
+                WHERE ur.userReaction = ? OR ur.userReaction IS NULL;",
         )
         .bind(UserReaction::Neutral as u32)
         .fetch_all(&mut tx)
@@ -537,6 +528,26 @@ impl SearchScope for SqliteStorage {
         tx.commit().await?;
 
         document.try_into()
+    }
+}
+
+#[async_trait]
+impl FeedbackScope for SqliteStorage {
+    async fn update_user_reaction(
+        &self,
+        document: document::Id,
+        reaction: UserReaction,
+    ) -> Result<(), Error> {
+        sqlx::query(
+            "INSERT INTO UserReaction(id, userReaction) VALUES (?, ?)
+                ON CONFLICT DO UPDATE SET userReaction = excluded.userReaction;",
+        )
+        .bind(document)
+        .bind(reaction as u32)
+        .execute(&self.pool)
+        .await
+        .map_err(|err| Error::Database(err.into()))?;
+        Ok(())
     }
 }
 
