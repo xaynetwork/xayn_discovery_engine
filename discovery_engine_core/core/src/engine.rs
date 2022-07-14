@@ -158,7 +158,6 @@ pub struct Engine {
     exploration_stack: Exploration,
     state: CoiSystemState,
     #[cfg(feature = "storage")]
-    #[allow(dead_code)]
     storage: BoxedStorage,
 }
 
@@ -444,7 +443,7 @@ impl Engine {
             stacks.values_mut().map(|s| s as _),
             once(&mut self.exploration_stack as _),
         )
-        .collect::<Vec<&mut dyn Bucket<_>>>();
+        .collect::<Vec<&mut (dyn Bucket<_> + Send)>>();
 
         let documents: Vec<Document> = SelectionIter::new(BetaSampler, all_stacks.iter_mut())
             .select(max_documents as usize)?;
@@ -455,6 +454,12 @@ impl Engine {
                 stack = %document.stack_id,
                 title = %document.resource.title,
             );
+        }
+
+        #[cfg(feature = "storage")]
+        {
+            let documents = documents.clone().into_iter().map(Into::into).collect_vec();
+            self.storage.feed().store_documents(&documents).await?;
         }
 
         Ok(documents)

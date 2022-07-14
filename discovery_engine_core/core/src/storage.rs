@@ -52,7 +52,6 @@ pub(crate) trait FeedScope {
     async fn store_documents(&self, documents: &[NewDocument]) -> Result<(), Error>;
 }
 
-#[allow(dead_code)]
 pub mod models {
     use chrono::NaiveDateTime;
     use url::Url;
@@ -65,6 +64,7 @@ pub mod models {
         pub(crate) id: document::Id,
         pub(crate) news_resource: NewsResource,
         pub(crate) newscatcher_data: NewscatcherData,
+        #[allow(dead_code)]
         pub(crate) embedding: Embedding,
     }
 
@@ -100,6 +100,7 @@ pub mod models {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) struct ApiDocumentView {
         pub(crate) document_id: document::Id,
         pub(crate) news_resource: NewsResource,
