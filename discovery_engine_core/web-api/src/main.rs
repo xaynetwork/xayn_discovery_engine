@@ -30,14 +30,27 @@
     clippy::must_use_candidate
 )]
 
-use serde::{Deserialize, Serialize};
-use std::{convert::Infallible, env, net::IpAddr};
-use uuid::Uuid;
-use warp::{hyper::StatusCode, Filter};
+use db::{init_db, InitConfig};
+use routes::api_routes;
+use std::{env, net::IpAddr, path::PathBuf};
+
+mod db;
+mod handlers;
+mod models;
+mod routes;
 
 #[tokio::main]
 async fn main() {
-    // TODO: TY-3011 - add filepath env var for documents data json file
+    let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let manifest = PathBuf::from(&manifest);
+    let env_file = manifest.join(".env");
+
+    dotenv::from_path(env_file).ok();
+
+    let smbert_vocab = manifest.join(env::var("DE_SMBERT_VOCAB").unwrap());
+    let smbert_model = manifest.join(env::var("DE_SMBERT_MODEL").unwrap());
+    let data_store = manifest.join(env::var("DE_DATA_PATH").unwrap());
+
     let port = env::var("DE_PORT")
         .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()
@@ -47,55 +60,13 @@ async fn main() {
         .parse::<IpAddr>()
         .unwrap();
 
-    // PATH /user/:user_id
-    let user_route = warp::path("user").and(warp::path::param::<Uuid>());
-
-    // GET /user/:user_id/documents
-    let ranked_documents = user_route
-        .and(warp::path("documents"))
-        .and(warp::get())
-        .and_then(handle_ranked_documents);
-
-    // POST /user/:user_id/interaction
-    let user_interaction = user_route
-        .and(warp::path("interaction"))
-        .and(warp::post())
-        .and(warp::body::content_length_limit(1024))
-        .and(warp::body::json())
-        .and_then(handle_user_interaction);
-
-    // DELETE /internal-state
-    let clean_state = warp::path("internal-state")
-        .and(warp::delete())
-        .and_then(handle_clean_state);
-
-    let routes = ranked_documents.or(user_interaction).or(clean_state);
+    let config = InitConfig {
+        smbert_vocab,
+        smbert_model,
+        data_store,
+    };
+    let db = init_db(&config).unwrap();
+    let routes = api_routes(db);
 
     warp::serve(routes).run((ip_addr, port)).await;
-}
-
-// TODO: TY-3013
-#[allow(clippy::unused_async)]
-async fn handle_ranked_documents(_user_id: Uuid) -> Result<impl warp::Reply, Infallible> {
-    Ok(StatusCode::NOT_IMPLEMENTED)
-}
-
-#[derive(Serialize, Deserialize)]
-struct UserInteractionDto {
-    document_id: Uuid,
-}
-
-// TODO: TY-3014
-#[allow(clippy::unused_async)]
-async fn handle_user_interaction(
-    _user_id: Uuid,
-    _body: UserInteractionDto,
-) -> Result<impl warp::Reply, Infallible> {
-    Ok(StatusCode::NOT_IMPLEMENTED)
-}
-
-// TODO: TY-3015
-#[allow(clippy::unused_async)]
-async fn handle_clean_state() -> Result<impl warp::Reply, Infallible> {
-    Ok(StatusCode::NOT_IMPLEMENTED)
 }
