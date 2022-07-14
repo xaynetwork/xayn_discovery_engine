@@ -224,7 +224,7 @@ impl Config {
         self.kpe.penalty.len()
     }
 
-    /// Creates a center of interest system.
+    /// Creates a centre of interest system.
     pub fn build(self) -> CoiSystem {
         CoiSystem { config: self }
     }

@@ -21,7 +21,7 @@ use xayn_discovery_engine_providers::Market;
 use crate::{
     coi::{
         config::Config,
-        context::compute_score_for_docs,
+        context::compute_scores_for_docs,
         key_phrase::{KeyPhrase, KeyPhrases},
         point::{find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
     },
@@ -155,7 +155,7 @@ fn log_negative_user_reaction(cois: &mut Vec<NegativeCoi>, embedding: &Embedding
     }
 }
 
-/// Updates the positive cois based on the documents data.
+/// Updates the view time of the positive coi closest to the embedding.
 fn log_document_view_time(cois: &mut [PositiveCoi], embedding: &Embedding, viewed: Duration) {
     if let Some((coi, _)) = find_closest_coi_mut(cois, embedding) {
         coi.log_time(viewed);
@@ -168,14 +168,14 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
         return;
     }
 
-    if let Ok(score_for_docs) = compute_score_for_docs(documents, user_interests, config) {
-        for (document, score) in &score_for_docs {
+    if let Ok(scores_for_docs) = compute_scores_for_docs(documents, user_interests, config) {
+        for (document, score) in &scores_for_docs {
             debug!(%document, score);
         }
         documents.sort_unstable_by(|this, other| {
             nan_safe_f32_cmp_desc(
-                score_for_docs.get(&this.id()).unwrap(),
-                score_for_docs.get(&other.id()).unwrap(),
+                scores_for_docs.get(&this.id()).unwrap(),
+                scores_for_docs.get(&other.id()).unwrap(),
             )
         });
     } else {

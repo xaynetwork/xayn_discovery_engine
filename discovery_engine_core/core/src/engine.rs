@@ -1090,19 +1090,19 @@ impl SerializedCoiSystemState {
 
 #[derive(Serialize, Deserialize)]
 struct SerializedState {
-    /// The serialized engine state.
+    /// The serialized stacks state.
     stacks: SerializedStackState,
-    /// The serialized ranker state.
+    /// The serialized coi system state.
     coi: SerializedCoiSystemState,
 }
 
 impl SerializedState {
     fn deserialize(state: &[u8]) -> Result<(HashMap<StackId, StackData>, CoiSystemState), Error> {
         let state = bincode::deserialize::<Self>(state).map_err(Error::Deserialization)?;
-        let stack_data = state.stacks.deserialize()?;
-        let ranker_state = state.coi.deserialize()?;
+        let stacks = state.stacks.deserialize()?;
+        let coi = state.coi.deserialize()?;
 
-        Ok((stack_data, ranker_state))
+        Ok((stacks, coi))
     }
 }
 
