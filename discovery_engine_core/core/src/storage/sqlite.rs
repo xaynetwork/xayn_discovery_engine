@@ -74,11 +74,11 @@ impl SqliteStorage {
         let mut query_builder = QueryBuilder::new("INSERT INTO ");
 
         // insert id into Document table (FK of HistoricDocument)
-        query_builder.push("Document (id) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
         query_builder
+            .push("Document (id) ")
+            .push_values(documents.clone(), |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid());
+            })
             .build()
             .persistent(false)
             .execute(&mut *tx)
@@ -86,11 +86,12 @@ impl SqliteStorage {
             .map_err(|err| Error::Database(err.into()))?;
 
         // insert id into HistoricDocument table
-        query_builder.reset().push("HistoricDocument (documentId) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
         query_builder
+            .reset()
+            .push("HistoricDocument (documentId) ")
+            .push_values(documents.clone(), |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid());
+            })
             .build()
             .persistent(false)
             .execute(&mut *tx)
@@ -98,22 +99,24 @@ impl SqliteStorage {
             .map_err(|err| Error::Database(err.into()))?;
 
         // insert data into NewsResource table
-        query_builder.reset().push("NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid())
-                .push_bind(&doc.news_resource.title)
-                .push_bind(&doc.news_resource.snippet)
-                .push_bind(&doc.news_resource.topic)
-                .push_bind(doc.news_resource.url.as_str())
-                .push_bind(doc.news_resource.image.as_ref().map(Url::as_str))
-                .push_bind(&doc.news_resource.date_published)
-                .push_bind(&doc.news_resource.source)
-                .push_bind(format!(
-                    "{}{}",
-                    doc.news_resource.market.lang_code, doc.news_resource.market.country_code,
-                ));
-        });
         query_builder
+            .reset()
+            .push("NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ")
+            .push_values(documents.clone(), |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid())
+                    .push_bind(&doc.news_resource.title)
+                    .push_bind(&doc.news_resource.snippet)
+                    .push_bind(&doc.news_resource.topic)
+                    .push_bind(doc.news_resource.url.as_str())
+                    .push_bind(doc.news_resource.image.as_ref().map(Url::as_str))
+                    .push_bind(&doc.news_resource.date_published)
+                    .push_bind(&doc.news_resource.source)
+                    .push_bind(format!(
+                        "{}{}",
+                        doc.news_resource.market.lang_code,
+                        doc.news_resource.market.country_code,
+                    ));
+            })
             .build()
             .persistent(false)
             .execute(&mut *tx)
@@ -123,15 +126,14 @@ impl SqliteStorage {
         // insert data into NewscatcherData table
         query_builder
             .reset()
-            .push("NewscatcherData (documentId, domainRank, score) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            // fine as we convert it back to u64 when we fetch it from the database
-            #[allow(clippy::cast_possible_wrap)]
-            stm.push_bind(doc.id.as_uuid())
-                .push_bind(doc.newscatcher_data.domain_rank as i64)
-                .push_bind(doc.newscatcher_data.score);
-        });
-        query_builder
+            .push("NewscatcherData (documentId, domainRank, score) ")
+            .push_values(documents.clone(), |mut stm, doc| {
+                // fine as we convert it back to u64 when we fetch it from the database
+                #[allow(clippy::cast_possible_wrap)]
+                stm.push_bind(doc.id.as_uuid())
+                    .push_bind(doc.newscatcher_data.domain_rank as i64)
+                    .push_bind(doc.newscatcher_data.score);
+            })
             .build()
             .persistent(false)
             .execute(tx)
@@ -238,11 +240,12 @@ impl FeedScope for SqliteStorage {
                 .map_err(|err| Error::Database(err.into()))?;
 
             // insert data into FeedDocument table
-            query_builder.reset().push("FeedDocument (documentId) ");
-            query_builder.push_values(documents, |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid());
-            });
             query_builder
+                .reset()
+                .push("FeedDocument (documentId) ")
+                .push_values(documents, |mut stm, doc| {
+                    stm.push_bind(doc.id.as_uuid());
+                })
                 .build()
                 .persistent(false)
                 .execute(&mut tx)
@@ -252,12 +255,11 @@ impl FeedScope for SqliteStorage {
             // insert data into UserReaction table
             query_builder
                 .reset()
-                .push("UserReaction (documentId, userReaction) ");
-            query_builder.push_values(documents, |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid())
-                    .push_bind(UserReaction::default() as u32);
-            });
-            query_builder
+                .push("UserReaction (documentId, userReaction) ")
+                .push_values(documents, |mut stm, doc| {
+                    stm.push_bind(doc.id.as_uuid())
+                        .push_bind(UserReaction::default() as u32);
+                })
                 .build()
                 .persistent(false)
                 .execute(&mut tx)
@@ -267,15 +269,14 @@ impl FeedScope for SqliteStorage {
             // insert data into PresentationOrdering table
             query_builder
                 .reset()
-                .push("PresentationOrdering (documentId, timestamp, inBatchIndex) ");
-            query_builder.push_values(documents.iter().enumerate(), |mut stm, (idx, doc)| {
-                // we won't have so many documents that idx > u32
-                #[allow(clippy::cast_possible_truncation)]
-                stm.push_bind(doc.id.as_uuid())
-                    .push_bind(timestamp)
-                    .push_bind(idx as u32);
-            });
-            query_builder
+                .push("PresentationOrdering (documentId, timestamp, inBatchIndex) ")
+                .push_values(documents.iter().enumerate(), |mut stm, (idx, doc)| {
+                    // we won't have so many documents that idx > u32
+                    #[allow(clippy::cast_possible_truncation)]
+                    stm.push_bind(doc.id.as_uuid())
+                        .push_bind(timestamp)
+                        .push_bind(idx as u32);
+                })
                 .build()
                 .persistent(false)
                 .execute(&mut tx)
