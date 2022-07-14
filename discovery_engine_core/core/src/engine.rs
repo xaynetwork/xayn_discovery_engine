@@ -158,7 +158,6 @@ pub struct Engine {
     exploration_stack: Exploration,
     state: CoiSystemState,
     #[cfg(feature = "storage")]
-    #[allow(dead_code)]
     storage: BoxedStorage,
 }
 
@@ -440,21 +439,27 @@ impl Engine {
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
         let mut stacks = self.stacks.write().await;
-        let mut all_stacks = chain!(
-            stacks.values_mut().map(|s| s as _),
+        let all_stacks = chain!(
+            stacks
+                .values_mut()
+                .map(|stack| stack as &mut (dyn Bucket<Document> + Send)),
             once(&mut self.exploration_stack as _),
-        )
-        .collect::<Vec<&mut dyn Bucket<_>>>();
+        );
 
-        let documents: Vec<Document> = SelectionIter::new(BetaSampler, all_stacks.iter_mut())
-            .select(max_documents as usize)?;
-
+        let documents =
+            SelectionIter::new(BetaSampler, all_stacks).select(max_documents as usize)?;
         for document in &documents {
             debug!(
                 document = %document.id,
                 stack = %document.stack_id,
                 title = %document.resource.title,
             );
+        }
+
+        #[cfg(feature = "storage")]
+        {
+            let documents = documents.iter().cloned().map_into().collect_vec();
+            self.storage.feed().store_documents(&documents).await?;
         }
 
         Ok(documents)

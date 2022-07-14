@@ -104,13 +104,19 @@ fn pull_arms<'b, T>(
 }
 
 /// An iterator to select elements from buckets.
-pub(crate) struct SelectionIter<'b, BS, B, T> {
+pub(crate) struct SelectionIter<'b, BS, B, T>
+where
+    B: ?Sized,
+{
     beta_sampler: BS,
     buckets: Vec<&'b mut B>,
     bucket_type: PhantomData<T>,
 }
 
-impl<'b, BS, B, T> SelectionIter<'b, BS, B, T> {
+impl<'b, BS, B, T> SelectionIter<'b, BS, B, T>
+where
+    B: ?Sized,
+{
     /// Creates a selective iterator.
     pub(crate) fn new(beta_sampler: BS, buckets: impl IntoIterator<Item = &'b mut B>) -> Self {
         Self {
@@ -133,7 +139,7 @@ impl<'b, BS, B, T> SelectionIter<'b, BS, B, T> {
 impl<'b, BS, B, T> Iterator for SelectionIter<'b, BS, B, T>
 where
     BS: BetaSample,
-    B: Bucket<T>,
+    B: Bucket<T> + ?Sized,
 {
     type Item = Result<T, Error>;
 
