@@ -1,20 +1,13 @@
 [workspace]
 members = [
     "ai/*",
+    "async-bindgen/*",
     "bindings",
     "core",
     "providers",
     "tooling",
     "web-api",
 ]
-
-[patch.crates-io.async-bindgen]
-git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
-branch = "main"
-
-[patch.crates-io.async-bindgen-gen-dart]
-git = "https://github.com/xaynetwork/xayn_async_bindgen.git"
-branch = "main"
 
 [patch.crates-io.xayn-dart-api-dl]
 git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"

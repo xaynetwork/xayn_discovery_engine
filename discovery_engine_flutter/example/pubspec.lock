@@ -30,14 +30,12 @@ packages:
     source: hosted
     version: "2.8.2"
   async_bindgen_dart_utils:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      path: async_bindgen_dart_utils
-      ref: a299c69aacb1f017c0f062a83203b5f6225c462f
-      resolved-ref: a299c69aacb1f017c0f062a83203b5f6225c462f
-      url: "https://github.com/xaynetwork/xayn_async_bindgen.git"
-    source: git
-    version: "0.1.0"
+      path: "../../async_bindgen_dart_utils"
+      relative: true
+    source: path
+    version: "0.1.0+change.me.to.commit.ref"
   boolean_selector:
     dependency: transitive
     description:
@@ -458,14 +456,14 @@ packages:
       path: "../../discovery_engine"
       relative: true
     source: path
-    version: "0.1.0"
+    version: "0.1.0+change.me.to.commit.ref"
   xayn_discovery_engine_flutter:
     dependency: "direct main"
     description:
       path: ".."
       relative: true
     source: path
-    version: "0.1.0"
+    version: "0.1.0+change.me.to.commit.ref"
   xdg_directories:
     dependency: transitive
     description:

@@ -1,8 +1,8 @@
 name: xayn_discovery_engine_flutter
 description: Xayn Discovery Engine package for Flutter bundled with binaries.
-version: 0.1.0
+version: 0.1.0+change.me.to.commit.ref
 homepage: https://github.com/xaynetwork/xayn_discovery_engine/
-publish_to: none
+publish_to: https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private
 
 environment:
   sdk: '>=2.17.0 <3.0.0'
@@ -12,10 +12,8 @@ dependencies:
   flutter:
     sdk: flutter
   xayn_discovery_engine:
-    git:
-      url: https://gitlab.com/xayn/xayn_discovery_engine_release
-      ref: change_me_to_commit_ref
-      path: discovery_engine
+    hosted: https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private
+    version: 0.1.0+change.me.to.commit.ref
 
 dev_dependencies:
   flutter_test:
@@ -25,6 +23,8 @@ dev_dependencies:
 dependency_overrides:
   xayn_discovery_engine:
     path: "../discovery_engine"
+  async_bindgen_dart_utils:
+    path: ../async_bindgen_dart_utils/
 
 flutter:
   assets:

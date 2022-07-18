@@ -13,6 +13,10 @@ inputs:
     description: 'An optional key that is added to the automatic cache key'
     default: ""
     required: false
+  jfrog_token:
+    description: Token for accessing our Jfrog instance
+    default: "false"
+    required: false
 runs:
   using: "composite"
   steps:
@@ -33,11 +37,17 @@ runs:
         # slowing all builds down.
         echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
 
-    - name: Setup dependencies
+    - name: Jfrog authentication
       shell: bash
+      if: ${{ inputs.jfrog_token != 'false' }}
+      env:
+          JFROG_TOKEN: ${{ inputs.jfrog_token }}
       run: |
-        mkdir -p cargo-installs/bin
-        cp /usr/local/cargo/bin/async-bindgen-gen-dart cargo-installs/bin/async-bindgen-gen-dart
+        if [ -z "${JFROG_TOKEN}" ]; then
+          echo "JFROG access token missing"
+          exit 1
+        fi
+        echo "${JFROG_TOKEN}" | dart pub token add "https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private"
 
     - name: dart deps
       shell: bash

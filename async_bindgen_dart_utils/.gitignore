@@ -4,18 +4,10 @@
 
 # Conventional directory for build outputs.
 build/
-**/doc/api/
-
-# Omit download dir for example's assets
-engine_data/
 
 # Omit committing pubspec.lock for library packages; see
 # https://dart.dev/guides/libraries/private-files#pubspeclock.
 pubspec.lock
 
-# Omit generated files
-*.g.dart
-*.mocks.dart
-*.freezed.dart
-*.ffigen.dart
-*.ext.dart
+# Ignore the folder documentation is generated in.
+doc/

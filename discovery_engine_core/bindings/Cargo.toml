@@ -5,7 +5,7 @@ license = "AGPL-3.0-only"
 edition = "2021"
 
 [dependencies]
-async-bindgen = "0.1.0"
+async-bindgen = { path="../async-bindgen/async-bindgen" }
 cfg-if = "1.0.0"
 chrono = { version = "0.4.19", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
@@ -23,7 +23,6 @@ xayn-discovery-engine-providers = { path = "../providers" }
 tracing-android = "0.2.0"
 
 [dev-dependencies]
-async-bindgen-gen-dart = "0.1.0"
 uuid = { version = "1.1.2", features = ["v4"] }
 
 [build-dependencies]

@@ -1,0 +1,10 @@
+# Replaces .gitignore for package publishing
+
+# ignore everything from .gitignore
+/pubspec.lock
+**/doc/api/
+build/
+
+# also ignore example/, test/
+example/
+test/

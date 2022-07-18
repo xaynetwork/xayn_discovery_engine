@@ -68,7 +68,6 @@ dependencies = [
 [[package]]
 name = "async-bindgen"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#29b9898bcc57462dc9bd55c4706c9819eeda6bb6"
 dependencies = [
  "async-bindgen-derive",
  "once_cell",
@@ -81,7 +80,6 @@ dependencies = [
 [[package]]
 name = "async-bindgen-derive"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#29b9898bcc57462dc9bd55c4706c9819eeda6bb6"
 dependencies = [
  "heck 0.4.0",
  "once_cell",
@@ -93,11 +91,11 @@ dependencies = [
 [[package]]
 name = "async-bindgen-gen-dart"
 version = "0.1.0"
-source = "git+https://github.com/xaynetwork/xayn_async_bindgen.git?branch=main#29b9898bcc57462dc9bd55c4706c9819eeda6bb6"
 dependencies = [
  "anyhow",
  "handlebars",
  "heck 0.4.0",
+ "itertools",
  "once_cell",
  "regex",
  "serde",
@@ -3863,7 +3861,6 @@ name = "xayn-discovery-engine-bindings"
 version = "0.1.0"
 dependencies = [
  "async-bindgen",
- "async-bindgen-gen-dart",
  "cbindgen",
  "cfg-if",
  "chrono",
