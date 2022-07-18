@@ -1,4 +1,4 @@
 # Omit generated files
-#NOTE if we want to publish this to crates.io auto generated fiels need some special care
+#NOTE if we want to publish this to crates.io auto generated fields need some special care
 src/async_bindings/*.rs
 include/

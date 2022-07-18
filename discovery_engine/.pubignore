@@ -6,6 +6,6 @@ build/
 engine_data/
 pubspec.lock
 
-# also ginore example/, test/
+# also ignore example/, test/
 example/
 test/

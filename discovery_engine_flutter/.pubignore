@@ -5,6 +5,6 @@
 **/doc/api/
 build/
 
-# also ginore example/, test/
+# also ignore example/, test/
 example/
 test/
