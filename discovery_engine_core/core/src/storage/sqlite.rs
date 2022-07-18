@@ -357,29 +357,49 @@ impl SearchScope for SqliteStorage {
         Self::commit_tx(tx).await
     }
 
-    async fn clear(&self) -> Result<bool, Error> {
+    async fn store_next_page(
+        &self,
+        page_number: u32,
+        documents: &[NewDocument],
+    ) -> Result<(), Error> {
         let mut tx = self.begin_tx().await?;
-        let mut query_builder = QueryBuilder::new("DELETE FROM ");
+        let mut query_builder = QueryBuilder::new(String::new());
+
+        // remove data of the previous page from SearchDocument table before inserting the next page
+        query_builder
+            .push("DELETE FROM SearchDocument;")
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+
+        SqliteStorage::store_new_documents(&mut tx, documents).await?;
+
+        // insert data into SearchDocument table
+        query_builder
+            .reset()
+            .push("INSERT INTO SearchDocument (documentId) ")
+            .push_values(documents, |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid());
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
 
         query_builder
-            .push("SearchDocument;")
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-        let deletion = query_builder
             .reset()
-            .push("Search;")
+            .push("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
             .build()
+            .bind(page_number)
             .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
-        Self::commit_tx(tx).await?;
-
-        Ok(deletion.rows_affected() > 0)
+        Self::commit_tx(tx).await
     }
 
     async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error> {
@@ -423,48 +443,29 @@ impl SearchScope for SqliteStorage {
         ))
     }
 
-    async fn store_next_page(
-        &self,
-        page_number: u32,
-        documents: &[NewDocument],
-    ) -> Result<(), Error> {
+    async fn clear(&self) -> Result<bool, Error> {
         let mut tx = self.begin_tx().await?;
-        let mut query_builder = QueryBuilder::new(String::new());
+        let mut query_builder = QueryBuilder::new("DELETE FROM ");
 
         query_builder
-            .push("DELETE FROM SearchDocument;")
+            .push("SearchDocument;")
             .build()
             .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
-
-        SqliteStorage::store_new_documents(&mut tx, documents).await?;
-
-        // insert data into SearchDocument table
-        query_builder
+        let deletion = query_builder
             .reset()
-            .push("INSERT INTO SearchDocument (documentId) ")
-            .push_values(documents, |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid());
-            })
+            .push("Search;")
             .build()
             .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
-        query_builder
-            .reset()
-            .push("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
-            .build()
-            .bind(page_number)
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        Self::commit_tx(tx).await?;
 
-        Self::commit_tx(tx).await
+        Ok(deletion.rows_affected() > 0)
     }
 }
 

@@ -62,15 +62,15 @@ pub(crate) trait SearchScope {
         documents: &[NewDocument],
     ) -> Result<(), Error>;
 
-    async fn clear(&self) -> Result<bool, Error>;
-
-    async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error>;
-
     async fn store_next_page(
         &self,
         page_number: u32,
         documents: &[NewDocument],
     ) -> Result<(), Error>;
+
+    async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error>;
+
+    async fn clear(&self) -> Result<bool, Error>;
 }
 
 #[allow(dead_code)]
