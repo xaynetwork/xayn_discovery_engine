@@ -15,7 +15,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
@@ -79,51 +79,52 @@ impl SqliteStorage {
         tx.commit().await.map_err(|err| Error::Database(err.into()))
     }
 
-    async fn store_new_documents<'a, I>(
+    async fn store_new_documents(
         tx: &mut Transaction<'_, Sqlite>,
-        documents: I,
-        timestamp: DateTime<Utc>,
-    ) -> Result<(), Error>
-    where
-        I: IntoIterator<Item = &'a NewDocument> + Send,
-        <I as IntoIterator>::IntoIter: Clone,
-    {
-        let documents = documents.into_iter();
-        if documents.clone().next().is_none() {
+        documents: &[NewDocument],
+    ) -> Result<(), Error> {
+        if documents.is_empty() {
             return Ok(());
         }
         let mut query_builder = QueryBuilder::new("INSERT INTO ");
+        let timestamp = Utc::now();
 
-        // insert id into Document table (FK of HistoricDocument)
-        query_builder
-            .push("Document (id) ")
-            .push_values(documents.clone(), |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid());
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        // The amount of documents that we can store via bulk inserts
+        // (<https://docs.rs/sqlx-core/latest/sqlx_core/query_builder/struct.QueryBuilder.html#method.push_values>)
+        // is limited by the sqlite bind limit. Hence, the BIND_LIMIT is divided by the number of
+        // fields in the largest tuple (NewsResource).
+        for documents in documents.chunks(BIND_LIMIT / 9) {
+            // insert id into Document table (FK of HistoricDocument)
+            query_builder
+                .reset()
+                .push("Document (id) ")
+                .push_values(documents, |mut stm, doc| {
+                    stm.push_bind(doc.id.as_uuid());
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
 
-        // insert id into HistoricDocument table
-        query_builder
-            .reset()
-            .push("HistoricDocument (documentId) ")
-            .push_values(documents.clone(), |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid());
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            // insert id into HistoricDocument table
+            query_builder
+                .reset()
+                .push("HistoricDocument (documentId) ")
+                .push_values(documents, |mut stm, doc| {
+                    stm.push_bind(doc.id.as_uuid());
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
 
-        // insert data into NewsResource table
-        query_builder
+            // insert data into NewsResource table
+            query_builder
             .reset()
             .push("NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ")
-            .push_values(documents.clone(), |mut stm, doc| {
+            .push_values(documents, |mut stm, doc| {
                 stm.push_bind(doc.id.as_uuid())
                     .push_bind(&doc.news_resource.title)
                     .push_bind(&doc.news_resource.snippet)
@@ -144,53 +145,54 @@ impl SqliteStorage {
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
-        // insert data into NewscatcherData table
-        query_builder
-            .reset()
-            .push("NewscatcherData (documentId, domainRank, score) ")
-            .push_values(documents.clone(), |mut stm, doc| {
-                // fine as we convert it back to u64 when we fetch it from the database
-                #[allow(clippy::cast_possible_wrap)]
-                stm.push_bind(doc.id.as_uuid())
-                    .push_bind(doc.newscatcher_data.domain_rank as i64)
-                    .push_bind(doc.newscatcher_data.score);
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            // insert data into NewscatcherData table
+            query_builder
+                .reset()
+                .push("NewscatcherData (documentId, domainRank, score) ")
+                .push_values(documents, |mut stm, doc| {
+                    // fine as we convert it back to u64 when we fetch it from the database
+                    #[allow(clippy::cast_possible_wrap)]
+                    stm.push_bind(doc.id.as_uuid())
+                        .push_bind(doc.newscatcher_data.domain_rank as i64)
+                        .push_bind(doc.newscatcher_data.score);
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
 
-        // insert data into UserReaction table
-        query_builder
-            .reset()
-            .push("UserReaction (documentId, userReaction) ")
-            .push_values(documents.clone(), |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid())
-                    .push_bind(UserReaction::default() as u32);
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            // insert data into UserReaction table
+            query_builder
+                .reset()
+                .push("UserReaction (documentId, userReaction) ")
+                .push_values(documents, |mut stm, doc| {
+                    stm.push_bind(doc.id.as_uuid())
+                        .push_bind(UserReaction::default() as u32);
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
 
-        // insert data into PresentationOrdering table
-        query_builder
-            .reset()
-            .push("PresentationOrdering (documentId, timestamp, inBatchIndex) ")
-            .push_values(documents.enumerate(), |mut stm, (idx, doc)| {
-                // we won't have so many documents that idx > u32
-                #[allow(clippy::cast_possible_truncation)]
-                stm.push_bind(doc.id.as_uuid())
-                    .push_bind(timestamp)
-                    .push_bind(idx as u32);
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            // insert data into PresentationOrdering table
+            query_builder
+                .reset()
+                .push("PresentationOrdering (documentId, timestamp, inBatchIndex) ")
+                .push_values(documents.iter().enumerate(), |mut stm, (idx, doc)| {
+                    // we won't have so many documents that idx > u32
+                    #[allow(clippy::cast_possible_truncation)]
+                    stm.push_bind(doc.id.as_uuid())
+                        .push_bind(timestamp)
+                        .push_bind(idx as u32);
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
+        }
 
         Ok(())
     }
@@ -290,28 +292,19 @@ impl FeedScope for SqliteStorage {
         }
 
         let mut tx = self.begin_tx().await?;
-        let mut query_builder = QueryBuilder::new("INSERT INTO FeedDocument (documentId) ");
-        let timestamp = Utc::now();
 
-        // The amount of documents that we can store via bulk inserts
-        // (<https://docs.rs/sqlx-core/latest/sqlx_core/query_builder/struct.QueryBuilder.html#method.push_values>)
-        // is limited by the sqlite bind limit.
-        // BIND_LIMIT divided by the number of fields in the largest tuple (NewsResource)
-        for documents in documents.chunks(BIND_LIMIT / 9) {
-            SqliteStorage::store_new_documents(&mut tx, documents, timestamp).await?;
+        SqliteStorage::store_new_documents(&mut tx, documents).await?;
 
-            // insert data into FeedDocument table
-            query_builder
-                .reset()
-                .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(doc.id.as_uuid());
-                })
-                .build()
-                .persistent(false)
-                .execute(&mut tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
-        }
+        // insert data into FeedDocument table
+        QueryBuilder::new("INSERT INTO FeedDocument (documentId) ")
+            .push_values(documents, |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid());
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
 
         Self::commit_tx(tx).await
     }
@@ -324,86 +317,82 @@ impl SearchScope for SqliteStorage {
         search: &Search,
         documents: &[NewDocument],
     ) -> Result<(), Error> {
-        // Begin transaction
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        let mut tx = self.begin_tx().await?;
+        let mut query_builder = QueryBuilder::new("INSERT INTO ");
 
-        sqlx::query("INSERT INTO Search (rowid, searchBy, searchTerm, pageSize, pageNumber) values (1, ?, ?, ?, ?)")
+        // insert data into Search table
+        query_builder
+            .push(
+                "Search (rowid, searchBy, searchTerm, pageSize, pageNumber) VALUES (1, ?, ?, ?, ?)",
+            )
+            .build()
             .bind(search.search_by as u8)
             .bind(&search.search_term)
             .bind(search.paging.size)
             .bind(search.paging.next_page)
+            .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
         if documents.is_empty() {
-            return tx.commit().await.map_err(|err| Error::Database(err.into()));
+            return Self::commit_tx(tx).await;
         };
 
-        SqliteStorage::store_new_documents(&mut tx, documents.iter(), Utc::now())
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        SqliteStorage::store_new_documents(&mut tx, documents).await?;
 
         // insert data into SearchDocument table
-        let mut query_builder = QueryBuilder::new("INSERT INTO SearchDocument (documentId) ");
-        query_builder.push_values(documents, |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
         query_builder
+            .reset()
+            .push("SearchDocument (documentId) ")
+            .push_values(documents, |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid());
+            })
             .build()
             .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
-        tx.commit().await.map_err(|err| Error::Database(err.into()))
+        Self::commit_tx(tx).await
     }
 
     async fn clear(&self) -> Result<bool, Error> {
-        // Begin transaction
-        let mut tx = self
-            .pool
-            .begin()
+        let mut tx = self.begin_tx().await?;
+        let mut query_builder = QueryBuilder::new("DELETE FROM ");
+
+        query_builder
+            .push("SearchDocument;")
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
-
-        sqlx::query("DELETE FROM SearchDocument;")
+        let deletion = query_builder
+            .reset()
+            .push("Search;")
+            .build()
+            .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
-        let res = sqlx::query("DELETE FROM Search;")
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        Self::commit_tx(tx).await?;
 
-        tx.commit()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-        Ok(res.rows_affected() > 0)
+        Ok(deletion.rows_affected() > 0)
     }
 
     async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error> {
-        // Begin transaction
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        let mut tx = self.begin_tx().await?;
 
-        let search = sqlx::query_as::<_, _Search>(
+        let search = sqlx::query_as::<_, QueriedSearch>(
             "SELECT searchBy, searchTerm, pageNumber, pageSize
             FROM Search
             WHERE rowid = 1;",
         )
         .fetch_one(&mut tx)
         .await
-        .map_err(|err| Error::Database(err.into()))?
-        .try_into()?;
+        .map_err(|err| Error::Database(err.into()))?;
 
         let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
             "SELECT
@@ -421,16 +410,17 @@ impl SearchScope for SqliteStorage {
         )
         .fetch_all(&mut tx)
         .await
-        .map_err(|err| Error::Database(err.into()))?
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect::<Result<Vec<ApiDocumentView>, Error>>()?;
+        .map_err(|err| Error::Database(err.into()))?;
 
-        tx.commit()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        Self::commit_tx(tx).await?;
 
-        Ok((search, documents))
+        Ok((
+            search.try_into()?,
+            documents
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+        ))
     }
 
     async fn store_next_page(
@@ -438,45 +428,43 @@ impl SearchScope for SqliteStorage {
         page_number: u32,
         documents: &[NewDocument],
     ) -> Result<(), Error> {
-        // Begin transaction
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        let mut tx = self.begin_tx().await?;
+        let mut query_builder = QueryBuilder::new(String::new());
 
-        sqlx::query("DELETE FROM SearchDocument;")
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        SqliteStorage::store_new_documents(&mut tx, documents.iter(), Utc::now())
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        // insert data into SearchDocument table
-        let mut query_builder = QueryBuilder::new("INSERT INTO SearchDocument (documentId) ");
-        query_builder.push_values(documents, |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
         query_builder
+            .push("DELETE FROM SearchDocument;")
             .build()
             .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
-        sqlx::query(
-            "UPDATE Search
-            SET pageNumber = ?
-            WHERE rowid = 1;",
-        )
-        .bind(page_number)
-        .execute(&mut tx)
-        .await
-        .map_err(|err| Error::Database(err.into()))?;
+        SqliteStorage::store_new_documents(&mut tx, documents).await?;
 
-        tx.commit().await.map_err(|err| Error::Database(err.into()))
+        // insert data into SearchDocument table
+        query_builder
+            .reset()
+            .push("INSERT INTO SearchDocument (documentId) ")
+            .push_values(documents, |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid());
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+
+        query_builder
+            .reset()
+            .push("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
+            .build()
+            .bind(page_number)
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+
+        Self::commit_tx(tx).await
     }
 }
 
@@ -578,17 +566,17 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
 
 #[derive(sqlx::FromRow)]
 #[sqlx(rename_all = "camelCase")]
-struct _Search {
+struct QueriedSearch {
     search_by: u32,
     search_term: String,
     page_number: u32,
     page_size: u32,
 }
 
-impl TryFrom<_Search> for Search {
+impl TryFrom<QueriedSearch> for Search {
     type Error = Error;
 
-    fn try_from(search: _Search) -> Result<Self, Self::Error> {
+    fn try_from(search: QueriedSearch) -> Result<Self, Self::Error> {
         let search_by = SearchBy::from_u32(search.search_by).ok_or_else(|| {
             Error::Database(format!("Failed to convert {} to SearchBy", search.search_by).into())
         })?;
