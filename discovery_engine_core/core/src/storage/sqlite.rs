@@ -25,7 +25,6 @@ use sqlx::{
 };
 use url::Url;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -60,74 +59,99 @@ impl SqliteStorage {
         Ok(Self { pool })
     }
 
-    async fn store_new_documents<'a>(
-        mut tx: Transaction<'a, Sqlite>,
-        documents: impl Iterator<Item = &NewDocument> + Clone + Send,
-    ) -> Result<Transaction<'a, Sqlite>, Error> {
-        // insert id into Document table (fk of HistoricDocument)
-        let mut query_builder = QueryBuilder::new("INSERT INTO Document (id) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
+    async fn begin_tx(&self) -> Result<Transaction<'_, Sqlite>, Error> {
+        self.pool
+            .begin()
+            .await
+            .map_err(|err| Error::Database(err.into()))
+    }
+
+    async fn commit_tx(tx: Transaction<'_, Sqlite>) -> Result<(), Error> {
+        tx.commit().await.map_err(|err| Error::Database(err.into()))
+    }
+
+    async fn store_new_documents<'a, I>(
+        tx: &mut Transaction<'_, Sqlite>,
+        documents: I,
+    ) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = &'a NewDocument> + Send,
+        <I as IntoIterator>::IntoIter: Clone,
+    {
+        let documents = documents.into_iter();
+        if documents.clone().next().is_none() {
+            return Ok(());
+        }
+        let mut query_builder = QueryBuilder::new("INSERT INTO ");
+
+        // insert id into Document table (FK of HistoricDocument)
         query_builder
+            .push("Document (id) ")
+            .push_values(documents.clone(), |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid());
+            })
             .build()
             .persistent(false)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
         // insert id into HistoricDocument table
-        let mut query_builder = QueryBuilder::new("INSERT INTO HistoricDocument (documentId) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
         query_builder
+            .reset()
+            .push("HistoricDocument (documentId) ")
+            .push_values(documents.clone(), |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid());
+            })
             .build()
             .persistent(false)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
         // insert data into NewsResource table
-        let mut query_builder = QueryBuilder::new("INSERT INTO NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid())
-                .push_bind(&doc.news_resource.title)
-                .push_bind(&doc.news_resource.snippet)
-                .push_bind(&doc.news_resource.topic)
-                .push_bind(doc.news_resource.url.to_string())
-                .push_bind(doc.news_resource.image.as_ref().map(ToString::to_string))
-                .push_bind(&doc.news_resource.date_published)
-                .push_bind(&doc.news_resource.source)
-                .push_bind(format!(
-                    "{}{}",
-                    doc.news_resource.market.lang_code, doc.news_resource.market.country_code,
-                ));
-        });
         query_builder
+            .reset()
+            .push("NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ")
+            .push_values(documents.clone(), |mut stm, doc| {
+                stm.push_bind(doc.id.as_uuid())
+                    .push_bind(&doc.news_resource.title)
+                    .push_bind(&doc.news_resource.snippet)
+                    .push_bind(&doc.news_resource.topic)
+                    .push_bind(doc.news_resource.url.as_str())
+                    .push_bind(doc.news_resource.image.as_ref().map(Url::as_str))
+                    .push_bind(&doc.news_resource.date_published)
+                    .push_bind(&doc.news_resource.source)
+                    .push_bind(format!(
+                        "{}{}",
+                        doc.news_resource.market.lang_code,
+                        doc.news_resource.market.country_code,
+                    ));
+            })
             .build()
             .persistent(false)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
         // insert data into NewscatcherData table
-        let mut query_builder =
-            QueryBuilder::new("INSERT INTO NewscatcherData (documentId, domainRank, score) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            #[allow(clippy::cast_possible_wrap)]
-            // fine as we convert it back to u64 when we fetch it from the database
-            stm.push_bind(doc.id.as_uuid())
-                .push_bind(doc.newscatcher_data.domain_rank as i64)
-                .push_bind(doc.newscatcher_data.score);
-        });
         query_builder
+            .reset()
+            .push("NewscatcherData (documentId, domainRank, score) ")
+            .push_values(documents.clone(), |mut stm, doc| {
+                // fine as we convert it back to u64 when we fetch it from the database
+                #[allow(clippy::cast_possible_wrap)]
+                stm.push_bind(doc.id.as_uuid())
+                    .push_bind(doc.newscatcher_data.domain_rank as i64)
+                    .push_bind(doc.newscatcher_data.score);
+            })
             .build()
             .persistent(false)
-            .execute(&mut tx)
+            .execute(tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
-        Ok(tx)
+
+        Ok(())
     }
 }
 
@@ -141,25 +165,22 @@ impl Storage for SqliteStorage {
     }
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error> {
-        let mut con = self
-            .pool
-            .acquire()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        let mut tx = self.begin_tx().await?;
 
-        sqlx::query_as::<_, _HistoricDocument>(
+        let documents = sqlx::query_as::<_, QueriedHistoricDocument>(
             "SELECT
                 nr.documentId, nr.title, nr.snippet, nr.url
             FROM
                 HistoricDocument AS hd, NewsResource AS nr
             ON hd.documentId = nr.documentId;",
         )
-        .fetch_all(&mut con)
+        .fetch_all(&mut tx)
         .await
-        .map_err(|err| Error::Database(err.into()))?
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect()
+        .map_err(|err| Error::Database(err.into()))?;
+
+        Self::commit_tx(tx).await?;
+
+        documents.into_iter().map(TryInto::try_into).collect()
     }
 
     fn feed(&self) -> &(dyn FeedScope + Send + Sync) {
@@ -170,39 +191,32 @@ impl Storage for SqliteStorage {
 #[async_trait]
 impl FeedScope for SqliteStorage {
     async fn close_document(&self, document: &document::Id) -> Result<(), Error> {
-        let mut con = self
-            .pool
-            .acquire()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        let mut tx = self.begin_tx().await?;
+
         sqlx::query("DELETE FROM FeedDocument WHERE documentId = ?;")
             .bind(document.as_uuid())
-            .execute(&mut con)
+            .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
-        Ok(())
+
+        Self::commit_tx(tx).await
     }
 
     async fn clear(&self) -> Result<(), Error> {
-        let mut con = self
-            .pool
-            .acquire()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        let mut tx = self.begin_tx().await?;
+
         sqlx::query("DELETE FROM FeedDocument;")
-            .execute(&mut con)
+            .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
-        Ok(())
+
+        Self::commit_tx(tx).await
     }
 
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error> {
-        let mut con = self
-            .pool
-            .acquire()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-        sqlx::query_as::<_, _ApiDocumentView>(
+        let mut tx = self.begin_tx().await?;
+
+        let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
             "SELECT
                 nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
@@ -216,12 +230,13 @@ impl FeedScope for SqliteStorage {
             AND fd.documentId = po.documentId
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
-        .fetch_all(&mut con)
+        .fetch_all(&mut tx)
         .await
-        .map_err(|err| Error::Database(err.into()))?
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect()
+        .map_err(|err| Error::Database(err.into()))?;
+
+        Self::commit_tx(tx).await?;
+
+        documents.into_iter().map(TryInto::try_into).collect()
     }
 
     async fn store_documents(&self, documents: &[NewDocument]) -> Result<(), Error> {
@@ -229,85 +244,79 @@ impl FeedScope for SqliteStorage {
             return Ok(());
         }
 
-        // The amount of documents that we can store via bulk inserts
-        // (https://docs.rs/sqlx-core/latest/sqlx_core/query_builder/struct.QueryBuilder.html#method.push_values)
-        // is limited by the sqlite bind limit.
-        // bind_limit divided by the number of fields in the largest tuple (NewsResource)
-        let documents = documents.iter().take(BIND_LIMIT / 9);
-
-        // Begin transaction
-        let tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        let mut tx = SqliteStorage::store_new_documents(tx, documents.clone())
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        // insert data into FeedDocument table
-        let mut query_builder = QueryBuilder::new("INSERT INTO FeedDocument (documentId) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid());
-        });
-        query_builder
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        // insert data into UserReaction table
-        let mut query_builder =
-            QueryBuilder::new("INSERT INTO UserReaction (documentId, userReaction) ");
-        query_builder.push_values(documents.clone(), |mut stm, doc| {
-            stm.push_bind(doc.id.as_uuid())
-                .push_bind(UserReaction::default() as u32);
-        });
-        query_builder
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        // insert data into PresentationOrdering table
+        let mut tx = self.begin_tx().await?;
+        let mut query_builder = QueryBuilder::new("INSERT INTO ");
         let timestamp = Utc::now();
-        let mut query_builder = QueryBuilder::new(
-            "INSERT INTO PresentationOrdering (documentId, timestamp, inBatchIndex) ",
-        );
-        query_builder.push_values(documents.enumerate(), |mut stm, (idx, doc)| {
-            #[allow(clippy::cast_possible_truncation)]
-            // we won't have so many documents that idx > u32
-            stm.push_bind(doc.id.as_uuid())
-                .push_bind(timestamp)
-                .push_bind(idx as u32);
-        });
-        query_builder
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
 
-        tx.commit().await.map_err(|err| Error::Database(err.into()))
+        // The amount of documents that we can store via bulk inserts
+        // (<https://docs.rs/sqlx-core/latest/sqlx_core/query_builder/struct.QueryBuilder.html#method.push_values>)
+        // is limited by the sqlite bind limit.
+        // BIND_LIMIT divided by the number of fields in the largest tuple (NewsResource)
+        for documents in documents.chunks(BIND_LIMIT / 9) {
+            SqliteStorage::store_new_documents(&mut tx, documents).await?;
+
+            // insert data into FeedDocument table
+            query_builder
+                .reset()
+                .push("FeedDocument (documentId) ")
+                .push_values(documents, |mut stm, doc| {
+                    stm.push_bind(doc.id.as_uuid());
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
+
+            // insert data into UserReaction table
+            query_builder
+                .reset()
+                .push("UserReaction (documentId, userReaction) ")
+                .push_values(documents, |mut stm, doc| {
+                    stm.push_bind(doc.id.as_uuid())
+                        .push_bind(UserReaction::default() as u32);
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
+
+            // insert data into PresentationOrdering table
+            query_builder
+                .reset()
+                .push("PresentationOrdering (documentId, timestamp, inBatchIndex) ")
+                .push_values(documents.iter().enumerate(), |mut stm, (idx, doc)| {
+                    // we won't have so many documents that idx > u32
+                    #[allow(clippy::cast_possible_truncation)]
+                    stm.push_bind(doc.id.as_uuid())
+                        .push_bind(timestamp)
+                        .push_bind(idx as u32);
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
+        }
+
+        Self::commit_tx(tx).await
     }
 }
 
 #[derive(sqlx::FromRow)]
 #[sqlx(rename_all = "camelCase")]
-struct _HistoricDocument {
+struct QueriedHistoricDocument {
     document_id: Uuid,
     title: String,
     snippet: String,
     url: String,
 }
 
-impl TryFrom<_HistoricDocument> for HistoricDocument {
+impl TryFrom<QueriedHistoricDocument> for HistoricDocument {
     type Error = Error;
 
-    fn try_from(doc: _HistoricDocument) -> Result<Self, Self::Error> {
+    fn try_from(doc: QueriedHistoricDocument) -> Result<Self, Self::Error> {
         let url = Url::parse(&doc.url).map_err(|err| Error::Database(err.into()))?;
         Ok(HistoricDocument {
             id: document::Id::from(doc.document_id),
@@ -320,7 +329,7 @@ impl TryFrom<_HistoricDocument> for HistoricDocument {
 
 #[derive(sqlx::FromRow)]
 #[sqlx(rename_all = "camelCase")]
-struct _ApiDocumentView {
+struct QueriedApiDocumentView {
     document_id: Uuid,
     title: String,
     snippet: String,
@@ -336,16 +345,25 @@ struct _ApiDocumentView {
     in_batch_index: u32,
 }
 
-impl TryFrom<_ApiDocumentView> for ApiDocumentView {
+impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
     type Error = Error;
 
-    fn try_from(doc: _ApiDocumentView) -> Result<Self, Self::Error> {
+    fn try_from(doc: QueriedApiDocumentView) -> Result<Self, Self::Error> {
         let url = Url::parse(&doc.url).map_err(|err| Error::Database(err.into()))?;
         let image = doc
             .image
             .map(|url| Url::parse(&url).map_err(|err| Error::Database(err.into())))
             .transpose()?;
-        let (lang, country) = doc.market.split_at(2);
+        let market = doc
+            .market
+            .is_char_boundary(2)
+            .then(|| {
+                let (lang, country) = doc.market.split_at(2);
+                Market::new(lang, country)
+            })
+            .ok_or_else(|| {
+                Self::Error::Database(format!("Failed to convert {} to Market", doc.market).into())
+            })?;
 
         let news_resource = NewsResource {
             title: doc.title,
@@ -355,11 +373,9 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
             image,
             date_published: doc.date_published,
             source: doc.source,
-            market: Market {
-                lang_code: lang.to_string(),
-                country_code: country.to_string(),
-            },
+            market,
         };
+        // fine as we convert it to i64 when we store it in the database
         #[allow(clippy::cast_sign_loss)]
         let newscatcher_data = NewscatcherData {
             domain_rank: doc.domain_rank as u64,
@@ -369,10 +385,7 @@ impl TryFrom<_ApiDocumentView> for ApiDocumentView {
             .user_reaction
             .map(|value| {
                 UserReaction::from_u32(value).ok_or_else(|| {
-                    Error::Database(GenericError::from(format!(
-                        "Failed to convert {} to UserReaction",
-                        value
-                    )))
+                    Error::Database(format!("Failed to convert {value} to UserReaction",).into())
                 })
             })
             .transpose()?;
@@ -396,26 +409,20 @@ mod tests {
     fn create_documents(n: u64) -> Vec<NewDocument> {
         (0..n)
             .map(|i| {
-                let id = document::Id::new();
-                let title = format!("title-{}", i);
-                let snippet = format!("snippet-{}", i);
-                let url = Url::parse(&format!("http://example-{}.com", i)).unwrap();
-                let source_domain = format!("example-{}.com", i);
-                let image = Url::parse(&format!("http://example-image-{}.com", i)).unwrap();
-                let topic = format!("topic-{}", i);
                 #[allow(clippy::cast_precision_loss)]
                 document::Document {
-                    id,
+                    id: document::Id::new(),
                     stack_id: stack::Id::new_random(),
                     resource: NewsResource {
-                        title,
-                        snippet,
-                        url,
-                        source_domain,
-                        image: (i != 0).then(|| image),
+                        title: format!("title-{i}"),
+                        snippet: format!("snippet-{i}"),
+                        url: Url::parse(&format!("http://example-{i}.com")).unwrap(),
+                        source_domain: format!("example-{i}.com"),
+                        image: (i != 0)
+                            .then(|| Url::parse(&format!("http://example-image-{i}.com")).unwrap()),
                         rank: i,
                         score: (i != 0).then(|| i as f32),
-                        topic,
+                        topic: format!("topic-{i}"),
                         ..NewsResource::default()
                     },
                     ..document::Document::default()

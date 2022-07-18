@@ -129,7 +129,7 @@ pub mod models {
         pub(crate) image: Option<Url>,
 
         /// Publishing date.
-        //FIXME it's NativeDateTime in the current codebase but we can't compare
+        // FIXME: it's NativeDateTime in the current codebase but we can't compare
         //      NativeDateTimes across different markets, but we do! So this needs to be
         //      at least a Utc DateTime.
         pub(crate) date_published: NaiveDateTime,
