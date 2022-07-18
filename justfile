@@ -286,6 +286,21 @@ download-assets:
 check-android-so:
     {{justfile_directory()}}/.github/scripts/check_android_so.sh "$FLUTTER_WORKSPACE"/android/src/main/jniLibs/
 
+_override-flutter-self-deps $BUILD_ID:
+    #!/usr/bin/env bash
+    set -eux
+    cd "$FLUTTER_EXAMPLE_WORKSPACE"
+
+    SED_CMD="sed"
+    if [[ "{{os()}}" == "macos" ]]; then
+        SED_CMD="gsed"
+    fi
+
+    # This will add changes to your repo which should never be committed.
+    $SED_CMD -i s/dependency_overrides/x_dependency_overrides/ ./pubspec.yaml
+    $SED_CMD -i s/change.me.to.commit.ref/${BUILD_ID}/ ./pubspec.yaml
+
+
 _dart-publish $WORKSPACE:
     #!/usr/bin/env bash
     set -eux
