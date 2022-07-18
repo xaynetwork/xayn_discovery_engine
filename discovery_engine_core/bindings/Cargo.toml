@@ -5,7 +5,7 @@ license = "AGPL-3.0-only"
 edition = "2021"
 
 [dependencies]
-async-bindgen = { path="../async-bindgen/async-bindgen" }
+async-bindgen = { path = "../async-bindgen/async-bindgen" }
 cfg-if = "1.0.0"
 chrono = { version = "0.4.19", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
