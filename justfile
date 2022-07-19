@@ -287,7 +287,7 @@ check-android-so:
     {{justfile_directory()}}/.github/scripts/check_android_so.sh "$FLUTTER_WORKSPACE"/android/src/main/jniLibs/
 
 _dart-publish $WORKSPACE:
-    #!/usr/bin/env sh
+    #!/usr/bin/env bash
     set -eux
     cd "$WORKSPACE"
 
