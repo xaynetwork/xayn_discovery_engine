@@ -3643,6 +3643,7 @@ dependencies = [
  "warp",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-bert",
+ "xayn-discovery-engine-providers",
  "xayn-discovery-engine-tokenizer",
 ]
 
