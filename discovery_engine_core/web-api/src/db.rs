@@ -15,25 +15,29 @@
 use serde_json::from_reader;
 use std::{collections::HashMap, fs::File, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
-use xayn_discovery_engine_ai::UserInterests;
-use xayn_discovery_engine_bert::{AveragePooler, SMBertConfig};
+use xayn_discovery_engine_ai::{CoiSystem, CoiSystemConfig, CoiSystemState};
+use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::models::{Article, Document, Id, UserId};
 
-pub(crate) type Db = Arc<RwLock<AppState>>;
+pub(crate) type Db = Arc<AppState>;
 
 #[allow(dead_code)]
 pub(crate) struct AppState {
-    pub(crate) documents: HashMap<Id, Document>,
-    pub(crate) user_interests: HashMap<UserId, UserInterests>,
+    pub(crate) smbert: RwLock<SMBert>,
+    pub(crate) coi: RwLock<CoiSystem>,
+    pub(crate) documents: RwLock<HashMap<Id, Document>>,
+    pub(crate) user_interests: RwLock<HashMap<UserId, CoiSystemState>>,
 }
 
 impl AppState {
-    fn new(documents: HashMap<Id, Document>) -> Self {
+    fn new(documents: HashMap<Id, Document>, smbert: SMBert) -> Self {
         Self {
-            documents,
-            user_interests: HashMap::new(),
+            documents: RwLock::new(documents),
+            smbert: RwLock::new(smbert),
+            coi: RwLock::new(CoiSystemConfig::default().build()),
+            user_interests: RwLock::new(HashMap::new()),
         }
     }
 }
@@ -49,24 +53,25 @@ pub(crate) struct InitConfig {
 }
 
 pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Error>> {
-    let file = File::open(&config.data_store).expect("Couldn't open the file");
-    let mbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)?
+    let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)?
         .with_accents(AccentChars::Cleanse)
         .with_case(CaseChars::Lower)
         .with_pooling::<AveragePooler>()
         .with_token_size(64)?
         .build()?;
+
+    let file = File::open(&config.data_store).expect("Couldn't open the file");
     let articles: Vec<Article> = from_reader(file).expect("Couldn't deserialize json");
     let documents = articles
         .into_iter()
         .map(|article| {
-            let embedding = mbert.run(&article.description).unwrap();
+            let embedding = smbert.run(&article.description).unwrap();
             let document = Document::new((article, embedding));
 
             (document.id, document)
         })
         .collect();
-    let app_state = AppState::new(documents);
+    let app_state = AppState::new(documents, smbert);
 
-    Ok(Arc::new(RwLock::new(app_state)))
+    Ok(Arc::new(app_state))
 }
