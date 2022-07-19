@@ -1877,6 +1877,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-http",
  "opentelemetry-semantic-conventions",
+ "reqwest",
  "rmp",
  "thiserror",
 ]
@@ -1891,6 +1892,7 @@ dependencies = [
  "bytes",
  "http",
  "opentelemetry",
+ "reqwest",
 ]
 
 [[package]]
