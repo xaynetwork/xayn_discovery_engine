@@ -13,16 +13,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::convert::Infallible;
-
-use uuid::Uuid;
 use warp::hyper::StatusCode;
 
-use crate::{db::Db, models::UserInteractionDto};
+use crate::{
+    db::Db,
+    models::{InteractionRequestBody, UserId},
+};
 
 // TODO: TY-3013
 #[allow(clippy::unused_async)]
 pub(crate) async fn handle_ranked_documents(
-    _user_id: Uuid,
+    _user_id: UserId,
     _db: Db,
 ) -> Result<impl warp::Reply, Infallible> {
     Ok(StatusCode::NOT_IMPLEMENTED)
@@ -31,8 +32,8 @@ pub(crate) async fn handle_ranked_documents(
 // TODO: TY-3014
 #[allow(clippy::unused_async)]
 pub(crate) async fn handle_user_interaction(
-    _user_id: Uuid,
-    _body: UserInteractionDto,
+    _user_id: UserId,
+    _body: InteractionRequestBody,
     _db: Db,
 ) -> Result<impl warp::Reply, Infallible> {
     Ok(StatusCode::NOT_IMPLEMENTED)

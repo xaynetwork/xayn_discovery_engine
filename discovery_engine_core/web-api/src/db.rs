@@ -17,9 +17,10 @@ use std::{collections::HashMap, fs::File, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use xayn_discovery_engine_ai::{CoiSystem, CoiSystemConfig, CoiSystemState};
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
+use xayn_discovery_engine_core::document::Id;
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
-use crate::models::{Article, Document, Id, UserId};
+use crate::models::{Article, Document, UserId};
 
 pub(crate) type Db = Arc<AppState>;
 

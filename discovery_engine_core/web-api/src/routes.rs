@@ -13,10 +13,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::convert::Infallible;
-use uuid::Uuid;
 use warp::{self, Filter, Rejection, Reply};
 
-use crate::{db::Db, handlers};
+use crate::{db::Db, handlers, models::UserId};
 
 pub(crate) fn api_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     get_ranked_documents(db.clone())
@@ -53,8 +52,8 @@ fn delete_internal_state(db: Db) -> impl Filter<Extract = impl Reply, Error = Re
 }
 
 // PATH /user/:user_id
-fn user_path() -> impl Filter<Extract = (Uuid,), Error = Rejection> + Clone {
-    warp::path("user").and(warp::path::param::<Uuid>())
+fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
+    warp::path("user").and(warp::path::param::<UserId>())
 }
 
 fn with_db(db: Db) -> impl Filter<Extract = (Db,), Error = Infallible> + Clone {

@@ -15,33 +15,11 @@
 use chrono::{NaiveDateTime, Utc};
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId, Embedding};
-
-/// Unique identifier of the [`Document`].
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
-#[repr(transparent)]
-#[cfg_attr(test, derive(Default))]
-pub struct Id(Uuid);
-
-impl From<Uuid> for Id {
-    fn from(uuid: Uuid) -> Self {
-        Self(uuid)
-    }
-}
-
-impl From<Id> for Uuid {
-    fn from(id: Id) -> Self {
-        id.0
-    }
-}
-
-impl From<Id> for DocumentId {
-    fn from(id: Id) -> Self {
-        Uuid::from(id).into()
-    }
-}
+use xayn_discovery_engine_core::document::Id;
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,22 +76,18 @@ impl From<Document> for Article {
 
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct UserInteractionDto {
-    pub(crate) document_id: Uuid,
+pub(crate) struct InteractionRequestBody {
+    pub(crate) document_id: Id,
 }
 
 /// Unique identifier for the user.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display)]
 pub(crate) struct UserId(Uuid);
 
-impl From<Uuid> for UserId {
-    fn from(uuid: Uuid) -> Self {
-        Self(uuid)
-    }
-}
+impl FromStr for UserId {
+    type Err = <Uuid as FromStr>::Err;
 
-impl From<UserId> for Uuid {
-    fn from(id: UserId) -> Self {
-        id.0
+    fn from_str(user_id_str: &str) -> Result<Self, Self::Err> {
+        Uuid::from_str(user_id_str).map(Self)
     }
 }
