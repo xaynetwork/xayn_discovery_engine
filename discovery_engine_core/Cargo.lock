@@ -3633,11 +3633,19 @@ checksum = "d554b7f530dee5964d9a9468d95c1f8b8acae4f282807e7d27d4b03099a46744"
 name = "web-api"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "derive_more",
+ "dotenv",
  "serde",
  "serde_json",
  "tokio",
  "uuid",
  "warp",
+ "xayn-discovery-engine-ai",
+ "xayn-discovery-engine-bert",
+ "xayn-discovery-engine-core",
+ "xayn-discovery-engine-providers",
+ "xayn-discovery-engine-tokenizer",
 ]
 
 [[package]]
