@@ -99,7 +99,7 @@ impl From<Document> for Article {
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct UserInteractionDto {
-    document_id: Uuid,
+    pub(crate) document_id: Uuid,
 }
 
 /// Unique identifier for the user.
