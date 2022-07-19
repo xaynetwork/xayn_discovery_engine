@@ -26,18 +26,18 @@ pub(crate) type Db = Arc<AppState>;
 
 #[allow(dead_code)]
 pub(crate) struct AppState {
-    pub(crate) smbert: RwLock<SMBert>,
-    pub(crate) coi: RwLock<CoiSystem>,
-    pub(crate) documents: RwLock<HashMap<Id, Document>>,
+    pub(crate) smbert: SMBert,
+    pub(crate) coi: CoiSystem,
+    pub(crate) documents: HashMap<Id, Document>,
     pub(crate) user_interests: RwLock<HashMap<UserId, CoiSystemState>>,
 }
 
 impl AppState {
     fn new(documents: HashMap<Id, Document>, smbert: SMBert) -> Self {
         Self {
-            documents: RwLock::new(documents),
-            smbert: RwLock::new(smbert),
-            coi: RwLock::new(CoiSystemConfig::default().build()),
+            documents,
+            smbert,
+            coi: CoiSystemConfig::default().build(),
             user_interests: RwLock::new(HashMap::new()),
         }
     }
