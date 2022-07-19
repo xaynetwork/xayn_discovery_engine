@@ -75,6 +75,11 @@ fn init_tracing_once(log_file: Option<&Path>) {
         .with(telemetry)
         .with(level)
         .init();
+
+    // for testing purposes
+    let root = tracing::info_span!("init_tracing");
+    let _enter = root.enter();
+    tracing::info!("root span entered");
 }
 
 fn init_panic_logging() {
