@@ -297,7 +297,7 @@ _override-flutter-self-deps $BUILD_ID:
     fi
 
     # This will add changes to your repo which should never be committed.
-    $SED_CMD -i s/dependency_overrides/x_dependency_overrides/ ./pubspec.yaml
+    $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
     $SED_CMD -i s/change.me.to.commit.ref/${BUILD_ID}/ ./pubspec.yaml
 
 
@@ -314,7 +314,7 @@ _dart-publish $WORKSPACE:
     fi
 
     # Dependency overrides are not allowed in published dart packages
-    $SED_CMD -i s/dependency_overrides/x_dependency_overrides/ ./pubspec.yaml
+    $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
 
     # Make it easier to figure out which builds came from `main`, and order the builds
     # by Github's "run ID". Note that this ID is reset if you change the name of the
