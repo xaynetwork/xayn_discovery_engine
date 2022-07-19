@@ -41,11 +41,9 @@
 //!    supposed to be implemented
 //! 2. do some hacky thing to make sure both the FFI and message API have access to
 //!    the engine
-//!
 
 use std::{
     any::Any,
-    panic::AssertUnwindSafe,
     sync::{
         atomic::{self, AtomicI64},
         Arc,
@@ -53,7 +51,6 @@ use std::{
 };
 
 use async_trait::async_trait;
-use futures::FutureExt;
 use thiserror::Error;
 
 /// Initialize the system, setting up message passing.
@@ -69,53 +66,50 @@ where
     F: SendResponse,
     T: RecvRequest,
 {
-    tokio::spawn(async move {
-        let send_last_response = send_response.clone();
-        // All parts moved into this future are not used after a unwind catching,
-        // similar the future is not resumed after a unwind catching.
-        // Side Note: "unwind safety" has nothing to do with rust safety.
-        let run_engine_fut = AssertUnwindSafe(async move {
-            let cookie = init_message.cookie;
-            let mut system = match S::create(init_message, send_response.clone()).await {
-                Ok(system) => system,
-                Err(err) => {
-                    return Some(Package {
-                        cookie,
-                        message: err,
-                    });
-                }
-            };
+    let send_last_response = send_response.clone();
 
-            while let Some(msg) = recv_request.recv().await {
-                let cookie = msg.cookie;
-                let message = system
-                    .handle_message(msg)
-                    .await
-                    .unwrap_or_else(|err_msg| err_msg);
-
-                if let Err(ResponseChannelBroken) =
-                    send_response.send(Package { message, cookie }).await
-                {
-                    return None;
-                }
+    // We have to spawn two futures, to work around limitations of `catch_unwind`.
+    let main_task_handle = tokio::spawn(async move {
+        let cookie = init_message.cookie;
+        let mut system = match S::create(init_message, send_response.clone()).await {
+            Ok(system) => system,
+            Err(err) => {
+                return Some(Package {
+                    cookie,
+                    message: err,
+                });
             }
+        };
 
-            let message = system.shutdown().await;
+        while let Some(msg) = recv_request.recv().await {
+            let cookie = msg.cookie;
+            let message = system
+                .handle_message(msg)
+                .await
+                .unwrap_or_else(|err_msg| err_msg);
+
+            if let Err(ResponseChannelBroken) =
+                send_response.send(Package { message, cookie }).await
+            {
+                return None;
+            }
+        }
+
+        let message = system.shutdown().await;
+        Some(Package {
+            message,
+            cookie: MagicCookie::generate_cookie(),
+        })
+    });
+
+    tokio::spawn(async move {
+        let res = main_task_handle.await.unwrap_or_else(|join_error| {
+            let panic_payload = join_error.try_into_panic().ok();
             Some(Package {
-                message,
+                message: S::create_future_aborted_error(panic_payload),
                 cookie: MagicCookie::generate_cookie(),
             })
         });
-
-        let res = run_engine_fut
-            .catch_unwind()
-            .await
-            .unwrap_or_else(|payload| {
-                Some(Package {
-                    message: S::create_panic_error(payload),
-                    cookie: MagicCookie::generate_cookie(),
-                })
-            });
 
         if let Some(msg) = res {
             send_last_response.send(msg).await.ok();
@@ -187,14 +181,17 @@ where
     /// panicing. We maybe might want to change this in the future.
     async fn shutdown(self) -> Message;
 
-    /// Create a panic error message.
+    /// Create a error message in case the future was aborted.
     ///
-    /// Must not panic.
+    /// Should not panic.
     ///
     /// Is separate from logging, as such using the payload is not necessary
     /// required, we might just create some static "well known" protobuf message
     /// or similar in the future.
-    fn create_panic_error(payload: Box<dyn Any + Send>) -> Message;
+    ///
+    /// If `None` is passed in the future was canceled, if `Some` was passed in
+    /// it died of a panic.
+    fn create_future_aborted_error(panic_payload: Option<Box<dyn Any + Send>>) -> Message;
 }
 
 #[async_trait]
