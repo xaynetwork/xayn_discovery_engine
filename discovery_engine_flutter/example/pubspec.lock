@@ -35,7 +35,7 @@ packages:
       path: "../../async_bindgen_dart_utils"
       relative: true
     source: path
-    version: "0.1.0+change.me.to.commit.ref"
+    version: "0.1.0+replace.with.semver.metadata.marker"
   boolean_selector:
     dependency: transitive
     description:
@@ -456,14 +456,14 @@ packages:
       path: "../../discovery_engine"
       relative: true
     source: path
-    version: "0.1.0+change.me.to.commit.ref"
+    version: "0.1.0+replace.with.semver.metadata.marker"
   xayn_discovery_engine_flutter:
     dependency: "direct main"
     description:
       path: ".."
       relative: true
     source: path
-    version: "0.1.0+change.me.to.commit.ref"
+    version: "0.1.0+replace.with.semver.metadata.marker"
   xdg_directories:
     dependency: transitive
     description:

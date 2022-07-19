@@ -316,16 +316,14 @@ _dart-publish $WORKSPACE:
     # Dependency overrides are not allowed in published dart packages
     $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
 
-    # Make it easier to figure out which builds came from `main`, and order the builds
-    # by Github's "run ID". Note that this ID is reset if you change the name of the
-    # workflow.
-    BUILD_ID="${GITHUB_RUN_ID:-missingRunId}.$(git rev-parse HEAD)"
+    # Add semver _metadata_ in the form of "<branch-name>.<commit-hash>.<github-run-id>".
+    # - If we are in detached head mode `HEAD` will be used instead of the branch name.
+    # - Non `[0-9A-Za-z-]` characters in the branch name will be replaced with `-`
+    # - If we have no run id "missingRunId" is used instead.
+    BUILD_ID="$(git rev-parse --abbrev-ref HEAD | sed s/[^0-9a-zA-Z-]/-/g ).$(git rev-parse HEAD).${GITHUB_RUN_ID:-missingRunId}"
     echo "Build Id: $BUILD_ID"
-    if [[ "$(git rev-parse --abbrev-ref HEAD)" == "main" ]]; then
-        BUILD_ID="main.${BUILD_ID}"
-    fi
 
-    $SED_CMD -i s/change.me.to.commit.ref/${BUILD_ID}/ ./pubspec.yaml
+    $SED_CMD -i s/replace.with.semver.metadata.marker/${BUILD_ID}/ ./pubspec.yaml
     dart pub publish --force
 
 # This should only be run by the CI
