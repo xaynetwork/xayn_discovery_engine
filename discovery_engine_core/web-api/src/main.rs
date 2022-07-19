@@ -31,8 +31,9 @@
 )]
 
 use db::{init_db, InitConfig};
+use dotenv::dotenv;
 use routes::api_routes;
-use std::{env, net::IpAddr, path::PathBuf};
+use std::{env, net::IpAddr};
 
 mod db;
 mod handlers;
@@ -41,15 +42,12 @@ mod routes;
 
 #[tokio::main]
 async fn main() {
-    let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let manifest = PathBuf::from(&manifest);
-    let env_file = manifest.join(".env");
+    dotenv().ok();
 
-    dotenv::from_path(env_file).ok();
-
-    let smbert_vocab = manifest.join(env::var("DE_SMBERT_VOCAB").unwrap());
-    let smbert_model = manifest.join(env::var("DE_SMBERT_MODEL").unwrap());
-    let data_store = manifest.join(env::var("DE_DATA_PATH").unwrap());
+    let path = env::current_dir().unwrap();
+    let smbert_vocab = path.join(env::var("DE_SMBERT_VOCAB").unwrap());
+    let smbert_model = path.join(env::var("DE_SMBERT_MODEL").unwrap());
+    let data_store = path.join(env::var("DE_DATA_PATH").unwrap());
 
     let port = env::var("DE_PORT")
         .unwrap_or_else(|_| "3000".to_string())
