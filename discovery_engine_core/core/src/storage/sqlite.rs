@@ -242,8 +242,7 @@ impl Storage for SqliteStorage {
         let documents = sqlx::query_as::<_, QueriedHistoricDocument>(
             "SELECT
                 nr.documentId, nr.title, nr.snippet, nr.url
-            FROM
-                HistoricDocument AS hd
+            FROM HistoricDocument AS hd
             JOIN NewsResource AS nr ON hd.documentId = nr.documentId;",
         )
         .persistent(false)
@@ -300,8 +299,7 @@ impl FeedScope for SqliteStorage {
                 nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex
-            FROM
-                FeedDocument AS fd
+            FROM FeedDocument AS fd
             JOIN NewsResource AS nr ON fd.documentId = nr.documentId
             JOIN NewscatcherData AS nc ON fd.documentId = nc.documentId
             JOIN PresentationOrdering AS po ON fd.documentId = po.documentId
@@ -441,13 +439,11 @@ impl SearchScope for SqliteStorage {
                 "nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex
-            FROM
-                NewsResource AS nr, NewscatcherData AS nc, UserReaction AS ur,
-                SearchDocument AS sd, PresentationOrdering AS po
-            ON sd.documentId = nr.documentId
-            AND sd.documentId = nc.documentId
-            AND sd.documentId = ur.documentId
-            AND sd.documentId = po.documentId
+            FROM SearchDocument AS sd
+            JOIN NewsResource AS nr ON sd.documentId = nr.documentId
+            JOIN NewscatcherData AS nc ON sd.documentId = nc.documentId
+            JOIN PresentationOrdering AS po ON sd.documentId = po.documentId
+            JOIN UserReaction AS ur ON sd.documentId = ur.documentId
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
             )
             .build()
@@ -476,8 +472,8 @@ impl SearchScope for SqliteStorage {
         let ids = query_builder
             .push(
                 "SELECT ur.documentId
-                FROM UserReaction AS ur, SearchDocument AS sd
-                ON ur.documentId = sd.documentID
+                FROM UserReaction AS ur
+                JOIN SearchDocument AS sd ON ur.documentId = sd.documentID
                 WHERE ur.userReaction = ?;",
             )
             .build()
