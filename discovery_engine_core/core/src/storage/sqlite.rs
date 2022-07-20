@@ -241,9 +241,9 @@ impl Storage for SqliteStorage {
 
         let documents = sqlx::query_as::<_, QueriedHistoricDocument>(
             "SELECT
-                nr.documentId, nr.title, nr.snippet, nr.url
-            FROM HistoricDocument AS hd
-            JOIN NewsResource AS nr ON hd.documentId = nr.documentId;",
+                hd.documentId, nr.title, nr.snippet, nr.url
+            FROM HistoricDocument   AS hd
+            JOIN NewsResource       AS nr   USING documentId;",
         )
         .persistent(false)
         .fetch_all(&mut tx)
@@ -472,8 +472,8 @@ impl SearchScope for SqliteStorage {
         let ids = query_builder
             .push(
                 "SELECT ur.documentId
-                FROM UserReaction AS ur
-                JOIN SearchDocument AS sd ON ur.documentId = sd.documentID
+                FROM UserReaction   AS ur
+                JOIN SearchDocument AS sd   USING documentId
                 WHERE ur.userReaction = ?;",
             )
             .build()
