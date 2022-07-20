@@ -771,14 +771,8 @@ mod tests {
                 ..new_search
             }
         );
-        assert!(check_eq_of_documents(
-            dbg!(&search_docs[..10]),
-            dbg!(&first_docs)
-        ));
-        assert!(check_eq_of_documents(
-            dbg!(&search_docs[10..]),
-            dbg!(&second_docs)
-        ));
+        assert!(check_eq_of_documents(&search_docs[..10], &first_docs));
+        assert!(check_eq_of_documents(&search_docs[10..], &second_docs));
         assert!(storage.search().clear().await.unwrap());
     }
 
