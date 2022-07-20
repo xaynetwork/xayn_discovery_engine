@@ -243,8 +243,8 @@ impl Storage for SqliteStorage {
             "SELECT
                 nr.documentId, nr.title, nr.snippet, nr.url
             FROM
-                HistoricDocument AS hd, NewsResource AS nr
-            ON hd.documentId = nr.documentId;",
+                HistoricDocument AS hd
+            JOIN NewsResource AS nr ON hd.documentId = nr.documentId;",
         )
         .persistent(false)
         .fetch_all(&mut tx)
@@ -301,12 +301,11 @@ impl FeedScope for SqliteStorage {
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex
             FROM
-                NewsResource AS nr, NewscatcherData AS nc, UserReaction AS ur,
-                FeedDocument AS fd, PresentationOrdering AS po
-            ON fd.documentId = nr.documentId
-            AND fd.documentId = nc.documentId
-            AND fd.documentId = ur.documentId
-            AND fd.documentId = po.documentId
+                FeedDocument AS fd
+            JOIN NewsResource AS nr ON fd.documentId = nr.documentId
+            JOIN NewscatcherData AS nc ON fd.documentId = nc.documentId
+            JOIN PresentationOrdering AS po ON fd.documentId = po.documentId
+            JOIN UserReaction AS ur ON fd.documentId = ur.documentId
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .persistent(false)
