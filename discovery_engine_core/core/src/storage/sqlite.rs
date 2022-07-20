@@ -296,14 +296,14 @@ impl FeedScope for SqliteStorage {
 
         let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
             "SELECT
-                nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                fd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex
-            FROM FeedDocument AS fd
-            JOIN NewsResource AS nr ON fd.documentId = nr.documentId
-            JOIN NewscatcherData AS nc ON fd.documentId = nc.documentId
-            JOIN PresentationOrdering AS po ON fd.documentId = po.documentId
-            JOIN UserReaction AS ur ON fd.documentId = ur.documentId
+            FROM FeedDocument           AS fd
+            JOIN NewsResource           AS nr   USING documentId
+            JOIN NewscatcherData        AS nc   USING documentId
+            JOIN PresentationOrdering   AS po   USING documentId
+            JOIN UserReaction           AS ur   USING documentId
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .persistent(false)
@@ -436,14 +436,14 @@ impl SearchScope for SqliteStorage {
         let documents = query_builder
             .reset()
             .push(
-                "nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                "sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex
-            FROM SearchDocument AS sd
-            JOIN NewsResource AS nr ON sd.documentId = nr.documentId
-            JOIN NewscatcherData AS nc ON sd.documentId = nc.documentId
-            JOIN PresentationOrdering AS po ON sd.documentId = po.documentId
-            JOIN UserReaction AS ur ON sd.documentId = ur.documentId
+            FROM SearchDocument         AS sd
+            JOIN NewsResource           AS nr   USING documentId
+            JOIN NewscatcherData        AS nc   USING documentId
+            JOIN PresentationOrdering   AS po   USING documentId
+            JOIN UserReaction           AS ur   USING documentId
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
             )
             .build()
