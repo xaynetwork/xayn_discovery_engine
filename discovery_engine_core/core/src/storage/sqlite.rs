@@ -19,12 +19,12 @@ use chrono::{NaiveDateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
+    FromRow,
     Pool,
     QueryBuilder,
     Transaction,
 };
 use url::Url;
-use uuid::Uuid;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -99,7 +99,7 @@ impl SqliteStorage {
                 .reset()
                 .push("Document (id) ")
                 .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(doc.id.as_uuid());
+                    stm.push_bind(&doc.id);
                 })
                 .build()
                 .persistent(false)
@@ -112,7 +112,7 @@ impl SqliteStorage {
                 .reset()
                 .push("HistoricDocument (documentId) ")
                 .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(doc.id.as_uuid());
+                    stm.push_bind(&doc.id);
                 })
                 .build()
                 .persistent(false)
@@ -125,7 +125,7 @@ impl SqliteStorage {
             .reset()
             .push("NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ")
             .push_values(documents, |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid())
+                stm.push_bind(&doc.id)
                     .push_bind(&doc.news_resource.title)
                     .push_bind(&doc.news_resource.snippet)
                     .push_bind(&doc.news_resource.topic)
@@ -152,7 +152,7 @@ impl SqliteStorage {
                 .push_values(documents, |mut stm, doc| {
                     // fine as we convert it back to u64 when we fetch it from the database
                     #[allow(clippy::cast_possible_wrap)]
-                    stm.push_bind(doc.id.as_uuid())
+                    stm.push_bind(&doc.id)
                         .push_bind(doc.newscatcher_data.domain_rank as i64)
                         .push_bind(doc.newscatcher_data.score);
                 })
@@ -167,7 +167,7 @@ impl SqliteStorage {
                 .reset()
                 .push("UserReaction (documentId, userReaction) ")
                 .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(doc.id.as_uuid())
+                    stm.push_bind(&doc.id)
                         .push_bind(UserReaction::default() as u32);
                 })
                 .build()
@@ -183,7 +183,7 @@ impl SqliteStorage {
                 .push_values(documents.iter().enumerate(), |mut stm, (idx, doc)| {
                     // we won't have so many documents that idx > u32
                     #[allow(clippy::cast_possible_truncation)]
-                    stm.push_bind(doc.id.as_uuid())
+                    stm.push_bind(&doc.id)
                         .push_bind(timestamp)
                         .push_bind(idx as u32);
                 })
@@ -195,6 +195,35 @@ impl SqliteStorage {
         }
 
         Ok(())
+    }
+
+    async fn clear_documents(
+        tx: &mut Transaction<'_, Sqlite>,
+        documents: &[document::Id],
+    ) -> Result<bool, Error> {
+        let mut deletion = false;
+        if documents.is_empty() {
+            return Ok(deletion);
+        }
+
+        let mut query_builder = QueryBuilder::new("DELETE FROM Document WHERE id IN (");
+        for documents in documents.chunks(BIND_LIMIT) {
+            let mut separated_builder = query_builder.reset().separated(", ");
+            for id in documents {
+                separated_builder.push_bind(id);
+            }
+            deletion |= query_builder
+                .push(");")
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?
+                .rows_affected()
+                > 0;
+        }
+
+        Ok(deletion)
     }
 }
 
@@ -217,6 +246,7 @@ impl Storage for SqliteStorage {
                 HistoricDocument AS hd, NewsResource AS nr
             ON hd.documentId = nr.documentId;",
         )
+        .persistent(false)
         .fetch_all(&mut tx)
         .await
         .map_err(|err| Error::Database(err.into()))?;
@@ -241,7 +271,8 @@ impl FeedScope for SqliteStorage {
         let mut tx = self.begin_tx().await?;
 
         sqlx::query("DELETE FROM FeedDocument WHERE documentId = ?;")
-            .bind(document.as_uuid())
+            .persistent(false)
+            .bind(document)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
@@ -253,6 +284,7 @@ impl FeedScope for SqliteStorage {
         let mut tx = self.begin_tx().await?;
 
         sqlx::query("DELETE FROM FeedDocument;")
+            .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
@@ -277,6 +309,7 @@ impl FeedScope for SqliteStorage {
             AND fd.documentId = po.documentId
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
+        .persistent(false)
         .fetch_all(&mut tx)
         .await
         .map_err(|err| Error::Database(err.into()))?;
@@ -298,7 +331,7 @@ impl FeedScope for SqliteStorage {
         // insert data into FeedDocument table
         QueryBuilder::new("INSERT INTO FeedDocument (documentId) ")
             .push_values(documents, |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid());
+                stm.push_bind(&doc.id);
             })
             .build()
             .persistent(false)
@@ -320,17 +353,16 @@ impl SearchScope for SqliteStorage {
         let mut tx = self.begin_tx().await?;
         let mut query_builder = QueryBuilder::new("INSERT INTO ");
 
-        // insert data into Search table
         query_builder
             .push(
                 "Search (rowid, searchBy, searchTerm, pageSize, pageNumber) VALUES (1, ?, ?, ?, ?)",
             )
             .build()
+            .persistent(false)
             .bind(search.search_by as u8)
             .bind(&search.search_term)
             .bind(search.paging.size)
             .bind(search.paging.next_page)
-            .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
@@ -340,13 +372,11 @@ impl SearchScope for SqliteStorage {
         };
 
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
-
-        // insert data into SearchDocument table
         query_builder
             .reset()
             .push("SearchDocument (documentId) ")
             .push_values(documents, |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid());
+                stm.push_bind(&doc.id);
             })
             .build()
             .persistent(false)
@@ -365,36 +395,23 @@ impl SearchScope for SqliteStorage {
         let mut tx = self.begin_tx().await?;
         let mut query_builder = QueryBuilder::new(String::new());
 
-        // remove data of the previous page from SearchDocument table before inserting the next page
-        query_builder
-            .push("DELETE FROM SearchDocument;")
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
-
-        // insert data into SearchDocument table
         query_builder
-            .reset()
             .push("INSERT INTO SearchDocument (documentId) ")
             .push_values(documents, |mut stm, doc| {
-                stm.push_bind(doc.id.as_uuid());
+                stm.push_bind(&doc.id);
             })
             .build()
             .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
-
         query_builder
             .reset()
             .push("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
             .build()
-            .bind(page_number)
             .persistent(false)
+            .bind(page_number)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
@@ -404,33 +421,42 @@ impl SearchScope for SqliteStorage {
 
     async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error> {
         let mut tx = self.begin_tx().await?;
+        let mut query_builder = QueryBuilder::new("SELECT ");
 
-        let search = sqlx::query_as::<_, QueriedSearch>(
-            "SELECT searchBy, searchTerm, pageNumber, pageSize
+        let search = query_builder
+            .push(
+                "searchBy, searchTerm, pageNumber, pageSize
             FROM Search
             WHERE rowid = 1;",
-        )
-        .fetch_one(&mut tx)
-        .await
-        .map_err(|err| Error::Database(err.into()))?;
+            )
+            .build()
+            .persistent(false)
+            .try_map(|row| QueriedSearch::from_row(&row))
+            .fetch_one(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
 
-        let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
-            "SELECT
-                nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+        let documents = query_builder
+            .reset()
+            .push(
+                "nr.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex
             FROM
                 NewsResource AS nr, NewscatcherData AS nc, UserReaction AS ur,
-                SearchDocument AS asd, PresentationOrdering AS po
-            ON asd.documentId = nr.documentId
-            AND asd.documentId = nc.documentId
-            AND asd.documentId = ur.documentId
-            AND asd.documentId = po.documentId
+                SearchDocument AS sd, PresentationOrdering AS po
+            ON sd.documentId = nr.documentId
+            AND sd.documentId = nc.documentId
+            AND sd.documentId = ur.documentId
+            AND sd.documentId = po.documentId
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
-        )
-        .fetch_all(&mut tx)
-        .await
-        .map_err(|err| Error::Database(err.into()))?;
+            )
+            .build()
+            .persistent(false)
+            .try_map(|row| QueriedApiDocumentView::from_row(&row))
+            .fetch_all(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
 
         Self::commit_tx(tx).await?;
 
@@ -445,18 +471,39 @@ impl SearchScope for SqliteStorage {
 
     async fn clear(&self) -> Result<bool, Error> {
         let mut tx = self.begin_tx().await?;
-        let mut query_builder = QueryBuilder::new("DELETE FROM ");
+        let mut query_builder = QueryBuilder::new(String::new());
 
+        // delete data from Document table where user reaction is neutral
+        let ids = query_builder
+            .push(
+                "SELECT ur.documentId
+                FROM UserReaction AS ur, SearchDocument AS sd
+                ON ur.documentId = sd.documentID
+                WHERE ur.userReaction = ?;",
+            )
+            .build()
+            .persistent(false)
+            .bind(UserReaction::Neutral as u32)
+            .try_map(|row| document::Id::from_row(&row))
+            .fetch_all(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+        Self::clear_documents(&mut tx, &ids).await?;
+
+        // delete all remaining data from SearchDocument table
         query_builder
-            .push("SearchDocument;")
+            .reset()
+            .push("DELETE FROM SearchDocument;")
             .build()
             .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
+
+        // delete all data from Search table
         let deletion = query_builder
             .reset()
-            .push("Search;")
+            .push("DELETE FROM Search;")
             .build()
             .persistent(false)
             .execute(&mut tx)
@@ -469,10 +516,10 @@ impl SearchScope for SqliteStorage {
     }
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(FromRow)]
 #[sqlx(rename_all = "camelCase")]
 struct QueriedHistoricDocument {
-    document_id: Uuid,
+    document_id: document::Id,
     title: String,
     snippet: String,
     url: String,
@@ -484,7 +531,7 @@ impl TryFrom<QueriedHistoricDocument> for HistoricDocument {
     fn try_from(doc: QueriedHistoricDocument) -> Result<Self, Self::Error> {
         let url = Url::parse(&doc.url).map_err(|err| Error::Database(err.into()))?;
         Ok(HistoricDocument {
-            id: document::Id::from(doc.document_id),
+            id: doc.document_id,
             url,
             snippet: doc.snippet,
             title: doc.title,
@@ -492,10 +539,10 @@ impl TryFrom<QueriedHistoricDocument> for HistoricDocument {
     }
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(FromRow)]
 #[sqlx(rename_all = "camelCase")]
 struct QueriedApiDocumentView {
-    document_id: Uuid,
+    document_id: document::Id,
     title: String,
     snippet: String,
     topic: String,
@@ -556,7 +603,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             .transpose()?;
 
         Ok(ApiDocumentView {
-            document_id: doc.document_id.into(),
+            document_id: doc.document_id,
             news_resource,
             newscatcher_data,
             user_reacted,
@@ -565,7 +612,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
     }
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(FromRow)]
 #[sqlx(rename_all = "camelCase")]
 struct QueriedSearch {
     search_by: u32,
@@ -602,7 +649,6 @@ mod tests {
     fn create_documents(n: u64) -> Vec<NewDocument> {
         (0..n)
             .map(|i| {
-                #[allow(clippy::cast_precision_loss)]
                 document::Document {
                     id: document::Id::new(),
                     stack_id: stack::Id::new_random(),
@@ -625,18 +671,17 @@ mod tests {
             .collect()
     }
 
-    fn check_eq_of_documents(api_docs: &[ApiDocumentView], docs: &[NewDocument]) {
-        assert_eq!(api_docs.len(), docs.len());
-        #[allow(clippy::cast_possible_truncation)]
-        api_docs
-            .iter()
-            .enumerate()
-            .zip(docs.iter())
-            .for_each(|((idx, api_docs), doc)| {
-                assert_eq!(api_docs.document_id, doc.id);
-                assert_eq!(api_docs.news_resource, doc.news_resource);
-                assert_eq!(api_docs.in_batch_index, idx as u32);
-            });
+    fn check_eq_of_documents(api_docs: &[ApiDocumentView], docs: &[NewDocument]) -> bool {
+        api_docs.len() == docs.len()
+            && api_docs
+                .iter()
+                .enumerate()
+                .zip(docs.iter())
+                .all(|((idx, api_docs), doc)| {
+                    api_docs.document_id == doc.id
+                        && api_docs.news_resource == doc.news_resource
+                        && api_docs.in_batch_index == idx as u32
+                })
     }
 
     #[tokio::test]
@@ -670,7 +715,7 @@ mod tests {
         storage.feed().store_documents(&docs).await.unwrap();
 
         let feed = storage.feed().fetch().await.unwrap();
-        check_eq_of_documents(&feed, &docs);
+        assert!(check_eq_of_documents(&feed, &docs));
 
         storage.feed().close_document(&docs[0].id).await.unwrap();
         let feed = storage.feed().fetch().await.unwrap();
@@ -689,7 +734,7 @@ mod tests {
         assert!(search.is_err());
         assert!(!storage.search().clear().await.unwrap());
 
-        let docs = create_documents(10);
+        let first_docs = create_documents(10);
         let new_search = Search {
             search_by: SearchBy::Query,
             search_term: "term".to_string(),
@@ -700,16 +745,20 @@ mod tests {
         };
         storage
             .search()
-            .store_new_search(&new_search, &docs)
+            .store_new_search(&new_search, &first_docs)
             .await
             .unwrap();
 
         let (search, search_docs) = storage.search().fetch().await.unwrap();
         assert_eq!(search, new_search);
-        check_eq_of_documents(&search_docs, &docs);
+        assert!(check_eq_of_documents(&search_docs, &first_docs));
 
-        let docs = create_documents(5);
-        storage.search().store_next_page(3, &docs).await.unwrap();
+        let second_docs = create_documents(5);
+        storage
+            .search()
+            .store_next_page(3, &second_docs)
+            .await
+            .unwrap();
 
         let (search, search_docs) = storage.search().fetch().await.unwrap();
         assert_eq!(
@@ -722,7 +771,14 @@ mod tests {
                 ..new_search
             }
         );
-        check_eq_of_documents(&search_docs, &docs);
+        assert!(check_eq_of_documents(
+            dbg!(&search_docs[..10]),
+            dbg!(&first_docs)
+        ));
+        assert!(check_eq_of_documents(
+            dbg!(&search_docs[10..]),
+            dbg!(&second_docs)
+        ));
         assert!(storage.search().clear().await.unwrap());
     }
 

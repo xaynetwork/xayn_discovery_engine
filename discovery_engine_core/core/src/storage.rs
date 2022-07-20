@@ -73,7 +73,6 @@ pub(crate) trait SearchScope {
     async fn clear(&self) -> Result<bool, Error>;
 }
 
-#[allow(dead_code)]
 pub mod models {
     use chrono::NaiveDateTime;
     use url::Url;
@@ -82,6 +81,7 @@ pub mod models {
 
     use crate::document::{self, UserReaction};
 
+    #[derive(Debug)]
     pub(crate) struct NewDocument {
         pub(crate) id: document::Id,
         pub(crate) news_resource: NewsResource,
@@ -122,13 +122,14 @@ pub mod models {
         }
     }
 
+    #[derive(Debug)]
     #[allow(dead_code)]
     pub(crate) struct ApiDocumentView {
         pub(crate) document_id: document::Id,
         pub(crate) news_resource: NewsResource,
         pub(crate) newscatcher_data: NewscatcherData,
         pub(crate) user_reacted: Option<UserReaction>,
-        // //FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
+        // FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
         pub(crate) in_batch_index: u32,
     }
 

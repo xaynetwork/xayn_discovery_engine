@@ -46,6 +46,11 @@ pub enum Error {
 /// Unique identifier of the [`Document`].
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
 #[repr(transparent)]
+#[cfg_attr(
+    feature = "storage",
+    derive(sqlx::Type, sqlx::FromRow),
+    sqlx(transparent)
+)]
 #[cfg_attr(test, derive(Default))]
 pub struct Id(Uuid);
 
@@ -54,11 +59,6 @@ impl Id {
     #[inline(never)]
     pub(crate) fn new() -> Self {
         Self(Uuid::new_v4())
-    }
-
-    #[cfg(feature = "storage")]
-    pub(crate) fn as_uuid(&self) -> &Uuid {
-        &self.0
     }
 }
 
