@@ -19,7 +19,7 @@ use xayn_discovery_engine_ai::GenericError;
 
 use crate::document::{self, HistoricDocument};
 
-use self::models::{ApiDocumentView, NewDocument};
+use self::models::{ApiDocumentView, NewDocument, Search};
 
 pub mod sqlite;
 
@@ -38,6 +38,8 @@ pub(crate) trait Storage {
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error>;
 
     fn feed(&self) -> &(dyn FeedScope + Send + Sync);
+
+    fn search(&self) -> &(dyn SearchScope + Send + Sync);
 }
 
 #[async_trait]
@@ -52,6 +54,25 @@ pub(crate) trait FeedScope {
     async fn store_documents(&self, documents: &[NewDocument]) -> Result<(), Error>;
 }
 
+#[async_trait]
+pub(crate) trait SearchScope {
+    async fn store_new_search(
+        &self,
+        search: &Search,
+        documents: &[NewDocument],
+    ) -> Result<(), Error>;
+
+    async fn store_next_page(
+        &self,
+        page_number: u32,
+        documents: &[NewDocument],
+    ) -> Result<(), Error>;
+
+    async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error>;
+
+    async fn clear(&self) -> Result<bool, Error>;
+}
+
 pub mod models {
     use chrono::NaiveDateTime;
     use url::Url;
@@ -60,6 +81,7 @@ pub mod models {
 
     use crate::document::{self, UserReaction};
 
+    #[derive(Debug)]
     pub(crate) struct NewDocument {
         pub(crate) id: document::Id,
         pub(crate) news_resource: NewsResource,
@@ -100,18 +122,19 @@ pub mod models {
         }
     }
 
+    #[derive(Debug)]
     #[allow(dead_code)]
     pub(crate) struct ApiDocumentView {
         pub(crate) document_id: document::Id,
         pub(crate) news_resource: NewsResource,
         pub(crate) newscatcher_data: NewscatcherData,
         pub(crate) user_reacted: Option<UserReaction>,
-        // //FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
+        // FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
         pub(crate) in_batch_index: u32,
     }
 
     /// Represents a news that is delivered by an external content API.
-    #[derive(Debug, Clone)]
+    #[derive(Debug, PartialEq, Eq)]
     pub(crate) struct NewsResource {
         /// Title of the resource.
         pub(crate) title: String,
@@ -141,8 +164,28 @@ pub mod models {
         pub(crate) market: Market,
     }
 
+    #[derive(Debug, PartialEq)]
     pub(crate) struct NewscatcherData {
         pub(crate) domain_rank: u64,
         pub(crate) score: Option<f32>,
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    pub(crate) struct Search {
+        pub(crate) search_by: SearchBy,
+        pub(crate) search_term: String,
+        pub(crate) paging: Paging,
+    }
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, num_derive::FromPrimitive)]
+    pub(crate) enum SearchBy {
+        Query = 0,
+        Topic = 1,
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    pub(crate) struct Paging {
+        pub(crate) size: u32,
+        pub(crate) next_page: u32,
     }
 }
