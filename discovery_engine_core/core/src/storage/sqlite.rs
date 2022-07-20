@@ -243,7 +243,7 @@ impl Storage for SqliteStorage {
             "SELECT
                 hd.documentId, nr.title, nr.snippet, nr.url
             FROM HistoricDocument   AS hd
-            JOIN NewsResource       AS nr   USING documentId;",
+            JOIN NewsResource       AS nr   USING(documentId);",
         )
         .persistent(false)
         .fetch_all(&mut tx)
@@ -300,10 +300,10 @@ impl FeedScope for SqliteStorage {
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex
             FROM FeedDocument           AS fd
-            JOIN NewsResource           AS nr   USING documentId
-            JOIN NewscatcherData        AS nc   USING documentId
-            JOIN PresentationOrdering   AS po   USING documentId
-            JOIN UserReaction           AS ur   USING documentId
+            JOIN NewsResource           AS nr   USING(documentId)
+            JOIN NewscatcherData        AS nc   USING(documentId)
+            JOIN PresentationOrdering   AS po   USING(documentId)
+            JOIN UserReaction           AS ur   USING(documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .persistent(false)
@@ -440,10 +440,10 @@ impl SearchScope for SqliteStorage {
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex
             FROM SearchDocument         AS sd
-            JOIN NewsResource           AS nr   USING documentId
-            JOIN NewscatcherData        AS nc   USING documentId
-            JOIN PresentationOrdering   AS po   USING documentId
-            JOIN UserReaction           AS ur   USING documentId
+            JOIN NewsResource           AS nr   USING(documentId)
+            JOIN NewscatcherData        AS nc   USING(documentId)
+            JOIN PresentationOrdering   AS po   USING(documentId)
+            JOIN UserReaction           AS ur   USING(documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
             )
             .build()
@@ -473,7 +473,7 @@ impl SearchScope for SqliteStorage {
             .push(
                 "SELECT ur.documentId
                 FROM UserReaction   AS ur
-                JOIN SearchDocument AS sd   USING documentId
+                JOIN SearchDocument AS sd   USING(documentId)
                 WHERE ur.userReaction = ?;",
             )
             .build()
