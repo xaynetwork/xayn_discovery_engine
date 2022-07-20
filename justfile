@@ -1,6 +1,6 @@
 # We import environment variables from .env
 set dotenv-load := true
-set shell := ["bash", "-uc"]
+set shell := ["bash", "-euxc", "-o", "pipefail"]
 
 # If CI and DENY_WARNINGS are set add rust flags
 export RUSTFLAGS := if env_var_or_default("CI", "false") == "true" {
@@ -37,8 +37,8 @@ dart-deps:
 
 # Gets/updates flutter project deps
 flutter-deps:
-    #!/usr/bin/env sh
-    set -eux
+    #!/usr/bin/env bash
+    set -eux -o pipefail
     cd "$FLUTTER_WORKSPACE";
     flutter pub get
     cd example
@@ -64,8 +64,8 @@ dart-fmt:
 
 # Formats rust (checks only on CI)
 rust-fmt:
-    #!/usr/bin/env sh
-    set -eux
+    #!/usr/bin/env bash
+    set -eux -o pipefail
     cd "$RUST_WORKSPACE";
     cargo +"$RUST_NIGHTLY" fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};
     cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }}
@@ -173,8 +173,8 @@ dart-test: rust-build dart-build download-assets
 
 # Tests rust
 rust-test: _codegen-order-workaround download-assets
-    #!/usr/bin/env sh
-    set -eux
+    #!/usr/bin/env bash
+    set -eux -o pipefail
     cd "$RUST_WORKSPACE";
     cargo test --lib --bins --tests --quiet --locked
     cargo test --doc --quiet --locked
@@ -231,15 +231,16 @@ _compile-android target:
         --release -p xayn-discovery-engine-bindings --locked
 
 compile-android-local: _codegen-order-workaround
-    #!/usr/bin/env sh
-    set -eu
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE";
     for TARGET in $ANDROID_TARGETS; do
         {{just_executable()}} _compile-android $TARGET
     done
 
 compile-android-ci target prod_flag="\"\"": _codegen-order-workaround
     #!/usr/bin/env bash
-    set -eu
+    set -eux -o pipefail
     if [[ {{prod_flag}} == "--prod" ]]; then
         RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-android {{target}}
     else
@@ -254,8 +255,8 @@ _compile-ios target:
 # Compiles the bindings for iphoneos (aarch64) and iphonesimulator (x86_64)
 # and copies the binaries to the flutter project
 compile-ios-local: _codegen-order-workaround
-    #!/usr/bin/env sh
-    set -eu
+    #!/usr/bin/env bash
+    set -eux -o pipefail
     for TARGET in $IOS_TARGETS; do
         {{just_executable()}} _compile-ios $TARGET
         cp "$RUST_WORKSPACE/target/$TARGET/release/${IOS_LIB_BASE}.a" "$FLUTTER_WORKSPACE/ios/${IOS_LIB_BASE}_${TARGET}.a"
@@ -263,7 +264,7 @@ compile-ios-local: _codegen-order-workaround
 
 compile-ios-ci target prod_flag="\"\"": _codegen-order-workaround
     #!/usr/bin/env bash
-    set -eu
+    set -eux -o pipefail
     if [[ {{prod_flag}} == "--prod" ]]; then
         RUSTFLAGS=$PRODUCTION_RUSTFLAGS {{just_executable()}} _compile-ios {{target}}
         strip -S -x -r "$RUST_WORKSPACE/target/{{target}}/release/${IOS_LIB_BASE}.a"
@@ -288,7 +289,7 @@ check-android-so:
 
 _override-flutter-self-deps $BUILD_ID:
     #!/usr/bin/env bash
-    set -eux
+    set -eux -o pipefail
     cd "$FLUTTER_EXAMPLE_WORKSPACE"
 
     SED_CMD="sed"
@@ -303,7 +304,7 @@ _override-flutter-self-deps $BUILD_ID:
 
 _dart-publish $WORKSPACE:
     #!/usr/bin/env bash
-    set -eux
+    set -eux -o pipefail
     cd "$WORKSPACE"
 
     SED_CMD="sed"
