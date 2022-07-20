@@ -1,6 +1,6 @@
 name: xayn_discovery_engine
 description: Xayn Discovery Engine package for Dart VM and web.
-version: 0.1.0+replace.with.semver.metadata.marker
+version: 0.1.0+replace.with.version
 homepage: https://github.com/xaynetwork/xayn_discovery_engine/
 publish_to: https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private
 
@@ -24,7 +24,7 @@ dependencies:
   uuid: ^3.0.6
   async_bindgen_dart_utils:
     hosted: https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private
-    version: 0.1.0+replace.with.semver.metadata.marker
+    version: 0.1.0+replace.with.version
   source_gen: ^1.2.2
   build: ^2.3.0
   analyzer: ^3.4.1

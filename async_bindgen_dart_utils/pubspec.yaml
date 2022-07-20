@@ -1,6 +1,6 @@
 name: async_bindgen_dart_utils
 description: A starting point for Dart libraries or applications.
-version: 0.1.0+replace.with.semver.metadata.marker
+version: 0.1.0+replace.with.version
 publish_to: https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private
 
 environment:

@@ -286,7 +286,7 @@ download-assets:
 check-android-so:
     {{justfile_directory()}}/.github/scripts/check_android_so.sh "$FLUTTER_WORKSPACE"/android/src/main/jniLibs/
 
-_override-flutter-self-deps $BUILD_ID:
+_override-flutter-self-deps $VERSION:
     #!/usr/bin/env bash
     set -eux
     cd "$FLUTTER_EXAMPLE_WORKSPACE"
@@ -298,7 +298,7 @@ _override-flutter-self-deps $BUILD_ID:
 
     # This will add changes to your repo which should never be committed.
     $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
-    $SED_CMD -i s/change.me.to.commit.ref/${BUILD_ID}/ ./pubspec.yaml
+    $SED_CMD -i s/0.1.0+replace.with.version/${VERSION}/ ./pubspec.yaml
 
 
 _dart-publish $WORKSPACE:
@@ -316,14 +316,20 @@ _dart-publish $WORKSPACE:
     # Dependency overrides are not allowed in published dart packages
     $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
 
-    # Add semver _metadata_ in the form of "<branch-name>.<commit-hash>.<github-run-id>".
-    # - If we are in detached head mode `HEAD` will be used instead of the branch name.
-    # - Non `[0-9A-Za-z-]` characters in the branch name will be replaced with `-`
-    # - If we have no run id "missingRunId" is used instead.
-    BUILD_ID="$(git rev-parse --abbrev-ref HEAD | sed s/[^0-9a-zA-Z-]/-/g ).$(git rev-parse HEAD).${GITHUB_RUN_ID:-missingRunId}"
-    echo "Build Id: $BUILD_ID"
+    # Use the branch name as metadata, replace invalid characters with "-".
+    VERSION_METADATA="$(git rev-parse --abbrev-ref HEAD | sed s/[^0-9a-zA-Z-]/-/g )"
+    if [[ "${VERSION_METADATA}" == "HEAD" ]]; then
+        # use commit hash if we are in detached head mode
+        VERSION_METADATA="$(git rev-parse HEAD)"
+    fi
 
-    $SED_CMD -i s/replace.with.semver.metadata.marker/${BUILD_ID}/ ./pubspec.yaml
+    # We use a timestamp as major version,
+    # for now for our use case this is good enough and simple to do.
+    TIMESTAMP="$(date +%y%m%d%k%M)"
+    VERSION="0.${TIMESTAMP}.0+${VERSION_METADATA}"
+    echo "Version: $VERSION"
+
+    $SED_CMD -i s/0.1.0+replace.with.version/${VERSION}/ ./pubspec.yaml
     dart pub publish --force
 
 # This should only be run by the CI
