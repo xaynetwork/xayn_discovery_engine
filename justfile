@@ -325,7 +325,7 @@ _dart-publish $WORKSPACE:
 
     # We use a timestamp as major version,
     # for now for our use case this is good enough and simple to do.
-    TIMESTAMP="$(date +%y%m%d%k%M)"
+    TIMESTAMP="$(date +%y%m%d%k%M%S)"
     VERSION="0.${TIMESTAMP}.0+${VERSION_METADATA}"
     echo "Version: $VERSION"
 
