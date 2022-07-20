@@ -28,13 +28,16 @@ pub(crate) type Db = Arc<AppState>;
 pub(crate) struct AppState {
     pub(crate) smbert: SMBert,
     pub(crate) coi: CoiSystem,
-    pub(crate) documents: HashMap<Id, Document>,
+    pub(crate) documents_by_id: HashMap<Id, Document>,
+    pub(crate) documents: Vec<Document>,
     pub(crate) user_interests: RwLock<HashMap<UserId, CoiSystemState>>,
 }
 
 impl AppState {
-    fn new(documents: HashMap<Id, Document>, smbert: SMBert) -> Self {
+    fn new(documents_by_id: HashMap<Id, Document>, smbert: SMBert) -> Self {
+        let documents = documents_by_id.clone().into_values().collect();
         Self {
+            documents_by_id,
             documents,
             smbert,
             coi: CoiSystemConfig::default().build(),
@@ -68,7 +71,6 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
         .map(|article| {
             let embedding = smbert.run(&article.description).unwrap();
             let document = Document::new((article, embedding));
-
             (document.id, document)
         })
         .collect();
