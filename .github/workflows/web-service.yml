@@ -1,0 +1,106 @@
+name: Web Service Release
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+env:
+  DENY_WARNINGS: false
+
+jobs:
+  rust-build:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v3
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup job
+        uses: ./.github/actions/setup-job-docker
+        with:
+          rust: true
+
+      - name: Build artifacts
+        run: just build-web-service
+
+      - name: Download assets
+        run: just download-assets
+
+      - name: Prepare temp directory
+        working-directory: ${{ runner.temp }}
+        run: |
+          rm -rf ./web-service
+          mkdir -p web-service/assets
+
+      - name: Create archive
+        working-directory: ${{ runner.temp }}
+        run: |
+          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/target/release/web-api ./web-service/web-api
+          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/.env ./web-service/.env
+          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/Dockerfile ./web-service/Dockerfile
+          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/smbert-quantized.onnx ./web-service/assets/model.onnx
+          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/vocab.txt ./web-service/assets/vocab.txt
+          tar -cvf web-service.tar ./web-service
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v3
+        with:
+          name: web-service
+          retention-days: 1
+          if-no-files-found: error
+          path: ${{ runner.temp }}/web-service.tar
+
+  docker-build:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    needs: [rust-build]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Download artifacts
+        id: artifacts
+        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v3.0.0
+        with:
+          name: web-service
+
+      - name: Create docker image
+        run: |
+          tar -xvf web-service.tar
+          cd ./web-service
+          TAG="$(git rev-parse --short HEAD)"
+          if [[ "${GITHUB_REF#refs/heads/}" != "" ]]; then
+            #TAG="$(echo "branch-${GITHUB_REF#refs/heads/}" | tr '[:upper:]' '[:lower:]')"
+            TAG="branch-${GITHUB_REF#refs/heads/}"
+          fi
+          IMAGE_NAME="xaynetci/xayn_discovery_web_service:$TAG"
+          docker build -t "${IMAGE_NAME}" .
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: "${{ secrets.DOCKERHUB_USERNAME }}"
+          password: "${{ secrets.DOCKERHUB_TOKEN }}"
+
+      - name: docker push
+        id: docker-push
+        run: docker push "${IMAGE_NAME}"
+
+  #     - name: Trigger Kubernetes Web deployment
+  #       id: k8s-deployment
+  #       if: steps.docker-push.outcome == 'success'
+  #       env:
+  #         GHA_TOKEN: ${{ secrets.GHA_TOKEN }}
+  #         GHA_ACTOR: ${{ github.actor }}
+  #       run: |
+  #         curl -v -XPOST https://api.github.com/repos/xaynetwork/xayn_infrastructure/dispatches -H "Authorization: token ${GHA_TOKEN}" -H "Accept: application/vnd.github.v3+json" -H "Content-Type: application/json" -d "{\"event_type\":\"remote_poker-deployment\",\"client_payload\":{\"actor\":\"${GHA_ACTOR}\",\"tag\":\"${TAG}\"}}"
