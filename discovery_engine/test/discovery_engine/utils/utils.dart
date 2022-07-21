@@ -236,8 +236,8 @@ List<DocumentWithActiveData> mockDocuments(
 const queryTerm = 'example';
 
 final mockActiveSearch = ActiveSearch(
+  searchBy: SearchBy.query,
   searchTerm: queryTerm,
   requestedPageNb: 1,
   pageSize: 20,
-  searchBy: SearchBy.query,
 );

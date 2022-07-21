@@ -142,15 +142,15 @@ Future<void> main() async {
         await docRepo.updateMany([doc1, doc2]);
 
         final newSearch = ActiveSearch(
+          searchBy: SearchBy.query,
           searchTerm: 'example query',
           requestedPageNb: 1,
           pageSize: config.maxSearchDocs,
-          searchBy: SearchBy.query,
         );
 
         await searchRepo.clear();
         final response =
-            await mgr.activeSearchRequested('example query', SearchBy.query);
+            await mgr.activeSearchRequested(SearchBy.query, 'example query');
 
         expect(searchRepo.getCurrent(), completion(equals(newSearch)));
         expect(response, isA<ActiveSearchRequestSucceeded>());

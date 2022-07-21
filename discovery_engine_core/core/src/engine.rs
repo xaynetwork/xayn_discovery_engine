@@ -587,9 +587,37 @@ impl Engine {
         if query.trim().is_empty() {
             return Err(Error::InvalidTerm);
         }
+
+        #[cfg(feature = "storage")]
+        if let Ok((search, _)) = self.storage.search().fetch().await {
+            if search.search_by != storage::models::SearchBy::Query || search.search_term != query {
+                return Err(storage::Error::OpenSearch.into());
+            }
+        }
+
         let filter = &Filter::default().add_keyword(&query);
-        self.active_search(SearchBy::Query(filter), page, page_size)
-            .await
+        let documents = self
+            .active_search(SearchBy::Query(filter), page, page_size)
+            .await?;
+
+        #[cfg(feature = "storage")]
+        {
+            let search = storage::models::Search {
+                search_by: storage::models::SearchBy::Query,
+                search_term: query,
+                paging: storage::models::Paging {
+                    size: page_size,
+                    next_page: page,
+                },
+            };
+            let documents = documents.iter().cloned().map_into().collect_vec();
+            self.storage
+                .search()
+                .store_new_search(&search, &documents)
+                .await?;
+        }
+
+        Ok(documents)
     }
 
     /// Perform an active search by topic.
@@ -602,8 +630,36 @@ impl Engine {
         if topic.trim().is_empty() {
             return Err(Error::InvalidTerm);
         }
-        self.active_search(SearchBy::Topic(topic), page, page_size)
-            .await
+
+        #[cfg(feature = "storage")]
+        if let Ok((search, _)) = self.storage.search().fetch().await {
+            if search.search_by != storage::models::SearchBy::Topic || search.search_term != topic {
+                return Err(storage::Error::OpenSearch.into());
+            }
+        }
+
+        let documents = self
+            .active_search(SearchBy::Topic(topic), page, page_size)
+            .await?;
+
+        #[cfg(feature = "storage")]
+        {
+            let search = storage::models::Search {
+                search_by: storage::models::SearchBy::Topic,
+                search_term: topic.into(),
+                paging: storage::models::Paging {
+                    size: page_size,
+                    next_page: page,
+                },
+            };
+            let documents = documents.iter().cloned().map_into().collect_vec();
+            self.storage
+                .search()
+                .store_new_search(&search, &documents)
+                .await?;
+        }
+
+        Ok(documents)
     }
 
     async fn active_search(

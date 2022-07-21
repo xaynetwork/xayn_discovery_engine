@@ -107,7 +107,6 @@ class DiscoveryEngineFfi implements Engine {
     return DiscoveryEngineFfi._(boxedEngine);
   }
 
-  /// Serializes the engine.
   @override
   Future<Uint8List> serialize() async {
     final result = await asyncFfi.serialize(_engine.ref);
@@ -115,7 +114,6 @@ class DiscoveryEngineFfi implements Engine {
     return resultVecU8StringFfiAdapter.consumeNative(result);
   }
 
-  /// Sets the markets.
   @override
   Future<void> setMarkets(
     final List<HistoricDocument> history,
@@ -132,7 +130,6 @@ class DiscoveryEngineFfi implements Engine {
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
-  /// Sets the excluded sources.
   @override
   Future<void> setExcludedSources(
     List<HistoricDocument> history,
@@ -165,7 +162,6 @@ class DiscoveryEngineFfi implements Engine {
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
-  /// Gets feed documents.
   @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     final List<HistoricDocument> history,
@@ -184,16 +180,12 @@ class DiscoveryEngineFfi implements Engine {
         .toDocumentListWithActiveData();
   }
 
-  /// Processes time spent.
   @override
   Future<void> timeSpent(final TimeSpent timeSpent) async {
     final boxedTimeSpent = timeSpent.allocNative();
     await asyncFfi.timeSpent(_engine.ref, boxedTimeSpent.move());
   }
 
-  /// Processes user reaction.
-  ///
-  /// The history is only required for positive reactions.
   @override
   Future<void> userReacted(
     final List<HistoricDocument>? history,
@@ -211,7 +203,6 @@ class DiscoveryEngineFfi implements Engine {
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
-  /// Performs an active search by query.
   @override
   Future<List<DocumentWithActiveData>> searchByQuery(
     String query,
@@ -231,7 +222,6 @@ class DiscoveryEngineFfi implements Engine {
         .toDocumentListWithActiveData(isSearched: true);
   }
 
-  /// Performs an active search by topic.
   @override
   Future<List<DocumentWithActiveData>> searchByTopic(
     String topic,
@@ -251,10 +241,6 @@ class DiscoveryEngineFfi implements Engine {
         .toDocumentListWithActiveData(isSearched: true);
   }
 
-  /// Performs a deep search by term and market.
-  ///
-  /// The documents are sorted in descending order wrt their cosine similarity towards the
-  /// original search term embedding.
   @override
   Future<List<DocumentWithActiveData>> deepSearch(
     String term,
@@ -273,7 +259,6 @@ class DiscoveryEngineFfi implements Engine {
         .toDocumentListWithActiveData();
   }
 
-  /// Returns the currently trending topics.
   @override
   Future<List<TrendingTopic>> getTrendingTopics() async {
     final result = await asyncFfi.trendingTopics(_engine.ref);
@@ -283,7 +268,6 @@ class DiscoveryEngineFfi implements Engine {
         .toTrendingTopicList();
   }
 
-  /// Disposes the engine.
   @override
   Future<void> dispose() async {
     await _engine.free();
