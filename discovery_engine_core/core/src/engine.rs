@@ -579,7 +579,7 @@ impl Engine {
 
     /// Perform an active search by query.
     pub async fn search_by_query(
-        &mut self,
+        &self,
         query: &str,
         page: u32,
         page_size: u32,
@@ -623,7 +623,7 @@ impl Engine {
 
     /// Perform an active search by topic.
     pub async fn search_by_topic(
-        &mut self,
+        &self,
         topic: &str,
         page: u32,
         page_size: u32,
@@ -663,6 +663,42 @@ impl Engine {
         Ok(documents)
     }
 
+    /// Gets the next batch of the current active search.
+    pub async fn search_next_batch(&self) -> Result<Vec<Document>, Error> {
+        #[cfg(feature = "storage")]
+        {
+            let (search, _) = self.storage.search().fetch().await?;
+            let by = match search.search_by {
+                storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
+                    Filter::default().add_keyword(&search.search_term),
+                )),
+                storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
+            };
+            let page_number = search.paging.next_page + 1;
+            let documents = self
+                .active_search(by, page_number, search.paging.size)
+                .await?;
+
+            self.storage
+                .search()
+                .store_next_page(
+                    page_number,
+                    documents
+                        .iter()
+                        .cloned()
+                        .map_into()
+                        .collect_vec()
+                        .as_slice(),
+                )
+                .await?;
+
+            return Ok(documents);
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
     /// Gets the current active search mode and term.
     pub async fn searched_by(&self) -> Result<SearchBy<'_>, Error> {
         #[cfg(feature = "storage")]
@@ -683,7 +719,7 @@ impl Engine {
     }
 
     async fn active_search(
-        &mut self,
+        &self,
         by: SearchBy<'_>,
         page: u32,
         page_size: u32,
