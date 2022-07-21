@@ -699,6 +699,23 @@ impl Engine {
         unimplemented!("requires 'storage' feature")
     }
 
+    /// Restores the current active search, ordered by their global rank (timestamp & local rank).
+    pub async fn searched(&self) -> Result<Vec<Document>, Error> {
+        #[cfg(feature = "storage")]
+        {
+            let (_, documents) = self.storage.search().fetch().await?;
+            let documents = documents
+                .into_iter()
+                .map(|document| document.into_document(StackId::nil()))
+                .collect();
+
+            return Ok(documents);
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
     /// Gets the current active search mode and term.
     pub async fn searched_by(&self) -> Result<SearchBy<'_>, Error> {
         #[cfg(feature = "storage")]

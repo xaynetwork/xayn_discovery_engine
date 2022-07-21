@@ -50,3 +50,10 @@ CREATE TABLE IF NOT EXISTS NewscatcherData (
     domainRank BIGINT NOT NULL,
     score REAL
 );
+
+CREATE TABLE IF NOT EXISTS Embedding(
+    documentId BLOB NOT NULL
+        PRIMARY KEY
+        REFERENCES Document(id) ON DELETE CASCADE,
+    embedding BLOB NOT NULL
+);
