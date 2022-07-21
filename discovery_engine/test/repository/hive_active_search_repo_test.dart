@@ -27,10 +27,10 @@ Future<void> main() async {
     late HiveActiveSearchRepository repo;
 
     final search = ActiveSearch(
+      searchBy: SearchBy.query,
       searchTerm: 'example search query',
       requestedPageNb: 1,
       pageSize: 10,
-      searchBy: SearchBy.query,
     );
 
     setUpAll(() async {
@@ -94,10 +94,10 @@ Future<void> main() async {
         await repo.save(search);
 
         final search2 = ActiveSearch(
+          searchBy: SearchBy.query,
           searchTerm: 'foobar',
           requestedPageNb: 123,
           pageSize: 10,
-          searchBy: SearchBy.query,
         );
         await repo.save(search2);
 

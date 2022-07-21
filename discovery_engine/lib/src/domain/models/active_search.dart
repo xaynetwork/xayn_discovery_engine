@@ -22,25 +22,32 @@ part 'active_search.g.dart';
 
 /// [ActiveSearch] represents attributes of a performed search.
 @HiveType(typeId: searchTypeId)
+// TODO: after DB migration
+// - rename `ActiveSearch` -> `Search` to match the rust side
+// - remove api/ActiveSearch & expose domain/ActiveSearch instead
+// - reorder arguments in the public events to have 1. `by` & 2. `term` to match the logical order of the rust side
 class ActiveSearch with EquatableMixin {
+  // TODO: rename `searchBy` -> `by` & `searchTerm` -> `term` to reduce redundancy & to match the rust side after DB migration
+  @HiveField(3, defaultValue: SearchBy.query)
+  final SearchBy searchBy;
   @HiveField(0)
   final String searchTerm;
+
+  // TODO: remove these fields after DB migration
   @HiveField(1)
   int requestedPageNb;
   @HiveField(2)
   final int pageSize;
-  @HiveField(3, defaultValue: SearchBy.query)
-  final SearchBy searchBy;
 
   ActiveSearch({
+    required this.searchBy,
     required this.searchTerm,
     required this.requestedPageNb,
     required this.pageSize,
-    required this.searchBy,
   });
 
   @override
-  List<Object?> get props => [searchTerm, requestedPageNb, pageSize, searchBy];
+  List<Object?> get props => [searchBy, searchTerm, requestedPageNb, pageSize];
 }
 
 @HiveType(typeId: searchByTypeId)

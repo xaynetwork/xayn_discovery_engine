@@ -30,8 +30,8 @@ part 'active_search.g.dart';
 @freezed
 class ActiveSearch with _$ActiveSearch {
   const factory ActiveSearch({
-    required String searchTerm,
     required SearchBy searchBy,
+    required String searchTerm,
   }) = _ActiveSearch;
 
   factory ActiveSearch.fromJson(Map<String, Object?> json) =>
@@ -41,5 +41,5 @@ class ActiveSearch with _$ActiveSearch {
 @protected
 extension ActiveSearchApiConversion on domain.ActiveSearch {
   ActiveSearch toApiRepr() =>
-      ActiveSearch(searchTerm: searchTerm, searchBy: searchBy);
+      ActiveSearch(searchBy: searchBy, searchTerm: searchTerm);
 }

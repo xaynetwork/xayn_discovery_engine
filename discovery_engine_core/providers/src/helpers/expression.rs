@@ -76,7 +76,7 @@ impl Expr {
         }
     }
 
-    /// Crate a new expression where all items in the iterator are in "or" with each other.
+    /// Create a new expression where all items in the iterator are in "or" with each other.
     pub(crate) fn or_from_iter(exprs: impl Iterator<Item = impl Into<Expr>>) -> Expr {
         let (ors, exprs): (BTreeSet<_>, BTreeSet<_>) = exprs.partition_map(|expr| {
             let expr = expr.into();
