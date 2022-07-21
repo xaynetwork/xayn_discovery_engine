@@ -15,8 +15,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
+import 'package:json_annotation/json_annotation.dart'
+    show $enumDecode, JsonEnum, JsonValue;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show searchTypeId, searchByTypeId;
+import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
+    show RustSearchBy;
 
 part 'active_search.g.dart';
 
@@ -51,9 +55,18 @@ class ActiveSearch with EquatableMixin {
 }
 
 @HiveType(typeId: searchByTypeId)
+@JsonEnum(alwaysCreate: true)
 enum SearchBy {
-  @HiveField(0)
+  @HiveField(RustSearchBy.Query)
+  @JsonValue(RustSearchBy.Query)
   query,
-  @HiveField(1)
+  @HiveField(RustSearchBy.Topic)
+  @JsonValue(RustSearchBy.Topic)
   topic,
+}
+
+extension SearchByIntConversion on SearchBy {
+  int toIntRepr() => _$SearchByEnumMap[this]!;
+  static SearchBy fromIntRepr(int intRepr) =>
+      $enumDecode(_$SearchByEnumMap, intRepr);
 }

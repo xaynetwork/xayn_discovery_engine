@@ -22,6 +22,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
     show Uint8ListFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/search.dart' show SearchFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart';
 
@@ -210,4 +211,13 @@ final resultSharedEngineStringFfiAdapter = MoveResultFfiAdapter(
   throwErr: _throwStringErr,
   freeOk: asyncFfi.dispose,
   freeResult: ffi.drop_result_shared_engine_string,
+);
+
+final resultSearchStringFfiAdapter = ConsumeResultFfiAdapter(
+  getOk: ffi.get_result_search_string_ok,
+  getErr: ffi.get_result_search_string_err,
+  readNativeOk: SearchFfi.readNative,
+  readNativeErr: StringFfi.readNative,
+  throwErr: _throwStringErr,
+  freeResult: ffi.drop_result_search_string,
 );

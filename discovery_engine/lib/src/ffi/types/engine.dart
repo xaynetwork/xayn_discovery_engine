@@ -19,6 +19,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -58,6 +60,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
     show Uint8ListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
     show
+        resultSearchStringFfiAdapter,
         resultSharedEngineStringFfiAdapter,
         resultVecDocumentStringFfiAdapter,
         resultVecTrendingTopicStringFfiAdapter,
@@ -239,6 +242,13 @@ class DiscoveryEngineFfi implements Engine {
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
         .toDocumentListWithActiveData(isSearched: true);
+  }
+
+  @override
+  Future<ActiveSearch> searchedBy() async {
+    final result = await asyncFfi.searchedBy(_engine.ref);
+
+    return resultSearchStringFfiAdapter.consumeNative(result);
   }
 
   @override

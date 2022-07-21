@@ -37,6 +37,10 @@ impl Filter {
         self
     }
 
+    pub fn keywords(&self) -> &[String] {
+        &self.keywords
+    }
+
     /// Build the expression.
     pub(crate) fn build(&self) -> String {
         if self.keywords.is_empty() {
