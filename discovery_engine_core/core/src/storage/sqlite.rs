@@ -279,16 +279,18 @@ impl FeedScope for SqliteStorage {
         Self::commit_tx(tx).await
     }
 
-    async fn clear(&self) -> Result<(), Error> {
+    async fn clear(&self) -> Result<bool, Error> {
         let mut tx = self.begin_tx().await?;
 
-        sqlx::query("DELETE FROM FeedDocument;")
+        let deletion = sqlx::query("DELETE FROM FeedDocument;")
             .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
-        Self::commit_tx(tx).await
+        Self::commit_tx(tx).await?;
+
+        Ok(deletion.rows_affected() > 0)
     }
 
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error> {
@@ -716,7 +718,7 @@ mod tests {
         let feed = storage.feed().fetch().await.unwrap();
         assert!(!feed.iter().any(|feed| feed.document_id == docs[0].id));
 
-        storage.feed().clear().await.unwrap();
+        assert!(storage.feed().clear().await.unwrap());
         let feed = storage.feed().fetch().await.unwrap();
         assert!(feed.is_empty());
     }

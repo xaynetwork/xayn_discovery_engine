@@ -46,7 +46,7 @@ pub(crate) trait Storage {
 pub(crate) trait FeedScope {
     async fn close_document(&self, document: &document::Id) -> Result<(), Error>;
 
-    async fn clear(&self) -> Result<(), Error>;
+    async fn clear(&self) -> Result<bool, Error>;
 
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error>;
 
