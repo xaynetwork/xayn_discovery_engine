@@ -39,7 +39,7 @@ class SourceReacted {
         timestamp = DateTime.now().toUtc();
 
   void update() {
-    timestamp = DateTime.now();
+    timestamp = DateTime.now().toUtc();
     if (liked) {
       weight++;
     }

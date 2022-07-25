@@ -27,19 +27,23 @@ void readWriteTest(DateTime dateTime) {
 
 void main() {
   test('reading written naive date time yields same result', () {
-    readWriteTest(DateTime.now());
+    readWriteTest(
+      DateTime.now().toUtc(),
+    );
   });
 
   test('reading written absurd large naive date time yields same result', () {
     // At some point larger then this it will fail.
     const hugeTimeWeStillSupport = 200000 * 365 * 24 * 60 * 60 * 1000000;
-    final dateTime =
-        DateTime.fromMicrosecondsSinceEpoch(hugeTimeWeStillSupport);
+    final dateTime = DateTime.fromMicrosecondsSinceEpoch(
+      hugeTimeWeStillSupport,
+      isUtc: true,
+    );
     readWriteTest(dateTime);
   });
 
   test('reading written pre-epoch time yields same result', () {
-    final dateTime = DateTime.parse('0500-06-21 18:17:12');
+    final dateTime = DateTime.parse('0500-06-21 16:17:12Z');
     readWriteTest(dateTime);
   });
 }

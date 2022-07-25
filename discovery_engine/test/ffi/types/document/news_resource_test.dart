@@ -29,7 +29,7 @@ void main() {
       url: Uri.parse('https://www.foobar.example/dodo'),
       sourceDomain: Source('www.example'),
       image: null,
-      datePublished: DateTime.now(),
+      datePublished: DateTime.now().toUtc(),
       rank: 12,
       score: 32.25,
       country: 'DE',
