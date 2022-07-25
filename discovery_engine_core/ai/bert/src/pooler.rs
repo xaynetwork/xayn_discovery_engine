@@ -38,27 +38,36 @@ where
 /// The embedding is of shape `(embedding_size,)`.
 pub type Embedding1 = Embedding<Ix1>;
 
+impl Embedding<Ix1> {
+    /// Converts from values in logical order to bytes in little endianness.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.iter().flat_map(|value| value.to_le_bytes()).collect()
+    }
+}
+
 impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
     fn from(array: [f32; N]) -> Self {
         Array::from_vec(array.into()).into()
     }
 }
 
-impl Embedding<Ix1> {
-    /// Converts from values in logical order to bytes in native byte order.
-    pub fn to_ne_bytes(&self) -> Vec<u8> {
-        self.iter().flat_map(|value| value.to_ne_bytes()).collect()
-    }
+impl TryFrom<Vec<u8>> for Embedding<Ix1> {
+    type Error = Vec<u8>;
 
-    /// Converts from bytes in native byte order to values in standard order.
-    pub fn from_ne_bytes(
-        bytes: &[u8],
-    ) -> Result<Self, <[u8; size_of::<f32>()] as TryFrom<&[u8]>>::Error> {
-        bytes
-            .chunks(size_of::<f32>())
-            .map(|value| <[u8; size_of::<f32>()]>::try_from(value).map(f32::from_ne_bytes))
-            .collect::<Result<_, _>>()
-            .map(|values| Array::from_vec(values).into())
+    /// Converts from bytes in little endianness to values in standard order.
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        if bytes.len() % size_of::<f32>() != 0 {
+            return Err(bytes);
+        }
+
+        let floats = bytes
+            .chunks_exact(size_of::<f32>())
+            .map(|chunk| {
+                f32::from_le_bytes(chunk.try_into().unwrap(/* checked length before */))
+            })
+            .collect();
+
+        Ok(Array::from_vec(floats).into())
     }
 }
 

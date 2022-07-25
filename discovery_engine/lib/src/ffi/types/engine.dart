@@ -254,8 +254,8 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> searched() async {
-    final result = await asyncFfi.searched(_engine.ref);
+  Future<List<DocumentWithActiveData>> restoreSearch() async {
+    final result = await asyncFfi.restoreSearch(_engine.ref);
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
