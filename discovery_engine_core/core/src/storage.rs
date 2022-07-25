@@ -19,7 +19,7 @@ use xayn_discovery_engine_ai::GenericError;
 
 use crate::document::{self, HistoricDocument, UserReaction};
 
-use self::models::{ApiDocumentView, NewDocument, Search};
+use self::models::{ApiDocumentView, NewDocument, ReactionContext, Search};
 
 pub mod sqlite;
 
@@ -85,7 +85,7 @@ pub(crate) trait FeedbackScope {
         &self,
         document: document::Id,
         reaction: UserReaction,
-    ) -> Result<(), Error>;
+    ) -> Result<ReactionContext, Error>;
 }
 
 #[allow(dead_code)]
@@ -236,5 +236,25 @@ pub mod models {
     pub(crate) struct Paging {
         pub(crate) size: u32,
         pub(crate) next_page: u32,
+    }
+
+    /// Returns the context in which the reaction happened.
+    ///
+    /// In other words this returns the information needed
+    /// to continue processing the reaction based on the
+    /// same storage snapshot on which the reaction was stored.
+    ///
+    /// Storage implementations which do not use snapshots might
+    /// have less strict consistency guarantees.
+    pub(crate) enum ReactionContext {
+        Positive {
+            embedding: Embedding,
+            snippet: String,
+            title: String,
+        },
+        Negative {
+            embedding: Embedding,
+        },
+        Neutral,
     }
 }
