@@ -36,7 +36,7 @@ pub(crate) async fn handle_ranked_documents(
 
     let articles = documents
         .into_iter()
-        .map(|doc| doc.article)
+        .map(Article::from)
         .collect::<Vec<Article>>();
 
     Ok(warp::reply::json(&articles))

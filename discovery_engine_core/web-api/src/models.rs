@@ -61,6 +61,12 @@ impl AiDocument for Document {
 /// Represents an article that is stored and loaded from local json file.
 pub(crate) type Article = HashMap<String, serde_json::Value>;
 
+impl From<Document> for Article {
+    fn from(doc: Document) -> Self {
+        doc.article
+    }
+}
+
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct InteractionRequestBody {
