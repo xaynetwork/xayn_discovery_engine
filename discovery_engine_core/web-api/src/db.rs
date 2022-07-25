@@ -69,8 +69,20 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
     let documents = articles
         .into_iter()
         .map(|article| {
-            let embedding = smbert.run(&article.description).unwrap();
-            let document = Document::new((article, embedding));
+            let id = article
+                .get("id")
+                .expect("Article needs to have an 'id' field")
+                .as_str()
+                .expect("The 'id' field needs to be represented as String")
+                .try_into()
+                .expect("The 'id' field needs to be a valid UUID");
+            let description = article
+                .get("description")
+                .expect("Article needs to have a 'description' field")
+                .as_str()
+                .expect("The 'description' field needs to be represented as String");
+            let embedding = smbert.run(description).unwrap();
+            let document = Document::new((id, article, embedding));
             (document.id, document)
         })
         .collect();
