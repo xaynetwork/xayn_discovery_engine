@@ -15,7 +15,7 @@
 use chrono::{NaiveDateTime, Utc};
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId, Embedding};
@@ -30,15 +30,15 @@ pub(crate) struct Document {
     /// Embedding from smbert.
     pub(crate) smbert_embedding: Embedding,
 
-    /// Snippet of the resource.
-    pub(crate) snippet: String,
+    /// Contents of the article.
+    pub(crate) article: Article,
 }
 
 impl Document {
-    pub(crate) fn new((article, smbert_embedding): (Article, Embedding)) -> Self {
+    pub(crate) fn new((id, article, smbert_embedding): (Uuid, Article, Embedding)) -> Self {
         Self {
-            id: article.id.into(),
-            snippet: article.description,
+            id: id.into(),
+            article,
             smbert_embedding,
         }
     }
@@ -59,18 +59,11 @@ impl AiDocument for Document {
 }
 
 /// Represents an article that is stored and loaded from local json file.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Article {
-    pub(crate) id: Uuid,
-    pub(crate) description: String,
-}
+pub(crate) type Article = HashMap<String, serde_json::Value>;
 
 impl From<Document> for Article {
     fn from(doc: Document) -> Self {
-        Self {
-            id: doc.id.into(),
-            description: doc.snippet,
-        }
+        doc.article
     }
 }
 
