@@ -270,6 +270,13 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
+  Future<void> closeSearch() async {
+    final result = await asyncFfi.closeSearch(_engine.ref);
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> deepSearch(
     String term,
     FeedMarket market,

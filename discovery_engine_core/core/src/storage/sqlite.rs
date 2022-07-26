@@ -511,7 +511,13 @@ impl SearchScope for SqliteStorage {
             .try_map(|row| document::Id::from_row(&row))
             .fetch_all(&mut tx)
             .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .or_else(|err| {
+                if let sqlx::Error::RowNotFound = err {
+                    Ok(Vec::new())
+                } else {
+                    Err(Error::Database(err.into()))
+                }
+            })?;
         Self::clear_documents(&mut tx, &ids).await?;
 
         // delete all remaining data from SearchDocument table

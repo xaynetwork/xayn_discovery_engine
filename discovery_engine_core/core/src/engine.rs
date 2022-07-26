@@ -736,6 +736,21 @@ impl Engine {
         unimplemented!("requires 'storage' feature")
     }
 
+    /// Closes the current active search.
+    pub async fn close_search(&self) -> Result<(), Error> {
+        #[cfg(feature = "storage")]
+        {
+            return if self.storage.search().clear().await? {
+                Ok(())
+            } else {
+                Err(Error::Storage(storage::Error::NoSearch))
+            };
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
     async fn active_search(
         &self,
         by: SearchBy<'_>,
