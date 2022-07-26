@@ -76,10 +76,9 @@ jobs:
         run: |
           tar -xvf web-service.tar
           cd ./web-service
-          TAG="$(git rev-parse --short HEAD)"
-          if [[ "${GITHUB_REF#refs/heads/}" != "" ]]; then
-            #TAG="$(echo "branch-${GITHUB_REF#refs/heads/}" | tr '[:upper:]' '[:lower:]')"
-            TAG="branch-${GITHUB_REF#refs/heads/}"
+          TAG="branch-$(git rev-parse --abbrev-ref HEAD)"
+          if [[ "${TAG}" == "branch-HEAD" ]]; then
+            TAG="$(git rev-parse --short HEAD)"
           fi
           IMAGE_NAME="xaynetci/xayn_discovery_web_service:$TAG"
           docker build -t "${IMAGE_NAME}" .

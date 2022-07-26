@@ -5,6 +5,6 @@ WORKDIR /service
 COPY ./ ./
 
 RUN chmod +x ./web-api
-VOLUME /service/assets
+VOLUME /service/assets/data.json
 
 CMD ["./web-api"]
