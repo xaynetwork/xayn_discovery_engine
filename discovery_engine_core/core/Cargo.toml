@@ -33,9 +33,10 @@ xayn-discovery-engine-kpe = { path = "../ai/kpe" }
 xayn-discovery-engine-providers = { path = "../providers" }
 xayn-discovery-engine-tokenizer = { path = "../ai/tokenizer" }
 
+num-derive = "0.3.3"
+num-traits = "0.2.15"
+
 # feature storage
-num-derive = { version = "0.3.3", optional = true }
-num-traits = { version = "0.2.15", optional = true }
 sqlx = { version = "0.6.0", features = ["runtime-tokio-rustls", "sqlite", "uuid", "chrono"], optional = true }
 
 [dev-dependencies]
@@ -51,4 +52,4 @@ xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
 [features]
 default = []
 
-storage = ["sqlx", "num-traits", "num-derive"]
+storage = ["sqlx"]

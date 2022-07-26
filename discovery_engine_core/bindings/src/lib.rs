@@ -149,11 +149,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .user_reacted(
-                    history.as_deref().map(Vec::as_slice),
-                    &sources,
-                    reacted.as_ref(),
-                )
+                .user_reacted(history.as_deref().map(Vec::as_slice), &sources, *reacted)
                 .await
                 .map_err(|error| error.to_string()),
         )

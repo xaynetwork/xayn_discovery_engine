@@ -57,7 +57,7 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[cfg(feature = "storage")]
-use crate::storage::{self, models::ReactionContext, sqlite::SqliteStorage, BoxedStorage, Storage};
+use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
 use crate::{
     config::{de_config_from_json, CoreConfig, EndpointConfig, ExplorationConfig, InitConfig},
     document::{
@@ -93,6 +93,7 @@ use crate::{
         Stack,
         TrustedNews,
     },
+    storage::models::ReactionDocumentView,
 };
 
 /// Discovery engine errors.
@@ -493,25 +494,27 @@ impl Engine {
         &mut self,
         history: Option<&[HistoricDocument]>,
         sources: &[WeightedSource],
-        reacted: &UserReacted,
+        reacted: UserReacted,
     ) -> Result<(), Error> {
         //TODO[pmk]: stack_id from db
         let for_stack = reacted.stack_id;
+        let reaction = reacted.reaction;
         cfg_if! {
             if #[cfg(feature = "storage")] {
-                let reaction_ctx = self.storage
+                let reacted = self.storage
                 .feedback()
                 .update_user_reaction(reacted.id, reacted.reaction)
                 .await?;
             } else {
-                let reacted = match reacted.reaction {
-                    UserReaction::Neutral => ReactionContext::Neutral,
-                    UserReaction::Positive => ReactionContext::Positive {
+                let reacted = match reaction {
+                    UserReaction::Neutral => ReactionDocumentView::Neutral,
+                    UserReaction::Positive => ReactionDocumentView::Positive {
                         embedding: reacted.smbert_embedding,
                         snippet: reacted.snippet,
                         title: reacted.title,
+                        market: reacted.market,
                     },
-                    UserReaction::Negative => ReactionContext::Negative {
+                    UserReaction::Negative => ReactionDocumentView::Negative {
                         embedding: reacted.smbert_embedding,
                     },
                 };
@@ -523,16 +526,16 @@ impl Engine {
         // update relevance of stack if the reacted document belongs to one
         if !for_stack.is_nil() {
             if let Some(stack) = stacks.get_mut(&for_stack) {
-                stack.update_relevance(reacted.reaction);
-            } else if reacted.stack_id == Exploration::id() {
-                self.exploration_stack.update_relevance(reacted.reaction);
+                stack.update_relevance(reaction);
+            } else if for_stack == Exploration::id() {
+                self.exploration_stack.update_relevance(reaction);
             } else {
-                return Err(Error::InvalidStackId(reacted.stack_id));
+                return Err(Error::InvalidStackId(for_stack));
             }
         };
 
-        match &reaction_ctx {
-            ReactionContext::Positive {
+        match &reacted {
+            ReactionDocumentView::Positive {
                 embedding,
                 snippet,
                 title,
@@ -556,17 +559,17 @@ impl Engine {
                     );
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
-                    &market,
+                    market,
                     &mut self.state.key_phrases,
                     embedding,
                     &key_phrases,
                     |words| smbert.run(words).map_err(Into::into),
                 );
             }
-            ReactionContext::Negative { embedding } => self
+            ReactionDocumentView::Negative { embedding } => self
                 .coi
                 .log_negative_user_reaction(&mut self.state.user_interests.negative, embedding),
-            ReactionContext::Neutral => {}
+            ReactionDocumentView::Neutral => {}
         }
         debug!(user_interests = ?self.state.user_interests);
 
@@ -577,7 +580,7 @@ impl Engine {
             &self.state.user_interests,
         );
 
-        if let ReactionContext::Positive { market, .. } = reaction_ctx {
+        if let ReactionDocumentView::Positive { market, .. } = reacted {
             cfg_if! {
                 if #[cfg(feature = "storage")] {
                     let history = self.storage.fetch_history().await?;
@@ -591,7 +594,7 @@ impl Engine {
                 &self.smbert,
                 &self.coi,
                 &mut self.state,
-                &history,
+                &*history,
                 sources,
                 self.core_config.take_top,
                 self.core_config.keep_top,

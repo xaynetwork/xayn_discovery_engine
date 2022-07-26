@@ -48,7 +48,7 @@ use crate::{
     },
 };
 
-use super::{models::ReactionContext, FeedbackScope};
+use super::{models::ReactionDocumentView, FeedbackScope};
 
 // Sqlite bind limit
 const BIND_LIMIT: usize = 32766;
@@ -673,7 +673,7 @@ impl FeedbackScope for SqliteStorage {
         &self,
         document: document::Id,
         reaction: UserReaction,
-    ) -> Result<ReactionContext, Error> {
+    ) -> Result<ReactionDocumentView, Error> {
         let mut tx = self.begin_tx().await?;
 
         sqlx::query(
@@ -684,10 +684,11 @@ impl FeedbackScope for SqliteStorage {
         .bind(reaction as u32)
         .execute(&mut tx)
         .await
+        //FIXME .fk_violation_is_invalid_document(document)?
         .map_err(|err| Error::Database(err.into()))?;
 
         let ctx = match reaction {
-            UserReaction::Neutral => ReactionContext::Neutral,
+            UserReaction::Neutral => ReactionDocumentView::Neutral,
             UserReaction::Positive => {
                 let view = sqlx::query_as::<_, QueryUserReactionContextPositive>(
                     "SELECT e.embedding, nr.snippet, nr.title, nr.market
@@ -725,11 +726,12 @@ struct QueryUserReactionContextNegative {
     embedding: Vec<u8>,
 }
 
-impl TryFrom<QueryUserReactionContextNegative> for ReactionContext {
+impl TryFrom<QueryUserReactionContextNegative> for ReactionDocumentView {
     type Error = Error;
 
     fn try_from(value: QueryUserReactionContextNegative) -> Result<Self, Self::Error> {
-        embedding_from_db(value.embedding).map(|embedding| ReactionContext::Negative { embedding })
+        embedding_from_db(value.embedding)
+            .map(|embedding| ReactionDocumentView::Negative { embedding })
     }
 }
 
@@ -741,14 +743,14 @@ struct QueryUserReactionContextPositive {
     market: String,
 }
 
-impl TryFrom<QueryUserReactionContextPositive> for ReactionContext {
+impl TryFrom<QueryUserReactionContextPositive> for ReactionDocumentView {
     type Error = Error;
 
     fn try_from(view: QueryUserReactionContextPositive) -> Result<Self, Self::Error> {
         let embedding = embedding_from_db(view.embedding)?;
         let market = market_from_db(&view.market)?;
 
-        Ok(ReactionContext::Positive {
+        Ok(ReactionDocumentView::Positive {
             embedding,
             snippet: view.snippet,
             title: view.title,
@@ -973,8 +975,8 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(matches!(view, ReactionContext::Positive { .. }));
-        if let ReactionContext::Positive {
+        assert!(matches!(view, ReactionDocumentView::Positive { .. }));
+        if let ReactionDocumentView::Positive {
             embedding,
             snippet,
             title,
@@ -993,8 +995,8 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(matches!(view, ReactionContext::Negative { .. }));
-        if let ReactionContext::Negative { embedding } = view {
+        assert!(matches!(view, ReactionDocumentView::Negative { .. }));
+        if let ReactionDocumentView::Negative { embedding } = view {
             assert_eq!(embedding, docs[1].embedding);
         }
 
@@ -1004,6 +1006,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(matches!(view, ReactionContext::Neutral));
+        assert!(matches!(view, ReactionDocumentView::Neutral));
     }
 }
