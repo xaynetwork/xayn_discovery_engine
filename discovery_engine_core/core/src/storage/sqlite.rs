@@ -19,10 +19,7 @@ use chrono::{NaiveDateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
-    FromRow,
-    Pool,
-    QueryBuilder,
-    Transaction,
+    FromRow, Pool, QueryBuilder, Transaction,
 };
 use url::Url;
 use xayn_discovery_engine_providers::Market;
@@ -31,18 +28,9 @@ use crate::{
     document::{self, HistoricDocument, UserReaction},
     storage::{
         models::{
-            ApiDocumentView,
-            NewDocument,
-            NewsResource,
-            NewscatcherData,
-            Paging,
-            Search,
-            SearchBy,
+            ApiDocumentView, NewDocument, NewsResource, NewscatcherData, Paging, Search, SearchBy,
         },
-        Error,
-        FeedScope,
-        SearchScope,
-        Storage,
+        Error, FeedScope, SearchScope, Storage,
     },
 };
 
@@ -637,7 +625,11 @@ impl TryFrom<QueriedSearch> for Search {
 
 #[cfg(test)]
 mod tests {
-    use crate::{document::NewsResource, stack, storage::models::NewDocument};
+    use crate::{
+        document::NewsResource,
+        stack,
+        storage::{models::NewDocument, SqlxSqliteErrorExt},
+    };
 
     use super::*;
 
@@ -784,5 +776,40 @@ mod tests {
             feed[0].newscatcher_data.domain_rank,
             docs[0].newscatcher_data.domain_rank
         );
+    }
+
+    #[tokio::test]
+    async fn test_fk_violation_is_invalid_document() {
+        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+
+        sqlx::query("CREATE TABLE Foo(x INTEGER PRIMARY KEY);")
+            .execute(&storage.pool)
+            .await
+            .unwrap();
+
+        sqlx::query("CREATE TABLE Bar(x INTEGER PRIMARY KEY REFERENCES Foo(x));")
+            .execute(&storage.pool)
+            .await
+            .unwrap();
+
+        let document_id = document::Id::new();
+
+        let res = sqlx::query("INSERT INTO Bar(x) VALUES (?);")
+            .bind(10)
+            .execute(&storage.pool)
+            .await
+            .fk_violation_is_invalid_document_id(document_id);
+
+        assert!(matches!(res, Err(Error::InvalidDocumentId(_))));
+        if let Err(Error::InvalidDocumentId(id)) = res {
+            assert_eq!(id, document_id);
+        }
+
+        let res = sqlx::query("malformed;")
+            .execute(&storage.pool)
+            .await
+            .fk_violation_is_invalid_document_id(document_id);
+
+        assert!(!matches!(res, Err(Error::InvalidDocumentId(_))));
     }
 }

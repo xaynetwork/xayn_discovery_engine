@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::borrow::Cow;
+
 use async_trait::async_trait;
 use displaydoc::Display;
 use thiserror::Error;
@@ -27,8 +29,32 @@ pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
+    /// Engine doesn't have a document with id {0}
+    InvalidDocumentId(document::Id),
     /// Database error: {0}
     Database(#[source] GenericError),
+}
+
+impl From<sqlx::Error> for Error {
+    fn from(generic: sqlx::Error) -> Self {
+        Error::Database(generic.into())
+    }
+}
+
+trait SqlxSqliteErrorExt<V> {
+    fn fk_violation_is_invalid_document_id(self, id: document::Id) -> Result<V, Error>;
+}
+
+impl<V> SqlxSqliteErrorExt<V> for Result<V, sqlx::Error> {
+    fn fk_violation_is_invalid_document_id(self, id: document::Id) -> Result<V, Error> {
+        if let Err(sqlx::Error::Database(db_err)) = &self {
+            if db_err.code() == Some(Cow::Borrowed("787")) {
+                return Err(Error::InvalidDocumentId(id));
+            }
+        }
+        self.map_err(Into::into)
+
+    }
 }
 
 #[async_trait]
