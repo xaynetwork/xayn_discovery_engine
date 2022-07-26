@@ -93,12 +93,3 @@ jobs:
       - name: docker push
         id: docker-push
         run: docker push "${IMAGE_NAME}"
-
-  #     - name: Trigger Kubernetes Web deployment
-  #       id: k8s-deployment
-  #       if: steps.docker-push.outcome == 'success'
-  #       env:
-  #         GHA_TOKEN: ${{ secrets.GHA_TOKEN }}
-  #         GHA_ACTOR: ${{ github.actor }}
-  #       run: |
-  #         curl -v -XPOST https://api.github.com/repos/xaynetwork/xayn_infrastructure/dispatches -H "Authorization: token ${GHA_TOKEN}" -H "Accept: application/vnd.github.v3+json" -H "Content-Type: application/json" -d "{\"event_type\":\"remote_poker-deployment\",\"client_payload\":{\"actor\":\"${GHA_ACTOR}\",\"tag\":\"${TAG}\"}}"
