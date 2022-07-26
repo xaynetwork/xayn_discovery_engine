@@ -11,6 +11,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#![cfg_attr(not(feature = "storage"), allow(dead_code))]
 
 use async_trait::async_trait;
 use displaydoc::Display;
@@ -19,8 +20,9 @@ use xayn_discovery_engine_ai::GenericError;
 
 use crate::document::{self, HistoricDocument, UserReaction};
 
-use self::models::{ApiDocumentView, NewDocument, ReactionContext, Search};
+use self::models::{ApiDocumentView, NewDocument, ReactionDocumentView, Search};
 
+#[cfg(feature = "storage")]
 pub mod sqlite;
 
 pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
@@ -85,10 +87,9 @@ pub(crate) trait FeedbackScope {
         &self,
         document: document::Id,
         reaction: UserReaction,
-    ) -> Result<ReactionContext, Error>;
+    ) -> Result<ReactionDocumentView, Error>;
 }
 
-#[allow(dead_code)]
 pub mod models {
     use chrono::NaiveDateTime;
     use url::Url;
@@ -246,11 +247,12 @@ pub mod models {
     ///
     /// Storage implementations which do not use snapshots might
     /// have less strict consistency guarantees.
-    pub(crate) enum ReactionContext {
+    pub(crate) enum ReactionDocumentView {
         Positive {
             embedding: Embedding,
             snippet: String,
             title: String,
+            market: Market,
         },
         Negative {
             embedding: Embedding,

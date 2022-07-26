@@ -35,7 +35,6 @@ pub mod document;
 mod engine;
 mod mab;
 pub mod stack;
-#[cfg(feature = "storage")]
 pub mod storage;
 
 pub use crate::{
