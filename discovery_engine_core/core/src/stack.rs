@@ -80,6 +80,11 @@ pub enum Error {
 /// `Id` is used to connect [`Ops`](ops::Ops) with the corresponding data of a stack.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, From, Display)]
 #[repr(transparent)]
+#[cfg_attr(
+    feature = "storage",
+    derive(sqlx::Type, sqlx::FromRow),
+    sqlx(transparent)
+)]
 #[cfg_attr(test, derive(Default))]
 pub struct Id(Uuid);
 

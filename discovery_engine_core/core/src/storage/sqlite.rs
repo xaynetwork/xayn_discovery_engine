@@ -25,10 +25,12 @@ use sqlx::{
     Transaction,
 };
 use url::Url;
+use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
     document::{self, HistoricDocument, UserReaction},
+    stack,
     storage::{
         models::{
             ApiDocumentView,
@@ -581,17 +583,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             .image
             .map(|url| Url::parse(&url).map_err(|err| Error::Database(err.into())))
             .transpose()?;
-        let market = doc
-            .market
-            .is_char_boundary(2)
-            .then(|| {
-                let (lang, country) = doc.market.split_at(2);
-                Market::new(lang, country)
-            })
-            .ok_or_else(|| {
-                Self::Error::Database(format!("Failed to convert {} to Market", doc.market).into())
-            })?;
-
+        let market = market_from_db(&doc.market)?;
         let news_resource = NewsResource {
             title: doc.title,
             snippet: doc.snippet,
@@ -616,9 +608,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
                 })
             })
             .transpose()?;
-        let embedding = doc.embedding.try_into().map_err(|err| {
-            Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
-        })?;
+        let embedding = embedding_from_db(doc.embedding)?;
 
         Ok(ApiDocumentView {
             document_id: doc.document_id,
@@ -629,6 +619,24 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             embedding,
         })
     }
+}
+
+fn market_from_db(db_representation: &str) -> Result<Market, Error> {
+    db_representation
+        .is_char_boundary(2)
+        .then(|| {
+            let (lang, country) = db_representation.split_at(2);
+            Market::new(lang, country)
+        })
+        .ok_or_else(|| {
+            Error::Database(format!("Failed to convert {} to Market", db_representation).into())
+        })
+}
+
+fn embedding_from_db(db_representation: Vec<u8>) -> Result<Embedding, Error> {
+    db_representation.try_into().map_err(|err| {
+        Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
+    })
 }
 
 #[derive(FromRow)]
@@ -682,7 +690,7 @@ impl FeedbackScope for SqliteStorage {
             UserReaction::Neutral => ReactionContext::Neutral,
             UserReaction::Positive => {
                 let view = sqlx::query_as::<_, QueryUserReactionContextPositive>(
-                    "SELECT e.embedding, nr.snippet, nr.title
+                    "SELECT e.embedding, nr.snippet, nr.title, nr.market
                     FROM Embedding AS e
                     JOIN NewsResource AS nr USING(documentId)
                     WHERE documentId = ?;",
@@ -721,13 +729,7 @@ impl TryFrom<QueryUserReactionContextNegative> for ReactionContext {
     type Error = Error;
 
     fn try_from(value: QueryUserReactionContextNegative) -> Result<Self, Self::Error> {
-        value
-            .embedding
-            .try_into()
-            .map(|embedding| ReactionContext::Negative { embedding })
-            .map_err(|err| {
-                Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
-            })
+        embedding_from_db(value.embedding).map(|embedding| ReactionContext::Negative { embedding })
     }
 }
 
@@ -736,20 +738,21 @@ struct QueryUserReactionContextPositive {
     embedding: Vec<u8>,
     snippet: String,
     title: String,
+    market: String,
 }
 
 impl TryFrom<QueryUserReactionContextPositive> for ReactionContext {
     type Error = Error;
 
     fn try_from(view: QueryUserReactionContextPositive) -> Result<Self, Self::Error> {
-        let embedding = view.embedding.try_into().map_err(|err| {
-            Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
-        })?;
+        let embedding = embedding_from_db(view.embedding)?;
+        let market = market_from_db(&view.market)?;
 
         Ok(ReactionContext::Positive {
             embedding,
             snippet: view.snippet,
             title: view.title,
+            market,
         })
     }
 }
@@ -975,11 +978,13 @@ mod tests {
             embedding,
             snippet,
             title,
+            market,
         } = view
         {
             assert_eq!(embedding, docs[0].embedding);
             assert_eq!(snippet, docs[0].news_resource.snippet);
             assert_eq!(title, docs[0].news_resource.title);
+            assert_eq!(market, docs[0].news_resource.market);
         }
 
         let view = storage

@@ -19,6 +19,7 @@ use std::{
     mem::replace,
 };
 
+use cfg_if::cfg_if;
 use displaydoc::Display;
 use futures::future::join_all;
 use itertools::{chain, Itertools};
@@ -56,7 +57,7 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[cfg(feature = "storage")]
-use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
+use crate::storage::{self, models::ReactionContext, sqlite::SqliteStorage, BoxedStorage, Storage};
 use crate::{
     config::{de_config_from_json, CoreConfig, EndpointConfig, ExplorationConfig, InitConfig},
     document::{
@@ -494,11 +495,34 @@ impl Engine {
         sources: &[WeightedSource],
         reacted: &UserReacted,
     ) -> Result<(), Error> {
+        //TODO[pmk]: stack_id from db
+        let for_stack = reacted.stack_id;
+        cfg_if! {
+            if #[cfg(feature = "storage")] {
+                let reaction_ctx = self.storage
+                .feedback()
+                .update_user_reaction(reacted.id, reacted.reaction)
+                .await?;
+            } else {
+                let reacted = match reacted.reaction {
+                    UserReaction::Neutral => ReactionContext::Neutral,
+                    UserReaction::Positive => ReactionContext::Positive {
+                        embedding: reacted.smbert_embedding,
+                        snippet: reacted.snippet,
+                        title: reacted.title,
+                    },
+                    UserReaction::Negative => ReactionContext::Negative {
+                        embedding: reacted.smbert_embedding,
+                    },
+                };
+            }
+        }
+
         let mut stacks = self.stacks.write().await;
 
         // update relevance of stack if the reacted document belongs to one
-        if !reacted.stack_id.is_nil() {
-            if let Some(stack) = stacks.get_mut(&reacted.stack_id) {
+        if !for_stack.is_nil() {
+            if let Some(stack) = stacks.get_mut(&for_stack) {
                 stack.update_relevance(reacted.reaction);
             } else if reacted.stack_id == Exploration::id() {
                 self.exploration_stack.update_relevance(reacted.reaction);
@@ -507,41 +531,42 @@ impl Engine {
             }
         };
 
-        match reacted.reaction {
-            UserReaction::Positive => {
+        match &reaction_ctx {
+            ReactionContext::Positive {
+                embedding,
+                snippet,
+                title,
+                market,
+            } => {
                 let smbert = &self.smbert;
                 let key_phrases = self
                     .kpe
-                    .run(&reacted.snippet)
-                    .or_else(|_| {
-                        self.kpe
-                            .run(format!("{} {}", reacted.title, reacted.snippet))
-                    })
+                    .run(snippet)
+                    .or_else(|_| self.kpe.run(format!("{} {}", title, snippet)))
                     .map_or_else(
                         #[allow(clippy::if_not_else)]
                         |_| {
-                            vec![if !reacted.title.is_empty() {
-                                reacted.title.to_string()
+                            vec![if !title.is_empty() {
+                                title.to_string()
                             } else {
-                                reacted.snippet.to_string()
+                                snippet.to_string()
                             }]
                         },
                         Into::into,
                     );
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
-                    &reacted.market,
+                    &market,
                     &mut self.state.key_phrases,
-                    &reacted.smbert_embedding,
+                    embedding,
                     &key_phrases,
                     |words| smbert.run(words).map_err(Into::into),
                 );
             }
-            UserReaction::Negative => self.coi.log_negative_user_reaction(
-                &mut self.state.user_interests.negative,
-                &reacted.smbert_embedding,
-            ),
-            UserReaction::Neutral => {}
+            ReactionContext::Negative { embedding } => self
+                .coi
+                .log_negative_user_reaction(&mut self.state.user_interests.negative, embedding),
+            ReactionContext::Neutral => {}
         }
         debug!(user_interests = ?self.state.user_interests);
 
@@ -551,30 +576,33 @@ impl Engine {
             &self.coi,
             &self.state.user_interests,
         );
-        if let UserReaction::Positive = reacted.reaction {
-            if let Some(history) = history {
-                update_stacks(
-                    &mut stacks,
-                    &mut self.exploration_stack,
-                    &self.smbert,
-                    &self.coi,
-                    &mut self.state,
-                    history,
-                    sources,
-                    self.core_config.take_top,
-                    self.core_config.keep_top,
-                    usize::MAX,
-                    &[reacted.market.clone()],
-                )
-                .await?;
-                self.request_after = 0;
-                Ok(())
-            } else {
-                Err(Error::StackOpFailed(stack::Error::NoHistory))
+
+        if let ReactionContext::Positive { market, .. } = reaction_ctx {
+            cfg_if! {
+                if #[cfg(feature = "storage")] {
+                    let history = self.storage.fetch_history().await?;
+                } else {
+                    let history = history.ok_or(Error::StackOpFailed(stack::Error::NoHistory))?;
+                }
             }
-        } else {
-            Ok(())
+            update_stacks(
+                &mut stacks,
+                &mut self.exploration_stack,
+                &self.smbert,
+                &self.coi,
+                &mut self.state,
+                &history,
+                sources,
+                self.core_config.take_top,
+                self.core_config.keep_top,
+                usize::MAX,
+                &[market.clone()],
+            )
+            .await?;
+            self.request_after = 0;
         }
+
+        Ok(())
     }
 
     /// Perform an active search by query.

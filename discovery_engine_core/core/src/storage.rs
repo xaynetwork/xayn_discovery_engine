@@ -251,6 +251,7 @@ pub mod models {
             embedding: Embedding,
             snippet: String,
             title: String,
+            market: Market,
         },
         Negative {
             embedding: Embedding,
