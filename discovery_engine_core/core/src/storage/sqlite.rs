@@ -12,14 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
+use std::{borrow::Cow, str::FromStr};
 
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
-    FromRow, Pool, QueryBuilder, Transaction,
+    FromRow,
+    Pool,
+    QueryBuilder,
+    Transaction,
 };
 use url::Url;
 use xayn_discovery_engine_providers::Market;
@@ -28,14 +31,46 @@ use crate::{
     document::{self, HistoricDocument, UserReaction},
     storage::{
         models::{
-            ApiDocumentView, NewDocument, NewsResource, NewscatcherData, Paging, Search, SearchBy,
+            ApiDocumentView,
+            NewDocument,
+            NewsResource,
+            NewscatcherData,
+            Paging,
+            Search,
+            SearchBy,
         },
-        Error, FeedScope, SearchScope, Storage,
+        Error,
+        FeedScope,
+        SearchScope,
+        Storage,
     },
 };
 
 // Sqlite bind limit
 const BIND_LIMIT: usize = 32766;
+
+trait SqlxSqliteErrorExt<V> {
+    /// Use this on the result of an sqlite query which might have failed a foreign
+    /// key constraint if a illegal document if was passed in.
+    ///
+    /// For example it can be used in `.user_reacted` to handle it being
+    /// called with a random document id.
+    ///
+    /// If there is an error and it is a fk violation an appropriate error variant is
+    /// used instead of the default generic database error.
+    fn fk_violation_is_invalid_document_id(self, id: document::Id) -> Result<V, Error>;
+}
+
+impl<V> SqlxSqliteErrorExt<V> for Result<V, sqlx::Error> {
+    fn fk_violation_is_invalid_document_id(self, id: document::Id) -> Result<V, Error> {
+        if let Err(sqlx::Error::Database(db_err)) = &self {
+            if db_err.code() == Some(Cow::Borrowed("787")) {
+                return Err(Error::InvalidDocumentId(id));
+            }
+        }
+        self.map_err(Into::into)
+    }
+}
 
 #[derive(Clone)]
 pub(crate) struct SqliteStorage {
@@ -625,11 +660,7 @@ impl TryFrom<QueriedSearch> for Search {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        document::NewsResource,
-        stack,
-        storage::{models::NewDocument, SqlxSqliteErrorExt},
-    };
+    use crate::{document::NewsResource, stack, storage::models::NewDocument};
 
     use super::*;
 
