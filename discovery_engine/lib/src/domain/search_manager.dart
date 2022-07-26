@@ -302,6 +302,38 @@ class SearchManager {
   ///
   /// These documents aren't persisted to repositories.
   Future<EngineEvent> deepSearchRequested(DocumentId id) async {
+    if (cfgFeatureStorage) {
+      final List<DocumentWithActiveData> docs;
+      try {
+        docs = await _engine.searchById(id);
+      } on Exception catch (e) {
+        final message = e.toString();
+        if (message.contains('Search request failed: no document')) {
+          throw ArgumentError('id $id does not identify an active document');
+        }
+        if (message.contains(
+              'The sequence must contain at least `KEY_PHRASE_SIZE` valid words',
+            ) ||
+            message
+                .contains('HTTP status client error (404 Not Found) for url')) {
+          return const EngineEvent.deepSearchRequestFailed(
+            SearchFailureReason.noResultsAvailable,
+          );
+        }
+        rethrow;
+      }
+
+      if (docs.isEmpty) {
+        return const EngineEvent.deepSearchRequestFailed(
+          SearchFailureReason.noResultsAvailable,
+        );
+      }
+
+      return EngineEvent.deepSearchRequestSucceeded(
+        docs.map((doc) => doc.document.toApiRepr()).toList(),
+      );
+    }
+
     final doc = await _docRepo.fetchById(id);
     final data = await _activeRepo.fetchById(id);
     if (doc == null || !doc.isActive || data == null) {

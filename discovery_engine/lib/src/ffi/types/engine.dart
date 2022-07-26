@@ -34,6 +34,8 @@ import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
     show TrendingTopic;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
@@ -70,6 +72,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show StringFfi, StringListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart'
     show TrendingTopicSliceFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
+    show DocumentIdFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/weighted_source_vec.dart'
     show WeightedSourceListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
@@ -242,6 +246,16 @@ class DiscoveryEngineFfi implements Engine {
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
         .toDocumentListWithActiveData(isSearched: true);
+  }
+
+  @override
+  Future<List<DocumentWithActiveData>> searchById(DocumentId id) async {
+    final result =
+        await asyncFfi.searchById(_engine.ref, id.allocNative().move());
+
+    return resultVecDocumentStringFfiAdapter
+        .consumeNative(result)
+        .toDocumentListWithActiveData();
   }
 
   @override

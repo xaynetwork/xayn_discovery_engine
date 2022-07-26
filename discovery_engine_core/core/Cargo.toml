@@ -49,5 +49,4 @@ xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
 
 [features]
 default = []
-
-storage = ["sqlx", "num-traits", "num-derive"]
+storage = ["num-derive", "num-traits", "sqlx"]

@@ -20,6 +20,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustUuid;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
+import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 
 extension DocumentIdFfi on DocumentId {
   void writeNative(final Pointer<RustUuid> place) {
@@ -28,6 +29,12 @@ extension DocumentIdFfi on DocumentId {
 
   static DocumentId readNative(final Pointer<RustUuid> place) {
     return DocumentId.fromBytes(_readUuid(place));
+  }
+
+  Boxed<RustUuid> allocNative() {
+    final place = ffi.alloc_uninitialized_uuid();
+    writeNative(place);
+    return Boxed(place, ffi.drop_uuid);
   }
 }
 

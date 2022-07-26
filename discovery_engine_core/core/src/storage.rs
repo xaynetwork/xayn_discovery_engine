@@ -33,6 +33,8 @@ pub enum Error {
     OpenSearch,
     /// Search request failed: no search
     NoSearch,
+    /// Search request failed: no document
+    NoDocument,
 }
 
 #[async_trait]
@@ -75,6 +77,8 @@ pub(crate) trait SearchScope {
     async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error>;
 
     async fn clear(&self) -> Result<bool, Error>;
+
+    async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error>;
 }
 
 pub mod models {
@@ -167,6 +171,13 @@ pub mod models {
                 smbert_embedding: self.embedding,
                 resource: (self.news_resource, self.newscatcher_data).into(),
             }
+        }
+
+        /// Gets the snippet or falls back to the title if the snippet is empty.
+        pub(crate) fn snippet_or_title(&self) -> &str {
+            (!self.news_resource.snippet.is_empty())
+                .then(|| &self.news_resource.snippet)
+                .unwrap_or(&self.news_resource.title)
         }
     }
 
