@@ -167,6 +167,11 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<void> closeSearch() async {
+    _incrementCount('closeSearch');
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> deepSearch(
     String term,
     FeedMarket market,

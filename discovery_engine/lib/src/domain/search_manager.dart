@@ -360,6 +360,21 @@ class SearchManager {
 
   /// Clear the active search and deactivate interacted search documents.
   Future<EngineEvent> activeSearchClosed() async {
+    if (cfgFeatureStorage) {
+      try {
+        await _engine.closeSearch();
+      } on Exception catch (e) {
+        if (e.toString().contains('Search request failed: no search')) {
+          return const EngineEvent.activeSearchTermRequestFailed(
+            SearchFailureReason.noActiveSearch,
+          );
+        }
+        rethrow;
+      }
+
+      return const EngineEvent.activeSearchClosedSucceeded();
+    }
+
     if (await _searchRepo.getCurrent() == null) {
       const reason = SearchFailureReason.noActiveSearch;
       return const EngineEvent.activeSearchClosedFailed(reason);

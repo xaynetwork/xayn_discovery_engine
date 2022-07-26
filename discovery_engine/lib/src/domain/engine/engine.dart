@@ -107,6 +107,9 @@ abstract class Engine {
   /// Gets the current active search mode and term.
   Future<ActiveSearch> searchedBy();
 
+  /// Closes the current active search.
+  Future<void> closeSearch();
+
   /// Performs a deep search by term and market.
   ///
   /// The documents are sorted in descending order wrt their cosine similarity towards the

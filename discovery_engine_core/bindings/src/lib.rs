@@ -235,6 +235,19 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
+    /// Closes the current active search.
+    pub async fn close_search(engine: &SharedEngine) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .close_search()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
     /// Performs a deep search by term and market.
     ///
     /// The documents are sorted in descending order wrt their cosine similarity towards the
