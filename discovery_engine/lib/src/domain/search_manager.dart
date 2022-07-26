@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show kCfgFeatureStorage;
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show SearchClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
@@ -120,7 +120,7 @@ class SearchManager {
     SearchBy by,
     String term,
   ) async {
-    if (kCfgFeatureStorage) {
+    if (cfgFeatureStorage) {
       final search = ActiveSearch(searchBy: by, searchTerm: term);
       const page = 1;
       final pageSize = _config.maxSearchDocs;

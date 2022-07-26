@@ -31,6 +31,8 @@ pub enum Error {
     Database(#[source] GenericError),
     /// Search request failed: open search
     OpenSearch,
+    /// Search request failed: no search
+    NoSearch,
 }
 
 #[async_trait]

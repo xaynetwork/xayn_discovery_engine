@@ -589,11 +589,11 @@ impl Engine {
         }
 
         #[cfg(feature = "storage")]
-        if let Ok((search, _)) = self.storage.search().fetch().await {
-            if search.search_by != storage::models::SearchBy::Query || search.search_term != query {
-                return Err(storage::Error::OpenSearch.into());
-            }
-        }
+        match self.storage.search().fetch().await {
+            Ok(_) => return Err(storage::Error::OpenSearch.into()),
+            Err(storage::Error::NoSearch) => { /* continue */ }
+            Err(error) => return Err(error.into()),
+        };
 
         let filter = &Filter::default().add_keyword(&query);
         let documents = self
@@ -632,11 +632,11 @@ impl Engine {
         }
 
         #[cfg(feature = "storage")]
-        if let Ok((search, _)) = self.storage.search().fetch().await {
-            if search.search_by != storage::models::SearchBy::Topic || search.search_term != topic {
-                return Err(storage::Error::OpenSearch.into());
-            }
-        }
+        match self.storage.search().fetch().await {
+            Ok(_) => return Err(storage::Error::OpenSearch.into()),
+            Err(storage::Error::NoSearch) => { /* continue */ }
+            Err(error) => return Err(error.into()),
+        };
 
         let documents = self
             .active_search(SearchBy::Topic(topic), page, page_size)
