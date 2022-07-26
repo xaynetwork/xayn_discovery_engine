@@ -700,7 +700,8 @@ impl Engine {
     }
 
     /// Restores the current active search, ordered by their global rank (timestamp & local rank).
-    pub async fn searched(&self) -> Result<Vec<Document>, Error> {
+    // TODO: rename methods to `searched()` and adjust events & docs accordingly after DB migration
+    pub async fn restore_search(&self) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
         {
             let (_, documents) = self.storage.search().fetch().await?;

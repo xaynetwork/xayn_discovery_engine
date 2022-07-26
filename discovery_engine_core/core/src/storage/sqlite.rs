@@ -25,7 +25,6 @@ use sqlx::{
     Transaction,
 };
 use url::Url;
-use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -199,8 +198,7 @@ impl SqliteStorage {
                 .reset()
                 .push("Embedding (documentId, embedding) ")
                 .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(&doc.id)
-                        .push_bind(doc.embedding.to_ne_bytes());
+                    stm.push_bind(&doc.id).push_bind(doc.embedding.to_bytes());
                 })
                 .build()
                 .persistent(false)
@@ -628,8 +626,8 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
                 })
             })
             .transpose()?;
-        let embedding = Embedding::from_ne_bytes(&doc.embedding).map_err(|err| {
-            Error::Database(format!("Failed to convert bytes to Embedding: {err}").into())
+        let embedding = doc.embedding.try_into().map_err(|err| {
+            Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
         })?;
 
         Ok(ApiDocumentView {

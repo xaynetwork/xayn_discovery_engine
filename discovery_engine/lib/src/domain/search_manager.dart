@@ -218,7 +218,7 @@ class SearchManager {
       final List<DocumentWithActiveData> docs;
       try {
         search = await _engine.searchedBy();
-        docs = await _engine.searched();
+        docs = await _engine.restoreSearch();
       } on Exception catch (e) {
         if (e.toString().contains('Search request failed: no search')) {
           return const EngineEvent.nextActiveSearchBatchRequestFailed(

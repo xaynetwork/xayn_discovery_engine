@@ -150,7 +150,7 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> searched() async {
+  Future<List<DocumentWithActiveData>> restoreSearch() async {
     _incrementCount('searched');
     return activeSearchDocuments.take(10).toList(growable: false);
   }

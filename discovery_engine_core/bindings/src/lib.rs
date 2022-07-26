@@ -209,13 +209,13 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Restores the current active search, ordered by their global rank (timestamp & local rank).
-    pub async fn searched(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
+    pub async fn restore_search(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .searched()
+                .restore_search()
                 .await
                 .map_err(|error| error.to_string()),
         )
