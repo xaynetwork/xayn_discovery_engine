@@ -19,6 +19,8 @@ import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
     show SetupData;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -95,6 +97,9 @@ abstract class Engine {
     int page,
     int pageSize,
   );
+
+  /// Gets the current active search mode and term.
+  Future<ActiveSearch> searchedBy();
 
   /// Performs a deep search by term and market.
   ///

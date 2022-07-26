@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     iter::once,
     mem::replace,
@@ -595,9 +596,9 @@ impl Engine {
             Err(error) => return Err(error.into()),
         };
 
-        let filter = &Filter::default().add_keyword(&query);
+        let filter = Filter::default().add_keyword(&query);
         let documents = self
-            .active_search(SearchBy::Query(filter), page, page_size)
+            .active_search(SearchBy::Query(Cow::Owned(filter)), page, page_size)
             .await?;
 
         #[cfg(feature = "storage")]
@@ -639,7 +640,7 @@ impl Engine {
         };
 
         let documents = self
-            .active_search(SearchBy::Topic(topic), page, page_size)
+            .active_search(SearchBy::Topic(topic.into()), page, page_size)
             .await?;
 
         #[cfg(feature = "storage")]
@@ -662,6 +663,25 @@ impl Engine {
         Ok(documents)
     }
 
+    /// Gets the current active search mode and term.
+    pub async fn searched_by(&self) -> Result<SearchBy<'_>, Error> {
+        #[cfg(feature = "storage")]
+        {
+            let (search, _) = self.storage.search().fetch().await?;
+            let search = match search.search_by {
+                storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
+                    Filter::default().add_keyword(&search.search_term),
+                )),
+                storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
+            };
+
+            return Ok(search);
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
     async fn active_search(
         &mut self,
         by: SearchBy<'_>,
@@ -675,10 +695,10 @@ impl Engine {
         let scaled_page_size = page_size as usize / markets.len() + 1;
         let excluded_sources = self.endpoint_config.excluded_sources.read().await.clone();
         for market in markets.iter() {
-            let query_result = match by {
+            let query_result = match &by {
                 SearchBy::Query(filter) => {
                     let news_query = NewsQuery {
-                        filter,
+                        filter: filter.as_ref(),
                         max_age_days: None,
                         market,
                         page_size: scaled_page_size,
@@ -1168,11 +1188,11 @@ impl SerializedState {
 }
 
 /// Active search mode.
-enum SearchBy<'a> {
+pub enum SearchBy<'a> {
     /// Search by query.
-    Query(&'a Filter),
+    Query(Cow<'a, Filter>),
     /// Search by topic.
-    Topic(&'a str),
+    Topic(Cow<'a, str>),
 }
 
 #[cfg(test)]

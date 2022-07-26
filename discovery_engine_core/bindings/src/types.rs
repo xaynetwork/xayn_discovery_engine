@@ -30,6 +30,7 @@ pub mod market_vec;
 pub mod option;
 pub mod primitives;
 pub mod result;
+pub mod search;
 pub mod slice;
 pub mod string;
 pub mod string_vec;

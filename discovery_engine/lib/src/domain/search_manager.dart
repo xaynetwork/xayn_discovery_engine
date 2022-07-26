@@ -223,6 +223,22 @@ class SearchManager {
 
   /// Return the active search term.
   Future<EngineEvent> activeSearchTermRequested() async {
+    if (cfgFeatureStorage) {
+      final domain.ActiveSearch search;
+      try {
+        search = await _engine.searchedBy();
+      } on Exception catch (e) {
+        if (e.toString().contains('Search request failed: no search')) {
+          return const EngineEvent.activeSearchTermRequestFailed(
+            SearchFailureReason.noActiveSearch,
+          );
+        }
+        rethrow;
+      }
+
+      return EngineEvent.activeSearchTermRequestSucceeded(search.searchTerm);
+    }
+
     final search = await _searchRepo.getCurrent();
 
     if (search == null) {
