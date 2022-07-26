@@ -18,7 +18,7 @@ use std::ptr;
 
 use xayn_discovery_engine_core::document::{Document, TrendingTopic};
 
-use super::{boxed, engine::SharedEngine};
+use super::{boxed, engine::SharedEngine, search::Search};
 
 /// Returns a pointer to the `Result::Ok` success value or a nullptr.
 ///
@@ -234,4 +234,38 @@ pub unsafe extern "C" fn move_result_shared_engine_string_ok(
     res: *mut Result<SharedEngine, String>,
 ) -> *mut SharedEngine {
     unsafe { move_result_ok(res) }
+}
+
+/// Returns a pointer to the `Search` success value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must point to a sound `Result<Search, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_result_search_string_ok(
+    res: *mut Result<Search, String>,
+) -> *mut Search {
+    unsafe { get_result_ok(res) }
+}
+
+/// Returns a pointer to the `String` error value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must point to a sound `Result<Search, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_result_search_string_err(
+    res: *mut Result<Search, String>,
+) -> *mut String {
+    unsafe { get_result_err(res) }
+}
+
+/// Drops a `Box<Result<Search, String>>`.
+///
+/// # Safety
+///
+/// - The pointer must represent a valid `Box<Result<Search, String>>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_result_search_string(res: *mut Result<Search, String>) {
+    unsafe { boxed::drop(res) }
 }

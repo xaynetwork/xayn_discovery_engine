@@ -18,6 +18,8 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
+import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
+    show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -139,6 +141,17 @@ class MockEngine implements Engine {
   ) async {
     _incrementCount('searchByTopic');
     return activeSearchDocuments.take(pageSize).toList(growable: false);
+  }
+
+  @override
+  Future<ActiveSearch> searchedBy() async {
+    _incrementCount('searchedBy');
+    return ActiveSearch(
+      searchBy: SearchBy.query,
+      searchTerm: 'example',
+      requestedPageNb: -1,
+      pageSize: -1,
+    );
   }
 
   @override

@@ -40,5 +40,5 @@ pub mod storage;
 
 pub use crate::{
     config::InitConfig,
-    engine::{Engine, Error},
+    engine::{Engine, Error, SearchBy},
 };

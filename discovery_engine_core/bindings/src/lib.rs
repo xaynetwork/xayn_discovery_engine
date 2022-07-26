@@ -47,7 +47,7 @@ use xayn_discovery_engine_core::Engine;
     };
     use xayn_discovery_engine_providers::Market;
 
-    use crate::types::engine::SharedEngine;
+    use crate::types::{engine::SharedEngine, search::Search};
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
@@ -191,6 +191,20 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_by_topic(topic.as_ref(), page, page_size)
                 .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Gets the current active search mode and term.
+    pub async fn searched_by(engine: &SharedEngine) -> Box<Result<Search, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .searched_by()
+                .await
+                .map(Into::into)
                 .map_err(|error| error.to_string()),
         )
     }
