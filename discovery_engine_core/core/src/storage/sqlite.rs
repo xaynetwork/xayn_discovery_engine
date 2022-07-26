@@ -544,6 +544,39 @@ impl SearchScope for SqliteStorage {
 
         Ok(deletion.rows_affected() > 0)
     }
+
+    async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error> {
+        let mut tx = self.begin_tx().await?;
+
+        let document = sqlx::query_as::<_, QueriedApiDocumentView>(
+            "SELECT
+                hd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
+                ur.userReaction, po.inBatchIndex, em.embedding
+            FROM HistoricDocument       AS hd
+            JOIN NewsResource           AS nr   USING(documentId)
+            JOIN NewscatcherData        AS nc   USING(documentId)
+            JOIN PresentationOrdering   AS po   USING(documentId)
+            JOIN UserReaction           AS ur   USING(documentId)
+            JOIN Embedding              AS em   USING(documentId)
+            WHERE documentId = ?;",
+        )
+        .persistent(false)
+        .bind(id)
+        .fetch_one(&mut tx)
+        .await
+        .or_else(|err| {
+            if let sqlx::Error::RowNotFound = err {
+                Err(Error::NoDocument)
+            } else {
+                Err(Error::Database(err.into()))
+            }
+        })?;
+
+        Self::commit_tx(tx).await?;
+
+        document.try_into()
+    }
 }
 
 #[derive(FromRow)]
@@ -809,6 +842,38 @@ mod tests {
         assert!(check_eq_of_documents(&search_docs[..10], &first_docs));
         assert!(check_eq_of_documents(&search_docs[10..], &second_docs));
         assert!(storage.search().clear().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_get_document() {
+        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        storage.init_database().await.unwrap();
+
+        let id = document::Id::new();
+        assert!(matches!(
+            storage.search().get_document(id).await.unwrap_err(),
+            Error::NoDocument
+        ));
+
+        let documents = create_documents(1);
+        let mut tx = storage.begin_tx().await.unwrap();
+        SqliteStorage::store_new_documents(&mut tx, &documents)
+            .await
+            .unwrap();
+        SqliteStorage::commit_tx(tx).await.unwrap();
+
+        let document = storage
+            .search()
+            .get_document(documents[0].id)
+            .await
+            .unwrap();
+        assert!(check_eq_of_documents(&[document], &documents));
+
+        let id = document::Id::new();
+        assert!(matches!(
+            storage.search().get_document(id).await.unwrap_err(),
+            Error::NoDocument,
+        ));
     }
 
     #[tokio::test]

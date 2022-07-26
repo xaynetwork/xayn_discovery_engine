@@ -663,6 +663,30 @@ impl Engine {
         Ok(documents)
     }
 
+    /// Performs an active search by document id (aka deep search).
+    ///
+    /// The documents are sorted in descending order wrt their cosine similarity towards the
+    /// original search term embedding.
+    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    pub async fn search_by_id(&self, id: document::Id) -> Result<Vec<Document>, Error> {
+        #[cfg(feature = "storage")]
+        {
+            let document = self.storage.search().get_document(id).await?;
+
+            // TODO: merge `deep_search()` into this method after DB migration
+            return self
+                .deep_search(
+                    document.snippet_or_title(),
+                    &document.news_resource.market,
+                    &document.embedding,
+                )
+                .await;
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
     /// Gets the next batch of the current active search.
     pub async fn search_next_batch(&self) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
@@ -1182,7 +1206,7 @@ fn documentify_articles(
     articles
         .into_par_iter()
         .map(|article| {
-            let embedding = smbert.run(article.excerpt_or_title()).map_err(|error| {
+            let embedding = smbert.run(article.snippet_or_title()).map_err(|error| {
                 let error = Error::Ranker(error.into());
                 error!("{}", error);
                 error

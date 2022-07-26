@@ -36,6 +36,8 @@ import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
     show TrendingTopic;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
@@ -97,6 +99,12 @@ abstract class Engine {
     int page,
     int pageSize,
   );
+
+  /// Performs an active search by document id (aka deep search).
+  ///
+  /// The documents are sorted in descending order wrt their cosine similarity towards the
+  /// original search term embedding.
+  Future<List<DocumentWithActiveData>> searchById(DocumentId id);
 
   /// Gets the next batch of the current active search.
   Future<List<DocumentWithActiveData>> searchNextBatch();

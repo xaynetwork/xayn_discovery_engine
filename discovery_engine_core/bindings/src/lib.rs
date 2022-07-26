@@ -40,6 +40,8 @@ use std::path::Path;
 use xayn_discovery_engine_core::Engine;
 
 #[async_bindgen::api(
+    use uuid::Uuid;
+
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_core::{
         document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, WeightedSource},
@@ -190,6 +192,25 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .lock()
                 .await
                 .search_by_topic(topic.as_ref(), page, page_size)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Performs an active search by document id (aka deep search).
+    ///
+    /// The documents are sorted in descending order wrt their cosine similarity towards the
+    /// original search term embedding.
+    pub async fn search_by_id(
+        engine: &SharedEngine,
+        id: Box<Uuid>,
+    ) -> Box<Result<Vec<Document>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .search_by_id((*id).into())
                 .await
                 .map_err(|error| error.to_string()),
         )

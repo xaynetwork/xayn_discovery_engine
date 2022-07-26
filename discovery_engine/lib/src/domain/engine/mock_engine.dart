@@ -33,6 +33,8 @@ import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
     show TrendingTopic;
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
@@ -141,6 +143,12 @@ class MockEngine implements Engine {
   ) async {
     _incrementCount('searchByTopic');
     return activeSearchDocuments.take(pageSize).toList(growable: false);
+  }
+
+  @override
+  Future<List<DocumentWithActiveData>> searchById(DocumentId id) async {
+    _incrementCount('searchById');
+    return deepSearchDocuments;
   }
 
   @override
