@@ -195,6 +195,19 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
+    /// Gets the next batch of the current active search.
+    pub async fn search_next_batch(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .search_next_batch()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
     /// Gets the current active search mode and term.
     pub async fn searched_by(engine: &SharedEngine) -> Box<Result<Search, String>> {
         Box::new(

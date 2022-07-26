@@ -98,6 +98,9 @@ abstract class Engine {
     int pageSize,
   );
 
+  /// Gets the next batch of the current active search.
+  Future<List<DocumentWithActiveData>> searchNextBatch();
+
   /// Gets the current active search mode and term.
   Future<ActiveSearch> searchedBy();
 
