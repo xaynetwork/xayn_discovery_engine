@@ -170,6 +170,28 @@ class SearchManager {
 
   /// Obtain the next batch of active search documents and persist to repositories.
   Future<EngineEvent> nextActiveSearchBatchRequested() async {
+    if (cfgFeatureStorage) {
+      final domain.ActiveSearch search;
+      final List<DocumentWithActiveData> docs;
+      try {
+        search = await _engine.searchedBy();
+        docs = await _engine.searchNextBatch();
+      } on Exception catch (e) {
+        if (e.toString().contains('Search request failed: no search')) {
+          return const EngineEvent.nextActiveSearchBatchRequestFailed(
+            SearchFailureReason.noActiveSearch,
+          );
+        }
+        rethrow;
+      }
+      await _engineStateRepo.save(await _engine.serialize());
+
+      return EngineEvent.nextActiveSearchBatchRequestSucceeded(
+        search.toApiRepr(),
+        docs.map((doc) => doc.document.toApiRepr()).toList(),
+      );
+    }
+
     final search = await _searchRepo.getCurrent();
 
     if (search == null) {

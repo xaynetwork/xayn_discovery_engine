@@ -144,6 +144,12 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<List<DocumentWithActiveData>> searchNextBatch() async {
+    _incrementCount('searchNextBatch');
+    return activeSearchDocuments.take(10).toList(growable: false);
+  }
+
+  @override
   Future<ActiveSearch> searchedBy() async {
     _incrementCount('searchedBy');
     return ActiveSearch(
