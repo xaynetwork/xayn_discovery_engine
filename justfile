@@ -335,6 +335,12 @@ _ci-dart-publish:
     {{just_executable()}} _dart-publish "$DART_UTILS_WORKSPACE"
     {{just_executable()}} _dart-publish "$DART_WORKSPACE"
 
+build-web-service:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    cargo build --release --bin web-api
+
 alias d := dart-test
 alias r := rust-test
 alias t := test
