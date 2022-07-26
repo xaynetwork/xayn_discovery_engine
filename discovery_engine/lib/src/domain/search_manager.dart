@@ -12,12 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show SearchClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show EngineEvent, SearchFailureReason;
 import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
-    show ActiveSearchApiConversion;
+    show ActiveSearch, ActiveSearchApiConversion, SearchBy;
 import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
@@ -26,7 +28,7 @@ import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch, SearchBy;
+    as domain show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -67,7 +69,7 @@ class SearchManager {
   /// Fails if [event] does not have a handler implemented.
   Future<EngineEvent> handleSearchClientEvent(SearchClientEvent event) =>
       event.maybeWhen(
-        activeSearchRequested: activeSearchRequested,
+        activeSearchRequested: (term, by) => activeSearchRequested(by, term),
         nextActiveSearchBatchRequested: nextActiveSearchBatchRequested,
         restoreActiveSearchRequested: restoreActiveSearchRequested,
         activeSearchClosed: activeSearchClosed,
@@ -79,7 +81,7 @@ class SearchManager {
       );
 
   Future<List<api.Document>> _getActiveSearchDocuments(
-    ActiveSearch search,
+    domain.ActiveSearch search,
   ) async {
     final List<DocumentWithActiveData> searchDocs;
 
@@ -115,19 +117,51 @@ class SearchManager {
 
   /// Obtain the first batch of active search documents and persist to repositories.
   Future<EngineEvent> activeSearchRequested(
-    String searchTerm,
-    SearchBy searchBy,
+    SearchBy by,
+    String term,
   ) async {
+    if (cfgFeatureStorage) {
+      final search = ActiveSearch(searchBy: by, searchTerm: term);
+      const page = 1;
+      final pageSize = _config.maxSearchDocs;
+      final List<DocumentWithActiveData> docs;
+      try {
+        switch (search.searchBy) {
+          case SearchBy.query:
+            docs =
+                await _engine.searchByQuery(search.searchTerm, page, pageSize);
+            break;
+          case SearchBy.topic:
+            docs =
+                await _engine.searchByTopic(search.searchTerm, page, pageSize);
+            break;
+        }
+      } on Exception catch (e) {
+        if (e.toString().contains('Search request failed: open search')) {
+          return const EngineEvent.activeSearchRequestFailed(
+            SearchFailureReason.openActiveSearch,
+          );
+        }
+        rethrow;
+      }
+      await _engineStateRepo.save(await _engine.serialize());
+
+      return EngineEvent.activeSearchRequestSucceeded(
+        search,
+        docs.map((doc) => doc.document.toApiRepr()).toList(),
+      );
+    }
+
     if (await _searchRepo.getCurrent() != null) {
       const reason = SearchFailureReason.openActiveSearch;
       return const EngineEvent.activeSearchRequestFailed(reason);
     }
 
-    final search = ActiveSearch(
-      searchTerm: searchTerm,
+    final search = domain.ActiveSearch(
+      searchBy: by,
+      searchTerm: term,
       requestedPageNb: 1,
       pageSize: _config.maxSearchDocs,
-      searchBy: searchBy,
     );
     final docs = await _getActiveSearchDocuments(search);
     await _searchRepo.save(search);

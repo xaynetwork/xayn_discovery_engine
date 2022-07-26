@@ -29,6 +29,10 @@ pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
 pub enum Error {
     /// Database error: {0}
     Database(#[source] GenericError),
+    /// Search request failed: open search
+    OpenSearch,
+    /// Search request failed: no search
+    NoSearch,
 }
 
 #[async_trait]

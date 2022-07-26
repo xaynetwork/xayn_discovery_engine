@@ -433,7 +433,13 @@ impl SearchScope for SqliteStorage {
             .try_map(|row| QueriedSearch::from_row(&row))
             .fetch_one(&mut tx)
             .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .map_err(|err| {
+                if let sqlx::Error::RowNotFound = err {
+                    Error::NoSearch
+                } else {
+                    Error::Database(err.into())
+                }
+            })?;
 
         let documents = query_builder
             .reset()
@@ -453,7 +459,13 @@ impl SearchScope for SqliteStorage {
             .try_map(|row| QueriedApiDocumentView::from_row(&row))
             .fetch_all(&mut tx)
             .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .or_else(|err| {
+                if let sqlx::Error::RowNotFound = err {
+                    Ok(Vec::new())
+                } else {
+                    Err(Error::Database(err.into()))
+                }
+            })?;
 
         Self::commit_tx(tx).await?;
 

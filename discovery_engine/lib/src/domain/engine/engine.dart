@@ -39,7 +39,7 @@ import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
-  /// Serializes the state of the [Engine] state.
+  /// Serializes the state of the [Engine].
   Future<Uint8List> serialize();
 
   /// Changes the currently supported markets.

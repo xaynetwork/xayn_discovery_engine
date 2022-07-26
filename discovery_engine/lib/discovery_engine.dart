@@ -30,3 +30,5 @@ export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart';
 
 void discoveryEngineInitLogger(Logger logger) => initLogger(logger);
 Logger get discoveryEngineLogger => logger;
+
+const cfgFeatureStorage = false;
