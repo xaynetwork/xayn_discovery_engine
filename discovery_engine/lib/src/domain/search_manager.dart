@@ -213,6 +213,33 @@ class SearchManager {
   ///
   /// That is, documents are ordered by their timestamp, then local rank.
   Future<EngineEvent> restoreActiveSearchRequested() async {
+    if (cfgFeatureStorage) {
+      final domain.ActiveSearch search;
+      final List<DocumentWithActiveData> docs;
+      try {
+        search = await _engine.searchedBy();
+        docs = await _engine.searched();
+      } on Exception catch (e) {
+        if (e.toString().contains('Search request failed: no search')) {
+          return const EngineEvent.nextActiveSearchBatchRequestFailed(
+            SearchFailureReason.noActiveSearch,
+          );
+        }
+        rethrow;
+      }
+
+      if (docs.isEmpty) {
+        return const EngineEvent.restoreActiveSearchFailed(
+          SearchFailureReason.noResultsAvailable,
+        );
+      }
+
+      return EngineEvent.restoreActiveSearchSucceeded(
+        search.toApiRepr(),
+        docs.map((doc) => doc.document.toApiRepr()).toList(),
+      );
+    }
+
     final search = await _searchRepo.getCurrent();
 
     if (search == null) {

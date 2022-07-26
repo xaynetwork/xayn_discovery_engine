@@ -101,6 +101,9 @@ abstract class Engine {
   /// Gets the next batch of the current active search.
   Future<List<DocumentWithActiveData>> searchNextBatch();
 
+  /// Restores the current active search, ordered by their global rank (timestamp & local rank).
+  Future<List<DocumentWithActiveData>> searched();
+
   /// Gets the current active search mode and term.
   Future<ActiveSearch> searchedBy();
 

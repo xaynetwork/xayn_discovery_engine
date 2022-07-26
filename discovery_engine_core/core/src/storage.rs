@@ -83,14 +83,16 @@ pub mod models {
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_providers::Market;
 
-    use crate::document::{self, UserReaction};
+    use crate::{
+        document::{self, UserReaction},
+        stack,
+    };
 
     #[derive(Debug)]
     pub(crate) struct NewDocument {
         pub(crate) id: document::Id,
         pub(crate) news_resource: NewsResource,
         pub(crate) newscatcher_data: NewscatcherData,
-        #[allow(dead_code)]
         pub(crate) embedding: Embedding,
     }
 
@@ -126,15 +128,46 @@ pub mod models {
         }
     }
 
+    impl From<(NewsResource, NewscatcherData)> for document::NewsResource {
+        fn from((news_resource, newscatcher_data): (NewsResource, NewscatcherData)) -> Self {
+            Self {
+                title: news_resource.title,
+                snippet: news_resource.snippet,
+                url: news_resource.url,
+                source_domain: news_resource.source,
+                date_published: news_resource.date_published,
+                image: news_resource.image,
+                rank: newscatcher_data.domain_rank,
+                score: newscatcher_data.score,
+                country: news_resource.market.country_code,
+                language: news_resource.market.lang_code,
+                topic: news_resource.topic,
+            }
+        }
+    }
+
     #[derive(Debug)]
-    #[allow(dead_code)]
     pub(crate) struct ApiDocumentView {
         pub(crate) document_id: document::Id,
         pub(crate) news_resource: NewsResource,
         pub(crate) newscatcher_data: NewscatcherData,
+        #[allow(dead_code)]
         pub(crate) user_reacted: Option<UserReaction>,
         // FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
+        #[allow(dead_code)]
         pub(crate) in_batch_index: u32,
+        pub(crate) embedding: Embedding,
+    }
+
+    impl ApiDocumentView {
+        pub(crate) fn into_document(self, stack_id: stack::Id) -> document::Document {
+            document::Document {
+                id: self.document_id,
+                stack_id,
+                smbert_embedding: self.embedding,
+                resource: (self.news_resource, self.newscatcher_data).into(),
+            }
+        }
     }
 
     /// Represents a news that is delivered by an external content API.

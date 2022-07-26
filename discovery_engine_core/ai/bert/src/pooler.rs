@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::ops::{AddAssign, Mul, MulAssign};
+use std::{
+    mem::size_of,
+    ops::{AddAssign, Mul, MulAssign},
+};
 
 use derive_more::{Deref, From};
 use displaydoc::Display;
@@ -38,6 +41,24 @@ pub type Embedding1 = Embedding<Ix1>;
 impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
     fn from(array: [f32; N]) -> Self {
         Array::from_vec(array.into()).into()
+    }
+}
+
+impl Embedding<Ix1> {
+    /// Converts from values in logical order to bytes in native byte order.
+    pub fn to_ne_bytes(&self) -> Vec<u8> {
+        self.iter().flat_map(|value| value.to_ne_bytes()).collect()
+    }
+
+    /// Converts from bytes in native byte order to values in standard order.
+    pub fn from_ne_bytes(
+        bytes: &[u8],
+    ) -> Result<Self, <[u8; size_of::<f32>()] as TryFrom<&[u8]>>::Error> {
+        bytes
+            .chunks(size_of::<f32>())
+            .map(|value| <[u8; size_of::<f32>()]>::try_from(value).map(f32::from_ne_bytes))
+            .collect::<Result<_, _>>()
+            .map(|values| Array::from_vec(values).into())
     }
 }
 

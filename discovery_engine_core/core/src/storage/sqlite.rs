@@ -25,6 +25,7 @@ use sqlx::{
     Transaction,
 };
 use url::Url;
+use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -192,6 +193,20 @@ impl SqliteStorage {
                 .execute(&mut *tx)
                 .await
                 .map_err(|err| Error::Database(err.into()))?;
+
+            // insert data into Embedding table
+            query_builder
+                .reset()
+                .push("Embedding (documentId, embedding) ")
+                .push_values(documents, |mut stm, doc| {
+                    stm.push_bind(&doc.id)
+                        .push_bind(doc.embedding.to_ne_bytes());
+                })
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
         }
 
         Ok(())
@@ -300,12 +315,13 @@ impl FeedScope for SqliteStorage {
             "SELECT
                 fd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex
+                ur.userReaction, po.inBatchIndex, em.embedding
             FROM FeedDocument           AS fd
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
             JOIN PresentationOrdering   AS po   USING(documentId)
             JOIN UserReaction           AS ur   USING(documentId)
+            JOIN Embedding              AS em   USING(documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .persistent(false)
@@ -446,12 +462,13 @@ impl SearchScope for SqliteStorage {
             .push(
                 "sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex
+                ur.userReaction, po.inBatchIndex, em.embedding
             FROM SearchDocument         AS sd
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
             JOIN PresentationOrdering   AS po   USING(documentId)
             JOIN UserReaction           AS ur   USING(documentId)
+            JOIN Embedding              AS em   USING(documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
             )
             .build()
@@ -564,6 +581,7 @@ struct QueriedApiDocumentView {
     score: Option<f32>,
     user_reaction: Option<u32>,
     in_batch_index: u32,
+    embedding: Vec<u8>,
 }
 
 impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
@@ -606,10 +624,13 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             .user_reaction
             .map(|value| {
                 UserReaction::from_u32(value).ok_or_else(|| {
-                    Error::Database(format!("Failed to convert {value} to UserReaction",).into())
+                    Error::Database(format!("Failed to convert {value} to UserReaction").into())
                 })
             })
             .transpose()?;
+        let embedding = Embedding::from_ne_bytes(&doc.embedding).map_err(|err| {
+            Error::Database(format!("Failed to convert bytes to Embedding: {err}").into())
+        })?;
 
         Ok(ApiDocumentView {
             document_id: doc.document_id,
@@ -617,6 +638,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             newscatcher_data,
             user_reacted,
             in_batch_index: doc.in_batch_index,
+            embedding,
         })
     }
 }
