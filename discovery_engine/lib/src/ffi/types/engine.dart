@@ -170,6 +170,22 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
+  Future<List<DocumentWithActiveData>> feedNextBatch(
+    final List<SourceReacted> sources,
+    final int maxDocuments,
+  ) async {
+    final result = await asyncFfi.feedNextBatch(
+      _engine.ref,
+      sources.allocVec().move(),
+      maxDocuments,
+    );
+
+    return resultVecDocumentStringFfiAdapter
+        .consumeNative(result)
+        .toDocumentListWithActiveData();
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     final List<HistoricDocument> history,
     final List<SourceReacted> sources,

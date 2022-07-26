@@ -261,7 +261,13 @@ impl Storage for SqliteStorage {
         .persistent(false)
         .fetch_all(&mut tx)
         .await
-        .map_err(|err| Error::Database(err.into()))?;
+        .or_else(|err| {
+            if let sqlx::Error::RowNotFound = err {
+                Ok(Vec::new())
+            } else {
+                Err(Error::Database(err.into()))
+            }
+        })?;
 
         Self::commit_tx(tx).await?;
 

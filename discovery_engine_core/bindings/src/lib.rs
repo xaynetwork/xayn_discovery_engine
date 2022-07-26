@@ -107,6 +107,24 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
+    /// Gets the next batch of feed documents.
+    #[allow(clippy::box_collection)]
+    pub async fn feed_next_batch(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        max_documents: u32,
+    ) -> Box<Result<Vec<Document>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .feed_next_batch(&sources, max_documents)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
     /// Gets feed documents.
     #[allow(clippy::box_collection)]
     pub async fn get_feed_documents(

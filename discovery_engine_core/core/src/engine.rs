@@ -422,6 +422,27 @@ impl Engine {
         self.exploration_stack.data = StackData::default();
     }
 
+    /// Gets the next batch of feed documents.
+    #[instrument(skip(self))]
+    pub async fn feed_next_batch(
+        &mut self,
+        sources: &[WeightedSource],
+        max_documents: u32,
+    ) -> Result<Vec<Document>, Error> {
+        #[cfg(feature = "storage")]
+        {
+            let history = self.storage.fetch_history().await?;
+
+            // TODO: merge `get_feed_documents()` into this method after DB migration
+            return self
+                .get_feed_documents(&history, sources, max_documents)
+                .await;
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
     /// Returns at most `max_documents` [`Document`]s for the feed.
     #[instrument(skip(self, history))]
     pub async fn get_feed_documents(

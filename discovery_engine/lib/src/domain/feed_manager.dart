@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
@@ -109,6 +111,31 @@ class FeedManager {
 
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
+    if (cfgFeatureStorage) {
+      final sources = await _sourceReactedRepo.fetchAll();
+      final List<DocumentWithActiveData> docs;
+      try {
+        docs = await _engine.feedNextBatch(sources, _config.maxFeedDocs);
+      } on Exception catch (e) {
+        return EngineEvent.nextFeedBatchRequestFailed(
+          FeedFailureReason.stacksOpsError,
+          errors: '$e',
+        );
+      }
+
+      await _engineStateRepo.save(await _engine.serialize());
+
+      if (docs.isEmpty) {
+        return const EngineEvent.nextFeedBatchRequestFailed(
+          FeedFailureReason.noNewsForMarket,
+        );
+      }
+
+      return EngineEvent.nextFeedBatchRequestSucceeded(
+        docs.map((doc) => doc.document.toApiRepr()).toList(),
+      );
+    }
+
     final history = await _docRepo.fetchHistory();
     final sources = await _sourceReactedRepo.fetchAll();
     final List<DocumentWithActiveData> feedDocs;

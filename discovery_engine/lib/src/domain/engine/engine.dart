@@ -67,6 +67,12 @@ abstract class Engine {
     Set<Source> trusted,
   );
 
+  /// Gets the next batch of feed documents.
+  Future<List<DocumentWithActiveData>> feedNextBatch(
+    List<SourceReacted> sources,
+    int maxDocuments,
+  );
+
   /// Retrieves at most [maxDocuments] feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,

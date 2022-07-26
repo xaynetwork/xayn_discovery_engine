@@ -102,6 +102,15 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<List<DocumentWithActiveData>> feedNextBatch(
+    List<SourceReacted> sources,
+    int maxDocuments,
+  ) async {
+    _incrementCount('feedNextBatch');
+    return feedDocuments.take(maxDocuments).toList(growable: false);
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
     List<SourceReacted> sources,
