@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::ops::{AddAssign, Mul, MulAssign};
+use std::{
+    mem::size_of,
+    ops::{AddAssign, Mul, MulAssign},
+};
 
 use derive_more::{Deref, From};
 use displaydoc::Display;
@@ -35,9 +38,36 @@ where
 /// The embedding is of shape `(embedding_size,)`.
 pub type Embedding1 = Embedding<Ix1>;
 
+impl Embedding<Ix1> {
+    /// Converts from values in logical order to bytes in little endianness.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.iter().flat_map(|value| value.to_le_bytes()).collect()
+    }
+}
+
 impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
     fn from(array: [f32; N]) -> Self {
         Array::from_vec(array.into()).into()
+    }
+}
+
+impl TryFrom<Vec<u8>> for Embedding<Ix1> {
+    type Error = Vec<u8>;
+
+    /// Converts from bytes in little endianness to values in standard order.
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        if bytes.len() % size_of::<f32>() != 0 {
+            return Err(bytes);
+        }
+
+        let floats = bytes
+            .chunks_exact(size_of::<f32>())
+            .map(|chunk| {
+                f32::from_le_bytes(chunk.try_into().unwrap(/* checked length before */))
+            })
+            .collect();
+
+        Ok(Array::from_vec(floats).into())
     }
 }
 
