@@ -4,7 +4,7 @@
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, version 3.
 //
-// This program is distrib&uted in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
@@ -19,7 +19,10 @@ use chrono::{NaiveDateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
-    FromRow, Pool, QueryBuilder, Transaction,
+    FromRow,
+    Pool,
+    QueryBuilder,
+    Transaction,
 };
 use url::Url;
 use xayn_discovery_engine_providers::Market;
@@ -28,9 +31,18 @@ use crate::{
     document::{self, HistoricDocument, UserReaction},
     storage::{
         models::{
-            ApiDocumentView, NewDocument, NewsResource, NewscatcherData, Paging, Search, SearchBy,
+            ApiDocumentView,
+            NewDocument,
+            NewsResource,
+            NewscatcherData,
+            Paging,
+            Search,
+            SearchBy,
         },
-        Error, FeedScope, SearchScope, Storage,
+        Error,
+        FeedScope,
+        SearchScope,
+        Storage,
     },
 };
 
@@ -959,7 +971,12 @@ mod tests {
             .unwrap();
 
         assert!(matches!(view, ReactionContext::Positive { .. }));
-        if let ReactionContext::Positive { embedding, snippet, title } = view {
+        if let ReactionContext::Positive {
+            embedding,
+            snippet,
+            title,
+        } = view
+        {
             assert_eq!(embedding, docs[0].embedding);
             assert_eq!(snippet, docs[0].news_resource.snippet);
             assert_eq!(title, docs[0].news_resource.title);
