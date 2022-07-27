@@ -19,7 +19,10 @@ use chrono::{NaiveDateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
-    FromRow, Pool, QueryBuilder, Transaction,
+    FromRow,
+    Pool,
+    QueryBuilder,
+    Transaction,
 };
 use url::Url;
 use xayn_discovery_engine_providers::Market;
@@ -29,9 +32,18 @@ use crate::{
     stack,
     storage::{
         models::{
-            ApiDocumentView, NewDocument, NewsResource, NewscatcherData, Paging, Search, SearchBy,
+            ApiDocumentView,
+            NewDocument,
+            NewsResource,
+            NewscatcherData,
+            Paging,
+            Search,
+            SearchBy,
         },
-        Error, FeedScope, SearchScope, Storage,
+        Error,
+        FeedScope,
+        SearchScope,
+        Storage,
     },
 };
 
