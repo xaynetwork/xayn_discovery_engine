@@ -50,8 +50,8 @@ use crate::{
 const BIND_LIMIT: usize = 32766;
 
 trait SqlxSqliteErrorExt<V> {
-    /// Use this on the result of an sqlite query which might have failed a foreign
-    /// key constraint if a illegal document if was passed in.
+    /// Use this on the result of a sqlite query which might have failed a foreign
+    /// key constraint when an illegal document was passed in.
     ///
     /// For example it can be used in `.user_reacted` to handle it being
     /// called with a random document id.
@@ -831,10 +831,7 @@ mod tests {
             .await
             .fk_violation_is_invalid_document_id(document_id);
 
-        assert!(matches!(res, Err(Error::InvalidDocumentId(_))));
-        if let Err(Error::InvalidDocumentId(id)) = res {
-            assert_eq!(id, document_id);
-        }
+        assert!(matches!(res, Err(Error::InvalidDocumentId(id)) if id == document_id));
 
         let res = sqlx::query("malformed;")
             .execute(&storage.pool)
