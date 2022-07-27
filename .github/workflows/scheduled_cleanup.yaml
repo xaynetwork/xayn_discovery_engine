@@ -1,0 +1,20 @@
+name: Scheduled Cleanup repo
+
+on:
+  schedule:
+    - cron: '30 00 * * sun'
+  workflow_dispatch:
+jobs:
+  jfrog_packages_cleanup:
+     name: install jfrog cli
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/checkout@v2
+       - uses: jfrog/setup-jfrog-cli@v2
+         env:
+           JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
+       - run: |
+           jf c use xayn
+           # Ping xayn Artifactory server
+           jf rt ping
+           jf rt del --spec .github/scripts/artifactory.spec
