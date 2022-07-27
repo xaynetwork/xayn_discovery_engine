@@ -361,6 +361,26 @@ build-web-service:
     cd "$RUST_WORKSPACE"
     cargo build --release --bin web-api
 
+db-setup:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    cargo sqlx --help | head -n1
+    if [[ "$?" == "101" ]]; then
+        echo "You need to install sqlx-cli: `cargo install sqlx-cli`"
+        exit 101
+    fi
+    export DATABASE_URL="sqlite:file://$(mktemp -d -t sqlx.discovery_engine.XXXX)/db.sqlite?mode=rwc"
+    cargo sqlx database setup --source "core/src/storage/migrations"
+    echo "DATABASE_URL=${DATABASE_URL}" >>.env.db.dev
+
+db-migrate +ARGS:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    export $(cat .env.db.dev | xargs)
+    cargo sqlx migrate --source "core/src/storage/migrations" {{ARGS}}
+
 alias d := dart-test
 alias r := rust-test
 alias t := test
