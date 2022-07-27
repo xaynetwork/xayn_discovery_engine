@@ -115,6 +115,7 @@ _codegen-order-workaround:
 # Checks rust code, fails on warnings on CI
 rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
+    cargo clippy --all-targets --features="storage" --locked; \
     cargo clippy --all-targets --locked; \
     cargo clippy --all-targets --features storage --locked; \
     cargo check -p xayn-discovery-engine-bindings
