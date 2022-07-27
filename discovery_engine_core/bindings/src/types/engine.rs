@@ -22,3 +22,10 @@ use xayn_discovery_engine_core::Engine;
 /// A shared discovery engine with a lock.
 #[derive(AsRef, From)]
 pub struct SharedEngine(Mutex<Engine>);
+
+//FIXME for message API hack:
+// - change it to SharedEngine(Arc<Mutex<Engine>>)
+// - return Box<Result<SharedEngine, Error>>
+//   - we could extract the SharedEngine now, instead of mapping it
+// - turn Arc<Mutex<Engine>>.clone() into *cont Mutex<Engine> into vec![bytes of the ptr address]
+//   and send this as a init message to the engine before even returning from async-ffi

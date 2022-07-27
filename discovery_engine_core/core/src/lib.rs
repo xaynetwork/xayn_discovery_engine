@@ -34,6 +34,7 @@ mod config;
 pub mod document;
 mod engine;
 mod mab;
+pub mod message_api;
 pub mod stack;
 #[cfg(feature = "storage")]
 pub mod storage;
