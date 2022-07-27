@@ -27,6 +27,8 @@ pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
+    /// Engine doesn't have a document with id {0}
+    InvalidDocumentId(document::Id),
     /// Database error: {0}
     Database(#[source] GenericError),
     /// Search request failed: open search
@@ -35,6 +37,12 @@ pub enum Error {
     NoSearch,
     /// Search request failed: no document
     NoDocument,
+}
+
+impl From<sqlx::Error> for Error {
+    fn from(generic: sqlx::Error) -> Self {
+        Error::Database(generic.into())
+    }
 }
 
 #[async_trait]
