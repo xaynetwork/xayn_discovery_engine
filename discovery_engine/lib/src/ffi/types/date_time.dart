@@ -24,17 +24,17 @@ extension NaiveDateTimeFfi on DateTime {
     // January 1, 1970 ignoring time zone.
     ffi.init_naive_date_time_at(
       place,
-      microsecondsSinceEpoch + timeZoneOffset.inMicroseconds,
+      microsecondsSinceEpoch,
     );
   }
 
   static DateTime readNative(Pointer<RustNaiveDateTime> naiveDateTime) {
     final microsecondsSinceEpochLocal =
         ffi.get_naive_date_time_micros_since_epoch(naiveDateTime);
-    final dateTime =
-        DateTime.fromMicrosecondsSinceEpoch(microsecondsSinceEpochLocal);
-    // the constructor interpreted it as micro seconds in UTC for creating a
-    // non UTC Time Zone, so time is of by the time zone offset
-    return dateTime.subtract(dateTime.timeZoneOffset);
+    final dateTime = DateTime.fromMicrosecondsSinceEpoch(
+      microsecondsSinceEpochLocal,
+      isUtc: true,
+    );
+    return dateTime;
   }
 }
