@@ -102,6 +102,7 @@ impl SqliteStorage {
         tx.commit().await.map_err(|err| Error::Database(err.into()))
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn store_new_documents(
         tx: &mut Transaction<'_, Sqlite>,
         documents: &[NewDocument],
@@ -594,11 +595,11 @@ impl SearchScope for SqliteStorage {
         .bind(id)
         .fetch_one(&mut tx)
         .await
-        .or_else(|err| {
+        .map_err(|err| {
             if let sqlx::Error::RowNotFound = err {
-                Err(Error::NoDocument)
+                Error::NoDocument
             } else {
-                Err(Error::Database(err.into()))
+                Error::Database(err.into())
             }
         })?;
 
@@ -743,7 +744,7 @@ mod tests {
 
     use super::*;
 
-    fn create_documents(n: u64) -> Vec<NewDocument> {
+    fn create_documents(n: u8) -> Vec<NewDocument> {
         (0..n)
             .map(|i| {
                 document::Document {
@@ -756,8 +757,8 @@ mod tests {
                         source_domain: format!("example-{i}.com"),
                         image: (i != 0)
                             .then(|| Url::parse(&format!("http://example-image-{i}.com")).unwrap()),
-                        rank: i,
-                        score: (i != 0).then(|| i as f32),
+                        rank: u64::from(i),
+                        score: (i != 0).then(|| f32::from(i)),
                         topic: format!("topic-{i}"),
                         ..NewsResource::default()
                     },
@@ -777,7 +778,7 @@ mod tests {
                 .all(|((idx, api_docs), doc)| {
                     api_docs.document_id == doc.id
                         && api_docs.news_resource == doc.news_resource
-                        && api_docs.in_batch_index == idx as u32
+                        && api_docs.in_batch_index == u32::try_from(idx).unwrap()
                 })
     }
 

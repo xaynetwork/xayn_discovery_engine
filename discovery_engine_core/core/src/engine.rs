@@ -737,7 +737,7 @@ impl Engine {
                 )
                 .await?;
 
-            return Ok(documents);
+            Ok(documents)
         }
 
         #[cfg(not(feature = "storage"))]
@@ -755,7 +755,7 @@ impl Engine {
                 .map(|document| document.into_document(StackId::nil()))
                 .collect();
 
-            return Ok(documents);
+            Ok(documents)
         }
 
         #[cfg(not(feature = "storage"))]
@@ -774,7 +774,7 @@ impl Engine {
                 storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
             };
 
-            return Ok(search);
+            Ok(search)
         }
 
         #[cfg(not(feature = "storage"))]
