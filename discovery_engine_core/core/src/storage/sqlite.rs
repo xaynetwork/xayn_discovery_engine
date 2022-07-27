@@ -628,14 +628,13 @@ impl SearchScope for SqliteStorage {
             "SELECT
                 hd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding, st.stackId
+                ur.userReaction, po.inBatchIndex, em.embedding, null as stackId
             FROM HistoricDocument       AS hd
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
             JOIN PresentationOrdering   AS po   USING(documentId)
             JOIN UserReaction           AS ur   USING(documentId)
             JOIN Embedding              AS em   USING(documentId)
-            LEFT JOIN StackDocument     AS st   USING(documentId)
             WHERE documentId = ?;",
         )
         .persistent(false)
