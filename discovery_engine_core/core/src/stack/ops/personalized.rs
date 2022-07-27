@@ -50,6 +50,10 @@ pub(crate) struct PersonalizedNews {
 }
 
 impl PersonalizedNews {
+    pub(crate) const fn id() -> Id {
+        Id(uuid!("311dc7eb-5fc7-4aa4-8232-e119f7e80e76"))
+    }
+
     /// Creates a personalized news stack.
     pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn NewsProvider>) -> Self {
         Self {
@@ -77,7 +81,7 @@ impl PersonalizedNews {
 #[async_trait]
 impl Ops for PersonalizedNews {
     fn id(&self) -> Id {
-        Id(uuid!("311dc7eb-5fc7-4aa4-8232-e119f7e80e76"))
+        Self::id()
     }
 
     fn needs_key_phrases(&self) -> bool {
