@@ -12,12 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use displaydoc::Display;
 use thiserror::Error;
 use xayn_discovery_engine_ai::GenericError;
 
-use crate::document::{self, HistoricDocument};
+use crate::{
+    document::{self, HistoricDocument},
+    stack,
+};
 
 use self::models::{ApiDocumentView, NewDocument, Search};
 
@@ -65,7 +70,11 @@ pub(crate) trait FeedScope {
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error>;
 
     // helper function. will be replaced later by move_from_stacks_to_feed
-    async fn store_documents(&self, documents: &[NewDocument]) -> Result<(), Error>;
+    async fn store_documents(
+        &self,
+        documents: &[NewDocument],
+        stack_ids: &HashMap<document::Id, stack::Id>,
+    ) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -169,23 +178,26 @@ pub mod models {
         #[allow(dead_code)]
         pub(crate) in_batch_index: u32,
         pub(crate) embedding: Embedding,
+        pub(crate) stack_id: Option<stack::Id>,
     }
 
     impl ApiDocumentView {
-        pub(crate) fn into_document(self, stack_id: stack::Id) -> document::Document {
-            document::Document {
-                id: self.document_id,
-                stack_id,
-                smbert_embedding: self.embedding,
-                resource: (self.news_resource, self.newscatcher_data).into(),
-            }
-        }
-
         /// Gets the snippet or falls back to the title if the snippet is empty.
         pub(crate) fn snippet_or_title(&self) -> &str {
             (!self.news_resource.snippet.is_empty())
                 .then(|| &self.news_resource.snippet)
                 .unwrap_or(&self.news_resource.title)
+        }
+    }
+
+    impl From<ApiDocumentView> for document::Document {
+        fn from(view: ApiDocumentView) -> Self {
+            document::Document {
+                id: view.document_id,
+                stack_id: view.stack_id.unwrap_or_default(),
+                smbert_embedding: view.embedding,
+                resource: (view.news_resource, view.newscatcher_data).into(),
+            }
         }
     }
 

@@ -12,39 +12,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Cow, str::FromStr};
+use std::{borrow::Cow, collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
-    FromRow,
-    Pool,
-    QueryBuilder,
-    Transaction,
+    FromRow, Pool, QueryBuilder, Transaction,
 };
 use url::Url;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
     document::{self, HistoricDocument, UserReaction},
+    stack,
     storage::{
         models::{
-            ApiDocumentView,
-            NewDocument,
-            NewsResource,
-            NewscatcherData,
-            Paging,
-            Search,
-            SearchBy,
+            ApiDocumentView, NewDocument, NewsResource, NewscatcherData, Paging, Search, SearchBy,
         },
-        Error,
-        FeedScope,
-        SearchScope,
-        Storage,
+        Error, FeedScope, SearchScope, Storage,
     },
 };
+
+use self::utils::SqlxPushTupleExt;
+
+mod utils;
 
 // Sqlite bind limit
 const BIND_LIMIT: usize = 32766;
@@ -91,7 +84,40 @@ impl SqliteStorage {
         Ok(Self { pool })
     }
 
-    async fn begin_tx(&self) -> Result<Transaction<'_, Sqlite>, Error> {
+    async fn setup_keep_stacks_in_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {
+        let expected_ids = &[
+            stack::ops::breaking::BreakingNews::id(),
+            stack::ops::personalized::PersonalizedNews::id(),
+            stack::ops::trusted::TrustedNews::id(),
+            stack::exploration::Stack::id(),
+        ];
+
+        let mut query_builder = QueryBuilder::new(String::new());
+        query_builder
+            .push("INSERT INTO Stack (stackId) ")
+            .push_values(expected_ids, |mut stm, id| {
+                stm.push_bind(id);
+            })
+            .push("ON CONFLICT DO NOTHING")
+            .build()
+            .persistent(false)
+            .execute(&mut *tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+
+        query_builder
+            .reset()
+            .push("DELETE FROM Stack WHERE stackId not in ")
+            .push_tuple(expected_ids)
+            .build()
+            .persistent(false)
+            .execute(tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+        Ok(())
+    }
+
+    async fn begin_tx(&self) -> Result<Transaction<'static, Sqlite>, Error> {
         self.pool
             .begin()
             .await
@@ -242,14 +268,11 @@ impl SqliteStorage {
             return Ok(deletion);
         }
 
-        let mut query_builder = QueryBuilder::new("DELETE FROM Document WHERE id IN (");
+        let mut query_builder = QueryBuilder::new("DELETE FROM Document WHERE id IN ");
         for documents in documents.chunks(BIND_LIMIT) {
-            let mut separated_builder = query_builder.reset().separated(", ");
-            for id in documents {
-                separated_builder.push_bind(id);
-            }
             deletion |= query_builder
-                .push(");")
+                .reset()
+                .push_tuple(documents)
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
@@ -269,7 +292,12 @@ impl Storage for SqliteStorage {
         sqlx::migrate!("src/storage/migrations")
             .run(&self.pool)
             .await
-            .map_err(|err| Error::Database(err.into()))
+            .map_err(|err| Error::Database(err.into()))?;
+
+        let mut tx = self.begin_tx().await?;
+        Self::setup_keep_stacks_in_sync(&mut tx).await?;
+        Self::commit_tx(tx).await?;
+        Ok(())
     }
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error> {
@@ -325,7 +353,6 @@ impl FeedScope for SqliteStorage {
         let mut tx = self.begin_tx().await?;
 
         let deletion = sqlx::query("DELETE FROM FeedDocument;")
-            .persistent(false)
             .execute(&mut tx)
             .await
             .map_err(|err| Error::Database(err.into()))?;
@@ -342,13 +369,14 @@ impl FeedScope for SqliteStorage {
             "SELECT
                 fd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding
+                ur.userReaction, po.inBatchIndex, em.embedding, st.stackId
             FROM FeedDocument           AS fd
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
             JOIN PresentationOrdering   AS po   USING(documentId)
             JOIN UserReaction           AS ur   USING(documentId)
             JOIN Embedding              AS em   USING(documentId)
+            JOIN StackDocument          As st   USING(documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .persistent(false)
@@ -361,7 +389,11 @@ impl FeedScope for SqliteStorage {
         documents.into_iter().map(TryInto::try_into).collect()
     }
 
-    async fn store_documents(&self, documents: &[NewDocument]) -> Result<(), Error> {
+    async fn store_documents(
+        &self,
+        documents: &[NewDocument],
+        stack_ids: &HashMap<document::Id, stack::Id>,
+    ) -> Result<(), Error> {
         if documents.is_empty() {
             return Ok(());
         }
@@ -371,9 +403,24 @@ impl FeedScope for SqliteStorage {
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
 
         // insert data into FeedDocument table
-        QueryBuilder::new("INSERT INTO FeedDocument (documentId) ")
+        let mut query_builder = QueryBuilder::new("INSERT INTO ");
+        query_builder
+            .push("FeedDocument (documentId) ")
             .push_values(documents, |mut stm, doc| {
-                stm.push_bind(&doc.id);
+                stm.push_bind(doc.id);
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+
+        query_builder
+            .reset()
+            .push("StackDocument (documentId, stackId) ")
+            .push_values(stack_ids, |mut stm, (doc_id, stack_id)| {
+                stm.push_bind(doc_id);
+                stm.push_bind(stack_id);
             })
             .build()
             .persistent(false)
@@ -489,7 +536,7 @@ impl SearchScope for SqliteStorage {
             .push(
                 "sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding
+                ur.userReaction, po.inBatchIndex, em.embedding, null as stackId
             FROM SearchDocument         AS sd
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
@@ -581,13 +628,14 @@ impl SearchScope for SqliteStorage {
             "SELECT
                 hd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding
+                ur.userReaction, po.inBatchIndex, em.embedding, st.stackId
             FROM HistoricDocument       AS hd
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
             JOIN PresentationOrdering   AS po   USING(documentId)
             JOIN UserReaction           AS ur   USING(documentId)
             JOIN Embedding              AS em   USING(documentId)
+            LEFT JOIN StackDocument     AS st   USING(documentId)
             WHERE documentId = ?;",
         )
         .persistent(false)
@@ -648,6 +696,7 @@ struct QueriedApiDocumentView {
     user_reaction: Option<u32>,
     in_batch_index: u32,
     embedding: Vec<u8>,
+    stack_id: Option<stack::Id>,
 }
 
 impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
@@ -705,6 +754,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             user_reacted,
             in_batch_index: doc.in_batch_index,
             embedding,
+            stack_id: doc.stack_id,
         })
     }
 }
@@ -739,6 +789,8 @@ impl TryFrom<QueriedSearch> for Search {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use crate::{document::NewsResource, stack, storage::models::NewDocument};
 
     use super::*;
@@ -748,7 +800,7 @@ mod tests {
             .map(|i| {
                 document::Document {
                     id: document::Id::new(),
-                    stack_id: stack::Id::new_random(),
+                    stack_id: stack::Id::nil(),
                     resource: NewsResource {
                         title: format!("title-{i}"),
                         snippet: format!("snippet-{i}"),
@@ -766,6 +818,10 @@ mod tests {
                 .into()
             })
             .collect()
+    }
+
+    fn stack_ids_for(doc: &[NewDocument], stack_id: stack::Id) -> HashMap<document::Id, stack::Id> {
+        doc.iter().map(|doc| (doc.id, stack_id)).collect()
     }
 
     fn check_eq_of_documents(api_docs: &[ApiDocumentView], docs: &[NewDocument]) -> bool {
@@ -789,7 +845,12 @@ mod tests {
         assert!(history.is_empty());
 
         let docs = create_documents(10);
-        storage.feed().store_documents(&docs).await.unwrap();
+        let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
+        storage
+            .feed()
+            .store_documents(&docs, &stack_ids)
+            .await
+            .unwrap();
 
         let history = storage.fetch_history().await.unwrap();
         assert_eq!(history.len(), docs.len());
@@ -808,11 +869,20 @@ mod tests {
         let feed = storage.feed().fetch().await.unwrap();
         assert!(feed.is_empty());
 
+        let stack_id = stack::PersonalizedNews::id();
         let docs = create_documents(10);
-        storage.feed().store_documents(&docs).await.unwrap();
+        let stack_ids = stack_ids_for(&docs, stack_id);
+        storage
+            .feed()
+            .store_documents(&docs, &stack_ids)
+            .await
+            .unwrap();
 
         let feed = storage.feed().fetch().await.unwrap();
         assert!(check_eq_of_documents(&feed, &docs));
+        for doc in feed {
+            assert_eq!(doc.stack_id, Some(stack_id));
+        }
 
         storage.feed().close_document(&docs[0].id).await.unwrap();
         let feed = storage.feed().fetch().await.unwrap();
@@ -911,7 +981,11 @@ mod tests {
         storage.init_database().await.unwrap();
         let mut docs = create_documents(1);
         docs[0].newscatcher_data.domain_rank = u64::MAX;
-        storage.feed().store_documents(&docs).await.unwrap();
+        storage
+            .feed()
+            .store_documents(&docs, &stack_ids_for(&docs, stack::PersonalizedNews::id()))
+            .await
+            .unwrap();
         let feed = storage.feed().fetch().await.unwrap();
 
         assert_eq!(
@@ -950,5 +1024,52 @@ mod tests {
             .fk_violation_is_invalid_document_id(document_id);
 
         assert!(!matches!(res, Err(Error::InvalidDocumentId(_))));
+    }
+
+    #[tokio::test]
+    async fn test_missing_stacks_are_added_and_removed_stacks_removed() {
+        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!("src/storage/migrations")
+            .run(&storage.pool)
+            .await
+            .unwrap();
+
+        let mut tx = storage.begin_tx().await.unwrap();
+
+        let random_id = stack::Id::new_random();
+        sqlx::query("INSERT INTO Stack(stackId) VALUES (?), (?);")
+            .persistent(false)
+            .bind(stack::PersonalizedNews::id())
+            .bind(random_id)
+            .execute(&mut tx)
+            .await
+            .unwrap();
+
+        SqliteStorage::setup_keep_stacks_in_sync(&mut tx)
+            .await
+            .unwrap();
+
+        //FIXME: For some reason if I try to read the stackIds from the database
+        //       without first committing here the select statement will hang (sometimes).
+        //       This happens even if no cached statements are used.
+        SqliteStorage::commit_tx(tx).await.unwrap();
+
+        let ids = sqlx::query_as::<_, stack::Id>("SELECT stackId FROM Stack;")
+            .persistent(false)
+            .fetch_all(&storage.pool)
+            .await
+            .unwrap();
+
+        let expected_ids = [
+            stack::ops::breaking::BreakingNews::id(),
+            stack::ops::personalized::PersonalizedNews::id(),
+            stack::ops::trusted::TrustedNews::id(),
+            stack::exploration::Stack::id(),
+        ];
+
+        assert_eq!(
+            ids.into_iter().collect::<HashSet<_>>(),
+            expected_ids.into_iter().collect::<HashSet<_>>()
+        );
     }
 }
