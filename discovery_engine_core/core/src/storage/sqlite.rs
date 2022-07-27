@@ -108,6 +108,7 @@ impl SqliteStorage {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn store_new_documents(
         tx: &mut Transaction<'_, Sqlite>,
         documents: &[NewDocument],
@@ -974,7 +975,9 @@ mod tests {
                 })
         }};
     }
-
+//TODO[pmk]
+//     && api_docs.in_batch_index == u32::try_from(idx).unwrap()
+// })
     async fn create_memory_storage() -> impl Storage {
         let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
         storage.init_database().await.unwrap();
