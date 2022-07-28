@@ -9,6 +9,7 @@ async-bindgen = { path = "../async-bindgen/async-bindgen" }
 cfg-if = "1.0.0"
 chrono = { version = "0.4.19", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
+itertools = "0.10.3"
 ndarray = "0.15.4"
 tokio = { version = "1.19.2", features = ["sync"] }
 tracing = "0.1.35"

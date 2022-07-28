@@ -18,6 +18,8 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi, StackIdFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/uuid_vec.dart'
+    show DocumentIdSetFfi;
 
 void main() {
   test('reading written document id yields same result', () {
@@ -36,5 +38,15 @@ void main() {
     final res = StackIdFfi.readNative(place);
     ffi.drop_uuid(place);
     expect(res, equals(uuid));
+  });
+
+  test('reading written Vec<DocumentId> works', () {
+    final ids = List.generate(
+      10,
+      (_) => DocumentId.fromBytes(Uuid.parseAsByteList(const Uuid().v4())),
+    ).toSet();
+    final boxed = ids.allocNative();
+    final result = DocumentIdSetFfi.consumeNative(boxed);
+    expect(result, equals(ids));
   });
 }

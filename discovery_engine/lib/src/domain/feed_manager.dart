@@ -17,7 +17,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show EngineEvent, FeedFailureReason;
+    show EngineEvent, EngineExceptionReason, FeedFailureReason;
 import 'package:xayn_discovery_engine/src/api/models/document.dart'
     show DocumentApiConversion;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -185,6 +185,19 @@ class FeedManager {
 
   /// Deactivate the given documents.
   Future<EngineEvent> deactivateDocuments(Set<DocumentId> ids) async {
+    if (cfgFeatureStorage) {
+      try {
+        await _engine.deleteFeedDocuments(ids);
+      } on Exception catch (e) {
+        return EngineEvent.engineExceptionRaised(
+          EngineExceptionReason.genericError,
+          message: '$e',
+        );
+      }
+
+      return const EngineEvent.clientEventSucceeded();
+    }
+
     await _activeRepo.removeByIds(ids);
 
     final docs = await _docRepo.fetchByIds(ids);
