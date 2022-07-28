@@ -82,14 +82,9 @@ pub(crate) struct SqliteStorage {
 
 impl SqliteStorage {
     pub(crate) async fn connect(uri: &str) -> Result<Self, Error> {
-        let opt = SqliteConnectOptions::from_str(uri)
-            .map_err(|err| Error::Database(err.into()))?
-            .create_if_missing(true);
+        let opt = SqliteConnectOptions::from_str(uri)?.create_if_missing(true);
 
-        let pool = SqlitePoolOptions::new()
-            .connect_with(opt)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        let pool = SqlitePoolOptions::new().connect_with(opt).await?;
 
         Ok(Self { pool })
     }
@@ -112,8 +107,7 @@ impl SqliteStorage {
             .build()
             .persistent(false)
             .execute(&mut *tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
         query_builder
             .reset()
@@ -122,20 +116,8 @@ impl SqliteStorage {
             .build()
             .persistent(false)
             .execute(tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
         Ok(())
-    }
-
-    async fn begin_tx(&self) -> Result<Transaction<'static, Sqlite>, Error> {
-        self.pool
-            .begin()
-            .await
-            .map_err(|err| Error::Database(err.into()))
-    }
-
-    async fn commit_tx(tx: Transaction<'_, Sqlite>) -> Result<(), Error> {
-        tx.commit().await.map_err(|err| Error::Database(err.into()))
     }
 
     async fn store_new_documents(
@@ -163,8 +145,7 @@ impl SqliteStorage {
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
+                .await?;
 
             // insert id into HistoricDocument table
             query_builder
@@ -176,8 +157,7 @@ impl SqliteStorage {
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
+                .await?;
 
             // insert data into NewsResource table
             query_builder
@@ -201,8 +181,7 @@ impl SqliteStorage {
             .build()
             .persistent(false)
             .execute(&mut *tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
             // insert data into NewscatcherData table
             query_builder
@@ -218,8 +197,7 @@ impl SqliteStorage {
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
+                .await?;
 
             // insert data into UserReaction table
             query_builder
@@ -232,8 +210,7 @@ impl SqliteStorage {
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
+                .await?;
 
             // insert data into PresentationOrdering table
             query_builder
@@ -249,8 +226,7 @@ impl SqliteStorage {
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
+                .await?;
 
             // insert data into Embedding table
             query_builder
@@ -262,8 +238,7 @@ impl SqliteStorage {
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
+                .await?;
         }
 
         Ok(())
@@ -288,8 +263,7 @@ impl SqliteStorage {
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?
+                .await?
                 .rows_affected()
                 > 0;
         }
@@ -306,14 +280,14 @@ impl Storage for SqliteStorage {
             .await
             .map_err(|err| Error::Database(err.into()))?;
 
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
         Self::setup_stacks_sync(&mut tx).await?;
-        Self::commit_tx(tx).await?;
+        tx.commit().await?;
         Ok(())
     }
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
 
         let documents = sqlx::query_as::<_, QueriedHistoricDocument>(
             "SELECT
@@ -332,7 +306,7 @@ impl Storage for SqliteStorage {
             }
         })?;
 
-        Self::commit_tx(tx).await?;
+        tx.commit().await?;
 
         documents.into_iter().map(TryInto::try_into).collect()
     }
@@ -349,30 +323,29 @@ impl Storage for SqliteStorage {
 #[async_trait]
 impl FeedScope for SqliteStorage {
     async fn delete_documents(&self, ids: &[document::Id]) -> Result<bool, Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
 
         let deletion = Self::delete_documents_from(&mut tx, ids, "FeedDocument").await?;
 
-        Self::commit_tx(tx).await?;
+        tx.commit().await?;
 
         Ok(deletion)
     }
 
     async fn clear(&self) -> Result<bool, Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
 
         let deletion = sqlx::query("DELETE FROM FeedDocument;")
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
-        Self::commit_tx(tx).await?;
+        tx.commit().await?;
 
         Ok(deletion.rows_affected() > 0)
     }
 
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
 
         let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
             "SELECT
@@ -390,10 +363,9 @@ impl FeedScope for SqliteStorage {
         )
         .persistent(false)
         .fetch_all(&mut tx)
-        .await
-        .map_err(|err| Error::Database(err.into()))?;
+        .await?;
 
-        Self::commit_tx(tx).await?;
+        tx.commit().await?;
 
         documents.into_iter().map(TryInto::try_into).collect()
     }
@@ -407,7 +379,7 @@ impl FeedScope for SqliteStorage {
             return Ok(());
         }
 
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
 
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
 
@@ -421,8 +393,7 @@ impl FeedScope for SqliteStorage {
             .build()
             .persistent(false)
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
         query_builder
             .reset()
@@ -434,10 +405,10 @@ impl FeedScope for SqliteStorage {
             .build()
             .persistent(false)
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
-        Self::commit_tx(tx).await
+        tx.commit().await?;
+        Ok(())
     }
 }
 
@@ -448,7 +419,7 @@ impl SearchScope for SqliteStorage {
         search: &Search,
         documents: &[NewDocument],
     ) -> Result<(), Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
         let mut query_builder = QueryBuilder::new("INSERT INTO ");
 
         query_builder
@@ -462,11 +433,11 @@ impl SearchScope for SqliteStorage {
             .bind(search.paging.size)
             .bind(search.paging.next_page)
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
         if documents.is_empty() {
-            return Self::commit_tx(tx).await;
+            tx.commit().await?;
+            return Ok(());
         };
 
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
@@ -479,10 +450,10 @@ impl SearchScope for SqliteStorage {
             .build()
             .persistent(false)
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
-        Self::commit_tx(tx).await
+        tx.commit().await?;
+        Ok(())
     }
 
     async fn store_next_page(
@@ -490,7 +461,7 @@ impl SearchScope for SqliteStorage {
         page_number: u32,
         documents: &[NewDocument],
     ) -> Result<(), Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
         let mut query_builder = QueryBuilder::new(String::new());
 
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
@@ -502,8 +473,8 @@ impl SearchScope for SqliteStorage {
             .build()
             .persistent(false)
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
+
         query_builder
             .reset()
             .push("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
@@ -511,14 +482,14 @@ impl SearchScope for SqliteStorage {
             .persistent(false)
             .bind(page_number)
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
-        Self::commit_tx(tx).await
+        tx.commit().await?;
+        Ok(())
     }
 
     async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
         let mut query_builder = QueryBuilder::new("SELECT ");
 
         let search = query_builder
@@ -536,7 +507,7 @@ impl SearchScope for SqliteStorage {
                 if let sqlx::Error::RowNotFound = err {
                     Error::NoSearch
                 } else {
-                    Error::Database(err.into())
+                    err.into()
                 }
             })?;
 
@@ -567,7 +538,7 @@ impl SearchScope for SqliteStorage {
                 }
             })?;
 
-        Self::commit_tx(tx).await?;
+        tx.commit().await?;
 
         Ok((
             search.try_into()?,
@@ -579,7 +550,7 @@ impl SearchScope for SqliteStorage {
     }
 
     async fn clear(&self) -> Result<bool, Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
         let mut query_builder = QueryBuilder::new(String::new());
 
         // delete data from Document table where user reaction is neutral
@@ -600,9 +571,10 @@ impl SearchScope for SqliteStorage {
                 if let sqlx::Error::RowNotFound = err {
                     Ok(Vec::new())
                 } else {
-                    Err(Error::Database(err.into()))
+                    Err(err)
                 }
             })?;
+
         Self::delete_documents_from(&mut tx, &ids, "Document").await?;
 
         // delete all remaining data from SearchDocument table
@@ -612,8 +584,7 @@ impl SearchScope for SqliteStorage {
             .build()
             .persistent(false)
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
         // delete all data from Search table
         let deletion = query_builder
@@ -622,16 +593,15 @@ impl SearchScope for SqliteStorage {
             .build()
             .persistent(false)
             .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+            .await?;
 
-        Self::commit_tx(tx).await?;
+        tx.commit().await?;
 
         Ok(deletion.rows_affected() > 0)
     }
 
     async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error> {
-        let mut tx = self.begin_tx().await?;
+        let mut tx = self.pool.begin().await?;
 
         let document = sqlx::query_as::<_, QueriedApiDocumentView>(
             "SELECT
@@ -658,7 +628,7 @@ impl SearchScope for SqliteStorage {
             }
         })?;
 
-        Self::commit_tx(tx).await?;
+        tx.commit().await?;
 
         document.try_into()
     }
@@ -906,6 +876,14 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_clear_empty_feed() {
+        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        storage.init_database().await.unwrap();
+        let had_documents = storage.feed().clear().await.unwrap();
+        assert!(!had_documents);
+    }
+
+    #[tokio::test]
     async fn test_search_methods() {
         let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
         storage.init_database().await.unwrap();
@@ -967,11 +945,11 @@ mod tests {
         ));
 
         let documents = create_documents(1);
-        let mut tx = storage.begin_tx().await.unwrap();
+        let mut tx = storage.pool.begin().await.unwrap();
         SqliteStorage::store_new_documents(&mut tx, &documents)
             .await
             .unwrap();
-        SqliteStorage::commit_tx(tx).await.unwrap();
+        tx.commit().await.unwrap();
 
         let document = storage
             .search()
@@ -1046,7 +1024,7 @@ mod tests {
             .await
             .unwrap();
 
-        let mut tx = storage.begin_tx().await.unwrap();
+        let mut tx = storage.pool.begin().await.unwrap();
 
         let random_id = stack::Id::new_random();
         sqlx::query("INSERT INTO Stack(stackId) VALUES (?), (?);")
@@ -1062,7 +1040,7 @@ mod tests {
         //FIXME: For some reason if I try to read the stackIds from the database
         //       without first committing here the select statement will hang (sometimes).
         //       This happens even if no cached statements are used.
-        SqliteStorage::commit_tx(tx).await.unwrap();
+        tx.commit().await.unwrap();
 
         let ids = sqlx::query_as::<_, stack::Id>("SELECT stackId FROM Stack;")
             .persistent(false)
