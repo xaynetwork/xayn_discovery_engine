@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '30 00 * * sun'
   workflow_dispatch:
+    inputs:
+        number_days_old:
+            description: "pass this value, all the files older than this value will be deleted from our repository. By default, this value is set to 30 days."
+            required: false
+            default: 30
+        artifactory_name:
+            description: "deletion by the name of the artifactory_name"
 
 jobs:
   jfrog_packages_cleanup:
@@ -15,6 +22,8 @@ jobs:
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
+           sed -i 's/dddd/${{github.event.inputs.number_days_old}}' .github/scripts/artifactory.spec
+           sed -i 's/name_artifactory/${{github.event.inputs.artifactory_name}}' .github/scripts/artifactory.spec
            jf c use xayn
            # Ping xayn Artifactory server
            jf rt ping
