@@ -46,6 +46,8 @@ use crate::{
     },
 };
 
+use super::{models::ReactionContext, FeedbackScope};
+
 // Sqlite bind limit
 const BIND_LIMIT: usize = 32766;
 
@@ -185,20 +187,6 @@ impl SqliteStorage {
                 .await
                 .map_err(|err| Error::Database(err.into()))?;
 
-            // insert data into UserReaction table
-            query_builder
-                .reset()
-                .push("UserReaction (documentId, userReaction) ")
-                .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(&doc.id)
-                        .push_bind(UserReaction::default() as u32);
-                })
-                .build()
-                .persistent(false)
-                .execute(&mut *tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
-
             // insert data into PresentationOrdering table
             query_builder
                 .reset()
@@ -304,6 +292,10 @@ impl Storage for SqliteStorage {
     fn search(&self) -> &(dyn SearchScope + Send + Sync) {
         self
     }
+
+    fn feedback(&self) -> &(dyn FeedbackScope + Send + Sync) {
+        self
+    }
 }
 
 #[async_trait]
@@ -347,8 +339,8 @@ impl FeedScope for SqliteStorage {
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
             JOIN PresentationOrdering   AS po   USING(documentId)
-            JOIN UserReaction           AS ur   USING(documentId)
             JOIN Embedding              AS em   USING(documentId)
+            LEFT JOIN UserReaction      AS ur   USING(documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .persistent(false)
@@ -494,8 +486,8 @@ impl SearchScope for SqliteStorage {
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
             JOIN PresentationOrdering   AS po   USING(documentId)
-            JOIN UserReaction           AS ur   USING(documentId)
             JOIN Embedding              AS em   USING(documentId)
+            LEFT JOIN UserReaction      AS ur   USING(documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
             )
             .build()
@@ -529,10 +521,10 @@ impl SearchScope for SqliteStorage {
         // delete data from Document table where user reaction is neutral
         let ids = query_builder
             .push(
-                "SELECT ur.documentId
-                FROM UserReaction   AS ur
-                JOIN SearchDocument AS sd   USING(documentId)
-                WHERE ur.userReaction = ?;",
+                "SELECT sd.documentId
+                FROM SearchDocument     AS sd
+                LEFT JOIN UserReaction  AS ur   USING(documentId)
+                WHERE ur.userReaction = ? OR ur.userReaction IS NULL;",
             )
             .build()
             .persistent(false)
@@ -737,6 +729,101 @@ impl TryFrom<QueriedSearch> for Search {
     }
 }
 
+#[async_trait]
+impl FeedbackScope for SqliteStorage {
+    async fn update_user_reaction(
+        &self,
+        document: document::Id,
+        reaction: UserReaction,
+    ) -> Result<ReactionContext, Error> {
+        let mut tx = self.begin_tx().await?;
+
+        sqlx::query(
+            "INSERT INTO UserReaction(documentId, userReaction) VALUES (?, ?)
+                ON CONFLICT DO UPDATE SET userReaction = excluded.userReaction;",
+        )
+        .bind(document)
+        .bind(reaction as u32)
+        .execute(&mut tx)
+        .await
+        .map_err(|err| Error::Database(err.into()))?;
+
+        let ctx = match reaction {
+            UserReaction::Neutral => ReactionContext::Neutral,
+            UserReaction::Positive => {
+                let view = sqlx::query_as::<_, QueryUserReactionContextPositive>(
+                    "SELECT e.embedding, nr.snippet, nr.title
+                    FROM Embedding AS e
+                    JOIN NewsResource AS nr USING(documentId)
+                    WHERE documentId = ?;",
+                )
+                .bind(document)
+                .fetch_one(&mut tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
+
+                view.try_into()?
+            }
+            UserReaction::Negative => {
+                let view = sqlx::query_as::<_, QueryUserReactionContextNegative>(
+                    "SELECT embedding FROM Embedding WHERE documentId = ?;",
+                )
+                .bind(document)
+                .fetch_one(&mut tx)
+                .await
+                .map_err(|err| Error::Database(err.into()))?;
+
+                view.try_into()?
+            }
+        };
+
+        Self::commit_tx(tx).await?;
+        Ok(ctx)
+    }
+}
+
+#[derive(FromRow)]
+struct QueryUserReactionContextNegative {
+    embedding: Vec<u8>,
+}
+
+impl TryFrom<QueryUserReactionContextNegative> for ReactionContext {
+    type Error = Error;
+
+    fn try_from(value: QueryUserReactionContextNegative) -> Result<Self, Self::Error> {
+        value
+            .embedding
+            .try_into()
+            .map(|embedding| ReactionContext::Negative { embedding })
+            .map_err(|err| {
+                Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
+            })
+    }
+}
+
+#[derive(FromRow)]
+struct QueryUserReactionContextPositive {
+    embedding: Vec<u8>,
+    snippet: String,
+    title: String,
+}
+
+impl TryFrom<QueryUserReactionContextPositive> for ReactionContext {
+    type Error = Error;
+
+    fn try_from(view: QueryUserReactionContextPositive) -> Result<Self, Self::Error> {
+        let embedding = view.embedding.try_into().map_err(|err| {
+            Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
+        })?;
+
+        Ok(ReactionContext::Positive {
+            embedding,
+            snippet: view.snippet,
+            title: view.title,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{document::NewsResource, stack, storage::models::NewDocument};
@@ -781,10 +868,15 @@ mod tests {
                 })
     }
 
-    #[tokio::test]
-    async fn test_fetch_history() {
+    async fn create_memory_storage() -> impl Storage {
         let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
         storage.init_database().await.unwrap();
+        storage
+    }
+
+    #[tokio::test]
+    async fn test_fetch_history() {
+        let storage = create_memory_storage().await;
         let history = storage.fetch_history().await.unwrap();
         assert!(history.is_empty());
 
@@ -803,8 +895,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_feed_methods() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = create_memory_storage().await;
         let feed = storage.feed().fetch().await.unwrap();
         assert!(feed.is_empty());
 
@@ -825,8 +916,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_methods() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = create_memory_storage().await;
         let search = storage.search().fetch().await;
         assert!(search.is_err());
         assert!(!storage.search().clear().await.unwrap());
@@ -907,8 +997,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rank_conversion() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = create_memory_storage().await;
         let mut docs = create_documents(1);
         docs[0].newscatcher_data.domain_rank = u64::MAX;
         storage.feed().store_documents(&docs).await.unwrap();
@@ -950,5 +1039,100 @@ mod tests {
             .fk_violation_is_invalid_document_id(document_id);
 
         assert!(!matches!(res, Err(Error::InvalidDocumentId(_))));
+    }
+
+    #[tokio::test]
+    async fn test_storing_user_reaction() {
+        let storage = create_memory_storage().await;
+        let docs = create_documents(10);
+        storage.feed().store_documents(&docs).await.unwrap();
+
+        let doc0 = docs[0].id;
+        let doc1 = docs[1].id;
+        let doc2 = docs[2].id;
+        let doc3 = docs[3].id;
+
+        storage
+            .feedback()
+            .update_user_reaction(doc0, UserReaction::Positive)
+            .await
+            .unwrap();
+        storage
+            .feedback()
+            .update_user_reaction(doc1, UserReaction::Negative)
+            .await
+            .unwrap();
+        storage
+            .feedback()
+            .update_user_reaction(doc2, UserReaction::Neutral)
+            .await
+            .unwrap();
+        storage
+            .feedback()
+            .update_user_reaction(doc3, UserReaction::Positive)
+            .await
+            .unwrap();
+        storage
+            .feedback()
+            .update_user_reaction(doc3, UserReaction::Neutral)
+            .await
+            .unwrap();
+
+        let feed = storage.feed().fetch().await.unwrap();
+        assert_eq!(feed[0].document_id, doc0);
+        assert_eq!(feed[0].user_reacted, Some(UserReaction::Positive));
+        assert_eq!(feed[1].document_id, doc1);
+        assert_eq!(feed[1].user_reacted, Some(UserReaction::Negative));
+        assert_eq!(feed[2].document_id, doc2);
+        assert_eq!(feed[2].user_reacted, Some(UserReaction::Neutral));
+        assert_eq!(feed[3].document_id, doc3);
+        assert_eq!(feed[3].user_reacted, Some(UserReaction::Neutral));
+        for doc in &feed[4..] {
+            assert_eq!(doc.user_reacted, None);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_storing_user_reaction_returns_the_right_properties() {
+        let storage = create_memory_storage().await;
+        let docs = create_documents(10);
+        storage.feed().store_documents(&docs).await.unwrap();
+
+        let view = storage
+            .feedback()
+            .update_user_reaction(docs[0].id, UserReaction::Positive)
+            .await
+            .unwrap();
+
+        assert!(matches!(view, ReactionContext::Positive { .. }));
+        if let ReactionContext::Positive {
+            embedding,
+            snippet,
+            title,
+        } = view
+        {
+            assert_eq!(embedding, docs[0].embedding);
+            assert_eq!(snippet, docs[0].news_resource.snippet);
+            assert_eq!(title, docs[0].news_resource.title);
+        }
+
+        let view = storage
+            .feedback()
+            .update_user_reaction(docs[1].id, UserReaction::Negative)
+            .await
+            .unwrap();
+
+        assert!(matches!(view, ReactionContext::Negative { .. }));
+        if let ReactionContext::Negative { embedding } = view {
+            assert_eq!(embedding, docs[1].embedding);
+        }
+
+        let view = storage
+            .feedback()
+            .update_user_reaction(docs[2].id, UserReaction::Neutral)
+            .await
+            .unwrap();
+
+        assert!(matches!(view, ReactionContext::Neutral));
     }
 }

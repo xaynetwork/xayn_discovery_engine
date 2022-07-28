@@ -17,9 +17,9 @@ use displaydoc::Display;
 use thiserror::Error;
 use xayn_discovery_engine_ai::GenericError;
 
-use crate::document::{self, HistoricDocument};
+use crate::document::{self, HistoricDocument, UserReaction};
 
-use self::models::{ApiDocumentView, NewDocument, Search};
+use self::models::{ApiDocumentView, NewDocument, ReactionContext, Search};
 
 pub mod sqlite;
 
@@ -54,6 +54,8 @@ pub(crate) trait Storage {
     fn feed(&self) -> &(dyn FeedScope + Send + Sync);
 
     fn search(&self) -> &(dyn SearchScope + Send + Sync);
+
+    fn feedback(&self) -> &(dyn FeedbackScope + Send + Sync);
 }
 
 #[async_trait]
@@ -89,6 +91,16 @@ pub(crate) trait SearchScope {
     async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error>;
 }
 
+#[async_trait]
+pub(crate) trait FeedbackScope {
+    async fn update_user_reaction(
+        &self,
+        document: document::Id,
+        reaction: UserReaction,
+    ) -> Result<ReactionContext, Error>;
+}
+
+#[allow(dead_code)]
 pub mod models {
     use chrono::NaiveDateTime;
     use url::Url;
@@ -243,5 +255,25 @@ pub mod models {
     pub(crate) struct Paging {
         pub(crate) size: u32,
         pub(crate) next_page: u32,
+    }
+
+    /// Returns the context in which the reaction happened.
+    ///
+    /// In other words this returns the information needed
+    /// to continue processing the reaction based on the
+    /// same storage snapshot on which the reaction was stored.
+    ///
+    /// Storage implementations which do not use snapshots might
+    /// have less strict consistency guarantees.
+    pub(crate) enum ReactionContext {
+        Positive {
+            embedding: Embedding,
+            snippet: String,
+            title: String,
+        },
+        Negative {
+            embedding: Embedding,
+        },
+        Neutral,
     }
 }
