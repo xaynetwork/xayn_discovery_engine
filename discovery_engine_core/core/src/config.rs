@@ -186,12 +186,15 @@ impl Default for CoreConfig {
 
 /// Configurations for the exploration stack.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct ExplorationConfig {
     /// The number of candidates.
     pub(crate) number_of_candidates: usize,
     /// The maximum number of documents to keep.
     pub(crate) max_selected_docs: usize,
+    /// The maximum cosine similarity wrt to the closest coi below which documents are retained
+    /// when the exploration stack is updated.
+    pub(crate) max_similarity: f32,
 }
 
 impl Default for ExplorationConfig {
@@ -199,6 +202,7 @@ impl Default for ExplorationConfig {
         Self {
             number_of_candidates: 40,
             max_selected_docs: 20,
+            max_similarity: 0.7,
         }
     }
 }
@@ -226,6 +230,7 @@ mod tests {
 
     // the f32 fields are never NaN by construction
     impl Eq for CoreConfig {}
+    impl Eq for ExplorationConfig {}
 
     #[test]
     fn test_de_config_from_json_default() -> Result<(), GenericError> {
