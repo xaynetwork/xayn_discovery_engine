@@ -54,6 +54,15 @@ fn init_tracing_once(log_file: Option<&Path>) {
         })
         .ok();
 
+    let telemetry = opentelemetry_datadog::new_pipeline()
+        .with_agent_endpoint("https://otel.xaynet.dev")
+        .install_batch(opentelemetry::runtime::Tokio)
+        .map(|tracer| tracing_opentelemetry::layer().with_tracer(tracer))
+        .map_err(|error| {
+            tracing::error!(%error, "opentelemetry setup failed");
+        })
+        .ok();
+
     let level = if log_file.is_some() {
         LevelFilter::DEBUG
     } else {
@@ -63,8 +72,14 @@ fn init_tracing_once(log_file: Option<&Path>) {
     subscriber
         .with(stdout_log)
         .with(file_log)
+        .with(telemetry)
         .with(level)
         .init();
+
+    // for testing purposes
+    let root = tracing::info_span!("init_tracing");
+    let _enter = root.enter();
+    tracing::info!("root span entered");
 }
 
 fn init_panic_logging() {
