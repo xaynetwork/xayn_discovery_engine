@@ -27,16 +27,12 @@ jobs:
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
-           echo "A"
            if [ -n ${{env.artifactory_name}} ]; then
-           echo "B"
            sed -i '/15/ i ${{env.artifactory_name}}' .github/scripts/artifactory.spec
            fi
-           echo "C"
            sed -i 's/dddd/${{env.number_days_old}}/g' .github/scripts/artifactory.spec
-           echo "D"
            jf c use xayn
-           echo "E"
+           cat .github/scripts/artifactory.spec
            # Ping xayn Artifactory server
            jf rt ping
            jf rt del --spec .github/scripts/artifactory.spec
