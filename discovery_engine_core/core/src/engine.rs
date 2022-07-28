@@ -595,7 +595,11 @@ impl Engine {
                     self.core_config.incr_reactions,
                 );
             } else if reacted.stack_id == Exploration::id() {
-                self.exploration_stack.update_relevance(reacted.reaction);
+                self.exploration_stack.update_relevance(
+                    reacted.reaction,
+                    self.core_config.max_reactions,
+                    self.core_config.incr_reactions,
+                );
             } else {
                 return Err(Error::InvalidStackId(reacted.stack_id));
             }

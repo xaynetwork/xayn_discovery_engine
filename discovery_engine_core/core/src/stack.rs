@@ -161,33 +161,7 @@ impl Stack {
         max_reactions: usize,
         incr_reactions: f32,
     ) {
-        match reaction {
-            UserReaction::Positive => self.data.likes += incr_reactions,
-            UserReaction::Negative => self.data.dislikes += incr_reactions,
-            UserReaction::Neutral => {}
-        }
-        let num_reactions = self.data.likes + self.data.dislikes;
-        #[allow(clippy::cast_precision_loss)] // value should be small enough
-        let max_reactions = max_reactions as f32;
-        if num_reactions <= max_reactions {
-            self.data.alpha = self.data.likes;
-            self.data.beta = self.data.dislikes;
-        } else {
-            self.data.alpha = self.data.likes * max_reactions / num_reactions;
-            self.data.beta = self.data.dislikes * max_reactions / num_reactions;
-
-            if self.data.alpha < 1. {
-                self.data.alpha = 1.;
-                self.data.beta = max_reactions as f32 - 1.;
-            }
-
-            if self.data.beta < 1. {
-                self.data.alpha = max_reactions as f32 - 1.;
-                self.data.beta = 1.;
-            }
-        }
-        self.data.alpha = (10. * self.data.alpha).round() / 10.;
-        self.data.beta = (10. * self.data.beta).round() / 10.;
+        update_relevance(&mut self.data, reaction, max_reactions, incr_reactions);
     }
 
     /// It checks that every document belongs to a stack.
@@ -235,6 +209,41 @@ impl Stack {
     pub(crate) fn drain_documents(&mut self) -> std::vec::Drain<'_, Document> {
         self.data.documents.drain(..)
     }
+}
+
+pub(crate) fn update_relevance(
+    data: &mut Data,
+    reaction: UserReaction,
+    max_reactions: usize,
+    incr_reactions: f32,
+) {
+    match reaction {
+        UserReaction::Positive => data.likes += incr_reactions,
+        UserReaction::Negative => data.dislikes += incr_reactions,
+        UserReaction::Neutral => {}
+    }
+    let num_reactions = data.likes + data.dislikes;
+    #[allow(clippy::cast_precision_loss)] // value should be small enough
+    let max_reactions = max_reactions as f32;
+    if num_reactions <= max_reactions {
+        data.alpha = data.likes;
+        data.beta = data.dislikes;
+    } else {
+        data.alpha = data.likes * max_reactions / num_reactions;
+        data.beta = data.dislikes * max_reactions / num_reactions;
+
+        if data.alpha < 1. {
+            data.alpha = 1.;
+            data.beta = max_reactions - 1.;
+        }
+
+        if data.beta < 1. {
+            data.alpha = max_reactions - 1.;
+            data.beta = 1.;
+        }
+    }
+    data.alpha = (10. * data.alpha).round() / 10.;
+    data.beta = (10. * data.beta).round() / 10.;
 }
 
 impl Bucket<Document> for Stack {
