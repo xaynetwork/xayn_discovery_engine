@@ -295,7 +295,6 @@ impl Storage for SqliteStorage {
             FROM HistoricDocument   AS hd
             JOIN NewsResource       AS nr   USING(documentId);",
         )
-        .persistent(false)
         .fetch_all(&mut tx)
         .await?;
 
@@ -319,7 +318,6 @@ impl FeedScope for SqliteStorage {
         let mut tx = self.pool.begin().await?;
 
         sqlx::query("DELETE FROM FeedDocument WHERE documentId = ?;")
-            .persistent(false)
             .bind(document)
             .execute(&mut tx)
             .await?;
@@ -357,7 +355,6 @@ impl FeedScope for SqliteStorage {
             JOIN StackDocument          As st   USING(documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
-        .persistent(false)
         .fetch_all(&mut tx)
         .await?;
 
@@ -423,7 +420,6 @@ impl SearchScope for SqliteStorage {
                 "Search (rowid, searchBy, searchTerm, pageSize, pageNumber) VALUES (1, ?, ?, ?, ?)",
             )
             .build()
-            .persistent(false)
             .bind(search.search_by as u8)
             .bind(&search.search_term)
             .bind(search.paging.size)
@@ -475,7 +471,6 @@ impl SearchScope for SqliteStorage {
             .reset()
             .push("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
             .build()
-            .persistent(false)
             .bind(page_number)
             .execute(&mut tx)
             .await?;
@@ -495,7 +490,6 @@ impl SearchScope for SqliteStorage {
             WHERE rowid = 1;",
             )
             .build()
-            .persistent(false)
             .try_map(|row| QueriedSearch::from_row(&row))
             .fetch_one(&mut tx)
             .await
@@ -522,7 +516,6 @@ impl SearchScope for SqliteStorage {
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
             )
             .build()
-            .persistent(false)
             .try_map(|row| QueriedApiDocumentView::from_row(&row))
             .fetch_all(&mut tx)
             .await?;
@@ -551,7 +544,6 @@ impl SearchScope for SqliteStorage {
                 WHERE ur.userReaction = ?;",
             )
             .build()
-            .persistent(false)
             .bind(UserReaction::Neutral as u32)
             .try_map(|row| document::Id::from_row(&row))
             .fetch_all(&mut tx)
@@ -564,7 +556,6 @@ impl SearchScope for SqliteStorage {
             .reset()
             .push("DELETE FROM SearchDocument;")
             .build()
-            .persistent(false)
             .execute(&mut tx)
             .await?;
 
@@ -573,7 +564,6 @@ impl SearchScope for SqliteStorage {
             .reset()
             .push("DELETE FROM Search;")
             .build()
-            .persistent(false)
             .execute(&mut tx)
             .await?;
 
@@ -598,7 +588,6 @@ impl SearchScope for SqliteStorage {
             JOIN Embedding              AS em   USING(documentId)
             WHERE documentId = ?;",
         )
-        .persistent(false)
         .bind(id)
         .fetch_one(&mut tx)
         .await
@@ -1024,7 +1013,6 @@ mod tests {
 
         let random_id = stack::Id::new_random();
         sqlx::query("INSERT INTO Stack(stackId) VALUES (?), (?);")
-            .persistent(false)
             .bind(stack::PersonalizedNews::id())
             .bind(random_id)
             .execute(&mut tx)
@@ -1041,7 +1029,6 @@ mod tests {
         tx.commit().await.unwrap();
 
         let ids = sqlx::query_as::<_, stack::Id>("SELECT stackId FROM Stack;")
-            .persistent(false)
             .fetch_all(&storage.pool)
             .await
             .unwrap();
