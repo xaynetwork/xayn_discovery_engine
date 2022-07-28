@@ -34,7 +34,7 @@ jobs:
            sed -i '/15/ i ${{env.artifactory_name}}' .github/scripts/artifactory.spec
            fi
 
-           sed -i 's/dddd/${{env.number_days_old}}/' .github/scripts/artifactory.spec
+           sed -i 's/dddd/${{env.number_days_old}}' .github/scripts/artifactory.spec
            jf c use xayn
            # Ping xayn Artifactory server
            jf rt ping
