@@ -47,7 +47,7 @@ use crate::{
     },
 };
 
-use self::utils::SqlxPushTupleExt;
+use self::utils::{SqlxPushTupleExt, SqlxSqliteErrorExt};
 
 mod utils;
 
@@ -458,13 +458,7 @@ impl SearchScope for SqliteStorage {
         )
         .fetch_one(&mut tx)
         .await
-        .map_err(|err| {
-            if let sqlx::Error::RowNotFound = err {
-                Error::NoSearch
-            } else {
-                err.into()
-            }
-        })?;
+        .on_row_not_found(Error::NoSearch)?;
 
         let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
             "SELECT sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
@@ -540,13 +534,7 @@ impl SearchScope for SqliteStorage {
         .bind(id)
         .fetch_one(&mut tx)
         .await
-        .or_else(|err| {
-            if let sqlx::Error::RowNotFound = err {
-                Err(Error::NoDocument)
-            } else {
-                Err(err.into())
-            }
-        })?;
+        .on_row_not_found(Error::NoDocument)?;
 
         tx.commit().await?;
 
