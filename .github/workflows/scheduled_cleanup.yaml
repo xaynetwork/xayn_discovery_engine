@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: '30 00 * * sun'
   workflow_dispatch:
+
 jobs:
   jfrog_packages_cleanup:
      name: install jfrog cli
