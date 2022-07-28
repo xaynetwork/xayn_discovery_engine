@@ -26,7 +26,7 @@ use super::{boxed::alloc_uninitialized, primitives::FfiUsize};
 /// Initializes a `Vec<HistoricDocument>` at given place.
 ///
 /// This moves the passed in slice into the vector,
-/// i.e. `slice_ptr, len` map to `Box<[HistoricDocument]>`.
+/// i.e. `slice_ptr, slice_len` map to `Box<[HistoricDocument]>`.
 ///
 /// # Safety
 ///

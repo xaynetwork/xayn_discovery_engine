@@ -83,6 +83,9 @@ abstract class Engine {
   /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
   Future<List<DocumentWithActiveData>> restoreFeed();
 
+  /// Clears the feed documents.
+  Future<void> clearFeedDocuments(Set<DocumentId> ids);
+
   /// Process the feedback about the user spending some time on a document.
   Future<void> timeSpent(TimeSpent timeSpent);
 
