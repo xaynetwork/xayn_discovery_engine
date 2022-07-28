@@ -1,16 +1,17 @@
 name: Scheduled Cleanup repo
 
 on:
-  schedule:
-    - cron: '30 00 * * sun'
-  workflow_dispatch:
-    inputs:
-        number_days_old:
-            description: "pass this value, all the files older than this value will be deleted from our repository. By default, this value is set to 30 days."
-            required: false
-            default: 30
-        artifactory_name:
-            description: "deletion by the name of the artifactory_name"
+  push:
+  #schedule:
+  #  - cron: '30 00 * * sun'
+  #workflow_dispatch:
+   # inputs:
+    #    number_days_old:
+     #       description: "pass this value, all the files older than this value will be deleted from our repository. By default, this value is set to 30 days."
+      #      required: false
+       #     default: 30
+        #artifactory_name:
+         #   description: "deletion by the name of the artifactory_name"
 
 jobs:
   jfrog_packages_cleanup:
