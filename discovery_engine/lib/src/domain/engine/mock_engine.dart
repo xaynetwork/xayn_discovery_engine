@@ -121,6 +121,12 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<List<DocumentWithActiveData>> restoreFeed() async {
+    _incrementCount('restoreFeed');
+    return feedDocuments.take(10).toList(growable: false);
+  }
+
+  @override
   Future<void> timeSpent(TimeSpent timeSpent) async {
     _incrementCount('timeSpent');
   }
