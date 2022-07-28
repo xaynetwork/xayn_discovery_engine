@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/list.dart'
     show ListFfiAdapter;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
-    show checkFfiUsize;
+    show FfiUsizeFfi;
 
 extension StringFfi on String {
   void writeNative(final Pointer<RustString> place) {
@@ -70,14 +70,14 @@ class BoxedStr {
   final int len;
 
   BoxedStr.fromRawParts(this.ptr, this.len) {
-    checkFfiUsize(len, 'BoxedStr.len');
+    len.checkFfiUsize('BoxedStr.len');
   }
 
   /// Creates a `Box<str>` based on given dart string.
   factory BoxedStr.create(String string) {
     final utf8Bytes = utf8.encode(string);
     final len = utf8Bytes.length;
-    checkFfiUsize(len, 'String.len');
+    len.checkFfiUsize('String.len');
     final ptr = ffi.alloc_uninitialized_bytes(len);
     ptr.asTypedList(len).setAll(0, utf8Bytes);
     return BoxedStr.fromRawParts(ptr, len);

@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show FloatPointer, Pointer, Uint8Pointer;
+import 'dart:ffi' show FloatPointer, Pointer, Uint32Pointer, Uint8Pointer;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustOptionF32, RustVecU8;
+    show RustFfiUsize, RustOptionF32, RustVecU8;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 
@@ -44,7 +44,7 @@ class PrimitivesFfi {
 
 extension Uint8ListFfi on Uint8List {
   Boxed<RustVecU8> allocNative() {
-    checkFfiUsize(length, 'Uint8List.length');
+    length.checkFfiUsize('Uint8List.length');
     final ptr = ffi.alloc_uninitialized_bytes(length);
     ptr.asTypedList(length).setAll(0, this);
     final vec = ffi.alloc_vec_u8(ptr, length);
@@ -58,9 +58,18 @@ extension Uint8ListFfi on Uint8List {
   }
 }
 
-// FIXME[dart >1.16]: Use AbiSpecificInteger
-void checkFfiUsize(int val, String name) {
-  if (val > 0xFFFFFFFF) {
-    throw ArgumentError.value(val, name, 'only 32bit values are supported');
+extension FfiUsizeFfi on int {
+  // FIXME[dart >1.16]: Use AbiSpecificInteger
+  void checkFfiUsize([String? name]) {
+    if (this > 0xFFFFFFFF) {
+      throw ArgumentError.value(this, name, 'only 32bit values are supported');
+    }
   }
+
+  void writeNative(Pointer<RustFfiUsize> place) {
+    checkFfiUsize();
+    place.value = this;
+  }
+
+  static int readNative(Pointer<RustFfiUsize> place) => place.value;
 }

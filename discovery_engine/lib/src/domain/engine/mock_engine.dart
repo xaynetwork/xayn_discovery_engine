@@ -67,6 +67,11 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<void> configure(String deConfig) async {
+    _incrementCount('configure');
+  }
+
+  @override
   Future<Uint8List> serialize() async {
     _incrementCount('serialize');
     return Uint8List(0);
@@ -104,26 +109,24 @@ class MockEngine implements Engine {
   @override
   Future<List<DocumentWithActiveData>> feedNextBatch(
     List<SourceReacted> sources,
-    int maxDocuments,
   ) async {
     _incrementCount('feedNextBatch');
-    return feedDocuments.take(maxDocuments).toList(growable: false);
+    return feedDocuments.take(2).toList(growable: false);
   }
 
   @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
     List<SourceReacted> sources,
-    int maxDocuments,
   ) async {
     _incrementCount('getFeedDocuments');
-    return feedDocuments.take(maxDocuments).toList(growable: false);
+    return feedDocuments.take(2).toList(growable: false);
   }
 
   @override
   Future<List<DocumentWithActiveData>> restoreFeed() async {
     _incrementCount('restoreFeed');
-    return feedDocuments.take(10).toList(growable: false);
+    return feedDocuments.take(2).toList(growable: false);
   }
 
   @override
@@ -149,20 +152,18 @@ class MockEngine implements Engine {
   Future<List<DocumentWithActiveData>> searchByQuery(
     String query,
     int page,
-    int pageSize,
   ) async {
-    _incrementCount('activeSearch');
-    return activeSearchDocuments.take(pageSize).toList(growable: false);
+    _incrementCount('searchByQuery');
+    return activeSearchDocuments.take(20).toList(growable: false);
   }
 
   @override
   Future<List<DocumentWithActiveData>> searchByTopic(
     String topic,
     int page,
-    int pageSize,
   ) async {
     _incrementCount('searchByTopic');
-    return activeSearchDocuments.take(pageSize).toList(growable: false);
+    return activeSearchDocuments.take(20).toList(growable: false);
   }
 
   @override
@@ -174,13 +175,13 @@ class MockEngine implements Engine {
   @override
   Future<List<DocumentWithActiveData>> searchNextBatch() async {
     _incrementCount('searchNextBatch');
-    return activeSearchDocuments.take(10).toList(growable: false);
+    return activeSearchDocuments.take(20).toList(growable: false);
   }
 
   @override
   Future<List<DocumentWithActiveData>> restoreSearch() async {
-    _incrementCount('searched');
-    return activeSearchDocuments.take(10).toList(growable: false);
+    _incrementCount('restoreSearch');
+    return activeSearchDocuments.take(20).toList(growable: false);
   }
 
   @override

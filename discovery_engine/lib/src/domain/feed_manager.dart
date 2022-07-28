@@ -22,8 +22,6 @@ import 'package:xayn_discovery_engine/src/api/models/document.dart'
     show DocumentApiConversion;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -45,7 +43,6 @@ import 'package:xayn_discovery_engine/src/domain/repository/source_reacted_repo.
 /// Business logic concerning the management of the feed.
 class FeedManager {
   final Engine _engine;
-  final EventConfig _config;
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
   final EngineStateRepository _engineStateRepo;
@@ -55,7 +52,6 @@ class FeedManager {
 
   FeedManager(
     this._engine,
-    this._config,
     this._docRepo,
     this._activeRepo,
     this._engineStateRepo,
@@ -130,7 +126,7 @@ class FeedManager {
       final sources = await _sourceReactedRepo.fetchAll();
       final List<DocumentWithActiveData> docs;
       try {
-        docs = await _engine.feedNextBatch(sources, _config.maxFeedDocs);
+        docs = await _engine.feedNextBatch(sources);
       } on Exception catch (e) {
         return EngineEvent.nextFeedBatchRequestFailed(
           FeedFailureReason.stacksOpsError,
@@ -155,8 +151,7 @@ class FeedManager {
     final sources = await _sourceReactedRepo.fetchAll();
     final List<DocumentWithActiveData> feedDocs;
     try {
-      feedDocs =
-          await _engine.getFeedDocuments(history, sources, _config.maxFeedDocs);
+      feedDocs = await _engine.getFeedDocuments(history, sources);
     } catch (e) {
       return EngineEvent.nextFeedBatchRequestFailed(
         FeedFailureReason.stacksOpsError,

@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart' hide Document;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig, EventHandler;
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
     show FeedManager;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -55,7 +55,6 @@ Future<void> main() async {
   late FeedManager mgr;
 
   final engine = MockEngine()..feedDocuments = mockDocuments(StackId(), false);
-  final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
 
   EventHandler.registerHiveAdapters();
 
@@ -76,7 +75,6 @@ Future<void> main() async {
       sourcePreferenceRepo = HiveSourcePreferenceRepository();
       mgr = FeedManager(
         engine,
-        config,
         docRepo,
         activeRepo,
         engineStateRepo,
@@ -211,7 +209,6 @@ Future<void> main() async {
       sourcePreferenceRepo = HiveSourcePreferenceRepository();
       mgr = FeedManager(
         engine,
-        config,
         docRepo,
         activeRepo,
         engineStateRepo,
