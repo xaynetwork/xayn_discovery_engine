@@ -155,21 +155,39 @@ impl Stack {
     }
 
     /// Updates the relevance of the Stack based on the user feedback.
-    pub(crate) fn update_relevance(&mut self, reaction: UserReaction) {
-        // to avoid making the distribution too skewed
-        const MAX_BETA_PARAMS: f32 = 1000.;
+    pub(crate) fn update_relevance(
+        &mut self,
+        reaction: UserReaction,
+        max_reactions: usize,
+        incr_reactions: f32,
+    ) {
+        match reaction {
+            UserReaction::Positive => self.data.likes += incr_reactions,
+            UserReaction::Negative => self.data.dislikes += incr_reactions,
+            UserReaction::Neutral => {}
+        }
+        let num_reactions = self.data.likes + self.data.dislikes;
+        #[allow(clippy::cast_precision_loss)] // value should be small enough
+        let max_reactions = max_reactions as f32;
+        if num_reactions <= max_reactions {
+            self.data.alpha = self.data.likes;
+            self.data.beta = self.data.dislikes;
+        } else {
+            self.data.alpha = self.data.likes * max_reactions / num_reactions;
+            self.data.beta = self.data.dislikes * max_reactions / num_reactions;
 
-        fn incr(value: &mut f32) {
-            if *value < MAX_BETA_PARAMS {
-                (*value) += 1.;
+            if self.data.alpha < 1. {
+                self.data.alpha = 1.;
+                self.data.beta = max_reactions as f32 - 1.;
+            }
+
+            if self.data.beta < 1. {
+                self.data.alpha = max_reactions as f32 - 1.;
+                self.data.beta = 1.;
             }
         }
-
-        match reaction {
-            UserReaction::Positive => incr(&mut self.data.alpha),
-            UserReaction::Negative => incr(&mut self.data.beta),
-            UserReaction::Neutral => (),
-        }
+        self.data.alpha = (10. * self.data.alpha).round() / 10.;
+        self.data.beta = (10. * self.data.beta).round() / 10.;
     }
 
     /// It checks that every document belongs to a stack.
@@ -434,7 +452,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Positive);
+        stack.update_relevance(UserReaction::Positive, 10, 1.);
 
         assert_approx_eq!(f32, alpha + 1., stack.alpha());
         assert_approx_eq!(f32, beta, stack.beta());
@@ -449,7 +467,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Negative);
+        stack.update_relevance(UserReaction::Negative, 10, 1.);
 
         assert_approx_eq!(f32, beta + 1., stack.beta());
         assert_approx_eq!(f32, alpha, stack.alpha());
@@ -464,7 +482,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Neutral);
+        stack.update_relevance(UserReaction::Neutral, 10, 1.);
 
         assert_approx_eq!(f32, beta, stack.beta());
         assert_approx_eq!(f32, alpha, stack.alpha());

@@ -589,7 +589,11 @@ impl Engine {
         // update relevance of stack if the reacted document belongs to one
         if !reacted.stack_id.is_nil() {
             if let Some(stack) = stacks.get_mut(&reacted.stack_id) {
-                stack.update_relevance(reacted.reaction);
+                stack.update_relevance(
+                    reacted.reaction,
+                    self.core_config.max_reactions,
+                    self.core_config.incr_reactions,
+                );
             } else if reacted.stack_id == Exploration::id() {
                 self.exploration_stack.update_relevance(reacted.reaction);
             } else {

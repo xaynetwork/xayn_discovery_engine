@@ -164,6 +164,11 @@ pub(crate) struct CoreConfig {
     pub(crate) deep_search_sim: f32,
     /// The probability for random exploration instead of greedy selection in the MAB.
     pub(crate) epsilon: f32,
+    /// The maximum number of likes and dislikes after which the MAB parameters are rescaled.
+    pub(crate) max_reactions: usize,
+    /// The value by how much the likes and dislikes are incremented when the MAB parameters are
+    /// updated.
+    pub(crate) incr_reactions: f32,
 }
 
 impl Default for CoreConfig {
@@ -177,6 +182,8 @@ impl Default for CoreConfig {
             deep_search_max: 20,
             deep_search_sim: 0.2,
             epsilon: 0.2,
+            max_reactions: 10,
+            incr_reactions: 1.,
         }
     }
 }
