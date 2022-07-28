@@ -69,7 +69,7 @@ use crate::{
         UserReaction,
         WeightedSource,
     },
-    mab::{self, BetaSampler, Bucket, SelectionIter},
+    mab::{self, BetaSampler, Bucket, SelectionIter, UniformSampler},
     stack::{
         self,
         exploration::Stack as Exploration,
@@ -468,8 +468,14 @@ impl Engine {
             once(&mut self.exploration_stack as _),
         );
 
-        let documents =
-            SelectionIter::new(BetaSampler, all_stacks).select(max_documents as usize)?;
+        let documents = SelectionIter::new(
+            self.core_config.epsilon,
+            UniformSampler,
+            UniformSampler,
+            BetaSampler,
+            all_stacks,
+        )?
+        .select(max_documents as usize)?;
         for document in &documents {
             debug!(
                 document = %document.id,
