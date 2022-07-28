@@ -127,8 +127,8 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> clearFeedDocuments(Set<DocumentId> ids) async {
-    _incrementCount('clearFeedDocuments');
+  Future<void> deleteFeedDocuments(Set<DocumentId> ids) async {
+    _incrementCount('deleteFeedDocuments');
   }
 
   @override

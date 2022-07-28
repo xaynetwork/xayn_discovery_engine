@@ -158,7 +158,7 @@ impl SqliteStorage {
             // insert id into Document table (FK of HistoricDocument)
             query_builder
                 .reset()
-                .push("Document (id) ")
+                .push("Document (documentId) ")
                 .push_values(documents, |mut stm, doc| {
                     stm.push_bind(&doc.id);
                 })
@@ -271,11 +271,10 @@ impl SqliteStorage {
         Ok(())
     }
 
-    async fn clear_documents_from(
-        tx: &mut Transaction<'_, Sqlite>,
-        ids: &[document::Id],
-        table: &str,
-        column: &str,
+    async fn delete_documents_from<'a>(
+        tx: &'a mut Transaction<'_, Sqlite>,
+        ids: &'a [document::Id],
+        table: &'static str,
     ) -> Result<bool, Error> {
         let mut deletion = false;
         if ids.is_empty() {
@@ -283,7 +282,7 @@ impl SqliteStorage {
         }
 
         let mut query_builder =
-            QueryBuilder::new(format!("DELETE FROM {table} WHERE {column} IN "));
+            QueryBuilder::new(format!("DELETE FROM {table} WHERE documentId IN "));
         for ids in ids.chunks(BIND_LIMIT) {
             deletion |= query_builder
                 .reset()
@@ -322,7 +321,7 @@ impl Storage for SqliteStorage {
             "SELECT
                 hd.documentId, nr.title, nr.snippet, nr.url
             FROM HistoricDocument   AS hd
-            JOIN NewsResource       AS nr   USING(documentId);",
+            JOIN NewsResource       AS nr   USING (documentId);",
         )
         .persistent(false)
         .fetch_all(&mut tx)
@@ -351,11 +350,10 @@ impl Storage for SqliteStorage {
 
 #[async_trait]
 impl FeedScope for SqliteStorage {
-    async fn clear_documents(&self, ids: &[document::Id]) -> Result<bool, Error> {
+    async fn delete_documents(&self, ids: &[document::Id]) -> Result<bool, Error> {
         let mut tx = self.begin_tx().await?;
 
-        let deletion =
-            Self::clear_documents_from(&mut tx, ids, "FeedDocument", "documentId").await?;
+        let deletion = Self::delete_documents_from(&mut tx, ids, "FeedDocument").await?;
 
         Self::commit_tx(tx).await?;
 
@@ -384,12 +382,12 @@ impl FeedScope for SqliteStorage {
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex, em.embedding, st.stackId
             FROM FeedDocument           AS fd
-            JOIN NewsResource           AS nr   USING(documentId)
-            JOIN NewscatcherData        AS nc   USING(documentId)
-            JOIN PresentationOrdering   AS po   USING(documentId)
-            JOIN UserReaction           AS ur   USING(documentId)
-            JOIN Embedding              AS em   USING(documentId)
-            JOIN StackDocument          As st   USING(documentId)
+            JOIN NewsResource           AS nr   USING (documentId)
+            JOIN NewscatcherData        AS nc   USING (documentId)
+            JOIN PresentationOrdering   AS po   USING (documentId)
+            JOIN UserReaction           AS ur   USING (documentId)
+            JOIN Embedding              AS em   USING (documentId)
+            JOIN StackDocument          As st   USING (documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .persistent(false)
@@ -551,11 +549,11 @@ impl SearchScope for SqliteStorage {
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex, em.embedding, null as stackId
             FROM SearchDocument         AS sd
-            JOIN NewsResource           AS nr   USING(documentId)
-            JOIN NewscatcherData        AS nc   USING(documentId)
-            JOIN PresentationOrdering   AS po   USING(documentId)
-            JOIN UserReaction           AS ur   USING(documentId)
-            JOIN Embedding              AS em   USING(documentId)
+            JOIN NewsResource           AS nr   USING (documentId)
+            JOIN NewscatcherData        AS nc   USING (documentId)
+            JOIN PresentationOrdering   AS po   USING (documentId)
+            JOIN UserReaction           AS ur   USING (documentId)
+            JOIN Embedding              AS em   USING (documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
             )
             .build()
@@ -591,7 +589,7 @@ impl SearchScope for SqliteStorage {
             .push(
                 "SELECT ur.documentId
                 FROM UserReaction   AS ur
-                JOIN SearchDocument AS sd   USING(documentId)
+                JOIN SearchDocument AS sd   USING (documentId)
                 WHERE ur.userReaction = ?;",
             )
             .build()
@@ -607,7 +605,7 @@ impl SearchScope for SqliteStorage {
                     Err(Error::Database(err.into()))
                 }
             })?;
-        Self::clear_documents_from(&mut tx, &ids, "Document", "id").await?;
+        Self::delete_documents_from(&mut tx, &ids, "Document").await?;
 
         // delete all remaining data from SearchDocument table
         query_builder
@@ -643,11 +641,11 @@ impl SearchScope for SqliteStorage {
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex, em.embedding, null as stackId
             FROM HistoricDocument       AS hd
-            JOIN NewsResource           AS nr   USING(documentId)
-            JOIN NewscatcherData        AS nc   USING(documentId)
-            JOIN PresentationOrdering   AS po   USING(documentId)
-            JOIN UserReaction           AS ur   USING(documentId)
-            JOIN Embedding              AS em   USING(documentId)
+            JOIN NewsResource           AS nr   USING (documentId)
+            JOIN NewscatcherData        AS nc   USING (documentId)
+            JOIN PresentationOrdering   AS po   USING (documentId)
+            JOIN UserReaction           AS ur   USING (documentId)
+            JOIN Embedding              AS em   USING (documentId)
             WHERE documentId = ?;",
         )
         .persistent(false)
@@ -896,7 +894,11 @@ mod tests {
             assert_eq!(doc.stack_id, Some(stack_id));
         }
 
-        assert!(storage.feed().clear_documents(&[docs[0].id]).await.unwrap());
+        assert!(storage
+            .feed()
+            .delete_documents(&[docs[0].id])
+            .await
+            .unwrap());
         let feed = storage.feed().fetch().await.unwrap();
         assert!(!feed.iter().any(|feed| feed.document_id == docs[0].id));
 

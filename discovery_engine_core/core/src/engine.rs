@@ -509,12 +509,12 @@ impl Engine {
         unimplemented!("requires 'storage' feature")
     }
 
-    /// Clears the feed documents.
+    /// Deletes the feed documents.
     #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn clear_feed_documents(&self, ids: &[document::Id]) -> Result<(), Error> {
+    pub async fn delete_feed_documents(&self, ids: &[document::Id]) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
-            self.storage.feed().clear_documents(ids).await?;
+            self.storage.feed().delete_documents(ids).await?;
 
             return Ok(());
         }

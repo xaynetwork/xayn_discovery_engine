@@ -13,20 +13,20 @@
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 CREATE TABLE IF NOT EXISTS Document (
-    id BLOB NOT NULL
+    documentId BLOB NOT NULL
         PRIMARY KEY
 );
 
 CREATE TABLE IF NOT EXISTS HistoricDocument (
     documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES Document(id) ON DELETE CASCADE
+        REFERENCES Document(documentId) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS NewsResource (
     documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES Document(id) ON DELETE CASCADE,
+        REFERENCES Document(documentId) ON DELETE CASCADE,
     title TEXT NOT NULL,
     snippet TEXT NOT NULL,
     topic TEXT NOT NULL,
@@ -54,6 +54,6 @@ CREATE TABLE IF NOT EXISTS NewscatcherData (
 CREATE TABLE IF NOT EXISTS Embedding(
     documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES Document(id) ON DELETE CASCADE,
+        REFERENCES Document(documentId) ON DELETE CASCADE,
     embedding BLOB NOT NULL
 );
