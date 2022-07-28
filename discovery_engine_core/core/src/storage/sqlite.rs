@@ -411,13 +411,10 @@ impl SearchScope for SqliteStorage {
         documents: &[NewDocument],
     ) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
-        let mut query_builder = QueryBuilder::new("INSERT INTO ");
 
-        query_builder
-            .push(
-                "Search (rowid, searchBy, searchTerm, pageSize, pageNumber) VALUES (1, ?, ?, ?, ?)",
-            )
-            .build()
+        sqlx::query(
+            "INSERT INTO Search (rowid, searchBy, searchTerm, pageSize, pageNumber) VALUES (1, ?, ?, ?, ?)"
+        )
             .bind(search.search_by as u8)
             .bind(&search.search_term)
             .bind(search.paging.size)
@@ -431,9 +428,8 @@ impl SearchScope for SqliteStorage {
         };
 
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
-        query_builder
-            .reset()
-            .push("SearchDocument (documentId) ")
+
+        QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
             .push_values(documents, |mut stm, doc| {
                 stm.push_bind(&doc.id);
             })
@@ -452,11 +448,10 @@ impl SearchScope for SqliteStorage {
         documents: &[NewDocument],
     ) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
-        let mut query_builder = QueryBuilder::new(String::new());
 
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
-        query_builder
-            .push("INSERT INTO SearchDocument (documentId) ")
+
+        QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
             .push_values(documents, |mut stm, doc| {
                 stm.push_bind(&doc.id);
             })
@@ -465,10 +460,7 @@ impl SearchScope for SqliteStorage {
             .execute(&mut tx)
             .await?;
 
-        query_builder
-            .reset()
-            .push("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
-            .build()
+        sqlx::query("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
             .bind(page_number)
             .execute(&mut tx)
             .await?;
@@ -479,30 +471,24 @@ impl SearchScope for SqliteStorage {
 
     async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error> {
         let mut tx = self.pool.begin().await?;
-        let mut query_builder = QueryBuilder::new("SELECT ");
 
-        let search = query_builder
-            .push(
-                "searchBy, searchTerm, pageNumber, pageSize
+        let search = sqlx::query_as::<_, QueriedSearch>(
+            "SELECT searchBy, searchTerm, pageNumber, pageSize
             FROM Search
             WHERE rowid = 1;",
-            )
-            .build()
-            .try_map(|row| QueriedSearch::from_row(&row))
-            .fetch_one(&mut tx)
-            .await
-            .map_err(|err| {
-                if let sqlx::Error::RowNotFound = err {
-                    Error::NoSearch
-                } else {
-                    err.into()
-                }
-            })?;
+        )
+        .fetch_one(&mut tx)
+        .await
+        .map_err(|err| {
+            if let sqlx::Error::RowNotFound = err {
+                Error::NoSearch
+            } else {
+                err.into()
+            }
+        })?;
 
-        let documents = query_builder
-            .reset()
-            .push(
-                "sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+        let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
+            "SELECT sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
                 ur.userReaction, po.inBatchIndex, em.embedding, NULL AS stackId
             FROM SearchDocument         AS sd
@@ -512,11 +498,9 @@ impl SearchScope for SqliteStorage {
             JOIN UserReaction           AS ur   USING (documentId)
             JOIN Embedding              AS em   USING (documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
-            )
-            .build()
-            .try_map(|row| QueriedApiDocumentView::from_row(&row))
-            .fetch_all(&mut tx)
-            .await?;
+        )
+        .fetch_all(&mut tx)
+        .await?;
 
         tx.commit().await?;
 
@@ -531,39 +515,27 @@ impl SearchScope for SqliteStorage {
 
     async fn clear(&self) -> Result<bool, Error> {
         let mut tx = self.pool.begin().await?;
-        let mut query_builder = QueryBuilder::new(String::new());
 
         // delete data from Document table where user reaction is neutral
-        let ids = query_builder
-            .push(
-                "SELECT ur.documentId
+        let ids = sqlx::query_as::<_, document::Id>(
+            "SELECT ur.documentId
                 FROM UserReaction   AS ur
                 JOIN SearchDocument AS sd   USING (documentId)
                 WHERE ur.userReaction = ?;",
-            )
-            .build()
-            .bind(UserReaction::Neutral as u32)
-            .try_map(|row| document::Id::from_row(&row))
-            .fetch_all(&mut tx)
-            .await?;
+        )
+        .bind(UserReaction::Neutral as u32)
+        .fetch_all(&mut tx)
+        .await?;
 
         Self::delete_documents_from(&mut tx, &ids, "Document").await?;
 
         // delete all remaining data from SearchDocument table
-        query_builder
-            .reset()
-            .push("DELETE FROM SearchDocument;")
-            .build()
+        sqlx::query("DELETE FROM SearchDocument;")
             .execute(&mut tx)
             .await?;
 
         // delete all data from Search table
-        let deletion = query_builder
-            .reset()
-            .push("DELETE FROM Search;")
-            .build()
-            .execute(&mut tx)
-            .await?;
+        let deletion = sqlx::query("DELETE FROM Search;").execute(&mut tx).await?;
 
         tx.commit().await?;
 
