@@ -64,7 +64,7 @@ pub(crate) trait Storage {
 
 #[async_trait]
 pub(crate) trait FeedScope {
-    async fn clear_documents(&self, ids: &[document::Id]) -> Result<bool, Error>;
+    async fn delete_documents(&self, ids: &[document::Id]) -> Result<bool, Error>;
 
     async fn clear(&self) -> Result<bool, Error>;
 

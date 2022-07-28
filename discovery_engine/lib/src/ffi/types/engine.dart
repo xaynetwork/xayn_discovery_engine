@@ -215,8 +215,8 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> clearFeedDocuments(Set<DocumentId> ids) async {
-    final result = await asyncFfi.clearFeedDocuments(
+  Future<void> deleteFeedDocuments(Set<DocumentId> ids) async {
+    final result = await asyncFfi.deleteFeedDocuments(
       _engine.ref,
       ids.allocNative().move(),
     );

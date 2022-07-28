@@ -158,8 +158,8 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Clears the feed documents.
-    pub async fn clear_feed_documents(
+    /// Deletes the feed documents.
+    pub async fn delete_feed_documents(
         engine: &SharedEngine,
         ids: Box<Vec<Uuid>>,
     ) -> Box<Result<(), String>> {
@@ -168,7 +168,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .clear_feed_documents(&ids.into_iter().map_into().collect_vec())
+                .delete_feed_documents(&ids.into_iter().map_into().collect_vec())
                 .await
                 .map_err(|error| error.to_string()),
         )

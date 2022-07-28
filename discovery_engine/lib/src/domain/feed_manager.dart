@@ -187,7 +187,7 @@ class FeedManager {
   Future<EngineEvent> deactivateDocuments(Set<DocumentId> ids) async {
     if (cfgFeatureStorage) {
       try {
-        await _engine.clearFeedDocuments(ids);
+        await _engine.deleteFeedDocuments(ids);
       } on Exception catch (e) {
         return EngineEvent.engineExceptionRaised(
           EngineExceptionReason.genericError,
