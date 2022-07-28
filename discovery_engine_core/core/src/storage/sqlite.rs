@@ -297,14 +297,7 @@ impl Storage for SqliteStorage {
         )
         .persistent(false)
         .fetch_all(&mut tx)
-        .await
-        .or_else(|err| {
-            if let sqlx::Error::RowNotFound = err {
-                Ok(Vec::new())
-            } else {
-                Err(Error::Database(err.into()))
-            }
-        })?;
+        .await?;
 
         tx.commit().await?;
 
@@ -532,14 +525,7 @@ impl SearchScope for SqliteStorage {
             .persistent(false)
             .try_map(|row| QueriedApiDocumentView::from_row(&row))
             .fetch_all(&mut tx)
-            .await
-            .or_else(|err| {
-                if let sqlx::Error::RowNotFound = err {
-                    Ok(Vec::new())
-                } else {
-                    Err(Error::Database(err.into()))
-                }
-            })?;
+            .await?;
 
         tx.commit().await?;
 
@@ -569,14 +555,7 @@ impl SearchScope for SqliteStorage {
             .bind(UserReaction::Neutral as u32)
             .try_map(|row| document::Id::from_row(&row))
             .fetch_all(&mut tx)
-            .await
-            .or_else(|err| {
-                if let sqlx::Error::RowNotFound = err {
-                    Ok(Vec::new())
-                } else {
-                    Err(err)
-                }
-            })?;
+            .await?;
 
         Self::clear_documents(&mut tx, &ids).await?;
 
@@ -627,7 +606,7 @@ impl SearchScope for SqliteStorage {
             if let sqlx::Error::RowNotFound = err {
                 Err(Error::NoDocument)
             } else {
-                Err(Error::Database(err.into()))
+                Err(err.into())
             }
         })?;
 
@@ -875,14 +854,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_clear_empty_feed() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
-        let had_documents = storage.feed().clear().await.unwrap();
-        assert!(!had_documents);
-    }
-
-    #[tokio::test]
     async fn test_search_methods() {
         let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
         storage.init_database().await.unwrap();
@@ -930,6 +901,32 @@ mod tests {
         assert!(check_eq_of_documents(&search_docs[..10], &first_docs));
         assert!(check_eq_of_documents(&search_docs[10..], &second_docs));
         assert!(storage.search().clear().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_empty_search() {
+        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        storage.init_database().await.unwrap();
+
+        let new_search = Search {
+            search_by: SearchBy::Query,
+            search_term: "term".to_string(),
+            paging: Paging {
+                size: 100,
+                next_page: 2,
+            },
+        };
+        storage
+            .search()
+            .store_new_search(&new_search, &[])
+            .await
+            .unwrap();
+
+        let search = storage.search().fetch().await.unwrap();
+        assert!(search.1.is_empty());
+
+        let a_search_was_closed = storage.search().clear().await.unwrap();
+        assert!(a_search_was_closed);
     }
 
     #[tokio::test]
