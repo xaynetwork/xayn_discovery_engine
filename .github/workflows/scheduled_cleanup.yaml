@@ -13,11 +13,10 @@ on:
         #artifactory_name:
          #   description: "deletion by the name of the artifactory_name"
 
-number_days_old: 29
-artifactory_name: "main"
-
 jobs:
   jfrog_packages_cleanup:
+     number_days_old: 29
+     artifactory_name: "main"
      name: install jfrog cli
      runs-on: ubuntu-latest
      steps:
