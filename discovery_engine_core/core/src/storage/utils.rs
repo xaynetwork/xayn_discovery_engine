@@ -43,7 +43,7 @@ where
     }
 }
 
-trait SqlxSqliteErrorExt<V> {
+pub(crate) trait SqlxSqliteErrorExt<V> {
     /// Use this on the result of a sqlite query which might have failed a foreign
     /// key constraint when an illegal document was passed in.
     ///
@@ -53,6 +53,8 @@ trait SqlxSqliteErrorExt<V> {
     /// If there is an error and it is a fk violation an appropriate error variant is
     /// used instead of the default generic database error.
     fn fk_violation_is_invalid_document_id(self, id: document::Id) -> Result<V, Error>;
+
+    fn on_row_not_found(self, error: Error) -> Result<V, Error>;
 }
 
 impl<V> SqlxSqliteErrorExt<V> for Result<V, sqlx::Error> {
@@ -63,6 +65,14 @@ impl<V> SqlxSqliteErrorExt<V> for Result<V, sqlx::Error> {
             }
         }
         self.map_err(Into::into)
+    }
+
+    fn on_row_not_found(self, error: Error) -> Result<V, Error> {
+        if let Err(sqlx::Error::RowNotFound) = &self {
+            Err(error)
+        } else {
+            self.map_err(Into::into)
+        }
     }
 }
 

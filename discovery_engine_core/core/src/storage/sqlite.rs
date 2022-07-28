@@ -19,10 +19,7 @@ use chrono::{NaiveDateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
-    FromRow,
-    Pool,
-    QueryBuilder,
-    Transaction,
+    FromRow, Pool, QueryBuilder, Transaction,
 };
 use url::Url;
 use xayn_discovery_engine_providers::Market;
@@ -32,22 +29,13 @@ use crate::{
     stack,
     storage::{
         models::{
-            ApiDocumentView,
-            NewDocument,
-            NewsResource,
-            NewscatcherData,
-            Paging,
-            Search,
-            SearchBy,
+            ApiDocumentView, NewDocument, NewsResource, NewscatcherData, Paging, Search, SearchBy,
         },
-        Error,
-        FeedScope,
-        SearchScope,
-        Storage,
+        Error, FeedScope, SearchScope, Storage,
     },
 };
 
-use crate::storage::utils::SqlxPushTupleExt;
+use crate::storage::utils::{SqlxPushTupleExt, SqlxSqliteErrorExt};
 
 // Sqlite bind limit
 const BIND_LIMIT: usize = 32766;
@@ -456,13 +444,7 @@ impl SearchScope for SqliteStorage {
         )
         .fetch_one(&mut tx)
         .await
-        .map_err(|err| {
-            if let sqlx::Error::RowNotFound = err {
-                Error::NoSearch
-            } else {
-                err.into()
-            }
-        })?;
+        .on_row_not_found(Error::NoSearch)?;
 
         let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
             "SELECT sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
@@ -538,13 +520,7 @@ impl SearchScope for SqliteStorage {
         .bind(id)
         .fetch_one(&mut tx)
         .await
-        .or_else(|err| {
-            if let sqlx::Error::RowNotFound = err {
-                Err(Error::NoDocument)
-            } else {
-                Err(err.into())
-            }
-        })?;
+        .on_row_not_found(Error::NoDocument)?;
 
         tx.commit().await?;
 
