@@ -1,5 +1,5 @@
-// Artifactory.spec is an AQL (Artifactory Query Language) file
-// This file is use to manage artifacts and builds stored within Jfrog's Artifactory 
+#Artifactory.spec is an AQL (Artifactory Query Language) file
+#This file is use to manage artifacts and builds stored within Jfrog's Artifactory 
 {
 "files": [
   {
@@ -12,7 +12,7 @@
           {
             "$and": [
               {
-                "created": { "$before":"21d" }
+                "created": { "$before":"dddd" }
               }
             ]
           }
