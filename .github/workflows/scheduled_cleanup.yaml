@@ -28,7 +28,7 @@ jobs:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
            echo "A"
-           if [-n ${{env.artifactory_name}}]; then
+           if [ -n ${{env.artifactory_name}} ]; then
            echo "B"
            sed -i '/15/ i ${{env.artifactory_name}}' .github/scripts/artifactory.spec
            fi
