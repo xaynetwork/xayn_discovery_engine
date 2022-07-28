@@ -162,6 +162,8 @@ pub(crate) struct CoreConfig {
     /// The minimum cosine similarity wrt the original document below which documents returned from
     /// the deep search are discarded.
     pub(crate) deep_search_sim: f32,
+    /// The probability for random exploration instead of greedy selection in the MAB.
+    pub(crate) epsilon: f32,
 }
 
 impl Default for CoreConfig {
@@ -174,6 +176,7 @@ impl Default for CoreConfig {
             deep_search_top: 3,
             deep_search_max: 20,
             deep_search_sim: 0.2,
+            epsilon: 0.2,
         }
     }
 }
