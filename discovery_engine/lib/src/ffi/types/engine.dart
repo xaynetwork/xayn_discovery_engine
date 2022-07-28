@@ -204,6 +204,15 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
+  Future<List<DocumentWithActiveData>> restoreFeed() async {
+    final result = await asyncFfi.restoreFeed(_engine.ref);
+
+    return resultVecDocumentStringFfiAdapter
+        .consumeNative(result)
+        .toDocumentListWithActiveData();
+  }
+
+  @override
   Future<void> timeSpent(final TimeSpent timeSpent) async {
     final boxedTimeSpent = timeSpent.allocNative();
     await asyncFfi.timeSpent(_engine.ref, boxedTimeSpent.move());
