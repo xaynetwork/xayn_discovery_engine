@@ -27,9 +27,6 @@ jobs:
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
-           #sed -i 's/dddd/${{github.event.inputs.number_days_old}}' .github/scripts/artifactory.spec
-           #sed -i 's/name_artifactory/${{github.event.inputs.artifactory_name}}' .github/scripts/artifactory.spec
-           
            if [-n ${{env.artifactory_name}}]; then
            sed -i '/15/ i ${{env.artifactory_name}}' .github/scripts/artifactory.spec
            fi
