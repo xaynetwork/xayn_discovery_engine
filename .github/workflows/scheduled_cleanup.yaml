@@ -30,7 +30,7 @@ jobs:
            #sed -i 's/dddd/${{github.event.inputs.number_days_old}}' .github/scripts/artifactory.spec
            #sed -i 's/name_artifactory/${{github.event.inputs.artifactory_name}}' .github/scripts/artifactory.spec
            
-           if [-n "${{artifactory_name}}"]; then
+           if [-n ${{artifactory_name}}]; then
            sed -i '/15/ i ${{artifactory_name}}' .github/scripts/artifactory.spec
            fi
 
