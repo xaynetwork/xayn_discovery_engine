@@ -21,14 +21,14 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
-    show checkFfiUsize;
+    show FfiUsizeFfi;
 
 extension EmbeddingFfi on Embedding {
   void writeNative(
     final Pointer<RustEmbedding> place,
   ) {
     final len = values.length;
-    checkFfiUsize(len, 'Embedding.length');
+    len.checkFfiUsize('Embedding.length');
     final buffer = ffi.alloc_uninitialized_f32_slice(len);
     buffer.asTypedList(len).setAll(0, values);
     ffi.init_embedding_at(place, buffer, len);

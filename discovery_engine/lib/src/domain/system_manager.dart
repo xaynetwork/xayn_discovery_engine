@@ -12,15 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:meta/meta.dart' show visibleForTesting;
+import 'dart:convert' show jsonEncode;
+
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show SystemClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show EngineEvent, EngineExceptionReason;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
@@ -30,24 +29,16 @@ import 'package:xayn_discovery_engine/src/domain/repository/source_reacted_repo.
 /// Business logic concerning the management of the engine system.
 class SystemManager {
   final Engine _engine;
-  final EventConfig _config;
   final DocumentRepository _docRepo;
   final SourceReactedRepository _sourceReactedRepo;
   final Future<void> Function() _clearAiState;
 
   SystemManager(
     this._engine,
-    this._config,
     this._docRepo,
     this._sourceReactedRepo,
     this._clearAiState,
   );
-
-  @visibleForTesting
-  int get maxFeedDocs => _config.maxFeedDocs;
-
-  @visibleForTesting
-  int get maxSearchDocs => _config.maxSearchDocs;
 
   /// Handle the given system client event.
   ///
@@ -79,12 +70,14 @@ class SystemManager {
         );
       }
     }
+    final deConfig = <String, dynamic>{};
     if (maxItemsPerFeedBatch != null) {
-      _config.maxFeedDocs = maxItemsPerFeedBatch;
+      deConfig['feed'] = {'max_docs_per_batch': maxItemsPerFeedBatch};
     }
     if (maxItemsPerSearchBatch != null) {
-      _config.maxSearchDocs = maxItemsPerSearchBatch;
+      deConfig['search'] = {'max_docs_per_batch': maxItemsPerSearchBatch};
     }
+    await _engine.configure(jsonEncode(deConfig));
 
     return const EngineEvent.clientEventSucceeded();
   }

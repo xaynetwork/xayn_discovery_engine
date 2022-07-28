@@ -46,6 +46,9 @@ abstract class Engine {
   /// Serializes the state of the [Engine].
   Future<Uint8List> serialize();
 
+  /// Configures the running engine.
+  Future<void> configure(String deConfig);
+
   /// Changes the currently supported markets.
   Future<void> setMarkets(
     List<HistoricDocument> history,
@@ -70,14 +73,12 @@ abstract class Engine {
   /// Gets the next batch of feed documents.
   Future<List<DocumentWithActiveData>> feedNextBatch(
     List<SourceReacted> sources,
-    int maxDocuments,
   );
 
-  /// Retrieves at most [maxDocuments] feed documents.
+  /// Gets the next batch of feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
     List<SourceReacted> sources,
-    int maxDocuments,
   );
 
   /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
@@ -99,18 +100,10 @@ abstract class Engine {
   );
 
   /// Perform an active search by query.
-  Future<List<DocumentWithActiveData>> searchByQuery(
-    String query,
-    int page,
-    int pageSize,
-  );
+  Future<List<DocumentWithActiveData>> searchByQuery(String query, int page);
 
   /// Perform an active search by topic.
-  Future<List<DocumentWithActiveData>> searchByTopic(
-    String topic,
-    int page,
-    int pageSize,
-  );
+  Future<List<DocumentWithActiveData>> searchByTopic(String topic, int page);
 
   /// Performs an active search by document id (aka deep search).
   ///

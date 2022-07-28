@@ -105,17 +105,6 @@ import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_
     show UriAdapter;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
-class EventConfig {
-  int maxFeedDocs;
-  int maxSearchDocs;
-
-  EventConfig({
-    required this.maxFeedDocs,
-    required this.maxSearchDocs,
-  })  : assert(maxFeedDocs > 0),
-        assert(maxSearchDocs > 0);
-}
-
 class EventHandler {
   Engine? _engine;
   final AssetReporter _assetReporter;
@@ -271,10 +260,6 @@ class EventHandler {
     }
 
     // init managers
-    final eventConfig = EventConfig(
-      maxFeedDocs: config.maxItemsPerFeedBatch,
-      maxSearchDocs: config.maxItemsPerSearchBatch,
-    );
     _documentManager = DocumentManager(
       engine,
       documentRepository,
@@ -285,7 +270,6 @@ class EventHandler {
     );
     _feedManager = FeedManager(
       engine,
-      eventConfig,
       documentRepository,
       activeDataRepository,
       engineStateRepository,
@@ -295,7 +279,6 @@ class EventHandler {
     );
     _searchManager = SearchManager(
       engine,
-      eventConfig,
       activeSearchRepository,
       documentRepository,
       activeDataRepository,
@@ -303,7 +286,6 @@ class EventHandler {
     );
     _systemManager = SystemManager(
       engine,
-      eventConfig,
       documentRepository,
       sourceReactedRepository,
       clearAiState,

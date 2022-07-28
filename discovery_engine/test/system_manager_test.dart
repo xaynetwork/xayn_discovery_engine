@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/src/api/events/engine_events.dart';
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig, EventHandler;
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -45,7 +45,6 @@ Future<void> main() async {
     late SystemManager mgr;
 
     final engine = MockEngine();
-    final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
 
     setUpAll(() async {
       EventHandler.registerHiveAdapters();
@@ -59,7 +58,6 @@ Future<void> main() async {
       sourceReactedRepo = HiveSourceReactedRepository();
       mgr = SystemManager(
         engine,
-        config,
         docRepo,
         sourceReactedRepo,
         () async => docRepo.box.clear(),
@@ -89,31 +87,27 @@ Future<void> main() async {
       await Hive.deleteFromDisk();
     });
 
-    test('change configuration feedMarkets', () async {
+    test('change configuration', () async {
       final markets = {const FeedMarket(langCode: 'de', countryCode: 'DE')};
-      final evt = await mgr.changeConfiguration(markets, null, null);
-      expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
-    });
+      final marketResponse = await mgr.changeConfiguration(markets, null, null);
+      expect(marketResponse, isA<ClientEventSucceeded>());
+      expect(engine.getCallCount('configure'), equals(1));
 
-    test('change configuration maxItemsPerFeedBatch', () async {
-      final maxDocs = mgr.maxFeedDocs;
-      final evt = await mgr.changeConfiguration(null, maxDocs + 1, null);
-      expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
-      expect(mgr.maxFeedDocs, maxDocs + 1);
-    });
+      final feedResponse = await mgr.changeConfiguration(null, 42, null);
+      expect(feedResponse, isA<ClientEventSucceeded>());
+      expect(engine.getCallCount('configure'), equals(2));
 
-    test('change configuration maxItemsPerSearchBatch', () async {
-      final maxDocs = mgr.maxSearchDocs;
-      final evt = await mgr.changeConfiguration(null, null, maxDocs + 1);
-      expect(evt.whenOrNull(clientEventSucceeded: () => null), isNull);
-      expect(mgr.maxSearchDocs, maxDocs + 1);
+      final searchResponse = await mgr.changeConfiguration(null, null, 42);
+      expect(searchResponse, isA<ClientEventSucceeded>());
+      expect(engine.getCallCount('configure'), equals(3));
     });
 
     test('resetAi resets all AI state holders', () async {
       expect(docRepo.box.isEmpty, isFalse);
-      final res = await mgr.resetAi();
-      expect(res, isA<ResetAiSucceeded>());
+      final response = await mgr.resetAi();
+      expect(response, isA<ResetAiSucceeded>());
       expect(docRepo.box.isEmpty, isTrue);
+      expect(engine.getCallCount('resetAi'), equals(1));
     });
   });
 }
