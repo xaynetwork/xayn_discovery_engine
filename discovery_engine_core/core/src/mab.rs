@@ -29,6 +29,8 @@ pub enum Error {
     NoBucketsToPull,
     /// Epsilon must be a probability.
     InvalidEpsilon,
+    /// The interval `[low, high)` must be well-formed.
+    InvalidInterval,
 }
 
 pub(crate) trait BetaSample {
@@ -45,7 +47,7 @@ impl BetaSample for BetaSampler {
 }
 
 pub(crate) trait UniformSample<T> {
-    fn sample(&self, low: T, high: T) -> T;
+    fn sample(&self, low: T, high: T) -> Result<T, Error>;
 }
 
 /// Sample a value from a uniform distribution.
@@ -53,10 +55,13 @@ pub(crate) struct UniformSampler;
 
 impl<T> UniformSample<T> for UniformSampler
 where
-    T: SampleUniform,
+    T: PartialOrd + SampleUniform,
 {
-    fn sample(&self, low: T, high: T) -> T {
-        Uniform::new(low, high).sample(&mut rand::thread_rng())
+    fn sample(&self, low: T, high: T) -> Result<T, Error> {
+        if low >= high {
+            return Err(Error::InvalidInterval);
+        }
+        Ok(Uniform::new(low, high).sample(&mut rand::thread_rng()))
     }
 }
 
@@ -135,12 +140,18 @@ where
     DS: UniformSample<usize>,
     B: Bucket<T>,
 {
-    let count = buckets.iter().filter(|bucket| !bucket.is_empty()).count();
-    buckets
-        .iter_mut()
-        .filter(|bucket| !bucket.is_empty())
-        .nth(uniform_discrete_sampler.sample(0, count))
-        .map(Ok)
+    if let Ok(index) = uniform_discrete_sampler.sample(
+        0,
+        buckets.iter().filter(|bucket| !bucket.is_empty()).count(),
+    ) {
+        buckets
+            .iter_mut()
+            .filter(|bucket| !bucket.is_empty())
+            .nth(index)
+            .map(Ok)
+    } else {
+        None
+    }
 }
 
 /// An iterator to select elements from buckets.
@@ -203,7 +214,7 @@ where
     type Item = Result<T, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.uniform_unit_sampler.sample(0., 1.) < self.epsilon {
+        if self.uniform_unit_sampler.sample(0., 1.).unwrap(/* valid interval */) < self.epsilon {
             pull_arms_randomly(&self.uniform_discrete_sampler, &mut self.buckets)
         } else {
             pull_arms_greedy(&self.beta_sampler, &mut self.buckets)
@@ -229,16 +240,16 @@ mod tests {
     struct MockUniformUnitSampler;
 
     impl UniformSample<f32> for MockUniformUnitSampler {
-        fn sample(&self, low: f32, high: f32) -> f32 {
-            (high - low) / 2. + low
+        fn sample(&self, low: f32, high: f32) -> Result<f32, Error> {
+            Ok((high - low) / 2. + low)
         }
     }
 
     struct MockUniformDiscreteSampler;
 
     impl UniformSample<usize> for MockUniformDiscreteSampler {
-        fn sample(&self, low: usize, high: usize) -> usize {
-            (high - low) / 2 + low
+        fn sample(&self, low: usize, high: usize) -> Result<usize, Error> {
+            Ok((high - low) / 2 + low)
         }
     }
 
