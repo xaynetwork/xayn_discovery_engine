@@ -29,22 +29,22 @@ use super::{
 /// Initializes a `Vec<Market>` at given place.
 ///
 /// This moves the passed in slice into the vector,
-/// i.e. `slice_ptr, len` map to `Box<[Market]>`.
+/// i.e. `slice_ptr, slice_len` map to `Box<[Market]>`.
 ///
 /// # Safety
 ///
-/// - It must be valid to write an `Option<Vec<Market>>` instance to given pointer,
+/// - It must be valid to write an `Vec<Market>` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
 /// - It must be valid to construct a `Box<[Market]>` from given `slice_ptr`
-///   and `len`.
+///   and `slice_len`.
 #[no_mangle]
 pub unsafe extern "C" fn init_market_vec_at(
     place: *mut Vec<Market>,
     slice_ptr: *mut Market,
-    len: FfiUsize,
+    slice_len: FfiUsize,
 ) {
     unsafe {
-        place.write(Vec::from(boxed_slice_from_raw_parts(slice_ptr, len)));
+        place.write(Vec::from(boxed_slice_from_raw_parts(slice_ptr, slice_len)));
     }
 }
 

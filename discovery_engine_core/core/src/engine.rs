@@ -509,6 +509,20 @@ impl Engine {
         unimplemented!("requires 'storage' feature")
     }
 
+    /// Clears the feed documents.
+    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    pub async fn clear_feed_documents(&self, ids: &[document::Id]) -> Result<(), Error> {
+        #[cfg(feature = "storage")]
+        {
+            self.storage.feed().clear_documents(ids).await?;
+
+            return Ok(());
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
     /// Process the feedback about the user spending some time on a document.
     pub async fn time_spent(&mut self, time_spent: &TimeSpent) {
         if let UserReaction::Positive | UserReaction::Neutral = time_spent.reaction {

@@ -269,20 +269,23 @@ impl SqliteStorage {
         Ok(())
     }
 
-    async fn clear_documents(
+    async fn clear_documents_from(
         tx: &mut Transaction<'_, Sqlite>,
-        documents: &[document::Id],
+        ids: &[document::Id],
+        table: &str,
+        column: &str,
     ) -> Result<bool, Error> {
         let mut deletion = false;
-        if documents.is_empty() {
+        if ids.is_empty() {
             return Ok(deletion);
         }
 
-        let mut query_builder = QueryBuilder::new("DELETE FROM Document WHERE id IN ");
-        for documents in documents.chunks(BIND_LIMIT) {
+        let mut query_builder =
+            QueryBuilder::new(format!("DELETE FROM {table} WHERE {column} IN "));
+        for ids in ids.chunks(BIND_LIMIT) {
             deletion |= query_builder
                 .reset()
-                .push_tuple(documents)
+                .push_tuple(ids)
                 .build()
                 .persistent(false)
                 .execute(&mut *tx)
@@ -346,17 +349,15 @@ impl Storage for SqliteStorage {
 
 #[async_trait]
 impl FeedScope for SqliteStorage {
-    async fn close_document(&self, document: &document::Id) -> Result<(), Error> {
+    async fn clear_documents(&self, ids: &[document::Id]) -> Result<bool, Error> {
         let mut tx = self.begin_tx().await?;
 
-        sqlx::query("DELETE FROM FeedDocument WHERE documentId = ?;")
-            .persistent(false)
-            .bind(document)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        let deletion =
+            Self::clear_documents_from(&mut tx, ids, "FeedDocument", "documentId").await?;
 
-        Self::commit_tx(tx).await
+        Self::commit_tx(tx).await?;
+
+        Ok(deletion)
     }
 
     async fn clear(&self) -> Result<bool, Error> {
@@ -604,7 +605,7 @@ impl SearchScope for SqliteStorage {
                     Err(Error::Database(err.into()))
                 }
             })?;
-        Self::clear_documents(&mut tx, &ids).await?;
+        Self::clear_documents_from(&mut tx, &ids, "Document", "id").await?;
 
         // delete all remaining data from SearchDocument table
         query_builder
@@ -893,7 +894,7 @@ mod tests {
             assert_eq!(doc.stack_id, Some(stack_id));
         }
 
-        storage.feed().close_document(&docs[0].id).await.unwrap();
+        assert!(storage.feed().clear_documents(&[docs[0].id]).await.unwrap());
         let feed = storage.feed().fetch().await.unwrap();
         assert!(!feed.iter().any(|feed| feed.document_id == docs[0].id));
 
