@@ -19,10 +19,10 @@ type ItemsResult<I> = Result<Vec<I>, GenericError>;
 type Request<I> = JoinHandle<ItemsResult<I>>;
 
 pub(super) async fn request_min_new_items<I: Send>(
-    max_requests: u32,
+    max_requests: usize,
     min_articles: usize,
     page_size: usize,
-    request_fn: impl Fn(u32) -> Request<I> + Send + Sync,
+    request_fn: impl Fn(usize) -> Request<I> + Send + Sync,
     filter_fn: impl Fn(Vec<I>) -> ItemsResult<I> + Send + Sync,
 ) -> ItemsResult<I> {
     let mut items = Vec::with_capacity(min_articles);
@@ -66,10 +66,10 @@ pub(super) async fn request_min_new_items<I: Send>(
 mod tests {
     use super::*;
 
-    struct Response(ItemsResult<u32>);
+    struct Response(ItemsResult<usize>);
 
     impl Response {
-        fn ok(items: &[u32]) -> Self {
+        fn ok(items: &[usize]) -> Self {
             Self(Ok(items.to_owned()))
         }
 
@@ -77,7 +77,7 @@ mod tests {
             Self(Err(GenericError::from(msg)))
         }
 
-        fn request(self) -> Request<u32> {
+        fn request(self) -> Request<usize> {
             tokio::spawn(async { self.0 })
         }
     }

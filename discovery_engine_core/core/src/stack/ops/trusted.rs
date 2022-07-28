@@ -43,7 +43,7 @@ pub(crate) struct TrustedNews {
     client: Arc<dyn TrustedHeadlinesProvider>,
     sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
-    max_requests: u32,
+    max_requests: usize,
     min_articles: usize,
     max_headline_age_days: usize,
 }
@@ -105,7 +105,7 @@ impl Ops for TrustedNews {
                 spawn_trusted_request(
                     self.client.clone(),
                     self.page_size,
-                    request_num as usize + 1,
+                    request_num + 1,
                     sources.clone(),
                     self.max_headline_age_days,
                 )

@@ -117,6 +117,11 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
+  Future<void> configure(String deConfig) async {
+    await asyncFfi.configure(_engine.ref, deConfig.allocNative().move());
+  }
+
+  @override
   Future<Uint8List> serialize() async {
     final result = await asyncFfi.serialize(_engine.ref);
 
@@ -174,13 +179,9 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<List<DocumentWithActiveData>> feedNextBatch(
     final List<SourceReacted> sources,
-    final int maxDocuments,
   ) async {
-    final result = await asyncFfi.feedNextBatch(
-      _engine.ref,
-      sources.allocVec().move(),
-      maxDocuments,
-    );
+    final result =
+        await asyncFfi.feedNextBatch(_engine.ref, sources.allocVec().move());
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
@@ -191,13 +192,11 @@ class DiscoveryEngineFfi implements Engine {
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     final List<HistoricDocument> history,
     final List<SourceReacted> sources,
-    final int maxDocuments,
   ) async {
     final result = await asyncFfi.getFeedDocuments(
       _engine.ref,
       history.allocNative().move(),
       sources.allocVec().move(),
-      maxDocuments,
     );
 
     return resultVecDocumentStringFfiAdapter
@@ -251,14 +250,11 @@ class DiscoveryEngineFfi implements Engine {
   Future<List<DocumentWithActiveData>> searchByQuery(
     String query,
     int page,
-    int pageSize,
   ) async {
-    final boxedQuery = query.allocNative();
     final result = await asyncFfi.searchByQuery(
       _engine.ref,
-      boxedQuery.move(),
+      query.allocNative().move(),
       page,
-      pageSize,
     );
 
     return resultVecDocumentStringFfiAdapter
@@ -270,14 +266,11 @@ class DiscoveryEngineFfi implements Engine {
   Future<List<DocumentWithActiveData>> searchByTopic(
     String topic,
     int page,
-    int pageSize,
   ) async {
-    final boxedTopic = topic.allocNative();
     final result = await asyncFfi.searchByTopic(
       _engine.ref,
-      boxedTopic.move(),
+      topic.allocNative().move(),
       page,
-      pageSize,
     );
 
     return resultVecDocumentStringFfiAdapter

@@ -28,6 +28,8 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
+    show FfiUsizeFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show OptionStringFfi, StringFfi, StringListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
@@ -36,17 +38,19 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_prov
 class InitConfigFfi with EquatableMixin {
   final String apiKey;
   final String apiBaseUrl;
+  final String newsProviderPath;
+  final String headlinesProviderPath;
   final List<FeedMarket> feedMarkets;
   final List<String> trustedSources;
   final List<String> excludedSources;
-  final String newsProviderPath;
-  final String headlinesProviderPath;
   final String smbertVocab;
   final String smbertModel;
   final String kpeVocab;
   final String kpeModel;
   final String kpeCnn;
   final String kpeClassifier;
+  final int maxDocsPerFeedBatch;
+  final int maxDocsPerSearchBatch;
   final String? deConfig;
   final String? logFile;
 
@@ -54,17 +58,19 @@ class InitConfigFfi with EquatableMixin {
   List<Object?> get props => [
         apiKey,
         apiBaseUrl,
+        newsProviderPath,
+        headlinesProviderPath,
         feedMarkets,
         trustedSources,
         excludedSources,
-        newsProviderPath,
-        headlinesProviderPath,
         smbertVocab,
         smbertModel,
         kpeVocab,
         kpeModel,
         kpeCnn,
         kpeClassifier,
+        maxDocsPerFeedBatch,
+        maxDocsPerSearchBatch,
         deConfig,
         logFile,
       ];
@@ -79,17 +85,19 @@ class InitConfigFfi with EquatableMixin {
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
+        newsProviderPath: configuration.newsProviderPath,
+        headlinesProviderPath: configuration.headlinesProviderPath,
         feedMarkets: configuration.feedMarkets.toList(),
         trustedSources: trustedSources.toStringList(),
         excludedSources: excludedSources.toStringList(),
-        newsProviderPath: configuration.newsProviderPath,
-        headlinesProviderPath: configuration.headlinesProviderPath,
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
         kpeVocab: setupData.kpeVocab,
         kpeModel: setupData.kpeModel,
         kpeCnn: setupData.kpeCnn,
         kpeClassifier: setupData.kpeClassifier,
+        maxDocsPerFeedBatch: configuration.maxItemsPerFeedBatch,
+        maxDocsPerSearchBatch: configuration.maxItemsPerSearchBatch,
         deConfig: deConfig,
         logFile: configuration.logFile,
       );
@@ -97,17 +105,19 @@ class InitConfigFfi with EquatableMixin {
   InitConfigFfi.fromParts({
     required this.apiKey,
     required this.apiBaseUrl,
+    required this.newsProviderPath,
+    required this.headlinesProviderPath,
     required this.feedMarkets,
     required this.trustedSources,
     required this.excludedSources,
-    required this.newsProviderPath,
-    required this.headlinesProviderPath,
     required this.smbertVocab,
     required this.smbertModel,
     required this.kpeVocab,
     required this.kpeModel,
     required this.kpeCnn,
     required this.kpeClassifier,
+    required this.maxDocsPerFeedBatch,
+    required this.maxDocsPerSearchBatch,
     this.deConfig,
     this.logFile,
   });
@@ -122,20 +132,24 @@ class InitConfigFfi with EquatableMixin {
   void writeNative(Pointer<RustInitConfig> place) {
     apiKey.writeNative(ffi.init_config_place_of_api_key(place));
     apiBaseUrl.writeNative(ffi.init_config_place_of_api_base_url(place));
-    feedMarkets.writeVec(ffi.init_config_place_of_markets(place));
-    trustedSources.writeNative(ffi.init_config_place_of_trusted_sources(place));
-    excludedSources
-        .writeNative(ffi.init_config_place_of_excluded_sources(place));
     newsProviderPath
         .writeNative(ffi.init_config_place_of_news_provider_path(place));
     headlinesProviderPath
         .writeNative(ffi.init_config_place_of_headlines_provider_path(place));
+    feedMarkets.writeVec(ffi.init_config_place_of_markets(place));
+    trustedSources.writeNative(ffi.init_config_place_of_trusted_sources(place));
+    excludedSources
+        .writeNative(ffi.init_config_place_of_excluded_sources(place));
     smbertVocab.writeNative(ffi.init_config_place_of_smbert_vocab(place));
     smbertModel.writeNative(ffi.init_config_place_of_smbert_model(place));
     kpeVocab.writeNative(ffi.init_config_place_of_kpe_vocab(place));
     kpeModel.writeNative(ffi.init_config_place_of_kpe_model(place));
     kpeCnn.writeNative(ffi.init_config_place_of_kpe_cnn(place));
     kpeClassifier.writeNative(ffi.init_config_place_of_kpe_classifier(place));
+    maxDocsPerFeedBatch
+        .writeNative(ffi.init_config_place_of_max_docs_per_feed_batch(place));
+    maxDocsPerSearchBatch
+        .writeNative(ffi.init_config_place_of_max_docs_per_search_batch(place));
     deConfig.writeNative(ffi.init_config_place_of_de_config(place));
     logFile.writeNative(ffi.init_config_place_of_log_file(place));
   }
@@ -146,6 +160,12 @@ class InitConfigFfi with EquatableMixin {
       apiKey: StringFfi.readNative(ffi.init_config_place_of_api_key(config)),
       apiBaseUrl:
           StringFfi.readNative(ffi.init_config_place_of_api_base_url(config)),
+      newsProviderPath: StringFfi.readNative(
+        ffi.init_config_place_of_news_provider_path(config),
+      ),
+      headlinesProviderPath: StringFfi.readNative(
+        ffi.init_config_place_of_headlines_provider_path(config),
+      ),
       feedMarkets:
           FeedMarketSliceFfi.readVec(ffi.init_config_place_of_markets(config)),
       trustedSources: StringListFfi.readNative(
@@ -153,12 +173,6 @@ class InitConfigFfi with EquatableMixin {
       ),
       excludedSources: StringListFfi.readNative(
         ffi.init_config_place_of_excluded_sources(config),
-      ),
-      newsProviderPath: StringFfi.readNative(
-        ffi.init_config_place_of_news_provider_path(config),
-      ),
-      headlinesProviderPath: StringFfi.readNative(
-        ffi.init_config_place_of_headlines_provider_path(config),
       ),
       smbertVocab:
           StringFfi.readNative(ffi.init_config_place_of_smbert_vocab(config)),
@@ -171,6 +185,12 @@ class InitConfigFfi with EquatableMixin {
       kpeCnn: StringFfi.readNative(ffi.init_config_place_of_kpe_cnn(config)),
       kpeClassifier:
           StringFfi.readNative(ffi.init_config_place_of_kpe_classifier(config)),
+      maxDocsPerFeedBatch: FfiUsizeFfi.readNative(
+        ffi.init_config_place_of_max_docs_per_feed_batch(config),
+      ),
+      maxDocsPerSearchBatch: FfiUsizeFfi.readNative(
+        ffi.init_config_place_of_max_docs_per_search_batch(config),
+      ),
       deConfig: OptionStringFfi.readNative(
         ffi.init_config_place_of_de_config(config),
       ),

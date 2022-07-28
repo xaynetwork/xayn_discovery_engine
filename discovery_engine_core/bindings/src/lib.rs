@@ -76,6 +76,11 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
+    /// Configures the running engine.
+    pub async fn configure(engine: &SharedEngine, de_config: Box<String>) {
+        engine.as_ref().lock().await.configure(&de_config);
+    }
+
     /// Serializes the engine.
     pub async fn serialize(engine: &SharedEngine) -> Box<Result<Vec<u8>, String>> {
         Box::new(
@@ -113,14 +118,13 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn feed_next_batch(
         engine: &SharedEngine,
         sources: Box<Vec<WeightedSource>>,
-        max_documents: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .feed_next_batch(&sources, max_documents)
+                .feed_next_batch(&sources)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -132,14 +136,13 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
         sources: Box<Vec<WeightedSource>>,
-        max_documents: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .get_feed_documents(&history, &sources, max_documents)
+                .get_feed_documents(&history, &sources)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -214,14 +217,13 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine: &SharedEngine,
         query: Box<String>,
         page: u32,
-        page_size: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .search_by_query(query.as_ref(), page, page_size)
+                .search_by_query(query.as_ref(), page)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -232,14 +234,13 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine: &SharedEngine,
         topic: Box<String>,
         page: u32,
-        page_size: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .search_by_topic(topic.as_ref(), page, page_size)
+                .search_by_topic(topic.as_ref(), page)
                 .await
                 .map_err(|error| error.to_string()),
         )
