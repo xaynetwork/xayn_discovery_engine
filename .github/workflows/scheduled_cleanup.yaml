@@ -17,7 +17,7 @@ jobs:
   jfrog_packages_cleanup:
      env:
         number_days_old: 29
-        artifactory_name: "main"
+        artifactory_name: main
      name: install jfrog cli
      runs-on: ubuntu-latest
      steps:
