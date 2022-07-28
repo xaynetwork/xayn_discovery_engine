@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Cow, collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
