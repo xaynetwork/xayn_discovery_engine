@@ -95,21 +95,13 @@ impl Stack {
     }
 
     /// Updates the relevance of the Stack based on the user feedback.
-    pub(crate) fn update_relevance(&mut self, reaction: UserReaction) {
-        // to avoid making the distribution too skewed
-        const MAX_BETA_PARAMS: f32 = 1000.;
-
-        fn incr(value: &mut f32) {
-            if *value < MAX_BETA_PARAMS {
-                (*value) += 1.;
-            }
-        }
-
-        match reaction {
-            UserReaction::Positive => incr(&mut self.data.alpha),
-            UserReaction::Negative => incr(&mut self.data.beta),
-            UserReaction::Neutral => (),
-        }
+    pub(crate) fn update_relevance(
+        &mut self,
+        reaction: UserReaction,
+        max_reactions: usize,
+        incr_reactions: f32,
+    ) {
+        stack::update_relevance(&mut self.data, reaction, max_reactions, incr_reactions);
     }
 
     /// It checks that every document belongs to a stack.

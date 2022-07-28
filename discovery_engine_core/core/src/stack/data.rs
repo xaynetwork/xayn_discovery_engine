@@ -40,13 +40,19 @@ pub(crate) struct Data {
     /// The beta parameter of the beta distribution.
     #[derivative(Default(value = "1."))]
     pub(crate) beta: f32,
+    /// The number of likes.
+    #[derivative(Default(value = "1."))]
+    pub(crate) likes: f32,
+    /// The number of dislikes.
+    #[derivative(Default(value = "1."))]
+    pub(crate) dislikes: f32,
     /// Documents in the [`Stack`](super::Stack).
     pub(crate) documents: Vec<Document>,
 }
 
 impl Data {
-    #[allow(dead_code)]
     /// Create a `Data`.
+    #[cfg(test)]
     pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
         if alpha <= 0.0 {
             return Err(Error::InvalidAlpha(alpha));
@@ -59,6 +65,7 @@ impl Data {
             alpha,
             beta,
             documents,
+            ..Self::default()
         })
     }
 

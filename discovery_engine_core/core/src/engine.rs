@@ -69,7 +69,7 @@ use crate::{
         UserReaction,
         WeightedSource,
     },
-    mab::{self, BetaSampler, Bucket, SelectionIter},
+    mab::{self, BetaSampler, Bucket, SelectionIter, UniformSampler},
     stack::{
         self,
         exploration::Stack as Exploration,
@@ -468,8 +468,14 @@ impl Engine {
             once(&mut self.exploration_stack as _),
         );
 
-        let documents =
-            SelectionIter::new(BetaSampler, all_stacks).select(max_documents as usize)?;
+        let documents = SelectionIter::new(
+            self.core_config.epsilon,
+            UniformSampler,
+            UniformSampler,
+            BetaSampler,
+            all_stacks,
+        )?
+        .select(max_documents as usize)?;
         for document in &documents {
             debug!(
                 document = %document.id,
@@ -520,9 +526,17 @@ impl Engine {
         // update relevance of stack if the reacted document belongs to one
         if !reacted.stack_id.is_nil() {
             if let Some(stack) = stacks.get_mut(&reacted.stack_id) {
-                stack.update_relevance(reacted.reaction);
+                stack.update_relevance(
+                    reacted.reaction,
+                    self.core_config.max_reactions,
+                    self.core_config.incr_reactions,
+                );
             } else if reacted.stack_id == Exploration::id() {
-                self.exploration_stack.update_relevance(reacted.reaction);
+                self.exploration_stack.update_relevance(
+                    reacted.reaction,
+                    self.core_config.max_reactions,
+                    self.core_config.incr_reactions,
+                );
             } else {
                 return Err(Error::InvalidStackId(reacted.stack_id));
             }
