@@ -16,7 +16,7 @@ use std::borrow::Cow;
 
 use sqlx::{Database, Encode, QueryBuilder, Type};
 
-use crate::{document, storage::Error};
+use crate::storage::Error;
 
 pub(super) trait SqlxPushTupleExt<'args, DB: Database> {
     fn push_tuple<I>(&mut self, values: I) -> &mut Self
@@ -44,24 +44,22 @@ where
 }
 
 pub(crate) trait SqlxSqliteErrorExt<V> {
-    /// Use this on the result of a sqlite query which might have failed a foreign
-    /// key constraint when an illegal document was passed in.
+    /// In case of a foreign key violation return given error.
     ///
-    /// For example it can be used in `.user_reacted` to handle it being
-    /// called with a random document id.
-    ///
-    /// If there is an error and it is a fk violation an appropriate error variant is
-    /// used instead of the default generic database error.
-    fn fk_violation_is_invalid_document_id(self, id: document::Id) -> Result<V, Error>;
+    /// Converts other `sqlx::Error`s to `storage::Error`s.
+    fn on_fk_violation(self, error: Error) -> Result<V, Error>;
 
+    /// In case of a row not found error return given error.
+    ///
+    /// Converts other `sqlx::Error`s to `storage::Error`s.
     fn on_row_not_found(self, error: Error) -> Result<V, Error>;
 }
 
 impl<V> SqlxSqliteErrorExt<V> for Result<V, sqlx::Error> {
-    fn fk_violation_is_invalid_document_id(self, id: document::Id) -> Result<V, Error> {
+    fn on_fk_violation(self, error: Error) -> Result<V, Error> {
         if let Err(sqlx::Error::Database(db_err)) = &self {
             if db_err.code() == Some(Cow::Borrowed("787")) {
-                return Err(Error::InvalidDocumentId(id));
+                return Err(error);
             }
         }
         self.map_err(Into::into)
@@ -78,7 +76,7 @@ impl<V> SqlxSqliteErrorExt<V> for Result<V, sqlx::Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::sqlite::SqliteStorage;
+    use crate::{document, storage::sqlite::SqliteStorage};
 
     use super::*;
 
@@ -99,17 +97,17 @@ mod tests {
         let document_id = document::Id::new();
 
         let res = sqlx::query("INSERT INTO Bar(x) VALUES (?);")
-            .bind(10)
+            .bind(10u32)
             .execute(&storage.pool)
             .await
-            .fk_violation_is_invalid_document_id(document_id);
+            .on_fk_violation(Error::InvalidDocumentId(document_id));
 
         assert!(matches!(res, Err(Error::InvalidDocumentId(id)) if id == document_id));
 
         let res = sqlx::query("malformed;")
             .execute(&storage.pool)
             .await
-            .fk_violation_is_invalid_document_id(document_id);
+            .on_fk_violation(Error::InvalidDocumentId(document_id));
 
         assert!(!matches!(res, Err(Error::InvalidDocumentId(_))));
     }
