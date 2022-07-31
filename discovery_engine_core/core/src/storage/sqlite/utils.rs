@@ -35,7 +35,6 @@ where
             separated.push_bind(value);
         }
         separated.push_unseparated(")");
-        drop(separated);
         self
     }
 }

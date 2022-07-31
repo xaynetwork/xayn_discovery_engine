@@ -110,7 +110,7 @@ impl SqliteStorage {
             .push_values(expected_ids, |mut stm, id| {
                 stm.push_bind(id);
             })
-            .push("ON CONFLICT DO NOTHING")
+            .push(" ON CONFLICT DO NOTHING;")
             .build()
             .persistent(false)
             .execute(&mut *tx)
@@ -119,7 +119,7 @@ impl SqliteStorage {
 
         query_builder
             .reset()
-            .push("DELETE FROM Stack WHERE stackId not in ")
+            .push("DELETE FROM Stack WHERE stackId NOT IN ")
             .push_tuple(expected_ids)
             .build()
             .persistent(false)
