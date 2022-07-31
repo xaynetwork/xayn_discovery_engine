@@ -100,15 +100,15 @@ mod tests {
             .bind(10u32)
             .execute(&storage.pool)
             .await
-            .on_fk_violation(Error::InvalidDocumentId(document_id));
+            .on_fk_violation(Error::NoDocument(document_id));
 
-        assert!(matches!(res, Err(Error::InvalidDocumentId(id)) if id == document_id));
+        assert!(matches!(res, Err(Error::NoDocument(id)) if id == document_id));
 
         let res = sqlx::query("malformed;")
             .execute(&storage.pool)
             .await
-            .on_fk_violation(Error::InvalidDocumentId(document_id));
+            .on_fk_violation(Error::NoDocument(document_id));
 
-        assert!(!matches!(res, Err(Error::InvalidDocumentId(_))));
+        assert!(!matches!(res, Err(Error::NoDocument(_))));
     }
 }

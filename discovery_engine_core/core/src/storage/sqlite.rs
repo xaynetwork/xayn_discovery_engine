@@ -520,7 +520,7 @@ impl SearchScope for SqliteStorage {
         .bind(id)
         .fetch_one(&mut tx)
         .await
-        .on_row_not_found(Error::NoDocument)?;
+        .on_row_not_found(Error::NoDocument(id))?;
 
         tx.commit().await?;
 
@@ -853,7 +853,7 @@ mod tests {
         let id = document::Id::new();
         assert!(matches!(
             storage.search().get_document(id).await.unwrap_err(),
-            Error::NoDocument
+            Error::NoDocument(bad_id) if bad_id == id
         ));
 
         let documents = create_documents(1);
@@ -873,7 +873,7 @@ mod tests {
         let id = document::Id::new();
         assert!(matches!(
             storage.search().get_document(id).await.unwrap_err(),
-            Error::NoDocument,
+            Error::NoDocument(bad_id) if bad_id == id,
         ));
     }
 
