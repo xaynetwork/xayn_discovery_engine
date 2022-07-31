@@ -94,7 +94,7 @@ impl SqliteStorage {
         Ok(Self { pool })
     }
 
-    async fn setup_keep_stacks_in_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {
+    async fn setup_stacks_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {
         let expected_ids = &[
             stack::ops::breaking::BreakingNews::id(),
             stack::ops::personalized::PersonalizedNews::id(),
@@ -305,7 +305,7 @@ impl Storage for SqliteStorage {
             .map_err(|err| Error::Database(err.into()))?;
 
         let mut tx = self.begin_tx().await?;
-        Self::setup_keep_stacks_in_sync(&mut tx).await?;
+        Self::setup_stacks_sync(&mut tx).await?;
         Self::commit_tx(tx).await?;
         Ok(())
     }
@@ -1054,9 +1054,7 @@ mod tests {
             .await
             .unwrap();
 
-        SqliteStorage::setup_keep_stacks_in_sync(&mut tx)
-            .await
-            .unwrap();
+        SqliteStorage::setup_stacks_sync(&mut tx).await.unwrap();
 
         //FIXME: For some reason if I try to read the stackIds from the database
         //       without first committing here the select statement will hang (sometimes).
