@@ -47,9 +47,7 @@ use crate::{
     },
 };
 
-use self::utils::SqlxPushTupleExt;
-
-mod utils;
+use crate::storage::utils::SqlxPushTupleExt;
 
 // Sqlite bind limit
 const BIND_LIMIT: usize = 32766;
@@ -548,7 +546,7 @@ impl SearchScope for SqliteStorage {
             .push(
                 "sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding, null as stackId
+                ur.userReaction, po.inBatchIndex, em.embedding, NULL AS stackId
             FROM SearchDocument         AS sd
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)
@@ -640,7 +638,7 @@ impl SearchScope for SqliteStorage {
             "SELECT
                 hd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding, null as stackId
+                ur.userReaction, po.inBatchIndex, em.embedding, NULL AS stackId
             FROM HistoricDocument       AS hd
             JOIN NewsResource           AS nr   USING(documentId)
             JOIN NewscatcherData        AS nc   USING(documentId)

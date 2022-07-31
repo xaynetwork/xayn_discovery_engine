@@ -27,6 +27,7 @@ use crate::{
 use self::models::{ApiDocumentView, NewDocument, Search};
 
 pub mod sqlite;
+mod utils;
 
 pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
 
