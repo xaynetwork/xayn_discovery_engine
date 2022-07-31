@@ -12,12 +12,12 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-CREATE TABLE Stack(
+CREATE TABLE IF NOT EXISTS Stack(
     stackId BLOB NOT NULL PRIMARY KEY
     -- additional fields will be added when the serialized state is turned into the db
 );
 
-CREATE TABLE StackDocument(
+CREATE TABLE IF NOT EXISTS StackDocument(
     documentId BLOB NOT NULL
         PRIMARY KEY
         REFERENCES Document(id) ON DELETE CASCADE,
