@@ -43,20 +43,20 @@ where
     }
 }
 
-pub(crate) trait SqlxSqliteErrorExt<V> {
+pub(crate) trait SqlxSqliteResultExt<T> {
     /// In case of a foreign key violation return given error.
     ///
     /// Converts other `sqlx::Error`s to `storage::Error`s.
-    fn on_fk_violation(self, error: Error) -> Result<V, Error>;
+    fn on_fk_violation(self, error: Error) -> Result<T, Error>;
 
     /// In case of a row not found error return given error.
     ///
     /// Converts other `sqlx::Error`s to `storage::Error`s.
-    fn on_row_not_found(self, error: Error) -> Result<V, Error>;
+    fn on_row_not_found(self, error: Error) -> Result<T, Error>;
 }
 
-impl<V> SqlxSqliteErrorExt<V> for Result<V, sqlx::Error> {
-    fn on_fk_violation(self, error: Error) -> Result<V, Error> {
+impl<T> SqlxSqliteResultExt<T> for Result<T, sqlx::Error> {
+    fn on_fk_violation(self, error: Error) -> Result<T, Error> {
         if let Err(sqlx::Error::Database(db_err)) = &self {
             if db_err.code() == Some(Cow::Borrowed("787")) {
                 return Err(error);
@@ -65,7 +65,7 @@ impl<V> SqlxSqliteErrorExt<V> for Result<V, sqlx::Error> {
         self.map_err(Into::into)
     }
 
-    fn on_row_not_found(self, error: Error) -> Result<V, Error> {
+    fn on_row_not_found(self, error: Error) -> Result<T, Error> {
         if let Err(sqlx::Error::RowNotFound) = &self {
             Err(error)
         } else {
