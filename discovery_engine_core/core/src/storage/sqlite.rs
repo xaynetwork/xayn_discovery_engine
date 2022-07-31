@@ -838,11 +838,8 @@ mod tests {
             .await
             .unwrap();
 
-        let search = storage.search().fetch().await.unwrap();
-        assert!(search.1.is_empty());
-
-        let a_search_was_closed = storage.search().clear().await.unwrap();
-        assert!(a_search_was_closed);
+        assert!(storage.search().fetch().await.unwrap().1.is_empty());
+        assert!(storage.search().clear().await.unwrap());
     }
 
     #[tokio::test]
