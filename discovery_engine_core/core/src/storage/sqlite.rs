@@ -48,7 +48,7 @@ use crate::{
 };
 
 use self::utils::SqlxSqliteResultExt;
-use super::{models::ReactionContext, FeedbackScope};
+use super::FeedbackScope;
 use crate::storage::utils::SqlxPushTupleExt;
 
 mod utils;
@@ -697,48 +697,6 @@ impl FeedbackScope for SqliteStorage {
     }
 }
 
-#[derive(FromRow)]
-struct QueryUserReactionContextNegative {
-    embedding: Vec<u8>,
-}
-
-impl TryFrom<QueryUserReactionContextNegative> for ReactionContext {
-    type Error = Error;
-
-    fn try_from(value: QueryUserReactionContextNegative) -> Result<Self, Self::Error> {
-        value
-            .embedding
-            .try_into()
-            .map(|embedding| ReactionContext::Negative { embedding })
-            .map_err(|err| {
-                Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
-            })
-    }
-}
-
-#[derive(FromRow)]
-struct QueryUserReactionContextPositive {
-    embedding: Vec<u8>,
-    snippet: String,
-    title: String,
-}
-
-impl TryFrom<QueryUserReactionContextPositive> for ReactionContext {
-    type Error = Error;
-
-    fn try_from(view: QueryUserReactionContextPositive) -> Result<Self, Self::Error> {
-        let embedding = view.embedding.try_into().map_err(|err| {
-            Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
-        })?;
-
-        Ok(ReactionContext::Positive {
-            embedding,
-            snippet: view.snippet,
-            title: view.title,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -1022,7 +980,12 @@ mod tests {
     async fn test_storing_user_reaction() {
         let storage = create_memory_storage().await;
         let docs = create_documents(10);
-        storage.feed().store_documents(&docs).await.unwrap();
+        let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
+        storage
+            .feed()
+            .store_documents(&docs, &stack_ids)
+            .await
+            .unwrap();
 
         let doc0 = docs[0].id;
         let doc1 = docs[1].id;
@@ -1070,46 +1033,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_storing_user_reaction_returns_the_right_properties() {
+    async fn test_storing_user_reaction_returns_the_right_document() {
         let storage = create_memory_storage().await;
-        let docs = create_documents(10);
-        storage.feed().store_documents(&docs).await.unwrap();
+        let docs = create_documents(1);
+        let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
+        storage
+            .feed()
+            .store_documents(&docs, &stack_ids)
+            .await
+            .unwrap();
 
-        let view = storage
+        let reacted_doc = storage
             .feedback()
             .update_user_reaction(docs[0].id, UserReaction::Positive)
             .await
             .unwrap();
 
-        assert!(matches!(view, ReactionContext::Positive { .. }));
-        if let ReactionContext::Positive {
-            embedding,
-            snippet,
-            title,
-        } = view
-        {
-            assert_eq!(embedding, docs[0].embedding);
-            assert_eq!(snippet, docs[0].news_resource.snippet);
-            assert_eq!(title, docs[0].news_resource.title);
-        }
-
-        let view = storage
-            .feedback()
-            .update_user_reaction(docs[1].id, UserReaction::Negative)
-            .await
-            .unwrap();
-
-        assert!(matches!(view, ReactionContext::Negative { .. }));
-        if let ReactionContext::Negative { embedding } = view {
-            assert_eq!(embedding, docs[1].embedding);
-        }
-
-        let view = storage
-            .feedback()
-            .update_user_reaction(docs[2].id, UserReaction::Neutral)
-            .await
-            .unwrap();
-
-        assert!(matches!(view, ReactionContext::Neutral));
+        assert!(check_eq_of_documents(&[reacted_doc], &docs));
     }
 }

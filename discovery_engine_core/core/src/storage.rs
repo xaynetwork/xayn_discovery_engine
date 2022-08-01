@@ -24,7 +24,7 @@ use crate::{
     stack,
 };
 
-use self::models::{ApiDocumentView, NewDocument, ReactionContext, Search};
+use self::models::{ApiDocumentView, NewDocument, Search};
 
 pub mod sqlite;
 mod utils;
