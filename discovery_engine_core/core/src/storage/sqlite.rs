@@ -212,7 +212,6 @@ impl SqliteStorage {
         Ok(())
     }
 
-
     async fn get_document(
         tx: &mut Transaction<'_, Sqlite>,
         base_table: &'static str,
