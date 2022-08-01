@@ -379,8 +379,7 @@ impl FeedScope for SqliteStorage {
             .execute(&mut tx)
             .await?;
 
-        tx.commit().await?;
-        Ok(())
+        tx.commit().await.map_err(Into::into)
     }
 }
 
@@ -404,8 +403,7 @@ impl SearchScope for SqliteStorage {
             .await?;
 
         if documents.is_empty() {
-            tx.commit().await?;
-            return Ok(());
+            return tx.commit().await.map_err(Into::into);
         };
 
         SqliteStorage::store_new_documents(&mut tx, documents).await?;
@@ -419,8 +417,7 @@ impl SearchScope for SqliteStorage {
             .execute(&mut tx)
             .await?;
 
-        tx.commit().await?;
-        Ok(())
+        tx.commit().await.map_err(Into::into)
     }
 
     async fn store_next_page(
@@ -446,8 +443,7 @@ impl SearchScope for SqliteStorage {
             .execute(&mut tx)
             .await?;
 
-        tx.commit().await?;
-        Ok(())
+        tx.commit().await.map_err(Into::into)
     }
 
     async fn fetch(&self) -> Result<(Search, Vec<ApiDocumentView>), Error> {
