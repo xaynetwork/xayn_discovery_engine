@@ -162,6 +162,13 @@ pub(crate) struct CoreConfig {
     /// The minimum cosine similarity wrt the original document below which documents returned from
     /// the deep search are discarded.
     pub(crate) deep_search_sim: f32,
+    /// The probability for random exploration instead of greedy selection in the MAB.
+    pub(crate) epsilon: f32,
+    /// The maximum number of likes and dislikes after which the MAB parameters are rescaled.
+    pub(crate) max_reactions: usize,
+    /// The value by how much the likes and dislikes are incremented when the MAB parameters are
+    /// updated.
+    pub(crate) incr_reactions: f32,
 }
 
 impl Default for CoreConfig {
@@ -174,18 +181,24 @@ impl Default for CoreConfig {
             deep_search_top: 3,
             deep_search_max: 20,
             deep_search_sim: 0.2,
+            epsilon: 0.2,
+            max_reactions: 10,
+            incr_reactions: 1.,
         }
     }
 }
 
 /// Configurations for the exploration stack.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct ExplorationConfig {
     /// The number of candidates.
     pub(crate) number_of_candidates: usize,
     /// The maximum number of documents to keep.
     pub(crate) max_selected_docs: usize,
+    /// The maximum cosine similarity wrt to the closest coi below which documents are retained
+    /// when the exploration stack is updated.
+    pub(crate) max_similarity: f32,
 }
 
 impl Default for ExplorationConfig {
@@ -193,6 +206,7 @@ impl Default for ExplorationConfig {
         Self {
             number_of_candidates: 40,
             max_selected_docs: 20,
+            max_similarity: 0.7,
         }
     }
 }
@@ -257,6 +271,7 @@ mod tests {
 
     // the f32 fields are never NaN by construction
     impl Eq for CoreConfig {}
+    impl Eq for ExplorationConfig {}
 
     impl Default for FeedConfig {
         fn default() -> Self {

@@ -155,21 +155,13 @@ impl Stack {
     }
 
     /// Updates the relevance of the Stack based on the user feedback.
-    pub(crate) fn update_relevance(&mut self, reaction: UserReaction) {
-        // to avoid making the distribution too skewed
-        const MAX_BETA_PARAMS: f32 = 1000.;
-
-        fn incr(value: &mut f32) {
-            if *value < MAX_BETA_PARAMS {
-                (*value) += 1.;
-            }
-        }
-
-        match reaction {
-            UserReaction::Positive => incr(&mut self.data.alpha),
-            UserReaction::Negative => incr(&mut self.data.beta),
-            UserReaction::Neutral => (),
-        }
+    pub(crate) fn update_relevance(
+        &mut self,
+        reaction: UserReaction,
+        max_reactions: usize,
+        incr_reactions: f32,
+    ) {
+        update_relevance(&mut self.data, reaction, max_reactions, incr_reactions);
     }
 
     /// It checks that every document belongs to a stack.
@@ -217,6 +209,41 @@ impl Stack {
     pub(crate) fn drain_documents(&mut self) -> std::vec::Drain<'_, Document> {
         self.data.documents.drain(..)
     }
+}
+
+pub(crate) fn update_relevance(
+    data: &mut Data,
+    reaction: UserReaction,
+    max_reactions: usize,
+    incr_reactions: f32,
+) {
+    match reaction {
+        UserReaction::Positive => data.likes += incr_reactions,
+        UserReaction::Negative => data.dislikes += incr_reactions,
+        UserReaction::Neutral => {}
+    }
+    let num_reactions = data.likes + data.dislikes;
+    #[allow(clippy::cast_precision_loss)] // value should be small enough
+    let max_reactions = max_reactions as f32;
+    if num_reactions <= max_reactions {
+        data.alpha = data.likes;
+        data.beta = data.dislikes;
+    } else {
+        data.alpha = data.likes * max_reactions / num_reactions;
+        data.beta = data.dislikes * max_reactions / num_reactions;
+
+        if data.alpha < 1. {
+            data.alpha = 1.;
+            data.beta = max_reactions - 1.;
+        }
+
+        if data.beta < 1. {
+            data.alpha = max_reactions - 1.;
+            data.beta = 1.;
+        }
+    }
+    data.alpha = (10. * data.alpha).round() / 10.;
+    data.beta = (10. * data.beta).round() / 10.;
 }
 
 impl Bucket<Document> for Stack {
@@ -434,7 +461,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Positive);
+        stack.update_relevance(UserReaction::Positive, 10, 1.);
 
         assert_approx_eq!(f32, alpha + 1., stack.alpha());
         assert_approx_eq!(f32, beta, stack.beta());
@@ -449,7 +476,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Negative);
+        stack.update_relevance(UserReaction::Negative, 10, 1.);
 
         assert_approx_eq!(f32, beta + 1., stack.beta());
         assert_approx_eq!(f32, alpha, stack.alpha());
@@ -464,7 +491,7 @@ mod tests {
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Neutral);
+        stack.update_relevance(UserReaction::Neutral, 10, 1.);
 
         assert_approx_eq!(f32, beta, stack.beta());
         assert_approx_eq!(f32, alpha, stack.alpha());
