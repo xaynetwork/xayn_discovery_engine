@@ -491,6 +491,24 @@ impl Engine {
         Ok(documents)
     }
 
+    /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
+    // TODO: rename methods to `fed()` and adjust events & docs accordingly after DB migration
+    pub async fn restore_feed(&self) -> Result<Vec<Document>, Error> {
+        #[cfg(feature = "storage")]
+        {
+            return self
+                .storage
+                .feed()
+                .fetch()
+                .await
+                .map(|documents| documents.into_iter().map_into().collect())
+                .map_err(Into::into);
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
     /// Process the feedback about the user spending some time on a document.
     pub async fn time_spent(&mut self, time_spent: &TimeSpent) {
         if let UserReaction::Positive | UserReaction::Neutral = time_spent.reaction {

@@ -144,6 +144,19 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
+    /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
+    pub async fn restore_feed(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .restore_feed()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
     /// Processes time spent.
     pub async fn time_spent(engine: &SharedEngine, time_spent: Box<TimeSpent>) {
         engine
