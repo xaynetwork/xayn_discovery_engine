@@ -288,16 +288,14 @@ impl Engine {
         let providers = Providers::new(&config.clone().into()).map_err(Error::ProviderError)?;
 
         // read the configs
-        let feed_config = FeedConfig {
-            max_docs_per_batch: de_config
-                .extract_inner("feed.max_docs_per_batch")
-                .unwrap_or(config.max_docs_per_feed_batch as usize),
+        let mut feed_config = FeedConfig {
+            max_docs_per_batch: config.max_docs_per_feed_batch as usize,
         };
-        let search_config = SearchConfig {
-            max_docs_per_batch: de_config
-                .extract_inner("search.max_docs_per_batch")
-                .unwrap_or(config.max_docs_per_search_batch as usize),
+        feed_config.merge(&de_config);
+        let mut search_config = SearchConfig {
+            max_docs_per_batch: config.max_docs_per_search_batch as usize,
         };
+        search_config.merge(&de_config);
         let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?

@@ -213,14 +213,6 @@ impl FeedConfig {
     }
 }
 
-impl Default for FeedConfig {
-    fn default() -> Self {
-        Self {
-            max_docs_per_batch: 2,
-        }
-    }
-}
-
 /// Configurations for the search.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct SearchConfig {
@@ -233,14 +225,6 @@ impl SearchConfig {
     pub(crate) fn merge(&mut self, de_config: &Figment) {
         if let Ok(max_docs_per_batch) = de_config.extract_inner("search.max_docs_per_batch") {
             self.max_docs_per_batch = max_docs_per_batch;
-        }
-    }
-}
-
-impl Default for SearchConfig {
-    fn default() -> Self {
-        Self {
-            max_docs_per_batch: 20,
         }
     }
 }
@@ -273,6 +257,22 @@ mod tests {
 
     // the f32 fields are never NaN by construction
     impl Eq for CoreConfig {}
+
+    impl Default for FeedConfig {
+        fn default() -> Self {
+            Self {
+                max_docs_per_batch: 2,
+            }
+        }
+    }
+
+    impl Default for SearchConfig {
+        fn default() -> Self {
+            Self {
+                max_docs_per_batch: 20,
+            }
+        }
+    }
 
     #[test]
     fn test_de_config_from_json_default() -> Result<(), GenericError> {
