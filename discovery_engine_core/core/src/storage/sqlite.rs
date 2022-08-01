@@ -188,12 +188,12 @@ impl SqliteStorage {
             // insert data into PresentationOrdering table
             query_builder
                 .reset()
-                .push("PresentationOrdering (documentId, timestamp, inBatchIndex) ")
+                .push("PresentationOrdering (documentId, batchTimestamp, inBatchIndex) ")
                 .push_values(documents.iter().enumerate(), |mut stm, (idx, doc)| {
                     // we won't have so many documents that idx > u32
                     #[allow(clippy::cast_possible_truncation)]
                     stm.push_bind(&doc.id)
-                        .push_bind(timestamp)
+                        .push_bind(timestamp.timestamp())
                         .push_bind(idx as u32);
                 })
                 .build()
@@ -224,9 +224,14 @@ impl SqliteStorage {
     ) -> Result<ApiDocumentView, Error> {
         let document = sqlx::query_as::<_, QueriedApiDocumentView>(&format!(
             "SELECT
-                documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
-                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                po.inBatchIndex, em.embedding, ur.userReaction, st.stackId
+                documentId,
+                nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                nr.datePublished, nr.source, nr.market,
+                nc.domainRank, nc.score,
+                po.batchTimestamp, po.inBatchIndex,
+                em.embedding,
+                ur.userReaction,
+                st.stackId
             FROM {base_table}
             JOIN NewsResource           AS nr   USING (documentId)
             JOIN NewscatcherData        AS nc   USING (documentId)
@@ -401,17 +406,22 @@ impl FeedScope for SqliteStorage {
 
         let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
             "SELECT
-                fd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
-                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding, st.stackId
-            FROM FeedDocument           AS fd
+                documentId,
+                nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                nr.datePublished, nr.source, nr.market,
+                nc.domainRank, nc.score,
+                po.batchTimestamp, po.inBatchIndex,
+                em.embedding,
+                ur.userReaction,
+                st.stackId
+            FROM FeedDocument
             JOIN NewsResource           AS nr   USING (documentId)
             JOIN NewscatcherData        AS nc   USING (documentId)
             JOIN PresentationOrdering   AS po   USING (documentId)
             JOIN Embedding              AS em   USING (documentId)
             JOIN StackDocument          As st   USING (documentId)
             LEFT JOIN UserReaction      AS ur   USING (documentId)
-            ORDER BY po.timestamp, po.inBatchIndex ASC;",
+            ORDER BY po.batchTimestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut tx)
         .await?;
@@ -538,16 +548,22 @@ impl SearchScope for SqliteStorage {
         .on_row_not_found(Error::NoSearch)?;
 
         let documents = sqlx::query_as::<_, QueriedApiDocumentView>(
-            "SELECT sd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
-                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding, NULL AS stackId
+            "SELECT
+                documentId,
+                nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                nr.datePublished, nr.source, nr.market,
+                nc.domainRank, nc.score,
+                po.batchTimestamp, po.inBatchIndex,
+                em.embedding,
+                ur.userReaction,
+                NULL AS stackId
             FROM SearchDocument         AS sd
             JOIN NewsResource           AS nr   USING (documentId)
             JOIN NewscatcherData        AS nc   USING (documentId)
             JOIN PresentationOrdering   AS po   USING (documentId)
             JOIN Embedding              AS em   USING (documentId)
             LEFT JOIN UserReaction      AS ur   USING (documentId)
-            ORDER BY po.timestamp, po.inBatchIndex ASC;",
+            ORDER BY po.batchTimestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut tx)
         .await?;
@@ -685,9 +701,10 @@ struct QueriedApiDocumentView {
     market: String,
     domain_rank: i64,
     score: Option<f32>,
-    user_reaction: Option<u32>,
+    batch_timestamp: i64,
     in_batch_index: u32,
     embedding: Vec<u8>,
+    user_reaction: Option<u32>,
     stack_id: Option<stack::Id>,
 }
 
@@ -842,13 +859,14 @@ impl SourcePreferenceScope for SqliteStorage {
 #[cfg(test)]
 mod tests {
     use maplit::hashset;
-    use std::collections::HashSet;
+    use std::{collections::HashSet, time::Duration};
 
     use crate::{document::NewsResource, stack, storage::models::NewDocument};
 
     use super::*;
 
-    fn create_documents(n: u64) -> Vec<NewDocument> {
+    fn create_documents(n: u8) -> Vec<NewDocument> {
+        let timestamp = Utc::now();
         (0..n)
             .map(|i| {
                 document::Document {
@@ -861,14 +879,15 @@ mod tests {
                         source_domain: format!("example-{i}.com"),
                         image: (i != 0)
                             .then(|| Url::parse(&format!("http://example-image-{i}.com")).unwrap()),
-                        rank: i,
-                        score: (i != 0).then(
-                            #[allow(clippy::cast_precision_loss)] // index small enough
-                            || i as f32,
-                        ),
+                        rank: u64::from(i),
+                        score: (i != 0).then(|| f32::from(i)),
                         topic: format!("topic-{i}"),
                         ..NewsResource::default()
                     },
+                    presentation_ordering: Some(PresentationOrdering {
+                        batch_timestamp: timestamp,
+                        in_batch_index: u32::from(i),
+                    }),
                     ..document::Document::default()
                 }
                 .into()
@@ -880,16 +899,17 @@ mod tests {
         doc.iter().map(|doc| (doc.id, stack_id)).collect()
     }
 
-    fn check_eq_of_documents(api_docs: &[ApiDocumentView], docs: &[NewDocument]) -> bool {
-        api_docs.len() == docs.len()
-            && api_docs.iter().enumerate().zip(docs.iter()).all(
-                #[allow(clippy::cast_possible_truncation)] // index small enough
-                |((idx, api_docs), doc)| {
-                    api_docs.document_id == doc.id
-                        && api_docs.news_resource == doc.news_resource
-                        && api_docs.in_batch_index == idx as u32
-                },
-            )
+    fn assert_eq_of_documents(api_docs: &[ApiDocumentView], docs: &[NewDocument]) {
+        assert_eq!(api_docs.len(), docs.len());
+        api_docs
+            .iter()
+            .enumerate()
+            .zip(docs.iter())
+            .for_each(|((idx, api_docs), doc)| {
+                assert_eq!(api_docs.document_id, doc.id);
+                assert_eq!(api_docs.news_resource, doc.news_resource);
+                assert_eq!(api_docs.presentation_ordering.in_batch_index, idx as u32);
+            })
     }
 
     async fn create_memory_storage() -> impl Storage {
@@ -938,7 +958,7 @@ mod tests {
             .unwrap();
 
         let feed = storage.feed().fetch().await.unwrap();
-        assert!(check_eq_of_documents(&feed, &docs));
+        assert_eq_of_documents(&feed, &docs);
         for doc in feed {
             assert_eq!(doc.stack_id, Some(stack_id));
         }
@@ -980,7 +1000,12 @@ mod tests {
 
         let (search, search_docs) = storage.search().fetch().await.unwrap();
         assert_eq!(search, new_search);
-        assert!(check_eq_of_documents(&search_docs, &first_docs));
+        assert_eq_of_documents(&search_docs, &first_docs);
+
+        // FIXME the current design of PresentationOrdering has a problem:
+        // if you in the same second add multiple batches of documents
+        // they don't have a proper order anymore :=(
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
         let second_docs = create_documents(5);
         storage
@@ -1000,8 +1025,8 @@ mod tests {
                 ..new_search
             }
         );
-        assert!(check_eq_of_documents(&search_docs[..10], &first_docs));
-        assert!(check_eq_of_documents(&search_docs[10..], &second_docs));
+        assert_eq_of_documents(&search_docs[..10], &first_docs);
+        assert_eq_of_documents(&search_docs[10..], &second_docs);
         assert!(storage.search().clear().await.unwrap());
     }
 
@@ -1051,7 +1076,7 @@ mod tests {
             .get_document(documents[0].id)
             .await
             .unwrap();
-        assert!(check_eq_of_documents(&[document], &documents));
+        assert_eq_of_documents(&[document], &documents);
 
         let id = document::Id::new();
         assert!(matches!(
@@ -1195,7 +1220,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(check_eq_of_documents(&[reacted_doc], &docs));
+        assert_eq_of_documents(&[reacted_doc], &docs);
     }
 
     #[tokio::test]
