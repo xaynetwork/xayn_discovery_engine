@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         FeedMarket,
         StackId,
         UserReaction,
-        kCfgFeatureStorage;
+        cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart'
     show ChangedDocumentsReporter;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -76,8 +76,8 @@ class DocumentManager {
     DocumentId id,
     UserReaction userReaction,
   ) async {
-    if (kCfgFeatureStorage) {
-      await _engine.userReacted(
+    if (cfgFeatureStorage) {
+      final document = await _engine.userReacted(
         null,
         //FIXME sources are not yet migrated
         await _sourceRepo.fetchAll(),
@@ -99,7 +99,7 @@ class DocumentManager {
       );
       await _engineStateRepo.save(await _engine.serialize());
       //TODO why do we send whole documents, instead of just ids
-      _changedDocsReporter.notifyChanged([/*doc is needed here*/]);
+      _changedDocsReporter.notifyChanged([document]);
       return;
     }
 

@@ -20,12 +20,16 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
@@ -34,7 +38,7 @@ import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
     show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
@@ -140,12 +144,30 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> userReacted(
+  Future<Document> userReacted(
     List<HistoricDocument>? history,
     List<SourceReacted> sources,
     UserReacted userReacted,
   ) async {
     _incrementCount('userReacted');
+    return Document(
+      batchIndex: 0,
+      documentId: DocumentId(),
+      resource: NewsResource(
+        country: 'US',
+        datePublished: DateTime.now().toUtc(),
+        image: null,
+        language: '',
+        rank: 0,
+        score: null,
+        snippet: '',
+        sourceDomain: Source('foo.invalid'),
+        title: '',
+        topic: '',
+        url: Uri.parse('https://foo.invalid'),
+      ),
+      stackId: StackId(),
+    );
   }
 
   @override

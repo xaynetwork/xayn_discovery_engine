@@ -21,6 +21,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -62,6 +63,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
     show Uint8ListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
     show
+        resultDocumentStringFfiAdapter,
         resultSearchStringFfiAdapter,
         resultSharedEngineStringFfiAdapter,
         resultVecDocumentStringFfiAdapter,
@@ -230,7 +232,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> userReacted(
+  Future<Document> userReacted(
     final List<HistoricDocument>? history,
     final List<SourceReacted> sources,
     final UserReacted userReacted,
@@ -243,7 +245,11 @@ class DiscoveryEngineFfi implements Engine {
       boxedUserReacted.move(),
     );
 
-    return resultVoidStringFfiAdapter.consumeNative(result);
+    return resultDocumentStringFfiAdapter
+        .consumeNative(result)
+        //TODO[pmk] we need to return the batchIndex, timestamp and isSearched
+        // this is wrong in other places, too
+        .toDocument(batchIndex: 0);
   }
 
   @override

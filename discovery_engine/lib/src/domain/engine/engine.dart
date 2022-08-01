@@ -23,6 +23,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -93,7 +95,11 @@ abstract class Engine {
   /// Process the user's reaction to a document.
   ///
   /// The history is only required for positive reactions.
-  Future<void> userReacted(
+  ///
+  /// The returned `Document` will only be consistent of `storage` feature is
+  /// enabled, the history and most fields of `UserReacted` can be empty/dummy
+  /// data if the `storage` feature is enabled.
+  Future<Document> userReacted(
     List<HistoricDocument>? history,
     List<SourceReacted> sources,
     UserReacted userReacted,

@@ -196,7 +196,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         history: Option<Box<Vec<HistoricDocument>>>,
         sources: Box<Vec<WeightedSource>>,
         reacted: Box<UserReacted>,
-    ) -> Box<Result<Box<Document>, String>> {
+    ) -> Box<Result<Document, String>> {
         Box::new(
             engine
                 .as_ref()
@@ -204,7 +204,6 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .user_reacted(history.as_deref().map(Vec::as_slice), &sources, *reacted)
                 .await
-                .map(Box::new)
                 .map_err(|error| error.to_string()),
         )
     }

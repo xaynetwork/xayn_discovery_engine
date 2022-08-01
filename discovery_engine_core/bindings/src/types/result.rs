@@ -90,6 +90,40 @@ pub unsafe extern "C" fn drop_result_vec_u8_string(res: *mut Result<Vec<u8>, Str
     unsafe { boxed::drop(res) }
 }
 
+/// Returns a pointer to the `Document` success value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must point to a sound `Result<Document, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_result_document_string_ok(
+    res: *mut Result<Document, String>,
+) -> *mut Document {
+    unsafe { get_result_ok(res) }
+}
+
+/// Returns a pointer to the `String` error value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must point to a sound `Result<Document, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_result_document_string_err(
+    res: *mut Result<Document, String>,
+) -> *mut String {
+    unsafe { get_result_err(res) }
+}
+
+/// Drops a `Box<Result<Vec<Document>, String>>`.
+///
+/// # Safety
+///
+/// - The pointer must represent a valid `Box<Result<Document, String>>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_result_document_string(res: *mut Result<Document, String>) {
+    unsafe { boxed::drop(res) }
+}
+
 /// Returns a pointer to the `Vec<Document>` success value or a nullptr.
 ///
 /// # Safety
