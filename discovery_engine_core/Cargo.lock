@@ -3874,6 +3874,7 @@ dependencies = [
  "chrono",
  "derive_more",
  "heck 0.4.0",
+ "itertools",
  "ndarray",
  "tokio",
  "tracing",

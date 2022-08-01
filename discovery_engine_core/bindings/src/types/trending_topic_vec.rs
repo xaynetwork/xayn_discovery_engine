@@ -25,14 +25,14 @@ use crate::types::{
 /// Initializes a `Vec<TrendingTopic>` at given place.
 ///
 /// This moves the passed in slice into the vector,
-/// i.e. `slice_ptr, len` map to `Box<[TrendingTopic]>`.
+/// i.e. `slice_ptr, slice_len` map to `Box<[TrendingTopic]>`.
 ///
 /// # Safety
 ///
 /// - It must be valid to write a `Vec<TrendingTopic>` instance to given pointer,
 ///   the pointer is expected to point to uninitialized memory.
 /// - It must be valid to construct a `Box<[TrendingTopic]>` from given `slice_ptr`
-///   and `len`.
+///   and `slice_len`.
 #[no_mangle]
 pub unsafe extern "C" fn init_trending_topic_vec_at(
     place: *mut Vec<TrendingTopic>,

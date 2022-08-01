@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS Stack(
 CREATE TABLE IF NOT EXISTS StackDocument(
     documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES Document(id) ON DELETE CASCADE,
+        REFERENCES Document(documentId) ON DELETE CASCADE,
     stackId BLOB NOT NULL
         REFERENCES Stack(stackId) ON DELETE CASCADE
     -- additional fields will be added when the serialized state is turned into the db

@@ -37,6 +37,7 @@ pub mod types;
 
 use std::path::Path;
 
+use itertools::Itertools;
 use xayn_discovery_engine_core::Engine;
 
 #[async_bindgen::api(
@@ -152,6 +153,22 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .lock()
                 .await
                 .restore_feed()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Deletes the feed documents.
+    pub async fn delete_feed_documents(
+        engine: &SharedEngine,
+        ids: Box<Vec<Uuid>>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .delete_feed_documents(&ids.into_iter().map_into().collect_vec())
                 .await
                 .map_err(|error| error.to_string()),
         )

@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS FeedDocument (
 CREATE TABLE IF NOT EXISTS PresentationOrdering(
     documentId BLOB NOT NULL
         PRIMARY KEY
-        REFERENCES Document(id) ON DELETE CASCADE,
+        REFERENCES Document(documentId) ON DELETE CASCADE,
     -- unix epoch timestamp in seconds
     -- you can't use DEFAULT as it must be the same
     -- for all documents added in the same batch

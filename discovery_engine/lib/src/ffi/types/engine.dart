@@ -74,6 +74,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart'
     show TrendingTopicSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/uuid_vec.dart'
+    show DocumentIdSetFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/weighted_source_vec.dart'
     show WeightedSourceListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
@@ -210,6 +212,16 @@ class DiscoveryEngineFfi implements Engine {
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
         .toDocumentListWithActiveData();
+  }
+
+  @override
+  Future<void> deleteFeedDocuments(Set<DocumentId> ids) async {
+    final result = await asyncFfi.deleteFeedDocuments(
+      _engine.ref,
+      ids.allocNative().move(),
+    );
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
   @override
