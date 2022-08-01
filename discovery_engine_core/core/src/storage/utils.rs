@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Module containing non-database specific sqlx utilities.
+
 use sqlx::{Database, Encode, QueryBuilder, Type};
 
 pub(super) trait SqlxPushTupleExt<'args, DB: Database> {
