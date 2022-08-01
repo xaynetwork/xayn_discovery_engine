@@ -95,7 +95,7 @@ abstract class Engine {
   /// Process the user's reaction to a document.
   ///
   /// The history is only required if the reaction is positive and if
-/// `cfgFeatureStorage` is disabled.
+  /// `cfgFeatureStorage` is disabled.
   ///
   /// The returned `Document` will only be consistent if `cfgFeatureStorage`
   /// is enabled. The history and most fields of `UserReacted` can

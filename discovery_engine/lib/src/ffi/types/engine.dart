@@ -36,7 +36,7 @@ import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
     show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
@@ -245,11 +245,9 @@ class DiscoveryEngineFfi implements Engine {
       boxedUserReacted.move(),
     );
 
-    return resultDocumentStringFfiAdapter
-        .consumeNative(result)
-        //TODO[pmk] we need to return the batchIndex, timestamp and isSearched
-        // this is wrong in other places, too
-        .toDocument(batchIndex: 0);
+    final doc = resultDocumentStringFfiAdapter.consumeNative(result);
+
+    return doc.toDocument(isSearched: doc.stackId == StackId.nil());
   }
 
   @override

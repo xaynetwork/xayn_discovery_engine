@@ -42,10 +42,10 @@ class Document {
   @HiveField(5)
   bool isActive;
 
-  @Deprecated('only available without `storage` enabled')
+  @Deprecated('only meaningful `cfgFeatureStorage` disabled')
   @HiveField(4)
   final int batchIndex;
-  @Deprecated('only available without `storage` enabled')
+  @Deprecated('only meaningful `cfgFeatureStorage` disabled')
   @HiveField(6)
   DateTime timestamp;
 

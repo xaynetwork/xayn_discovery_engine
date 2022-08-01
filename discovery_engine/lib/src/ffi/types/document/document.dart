@@ -71,7 +71,8 @@ class DocumentFfi with EquatableMixin {
   }
 
   Document toDocument({
-    required int batchIndex,
+    @Deprecated('only meaningful `cfgFeatureStorage` disabled')
+        int batchIndex = 0,
     bool isSearched = false,
   }) =>
       Document(

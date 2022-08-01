@@ -58,10 +58,13 @@ void main() {
 
   test('conversion to Document works', () {
     final ffiDocument = arbitraryDocumentFfi();
+    // ignore: deprecated_member_use_from_same_package
     final document = ffiDocument.toDocument(batchIndex: 12);
     expect(document.documentId, equals(ffiDocument.id));
     expect(document.stackId, equals(ffiDocument.stackId));
     expect(document.resource, equals(ffiDocument.resource));
+    // ignore: deprecated_member_use_from_same_package
+    expect(document.batchIndex, equals(12));
     expect(document.userReaction, equals(UserReaction.neutral));
     expect(document.isActive, isTrue);
   });
