@@ -212,6 +212,34 @@ impl SqliteStorage {
         Ok(())
     }
 
+
+    async fn get_document(
+        tx: &mut Transaction<'_, Sqlite>,
+        base_table: &'static str,
+        id: document::Id,
+    ) -> Result<ApiDocumentView, Error> {
+        let document = sqlx::query_as::<_, QueriedApiDocumentView>(&format!(
+            "SELECT
+                documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
+                po.inBatchIndex, em.embedding, ur.userReaction, st.stackId
+            FROM {base_table}
+            JOIN NewsResource           AS nr   USING (documentId)
+            JOIN NewscatcherData        AS nc   USING (documentId)
+            JOIN PresentationOrdering   AS po   USING (documentId)
+            JOIN Embedding              AS em   USING (documentId)
+            LEFT JOIN UserReaction      AS ur   USING (documentId)
+            LEFT JOIN StackDocument     AS st   USING (documentId)
+            WHERE documentId = ?;",
+        ))
+        .bind(id)
+        .fetch_one(tx)
+        .await
+        .on_row_not_found(Error::NoDocument(id))?;
+
+        document.try_into()
+    }
+
     async fn delete_documents_from<'a>(
         tx: &'a mut Transaction<'_, Sqlite>,
         ids: &'a [document::Id],
@@ -506,28 +534,10 @@ impl SearchScope for SqliteStorage {
 
     async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error> {
         let mut tx = self.pool.begin().await?;
-
-        let document = sqlx::query_as::<_, QueriedApiDocumentView>(
-            "SELECT
-                hd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
-                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding, NULL AS stackId
-            FROM HistoricDocument       AS hd
-            JOIN NewsResource           AS nr   USING (documentId)
-            JOIN NewscatcherData        AS nc   USING (documentId)
-            JOIN PresentationOrdering   AS po   USING (documentId)
-            JOIN UserReaction           AS ur   USING (documentId)
-            JOIN Embedding              AS em   USING (documentId)
-            WHERE documentId = ?;",
-        )
-        .bind(id)
-        .fetch_one(&mut tx)
-        .await
-        .on_row_not_found(Error::NoDocument(id))?;
-
+        // It is correct that `HistoricDocument` instead of `SearchDocument` is used here.
+        let document = Self::get_document(&mut tx, "HistoricDocument", id).await?;
         tx.commit().await?;
-
-        document.try_into()
+        Ok(document)
     }
 }
 
@@ -668,8 +678,8 @@ impl FeedbackScope for SqliteStorage {
         &self,
         document: document::Id,
         reaction: UserReaction,
-    ) -> Result<ReactionContext, Error> {
-        let mut tx = self.begin_tx().await?;
+    ) -> Result<ApiDocumentView, Error> {
+        let mut tx = self.pool.begin().await?;
 
         sqlx::query(
             "INSERT INTO UserReaction(documentId, userReaction) VALUES (?, ?)
@@ -678,40 +688,12 @@ impl FeedbackScope for SqliteStorage {
         .bind(document)
         .bind(reaction as u32)
         .execute(&mut tx)
-        .await
-        .map_err(|err| Error::Database(err.into()))?;
+        .await?;
 
-        let ctx = match reaction {
-            UserReaction::Neutral => ReactionContext::Neutral,
-            UserReaction::Positive => {
-                let view = sqlx::query_as::<_, QueryUserReactionContextPositive>(
-                    "SELECT e.embedding, nr.snippet, nr.title
-                    FROM Embedding AS e
-                    JOIN NewsResource AS nr USING(documentId)
-                    WHERE documentId = ?;",
-                )
-                .bind(document)
-                .fetch_one(&mut tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
+        let document = Self::get_document(&mut tx, "FeedDocument", document).await?;
 
-                view.try_into()?
-            }
-            UserReaction::Negative => {
-                let view = sqlx::query_as::<_, QueryUserReactionContextNegative>(
-                    "SELECT embedding FROM Embedding WHERE documentId = ?;",
-                )
-                .bind(document)
-                .fetch_one(&mut tx)
-                .await
-                .map_err(|err| Error::Database(err.into()))?;
-
-                view.try_into()?
-            }
-        };
-
-        Self::commit_tx(tx).await?;
-        Ok(ctx)
+        tx.commit().await?;
+        Ok(document)
     }
 }
 
