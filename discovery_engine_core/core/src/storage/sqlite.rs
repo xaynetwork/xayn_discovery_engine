@@ -228,7 +228,6 @@ impl SqliteStorage {
                 nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market,
                 nc.domainRank, nc.score,
-                po.batchTimestamp, po.inBatchIndex,
                 em.embedding,
                 ur.userReaction,
                 st.stackId
@@ -410,7 +409,6 @@ impl FeedScope for SqliteStorage {
                 nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market,
                 nc.domainRank, nc.score,
-                po.batchTimestamp, po.inBatchIndex,
                 em.embedding,
                 ur.userReaction,
                 st.stackId
@@ -553,7 +551,6 @@ impl SearchScope for SqliteStorage {
                 nr.title, nr.snippet, nr.topic, nr.url, nr.image,
                 nr.datePublished, nr.source, nr.market,
                 nc.domainRank, nc.score,
-                po.batchTimestamp, po.inBatchIndex,
                 em.embedding,
                 ur.userReaction,
                 NULL AS stackId
@@ -701,8 +698,6 @@ struct QueriedApiDocumentView {
     market: String,
     domain_rank: i64,
     score: Option<f32>,
-    batch_timestamp: i64,
-    in_batch_index: u32,
     embedding: Vec<u8>,
     user_reaction: Option<u32>,
     stack_id: Option<stack::Id>,
@@ -761,7 +756,6 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             news_resource,
             newscatcher_data,
             user_reacted,
-            in_batch_index: doc.in_batch_index,
             embedding,
             stack_id: doc.stack_id,
         })
@@ -866,7 +860,6 @@ mod tests {
     use super::*;
 
     fn create_documents(n: u8) -> Vec<NewDocument> {
-        let timestamp = Utc::now();
         (0..n)
             .map(|i| {
                 document::Document {
@@ -884,10 +877,6 @@ mod tests {
                         topic: format!("topic-{i}"),
                         ..NewsResource::default()
                     },
-                    presentation_ordering: Some(PresentationOrdering {
-                        batch_timestamp: timestamp,
-                        in_batch_index: u32::from(i),
-                    }),
                     ..document::Document::default()
                 }
                 .into()
@@ -908,7 +897,7 @@ mod tests {
             .for_each(|((idx, api_docs), doc)| {
                 assert_eq!(api_docs.document_id, doc.id);
                 assert_eq!(api_docs.news_resource, doc.news_resource);
-                assert_eq!(api_docs.presentation_ordering.in_batch_index, idx as u32);
+                assert_eq!(api_docs.newscatcher_data.domain_rank, idx as u64);
             })
     }
 

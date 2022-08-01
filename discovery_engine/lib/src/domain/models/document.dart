@@ -39,14 +39,16 @@ class Document {
   final NewsResource resource;
   @HiveField(3)
   UserReaction userReaction;
-  @HiveField(4)
-  final int batchIndex;
   @HiveField(5)
   bool isActive;
+
+  @Deprecated('only available without `storage` enabled')
+  @HiveField(4)
+  final int batchIndex;
+  @Deprecated('only available without `storage` enabled')
   @HiveField(6)
   DateTime timestamp;
-
-  /// Indicates if this [Document] was returned in response to active search.
+  //soft deprecated, will be replaced with getter once we migrated to `storage`
   @HiveField(7)
   bool isSearched;
 
@@ -61,11 +63,14 @@ class Document {
   Document({
     required this.stackId,
     required this.resource,
+    // ignore: deprecated_consistency
     required this.batchIndex,
     required this.documentId,
     this.userReaction = UserReaction.neutral,
     this.isActive = true,
+    // ignore: deprecated_consistency
     this.isSearched = false,
+    // ignore: deprecated_member_use_from_same_package
   }) : timestamp = DateTime.now().toUtc();
 }
 

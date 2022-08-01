@@ -62,7 +62,6 @@ void main() {
     expect(document.documentId, equals(ffiDocument.id));
     expect(document.stackId, equals(ffiDocument.stackId));
     expect(document.resource, equals(ffiDocument.resource));
-    expect(document.batchIndex, equals(12));
     expect(document.userReaction, equals(UserReaction.neutral));
     expect(document.isActive, isTrue);
   });
