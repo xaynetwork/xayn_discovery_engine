@@ -80,6 +80,9 @@ abstract class Engine {
     int maxDocuments,
   );
 
+  /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
+  Future<List<DocumentWithActiveData>> restoreFeed();
+
   /// Process the feedback about the user spending some time on a document.
   Future<void> timeSpent(TimeSpent timeSpent);
 

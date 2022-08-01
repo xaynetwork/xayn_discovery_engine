@@ -87,27 +87,42 @@ class FeedManager {
   /// Generates the feed of active documents, ordered by their global rank.
   ///
   /// That is, documents are ordered by their timestamp, then local rank.
-  Future<EngineEvent> restoreFeed() => _docRepo.fetchAll().then(
-        (docs) {
-          final sortedActives = docs
-            ..retainWhere(
-              (doc) =>
-                  // we only want active documents
-                  doc.isActive &&
-                  // we only want feed documents (isSearched == false)
-                  doc.isSearched == false,
-            )
-            ..sort((doc1, doc2) {
-              final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
-              return timeOrd == 0
-                  ? doc1.batchIndex.compareTo(doc2.batchIndex)
-                  : timeOrd;
-            });
+  Future<EngineEvent> restoreFeed() async {
+    if (cfgFeatureStorage) {
+      final List<DocumentWithActiveData> docs;
+      try {
+        docs = await _engine.restoreFeed();
+      } on Exception {
+        return const EngineEvent.restoreFeedFailed(FeedFailureReason.dbError);
+      }
 
-          final feed = sortedActives.map((doc) => doc.toApiRepr()).toList();
-          return EngineEvent.restoreFeedSucceeded(feed);
-        },
+      return EngineEvent.restoreFeedSucceeded(
+        docs.map((doc) => doc.document.toApiRepr()).toList(),
       );
+    }
+
+    return _docRepo.fetchAll().then(
+      (docs) {
+        final sortedActives = docs
+          ..retainWhere(
+            (doc) =>
+                // we only want active documents
+                doc.isActive &&
+                // we only want feed documents (isSearched == false)
+                doc.isSearched == false,
+          )
+          ..sort((doc1, doc2) {
+            final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
+            return timeOrd == 0
+                ? doc1.batchIndex.compareTo(doc2.batchIndex)
+                : timeOrd;
+          });
+
+        final feed = sortedActives.map((doc) => doc.toApiRepr()).toList();
+        return EngineEvent.restoreFeedSucceeded(feed);
+      },
+    );
+  }
 
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
