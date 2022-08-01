@@ -532,9 +532,12 @@ impl SearchScope for SqliteStorage {
         Ok(deletion.rows_affected() > 0)
     }
 
+    /// Returns a document which then can be used to trigger a deep search.
     async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error> {
         let mut tx = self.pool.begin().await?;
-        // It is correct that `HistoricDocument` instead of `SearchDocument` is used here.
+        // Due to it's use-case it is not a problem to return a document which is no longer
+        // in the search (we might even need this). Hence why we use `HistoricDocument`
+        // as base table.
         let document = Self::get_document(&mut tx, "HistoricDocument", id).await?;
         tx.commit().await?;
         Ok(document)

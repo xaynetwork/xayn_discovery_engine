@@ -96,6 +96,8 @@ pub(crate) trait SearchScope {
 
     async fn clear(&self) -> Result<bool, Error>;
 
+    //FIXME Return a `DeepSearchTemplateView` or similar in the future which
+    //      only contains the necessary fields (snippet, title, smbert_embedding, market).
     async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error>;
 }
 
