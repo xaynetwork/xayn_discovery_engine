@@ -47,9 +47,9 @@ use crate::{
     },
 };
 
-use crate::storage::utils::SqlxPushTupleExt;
-
 use self::utils::SqlxSqliteResultExt;
+use super::FeedbackScope;
+use crate::storage::utils::SqlxPushTupleExt;
 
 mod utils;
 
@@ -180,19 +180,6 @@ impl SqliteStorage {
                 .execute(&mut *tx)
                 .await?;
 
-            // insert data into UserReaction table
-            query_builder
-                .reset()
-                .push("UserReaction (documentId, userReaction) ")
-                .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(&doc.id)
-                        .push_bind(UserReaction::default() as u32);
-                })
-                .build()
-                .persistent(false)
-                .execute(&mut *tx)
-                .await?;
-
             // insert data into PresentationOrdering table
             query_builder
                 .reset()
@@ -223,6 +210,33 @@ impl SqliteStorage {
         }
 
         Ok(())
+    }
+
+    async fn get_document(
+        tx: &mut Transaction<'_, Sqlite>,
+        base_table: &'static str,
+        id: document::Id,
+    ) -> Result<ApiDocumentView, Error> {
+        let document = sqlx::query_as::<_, QueriedApiDocumentView>(&format!(
+            "SELECT
+                documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
+                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
+                po.inBatchIndex, em.embedding, ur.userReaction, st.stackId
+            FROM {base_table}
+            JOIN NewsResource           AS nr   USING (documentId)
+            JOIN NewscatcherData        AS nc   USING (documentId)
+            JOIN PresentationOrdering   AS po   USING (documentId)
+            JOIN Embedding              AS em   USING (documentId)
+            LEFT JOIN UserReaction      AS ur   USING (documentId)
+            LEFT JOIN StackDocument     AS st   USING (documentId)
+            WHERE documentId = ?;",
+        ))
+        .bind(id)
+        .fetch_one(tx)
+        .await
+        .on_row_not_found(Error::NoDocument(id))?;
+
+        document.try_into()
     }
 
     async fn delete_documents_from<'a>(
@@ -291,6 +305,10 @@ impl Storage for SqliteStorage {
     fn search(&self) -> &(dyn SearchScope + Send + Sync) {
         self
     }
+
+    fn feedback(&self) -> &(dyn FeedbackScope + Send + Sync) {
+        self
+    }
 }
 
 #[async_trait]
@@ -329,9 +347,9 @@ impl FeedScope for SqliteStorage {
             JOIN NewsResource           AS nr   USING (documentId)
             JOIN NewscatcherData        AS nc   USING (documentId)
             JOIN PresentationOrdering   AS po   USING (documentId)
-            JOIN UserReaction           AS ur   USING (documentId)
             JOIN Embedding              AS em   USING (documentId)
             JOIN StackDocument          As st   USING (documentId)
+            LEFT JOIN UserReaction      AS ur   USING (documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut tx)
@@ -466,8 +484,8 @@ impl SearchScope for SqliteStorage {
             JOIN NewsResource           AS nr   USING (documentId)
             JOIN NewscatcherData        AS nc   USING (documentId)
             JOIN PresentationOrdering   AS po   USING (documentId)
-            JOIN UserReaction           AS ur   USING (documentId)
             JOIN Embedding              AS em   USING (documentId)
+            LEFT JOIN UserReaction      AS ur   USING (documentId)
             ORDER BY po.timestamp, po.inBatchIndex ASC;",
         )
         .fetch_all(&mut tx)
@@ -489,10 +507,10 @@ impl SearchScope for SqliteStorage {
 
         // delete data from Document table where user reaction is neutral
         let ids = sqlx::query_as::<_, document::Id>(
-            "SELECT ur.documentId
-                FROM UserReaction   AS ur
-                JOIN SearchDocument AS sd   USING (documentId)
-                WHERE ur.userReaction = ?;",
+            "SELECT sd.documentId
+                FROM SearchDocument     AS sd
+                LEFT JOIN UserReaction  AS ur   USING (documentId)
+                WHERE ur.userReaction = ? OR ur.userReaction IS NULL;",
         )
         .bind(UserReaction::Neutral as u32)
         .fetch_all(&mut tx)
@@ -513,30 +531,15 @@ impl SearchScope for SqliteStorage {
         Ok(deletion.rows_affected() > 0)
     }
 
+    /// Returns a document which then can be used to trigger a deep search.
     async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error> {
         let mut tx = self.pool.begin().await?;
-
-        let document = sqlx::query_as::<_, QueriedApiDocumentView>(
-            "SELECT
-                hd.documentId, nr.title, nr.snippet, nr.topic, nr.url, nr.image,
-                nr.datePublished, nr.source, nr.market, nc.domainRank, nc.score,
-                ur.userReaction, po.inBatchIndex, em.embedding, NULL AS stackId
-            FROM HistoricDocument       AS hd
-            JOIN NewsResource           AS nr   USING (documentId)
-            JOIN NewscatcherData        AS nc   USING (documentId)
-            JOIN PresentationOrdering   AS po   USING (documentId)
-            JOIN UserReaction           AS ur   USING (documentId)
-            JOIN Embedding              AS em   USING (documentId)
-            WHERE documentId = ?;",
-        )
-        .bind(id)
-        .fetch_one(&mut tx)
-        .await
-        .on_row_not_found(Error::NoDocument(id))?;
-
+        // Due to it's use-case it is not a problem to return a document which is no longer
+        // in the search (we might even need this). Hence why we use `HistoricDocument`
+        // as base table.
+        let document = Self::get_document(&mut tx, "HistoricDocument", id).await?;
         tx.commit().await?;
-
-        document.try_into()
+        Ok(document)
     }
 }
 
@@ -671,6 +674,31 @@ impl TryFrom<QueriedSearch> for Search {
     }
 }
 
+#[async_trait]
+impl FeedbackScope for SqliteStorage {
+    async fn update_user_reaction(
+        &self,
+        document: document::Id,
+        reaction: UserReaction,
+    ) -> Result<ApiDocumentView, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+            "INSERT INTO UserReaction(documentId, userReaction) VALUES (?, ?)
+                ON CONFLICT DO UPDATE SET userReaction = excluded.userReaction;",
+        )
+        .bind(document)
+        .bind(reaction as u32)
+        .execute(&mut tx)
+        .await?;
+
+        let document = Self::get_document(&mut tx, "FeedDocument", document).await?;
+
+        tx.commit().await?;
+        Ok(document)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -721,10 +749,15 @@ mod tests {
                 })
     }
 
-    #[tokio::test]
-    async fn test_fetch_history() {
+    async fn create_memory_storage() -> impl Storage {
         let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
         storage.init_database().await.unwrap();
+        storage
+    }
+
+    #[tokio::test]
+    async fn test_fetch_history() {
+        let storage = create_memory_storage().await;
         let history = storage.fetch_history().await.unwrap();
         assert!(history.is_empty());
 
@@ -748,8 +781,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_feed_methods() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = create_memory_storage().await;
         let feed = storage.feed().fetch().await.unwrap();
         assert!(feed.is_empty());
 
@@ -783,8 +815,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_methods() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = create_memory_storage().await;
         let search = storage.search().fetch().await;
         assert!(search.is_err());
         assert!(!storage.search().clear().await.unwrap());
@@ -888,8 +919,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rank_conversion() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = create_memory_storage().await;
         let mut docs = create_documents(1);
         docs[0].newscatcher_data.domain_rank = u64::MAX;
         storage
@@ -946,5 +976,81 @@ mod tests {
             ids.into_iter().collect::<HashSet<_>>(),
             expected_ids.into_iter().collect::<HashSet<_>>()
         );
+    }
+
+    #[tokio::test]
+    async fn test_storing_user_reaction() {
+        let storage = create_memory_storage().await;
+        let docs = create_documents(10);
+        let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
+        storage
+            .feed()
+            .store_documents(&docs, &stack_ids)
+            .await
+            .unwrap();
+
+        let doc0 = docs[0].id;
+        let doc1 = docs[1].id;
+        let doc2 = docs[2].id;
+        let doc3 = docs[3].id;
+
+        storage
+            .feedback()
+            .update_user_reaction(doc0, UserReaction::Positive)
+            .await
+            .unwrap();
+        storage
+            .feedback()
+            .update_user_reaction(doc1, UserReaction::Negative)
+            .await
+            .unwrap();
+        storage
+            .feedback()
+            .update_user_reaction(doc2, UserReaction::Neutral)
+            .await
+            .unwrap();
+        storage
+            .feedback()
+            .update_user_reaction(doc3, UserReaction::Positive)
+            .await
+            .unwrap();
+        storage
+            .feedback()
+            .update_user_reaction(doc3, UserReaction::Neutral)
+            .await
+            .unwrap();
+
+        let feed = storage.feed().fetch().await.unwrap();
+        assert_eq!(feed[0].document_id, doc0);
+        assert_eq!(feed[0].user_reacted, Some(UserReaction::Positive));
+        assert_eq!(feed[1].document_id, doc1);
+        assert_eq!(feed[1].user_reacted, Some(UserReaction::Negative));
+        assert_eq!(feed[2].document_id, doc2);
+        assert_eq!(feed[2].user_reacted, Some(UserReaction::Neutral));
+        assert_eq!(feed[3].document_id, doc3);
+        assert_eq!(feed[3].user_reacted, Some(UserReaction::Neutral));
+        for doc in &feed[4..] {
+            assert_eq!(doc.user_reacted, None);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_storing_user_reaction_returns_the_right_document() {
+        let storage = create_memory_storage().await;
+        let docs = create_documents(1);
+        let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
+        storage
+            .feed()
+            .store_documents(&docs, &stack_ids)
+            .await
+            .unwrap();
+
+        let reacted_doc = storage
+            .feedback()
+            .update_user_reaction(docs[0].id, UserReaction::Positive)
+            .await
+            .unwrap();
+
+        assert!(check_eq_of_documents(&[reacted_doc], &docs));
     }
 }
