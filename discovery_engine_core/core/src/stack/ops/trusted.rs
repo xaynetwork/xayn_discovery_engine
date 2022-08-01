@@ -49,6 +49,10 @@ pub(crate) struct TrustedNews {
 }
 
 impl TrustedNews {
+    pub(crate) const fn id() -> Id {
+        Id(uuid!("d0f699d8-60d2-4008-b3a1-df1cffc4b8a3"))
+    }
+
     #[allow(unused)]
     /// Creates a trusted news stack.
     pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn TrustedHeadlinesProvider>) -> Self {
@@ -74,7 +78,7 @@ impl TrustedNews {
 #[async_trait]
 impl Ops for TrustedNews {
     fn id(&self) -> Id {
-        Id(uuid!("d0f699d8-60d2-4008-b3a1-df1cffc4b8a3"))
+        Self::id()
     }
 
     fn needs_key_phrases(&self) -> bool {

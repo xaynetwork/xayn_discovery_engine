@@ -480,8 +480,12 @@ impl Engine {
 
         #[cfg(feature = "storage")]
         {
+            let stack_ids = documents.iter().map(|doc| (doc.id, doc.stack_id)).collect();
             let documents = documents.iter().cloned().map_into().collect_vec();
-            self.storage.feed().store_documents(&documents).await?;
+            self.storage
+                .feed()
+                .store_documents(&documents, &stack_ids)
+                .await?;
         }
 
         Ok(documents)
@@ -750,10 +754,7 @@ impl Engine {
         #[cfg(feature = "storage")]
         {
             let (_, documents) = self.storage.search().fetch().await?;
-            let documents = documents
-                .into_iter()
-                .map(|document| document.into_document(StackId::nil()))
-                .collect();
+            let documents = documents.into_iter().map_into().collect();
 
             return Ok(documents);
         }
