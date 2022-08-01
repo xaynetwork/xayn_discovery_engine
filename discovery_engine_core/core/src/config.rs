@@ -57,6 +57,10 @@ pub struct InitConfig {
     pub kpe_cnn: String,
     /// KPE classifier path.
     pub kpe_classifier: String,
+    /// The maximum number of documents per feed batch.
+    pub max_docs_per_feed_batch: u32,
+    /// The maximum number of documents per search batch.
+    pub max_docs_per_search_batch: u32,
     /// DE config in JSON format.
     pub de_config: Option<String>,
     /// Log file path.
@@ -94,7 +98,7 @@ pub(crate) struct EndpointConfig {
     #[cfg_attr(test, derivative(PartialEq = "ignore"))]
     pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
     /// The maximum number of requests to try to reach the number of `min_articles`.
-    pub(crate) max_requests: u32,
+    pub(crate) max_requests: usize,
     /// The minimum number of new articles to try to return when updating the stack.
     pub(crate) min_articles: usize,
     /// The maximum age of a headline, in days, after which we no longer
@@ -193,9 +197,46 @@ impl Default for ExplorationConfig {
     }
 }
 
-/// Reads the DE configurations from json and sets defaults for missing fields (if possible).
+/// Configurations for the feed.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(crate) struct FeedConfig {
+    /// The maximum number of documents per feed batch.
+    pub(crate) max_docs_per_batch: usize,
+}
+
+impl FeedConfig {
+    /// Merges existent values from the DE configuration into this configuration.
+    pub(crate) fn merge(&mut self, de_config: &Figment) {
+        if let Ok(max_docs_per_batch) = de_config.extract_inner("feed.max_docs_per_batch") {
+            self.max_docs_per_batch = max_docs_per_batch;
+        }
+    }
+}
+
+/// Configurations for the search.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(crate) struct SearchConfig {
+    /// The maximum number of documents per search batch.
+    pub(crate) max_docs_per_batch: usize,
+}
+
+impl SearchConfig {
+    /// Merges existent values from the DE configuration into this configuration
+    pub(crate) fn merge(&mut self, de_config: &Figment) {
+        if let Ok(max_docs_per_batch) = de_config.extract_inner("search.max_docs_per_batch") {
+            self.max_docs_per_batch = max_docs_per_batch;
+        }
+    }
+}
+
+/// Reads the DE configurations from json.
 pub(crate) fn de_config_from_json(json: &str) -> Figment {
     Figment::from(Json::string(json))
+}
+
+/// Reads the DE configurations from json and sets defaults for missing fields (if possible).
+pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
+    de_config_from_json(json)
         .join(Serialized::default("kpe.token_size", 150))
         .join(Serialized::default("smbert.token_size", 150))
         .join(Serialized::defaults(CoiSystemConfig::default()))
@@ -217,9 +258,25 @@ mod tests {
     // the f32 fields are never NaN by construction
     impl Eq for CoreConfig {}
 
+    impl Default for FeedConfig {
+        fn default() -> Self {
+            Self {
+                max_docs_per_batch: 2,
+            }
+        }
+    }
+
+    impl Default for SearchConfig {
+        fn default() -> Self {
+            Self {
+                max_docs_per_batch: 20,
+            }
+        }
+    }
+
     #[test]
     fn test_de_config_from_json_default() -> Result<(), GenericError> {
-        let de_config = de_config_from_json("{}");
+        let de_config = de_config_from_json_with_defaults("{}");
         assert_eq!(de_config.extract_inner::<usize>("kpe.token_size")?, 150);
         assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
@@ -244,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_de_config_from_json_modified() -> Result<(), GenericError> {
-        let de_config = de_config_from_json(
+        let de_config = de_config_from_json_with_defaults(
             r#"{
                 "coi": {
                     "threshold": 0.42

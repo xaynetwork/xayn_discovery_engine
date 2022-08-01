@@ -58,7 +58,16 @@ use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 #[cfg(feature = "storage")]
 use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
 use crate::{
-    config::{de_config_from_json, CoreConfig, EndpointConfig, ExplorationConfig, InitConfig},
+    config::{
+        de_config_from_json,
+        de_config_from_json_with_defaults,
+        CoreConfig,
+        EndpointConfig,
+        ExplorationConfig,
+        FeedConfig,
+        InitConfig,
+        SearchConfig,
+    },
     document::{
         self,
         Document,
@@ -146,6 +155,8 @@ pub struct Engine {
     // configs
     endpoint_config: EndpointConfig,
     core_config: CoreConfig,
+    feed_config: FeedConfig,
+    search_config: SearchConfig,
     request_after: usize,
 
     // systems
@@ -172,6 +183,8 @@ impl Engine {
         endpoint_config: EndpointConfig,
         core_config: CoreConfig,
         exploration_config: ExplorationConfig,
+        feed_config: FeedConfig,
+        search_config: SearchConfig,
         smbert: SMBert,
         coi: CoiSystem,
         kpe: KPE,
@@ -204,6 +217,8 @@ impl Engine {
         let mut engine = Self {
             endpoint_config,
             core_config,
+            feed_config,
+            search_config,
             request_after: 0,
             smbert,
             coi,
@@ -232,7 +247,8 @@ impl Engine {
         history: &[HistoricDocument],
         sources: &[WeightedSource],
     ) -> Result<Self, Error> {
-        let de_config = de_config_from_json(config.de_config.as_deref().unwrap_or("{}"));
+        let de_config =
+            de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
 
         // build the systems
         let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
@@ -272,6 +288,12 @@ impl Engine {
         let providers = Providers::new(&config.clone().into()).map_err(Error::ProviderError)?;
 
         // read the configs
+        let feed_config = FeedConfig {
+            max_docs_per_batch: config.max_docs_per_feed_batch as usize,
+        };
+        let search_config = SearchConfig {
+            max_docs_per_batch: config.max_docs_per_search_batch as usize,
+        };
         let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?
@@ -327,6 +349,8 @@ impl Engine {
             endpoint_config,
             core_config,
             exploration_config,
+            feed_config,
+            search_config,
             smbert,
             coi,
             kpe,
@@ -340,6 +364,13 @@ impl Engine {
             providers,
         )
         .await
+    }
+
+    /// Configures the running engine.
+    pub fn configure(&mut self, de_config: &str) {
+        let de_config = de_config_from_json(de_config);
+        self.feed_config.merge(&de_config);
+        self.search_config.merge(&de_config);
     }
 
     async fn update_stacks_for_all_markets(
@@ -427,29 +458,25 @@ impl Engine {
     pub async fn feed_next_batch(
         &mut self,
         sources: &[WeightedSource],
-        max_documents: u32,
     ) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
         {
             let history = self.storage.fetch_history().await?;
 
             // TODO: merge `get_feed_documents()` into this method after DB migration
-            return self
-                .get_feed_documents(&history, sources, max_documents)
-                .await;
+            return self.get_feed_documents(&history, sources).await;
         }
 
         #[cfg(not(feature = "storage"))]
         unimplemented!("requires 'storage' feature")
     }
 
-    /// Returns at most `max_documents` [`Document`]s for the feed.
+    /// Gets the next batch of feed documents.
     #[instrument(skip(self, history))]
     pub async fn get_feed_documents(
         &mut self,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
-        max_documents: u32,
     ) -> Result<Vec<Document>, Error> {
         let request_new = (self.request_after < self.core_config.request_after)
             .then(|| self.core_config.request_new)
@@ -468,8 +495,8 @@ impl Engine {
             once(&mut self.exploration_stack as _),
         );
 
-        let documents =
-            SelectionIter::new(BetaSampler, all_stacks).select(max_documents as usize)?;
+        let documents = SelectionIter::new(BetaSampler, all_stacks)
+            .select(self.feed_config.max_docs_per_batch)?;
         for document in &documents {
             debug!(
                 document = %document.id,
@@ -635,12 +662,7 @@ impl Engine {
     }
 
     /// Perform an active search by query.
-    pub async fn search_by_query(
-        &self,
-        query: &str,
-        page: u32,
-        page_size: u32,
-    ) -> Result<Vec<Document>, Error> {
+    pub async fn search_by_query(&self, query: &str, page: u32) -> Result<Vec<Document>, Error> {
         let query = clean_query(query);
         if query.trim().is_empty() {
             return Err(Error::InvalidTerm);
@@ -655,7 +677,11 @@ impl Engine {
 
         let filter = Filter::default().add_keyword(&query);
         let documents = self
-            .active_search(SearchBy::Query(Cow::Owned(filter)), page, page_size)
+            .active_search(
+                SearchBy::Query(Cow::Owned(filter)),
+                page,
+                self.search_config.max_docs_per_batch,
+            )
             .await?;
 
         #[cfg(feature = "storage")]
@@ -664,7 +690,7 @@ impl Engine {
                 search_by: storage::models::SearchBy::Query,
                 search_term: query,
                 paging: storage::models::Paging {
-                    size: page_size,
+                    size: self.search_config.max_docs_per_batch as u32,
                     next_page: page,
                 },
             };
@@ -679,12 +705,7 @@ impl Engine {
     }
 
     /// Perform an active search by topic.
-    pub async fn search_by_topic(
-        &self,
-        topic: &str,
-        page: u32,
-        page_size: u32,
-    ) -> Result<Vec<Document>, Error> {
+    pub async fn search_by_topic(&self, topic: &str, page: u32) -> Result<Vec<Document>, Error> {
         if topic.trim().is_empty() {
             return Err(Error::InvalidTerm);
         }
@@ -697,7 +718,11 @@ impl Engine {
         };
 
         let documents = self
-            .active_search(SearchBy::Topic(topic.into()), page, page_size)
+            .active_search(
+                SearchBy::Topic(topic.into()),
+                page,
+                self.search_config.max_docs_per_batch,
+            )
             .await?;
 
         #[cfg(feature = "storage")]
@@ -706,7 +731,7 @@ impl Engine {
                 search_by: storage::models::SearchBy::Topic,
                 search_term: topic.into(),
                 paging: storage::models::Paging {
-                    size: page_size,
+                    size: self.search_config.max_docs_per_batch as u32,
                     next_page: page,
                 },
             };
@@ -757,7 +782,7 @@ impl Engine {
             };
             let page_number = search.paging.next_page + 1;
             let documents = self
-                .active_search(by, page_number, search.paging.size)
+                .active_search(by, page_number, search.paging.size as usize)
                 .await?;
 
             self.storage
@@ -833,13 +858,13 @@ impl Engine {
         &self,
         by: SearchBy<'_>,
         page: u32,
-        page_size: u32,
+        page_size: usize,
     ) -> Result<Vec<Document>, Error> {
         let mut errors = Vec::new();
         let mut articles = Vec::new();
 
         let markets = self.endpoint_config.markets.read().await;
-        let scaled_page_size = page_size as usize / markets.len() + 1;
+        let scaled_page_size = page_size / markets.len() + 1;
         let excluded_sources = self.endpoint_config.excluded_sources.read().await.clone();
         for market in markets.iter() {
             let query_result = match &by {
@@ -889,7 +914,7 @@ impl Engine {
         if documents.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
-            documents.truncate(page_size as usize);
+            documents.truncate(page_size);
             Ok(documents)
         }
     }
@@ -1401,6 +1426,8 @@ pub(crate) mod tests {
             let config = InitConfig {
                 api_key: "test-token".into(),
                 api_base_url: server.uri(),
+                news_provider_path: "newscatcher/news-endpoint-name".into(),
+                headlines_provider_path: "newscatcher/headlines-endpoint-name".into(),
                 markets: vec![Market::new("en", "US")],
                 // This triggers the trusted sources stack to also fetch articles
                 trusted_sources: vec!["example.com".into()],
@@ -1411,10 +1438,16 @@ pub(crate) mod tests {
                 kpe_model: format!("{asset_base}/kpe_v0001/bert-mocked.onnx"),
                 kpe_cnn: format!("{asset_base}/kpe_v0001/cnn.binparams"),
                 kpe_classifier: format!("{asset_base}/kpe_v0001/classifier.binparams"),
+                max_docs_per_feed_batch: FeedConfig::default()
+                    .max_docs_per_batch
+                    .try_into()
+                    .unwrap_or(u32::MAX),
+                max_docs_per_search_batch: SearchConfig::default()
+                    .max_docs_per_batch
+                    .try_into()
+                    .unwrap_or(u32::MAX),
                 de_config: None,
                 log_file: None,
-                news_provider_path: "newscatcher/news-endpoint-name".into(),
-                headlines_provider_path: "newscatcher/headlines-endpoint-name".into(),
             };
 
             // Now we can initialize the engine with no previous history or state. This should
@@ -1675,7 +1708,7 @@ pub(crate) mod tests {
 
         // Finally, we instruct the engine to fetch some articles and check whether or not
         // the expected articles from the mock show up in the results.
-        let res = engine.get_feed_documents(&[], &[], 2).await.unwrap();
+        let res = engine.get_feed_documents(&[], &[]).await.unwrap();
 
         assert_eq!(1, res.len());
         assert_eq!(

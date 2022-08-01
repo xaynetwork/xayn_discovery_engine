@@ -23,6 +23,8 @@ void main() {
     final config = InitConfigFfi.fromParts(
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
+      headlinesProviderPath: '/newscatcher/v1/latest-headlines',
+      newsProviderPath: '/newscatcher/v1/search-news',
       feedMarkets: [
         const FeedMarket(langCode: 'de', countryCode: 'DE'),
         const FeedMarket(langCode: 'en', countryCode: 'US'),
@@ -35,8 +37,8 @@ void main() {
       kpeModel: 'yo.lo',
       kpeCnn: 'abc',
       kpeClassifier: 'magic',
-      headlinesProviderPath: '/newscatcher/v1/latest-headlines',
-      newsProviderPath: '/newscatcher/v1/search-news',
+      maxDocsPerFeedBatch: 2,
+      maxDocsPerSearchBatch: 20,
     );
     final boxed = config.allocNative();
     final res = InitConfigFfi.readNative(boxed.ref);
@@ -48,6 +50,8 @@ void main() {
     final config = InitConfigFfi.fromParts(
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
+      headlinesProviderPath: '/newscatcher/v1/latest-headlines',
+      newsProviderPath: '/newscatcher/v1/search-news',
       feedMarkets: [
         const FeedMarket(langCode: 'de', countryCode: 'DE'),
         const FeedMarket(langCode: 'en', countryCode: 'US'),
@@ -60,9 +64,9 @@ void main() {
       kpeModel: 'yo.lo',
       kpeCnn: 'abc',
       kpeClassifier: 'magic',
+      maxDocsPerFeedBatch: 2,
+      maxDocsPerSearchBatch: 20,
       deConfig: '{ "key": "value" }',
-      headlinesProviderPath: '/newscatcher/v1/latest-headlines',
-      newsProviderPath: '/newscatcher/v1/search-news',
     );
     final boxed = config.allocNative();
     final res = InitConfigFfi.readNative(boxed.ref);

@@ -44,7 +44,7 @@ pub(crate) struct PersonalizedNews {
     client: Arc<dyn NewsProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
-    max_requests: u32,
+    max_requests: usize,
     min_articles: usize,
     max_article_age_days: usize,
 }
@@ -114,7 +114,7 @@ impl Ops for PersonalizedNews {
                     market.clone(),
                     filter.clone(),
                     self.page_size,
-                    request_num as usize + 1,
+                    request_num + 1,
                     excluded_sources.clone(),
                     self.max_article_age_days,
                 )
