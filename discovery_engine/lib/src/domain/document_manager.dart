@@ -82,8 +82,8 @@ class DocumentManager {
         //FIXME sources are not yet migrated
         await _sourceRepo.fetchAll(),
         // The engine will ignore all fields except the id and reaction,
-        // but while we have feature flags we will still have the other fields
-        // so we fill them with dummy data.
+        // but while we have feature flags we will still have to keep the
+        // other fields intact. But we can pass dummy data.
         UserReacted(
           id: id,
           stackId: StackId.nil(),
@@ -98,7 +98,6 @@ class DocumentManager {
         ),
       );
       await _engineStateRepo.save(await _engine.serialize());
-      //TODO why do we send whole documents, instead of just ids
       _changedDocsReporter.notifyChanged([document]);
       return;
     }

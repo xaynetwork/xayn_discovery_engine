@@ -48,6 +48,8 @@ class Document {
   @Deprecated('only available without `storage` enabled')
   @HiveField(6)
   DateTime timestamp;
+
+  /// Indicates if this [Document] was returned in response to active search.
   //soft deprecated, will be replaced with getter once we migrated to `storage`
   @HiveField(7)
   bool isSearched;
