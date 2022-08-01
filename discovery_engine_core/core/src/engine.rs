@@ -19,6 +19,7 @@ use std::{
     mem::replace,
 };
 
+use cfg_if::cfg_if;
 use displaydoc::Display;
 use futures::future::join_all;
 use itertools::{chain, Itertools};
@@ -586,62 +587,103 @@ impl Engine {
         &mut self,
         history: Option<&[HistoricDocument]>,
         sources: &[WeightedSource],
-        reacted: &UserReacted,
-    ) -> Result<(), Error> {
+        reacted: UserReacted,
+    ) -> Result<Document, Error> {
+        let reaction = reacted.reaction;
+        cfg_if! {
+            if #[cfg(feature="storage")] {
+                let document: Document = self.storage
+                    .feedback()
+                    .update_user_reaction(reacted.id, reacted.reaction).await?
+                    .into();
+            } else {
+                use chrono::Utc;
+                use url::Url;
+
+                use crate::document::NewsResource;
+
+                let document = Document {
+                    id: reacted.id,
+                    stack_id: reacted.stack_id,
+                    smbert_embedding: reacted.smbert_embedding,
+                    resource: NewsResource {
+                        title: reacted.title,
+                        snippet: reacted.snippet,
+                        url: Url::parse("https://foobar.invalid").unwrap(),
+                        source_domain: "foobar.invalid".into(),
+                        date_published: Utc::now().naive_utc(),
+                        image: None,
+                        rank: 0,
+                        score: None,
+                        country: reacted.market.country_code,
+                        language: reacted.market.lang_code,
+                        topic: "invalid".into()
+                    }
+                };
+            }
+        }
+
+        let market = Market {
+            lang_code: document.resource.language.clone(),
+            country_code: document.resource.country.clone(),
+        };
+
         let mut stacks = self.stacks.write().await;
 
         // update relevance of stack if the reacted document belongs to one
-        if !reacted.stack_id.is_nil() {
-            if let Some(stack) = stacks.get_mut(&reacted.stack_id) {
+        if !document.stack_id.is_nil() {
+            if let Some(stack) = stacks.get_mut(&document.stack_id) {
                 stack.update_relevance(
-                    reacted.reaction,
+                    reaction,
                     self.core_config.max_reactions,
                     self.core_config.incr_reactions,
                 );
-            } else if reacted.stack_id == Exploration::id() {
+            } else if document.stack_id == Exploration::id() {
                 self.exploration_stack.update_relevance(
-                    reacted.reaction,
+                    reaction,
                     self.core_config.max_reactions,
                     self.core_config.incr_reactions,
                 );
             } else {
-                return Err(Error::InvalidStackId(reacted.stack_id));
+                return Err(Error::InvalidStackId(document.stack_id));
             }
         };
 
-        match reacted.reaction {
+        match reaction {
             UserReaction::Positive => {
                 let smbert = &self.smbert;
                 let key_phrases = self
                     .kpe
-                    .run(&reacted.snippet)
+                    .run(&document.resource.snippet)
                     .or_else(|_| {
-                        self.kpe
-                            .run(format!("{} {}", reacted.title, reacted.snippet))
+                        self.kpe.run(format!(
+                            "{} {}",
+                            document.resource.title, document.resource.snippet
+                        ))
                     })
                     .map_or_else(
                         #[allow(clippy::if_not_else)]
                         |_| {
-                            vec![if !reacted.title.is_empty() {
-                                reacted.title.to_string()
+                            vec![if document.resource.title.is_empty() {
+                                document.resource.snippet.clone()
                             } else {
-                                reacted.snippet.to_string()
+                                document.resource.title.clone()
                             }]
                         },
                         Into::into,
                     );
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
-                    &reacted.market,
+                    &market,
                     &mut self.state.key_phrases,
-                    &reacted.smbert_embedding,
+                    &document.smbert_embedding,
                     &key_phrases,
                     |words| smbert.run(words).map_err(Into::into),
                 );
             }
             UserReaction::Negative => self.coi.log_negative_user_reaction(
                 &mut self.state.user_interests.negative,
-                &reacted.smbert_embedding,
+                &document.smbert_embedding,
             ),
             UserReaction::Neutral => {}
         }
@@ -653,7 +695,7 @@ impl Engine {
             &self.coi,
             &self.state.user_interests,
         );
-        if let UserReaction::Positive = reacted.reaction {
+        if let UserReaction::Positive = reaction {
             if let Some(history) = history {
                 update_stacks(
                     &mut stacks,
@@ -666,17 +708,16 @@ impl Engine {
                     self.core_config.take_top,
                     self.core_config.keep_top,
                     usize::MAX,
-                    &[reacted.market.clone()],
+                    &[market.clone()],
                 )
                 .await?;
                 self.request_after = 0;
-                Ok(())
             } else {
-                Err(Error::StackOpFailed(stack::Error::NoHistory))
+                return Err(Error::StackOpFailed(stack::Error::NoHistory));
             }
-        } else {
-            Ok(())
         }
+
+        Ok(document)
     }
 
     /// Perform an active search by query.
