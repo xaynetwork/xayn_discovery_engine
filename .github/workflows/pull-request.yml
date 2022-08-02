@@ -17,7 +17,7 @@ jobs:
   selection:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v3
+      image: xaynetci/yellow:v4
     outputs:
       dart: ${{ steps.filter.outputs.dart }}
       rust: ${{ steps.filter.outputs.rust }}
@@ -64,7 +64,7 @@ jobs:
     if: ${{ always() }}
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v3
+      image: xaynetci/yellow:v4
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
