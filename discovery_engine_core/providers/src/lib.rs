@@ -33,15 +33,18 @@
 mod bing;
 mod error;
 mod helpers;
+mod mlt;
 mod models;
 mod newscatcher;
 
+use mlt::MltSimilarNewsProvider;
 pub use models::{
     GenericArticle,
     HeadlinesQuery,
     NewsQuery,
     Rank,
     RankLimit,
+    SimilarNewsQuery,
     TrendingTopicsQuery,
     TrustedHeadlinesQuery,
     UrlWithDomain,
@@ -101,6 +104,15 @@ pub trait TrendingTopicsProvider: Send + Sync {
     ) -> Result<Vec<TrendingTopic>, Error>;
 }
 
+/// Abstraction over a provider for similar news.
+#[async_trait]
+pub trait SimilarNewsProvider: Send + Sync {
+    async fn query_similar_news(
+        &self,
+        query: &SimilarNewsQuery<'_>,
+    ) -> Result<Vec<GenericArticle>, Error>;
+}
+
 pub struct ProviderConfig {
     pub api_base_url: String,
     /// Key for accessing the API.
@@ -116,6 +128,7 @@ pub struct Providers {
     pub trusted_headlines: Arc<dyn TrustedHeadlinesProvider>,
     pub news: Arc<dyn NewsProvider>,
     pub trending_topics: Arc<dyn TrendingTopicsProvider>,
+    pub similar_news: Arc<dyn SimilarNewsProvider>,
 }
 
 fn create_endpoint_url(raw_base_url: &str, path: &str) -> Result<Url, Error> {
@@ -189,6 +202,7 @@ impl Providers {
             config.api_key.clone(),
         )
         .with_get_as_post(true);
+
         let trusted_headlines =
             NewscatcherTrustedHeadlinesProvider::from_endpoint(trusted_headlines_endpoint);
 
@@ -199,11 +213,20 @@ impl Providers {
         );
         let trending_topics = BingTrendingTopicsProvider::from_endpoint(trending_topics_endpoint);
 
+        let similar_news_endpoint = RestEndpoint::new(
+            create_endpoint_url(&config.api_base_url, "_mlt")?,
+            config.api_key.clone(),
+        )
+        .with_get_as_post(true);
+
+        let similar_news = MltSimilarNewsProvider::from_endpoint(similar_news_endpoint);
+
         Ok(Providers {
             headlines,
             trusted_headlines,
             news,
             trending_topics,
+            similar_news,
         })
     }
 }
