@@ -18,7 +18,7 @@ import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document;
+    show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
@@ -30,6 +30,8 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/news_resource.dart'
     show NewsResourceFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
+    show OptionUserReactionFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
     show EmbeddingFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
@@ -40,16 +42,18 @@ class DocumentFfi with EquatableMixin {
   final StackId stackId;
   final Embedding smbertEmbedding;
   final NewsResource resource;
+  final UserReaction? reaction;
 
   DocumentFfi({
     required this.id,
     required this.stackId,
     required this.smbertEmbedding,
     required this.resource,
+    this.reaction,
   });
 
   @override
-  List<Object?> get props => [id, stackId, smbertEmbedding, resource];
+  List<Object?> get props => [id, stackId, smbertEmbedding, resource, reaction];
 
   factory DocumentFfi.readNative(final Pointer<RustDocument> place) {
     return DocumentFfi(
@@ -60,6 +64,9 @@ class DocumentFfi with EquatableMixin {
       ),
       resource:
           NewsResourceFfi.readNative(ffi.document_place_of_resource(place)),
+      reaction: OptionUserReactionFfi.readNative(
+        ffi.document_place_of_reaction(place),
+      ),
     );
   }
 
@@ -68,6 +75,7 @@ class DocumentFfi with EquatableMixin {
     stackId.writeNative(ffi.document_place_of_stack_id(place));
     smbertEmbedding.writeNative(ffi.document_place_of_smbert_embedding(place));
     resource.writeNative(ffi.document_place_of_resource(place));
+    reaction.writeNative(ffi.document_place_of_reaction(place));
   }
 
   Document toDocument({
@@ -81,6 +89,7 @@ class DocumentFfi with EquatableMixin {
         resource: resource,
         batchIndex: batchIndex,
         isSearched: isSearched,
+        userReaction: reaction ?? UserReaction.neutral,
       );
 
   ActiveDocumentData toActiveDocumentData() =>

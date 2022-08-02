@@ -101,6 +101,9 @@ pub struct Document {
     /// Embedding from smbert.
     pub smbert_embedding: Embedding,
 
+    /// Reaction.
+    pub reaction: Option<UserReaction>,
+
     /// Resource this document refers to.
     pub resource: NewsResource,
 }
@@ -117,6 +120,7 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
             stack_id,
             smbert_embedding,
             resource,
+            reaction: None,
         })
     }
 }
@@ -194,9 +198,18 @@ impl From<GenericArticle> for NewsResource {
 
 /// Indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
-#[derive(Clone, Copy, Debug, Derivative, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Derivative,
+    Eq,
+    PartialEq,
+    Serialize_repr,
+    Deserialize_repr,
+    num_derive::FromPrimitive,
+)]
 #[derivative(Default)]
-#[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
 #[repr(u8)]
 pub enum UserReaction {
     /// No reaction from the user.

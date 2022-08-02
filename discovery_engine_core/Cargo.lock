@@ -3860,6 +3860,7 @@ dependencies = [
  "heck 0.4.0",
  "itertools",
  "ndarray",
+ "num-traits",
  "tokio",
  "tracing",
  "tracing-android",

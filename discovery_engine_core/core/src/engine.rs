@@ -606,6 +606,7 @@ impl Engine {
                     id: reacted.id,
                     stack_id: reacted.stack_id,
                     smbert_embedding: reacted.smbert_embedding,
+                    reaction: None,
                     resource: NewsResource {
                         title: reacted.title,
                         snippet: reacted.snippet,

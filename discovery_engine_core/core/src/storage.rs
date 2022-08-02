@@ -209,7 +209,7 @@ pub mod models {
         pub(crate) document_id: document::Id,
         pub(crate) news_resource: NewsResource,
         pub(crate) newscatcher_data: NewscatcherData,
-        pub(crate) user_reacted: Option<UserReaction>,
+        pub(crate) user_reaction: Option<UserReaction>,
         pub(crate) embedding: Embedding,
         pub(crate) stack_id: Option<stack::Id>,
     }
@@ -225,11 +225,21 @@ pub mod models {
 
     impl From<ApiDocumentView> for document::Document {
         fn from(view: ApiDocumentView) -> Self {
+            let ApiDocumentView {
+                document_id,
+                news_resource,
+                newscatcher_data,
+                user_reaction,
+                embedding,
+                stack_id,
+            } = view;
+
             document::Document {
-                id: view.document_id,
-                stack_id: view.stack_id.unwrap_or_default(),
-                smbert_embedding: view.embedding,
-                resource: (view.news_resource, view.newscatcher_data).into(),
+                id: document_id,
+                stack_id: stack_id.unwrap_or_default(),
+                smbert_embedding: embedding,
+                reaction: user_reaction,
+                resource: (news_resource, newscatcher_data).into(),
             }
         }
     }

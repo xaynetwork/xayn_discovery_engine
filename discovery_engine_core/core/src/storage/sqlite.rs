@@ -755,7 +755,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             document_id: doc.document_id,
             news_resource,
             newscatcher_data,
-            user_reacted,
+            user_reaction: user_reacted,
             embedding,
             stack_id: doc.stack_id,
         })
@@ -1180,15 +1180,15 @@ mod tests {
 
         let feed = storage.feed().fetch().await.unwrap();
         assert_eq!(feed[0].document_id, doc0);
-        assert_eq!(feed[0].user_reacted, Some(UserReaction::Positive));
+        assert_eq!(feed[0].user_reaction, Some(UserReaction::Positive));
         assert_eq!(feed[1].document_id, doc1);
-        assert_eq!(feed[1].user_reacted, Some(UserReaction::Negative));
+        assert_eq!(feed[1].user_reaction, Some(UserReaction::Negative));
         assert_eq!(feed[2].document_id, doc2);
-        assert_eq!(feed[2].user_reacted, Some(UserReaction::Neutral));
+        assert_eq!(feed[2].user_reaction, Some(UserReaction::Neutral));
         assert_eq!(feed[3].document_id, doc3);
-        assert_eq!(feed[3].user_reacted, Some(UserReaction::Neutral));
+        assert_eq!(feed[3].user_reaction, Some(UserReaction::Neutral));
         for doc in &feed[4..] {
-            assert_eq!(doc.user_reacted, None);
+            assert_eq!(doc.user_reaction, None);
         }
     }
 
