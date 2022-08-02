@@ -199,8 +199,14 @@ rust-clean:
     cargo clean
 
 # Cleans up darts build cache
+_dart-clean $WORKSPACE:
+    cd "$WORKSPACE"; \
+    find . -type d -name .dart_tool -prune -exec rm -r '{}' \;
+
 dart-clean:
-    find -type d -name .dart_tool -prune -exec rm -r '{}' \;
+    @{{just_executable()}} _dart-clean "$DART_WORKSPACE"
+    @{{just_executable()}} _dart-clean "$BINDGEN_DART_WORKSPACE"
+    @{{just_executable()}} _dart-clean "$FLUTTER_WORKSPACE"
 
 # Removes all local cargo installs
 clean-tools:
