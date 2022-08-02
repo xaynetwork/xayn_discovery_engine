@@ -39,6 +39,9 @@ runs:
     - name: Load .env
       uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
 
+    - name: Setup cmake
+      uses: jwlawson/actions-setup-cmake@884cf5c591490f86b788d68b6f585f26235578d6 # v1.12
+
     - name: Install just
       uses: extractions/setup-just@aa5d15c144db4585980a44ebfdd2cf337c4f14cb #v1.4.0
       env:
