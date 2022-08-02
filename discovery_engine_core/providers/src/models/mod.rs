@@ -16,4 +16,11 @@ mod content;
 mod query;
 
 pub use content::{GenericArticle, Rank, UrlWithDomain};
-pub use query::{HeadlinesQuery, NewsQuery, RankLimit, TrendingTopicsQuery, TrustedHeadlinesQuery};
+pub use query::{
+    HeadlinesQuery,
+    NewsQuery,
+    RankLimit,
+    SimilarNewsQuery,
+    TrendingTopicsQuery,
+    TrustedHeadlinesQuery,
+};
