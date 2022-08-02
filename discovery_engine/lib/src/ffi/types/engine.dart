@@ -228,7 +228,8 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<void> timeSpent(final TimeSpent timeSpent) async {
     final boxedTimeSpent = timeSpent.allocNative();
-    await asyncFfi.timeSpent(_engine.ref, boxedTimeSpent.move());
+    final result = await asyncFfi.timeSpent(_engine.ref, boxedTimeSpent.move());
+    resultVoidStringFfiAdapter.consumeNative(result);
   }
 
   @override

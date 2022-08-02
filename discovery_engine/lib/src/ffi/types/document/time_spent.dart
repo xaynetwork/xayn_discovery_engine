@@ -28,6 +28,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
     show EmbeddingFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/view_mode.dart'
+    show DocumentViewModeFfi;
 
 extension TimeSpentFfi on TimeSpent {
   static TimeSpent readNative(final Pointer<RustTimeSpent> place) {
@@ -36,7 +38,11 @@ extension TimeSpentFfi on TimeSpent {
       smbertEmbedding: EmbeddingFfi.readNative(
         ffi.time_spent_place_of_smbert_embedding(place),
       ),
-      time: DurationFfi.readNative(ffi.time_spent_place_of_time(place)),
+      viewTime:
+          DurationFfi.readNative(ffi.time_spent_place_of_view_time(place)),
+      viewMode: DocumentViewModeFfi.readNative(
+        ffi.time_spent_place_of_view_mode(place),
+      ),
       reaction: UserReactionFfi.readNative(
         ffi.time_spent_place_of_reaction(place),
       ),
@@ -53,7 +59,8 @@ extension TimeSpentFfi on TimeSpent {
     id.writeNative(ffi.time_spent_place_of_id(place));
     smbertEmbedding
         .writeNative(ffi.time_spent_place_of_smbert_embedding(place));
-    time.writeNative(ffi.time_spent_place_of_time(place));
+    viewTime.writeNative(ffi.time_spent_place_of_view_time(place));
+    viewMode.writeNative(ffi.time_spent_place_of_view_mode(place));
     reaction.writeNative(ffi.time_spent_place_of_reaction(place));
   }
 }
