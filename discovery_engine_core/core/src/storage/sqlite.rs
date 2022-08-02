@@ -43,6 +43,7 @@ use crate::{
         Error,
         FeedScope,
         SearchScope,
+        SourcePreferenceScope,
         StateScope,
         Storage,
     },
@@ -266,6 +267,47 @@ impl SqliteStorage {
 
         Ok(deletion)
     }
+
+    async fn set_sources(
+        &self,
+        sources: &[String],
+        preference: SourcePreference,
+    ) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        QueryBuilder::new("INSERT INTO SourcePreference(source, preference) ")
+            .push_values(sources, |mut stm, source| {
+                stm.push_bind(source);
+                stm.push_bind(preference);
+            })
+            .push(" ON CONFLICT DO UPDATE SET preference = excluded.preference;")
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn fetch_sources(&self, preference: SourcePreference) -> Result<Vec<String>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let sources = sqlx::query_as::<_, Source>(
+            "SELECT source
+            FROM SourcePreference
+            WHERE preference = ?;",
+        )
+        .bind(preference)
+        .fetch_all(&mut tx)
+        .await?
+        .into_iter()
+        .map(|s| s.0)
+        .collect();
+
+        tx.commit().await?;
+        Ok(sources)
+    }
 }
 
 #[async_trait]
@@ -312,6 +354,10 @@ impl Storage for SqliteStorage {
     }
 
     fn state(&self) -> &(dyn StateScope + Send + Sync) {
+        self
+    }
+
+    fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync) {
         self
     }
 }
@@ -754,6 +800,35 @@ struct QueriedState {
     state: Vec<u8>,
 }
 
+#[derive(Debug, Clone, Copy, sqlx::Type)]
+#[repr(i32)]
+enum SourcePreference {
+    Preferred = 0,
+    Excluded = 1,
+}
+
+#[derive(FromRow)]
+struct Source(String);
+
+#[async_trait]
+impl SourcePreferenceScope for SqliteStorage {
+    async fn set_trusted_sources(&self, sources: &[String]) -> Result<(), Error> {
+        self.set_sources(sources, SourcePreference::Preferred).await
+    }
+
+    async fn set_excluded_sources(&self, sources: &[String]) -> Result<(), Error> {
+        self.set_sources(sources, SourcePreference::Excluded).await
+    }
+
+    async fn fetch_trusted_sources(&self) -> Result<Vec<String>, Error> {
+        self.fetch_sources(SourcePreference::Preferred).await
+    }
+
+    async fn fetch_excluded_sources(&self) -> Result<Vec<String>, Error> {
+        self.fetch_sources(SourcePreference::Excluded).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -1129,5 +1204,77 @@ mod tests {
         assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
 
         assert!(storage.state().clear().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_source_preference() {
+        let storage = create_memory_storage().await;
+
+        // if no sources are set, return an empty vec
+        let trusted_db = storage
+            .source_preference()
+            .fetch_trusted_sources()
+            .await
+            .unwrap();
+        assert!(trusted_db.is_empty());
+        let excluded_db = storage
+            .source_preference()
+            .fetch_excluded_sources()
+            .await
+            .unwrap();
+        assert!(excluded_db.is_empty());
+
+        // set sources and fetch them
+        // the sources fetched should match the sources previously set
+        let mut trusted_sources = vec!["a".to_string(), "b".to_string()];
+        let excluded_sources = vec!["c".to_string()];
+
+        storage
+            .source_preference()
+            .set_trusted_sources(&trusted_sources)
+            .await
+            .unwrap();
+        storage
+            .source_preference()
+            .set_excluded_sources(&excluded_sources)
+            .await
+            .unwrap();
+
+        let trusted_db = storage
+            .source_preference()
+            .fetch_trusted_sources()
+            .await
+            .unwrap();
+        assert_eq!(trusted_db, trusted_sources);
+        let excluded_db = storage
+            .source_preference()
+            .fetch_excluded_sources()
+            .await
+            .unwrap();
+        assert_eq!(excluded_db, excluded_sources);
+
+        // add the excluded source to the trusted sources
+        // excluded sources should be empty
+        // trusted sources should return ["a", "b", "c"]
+        let trusted_sources_upt = vec!["a".to_string(), "c".to_string()];
+        storage
+            .source_preference()
+            .set_trusted_sources(&trusted_sources_upt)
+            .await
+            .unwrap();
+        let trusted_db = storage
+            .source_preference()
+            .fetch_trusted_sources()
+            .await
+            .unwrap();
+        trusted_sources.extend(excluded_sources);
+        assert_eq!(trusted_db, trusted_sources);
+
+        let excluded_db = storage
+            .source_preference()
+            .fetch_excluded_sources()
+            .await
+            .unwrap();
+        assert!(excluded_db.is_empty());
     }
 }

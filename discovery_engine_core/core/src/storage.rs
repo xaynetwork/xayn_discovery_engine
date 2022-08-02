@@ -63,6 +63,8 @@ pub(crate) trait Storage {
 
     // temporary helper functions
     fn state(&self) -> &(dyn StateScope + Send + Sync);
+
+    fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync);
 }
 
 #[async_trait]
@@ -120,6 +122,17 @@ pub(crate) trait StateScope {
     async fn fetch(&self) -> Result<Option<Vec<u8>>, Error>;
 
     async fn clear(&self) -> Result<bool, Error>;
+}
+
+#[async_trait]
+pub(crate) trait SourcePreferenceScope {
+    async fn set_trusted_sources(&self, sources: &[String]) -> Result<(), Error>;
+
+    async fn set_excluded_sources(&self, sources: &[String]) -> Result<(), Error>;
+
+    async fn fetch_trusted_sources(&self) -> Result<Vec<String>, Error>;
+
+    async fn fetch_excluded_sources(&self) -> Result<Vec<String>, Error>;
 }
 
 pub mod models {
