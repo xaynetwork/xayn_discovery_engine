@@ -570,19 +570,14 @@ impl StateScope for SqliteStorage {
         let mut tx = self.pool.begin().await?;
 
         let state = sqlx::query_as::<_, QueriedState>("SELECT state FROM SerializedState;")
-            .fetch_one(&mut tx)
-            .await
-            .or_else(|err| {
-                if let sqlx::Error::RowNotFound = err {
-                    Ok(QueriedState::default())
-                } else {
-                    Err(Error::Database(err.into()))
-                }
-            })?;
+            .fetch_optional(&mut tx)
+            .await?;
 
         tx.commit().await?;
 
-        Ok((!state.state.is_empty()).then(|| state.state))
+        Ok(state
+            .map(|state| (!state.state.is_empty()).then(|| state.state))
+            .flatten())
     }
 
     async fn clear(&self) -> Result<bool, Error> {
