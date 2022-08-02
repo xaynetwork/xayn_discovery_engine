@@ -298,8 +298,8 @@ _override-flutter-self-deps $VERSION:
     fi
 
     # This will add changes to your repo which should never be committed.
-    $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
-    $SED_CMD -i s/0.1.0+replace.with.version/${VERSION}/ ./pubspec.yaml
+    $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
+    $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
 
 
 _dart-publish $WORKSPACE:
