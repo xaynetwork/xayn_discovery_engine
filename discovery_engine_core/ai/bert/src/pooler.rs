@@ -51,13 +51,17 @@ impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
     }
 }
 
+#[derive(Clone, Debug, Error)]
+#[error("bytes do not represent a valid embedding")]
+pub struct MalformedBytesEmbedding;
+
 impl TryFrom<Vec<u8>> for Embedding<Ix1> {
-    type Error = Vec<u8>;
+    type Error = MalformedBytesEmbedding;
 
     /// Converts from bytes in little endianness to values in standard order.
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         if bytes.len() % size_of::<f32>() != 0 {
-            return Err(bytes);
+            return Err(MalformedBytesEmbedding);
         }
 
         let floats = bytes
