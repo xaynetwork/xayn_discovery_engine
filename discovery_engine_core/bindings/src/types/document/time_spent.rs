@@ -18,7 +18,7 @@ use std::{ptr::addr_of_mut, time::Duration};
 
 use uuid::Uuid;
 
-use xayn_discovery_engine_core::document::{Embedding, TimeSpent, UserReaction};
+use xayn_discovery_engine_core::document::{Embedding, TimeSpent, UserReaction, ViewMode};
 
 /// Returns a pointer to the `id` field of a [`TimeSpent`] memory object.
 ///
@@ -51,8 +51,19 @@ pub unsafe extern "C" fn time_spent_place_of_smbert_embedding(
 /// The pointer must point to a valid [`TimeSpent`] memory object, it
 /// might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn time_spent_place_of_time(place: *mut TimeSpent) -> *mut Duration {
-    unsafe { addr_of_mut!((*place).time) }
+pub unsafe extern "C" fn time_spent_place_of_view_time(place: *mut TimeSpent) -> *mut Duration {
+    unsafe { addr_of_mut!((*place).view_time) }
+}
+
+/// Returns a pointer to the `time` field of a [`TimeSpent`] memory object.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`TimeSpent`] memory object, it
+/// might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn time_spent_place_of_view_mode(place: *mut TimeSpent) -> *mut ViewMode {
+    unsafe { addr_of_mut!((*place).view_mode) }
 }
 
 /// Returns a pointer to the `reaction` field of a [`TimeSpent`] memory object.
