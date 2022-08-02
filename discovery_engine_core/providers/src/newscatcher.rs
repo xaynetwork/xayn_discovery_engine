@@ -50,7 +50,7 @@ impl NewscatcherNewsProvider {
     }
 }
 
-fn max_age_to_date_string(max_age_days: usize) -> String {
+pub(crate) fn max_age_to_date_string(max_age_days: usize) -> String {
     // (lj): This _could_ overflow if we specified trillions of days, but I don't
     // think that's worth guarding against.
     let days = max_age_days as i64;
@@ -60,7 +60,7 @@ fn max_age_to_date_string(max_age_days: usize) -> String {
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn to_generic_articles(articles: Vec<Article>) -> Result<Vec<GenericArticle>, Error> {
+pub(crate) fn to_generic_articles(articles: Vec<Article>) -> Result<Vec<GenericArticle>, Error> {
     let articles = articles
         .into_iter()
         .flat_map(GenericArticle::try_from)
@@ -191,7 +191,7 @@ impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
     }
 }
 
-fn append_market(
+pub(crate) fn append_market(
     query_append: &mut dyn FnMut(&str, String),
     market: &Market,
     rank_limit: &RankLimit,
