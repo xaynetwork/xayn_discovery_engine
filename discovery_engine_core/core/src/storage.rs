@@ -12,19 +12,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, time::Duration};
 
 use async_trait::async_trait;
 use displaydoc::Display;
 use thiserror::Error;
-use xayn_discovery_engine_ai::GenericError;
+use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
 
 use crate::{
-    document::{self, HistoricDocument, UserReaction},
+    document::{self, HistoricDocument, UserReaction, ViewMode},
     stack,
 };
 
-use self::models::{ApiDocumentView, NewDocument, Search};
+use self::models::{ApiDocumentView, NewDocument, Search, TimeSpendDocumentView};
 
 pub mod sqlite;
 mod utils;
@@ -46,6 +46,12 @@ pub enum Error {
 impl From<sqlx::Error> for Error {
     fn from(generic: sqlx::Error) -> Self {
         Error::Database(generic.into())
+    }
+}
+
+impl From<MalformedBytesEmbedding> for Error {
+    fn from(err: MalformedBytesEmbedding) -> Self {
+        Error::Database(Box::new(err))
     }
 }
 
@@ -113,6 +119,13 @@ pub(crate) trait FeedbackScope {
         document: document::Id,
         reaction: UserReaction,
     ) -> Result<ApiDocumentView, Error>;
+
+    async fn update_time_spend(
+        &self,
+        document: document::Id,
+        view_mode: ViewMode,
+        view_time: Duration,
+    ) -> Result<TimeSpendDocumentView, Error>;
 }
 
 #[async_trait]
@@ -136,6 +149,8 @@ pub(crate) trait SourcePreferenceScope {
 }
 
 pub mod models {
+    use std::time::Duration;
+
     use chrono::NaiveDateTime;
     use url::Url;
     use xayn_discovery_engine_ai::Embedding;
@@ -289,5 +304,12 @@ pub mod models {
     pub(crate) struct Paging {
         pub(crate) size: u32,
         pub(crate) next_page: u32,
+    }
+
+    #[derive(Debug, PartialEq)]
+    pub(crate) struct TimeSpendDocumentView {
+        pub(crate) smbert_embedding: Embedding,
+        pub(crate) last_reaction: Option<UserReaction>,
+        pub(crate) aggregated_view_time: Duration,
     }
 }
