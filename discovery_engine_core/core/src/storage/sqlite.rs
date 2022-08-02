@@ -888,17 +888,22 @@ mod tests {
         doc.iter().map(|doc| (doc.id, stack_id)).collect()
     }
 
-    fn assert_eq_of_documents(api_docs: &[ApiDocumentView], docs: &[NewDocument]) {
-        assert_eq!(api_docs.len(), docs.len());
-        api_docs
-            .iter()
-            .enumerate()
-            .zip(docs.iter())
-            .for_each(|((idx, api_docs), doc)| {
-                assert_eq!(api_docs.document_id, doc.id);
-                assert_eq!(api_docs.news_resource, doc.news_resource);
-                assert_eq!(api_docs.newscatcher_data.domain_rank, idx as u64);
-            })
+    macro_rules! assert_eq_of_documents {
+        ($left:expr, $right:expr) => {{
+            let api_docs: &[ApiDocumentView] = $left;
+            let docs: &[NewDocument] = $right;
+
+            assert_eq!(api_docs.len(), docs.len());
+            api_docs
+                .iter()
+                .enumerate()
+                .zip(docs.iter())
+                .for_each(|((idx, api_docs), doc)| {
+                    assert_eq!(api_docs.document_id, doc.id);
+                    assert_eq!(api_docs.news_resource, doc.news_resource);
+                    assert_eq!(api_docs.newscatcher_data.domain_rank, idx as u64);
+                })
+        }};
     }
 
     async fn create_memory_storage() -> impl Storage {
@@ -947,7 +952,7 @@ mod tests {
             .unwrap();
 
         let feed = storage.feed().fetch().await.unwrap();
-        assert_eq_of_documents(&feed, &docs);
+        assert_eq_of_documents!(&feed, &docs[..]);
         for doc in feed {
             assert_eq!(doc.stack_id, Some(stack_id));
         }
@@ -989,7 +994,7 @@ mod tests {
 
         let (search, search_docs) = storage.search().fetch().await.unwrap();
         assert_eq!(search, new_search);
-        assert_eq_of_documents(&search_docs, &first_docs);
+        assert_eq_of_documents!(&search_docs, &first_docs);
 
         // FIXME the current design of PresentationOrdering has a problem:
         // if you in the same second add multiple batches of documents
@@ -1014,8 +1019,8 @@ mod tests {
                 ..new_search
             }
         );
-        assert_eq_of_documents(&search_docs[..10], &first_docs);
-        assert_eq_of_documents(&search_docs[10..], &second_docs);
+        assert_eq_of_documents!(&search_docs[..10], &first_docs);
+        assert_eq_of_documents!(&search_docs[10..], &second_docs);
         assert!(storage.search().clear().await.unwrap());
     }
 
@@ -1065,7 +1070,7 @@ mod tests {
             .get_document(documents[0].id)
             .await
             .unwrap();
-        assert_eq_of_documents(&[document], &documents);
+        assert_eq_of_documents!(&[document], &documents);
 
         let id = document::Id::new();
         assert!(matches!(
@@ -1209,7 +1214,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq_of_documents(&[reacted_doc], &docs);
+        assert_eq_of_documents!(&[reacted_doc], &docs);
     }
 
     #[tokio::test]
