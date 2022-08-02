@@ -739,7 +739,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             domain_rank: doc.domain_rank as u64,
             score: doc.score,
         };
-        let user_reacted: Option<UserReaction> = doc
+        let user_reaction: Option<UserReaction> = doc
             .user_reaction
             .map(|value| {
                 UserReaction::from_u32(value).ok_or_else(|| {
@@ -755,7 +755,7 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             document_id: doc.document_id,
             news_resource,
             newscatcher_data,
-            user_reaction: user_reacted,
+            user_reaction,
             embedding,
             stack_id: doc.stack_id,
         })
