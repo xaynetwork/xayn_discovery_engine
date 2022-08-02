@@ -43,6 +43,7 @@ use crate::{
         Error,
         FeedScope,
         SearchScope,
+        StateScope,
         Storage,
     },
 };
@@ -309,6 +310,10 @@ impl Storage for SqliteStorage {
     fn feedback(&self) -> &(dyn FeedbackScope + Send + Sync) {
         self
     }
+
+    fn state(&self) -> &(dyn StateScope + Send + Sync) {
+        self
+    }
 }
 
 #[async_trait]
@@ -543,6 +548,57 @@ impl SearchScope for SqliteStorage {
     }
 }
 
+#[async_trait]
+impl StateScope for SqliteStorage {
+    async fn store(&self, bytes: Vec<u8>) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query("DELETE FROM SerializedState;")
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+        sqlx::query("INSERT INTO SerializedState (state) VALUES (?);")
+            .bind(bytes)
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+
+        tx.commit().await.map_err(Into::into)
+    }
+
+    async fn fetch(&self) -> Result<Option<Vec<u8>>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let state = sqlx::query_as::<_, QueriedState>("SELECT state FROM SerializedState;")
+            .fetch_one(&mut tx)
+            .await
+            .or_else(|err| {
+                if let sqlx::Error::RowNotFound = err {
+                    Ok(QueriedState::default())
+                } else {
+                    Err(Error::Database(err.into()))
+                }
+            })?;
+
+        tx.commit().await?;
+
+        Ok((!state.state.is_empty()).then(|| state.state))
+    }
+
+    async fn clear(&self) -> Result<bool, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let deletion = sqlx::query("DELETE FROM SerializedState;")
+            .execute(&mut tx)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+
+        tx.commit().await?;
+
+        Ok(deletion.rows_affected() > 0)
+    }
+}
+
 #[derive(FromRow)]
 #[sqlx(rename_all = "camelCase")]
 struct QueriedHistoricDocument {
@@ -697,6 +753,12 @@ impl FeedbackScope for SqliteStorage {
         tx.commit().await?;
         Ok(document)
     }
+}
+
+#[derive(Default, FromRow)]
+#[sqlx(rename_all = "camelCase")]
+struct QueriedState {
+    state: Vec<u8>,
 }
 
 #[cfg(test)]
@@ -1052,5 +1114,24 @@ mod tests {
             .unwrap();
 
         assert!(check_eq_of_documents(&[reacted_doc], &docs));
+    }
+
+    #[tokio::test]
+    async fn test_state() {
+        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        storage.init_database().await.unwrap();
+
+        assert!(!storage.state().clear().await.unwrap());
+        assert!(storage.state().fetch().await.unwrap().is_none());
+
+        let state = (0..100).collect::<Vec<u8>>();
+        storage.state().store(state.clone()).await.unwrap();
+        assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
+
+        let state = (100..=255).collect::<Vec<u8>>();
+        storage.state().store(state.clone()).await.unwrap();
+        assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
+
+        assert!(storage.state().clear().await.unwrap());
     }
 }

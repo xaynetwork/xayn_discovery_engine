@@ -60,6 +60,9 @@ pub(crate) trait Storage {
     fn search(&self) -> &(dyn SearchScope + Send + Sync);
 
     fn feedback(&self) -> &(dyn FeedbackScope + Send + Sync);
+
+    // temporary helper functions
+    fn state(&self) -> &(dyn StateScope + Send + Sync);
 }
 
 #[async_trait]
@@ -110,7 +113,15 @@ pub(crate) trait FeedbackScope {
     ) -> Result<ApiDocumentView, Error>;
 }
 
-#[allow(dead_code)]
+#[async_trait]
+pub(crate) trait StateScope {
+    async fn store(&self, bytes: Vec<u8>) -> Result<(), Error>;
+
+    async fn fetch(&self) -> Result<Option<Vec<u8>>, Error>;
+
+    async fn clear(&self) -> Result<bool, Error>;
+}
+
 pub mod models {
     use chrono::NaiveDateTime;
     use url::Url;
