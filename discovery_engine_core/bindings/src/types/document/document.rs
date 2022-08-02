@@ -55,7 +55,7 @@ pub unsafe extern "C" fn document_place_of_smbert_embedding(
     unsafe { addr_of_mut!((*place).smbert_embedding) }
 }
 
-/// Returns a pointer to the `smbert_embedding` field of a document.
+/// Returns a pointer to the `reaction` field of a document.
 ///
 /// # Safety
 ///

@@ -48,11 +48,11 @@ extension OptionUserReactionFfi on UserReaction? {
   static UserReaction? readNative(
     final Pointer<RustOptionUserReaction> place,
   ) {
-    final innerPlace = ffi.get_option_user_reaction_some_ptr(place);
-    if (innerPlace == nullptr) {
+    final pointer = ffi.get_option_user_reaction_some(place);
+    if (pointer == nullptr) {
       return null;
     } else {
-      return UserReactionFfi.readNative(innerPlace);
+      return UserReactionFfi.readNative(pointer);
     }
   }
 }

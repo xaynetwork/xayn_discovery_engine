@@ -176,6 +176,17 @@ pub struct NewsResource {
     pub topic: String,
 }
 
+impl NewsResource {
+    /// Returns the title, if the title is empty it return the snippet instead.
+    pub fn title_or_snippet(&self) -> &str {
+        if self.title.is_empty() {
+            &self.snippet
+        } else {
+            &self.title
+        }
+    }
+}
+
 impl From<GenericArticle> for NewsResource {
     fn from(article: GenericArticle) -> Self {
         let source_domain = article.source_domain();

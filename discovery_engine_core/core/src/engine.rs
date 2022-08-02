@@ -594,7 +594,7 @@ impl Engine {
             if #[cfg(feature="storage")] {
                 let document: Document = self.storage
                     .feedback()
-                    .update_user_reaction(reacted.id, reacted.reaction).await?
+                    .update_user_reaction(reacted.id, reaction).await?
                     .into();
             } else {
                 use chrono::Utc;
@@ -624,10 +624,7 @@ impl Engine {
             }
         }
 
-        let market = Market {
-            lang_code: document.resource.language.clone(),
-            country_code: document.resource.country.clone(),
-        };
+        let market = Market::new(&document.resource.language, &document.resource.country);
 
         let mut stacks = self.stacks.write().await;
 
@@ -664,13 +661,7 @@ impl Engine {
                     })
                     .map_or_else(
                         #[allow(clippy::if_not_else)]
-                        |_| {
-                            vec![if document.resource.title.is_empty() {
-                                document.resource.snippet.clone()
-                            } else {
-                                document.resource.title.clone()
-                            }]
-                        },
+                        |_| vec![document.resource.title_or_snippet().to_owned()],
                         Into::into,
                     );
                 self.coi.log_positive_user_reaction(
