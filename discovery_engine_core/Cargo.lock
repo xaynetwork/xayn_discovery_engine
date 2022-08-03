@@ -3886,6 +3886,7 @@ dependencies = [
  "futures",
  "itertools",
  "kodama",
+ "maplit",
  "mockall",
  "ndarray",
  "num-derive",

@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use displaydoc::Display;
@@ -126,13 +126,13 @@ pub(crate) trait StateScope {
 
 #[async_trait]
 pub(crate) trait SourcePreferenceScope {
-    async fn set_trusted_sources(&self, sources: &[String]) -> Result<(), Error>;
+    async fn set_trusted(&self, sources: &HashSet<String>) -> Result<(), Error>;
 
-    async fn set_excluded_sources(&self, sources: &[String]) -> Result<(), Error>;
+    async fn set_excluded(&self, sources: &HashSet<String>) -> Result<(), Error>;
 
-    async fn fetch_trusted_sources(&self) -> Result<Vec<String>, Error>;
+    async fn fetch_trusted(&self) -> Result<HashSet<String>, Error>;
 
-    async fn fetch_excluded_sources(&self) -> Result<Vec<String>, Error>;
+    async fn fetch_excluded(&self) -> Result<HashSet<String>, Error>;
 }
 
 pub mod models {
