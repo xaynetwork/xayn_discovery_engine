@@ -46,7 +46,15 @@ flutter-deps:
 
 # Fetches rust dependencies
 rust-deps:
-    cd "$RUST_WORKSPACE"; \
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    for TARGET in $ANDROID_TARGETS; do
+        rustup target add $TARGET
+    done
+    for TARGET in $IOS_TARGETS; do
+        rustup target add $TARGET
+    done
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
 # Get/Update/Fetch/Install all dependencies
@@ -233,14 +241,13 @@ pre-push $CI="true":
 _compile-android target:
     # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
     cd "$RUST_WORKSPACE"; \
-        cargo ndk --bindgen -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION \
+    cargo ndk --bindgen -t {{target}} -p $ANDROID_PLATFORM_VERSION \
         -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build \
         --release -p xayn-discovery-engine-bindings --locked
 
 compile-android-local: _codegen-order-workaround
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE";
     for TARGET in $ANDROID_TARGETS; do
         {{just_executable()}} _compile-android $TARGET
     done
