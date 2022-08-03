@@ -65,6 +65,8 @@ pub struct InitConfig {
     pub de_config: Option<String>,
     /// Log file path.
     pub log_file: Option<String>,
+    /// Directory in which user data should be stored.
+    pub data_dir: String,
 }
 
 impl From<InitConfig> for ProviderConfig {

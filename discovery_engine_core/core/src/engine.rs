@@ -252,6 +252,7 @@ impl Engine {
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
+        #[cfg(feature = "storage")] use_memory_db: bool,
     ) -> Result<Self, Error> {
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
@@ -300,6 +301,8 @@ impl Engine {
         let search_config = SearchConfig {
             max_docs_per_batch: config.max_docs_per_search_batch as usize,
         };
+        #[cfg(feature = "storage")]
+        let data_dir = std::path::PathBuf::from(&config.data_dir);
         let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?
@@ -312,13 +315,19 @@ impl Engine {
             .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
 
-        // set the states
         #[cfg(feature = "storage")]
         let storage = {
-            let storage = SqliteStorage::connect("sqlite::memory:").await?;
+            let sqlite_uri = if use_memory_db {
+                "sqlite::memory:".into()
+            } else {
+                let db_path = data_dir.join("db.sqlite");
+                format!("sqlite:{}", db_path.display())
+            };
+            let storage = SqliteStorage::connect(&sqlite_uri).await?;
             storage.init_database().await?;
-            Box::new(storage) as BoxedStorage
+            Box::new(storage)
         };
+
         let stack_ops = vec![
             Box::new(BreakingNews::new(
                 &endpoint_config,
@@ -1579,11 +1588,25 @@ pub(crate) mod tests {
                     .unwrap_or(u32::MAX),
                 de_config: None,
                 log_file: None,
+                //FIXME for using this in tests we need to create and properly tear down temp
+                //      dir. But we still want to use in-memory db in tests which means we
+                //      don't use this dir in tests. So for now I don't setup up any temp
+                //      dir handling.
+                data_dir: "tmp_test_data_dir".into(),
             };
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
-            let engine = Engine::from_config(config, None, &[], &[]).await.unwrap();
+            let engine = Engine::from_config(
+                config,
+                None,
+                &[],
+                &[],
+                #[cfg(feature = "storage")]
+                true,
+            )
+            .await
+            .unwrap();
 
             Mutex::new((server, engine))
         };

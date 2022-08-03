@@ -213,6 +213,17 @@ pub unsafe extern "C" fn init_config_place_of_de_config(
     unsafe { addr_of_mut!((*place).de_config) }
 }
 
+/// Returns a pointer to the `data_dir` field of a configuration.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`InitConfig`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_config_place_of_data_dir(place: *mut InitConfig) -> *mut String {
+    unsafe { addr_of_mut!((*place).data_dir) }
+}
+
 /// Returns a pointer to the `log_file` field of a configuration.
 ///
 /// # Safety

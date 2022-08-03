@@ -53,6 +53,7 @@ class InitConfigFfi with EquatableMixin {
   final int maxDocsPerSearchBatch;
   final String? deConfig;
   final String? logFile;
+  final String dataDir;
 
   @override
   List<Object?> get props => [
@@ -73,6 +74,7 @@ class InitConfigFfi with EquatableMixin {
         maxDocsPerSearchBatch,
         deConfig,
         logFile,
+        dataDir,
       ];
 
   factory InitConfigFfi(
@@ -100,6 +102,7 @@ class InitConfigFfi with EquatableMixin {
         maxDocsPerSearchBatch: configuration.maxItemsPerSearchBatch,
         deConfig: deConfig,
         logFile: configuration.logFile,
+        dataDir: configuration.applicationDirectoryPath,
       );
 
   InitConfigFfi.fromParts({
@@ -118,6 +121,7 @@ class InitConfigFfi with EquatableMixin {
     required this.kpeClassifier,
     required this.maxDocsPerFeedBatch,
     required this.maxDocsPerSearchBatch,
+    required this.dataDir,
     this.deConfig,
     this.logFile,
   });
@@ -152,6 +156,9 @@ class InitConfigFfi with EquatableMixin {
         .writeNative(ffi.init_config_place_of_max_docs_per_search_batch(place));
     deConfig.writeNative(ffi.init_config_place_of_de_config(place));
     logFile.writeNative(ffi.init_config_place_of_log_file(place));
+    dataDir.writeNative(
+      ffi.init_config_place_of_data_dir(place),
+    );
   }
 
   @visibleForTesting
@@ -196,6 +203,9 @@ class InitConfigFfi with EquatableMixin {
       ),
       logFile: OptionStringFfi.readNative(
         ffi.init_config_place_of_log_file(config),
+      ),
+      dataDir: StringFfi.readNative(
+        ffi.init_config_place_of_data_dir(config),
       ),
     );
   }
