@@ -225,21 +225,12 @@ pub mod models {
 
     impl From<ApiDocumentView> for document::Document {
         fn from(view: ApiDocumentView) -> Self {
-            let ApiDocumentView {
-                document_id,
-                news_resource,
-                newscatcher_data,
-                user_reaction,
-                embedding,
-                stack_id,
-            } = view;
-
             document::Document {
-                id: document_id,
-                stack_id: stack_id.unwrap_or_default(),
-                smbert_embedding: embedding,
-                reaction: user_reaction,
-                resource: (news_resource, newscatcher_data).into(),
+                id: view.document_id,
+                stack_id: view.stack_id.unwrap_or_default(),
+                smbert_embedding: view.embedding,
+                reaction: view.user_reaction,
+                resource: (view.news_resource, view.newscatcher_data).into(),
             }
         }
     }
