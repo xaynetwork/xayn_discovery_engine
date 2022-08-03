@@ -823,20 +823,13 @@ impl FeedbackScope for SqliteStorage {
         view_mode: ViewMode,
         duration: Duration,
     ) -> Result<TimeSpentDocumentView, Error> {
-        const MS_PER_DAY: i64 = 1000 * 60 * 60 * 24;
-        // If someone somehow manages to overflow the sqlite integer it turns into a real,
-        // which is a problem. As precaution we cap the added view time to the already
-        // extremely high value of one day.
-        let view_time_ms = i64::try_from(duration.as_millis())
-            .ok()
-            .unwrap_or(MS_PER_DAY);
-        let view_time_ms = min(view_time_ms, MS_PER_DAY);
+        let view_time_ms = u32::try_from(duration.as_millis()).ok().unwrap_or(u32::MAX);
 
         let mut tx = self.pool.begin().await?;
 
         sqlx::query(
             "INSERT INTO ViewTimes(documentId, viewMode, viewTimeMs) VALUES (?, ?, ?)
-                ON CONFLICT DO UPDATE SET viewTimeMs = viewTimeMs + excluded.viewTimeMs;",
+                ON CONFLICT DO UPDATE SET viewTimeMs = max(viewTimeMs + excluded.viewTimeMs, 4294967295);",
         )
         .bind(document)
         .bind(view_mode as u32)
@@ -870,7 +863,7 @@ impl FeedbackScope for SqliteStorage {
 #[sqlx(rename_all = "camelCase")]
 struct QueryTimeSpentDocumentView {
     embedding: Vec<u8>,
-    aggregated_view_time: i64,
+    aggregated_view_time: u32,
     user_reaction: Option<u32>,
 }
 
@@ -887,9 +880,7 @@ impl TryFrom<QueryTimeSpentDocumentView> for TimeSpentDocumentView {
         Ok(TimeSpentDocumentView {
             smbert_embedding: embedding.try_into()?,
             last_reaction: user_reaction_from_db(user_reaction)?,
-            aggregated_view_time: Duration::from_millis(
-                u64::try_from(aggregated_view_time).unwrap_or(0),
-            ),
+            aggregated_view_time: Duration::from_millis(u64::from(aggregated_view_time)),
         })
     }
 }
