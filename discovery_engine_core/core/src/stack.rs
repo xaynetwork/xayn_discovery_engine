@@ -268,7 +268,6 @@ impl Bucket<Document> for Stack {
 mod tests {
     use std::fmt::Debug;
 
-    use claim::{assert_matches, assert_none, assert_ok, assert_some};
     use uuid::Uuid;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
@@ -293,9 +292,9 @@ mod tests {
             ..Document::default()
         };
 
-        assert_ok!(f(&[]));
-        assert_ok!(f(&[doc_1.clone()]));
-        assert_ok!(f(&[doc_1, doc_2]));
+        assert!(f(&[]).is_ok());
+        assert!(f(&[doc_1.clone()]).is_ok());
+        assert!(f(&[doc_1, doc_2]).is_ok());
     }
 
     // assert that `f` returns an error if the argument contains a Document with an invalid `stack_id`
@@ -319,10 +318,11 @@ mod tests {
         };
 
         let assert_invalid_document = |docs: &[Document]| {
-            assert_matches!(
+            assert!(matches!(
                 f(docs),
                 Err(Error::InvalidDocument { document_id, document_stack_id, stack_id})
-                    if document_id == doc_ko.id && document_stack_id == doc_ko.stack_id && stack_id == stack_id_ok);
+                    if document_id == doc_ko.id && document_stack_id == doc_ko.stack_id && stack_id == stack_id_ok,
+            ));
         };
 
         assert_invalid_document(&[doc_ko.clone()]);
@@ -356,7 +356,7 @@ mod tests {
     fn test_stack_new_from_default() {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
-        assert_ok!(Stack::new(Data::default(), Box::new(ops)));
+        assert!(Stack::new(Data::default(), Box::new(ops)).is_ok());
     }
 
     #[test]
@@ -414,7 +414,7 @@ mod tests {
 
         let mut stack = Stack::new(Data::default(), Box::new(ops)).unwrap();
 
-        assert_none!(stack.pop());
+        assert!(stack.pop().is_none());
     }
 
     #[test]
@@ -426,9 +426,9 @@ mod tests {
         ops.expect_id().returning(Id::default);
         let mut stack = Stack::new(data, Box::new(ops)).unwrap();
 
-        assert_some!(stack.pop());
-        assert_some!(stack.pop());
-        assert_none!(stack.pop());
+        assert!(stack.pop().is_some());
+        assert!(stack.pop().is_some());
+        assert!(stack.pop().is_none());
     }
 
     #[test]

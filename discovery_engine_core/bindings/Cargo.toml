@@ -10,10 +10,10 @@ cfg-if = "1.0.0"
 chrono = { version = "0.4.19", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
 itertools = "0.10.3"
-ndarray = "0.15.4"
-tokio = { version = "1.19.2", features = ["sync"] }
-tracing = "0.1.35"
-tracing-subscriber = { version = "0.3.11", features = ["json"] }
+ndarray = "0.15.6"
+tokio = { version = "1.20.1", features = ["sync"] }
+tracing = "0.1.36"
+tracing-subscriber = { version = "0.3.15", features = ["json"] }
 url = "2.2.2"
 uuid = "1.1.2"
 xayn-discovery-engine-ai = { path = "../ai/ai" }

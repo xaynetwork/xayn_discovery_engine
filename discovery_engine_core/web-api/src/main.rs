@@ -31,7 +31,7 @@
 )]
 
 use db::{init_db, InitConfig};
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use routes::api_routes;
 use std::{env, net::IpAddr};
 

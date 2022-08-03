@@ -122,7 +122,6 @@ impl TryFrom<NewscatcherArticle> for GenericArticle {
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
-    use claim::{assert_matches, assert_none};
 
     use super::*;
 
@@ -188,7 +187,7 @@ mod tests {
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), InvalidUrl(_));
+        assert!(matches!(res, Err(InvalidUrl(_))));
     }
 
     #[test]
@@ -199,7 +198,7 @@ mod tests {
         };
 
         let res: GenericArticle = article.try_into().unwrap();
-        assert_none!(res.image);
+        assert!(res.image.is_none());
     }
 
     #[test]
@@ -210,6 +209,6 @@ mod tests {
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), InvalidUrl(_));
+        assert!(matches!(res, Err(InvalidUrl(_))));
     }
 }
