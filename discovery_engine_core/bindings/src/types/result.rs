@@ -114,7 +114,7 @@ pub unsafe extern "C" fn get_result_document_string_err(
     unsafe { get_result_err(res) }
 }
 
-/// Drops a `Box<Result<Vec<Document>, String>>`.
+/// Drops a `Box<Result<Document, String>>`.
 ///
 /// # Safety
 ///
