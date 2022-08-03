@@ -208,7 +208,7 @@ clean-tools:
 
 # Removes all asset data
 remove-assets:
-    find $FLUTTER_EXAMPLE_WORKSPACE/assets/*_v* -type f ! -name .gitkeep ! -name *mocked.onnx -exec rm '{}' \;
+    find $FLUTTER_EXAMPLE_WORKSPACE/assets/*_v* -type f ! -name .gitkeep ! -name '*-mocked.onnx' -exec rm '{}' \;
 
 # Removes all local cached dependencies and generated files
 clean: clean-gen-files rust-clean dart-clean
