@@ -40,6 +40,12 @@ use std::path::Path;
 use itertools::Itertools;
 use xayn_discovery_engine_core::Engine;
 
+#[allow(unsafe_code)]
+#[no_mangle]
+pub extern "C" fn rust_cfg_storage() -> u8 {
+    u8::from(cfg!(feature = "storage"))
+}
+
 #[async_bindgen::api(
     use uuid::Uuid;
 

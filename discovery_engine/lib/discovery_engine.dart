@@ -18,6 +18,7 @@
 library discovery_engine;
 
 import 'package:logger/logger.dart' show Logger;
+import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/logger.dart' show initLogger, logger;
 
 export 'package:xayn_discovery_engine/src/api/api.dart';
@@ -31,4 +32,4 @@ export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart';
 void discoveryEngineInitLogger(Logger logger) => initLogger(logger);
 Logger get discoveryEngineLogger => logger;
 
-const cfgFeatureStorage = false;
+final cfgFeatureStorage = ffi.rust_cfg_storage() == 1;
