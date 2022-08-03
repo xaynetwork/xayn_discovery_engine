@@ -68,7 +68,7 @@ pub unsafe extern "C" fn time_spent_place_of_reaction(place: *mut TimeSpent) -> 
 
 /// Alloc an uninitialized `Box<TimeSpent>`, mainly used for testing.
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_time_spend() -> *mut TimeSpent {
+pub extern "C" fn alloc_uninitialized_time_spent() -> *mut TimeSpent {
     crate::types::boxed::alloc_uninitialized()
 }
 

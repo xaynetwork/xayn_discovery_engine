@@ -46,7 +46,7 @@ use crate::{
             Paging,
             Search,
             SearchBy,
-            TimeSpendDocumentView,
+            TimeSpentDocumentView,
         },
         Error,
         FeedScope,
@@ -817,13 +817,13 @@ impl FeedbackScope for SqliteStorage {
         Ok(document)
     }
 
-    async fn update_time_spend(
+    async fn update_time_spent(
         &self,
         document: document::Id,
         view_mode: ViewMode,
         duration: Duration,
-    ) -> Result<TimeSpendDocumentView, Error> {
-        const MS_PER_DAY: i64 = 1000 * 60 * 60 * 24 * 7;
+    ) -> Result<TimeSpentDocumentView, Error> {
+        const MS_PER_DAY: i64 = 1000 * 60 * 60 * 24;
         // If someone somehow manages to overflow the sqlite integer it turns into a real,
         // which is a problem. As precaution we cap the added view time to the already
         // extremely high value of one day.
@@ -836,7 +836,7 @@ impl FeedbackScope for SqliteStorage {
 
         sqlx::query(
             "INSERT INTO ViewTimes(documentId, viewMode, viewTimeMs) VALUES (?, ?, ?)
-                ON CONFLICT DO UPDATE SET viewTimeMs =  viewTimeMs + excluded.viewTimeMs;",
+                ON CONFLICT DO UPDATE SET viewTimeMs = viewTimeMs + excluded.viewTimeMs;",
         )
         .bind(document)
         .bind(view_mode as u32)
@@ -844,7 +844,7 @@ impl FeedbackScope for SqliteStorage {
         .execute(&mut tx)
         .await?;
 
-        let view = sqlx::query_as::<_, QueryTimeSpendDocumentView>(
+        let view = sqlx::query_as::<_, QueryTimeSpentDocumentView>(
             "SELECT
                 em.embedding,
                 sum(vt.viewTimeMs) as aggregatedViewTime,
@@ -868,23 +868,23 @@ impl FeedbackScope for SqliteStorage {
 
 #[derive(FromRow)]
 #[sqlx(rename_all = "camelCase")]
-struct QueryTimeSpendDocumentView {
+struct QueryTimeSpentDocumentView {
     embedding: Vec<u8>,
     aggregated_view_time: i64,
     user_reaction: Option<u32>,
 }
 
-impl TryFrom<QueryTimeSpendDocumentView> for TimeSpendDocumentView {
+impl TryFrom<QueryTimeSpentDocumentView> for TimeSpentDocumentView {
     type Error = Error;
 
     fn try_from(
-        QueryTimeSpendDocumentView {
+        QueryTimeSpentDocumentView {
             embedding,
             aggregated_view_time,
             user_reaction,
-        }: QueryTimeSpendDocumentView,
+        }: QueryTimeSpentDocumentView,
     ) -> Result<Self, Self::Error> {
-        Ok(TimeSpendDocumentView {
+        Ok(TimeSpentDocumentView {
             smbert_embedding: embedding.try_into()?,
             last_reaction: user_reaction_from_db(user_reaction)?,
             aggregated_view_time: Duration::from_millis(
@@ -1404,13 +1404,13 @@ mod tests {
 
         let view = storage
             .feedback()
-            .update_time_spend(docs[0].id, ViewMode::Story, Duration::from_secs(1))
+            .update_time_spent(docs[0].id, ViewMode::Story, Duration::from_secs(1))
             .await
             .unwrap();
 
         assert_eq!(
             view,
-            TimeSpendDocumentView {
+            TimeSpentDocumentView {
                 smbert_embedding: Embedding::default(),
                 last_reaction: Some(UserReaction::Positive),
                 aggregated_view_time: Duration::from_secs(1),
@@ -1419,13 +1419,13 @@ mod tests {
 
         let view = storage
             .feedback()
-            .update_time_spend(docs[1].id, ViewMode::Story, Duration::from_secs(3))
+            .update_time_spent(docs[1].id, ViewMode::Story, Duration::from_secs(3))
             .await
             .unwrap();
 
         assert_eq!(
             view,
-            TimeSpendDocumentView {
+            TimeSpentDocumentView {
                 smbert_embedding: Embedding::default(),
                 last_reaction: None,
                 aggregated_view_time: Duration::from_secs(3),
@@ -1434,13 +1434,13 @@ mod tests {
 
         let view = storage
             .feedback()
-            .update_time_spend(docs[1].id, ViewMode::Web, Duration::from_secs(7))
+            .update_time_spent(docs[1].id, ViewMode::Web, Duration::from_secs(7))
             .await
             .unwrap();
 
         assert_eq!(
             view,
-            TimeSpendDocumentView {
+            TimeSpentDocumentView {
                 smbert_embedding: Embedding::default(),
                 last_reaction: None,
                 aggregated_view_time: Duration::from_secs(10),
@@ -1449,13 +1449,13 @@ mod tests {
 
         let view = storage
             .feedback()
-            .update_time_spend(docs[1].id, ViewMode::Story, Duration::from_secs(13))
+            .update_time_spent(docs[1].id, ViewMode::Story, Duration::from_secs(13))
             .await
             .unwrap();
 
         assert_eq!(
             view,
-            TimeSpendDocumentView {
+            TimeSpentDocumentView {
                 smbert_embedding: Embedding::default(),
                 last_reaction: None,
                 aggregated_view_time: Duration::from_secs(23),

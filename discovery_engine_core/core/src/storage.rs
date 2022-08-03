@@ -24,7 +24,7 @@ use crate::{
     stack,
 };
 
-use self::models::{ApiDocumentView, NewDocument, Search, TimeSpendDocumentView};
+use self::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView};
 
 pub mod sqlite;
 mod utils;
@@ -120,12 +120,12 @@ pub(crate) trait FeedbackScope {
         reaction: UserReaction,
     ) -> Result<ApiDocumentView, Error>;
 
-    async fn update_time_spend(
+    async fn update_time_spent(
         &self,
         document: document::Id,
         view_mode: ViewMode,
         view_time: Duration,
-    ) -> Result<TimeSpendDocumentView, Error>;
+    ) -> Result<TimeSpentDocumentView, Error>;
 }
 
 #[async_trait]
@@ -307,7 +307,7 @@ pub mod models {
     }
 
     #[derive(Debug, PartialEq)]
-    pub(crate) struct TimeSpendDocumentView {
+    pub(crate) struct TimeSpentDocumentView {
         pub(crate) smbert_embedding: Embedding,
         pub(crate) last_reaction: Option<UserReaction>,
         pub(crate) aggregated_view_time: Duration,

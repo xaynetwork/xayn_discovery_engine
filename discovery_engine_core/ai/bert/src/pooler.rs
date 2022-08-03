@@ -51,8 +51,8 @@ impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
     }
 }
 
-#[derive(Clone, Debug, Error)]
-#[error("bytes do not represent a valid embedding")]
+#[derive(Clone, Debug, Display, Error)]
+/// Bytes do not represent a valid embedding.
 pub struct MalformedBytesEmbedding;
 
 impl TryFrom<Vec<u8>> for Embedding<Ix1> {
