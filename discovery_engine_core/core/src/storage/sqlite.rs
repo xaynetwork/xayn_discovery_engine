@@ -12,14 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-<<<<<<< HEAD
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
+    time::Duration,
 };
-=======
-use std::{cmp::min, collections::HashMap, str::FromStr, time::Duration};
->>>>>>> 319e0595 (Implemented FeedbackScope::update_time_spent.)
 
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
@@ -1375,7 +1372,7 @@ mod tests {
         let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
         assert!(trusted_db.is_empty());
     }
-    
+
     async fn test_store_time_spent() {
         let storage = create_memory_storage().await;
         let docs = create_documents(3);

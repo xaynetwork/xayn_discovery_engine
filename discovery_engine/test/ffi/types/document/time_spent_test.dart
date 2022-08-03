@@ -33,7 +33,7 @@ void main() {
       time: const Duration(days: 2),
       reaction: UserReaction.negative,
     );
-    final place = ffi.alloc_uninitialized_time_spend();
+    final place = ffi.alloc_uninitialized_time_spent();
     timeSpent.writeNative(place);
     final res = TimeSpentFfi.readNative(place);
     ffi.drop_time_spent(place);
