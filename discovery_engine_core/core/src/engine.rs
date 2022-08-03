@@ -455,6 +455,7 @@ impl Engine {
 
     /// Gets the next batch of feed documents.
     #[instrument(skip(self))]
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn feed_next_batch(
         &mut self,
         sources: &[WeightedSource],
@@ -464,7 +465,7 @@ impl Engine {
             let history = self.storage.fetch_history().await?;
 
             // TODO: merge `get_feed_documents()` into this method after DB migration
-            return self.get_feed_documents(&history, sources).await;
+            self.get_feed_documents(&history, sources).await
         }
 
         #[cfg(not(feature = "storage"))]
@@ -526,16 +527,16 @@ impl Engine {
 
     /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
     // TODO: rename methods to `fed()` and adjust events & docs accordingly after DB migration
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn restore_feed(&self) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
         {
-            return self
-                .storage
+            self.storage
                 .feed()
                 .fetch()
                 .await
                 .map(|documents| documents.into_iter().map_into().collect())
-                .map_err(Into::into);
+                .map_err(Into::into)
         }
 
         #[cfg(not(feature = "storage"))]
@@ -543,13 +544,16 @@ impl Engine {
     }
 
     /// Deletes the feed documents.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
     pub async fn delete_feed_documents(&self, ids: &[document::Id]) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             self.storage.feed().delete_documents(ids).await?;
 
-            return Ok(());
+            Ok(())
         }
 
         #[cfg(not(feature = "storage"))]
@@ -700,6 +704,7 @@ impl Engine {
 
         #[cfg(feature = "storage")]
         {
+            #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
             let search = storage::models::Search {
                 search_by: storage::models::SearchBy::Query,
                 search_term: query,
@@ -741,6 +746,7 @@ impl Engine {
 
         #[cfg(feature = "storage")]
         {
+            #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
             let search = storage::models::Search {
                 search_by: storage::models::SearchBy::Topic,
                 search_term: topic.into(),
@@ -763,20 +769,22 @@ impl Engine {
     ///
     /// The documents are sorted in descending order wrt their cosine similarity towards the
     /// original search term embedding.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
     pub async fn search_by_id(&self, id: document::Id) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
         {
             let document = self.storage.search().get_document(id).await?;
 
             // TODO: merge `deep_search()` into this method after DB migration
-            return self
-                .deep_search(
-                    document.snippet_or_title(),
-                    &document.news_resource.market,
-                    &document.embedding,
-                )
-                .await;
+            self.deep_search(
+                document.snippet_or_title(),
+                &document.news_resource.market,
+                &document.embedding,
+            )
+            .await
         }
 
         #[cfg(not(feature = "storage"))]
@@ -784,6 +792,7 @@ impl Engine {
     }
 
     /// Gets the next batch of the current active search.
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn search_next_batch(&self) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
         {
@@ -812,7 +821,7 @@ impl Engine {
                 )
                 .await?;
 
-            return Ok(documents);
+            Ok(documents)
         }
 
         #[cfg(not(feature = "storage"))]
@@ -821,13 +830,14 @@ impl Engine {
 
     /// Restores the current active search, ordered by their global rank (timestamp & local rank).
     // TODO: rename methods to `searched()` and adjust events & docs accordingly after DB migration
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn restore_search(&self) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
         {
             let (_, documents) = self.storage.search().fetch().await?;
             let documents = documents.into_iter().map_into().collect();
 
-            return Ok(documents);
+            Ok(documents)
         }
 
         #[cfg(not(feature = "storage"))]
@@ -835,6 +845,7 @@ impl Engine {
     }
 
     /// Gets the current active search mode and term.
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn searched_by(&self) -> Result<SearchBy<'_>, Error> {
         #[cfg(feature = "storage")]
         {
@@ -846,7 +857,7 @@ impl Engine {
                 storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
             };
 
-            return Ok(search);
+            Ok(search)
         }
 
         #[cfg(not(feature = "storage"))]
@@ -854,14 +865,15 @@ impl Engine {
     }
 
     /// Closes the current active search.
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn close_search(&self) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
-            return if self.storage.search().clear().await? {
+            if self.storage.search().clear().await? {
                 Ok(())
             } else {
                 Err(Error::Storage(storage::Error::NoSearch))
-            };
+            }
         }
 
         #[cfg(not(feature = "storage"))]

@@ -194,7 +194,7 @@ impl From<GenericArticle> for NewsResource {
 
 /// Indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
-#[derive(Clone, Copy, Debug, Derivative, PartialEq, Serialize_repr, Deserialize_repr)]
+#[derive(Clone, Copy, Debug, Derivative, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
 #[derivative(Default)]
 #[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
 #[repr(u8)]

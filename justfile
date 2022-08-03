@@ -106,6 +106,7 @@ _codegen-order-workaround:
 rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo clippy --all-targets --locked; \
+    cargo clippy --all-targets --features storage --locked; \
     cargo check -p xayn-discovery-engine-bindings
 
 # Checks rust and dart code, fails if there are any issues on CI
@@ -178,7 +179,7 @@ rust-test: _codegen-order-workaround download-assets
     cd "$RUST_WORKSPACE";
     cargo test --lib --bins --tests --quiet --locked
     cargo test --doc --quiet --locked
-    cargo test --lib --features "storage" --quiet --locked
+    cargo test --lib --features storage --quiet --locked
 
 # Tests dart and rust
 test: rust-test dart-test flutter-test
@@ -199,8 +200,14 @@ rust-clean:
     cargo clean
 
 # Cleans up darts build cache
+_dart-clean $WORKSPACE:
+    cd "$WORKSPACE"; \
+    find . -type d -name .dart_tool -prune -exec rm -r '{}' \;
+
 dart-clean:
-    find -type d -name .dart_tool -prune -exec rm -r '{}' \;
+    @{{just_executable()}} _dart-clean "$DART_WORKSPACE"
+    @{{just_executable()}} _dart-clean "$BINDGEN_DART_WORKSPACE"
+    @{{just_executable()}} _dart-clean "$FLUTTER_WORKSPACE"
 
 # Removes all local cargo installs
 clean-tools:

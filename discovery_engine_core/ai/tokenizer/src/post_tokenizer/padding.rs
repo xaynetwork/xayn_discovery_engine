@@ -9,7 +9,7 @@ use crate::{model::Vocab, post_tokenizer::encoding::Encoding, SmallString};
 pub struct Padding<N>(Paddings<N>);
 
 /// The potential errors of the padding strategy.
-#[derive(Debug, Display, Error, PartialEq)]
+#[derive(Debug, Display, Eq, Error, PartialEq)]
 pub enum PaddingError {
     /// Missing the padding token in the vocabulary
     PadToken,
