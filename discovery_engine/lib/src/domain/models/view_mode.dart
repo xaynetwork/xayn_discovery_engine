@@ -39,6 +39,7 @@ enum DocumentViewMode {
 
 extension DocumentViewModeIntConversion on DocumentViewMode {
   int toIntRepr() => _$DocumentViewModeEnumMap[this]!;
+
   static DocumentViewMode fromIntRepr(int intRepr) =>
       $enumDecode(_$DocumentViewModeEnumMap, intRepr);
 }

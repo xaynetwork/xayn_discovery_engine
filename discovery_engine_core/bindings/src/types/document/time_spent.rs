@@ -44,7 +44,7 @@ pub unsafe extern "C" fn time_spent_place_of_smbert_embedding(
     unsafe { addr_of_mut!((*place).smbert_embedding) }
 }
 
-/// Returns a pointer to the `time` field of a [`TimeSpent`] memory object.
+/// Returns a pointer to the `view_time` field of a [`TimeSpent`] memory object.
 ///
 /// # Safety
 ///
@@ -55,7 +55,7 @@ pub unsafe extern "C" fn time_spent_place_of_view_time(place: *mut TimeSpent) ->
     unsafe { addr_of_mut!((*place).view_time) }
 }
 
-/// Returns a pointer to the `time` field of a [`TimeSpent`] memory object.
+/// Returns a pointer to the `view_mode` field of a [`TimeSpent`] memory object.
 ///
 /// # Safety
 ///

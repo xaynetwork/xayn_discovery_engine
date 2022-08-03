@@ -572,8 +572,7 @@ impl Engine {
                     view_time,
                     view_mode,
                     // dummy values when storage is enabled
-                    smbert_embedding: _,
-                    reaction: _,
+                    ..
                 } = time_spent;
 
                 let TimeSpendDocumentView {
