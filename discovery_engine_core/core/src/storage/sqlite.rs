@@ -278,16 +278,23 @@ impl SqliteStorage {
     ) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
-        QueryBuilder::new("INSERT INTO SourcePreference(source, preference) ")
-            .push_values(sources, |mut stm, source| {
-                stm.push_bind(source);
-                stm.push_bind(preference);
-            })
-            .push(" ON CONFLICT DO UPDATE SET preference = excluded.preference;")
-            .build()
-            .persistent(false)
+        sqlx::query("DELETE FROM SourcePreference WHERE preference = ?;")
+            .bind(preference)
             .execute(&mut tx)
             .await?;
+
+        if !sources.is_empty() {
+            QueryBuilder::new("INSERT INTO SourcePreference(source, preference) ")
+                .push_values(sources, |mut stm, source| {
+                    stm.push_bind(source);
+                    stm.push_bind(preference);
+                })
+                .push(" ON CONFLICT DO UPDATE SET preference = excluded.preference;")
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await?;
+        }
 
         tx.commit().await?;
         Ok(())
@@ -1222,7 +1229,7 @@ mod tests {
 
         // set sources and fetch them
         // the sources fetched should match the sources previously set
-        let mut trusted_sources = hashset! {"a".to_string(), "b".to_string()};
+        let trusted_sources = hashset! {"a".to_string(), "b".to_string()};
         let excluded_sources = hashset! {"c".to_string()};
 
         storage
@@ -1241,20 +1248,28 @@ mod tests {
         let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
         assert_eq!(excluded_db, excluded_sources);
 
-        // add the excluded source to the trusted sources
+        // set the excluded source and so far unknown source as new trusted sources
         // excluded sources should be empty
-        // trusted sources should return {"a", "b", "c"}
-        let trusted_sources_upt = hashset! {"a".to_string(), "c".to_string()};
+        // trusted sources should return {"d", "c"}
+        let trusted_sources_upt = hashset! {"d".to_string(), "c".to_string()};
         storage
             .source_preference()
             .set_trusted(&trusted_sources_upt)
             .await
             .unwrap();
         let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
-        trusted_sources.extend(excluded_sources);
-        assert_eq!(trusted_db, trusted_sources);
+        assert_eq!(trusted_db, trusted_sources_upt);
 
         let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
         assert!(excluded_db.is_empty());
+
+        // unset all trusted sources
+        storage
+            .source_preference()
+            .set_trusted(&HashSet::new())
+            .await
+            .unwrap();
+        let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
+        assert!(trusted_db.is_empty());
     }
 }
