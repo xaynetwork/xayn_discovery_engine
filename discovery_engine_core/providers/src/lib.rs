@@ -71,13 +71,13 @@ pub use helpers::{
 use async_trait::async_trait;
 use url::Url;
 
-/// Abstraction over a provider for a news searching functionality.
+/// Provider for news search functionality.
 #[async_trait]
 pub trait NewsProvider: Send + Sync {
     async fn query_news(&self, query: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Abstraction over a provider for the latest headlines.
+/// Provider for the latest headlines.
 #[async_trait]
 pub trait HeadlinesProvider: Send + Sync {
     async fn query_headlines(
@@ -86,7 +86,7 @@ pub trait HeadlinesProvider: Send + Sync {
     ) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Abstraction over a provider for headlines only from trusted sources.
+/// Provider for headlines only from trusted sources.
 #[async_trait]
 pub trait TrustedHeadlinesProvider: Send + Sync {
     async fn query_trusted_sources(
@@ -95,6 +95,7 @@ pub trait TrustedHeadlinesProvider: Send + Sync {
     ) -> Result<Vec<GenericArticle>, Error>;
 }
 
+/// Provider for trending topics.
 #[async_trait]
 pub trait TrendingTopicsProvider: Send + Sync {
     // TODO: `TrendingTopic` here is the bing specific representation, which we don't really want to expose
@@ -104,7 +105,7 @@ pub trait TrendingTopicsProvider: Send + Sync {
     ) -> Result<Vec<TrendingTopic>, Error>;
 }
 
-/// Abstraction over a provider for similar news.
+/// Provider for similar news.
 #[async_trait]
 pub trait SimilarNewsProvider: Send + Sync {
     async fn query_similar_news(

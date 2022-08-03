@@ -144,7 +144,6 @@ impl HeadlinesProvider for NewscatcherHeadlinesProvider {
     }
 }
 
-/// Newscatcher based implementation of a `TrustedSourcesProvider`.
 pub struct NewscatcherTrustedHeadlinesProvider {
     endpoint: RestEndpoint,
 }
