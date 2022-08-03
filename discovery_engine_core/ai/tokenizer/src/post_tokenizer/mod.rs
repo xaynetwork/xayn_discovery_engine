@@ -25,7 +25,7 @@ pub(crate) struct PostTokenizer<N> {
 }
 
 /// The potential errors of the post-tokenizer.
-#[derive(Debug, Display, Error, PartialEq)]
+#[derive(Debug, Display, Eq, Error, PartialEq)]
 pub enum PostTokenizerError {
     /// Missing the class token in the vocabulary
     ClsToken,

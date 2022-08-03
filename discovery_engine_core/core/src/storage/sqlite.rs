@@ -575,9 +575,7 @@ impl StateScope for SqliteStorage {
 
         tx.commit().await?;
 
-        Ok(state
-            .map(|state| (!state.state.is_empty()).then(|| state.state))
-            .flatten())
+        Ok(state.and_then(|state| (!state.state.is_empty()).then(|| state.state)))
     }
 
     async fn clear(&self) -> Result<bool, Error> {
@@ -778,7 +776,10 @@ mod tests {
                         image: (i != 0)
                             .then(|| Url::parse(&format!("http://example-image-{i}.com")).unwrap()),
                         rank: i,
-                        score: (i != 0).then(|| i as f32),
+                        score: (i != 0).then(
+                            #[allow(clippy::cast_precision_loss)] // index small enough
+                            || i as f32,
+                        ),
                         topic: format!("topic-{i}"),
                         ..NewsResource::default()
                     },
@@ -795,15 +796,14 @@ mod tests {
 
     fn check_eq_of_documents(api_docs: &[ApiDocumentView], docs: &[NewDocument]) -> bool {
         api_docs.len() == docs.len()
-            && api_docs
-                .iter()
-                .enumerate()
-                .zip(docs.iter())
-                .all(|((idx, api_docs), doc)| {
+            && api_docs.iter().enumerate().zip(docs.iter()).all(
+                #[allow(clippy::cast_possible_truncation)] // index small enough
+                |((idx, api_docs), doc)| {
                     api_docs.document_id == doc.id
                         && api_docs.news_resource == doc.news_resource
                         && api_docs.in_batch_index == idx as u32
-                })
+                },
+            )
     }
 
     async fn create_memory_storage() -> impl Storage {
@@ -1036,6 +1036,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::similar_names)]
     async fn test_storing_user_reaction() {
         let storage = create_memory_storage().await;
         let docs = create_documents(10);
