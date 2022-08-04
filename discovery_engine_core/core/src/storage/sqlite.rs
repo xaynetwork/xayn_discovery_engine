@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
@@ -43,6 +46,7 @@ use crate::{
         Error,
         FeedScope,
         SearchScope,
+        SourcePreferenceScope,
         StateScope,
         Storage,
     },
@@ -266,6 +270,54 @@ impl SqliteStorage {
 
         Ok(deletion)
     }
+
+    async fn set_sources(
+        &self,
+        sources: &HashSet<String>,
+        preference: SourcePreference,
+    ) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query("DELETE FROM SourcePreference WHERE preference = ?;")
+            .bind(preference)
+            .execute(&mut tx)
+            .await?;
+
+        if !sources.is_empty() {
+            QueryBuilder::new("INSERT INTO SourcePreference(source, preference) ")
+                .push_values(sources, |mut stm, source| {
+                    stm.push_bind(source);
+                    stm.push_bind(preference);
+                })
+                .push(" ON CONFLICT DO UPDATE SET preference = excluded.preference;")
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn fetch_sources(&self, preference: SourcePreference) -> Result<HashSet<String>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let sources = sqlx::query_as::<_, Source>(
+            "SELECT source
+            FROM SourcePreference
+            WHERE preference = ?;",
+        )
+        .bind(preference)
+        .fetch_all(&mut tx)
+        .await?
+        .into_iter()
+        .map(|s| s.0)
+        .collect();
+
+        tx.commit().await?;
+        Ok(sources)
+    }
 }
 
 #[async_trait]
@@ -312,6 +364,10 @@ impl Storage for SqliteStorage {
     }
 
     fn state(&self) -> &(dyn StateScope + Send + Sync) {
+        self
+    }
+
+    fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync) {
         self
     }
 }
@@ -754,8 +810,38 @@ struct QueriedState {
     state: Vec<u8>,
 }
 
+#[derive(Debug, Clone, Copy, sqlx::Type)]
+#[repr(i32)]
+enum SourcePreference {
+    Trusted = 0,
+    Excluded = 1,
+}
+
+#[derive(FromRow)]
+struct Source(String);
+
+#[async_trait]
+impl SourcePreferenceScope for SqliteStorage {
+    async fn set_trusted(&self, sources: &HashSet<String>) -> Result<(), Error> {
+        self.set_sources(sources, SourcePreference::Trusted).await
+    }
+
+    async fn set_excluded(&self, sources: &HashSet<String>) -> Result<(), Error> {
+        self.set_sources(sources, SourcePreference::Excluded).await
+    }
+
+    async fn fetch_trusted(&self) -> Result<HashSet<String>, Error> {
+        self.fetch_sources(SourcePreference::Trusted).await
+    }
+
+    async fn fetch_excluded(&self) -> Result<HashSet<String>, Error> {
+        self.fetch_sources(SourcePreference::Excluded).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use maplit::hashset;
     use std::collections::HashSet;
 
     use crate::{document::NewsResource, stack, storage::models::NewDocument};
@@ -1129,5 +1215,73 @@ mod tests {
         assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
 
         assert!(storage.state().clear().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_source_preference() {
+        let storage = create_memory_storage().await;
+
+        // if no sources are set, return an empty set
+        let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
+        assert!(trusted_db.is_empty());
+        let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
+        assert!(excluded_db.is_empty());
+
+        // set sources and fetch them
+        // the sources fetched should match the sources previously set
+        let trusted_sources = hashset! {"a".to_string(), "b".to_string()};
+        let excluded_sources = hashset! {"c".to_string()};
+
+        storage
+            .source_preference()
+            .set_trusted(&trusted_sources)
+            .await
+            .unwrap();
+        storage
+            .source_preference()
+            .set_excluded(&excluded_sources)
+            .await
+            .unwrap();
+
+        let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
+        assert_eq!(trusted_db, trusted_sources);
+        let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
+        assert_eq!(excluded_db, excluded_sources);
+
+        // set the excluded source "c" and so far unknown source "d" as new trusted sources
+        // excluded sources should be empty
+        // trusted sources should return {"d", "c"}
+        let trusted_sources_upt = hashset! {"d".to_string(), "c".to_string()};
+        storage
+            .source_preference()
+            .set_trusted(&trusted_sources_upt)
+            .await
+            .unwrap();
+        let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
+        assert_eq!(trusted_db, trusted_sources_upt);
+
+        let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
+        assert!(excluded_db.is_empty());
+
+        let excluded_sources_upt = hashset! {"c".to_string()};
+        storage
+            .source_preference()
+            .set_excluded(&excluded_sources_upt)
+            .await
+            .unwrap();
+        let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
+        assert_eq!(excluded_db, excluded_sources_upt);
+
+        let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
+        assert_eq!(trusted_db, hashset! {"d".to_string()});
+
+        // unset all trusted sources
+        storage
+            .source_preference()
+            .set_trusted(&HashSet::new())
+            .await
+            .unwrap();
+        let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
+        assert!(trusted_db.is_empty());
     }
 }

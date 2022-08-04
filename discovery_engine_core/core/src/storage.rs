@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use displaydoc::Display;
@@ -63,6 +63,8 @@ pub(crate) trait Storage {
 
     // temporary helper functions
     fn state(&self) -> &(dyn StateScope + Send + Sync);
+
+    fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync);
 }
 
 #[async_trait]
@@ -120,6 +122,17 @@ pub(crate) trait StateScope {
     async fn fetch(&self) -> Result<Option<Vec<u8>>, Error>;
 
     async fn clear(&self) -> Result<bool, Error>;
+}
+
+#[async_trait]
+pub(crate) trait SourcePreferenceScope {
+    async fn set_trusted(&self, sources: &HashSet<String>) -> Result<(), Error>;
+
+    async fn set_excluded(&self, sources: &HashSet<String>) -> Result<(), Error>;
+
+    async fn fetch_trusted(&self) -> Result<HashSet<String>, Error>;
+
+    async fn fetch_excluded(&self) -> Result<HashSet<String>, Error>;
 }
 
 pub mod models {
