@@ -52,9 +52,11 @@ rust-deps:
     for TARGET in $ANDROID_TARGETS; do
         rustup target add $TARGET
     done
-    for TARGET in $IOS_TARGETS; do
-        rustup target add $TARGET
-    done
+    if [[ "{{os()}}" == "macos" ]]; then
+        for TARGET in $IOS_TARGETS; do
+            rustup target add $TARGET
+        done
+    fi
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
 # Get/Update/Fetch/Install all dependencies
