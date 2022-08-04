@@ -32,4 +32,4 @@ export 'package:xayn_discovery_engine/src/worker/common/exceptions.dart';
 void discoveryEngineInitLogger(Logger logger) => initLogger(logger);
 Logger get discoveryEngineLogger => logger;
 
-final cfgFeatureStorage = ffi.rust_cfg_storage() == 1;
+final cfgFeatureStorage = ffi.cfg_feature_storage() == 1;

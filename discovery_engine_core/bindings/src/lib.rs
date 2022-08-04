@@ -42,7 +42,7 @@ use xayn_discovery_engine_core::Engine;
 
 #[allow(unsafe_code)]
 #[no_mangle]
-pub extern "C" fn rust_cfg_storage() -> u8 {
+pub extern "C" fn cfg_feature_storage() -> u8 {
     u8::from(cfg!(feature = "storage"))
 }
 
