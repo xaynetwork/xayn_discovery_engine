@@ -14,6 +14,6 @@
 
 CREATE TABLE IF NOT EXISTS SourcePreference (
     source TEXT NOT NULL PRIMARY KEY,
-    -- 1 = preferred, 2 = excluded
+    -- 1 = trusted, 2 = excluded
     preference INTEGER NOT NULL
 );

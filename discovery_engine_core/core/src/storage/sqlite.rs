@@ -813,7 +813,7 @@ struct QueriedState {
 #[derive(Debug, Clone, Copy, sqlx::Type)]
 #[repr(i32)]
 enum SourcePreference {
-    Preferred = 0,
+    Trusted = 0,
     Excluded = 1,
 }
 
@@ -823,7 +823,7 @@ struct Source(String);
 #[async_trait]
 impl SourcePreferenceScope for SqliteStorage {
     async fn set_trusted(&self, sources: &HashSet<String>) -> Result<(), Error> {
-        self.set_sources(sources, SourcePreference::Preferred).await
+        self.set_sources(sources, SourcePreference::Trusted).await
     }
 
     async fn set_excluded(&self, sources: &HashSet<String>) -> Result<(), Error> {
@@ -831,7 +831,7 @@ impl SourcePreferenceScope for SqliteStorage {
     }
 
     async fn fetch_trusted(&self) -> Result<HashSet<String>, Error> {
-        self.fetch_sources(SourcePreference::Preferred).await
+        self.fetch_sources(SourcePreference::Trusted).await
     }
 
     async fn fetch_excluded(&self) -> Result<HashSet<String>, Error> {
@@ -1248,7 +1248,7 @@ mod tests {
         let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
         assert_eq!(excluded_db, excluded_sources);
 
-        // set the excluded source and so far unknown source as new trusted sources
+        // set the excluded source "c" and so far unknown source "d" as new trusted sources
         // excluded sources should be empty
         // trusted sources should return {"d", "c"}
         let trusted_sources_upt = hashset! {"d".to_string(), "c".to_string()};
@@ -1262,6 +1262,18 @@ mod tests {
 
         let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
         assert!(excluded_db.is_empty());
+
+        let excluded_sources_upt = hashset! {"c".to_string()};
+        storage
+            .source_preference()
+            .set_excluded(&excluded_sources_upt)
+            .await
+            .unwrap();
+        let excluded_db = storage.source_preference().fetch_excluded().await.unwrap();
+        assert_eq!(excluded_db, excluded_sources_upt);
+
+        let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
+        assert_eq!(trusted_db, hashset! {"d".to_string()});
 
         // unset all trusted sources
         storage
