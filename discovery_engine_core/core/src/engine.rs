@@ -565,7 +565,7 @@ impl Engine {
     pub async fn time_spent(&mut self, time_spent: TimeSpent) -> Result<(), Error> {
         cfg_if! {
             if #[cfg(feature = "storage")] {
-                use storage::models::TimeSpendDocumentView;
+                use storage::models::TimeSpentDocumentView;
 
                 let TimeSpent {
                     id,
@@ -575,14 +575,14 @@ impl Engine {
                     ..
                 } = time_spent;
 
-                let TimeSpendDocumentView {
+                let TimeSpentDocumentView {
                     smbert_embedding,
                     aggregated_view_time,
                     last_reaction,
                 } = self
                     .storage
                     .feedback()
-                    .update_time_spend(id, view_mode, view_time)
+                    .update_time_spent(id, view_mode, view_time)
                     .await?;
 
                 let last_reaction = last_reaction.unwrap_or(UserReaction::Neutral);
