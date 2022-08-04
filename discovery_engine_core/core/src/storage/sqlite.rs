@@ -826,7 +826,7 @@ impl FeedbackScope for SqliteStorage {
 
         sqlx::query(
             "INSERT INTO ViewTimes(documentId, viewMode, viewTimeMs) VALUES (?, ?, ?)
-                ON CONFLICT DO UPDATE SET viewTimeMs = max(viewTimeMs + excluded.viewTimeMs, 4294967295);",
+                ON CONFLICT DO UPDATE SET viewTimeMs = viewTimeMs + excluded.viewTimeMs;",
         )
         .bind(document)
         .bind(view_mode as u32)
@@ -837,7 +837,7 @@ impl FeedbackScope for SqliteStorage {
         let view = sqlx::query_as::<_, QueryTimeSpentDocumentView>(
             "SELECT
                 em.embedding,
-                sum(vt.viewTimeMs) as aggregatedViewTime,
+                min(sum(vt.viewTimeMs), 4294967295) as aggregatedViewTime,
                 ur.userReaction
             FROM Embedding          AS em
             JOIN ViewTimes          AS vt   USING (documentId)
