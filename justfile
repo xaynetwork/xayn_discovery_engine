@@ -305,8 +305,8 @@ _override-flutter-self-deps $VERSION:
     fi
 
     # This will add changes to your repo which should never be committed.
-    $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
-    $SED_CMD -i s/0.1.0+replace.with.version/${VERSION}/ ./pubspec.yaml
+    $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
+    $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
 
 
 _dart-publish $WORKSPACE:
@@ -322,7 +322,7 @@ _dart-publish $WORKSPACE:
     fi
 
     # Dependency overrides are not allowed in published dart packages
-    $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
+    $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
 
     # Use the branch name as metadata, replace invalid characters with "-".
     VERSION_METADATA="$(git rev-parse --abbrev-ref HEAD | sed s/[^0-9a-zA-Z-]/-/g )"
@@ -333,11 +333,11 @@ _dart-publish $WORKSPACE:
 
     # We use a timestamp as major version,
     # for now for our use case this is good enough and simple to do.
-    TIMESTAMP="$(date +%y%m%d%k%M%S)"
+    TIMESTAMP="$(date +%y%m%d%H%M%S)"
     VERSION="0.${TIMESTAMP}.0+${VERSION_METADATA}"
     echo "Version: $VERSION"
 
-    $SED_CMD -i s/0.1.0+replace.with.version/${VERSION}/ ./pubspec.yaml
+    $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
     dart pub publish --force
 
 # This should only be run by the CI
