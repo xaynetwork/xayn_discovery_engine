@@ -36,6 +36,7 @@ class Configuration with _$Configuration {
     required String applicationDirectoryPath,
     required FeedMarkets feedMarkets,
     required Manifest manifest,
+    @Default(false) bool useInMemoryDb,
     String? logFile,
   }) = _Configuration;
 

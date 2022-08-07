@@ -29,7 +29,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
-    show FfiUsizeFfi;
+    show BoolFfi, FfiUsizeFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show OptionStringFfi, StringFfi, StringListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
@@ -54,6 +54,7 @@ class InitConfigFfi with EquatableMixin {
   final String? deConfig;
   final String? logFile;
   final String dataDir;
+  final bool useInMemoryDb;
 
   @override
   List<Object?> get props => [
@@ -75,6 +76,7 @@ class InitConfigFfi with EquatableMixin {
         deConfig,
         logFile,
         dataDir,
+        useInMemoryDb,
       ];
 
   factory InitConfigFfi(
@@ -103,6 +105,7 @@ class InitConfigFfi with EquatableMixin {
         deConfig: deConfig,
         logFile: configuration.logFile,
         dataDir: configuration.applicationDirectoryPath,
+        useInMemoryDb: configuration.useInMemoryDb,
       );
 
   InitConfigFfi.fromParts({
@@ -122,6 +125,7 @@ class InitConfigFfi with EquatableMixin {
     required this.maxDocsPerFeedBatch,
     required this.maxDocsPerSearchBatch,
     required this.dataDir,
+    required this.useInMemoryDb,
     this.deConfig,
     this.logFile,
   });
@@ -159,6 +163,7 @@ class InitConfigFfi with EquatableMixin {
     dataDir.writeNative(
       ffi.init_config_place_of_data_dir(place),
     );
+    useInMemoryDb.writeNative(ffi.init_config_place_of_use_in_memory_db(place));
   }
 
   @visibleForTesting
@@ -206,6 +211,9 @@ class InitConfigFfi with EquatableMixin {
       ),
       dataDir: StringFfi.readNative(
         ffi.init_config_place_of_data_dir(config),
+      ),
+      useInMemoryDb: BoolFfi.readNative(
+        ffi.init_config_place_of_use_in_memory_db(config),
       ),
     );
   }

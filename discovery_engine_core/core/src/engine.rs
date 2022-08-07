@@ -252,7 +252,6 @@ impl Engine {
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
-        #[cfg(feature = "storage")] use_memory_db: bool,
     ) -> Result<Self, Error> {
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
@@ -303,6 +302,8 @@ impl Engine {
         };
         #[cfg(feature = "storage")]
         let data_dir = std::path::PathBuf::from(&config.data_dir);
+        #[cfg(feature = "storage")]
+        let use_in_memory_db = config.use_in_memory_db;
         let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?
@@ -317,7 +318,7 @@ impl Engine {
 
         #[cfg(feature = "storage")]
         let storage = {
-            let sqlite_uri = if use_memory_db {
+            let sqlite_uri = if use_in_memory_db {
                 "sqlite::memory:".into()
             } else {
                 let db_path = data_dir.join("db.sqlite");
@@ -1588,25 +1589,13 @@ pub(crate) mod tests {
                     .unwrap_or(u32::MAX),
                 de_config: None,
                 log_file: None,
-                //FIXME for using this in tests we need to create and properly tear down temp
-                //      dir. But we still want to use in-memory db in tests which means we
-                //      don't use this dir in tests. So for now I don't setup up any temp
-                //      dir handling.
                 data_dir: "tmp_test_data_dir".into(),
+                use_in_memory_db: true,
             };
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
-            let engine = Engine::from_config(
-                config,
-                None,
-                &[],
-                &[],
-                #[cfg(feature = "storage")]
-                true,
-            )
-            .await
-            .unwrap();
+            let engine = Engine::from_config(config, None, &[], &[]).await.unwrap();
 
             Mutex::new((server, engine))
         };

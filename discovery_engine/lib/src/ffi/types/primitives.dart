@@ -12,7 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show FloatPointer, Pointer, Uint32Pointer, Uint8Pointer;
+import 'dart:ffi'
+    show FloatPointer, Pointer, Uint32Pointer, Uint8, Uint8Pointer;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
@@ -72,4 +73,12 @@ extension FfiUsizeFfi on int {
   }
 
   static int readNative(Pointer<RustFfiUsize> place) => place.value;
+}
+
+extension BoolFfi on bool {
+  void writeNative(Pointer<Uint8> place) {
+    place.value = this ? 1 : 0;
+  }
+
+  static bool readNative(Pointer<Uint8> ptr) => ptr.value == 1;
 }

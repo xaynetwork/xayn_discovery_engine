@@ -75,8 +75,6 @@ impl XaynDiscoveryEngineAsyncFfi {
                 state.as_deref().map(Vec::as_slice),
                 &history,
                 &sources,
-                #[cfg(feature = "storage")]
-                false,
             )
             .await
             .map(|engine| tokio::sync::Mutex::new(engine).into())

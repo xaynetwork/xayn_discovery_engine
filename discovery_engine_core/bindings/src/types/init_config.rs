@@ -224,6 +224,17 @@ pub unsafe extern "C" fn init_config_place_of_data_dir(place: *mut InitConfig) -
     unsafe { addr_of_mut!((*place).data_dir) }
 }
 
+/// Returns a pointer to the `use_in_memory_db` field of a configuration.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`InitConfig`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_config_place_of_use_in_memory_db(place: *mut InitConfig) -> *mut u8 {
+    unsafe { addr_of_mut!((*place).use_in_memory_db).cast() }
+}
+
 /// Returns a pointer to the `log_file` field of a configuration.
 ///
 /// # Safety
