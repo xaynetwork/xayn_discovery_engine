@@ -85,7 +85,6 @@ void main() {
     expect(documents[0].document.documentId, equals(ffiDocuments[0].id));
     expect(documents[0].document.stackId, equals(ffiDocuments[0].stackId));
     expect(documents[0].document.resource, equals(ffiDocuments[0].resource));
-    expect(documents[0].document.batchIndex, equals(0));
     expect(documents[0].document.userReaction, equals(UserReaction.neutral));
     expect(documents[0].document.isActive, isTrue);
     expect(
@@ -96,7 +95,6 @@ void main() {
     expect(documents[1].document.documentId, equals(ffiDocuments[1].id));
     expect(documents[1].document.stackId, equals(ffiDocuments[1].stackId));
     expect(documents[1].document.resource, equals(ffiDocuments[1].resource));
-    expect(documents[1].document.batchIndex, equals(1));
     expect(documents[1].document.userReaction, equals(UserReaction.neutral));
     expect(documents[1].document.isActive, isTrue);
     expect(

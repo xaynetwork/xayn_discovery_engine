@@ -76,6 +76,7 @@ extension DocumentSliceFfi on List<DocumentFfi> {
           .entries
           .map(
             (e) => DocumentWithActiveData(
+              // ignore: deprecated_member_use_from_same_package
               e.value.toDocument(batchIndex: e.key, isSearched: isSearched),
               e.value.toActiveDocumentData(),
             ),

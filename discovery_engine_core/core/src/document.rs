@@ -101,6 +101,9 @@ pub struct Document {
     /// Embedding from smbert.
     pub smbert_embedding: Embedding,
 
+    /// Reaction.
+    pub reaction: Option<UserReaction>,
+
     /// Resource this document refers to.
     pub resource: NewsResource,
 }
@@ -117,6 +120,7 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
             stack_id,
             smbert_embedding,
             resource,
+            reaction: None,
         })
     }
 }
@@ -172,6 +176,17 @@ pub struct NewsResource {
     pub topic: String,
 }
 
+impl NewsResource {
+    /// Returns the title, if the title is empty it return the snippet instead.
+    pub fn title_or_snippet(&self) -> &str {
+        if self.title.is_empty() {
+            &self.snippet
+        } else {
+            &self.title
+        }
+    }
+}
+
 impl From<GenericArticle> for NewsResource {
     fn from(article: GenericArticle) -> Self {
         let source_domain = article.source_domain();
@@ -194,9 +209,18 @@ impl From<GenericArticle> for NewsResource {
 
 /// Indicates user's "sentiment" towards the document,
 /// essentially if the user "liked" or "disliked" the document.
-#[derive(Clone, Copy, Debug, Derivative, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Derivative,
+    Eq,
+    PartialEq,
+    Serialize_repr,
+    Deserialize_repr,
+    num_derive::FromPrimitive,
+)]
 #[derivative(Default)]
-#[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
 #[repr(u8)]
 pub enum UserReaction {
     /// No reaction from the user.

@@ -12,25 +12,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
-    show DocumentClientEvent;
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show
+        DocumentClientEvent,
+        DocumentId,
+        DocumentViewMode,
+        FeedMarket,
+        StackId,
+        UserReaction,
+        cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart'
     show ChangedDocumentsReporter;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
-import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
-    show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
     show ActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
@@ -76,6 +76,32 @@ class DocumentManager {
     DocumentId id,
     UserReaction userReaction,
   ) async {
+    if (cfgFeatureStorage) {
+      final document = await _engine.userReacted(
+        null,
+        //FIXME sources are not yet migrated
+        await _sourceRepo.fetchAll(),
+        // The engine will ignore all fields except the id and reaction,
+        // but while we have feature flags we will still have to keep the
+        // other fields intact. But we can pass dummy data.
+        UserReacted(
+          id: id,
+          stackId: StackId.nil(),
+          title: '',
+          snippet: '',
+          smbertEmbedding: Embedding.fromList([]),
+          reaction: userReaction,
+          market: const FeedMarket(
+            langCode: 'us',
+            countryCode: 'US',
+          ),
+        ),
+      );
+      await _engineStateRepo.save(await _engine.serialize());
+      _changedDocsReporter.notifyChanged([document]);
+      return;
+    }
+
     final doc = await _documentRepo.fetchById(id);
     if (doc == null || !doc.isActive) {
       throw ArgumentError('id $id does not identify an active document');

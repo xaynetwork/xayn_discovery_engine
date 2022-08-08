@@ -209,11 +209,7 @@ pub mod models {
         pub(crate) document_id: document::Id,
         pub(crate) news_resource: NewsResource,
         pub(crate) newscatcher_data: NewscatcherData,
-        #[allow(dead_code)]
-        pub(crate) user_reacted: Option<UserReaction>,
-        // FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
-        #[allow(dead_code)]
-        pub(crate) in_batch_index: u32,
+        pub(crate) user_reaction: Option<UserReaction>,
         pub(crate) embedding: Embedding,
         pub(crate) stack_id: Option<stack::Id>,
     }
@@ -233,6 +229,7 @@ pub mod models {
                 id: view.document_id,
                 stack_id: view.stack_id.unwrap_or_default(),
                 smbert_embedding: view.embedding,
+                reaction: view.user_reaction,
                 resource: (view.news_resource, view.newscatcher_data).into(),
             }
         }

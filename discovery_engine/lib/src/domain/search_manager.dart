@@ -250,8 +250,10 @@ class SearchManager {
     }
 
     searchDocs.sort((doc1, doc2) {
+      // ignore: deprecated_member_use_from_same_package
       final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
       return timeOrd == 0
+          // ignore: deprecated_member_use_from_same_package
           ? doc1.batchIndex.compareTo(doc2.batchIndex)
           : timeOrd;
     });

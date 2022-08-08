@@ -38,7 +38,9 @@ class Document with _$Document {
     required StackId stackId,
     required NewsResource resource,
     required UserReaction userReaction,
-    required int batchIndex,
+    @Deprecated('broken, will be removed from the public API')
+    @Default(0)
+        int batchIndex,
   }) = _Document;
 
   /// Converts json Map to [Document].
@@ -53,6 +55,5 @@ extension DocumentApiConversion on domain.Document {
         stackId: stackId,
         resource: resource,
         userReaction: userReaction,
-        batchIndex: batchIndex,
       );
 }

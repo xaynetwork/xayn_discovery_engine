@@ -166,10 +166,14 @@ Future<void> main() async {
     test('restore feed', () async {
       final earlier = DateTime.utc(1969, 7, 20);
       final later = DateTime.utc(1989, 11, 9);
+      // ignore: deprecated_member_use_from_same_package
       await docRepo.update(doc2..timestamp = earlier);
+      // ignore: deprecated_member_use_from_same_package
       await docRepo.update(doc3..timestamp = later);
+      // ignore: deprecated_member_use_from_same_package
       await docRepo.update(engine.feedDocuments[0].document..timestamp = later);
       await docRepo
+          // ignore: deprecated_member_use_from_same_package
           .update(engine.feedDocuments[1].document..timestamp = earlier);
 
       expect(docRepo.box, hasLength(4));
@@ -184,15 +188,12 @@ Future<void> main() async {
         feed![0].documentId,
         equals(engine.feedDocuments[1].document.documentId),
       );
-      expect(feed[0].batchIndex, equals(1));
       expect(feed[1].documentId, equals(doc2.documentId));
-      expect(feed[1].batchIndex, equals(2));
       // doc0 has the later timestamp
       expect(
         feed[2].documentId,
         equals(engine.feedDocuments[0].document.documentId),
       );
-      expect(feed[2].batchIndex, equals(0));
       // doc3 is excluded since it is inactive
     });
   });

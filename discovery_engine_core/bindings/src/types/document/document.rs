@@ -18,7 +18,7 @@ use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
 
-use xayn_discovery_engine_core::document::{Document, Embedding, NewsResource};
+use xayn_discovery_engine_core::document::{Document, Embedding, NewsResource, UserReaction};
 
 /// Returns a pointer to the `id` field of a document.
 ///
@@ -53,6 +53,19 @@ pub unsafe extern "C" fn document_place_of_smbert_embedding(
     place: *mut Document,
 ) -> *mut Embedding {
     unsafe { addr_of_mut!((*place).smbert_embedding) }
+}
+
+/// Returns a pointer to the `reaction` field of a document.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`Document`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn document_place_of_reaction(
+    place: *mut Document,
+) -> *mut Option<UserReaction> {
+    unsafe { addr_of_mut!((*place).reaction) }
 }
 
 /// Returns a pointer to the `resource` field of a document.

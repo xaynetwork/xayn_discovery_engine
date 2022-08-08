@@ -27,10 +27,11 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
     show DocumentFfi;
 
-DocumentFfi arbitraryDocumentFfi() => DocumentFfi(
+DocumentFfi arbitraryDocumentFfi({UserReaction? reaction}) => DocumentFfi(
       id: DocumentId(),
       stackId: StackId(),
       smbertEmbedding: Embedding.fromList([0.9, 0.1]),
+      reaction: reaction,
       resource: NewsResource(
         title: 'fun',
         snippet: 'fun is fun',
@@ -56,14 +57,38 @@ void main() {
     expect(res, equals(document));
   });
 
+  test('reading and written a document with UserReaction', () {
+    final document = arbitraryDocumentFfi(reaction: UserReaction.positive);
+    final place = ffi.alloc_uninitialized_document();
+    document.writeNative(place);
+    final res = DocumentFfi.readNative(place);
+    ffi.drop_document(place);
+    expect(res, equals(document));
+  });
+
   test('conversion to Document works', () {
     final ffiDocument = arbitraryDocumentFfi();
+    // ignore: deprecated_member_use_from_same_package
     final document = ffiDocument.toDocument(batchIndex: 12);
     expect(document.documentId, equals(ffiDocument.id));
     expect(document.stackId, equals(ffiDocument.stackId));
     expect(document.resource, equals(ffiDocument.resource));
+    // ignore: deprecated_member_use_from_same_package
     expect(document.batchIndex, equals(12));
     expect(document.userReaction, equals(UserReaction.neutral));
+    expect(document.isActive, isTrue);
+  });
+
+  test('conversion to Document works with reaction', () {
+    final ffiDocument = arbitraryDocumentFfi(reaction: UserReaction.positive);
+    // ignore: deprecated_member_use_from_same_package
+    final document = ffiDocument.toDocument(batchIndex: 12);
+    expect(document.documentId, equals(ffiDocument.id));
+    expect(document.stackId, equals(ffiDocument.stackId));
+    expect(document.resource, equals(ffiDocument.resource));
+    // ignore: deprecated_member_use_from_same_package
+    expect(document.batchIndex, equals(12));
+    expect(document.userReaction, equals(UserReaction.positive));
     expect(document.isActive, isTrue);
   });
 
