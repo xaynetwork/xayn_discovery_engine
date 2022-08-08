@@ -16,6 +16,8 @@ import 'dart:io' show Directory;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show DocumentsUpdated;
 import 'package:xayn_discovery_engine/src/api/models/document.dart'
@@ -247,5 +249,7 @@ Future<void> main() async {
       expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
       expect(engine.getCallCount('timeSpent'), equals(2));
     });
-  });
+    //TODO[pmk] test use mock engine, check which tests can be recycled
+    //ignore:require_trailing_commas
+  }, skip: cfgFeatureStorage);
 }
