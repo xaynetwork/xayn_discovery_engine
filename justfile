@@ -194,6 +194,28 @@ rust-test: _codegen-order-workaround download-assets
 # Tests dart and rust
 test: rust-test dart-test flutter-test
 
+#TODO[pmk] split dart-test-storage, rust-test-storage, add as dep to test:, maybe dart-test, rust-test
+test-storage: _codegen-order-workaround download-assets
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    pushd "$RUST_WORKSPACE"
+    cargo test -p xayn-discovery-engine-core --features storage
+    cargo test -p xayn-discovery-engine-bindings --features storage
+    cargo build -p xayn-discovery-engine-bindings --features storage
+    popd
+    pushd "$DART_WORKSPACE"
+    dart run ffigen --config ffigen.yaml
+    popd
+    pushd "$RUST_WORKSPACE"
+    cargo run -p async-bindgen-gen-dart -- \
+        --ffi-class XaynDiscoveryEngineBindingsFfi \
+        --genesis ../"$DART_WORKSPACE"/lib/src/ffi/genesis.ffigen.dart
+    popd
+    pushd "$DART_WORKSPACE"
+    dart run build_runner build --delete-conflicting-outputs
+    dart test
+    popd
+
 # Cleans up all generated files
 clean-gen-files:
     find . \( -name '*.g.dart' \
