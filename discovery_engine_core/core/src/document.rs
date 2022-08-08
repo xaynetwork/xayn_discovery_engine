@@ -252,6 +252,15 @@ pub struct TimeSpent {
     pub reaction: UserReaction,
 }
 
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
+#[repr(u32)]
+pub enum ViewMode {
+    Story = 0,
+    Reader = 1,
+    Web = 2,
+}
+
 /// User reacted to a document.
 #[derive(Debug)]
 pub struct UserReacted {

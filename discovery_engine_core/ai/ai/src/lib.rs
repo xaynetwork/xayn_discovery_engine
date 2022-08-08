@@ -47,7 +47,12 @@ pub use crate::{
         CoiId,
     },
     document::{Document, DocumentId},
-    embedding::{cosine_similarity, pairwise_cosine_similarity, Embedding},
+    embedding::{
+        cosine_similarity,
+        pairwise_cosine_similarity,
+        Embedding,
+        MalformedBytesEmbedding,
+    },
     error::GenericError,
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
 };

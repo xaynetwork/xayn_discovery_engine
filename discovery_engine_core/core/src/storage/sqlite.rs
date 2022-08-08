@@ -15,6 +15,7 @@
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
+    time::Duration,
 };
 
 use async_trait::async_trait;
@@ -31,7 +32,7 @@ use url::Url;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    document::{self, HistoricDocument, UserReaction},
+    document::{self, HistoricDocument, UserReaction, ViewMode},
     stack,
     storage::{
         models::{
@@ -42,6 +43,7 @@ use crate::{
             Paging,
             Search,
             SearchBy,
+            TimeSpentDocumentView,
         },
         Error,
         FeedScope,
@@ -739,27 +741,25 @@ impl TryFrom<QueriedApiDocumentView> for ApiDocumentView {
             domain_rank: doc.domain_rank as u64,
             score: doc.score,
         };
-        let user_reaction: Option<UserReaction> = doc
-            .user_reaction
-            .map(|value| {
-                UserReaction::from_u32(value).ok_or_else(|| {
-                    Error::Database(format!("Failed to convert {value} to UserReaction").into())
-                })
-            })
-            .transpose()?;
-        let embedding = doc.embedding.try_into().map_err(|err| {
-            Error::Database(format!("Failed to convert bytes to Embedding: {err:?}").into())
-        })?;
 
         Ok(ApiDocumentView {
             document_id: doc.document_id,
             news_resource,
             newscatcher_data,
-            user_reaction,
-            embedding,
+            user_reaction: user_reaction_from_db(doc.user_reaction)?,
+            embedding: doc.embedding.try_into()?,
             stack_id: doc.stack_id,
         })
     }
+}
+
+fn user_reaction_from_db(raw: Option<u32>) -> Result<Option<UserReaction>, Error> {
+    raw.map(|value| {
+        UserReaction::from_u32(value).ok_or_else(|| {
+            Error::Database(format!("Failed to convert {value} to UserReaction").into())
+        })
+    })
+    .transpose()
 }
 
 #[derive(FromRow)]
@@ -813,6 +813,73 @@ impl FeedbackScope for SqliteStorage {
         tx.commit().await?;
         Ok(document)
     }
+
+    async fn update_time_spent(
+        &self,
+        document: document::Id,
+        view_mode: ViewMode,
+        duration: Duration,
+    ) -> Result<TimeSpentDocumentView, Error> {
+        let view_time_ms = u32::try_from(duration.as_millis()).ok().unwrap_or(u32::MAX);
+
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+            "INSERT INTO ViewTimes(documentId, viewMode, viewTimeMs) VALUES (?, ?, ?)
+                ON CONFLICT DO UPDATE SET viewTimeMs = viewTimeMs + excluded.viewTimeMs;",
+        )
+        .bind(document)
+        .bind(view_mode as u32)
+        .bind(view_time_ms)
+        .execute(&mut tx)
+        .await?;
+
+        let view = sqlx::query_as::<_, QueryTimeSpentDocumentView>(
+            "SELECT
+                em.embedding,
+                min(sum(vt.viewTimeMs), 4294967295) as aggregatedViewTime,
+                ur.userReaction
+            FROM Embedding          AS em
+            JOIN ViewTimes          AS vt   USING (documentId)
+            LEFT JOIN UserReaction  AS ur   USING (documentId)
+            WHERE documentId = ?;",
+        )
+        .bind(document)
+        .fetch_one(&mut tx)
+        .await
+        .on_row_not_found(Error::NoDocument(document))
+        .and_then(TryInto::try_into)?;
+
+        tx.commit().await?;
+
+        Ok(view)
+    }
+}
+
+#[derive(FromRow)]
+#[sqlx(rename_all = "camelCase")]
+struct QueryTimeSpentDocumentView {
+    embedding: Vec<u8>,
+    aggregated_view_time: u32,
+    user_reaction: Option<u32>,
+}
+
+impl TryFrom<QueryTimeSpentDocumentView> for TimeSpentDocumentView {
+    type Error = Error;
+
+    fn try_from(
+        QueryTimeSpentDocumentView {
+            embedding,
+            aggregated_view_time,
+            user_reaction,
+        }: QueryTimeSpentDocumentView,
+    ) -> Result<Self, Self::Error> {
+        Ok(TimeSpentDocumentView {
+            smbert_embedding: embedding.try_into()?,
+            last_reaction: user_reaction_from_db(user_reaction)?,
+            aggregated_view_time: Duration::from_millis(u64::from(aggregated_view_time)),
+        })
+    }
 }
 
 #[derive(Default, FromRow)]
@@ -854,6 +921,8 @@ impl SourcePreferenceScope for SqliteStorage {
 mod tests {
     use maplit::hashset;
     use std::{collections::HashSet, time::Duration};
+
+    use xayn_discovery_engine_ai::Embedding;
 
     use crate::{document::NewsResource, stack, storage::models::NewDocument};
 
@@ -1302,5 +1371,84 @@ mod tests {
             .unwrap();
         let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
         assert!(trusted_db.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_store_time_spent() {
+        let storage = create_memory_storage().await;
+        let docs = create_documents(3);
+        let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
+
+        storage
+            .feed()
+            .store_documents(&docs, &stack_ids)
+            .await
+            .unwrap();
+
+        storage
+            .feedback()
+            .update_user_reaction(docs[0].id, UserReaction::Positive)
+            .await
+            .unwrap();
+
+        let view = storage
+            .feedback()
+            .update_time_spent(docs[0].id, ViewMode::Story, Duration::from_secs(1))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            view,
+            TimeSpentDocumentView {
+                smbert_embedding: Embedding::default(),
+                last_reaction: Some(UserReaction::Positive),
+                aggregated_view_time: Duration::from_secs(1),
+            }
+        );
+
+        let view = storage
+            .feedback()
+            .update_time_spent(docs[1].id, ViewMode::Story, Duration::from_secs(3))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            view,
+            TimeSpentDocumentView {
+                smbert_embedding: Embedding::default(),
+                last_reaction: None,
+                aggregated_view_time: Duration::from_secs(3),
+            }
+        );
+
+        let view = storage
+            .feedback()
+            .update_time_spent(docs[1].id, ViewMode::Web, Duration::from_secs(7))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            view,
+            TimeSpentDocumentView {
+                smbert_embedding: Embedding::default(),
+                last_reaction: None,
+                aggregated_view_time: Duration::from_secs(10),
+            }
+        );
+
+        let view = storage
+            .feedback()
+            .update_time_spent(docs[1].id, ViewMode::Story, Duration::from_secs(13))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            view,
+            TimeSpentDocumentView {
+                smbert_embedding: Embedding::default(),
+                last_reaction: None,
+                aggregated_view_time: Duration::from_secs(23),
+            }
+        );
     }
 }

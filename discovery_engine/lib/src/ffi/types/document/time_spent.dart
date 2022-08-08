@@ -44,7 +44,7 @@ extension TimeSpentFfi on TimeSpent {
   }
 
   Boxed<RustTimeSpent> allocNative() {
-    final place = ffi.alloc_uninitialized_time_spend();
+    final place = ffi.alloc_uninitialized_time_spent();
     writeNative(place);
     return Boxed(place, ffi.drop_time_spent);
   }
