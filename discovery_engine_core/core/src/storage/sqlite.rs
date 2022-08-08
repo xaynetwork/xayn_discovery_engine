@@ -1373,6 +1373,7 @@ mod tests {
         assert!(trusted_db.is_empty());
     }
 
+    #[tokio::test]
     async fn test_store_time_spent() {
         let storage = create_memory_storage().await;
         let docs = create_documents(3);
