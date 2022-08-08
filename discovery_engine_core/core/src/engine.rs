@@ -562,12 +562,46 @@ impl Engine {
     }
 
     /// Process the feedback about the user spending some time on a document.
-    pub async fn time_spent(&mut self, time_spent: &TimeSpent) {
-        if let UserReaction::Positive | UserReaction::Neutral = time_spent.reaction {
+    pub async fn time_spent(&mut self, time_spent: TimeSpent) -> Result<(), Error> {
+        cfg_if! {
+            if #[cfg(feature = "storage")] {
+                use storage::models::TimeSpentDocumentView;
+
+                let TimeSpent {
+                    id,
+                    view_time,
+                    view_mode,
+                    // dummy values when storage is enabled
+                    ..
+                } = time_spent;
+
+                let TimeSpentDocumentView {
+                    smbert_embedding,
+                    aggregated_view_time,
+                    last_reaction,
+                } = self
+                    .storage
+                    .feedback()
+                    .update_time_spent(id, view_mode, view_time)
+                    .await?;
+
+                let last_reaction = last_reaction.unwrap_or(UserReaction::Neutral);
+            } else {
+                let TimeSpent {
+                    id: _,
+                    view_time: aggregated_view_time,
+                    view_mode: _,
+                    smbert_embedding,
+                    reaction: last_reaction,
+                } = time_spent;
+            }
+        };
+
+        if let UserReaction::Positive | UserReaction::Neutral = last_reaction {
             CoiSystem::log_document_view_time(
                 &mut self.state.user_interests.positive,
-                &time_spent.smbert_embedding,
-                time_spent.time,
+                &smbert_embedding,
+                aggregated_view_time,
             );
         }
 
@@ -577,6 +611,8 @@ impl Engine {
             &self.coi,
             &self.state.user_interests,
         );
+
+        Ok(())
     }
 
     /// Process the feedback about the user reacting to a document.

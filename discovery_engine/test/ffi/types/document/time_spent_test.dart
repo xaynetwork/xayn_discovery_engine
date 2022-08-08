@@ -21,6 +21,8 @@ import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
+import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
+    show DocumentViewMode;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
@@ -30,7 +32,8 @@ void main() {
     final timeSpent = TimeSpent(
       id: DocumentId(),
       smbertEmbedding: Embedding.fromList([.9, .1]),
-      time: const Duration(days: 2),
+      viewTime: const Duration(days: 2),
+      viewMode: DocumentViewMode.story,
       reaction: UserReaction.negative,
     );
     final place = ffi.alloc_uninitialized_time_spent();

@@ -240,14 +240,16 @@ pub struct TimeSpent {
     pub id: Id,
 
     /// Precomputed S-mBert of the document.
+    ///
+    /// If `storage` is enabled this will be ignored and can be empty.
     pub smbert_embedding: Embedding,
 
     /// Time spent on the documents in seconds.
-    pub time: Duration,
-    /* we don't have a `DocumentViewMode` in here because at the moment the
-       coi just consider one time. On the dart side we are saving all these values
-       and when we call the feedbackloop we will decide which value to use or to aggregate them.
-    */
+    pub view_time: Duration,
+
+    /// The way the document was viewed.
+    pub view_mode: ViewMode,
+
     /// Reaction.
     pub reaction: UserReaction,
 }

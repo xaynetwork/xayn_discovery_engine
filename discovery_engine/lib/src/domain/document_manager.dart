@@ -152,14 +152,28 @@ class DocumentManager {
 
   /// Add additional viewing time for the given active document.
   ///
-  /// Fails if [sec] is negative or [id] does not identify an active document.
+  /// Fails if [viewTimeSecs] is negative or [id] does not identify an active document.
   Future<void> addActiveDocumentTime(
     DocumentId id,
-    DocumentViewMode mode,
-    int sec,
+    DocumentViewMode viewMode,
+    int viewTimeSecs,
   ) async {
-    if (sec < 0) {
-      throw RangeError.range(sec, 0, null);
+    if (viewTimeSecs < 0) {
+      throw RangeError.range(viewTimeSecs, 0, null);
+    }
+
+    if (cfgFeatureStorage) {
+      await _engine.timeSpent(
+        TimeSpent(
+          id: id,
+          smbertEmbedding: Embedding.fromList([]), // unused
+          viewTime: Duration(seconds: viewTimeSecs),
+          viewMode: viewMode,
+          reaction: UserReaction.neutral, // unused
+        ),
+      );
+      await _engineStateRepo.save(await _engine.serialize());
+      return;
     }
 
     final activeData = await _activeRepo.fetchById(id);
@@ -172,16 +186,15 @@ class DocumentManager {
       throw ArgumentError('id $id does not identify an active document');
     }
 
-    activeData.addViewTime(mode, Duration(seconds: sec));
+    activeData.addViewTime(viewMode, Duration(seconds: viewTimeSecs));
     await _activeRepo.update(id, activeData);
 
     await _engine.timeSpent(
       TimeSpent(
         id: id,
         smbertEmbedding: activeData.smbertEmbedding,
-        // As we don't have a `DocumentViewMode` on the Rust side at the moment,
-        // we are aggregating Duration from all view modes.
-        time: activeData.sumDuration,
+        viewTime: activeData.sumDuration,
+        viewMode: viewMode,
         reaction: doc.userReaction,
       ),
     );
