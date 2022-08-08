@@ -150,7 +150,5 @@ void main() {
       );
       await engine.dispose();
     });
-    //TODO[pmk] fails with storage but should not
-    //ignore: require_trailing_commas
-  }, skip: cfgFeatureStorage);
+  });
 }
