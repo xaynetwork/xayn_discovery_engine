@@ -22,7 +22,7 @@ num-traits = "0.2.15"
 rand = "0.8.5"
 rand_distr = "0.4.3"
 rayon = "1.5.3"
-serde = { version = "1.0.141", features = ["derive"] }
+serde = { version = "1.0.143", features = ["derive"] }
 serde_repr = "0.1.8"
 thiserror = "1.0.32"
 tokio = { version = "1.20.1", features = ["macros", "sync"] }
@@ -43,7 +43,7 @@ async-once-cell = "0.4.2"
 maplit = "1.0.2"
 mockall = "0.11.2"
 rand_chacha = "0.3.1"
-serde_json = "1.0.82"
+serde_json = "1.0.83"
 tokio = { version = "1.20.1", features = ["macros", "rt", "sync"] }
 wiremock = "0.5.13"
 xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
