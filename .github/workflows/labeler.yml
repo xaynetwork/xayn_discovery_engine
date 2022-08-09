@@ -18,14 +18,14 @@ jobs:
         uses: buildsville/add-remove-label@6008d7bd99d3baeb7c04033584e68f8ec80b198b # v1
         with:
           token: ${{secrets.GITHUB_TOKEN}}
-          label: "WIP ⏳"
+          label: work-in-progress
           type: add
 
       - name: Remove Ready for Review Label 
         uses: buildsville/add-remove-label@6008d7bd99d3baeb7c04033584e68f8ec80b198b # v1
         with:
           token: ${{secrets.GITHUB_TOKEN}}
-          label: "Ready for review ✅"
+          label: ready-for-review
           type: remove
 
   ready_for_review_pr:
@@ -37,12 +37,12 @@ jobs:
         uses: buildsville/add-remove-label@6008d7bd99d3baeb7c04033584e68f8ec80b198b # v1
         with:
           token: ${{secrets.GITHUB_TOKEN}}
-          label: "WIP ⏳"
+          label: work-in-progress
           type: remove
 
       - name: Add Ready for Review Label
         uses: buildsville/add-remove-label@6008d7bd99d3baeb7c04033584e68f8ec80b198b # v1
         with:
           token: ${{secrets.GITHUB_TOKEN}}
-          label: "Ready for review ✅"
+          label: ready-for-review
           type: add
