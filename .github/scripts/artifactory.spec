@@ -10,7 +10,7 @@
           {
             "$and": [
               {
-                "created": { "$before":"dddd" }
+                "created": { "$before":"number_days_limit" }
               }
             ]
           }
@@ -20,3 +20,4 @@
   }
 ]
 }
+
