@@ -108,6 +108,7 @@ impl SqliteStorage {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn store_new_documents(
         tx: &mut Transaction<'_, Sqlite>,
         documents: &[NewDocument],
