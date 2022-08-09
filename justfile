@@ -117,7 +117,6 @@ rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
     cargo clippy --all-targets --features="storage" --locked; \
     cargo clippy --all-targets --locked; \
-    cargo clippy --all-targets --features storage --locked; \
     cargo check -p xayn-discovery-engine-bindings
 
 # Checks rust and dart code, fails if there are any issues on CI
@@ -366,10 +365,14 @@ db-setup:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$RUST_WORKSPACE"
-    cargo sqlx --help | head -n1
-    if [[ "$?" == "101" ]]; then
-        echo "You need to install sqlx-cli: `cargo install sqlx-cli`"
+    ERROR=""
+    (cargo sqlx --help 2>&1 | head -n1) || ERROR=$?
+    if [[ "$ERROR" == "101" ]]; then
+        echo 'You need to install sqlx-cli: `cargo install sqlx-cli`' >&2
         exit 101
+    elif [[ -n "$ERROR" ]]; then
+        echo '`cargo sqlx --help` failed in an unexpected way with exit code:' "$ERROR" >&2
+        exit "$ERROR"
     fi
     export DATABASE_URL="sqlite:file://$(mktemp -d -t sqlx.discovery_engine.XXXX)/db.sqlite?mode=rwc"
     cargo sqlx database setup --source "core/src/storage/migrations"
