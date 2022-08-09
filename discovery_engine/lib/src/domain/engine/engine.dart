@@ -141,7 +141,7 @@ abstract class Engine {
   );
 
   /// Returns the currently trending topics.
-  Future<List<TrendingTopic>> getTrendingTopics();
+  Future<List<TrendingTopic>> trendingTopics();
 
   /// Disposes the engine.
   Future<void> dispose();

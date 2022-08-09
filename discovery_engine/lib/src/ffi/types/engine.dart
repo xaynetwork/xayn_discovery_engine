@@ -344,7 +344,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<List<TrendingTopic>> getTrendingTopics() async {
+  Future<List<TrendingTopic>> trendingTopics() async {
     final result = await asyncFfi.trendingTopics(_engine.ref);
 
     return resultVecTrendingTopicStringFfiAdapter

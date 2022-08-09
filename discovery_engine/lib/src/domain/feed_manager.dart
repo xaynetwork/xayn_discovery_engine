@@ -136,8 +136,6 @@ class FeedManager {
         );
       }
 
-      await _engineStateRepo.save(await _engine.serialize());
-
       if (docs.isEmpty) {
         return const EngineEvent.nextFeedBatchRequestFailed(
           FeedFailureReason.noNewsForMarket,

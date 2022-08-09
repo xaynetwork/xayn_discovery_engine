@@ -421,5 +421,5 @@ Future<void> main() async {
 
 class _NoTrendingTopicsMockEngine extends MockEngine {
   @override
-  Future<List<TrendingTopic>> getTrendingTopics() async => [];
+  Future<List<TrendingTopic>> trendingTopics() async => [];
 }

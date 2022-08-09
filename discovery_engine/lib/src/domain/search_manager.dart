@@ -135,7 +135,6 @@ class SearchManager {
         }
         rethrow;
       }
-      await _engineStateRepo.save(await _engine.serialize());
 
       return EngineEvent.activeSearchRequestSucceeded(
         search,
@@ -175,7 +174,6 @@ class SearchManager {
         }
         rethrow;
       }
-      await _engineStateRepo.save(await _engine.serialize());
 
       return EngineEvent.nextActiveSearchBatchRequestSucceeded(
         search.toApiRepr(),
@@ -370,10 +368,7 @@ class SearchManager {
 
   /// Return the current trending topics.
   Future<EngineEvent> trendingTopicsRequested() async {
-    final topics = await _engine.getTrendingTopics();
-
-    // TODO: do we need to persist the engine state??
-    await _engineStateRepo.save(await _engine.serialize());
+    final topics = await _engine.trendingTopics();
 
     if (topics.isEmpty) {
       const reason = SearchFailureReason.noResultsAvailable;

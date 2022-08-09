@@ -97,7 +97,6 @@ class DocumentManager {
           ),
         ),
       );
-      await _engineStateRepo.save(await _engine.serialize());
       _changedDocsReporter.notifyChanged([document]);
       return;
     }
@@ -172,7 +171,6 @@ class DocumentManager {
           reaction: UserReaction.neutral, // unused
         ),
       );
-      await _engineStateRepo.save(await _engine.serialize());
       return;
     }
 
