@@ -60,196 +60,203 @@ Future<void> main() async {
   late HiveEngineStateRepository engineStateRepo;
   late HiveSourceReactedRepository sourceReactedRepo;
 
-  group('DocumentManager', () {
-    final data = ActiveDocumentData(Embedding.fromList([4, 1]));
-    final stackId = StackId();
-    final doc1 = Document(
-      documentId: DocumentId(),
-      stackId: stackId,
-      batchIndex: 0,
-      resource: mockNewsResource,
-      isActive: true,
-    );
-    final doc2 = Document(
-      documentId: DocumentId(),
-      stackId: stackId,
-      batchIndex: 1,
-      resource: mockNewsResource,
-      isActive: false,
-    );
-    final id1 = doc1.documentId;
-    final id2 = doc2.documentId;
-    final id3 = DocumentId();
-
-    late ChangedDocumentsReporter changedDocsReporter;
-    late DocumentManager mgr;
-
-    setUpAll(() async {
-      EventHandler.registerHiveAdapters();
-    });
-
-    setUp(() async {
-      final dir = Directory.systemTemp.createTempSync('DocumentManager');
-      await EventHandler.initDatabase(dir.path);
-
-      engine = MockEngine();
-      docRepo = HiveDocumentRepository();
-      activeRepo = HiveActiveDocumentDataRepository();
-      engineStateRepo = HiveEngineStateRepository();
-      changedDocsReporter = ChangedDocumentsReporter();
-      sourceReactedRepo = HiveSourceReactedRepository();
-      mgr = DocumentManager(
-        engine,
-        docRepo,
-        activeRepo,
-        engineStateRepo,
-        changedDocsReporter,
-        sourceReactedRepo,
+  group(
+    'DocumentManager',
+    () {
+      final data = ActiveDocumentData(Embedding.fromList([4, 1]));
+      final stackId = StackId();
+      final doc1 = Document(
+        documentId: DocumentId(),
+        stackId: stackId,
+        batchIndex: 0,
+        resource: mockNewsResource,
+        isActive: true,
       );
-
-      // doc1 is active & changed, doc2 is neither
-      await docRepo.updateMany([doc1, doc2]);
-      await activeRepo.update(id1, data);
-
-      engine.resetCallCounter();
-    });
-
-    tearDown(() async {
-      await changedDocsReporter.close();
-
-      await Hive.deleteFromDisk();
-
-      // reset test data
-      doc1.isActive = true;
-      doc1.userReaction = UserReaction.neutral;
-      doc2.isActive = false;
-      doc2.userReaction = UserReaction.neutral;
-      data.viewTime.clear();
-    });
-
-    test('update absent document user reaction', () async {
-      expect(
-        () => mgr.updateUserReaction(id3, UserReaction.positive),
-        throwsArgumentError,
+      final doc2 = Document(
+        documentId: DocumentId(),
+        stackId: stackId,
+        batchIndex: 1,
+        resource: mockNewsResource,
+        isActive: false,
       );
-      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
-      await changedDocsReporter.close();
-    });
+      final id1 = doc1.documentId;
+      final id2 = doc2.documentId;
+      final id3 = DocumentId();
 
-    test('update inactive document user reaction', () async {
-      expect(
-        () => mgr.updateUserReaction(id2, UserReaction.positive),
-        throwsArgumentError,
-      );
-      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
-      await changedDocsReporter.close();
-    });
+      late ChangedDocumentsReporter changedDocsReporter;
+      late DocumentManager mgr;
 
-    test(
-        'if there is no smbert embedding associated with the document '
-        'it should throw StateError', () async {
-      // let's get rid of active document data of doc1
-      await activeRepo.removeByIds({id1});
+      setUpAll(() async {
+        EventHandler.registerHiveAdapters();
+      });
 
-      expect(
-        () => mgr.updateUserReaction(id1, UserReaction.positive),
-        throwsStateError,
-      );
-      expect(changedDocsReporter.changedDocuments, neverEmits(anything));
-      await changedDocsReporter.close();
-    });
+      setUp(() async {
+        final dir = Directory.systemTemp.createTempSync('DocumentManager');
+        await EventHandler.initDatabase(dir.path);
 
-    test('update active document user reaction', () async {
-      const newReaction = UserReaction.positive;
-      final updatedDoc = (doc1..userReaction = newReaction).toApiRepr();
+        engine = MockEngine();
+        docRepo = HiveDocumentRepository();
+        activeRepo = HiveActiveDocumentDataRepository();
+        engineStateRepo = HiveEngineStateRepository();
+        changedDocsReporter = ChangedDocumentsReporter();
+        sourceReactedRepo = HiveSourceReactedRepository();
+        mgr = DocumentManager(
+          engine,
+          docRepo,
+          activeRepo,
+          engineStateRepo,
+          changedDocsReporter,
+          sourceReactedRepo,
+        );
 
-      expect(
-        changedDocsReporter.changedDocuments,
-        emits(equals(DocumentsUpdated([updatedDoc]))),
-      );
+        // doc1 is active & changed, doc2 is neither
+        await docRepo.updateMany([doc1, doc2]);
+        await activeRepo.update(id1, data);
 
-      await mgr.updateUserReaction(id1, newReaction);
+        engine.resetCallCounter();
+      });
 
-      expect(engine.getCallCount('userReacted'), equals(1));
-      expect(
-        docRepo.box.values,
-        unorderedEquals(<Document>[doc1..userReaction = newReaction, doc2]),
-      );
-      // serialize should be called and state saved
-      expect(engine.getCallCount('serialize'), equals(1));
-      expect(engineStateRepo.box.isNotEmpty, isTrue);
-      // other repos unchanged
-      expect(activeRepo.box, hasLength(1));
-      expect(await activeRepo.fetchById(id1), equals(data));
-    });
+      tearDown(() async {
+        await changedDocsReporter.close();
 
-    test('add negative document time', () async {
-      const mode = DocumentViewMode.story;
-      expect(() => mgr.addActiveDocumentTime(id1, mode, -1), throwsRangeError);
-    });
+        await Hive.deleteFromDisk();
 
-    test('add time to document without active data', () async {
-      const mode = DocumentViewMode.story;
-      expect(
-        () => mgr.addActiveDocumentTime(id2, mode, 1),
-        throwsArgumentError,
-      );
-    });
+        // reset test data
+        doc1.isActive = true;
+        doc1.userReaction = UserReaction.neutral;
+        doc2.isActive = false;
+        doc2.userReaction = UserReaction.neutral;
+        data.viewTime.clear();
+      });
 
-    test('add time to an inactive document with active document data',
-        () async {
-      const mode = DocumentViewMode.story;
-      await activeRepo.update(id2, data);
-      expect(
-        () => mgr.addActiveDocumentTime(id2, mode, 1),
-        throwsArgumentError,
-      );
-    });
+      test('update absent document user reaction', () async {
+        expect(
+          () => mgr.updateUserReaction(id3, UserReaction.positive),
+          throwsArgumentError,
+        );
+        expect(changedDocsReporter.changedDocuments, neverEmits(anything));
+        await changedDocsReporter.close();
+      });
 
-    test('add time to an absent document with active document data', () async {
-      const mode = DocumentViewMode.story;
-      await activeRepo.update(id3, data);
-      expect(
-        () => mgr.addActiveDocumentTime(id3, mode, 1),
-        throwsArgumentError,
-      );
-    });
+      test('update inactive document user reaction', () async {
+        expect(
+          () => mgr.updateUserReaction(id2, UserReaction.positive),
+          throwsArgumentError,
+        );
+        expect(changedDocsReporter.changedDocuments, neverEmits(anything));
+        await changedDocsReporter.close();
+      });
 
-    test('add positive time to document with active data', () async {
-      const mode = DocumentViewMode.story;
+      test(
+          'if there is no smbert embedding associated with the document '
+          'it should throw StateError', () async {
+        // let's get rid of active document data of doc1
+        await activeRepo.removeByIds({id1});
 
-      // active repo contains just {id1: data} where data satisfies:
-      expect(data.getViewTime(mode), Duration.zero);
+        expect(
+          () => mgr.updateUserReaction(id1, UserReaction.positive),
+          throwsStateError,
+        );
+        expect(changedDocsReporter.changedDocuments, neverEmits(anything));
+        await changedDocsReporter.close();
+      });
 
-      // add 5 seconds to id1
-      await mgr.addActiveDocumentTime(id1, mode, 5);
+      test('update active document user reaction', () async {
+        const newReaction = UserReaction.positive;
+        final updatedDoc = (doc1..userReaction = newReaction).toApiRepr();
 
-      expect(activeRepo.box, hasLength(1));
+        expect(
+          changedDocsReporter.changedDocuments,
+          emits(equals(DocumentsUpdated([updatedDoc]))),
+        );
 
-      // serialize should be called and state saved
-      expect(engine.getCallCount('serialize'), equals(1));
-      expect(engineStateRepo.box.isNotEmpty, isTrue);
+        await mgr.updateUserReaction(id1, newReaction);
 
-      var dataUpdated = await activeRepo.fetchById(id1);
-      expect(dataUpdated, isNotNull);
-      expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
-      expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 5)));
+        expect(engine.getCallCount('userReacted'), equals(1));
+        expect(
+          docRepo.box.values,
+          unorderedEquals(<Document>[doc1..userReaction = newReaction, doc2]),
+        );
+        // serialize should be called and state saved
+        expect(engine.getCallCount('serialize'), equals(1));
+        expect(engineStateRepo.box.isNotEmpty, isTrue);
+        // other repos unchanged
+        expect(activeRepo.box, hasLength(1));
+        expect(await activeRepo.fetchById(id1), equals(data));
+      });
 
-      // other repos unchanged
-      expect(await docRepo.fetchAll(), unorderedEquals(<Document>[doc1, doc2]));
+      test('add negative document time', () async {
+        const mode = DocumentViewMode.story;
+        expect(
+            () => mgr.addActiveDocumentTime(id1, mode, -1), throwsRangeError);
+      });
 
-      // add a further 3 seconds
-      await mgr.addActiveDocumentTime(id1, mode, 3);
+      test('add time to document without active data', () async {
+        const mode = DocumentViewMode.story;
+        expect(
+          () => mgr.addActiveDocumentTime(id2, mode, 1),
+          throwsArgumentError,
+        );
+      });
 
-      expect(activeRepo.box, hasLength(1));
-      expect(engine.getCallCount('serialize'), equals(2));
-      dataUpdated = await activeRepo.fetchById(id1);
-      expect(dataUpdated, isNotNull);
-      expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
-      expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
-      expect(engine.getCallCount('timeSpent'), equals(2));
-    });
-    //TODO[pmk] test use mock engine, check which tests can be recycled
-    //ignore:require_trailing_commas
-  }, skip: cfgFeatureStorage);
+      test('add time to an inactive document with active document data',
+          () async {
+        const mode = DocumentViewMode.story;
+        await activeRepo.update(id2, data);
+        expect(
+          () => mgr.addActiveDocumentTime(id2, mode, 1),
+          throwsArgumentError,
+        );
+      });
+
+      test('add time to an absent document with active document data',
+          () async {
+        const mode = DocumentViewMode.story;
+        await activeRepo.update(id3, data);
+        expect(
+          () => mgr.addActiveDocumentTime(id3, mode, 1),
+          throwsArgumentError,
+        );
+      });
+
+      test('add positive time to document with active data', () async {
+        const mode = DocumentViewMode.story;
+
+        // active repo contains just {id1: data} where data satisfies:
+        expect(data.getViewTime(mode), Duration.zero);
+
+        // add 5 seconds to id1
+        await mgr.addActiveDocumentTime(id1, mode, 5);
+
+        expect(activeRepo.box, hasLength(1));
+
+        // serialize should be called and state saved
+        expect(engine.getCallCount('serialize'), equals(1));
+        expect(engineStateRepo.box.isNotEmpty, isTrue);
+
+        var dataUpdated = await activeRepo.fetchById(id1);
+        expect(dataUpdated, isNotNull);
+        expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
+        expect(
+            dataUpdated.getViewTime(mode), equals(const Duration(seconds: 5)));
+
+        // other repos unchanged
+        expect(
+            await docRepo.fetchAll(), unorderedEquals(<Document>[doc1, doc2]));
+
+        // add a further 3 seconds
+        await mgr.addActiveDocumentTime(id1, mode, 3);
+
+        expect(activeRepo.box, hasLength(1));
+        expect(engine.getCallCount('serialize'), equals(2));
+        dataUpdated = await activeRepo.fetchById(id1);
+        expect(dataUpdated, isNotNull);
+        expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
+        expect(
+            dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
+        expect(engine.getCallCount('timeSpent'), equals(2));
+      });
+    },
+    skip: cfgFeatureStorage,
+  );
 }
