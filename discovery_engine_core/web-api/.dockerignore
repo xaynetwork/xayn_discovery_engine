@@ -1,7 +1,0 @@
-# Ignore everything
-*
-
-# Include the following files and directories
-!/assets
-!/.env
-!/web-api
