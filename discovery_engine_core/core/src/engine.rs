@@ -197,6 +197,10 @@ impl Engine {
         #[cfg(feature = "storage")] storage: BoxedStorage,
         providers: Providers,
     ) -> Result<Self, Error> {
+        if stack_ops.is_empty() {
+            return Err(Error::NoStackOps);
+        }
+
         let stacks = stack_ops
             .into_iter()
             .map(|ops| {
@@ -214,7 +218,6 @@ impl Engine {
         )
         .map_err(Error::InvalidStack)?;
 
-        // we don't want to fail initialization if there are network problems
         let mut engine = Self {
             endpoint_config,
             core_config,
@@ -232,6 +235,7 @@ impl Engine {
             storage,
         };
 
+        // we don't want to fail initialization if there are network problems
         engine
             .update_stacks_for_all_markets(history, sources, usize::MAX)
             .await
@@ -244,6 +248,7 @@ impl Engine {
     #[allow(clippy::too_many_lines)]
     pub async fn from_config(
         config: InitConfig,
+        // TODO: change this to a boolean flag after DB migration
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
@@ -308,6 +313,12 @@ impl Engine {
             .map_err(|err| Error::Ranker(err.into()))?;
 
         // set the states
+        #[cfg(feature = "storage")]
+        let storage = {
+            let storage = SqliteStorage::connect("sqlite::memory:").await?;
+            storage.init_database().await?;
+            Box::new(storage) as BoxedStorage
+        };
         let stack_ops = vec![
             Box::new(BreakingNews::new(
                 &endpoint_config,
@@ -322,14 +333,24 @@ impl Engine {
                 providers.news.clone(),
             )) as _,
         ];
-        let (mut stack_data, state) = if let Some(state) = state {
-            if stack_ops.is_empty() {
-                return Err(Error::NoStackOps);
-            }
-            SerializedState::deserialize(state)?
+        #[cfg(feature = "storage")]
+        let (mut stack_data, state) = if state.is_some() {
+            storage
+                .state()
+                .fetch()
+                .await?
+                .map(|state| SerializedState::deserialize(&state))
+                .transpose()?
         } else {
-            (HashMap::default(), CoiSystemState::default())
-        };
+            storage.state().clear().await?;
+            None
+        }
+        .unwrap_or_default();
+        #[cfg(not(feature = "storage"))]
+        let (mut stack_data, state) = state
+            .map(SerializedState::deserialize)
+            .transpose()?
+            .unwrap_or_default();
         for id in stack_ops.iter().map(Ops::id).chain(once(Exploration::id())) {
             if let Ok(alpha) = de_config.extract_inner::<f32>(&format!("stacks.{id}.alpha")) {
                 stack_data.entry(id).or_default().alpha = alpha;
@@ -338,13 +359,6 @@ impl Engine {
                 stack_data.entry(id).or_default().beta = beta;
             }
         }
-
-        #[cfg(feature = "storage")]
-        let storage = {
-            let storage = SqliteStorage::connect("sqlite::memory:").await?;
-            storage.init_database().await?;
-            Box::new(storage) as _
-        };
 
         Self::new(
             endpoint_config,
@@ -400,6 +414,7 @@ impl Engine {
     }
 
     /// Serializes the state of the `Engine` and `Ranker` state.
+    // TODO: remove the ffi for this method and reduce its visibility after DB migration
     pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
         let stacks = self.stacks.read().await;
         let mut stacks_data = stacks
@@ -419,8 +434,17 @@ impl Engine {
             .map(SerializedCoiSystemState)
             .map_err(Error::Serialization)?;
 
-        bincode::serialize(&SerializedState { stacks, coi })
-            .map_err(|err| Error::Serialization(err.into()))
+        let state = bincode::serialize(&SerializedState { stacks, coi })
+            .map_err(|err| Error::Serialization(err.into()))?;
+
+        #[cfg(feature = "storage")]
+        {
+            self.storage.state().store(state).await?;
+            Ok(Vec::new())
+        }
+
+        #[cfg(not(feature = "storage"))]
+        Ok(state)
     }
 
     /// Updates the markets configuration.
@@ -505,6 +529,7 @@ impl Engine {
             all_stacks,
         )?
         .select(self.feed_config.max_docs_per_batch)?;
+        drop(stacks); // guard
         for document in &documents {
             debug!(
                 document = %document.id,
@@ -521,6 +546,7 @@ impl Engine {
                 .feed()
                 .store_documents(&documents, &stack_ids)
                 .await?;
+            self.serialize().await?;
         }
 
         Ok(documents)
@@ -611,6 +637,9 @@ impl Engine {
             &self.coi,
             &self.state.user_interests,
         );
+
+        #[cfg(feature = "storage")]
+        self.serialize().await?;
 
         Ok(())
     }
@@ -744,6 +773,10 @@ impl Engine {
                 return Err(Error::StackOpFailed(stack::Error::NoHistory));
             }
         }
+        drop(stacks); // guard
+
+        #[cfg(feature = "storage")]
+        self.serialize().await?;
 
         Ok(document)
     }
@@ -787,6 +820,7 @@ impl Engine {
                 .search()
                 .store_new_search(&search, &documents)
                 .await?;
+            self.serialize().await?;
         }
 
         Ok(documents)
@@ -829,6 +863,7 @@ impl Engine {
                 .search()
                 .store_new_search(&search, &documents)
                 .await?;
+            self.serialize().await?;
         }
 
         Ok(documents)
@@ -889,6 +924,7 @@ impl Engine {
                         .as_slice(),
                 )
                 .await?;
+            self.serialize().await?;
 
             Ok(documents)
         }
@@ -1557,6 +1593,14 @@ pub(crate) mod tests {
         );
 
         // reset the stacks and states
+        #[cfg(feature = "storage")]
+        {
+            engine.storage = {
+                let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+                storage.init_database().await.unwrap();
+                Box::new(storage) as BoxedStorage
+            };
+        }
         engine.stacks = RwLock::new(
             stack_ops
                 .into_iter()

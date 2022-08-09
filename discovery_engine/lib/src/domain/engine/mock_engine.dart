@@ -233,8 +233,8 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<TrendingTopic>> getTrendingTopics() async {
-    _incrementCount('getTrendingTopics');
+  Future<List<TrendingTopic>> trendingTopics() async {
+    _incrementCount('trendingTopics');
     return [mockTrendingTopic];
   }
 
