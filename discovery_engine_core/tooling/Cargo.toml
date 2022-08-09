@@ -6,15 +6,12 @@ edition = "2021"
 
 [[bin]]
 name = "newscatcher"
-path = "bin/newscatcher.rs"
 
 [[bin]]
 name = "clean_sources"
-path = "bin/clean_sources.rs"
 
 [[bin]]
 name = "discovery_engine"
-path = "bin/discovery_engine.rs"
 
 [dependencies]
 anyhow = "1.0.59"
