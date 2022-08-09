@@ -24,8 +24,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         ActiveSearchRequestSucceeded,
         DiscoveryEngine,
         RestoreActiveSearchFailed,
-        SearchFailureReason,
-        cfgFeatureStorage;
+        SearchFailureReason;
 import 'package:xayn_discovery_engine/src/api/api.dart';
 
 import '../logging.dart' show setupLogging;
@@ -177,7 +176,5 @@ void main() {
         equals(SearchFailureReason.openActiveSearch),
       );
     });
-    //TODO[pmk] fails with storage but should not
-    //ignore: require_trailing_commas
-  }, skip: cfgFeatureStorage);
+  });
 }

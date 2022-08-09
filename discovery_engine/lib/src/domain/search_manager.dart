@@ -210,7 +210,7 @@ class SearchManager {
         docs = await _engine.restoreSearch();
       } on Exception catch (e) {
         if (e.toString().contains('Search request failed: no search')) {
-          return const EngineEvent.nextActiveSearchBatchRequestFailed(
+          return const EngineEvent.restoreActiveSearchFailed(
             SearchFailureReason.noActiveSearch,
           );
         }
@@ -385,7 +385,7 @@ class SearchManager {
         await _engine.closeSearch();
       } on Exception catch (e) {
         if (e.toString().contains('Search request failed: no search')) {
-          return const EngineEvent.activeSearchTermRequestFailed(
+          return const EngineEvent.activeSearchClosedFailed(
             SearchFailureReason.noActiveSearch,
           );
         }
