@@ -36,6 +36,3 @@ storage = ["xayn-discovery-engine-core/storage"]
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
-
-[features]
-storage = ["xayn-discovery-engine-core/storage"]
