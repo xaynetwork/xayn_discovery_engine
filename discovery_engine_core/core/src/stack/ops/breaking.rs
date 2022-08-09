@@ -39,7 +39,7 @@ use crate::{
 use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for breaking news items.
-pub(crate) struct BreakingNews {
+pub struct BreakingNews {
     client: Arc<dyn HeadlinesProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
@@ -61,8 +61,12 @@ impl BreakingNews {
         }
     }
 
-    pub(crate) const fn id() -> Id {
+    pub const fn id() -> Id {
         Id(uuid!("1ce442c8-8a96-433e-91db-c0bee37e5a83"))
+    }
+
+    pub const fn name() -> &'static str {
+        "BreakingNews"
     }
 
     /// Filter `articles` based on `stack` documents.

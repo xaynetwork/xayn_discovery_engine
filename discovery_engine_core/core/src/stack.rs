@@ -35,14 +35,15 @@ pub(crate) mod exploration;
 pub(crate) mod filters;
 pub(crate) mod ops;
 
-pub use self::ops::{BoxedOps, Ops};
-pub(crate) use self::{
-    data::Data,
+pub(crate) use self::{data::Data, ops::NewItemsError};
+pub use self::{
+    exploration::Stack as Exploration,
     ops::{
         breaking::BreakingNews,
         personalized::PersonalizedNews,
         trusted::TrustedNews,
-        NewItemsError,
+        BoxedOps,
+        Ops,
     },
 };
 
@@ -101,6 +102,20 @@ impl Id {
 
     pub(crate) fn is_nil(&self) -> bool {
         self.0.is_nil()
+    }
+
+    pub fn name(&self) -> Option<&'static str> {
+        match self {
+            id if id == &exploration::Stack::id() => Some(exploration::Stack::name()),
+            id if id == &ops::breaking::BreakingNews::id() => {
+                Some(ops::breaking::BreakingNews::name())
+            }
+            id if id == &ops::personalized::PersonalizedNews::id() => {
+                Some(ops::personalized::PersonalizedNews::name())
+            }
+            id if id == &ops::trusted::TrustedNews::id() => Some(ops::trusted::TrustedNews::name()),
+            _ => None,
+        }
     }
 }
 

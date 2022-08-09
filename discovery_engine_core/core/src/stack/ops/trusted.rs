@@ -39,7 +39,7 @@ use crate::{
 use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for trusted news.
-pub(crate) struct TrustedNews {
+pub struct TrustedNews {
     client: Arc<dyn TrustedHeadlinesProvider>,
     sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
@@ -49,8 +49,12 @@ pub(crate) struct TrustedNews {
 }
 
 impl TrustedNews {
-    pub(crate) const fn id() -> Id {
+    pub const fn id() -> Id {
         Id(uuid!("d0f699d8-60d2-4008-b3a1-df1cffc4b8a3"))
+    }
+
+    pub const fn name() -> &'static str {
+        "TrustedNews"
     }
 
     #[allow(unused)]
