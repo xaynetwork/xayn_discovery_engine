@@ -53,6 +53,7 @@ void main() {
     });
 
     test('change the user reaction of a document', () async {
+      data.useInMemoryDb = false;
       var engine = await initEngine(data, server.port);
 
       // fetch some documents
@@ -112,7 +113,5 @@ void main() {
       );
       await engine.dispose();
     });
-    //TODO[pmk] fails with storage but should not
-    //ignore: require_trailing_commas
-  }, skip: cfgFeatureStorage);
+  });
 }

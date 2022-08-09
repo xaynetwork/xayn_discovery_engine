@@ -28,10 +28,15 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
 class TestEngineData {
   final Manifest manifest;
   final String applicationDirectoryPath;
-  TestEngineData(this.manifest, this.applicationDirectoryPath);
+  bool useInMemoryDb;
+  TestEngineData(
+    this.manifest,
+    this.applicationDirectoryPath, {
+    this.useInMemoryDb = true,
+  });
 }
 
-Future<TestEngineData> setupTestEngineData() async {
+Future<TestEngineData> setupTestEngineData({bool useInMemoryDb = true}) async {
   final applicationDirectoryPath =
       (await Directory.systemTemp.createTemp()).path;
   await Link(
@@ -53,13 +58,14 @@ Future<TestEngineData> setupTestEngineData() async {
     return asset;
   }).toList();
   final mockedManifest = Manifest(assetsWithMockedModels);
-  return TestEngineData(mockedManifest, applicationDirectoryPath);
+  return TestEngineData(
+    mockedManifest,
+    applicationDirectoryPath,
+    useInMemoryDb: useInMemoryDb,
+  );
 }
 
-Configuration createConfig(
-  TestEngineData data,
-  int serverPort,
-) {
+Configuration createConfig(TestEngineData data, int serverPort) {
   return Configuration(
     apiKey: '**********',
     apiBaseUrl: 'http://127.0.0.1:$serverPort',
@@ -71,6 +77,7 @@ Configuration createConfig(
     manifest: data.manifest,
     headlinesProviderPath: '/newscatcher/v1/latest-headlines',
     newsProviderPath: '/newscatcher/v1/search-news',
+    useInMemoryDb: data.useInMemoryDb,
   );
 }
 

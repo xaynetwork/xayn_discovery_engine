@@ -52,6 +52,7 @@ void main() {
     });
 
     test('log the view time of a document', () async {
+      data.useInMemoryDb = false;
       var engine = await initEngine(data, server.port);
 
       // fetch some documents
