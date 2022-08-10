@@ -351,9 +351,9 @@ _dart-publish $WORKSPACE:
 
 # This should only be run by the CI
 _ci-dart-publish:
-    {{just_executable()}} _dart-publish "$FLUTTER_WORKSPACE"
     {{just_executable()}} _dart-publish "$DART_UTILS_WORKSPACE"
     {{just_executable()}} _dart-publish "$DART_WORKSPACE"
+    {{just_executable()}} _dart-publish "$FLUTTER_WORKSPACE"
 
 build-web-service:
     #!/usr/bin/env bash
