@@ -6,17 +6,21 @@ edition = "2021"
 
 [[bin]]
 name = "newscatcher"
-path = "bin/newscatcher.rs"
 
 [[bin]]
 name = "clean_sources"
-path = "bin/clean_sources.rs"
+
+[[bin]]
+name = "discovery_engine"
 
 [dependencies]
 anyhow = "1.0.59"
+clap = { version = "3.2.16", features = ["derive"] }
 csv = "1.1.6"
-serde_json = "1.0.82"
-serde_path_to_error = "0.1.8"
+serde = { version = "1.0.143", features = ["derive"] }
+serde_json = "1.0.83"
 tokio = { version = "1.20.1", features = ["fs"] }
 url = "2.2.2"
+xayn-discovery-engine-ai = { path = "../ai/ai" }
+xayn-discovery-engine-core = { path = "../core" }
 xayn-discovery-engine-providers = { path = "../providers" }

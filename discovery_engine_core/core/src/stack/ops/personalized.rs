@@ -40,7 +40,7 @@ use crate::{
 use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for personalized news items.
-pub(crate) struct PersonalizedNews {
+pub struct PersonalizedNews {
     client: Arc<dyn NewsProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
@@ -50,8 +50,12 @@ pub(crate) struct PersonalizedNews {
 }
 
 impl PersonalizedNews {
-    pub(crate) const fn id() -> Id {
+    pub const fn id() -> Id {
         Id(uuid!("311dc7eb-5fc7-4aa4-8232-e119f7e80e76"))
+    }
+
+    pub const fn name() -> &'static str {
+        "PersonalizedNews"
     }
 
     /// Creates a personalized news stack.

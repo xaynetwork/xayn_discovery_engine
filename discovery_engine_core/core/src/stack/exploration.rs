@@ -30,7 +30,7 @@ mod selection;
 pub(crate) use self::selection::Error;
 
 #[derive(Debug)]
-pub(crate) struct Stack {
+pub struct Stack {
     pub(crate) data: Data,
     config: Config,
 }
@@ -43,8 +43,12 @@ impl Stack {
     }
 
     /// [`Id`] of this `Stack`.
-    pub(crate) const fn id() -> Id {
+    pub const fn id() -> Id {
         Id(uuid!("77cf9280-bb93-4158-b660-8732927e0dcc"))
+    }
+
+    pub const fn name() -> &'static str {
+        "Exploration"
     }
 
     /// Updates the internal documents with the new one and returns an updated [`Stack`].
