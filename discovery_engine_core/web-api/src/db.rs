@@ -64,7 +64,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
         .with_token_size(64)?
         .build()?;
 
-    let file = File::open(&config.data_store).expect("Couldn't open the file");
+    let file = File::open(&config.data_store).expect("Couldn't open the data file");
     let articles: Vec<Article> = from_reader(file).expect("Couldn't deserialize json");
     let documents = articles
         .into_iter()

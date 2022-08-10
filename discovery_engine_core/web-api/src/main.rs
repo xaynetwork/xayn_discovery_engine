@@ -31,7 +31,6 @@
 )]
 
 use db::{init_db, InitConfig};
-use dotenvy::dotenv;
 use routes::api_routes;
 use std::{env, net::IpAddr};
 
@@ -42,12 +41,13 @@ mod routes;
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
+    let pg_url = env::var("DE_POSTGRES_URL");
 
     let path = env::current_dir().unwrap();
-    let smbert_vocab = path.join(env::var("DE_SMBERT_VOCAB").unwrap());
-    let smbert_model = path.join(env::var("DE_SMBERT_MODEL").unwrap());
-    let data_store = path.join(env::var("DE_DATA_PATH").unwrap());
+    let smbert_vocab = path.join(dotenvy::var("DE_SMBERT_VOCAB").unwrap());
+    let smbert_model = path.join(dotenvy::var("DE_SMBERT_MODEL").unwrap());
+    let data_store = path.join(dotenvy::var("DE_DATA_PATH").unwrap());
+    let _pg_url = pg_url.or_else(|_| dotenvy::var("DE_POSTGRES_URL")).unwrap();
 
     let port = env::var("DE_PORT")
         .unwrap_or_else(|_| "3000".to_string())
