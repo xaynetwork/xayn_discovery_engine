@@ -189,32 +189,32 @@ rust-test: _codegen-order-workaround download-assets
     cd "$RUST_WORKSPACE";
     cargo test --lib --bins --tests --quiet --locked
     cargo test --doc --quiet --locked
-    cargo test --lib --features storage --quiet --locked
 
 # Tests dart and rust
 test: rust-test dart-test flutter-test
 
-#TODO[pmk] split dart-test-storage, rust-test-storage, add as dep to test:, maybe dart-test, rust-test
-test-storage: _codegen-order-workaround download-assets
-    #!/usr/bin/env bash
-    set -eux -o pipefail
-    pushd "$RUST_WORKSPACE"
-    cargo test -p xayn-discovery-engine-core --features storage
-    cargo test -p xayn-discovery-engine-bindings --features storage
+rust-storage-test:
+    cd "$RUST_WORKSPACE"; \
+    cargo test -p xayn-discovery-engine-core --features storage --locked; \
+    cargo test -p xayn-discovery-engine-bindings --features storage --locked
+
+rust-storage-check:
+    cd "$RUST_WORKSPACE"; \
+    cargo clippy --all-targets --features storage --locked
+
+rust-storage-build:
+    cd "$RUST_WORKSPACE"; \
     cargo build -p xayn-discovery-engine-bindings --features storage
-    popd
-    pushd "$DART_WORKSPACE"
-    dart run ffigen --config ffigen.yaml
-    popd
-    pushd "$RUST_WORKSPACE"
-    cargo run -p async-bindgen-gen-dart -- \
-        --ffi-class XaynDiscoveryEngineBindingsFfi \
-        --genesis ../"$DART_WORKSPACE"/lib/src/ffi/genesis.ffigen.dart
-    popd
-    pushd "$DART_WORKSPACE"
-    dart run build_runner build --delete-conflicting-outputs
+
+_run-cbindgen-with-storage:
+    cd "$RUST_WORKSPACE"; \
+    cargo check --features storage
+
+dart-storage-build: _run-cbindgen-with-storage _run-ffigen _run-async-bindgen _run-build-runner
+
+dart-storage-test: rust-storage-build dart-storage-build
+    cd "$DART_WORKSPACE"; \
     dart test
-    popd
 
 # Cleans up all generated files
 clean-gen-files:
