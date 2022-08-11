@@ -1532,7 +1532,7 @@ async fn update_stacks<'a>(
             Ok(documents) => all_documents.extend(documents),
         };
     }
-    ready_stacks-=stacks_not_ready.len();
+    ready_stacks -= stacks_not_ready.len();
 
     // Since we need to de-duplicate not only the newly retrieved documents among themselves,
     // but also consider the existing documents in all stacks (not just the needy ones), we extract
