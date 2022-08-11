@@ -1160,7 +1160,16 @@ impl Engine {
         }
     }
 
-    /// Updates the trusted sources.
+    async fn filter_excluded_sources_for_all_stacks(&mut self, sources: &HashSet<String>) {
+        let mut stacks = self.stacks.write().await;
+        for stack in stacks.values_mut() {
+            stack.prune_by_excluded_sources(sources);
+        }
+        drop(stacks); // guard
+        self.exploration_stack.prune_by_excluded_sources(sources);
+    }
+
+    /// Sets a new list of trusted sources.
     pub async fn set_trusted_sources(
         &mut self,
         history: &[HistoricDocument],
@@ -1172,7 +1181,7 @@ impl Engine {
             .await
     }
 
-    /// Sets a new list of excluded sources
+    /// Sets a new list of excluded sources.
     pub async fn set_excluded_sources(
         &mut self,
         history: &[HistoricDocument],
@@ -1182,16 +1191,234 @@ impl Engine {
         let exclusion_set = excluded.iter().cloned().collect::<HashSet<_>>();
         *self.endpoint_config.excluded_sources.write().await = excluded;
 
-        let mut stacks = self.stacks.write().await;
-        for stack in stacks.values_mut() {
-            stack.prune_by_excluded_sources(&exclusion_set);
-        }
-        drop(stacks); // guard
-        self.exploration_stack
-            .prune_by_excluded_sources(&exclusion_set);
-
+        self.filter_excluded_sources_for_all_stacks(&exclusion_set)
+            .await;
         self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
+    }
+
+    /// Sets a new list of excluded and trusted sources.
+    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    pub async fn set_sources(
+        &mut self,
+        sources: &[WeightedSource],
+        excluded: Vec<String>,
+        trusted: Vec<String>,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "storage")]
+        {
+            let trusted_set = trusted.iter().cloned().collect::<HashSet<_>>();
+            let current_trusted = self.storage.source_preference().fetch_trusted().await?;
+            let trusted_changed = trusted_set != current_trusted;
+
+            let excluded_set = excluded.iter().cloned().collect::<HashSet<_>>();
+            let current_excluded = self.storage.source_preference().fetch_excluded().await?;
+            let excluded_changed = excluded_set != current_excluded;
+
+            if !trusted_changed && !excluded_changed {
+                return Ok(());
+            }
+
+            if trusted_changed {
+                self.storage
+                    .source_preference()
+                    .set_trusted(&trusted_set)
+                    .await?;
+                *self.endpoint_config.trusted_sources.write().await = trusted;
+            }
+
+            if excluded_changed {
+                self.storage
+                    .source_preference()
+                    .set_excluded(&excluded_set)
+                    .await?;
+                *self.endpoint_config.excluded_sources.write().await = excluded;
+                self.filter_excluded_sources_for_all_stacks(&excluded_set)
+                    .await;
+            }
+
+            let history = self.storage.fetch_history().await?;
+            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+                .await
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
+    /// Returns the trusted sources.
+    pub async fn trusted_sources(&mut self) -> Result<Vec<String>, Error> {
+        #[cfg(feature = "storage")]
+        {
+            self.storage
+                .source_preference()
+                .fetch_trusted()
+                .await
+                .map(|set| set.into_iter().collect())
+                .map_err(Into::into)
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
+    /// Returns the excluded sources.
+    pub async fn excluded_sources(&mut self) -> Result<Vec<String>, Error> {
+        #[cfg(feature = "storage")]
+        {
+            self.storage
+                .source_preference()
+                .fetch_excluded()
+                .await
+                .map(|set| set.into_iter().collect())
+                .map_err(Into::into)
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
+    /// Adds a trusted source.
+    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    pub async fn add_trusted_source(
+        &mut self,
+        sources: &[WeightedSource],
+        new_trusted: String,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "storage")]
+        {
+            let mut trusted = self.storage.source_preference().fetch_trusted().await?;
+            if !trusted.insert(new_trusted) {
+                return Ok(());
+            }
+
+            let old_excluded = self.storage.source_preference().fetch_excluded().await?;
+            self.storage
+                .source_preference()
+                .set_trusted(&trusted)
+                .await?;
+
+            if trusted.intersection(&old_excluded).next().is_some() {
+                // update the endpoint configuration's excluded sources,
+                // as the new_trusted source was previously an excluded source
+                let updated_excluded: HashSet<String> =
+                    old_excluded.difference(&trusted).cloned().collect();
+                *self.endpoint_config.excluded_sources.write().await =
+                    updated_excluded.iter().cloned().collect();
+                self.filter_excluded_sources_for_all_stacks(&updated_excluded)
+                    .await;
+            }
+
+            *self.endpoint_config.trusted_sources.write().await = trusted.iter().cloned().collect();
+            let history = self.storage.fetch_history().await?;
+            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+                .await
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
+    /// Removes a trusted source.
+    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    pub async fn remove_trusted_source(
+        &mut self,
+        sources: &[WeightedSource],
+        trusted: String,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "storage")]
+        {
+            let mut trusted_set = self.storage.source_preference().fetch_trusted().await?;
+            if !trusted_set.remove(&trusted) {
+                return Ok(());
+            }
+
+            self.storage
+                .source_preference()
+                .set_trusted(&trusted_set)
+                .await?;
+
+            *self.endpoint_config.trusted_sources.write().await =
+                trusted_set.iter().cloned().collect();
+
+            let history = self.storage.fetch_history().await?;
+            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+                .await
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
+    /// Adds an excluded source.
+    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    pub async fn add_excluded_source(
+        &mut self,
+        sources: &[WeightedSource],
+        new_excluded: String,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "storage")]
+        {
+            let mut excluded = self.storage.source_preference().fetch_excluded().await?;
+            if !excluded.insert(new_excluded) {
+                return Ok(());
+            }
+
+            let old_trusted = self.storage.source_preference().fetch_trusted().await?;
+            self.storage
+                .source_preference()
+                .set_excluded(&excluded)
+                .await?;
+
+            if excluded.intersection(&old_trusted).next().is_some() {
+                // update the endpoint configuration's trusted sources,
+                // as the new_excluded source contains was previously a trusted source
+                let updated_trusted = old_trusted.difference(&excluded).cloned().collect();
+                *self.endpoint_config.trusted_sources.write().await = updated_trusted;
+            }
+
+            *self.endpoint_config.excluded_sources.write().await =
+                excluded.iter().cloned().collect();
+            self.filter_excluded_sources_for_all_stacks(&excluded).await;
+
+            let history = self.storage.fetch_history().await?;
+            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+                .await
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
+    }
+
+    /// Removes an excluded source.
+    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    pub async fn remove_excluded_source(
+        &mut self,
+        sources: &[WeightedSource],
+        excluded: String,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "storage")]
+        {
+            let mut excluded_set = self.storage.source_preference().fetch_excluded().await?;
+            if !excluded_set.remove(&excluded) {
+                return Ok(());
+            }
+
+            self.storage
+                .source_preference()
+                .set_excluded(&excluded_set)
+                .await?;
+
+            *self.endpoint_config.excluded_sources.write().await =
+                excluded_set.iter().cloned().collect();
+
+            let history = self.storage.fetch_history().await?;
+            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+                .await
+        }
+
+        #[cfg(not(feature = "storage"))]
+        unimplemented!("requires 'storage' feature")
     }
 
     /// Resets the AI state
