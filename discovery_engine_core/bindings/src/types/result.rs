@@ -303,3 +303,37 @@ pub unsafe extern "C" fn get_result_search_string_err(
 pub unsafe extern "C" fn drop_result_search_string(res: *mut Result<Search, String>) {
     unsafe { boxed::drop(res) }
 }
+
+/// Returns a pointer to the `Vec<String>` success value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must point to a sound `Result<Vec<String>, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_result_vec_string_string_ok(
+    res: *mut Result<Vec<String>, String>,
+) -> *mut Vec<String> {
+    unsafe { get_result_ok(res) }
+}
+
+/// Returns a pointer to the `String` error value or a nullptr.
+///
+/// # Safety
+///
+/// - The pointer must point to a sound `Result<Vec<String>, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_result_vec_string_string_err(
+    res: *mut Result<Vec<String>, String>,
+) -> *mut String {
+    unsafe { get_result_err(res) }
+}
+
+/// Drops a `Box<Result<Vec<String>, String>>`.
+///
+/// # Safety
+///
+/// - The pointer must represent a valid `Box<Result<Vec<String>, String>` instance.
+#[no_mangle]
+pub unsafe extern "C" fn drop_result_vec_string_string(res: *mut Result<Vec<String>, String>) {
+    unsafe { boxed::drop(res) }
+}

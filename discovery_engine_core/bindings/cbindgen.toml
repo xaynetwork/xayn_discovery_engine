@@ -38,6 +38,7 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "Result_SharedEngine__String" = "RustResultSharedEngineString"
 "Result_String" = "RustResultVoidString"
 "Result_Vec_Document_____String" = "RustResultVecDocumentString"
+"Result_Vec_String_____String" = "RustResultVecStringString"
 "Result_Vec_TrendingTopic_____String" = "RustResultVecTrendingTopicString"
 "Result_Vec_u8_____String" = "RustResultVecU8String"
 "Search" = "RustSearch"

@@ -361,7 +361,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the trusted sources and updates the stacks based on that.
-    #[allow(clippy::box_collection)]
     pub async fn set_trusted_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
@@ -380,7 +379,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the excluded sources and updates the stacks based on that.
-    #[allow(clippy::box_collection)]
     pub async fn set_excluded_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
@@ -393,6 +391,118 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .lock()
                 .await
                 .set_excluded_sources(&history, &sources, *excluded)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Sets a new list of excluded and trusted sources.
+    pub async fn set_sources(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        excluded: Box<Vec<String>>,
+        trusted: Box<Vec<String>>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .set_sources(&sources, *excluded, *trusted)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Returns the trusted sources.
+    pub async fn get_trusted_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .trusted_sources()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Returns the excluded sources.
+    pub async fn get_excluded_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .excluded_sources()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Adds a trusted source.
+    pub async fn add_trusted_source(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        trusted: Box<String>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .add_trusted_source(&sources, *trusted)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Removes a trusted source.
+    pub async fn remove_trusted_source(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        trusted: Box<String>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .remove_trusted_source(&sources, *trusted)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Adds an excluded source.
+    pub async fn add_excluded_source(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        excluded: Box<String>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .add_excluded_source(&sources, *excluded)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Removes an excluded source.
+    pub async fn remove_excluded_source(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        excluded: Box<String>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .remove_excluded_source(&sources, *excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )
