@@ -98,7 +98,7 @@ impl Ops for TrustedNews {
     ) -> Result<Vec<GenericArticle>, NewItemsError> {
         let sources = Arc::new(self.sources.read().await.clone());
         if sources.is_empty() {
-            return Err(NewItemsError::NotReady);
+            return Err(NewItemsError::NotReady(self.id()));
         }
 
         request_min_new_items(

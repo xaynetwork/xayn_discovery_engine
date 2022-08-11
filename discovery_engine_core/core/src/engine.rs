@@ -1517,10 +1517,11 @@ async fn update_stacks<'a>(
         })
         .collect_vec();
 
+    let mut stacks_not_ready = HashSet::<StackId>::new();
     for maybe_new_documents in join_all(new_document_futures).await {
         match maybe_new_documents {
-            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady))) => {
-                ready_stacks -= 1;
+            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady(stack_id)))) => {
+                stacks_not_ready.insert(stack_id);
                 continue;
             }
             Err(error) => {
@@ -1531,6 +1532,7 @@ async fn update_stacks<'a>(
             Ok(documents) => all_documents.extend(documents),
         };
     }
+    ready_stacks-=stacks_not_ready.len();
 
     // Since we need to de-duplicate not only the newly retrieved documents among themselves,
     // but also consider the existing documents in all stacks (not just the needy ones), we extract
