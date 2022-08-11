@@ -1960,9 +1960,10 @@ pub(crate) mod tests {
         let engine = &mut *init_engine(
             [|_: &'_ _, _: &'_ _| {
                 let mut mock_ops = new_mock_stack_ops();
+                let id = mock_ops.id();
                 mock_ops
                     .expect_new_items()
-                    .returning(|_, _, _, _| Err(NewItemsError::NotReady));
+                    .returning(move |_, _, _, _| Err(NewItemsError::NotReady(id)));
                 Box::new(mock_ops) as _
             }],
             false,
