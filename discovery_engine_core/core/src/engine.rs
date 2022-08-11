@@ -741,26 +741,12 @@ impl Engine {
         match reaction {
             UserReaction::Positive => {
                 let smbert = &self.smbert;
-                let key_phrases = self
-                    .kpe
-                    .run(&document.resource.snippet)
-                    .or_else(|_| {
-                        self.kpe.run(format!(
-                            "{} {}",
-                            document.resource.title, document.resource.snippet
-                        ))
-                    })
-                    .map_or_else(
-                        #[allow(clippy::if_not_else)]
-                        |_| vec![document.resource.title_or_snippet().to_owned()],
-                        Into::into,
-                    );
                 self.coi.log_positive_user_reaction(
                     &mut self.state.user_interests.positive,
                     &market,
                     &mut self.state.key_phrases,
                     &document.smbert_embedding,
-                    &key_phrases,
+                    &[document.resource.snippet.clone()],
                     |words| smbert.run(words).map_err(Into::into),
                 );
             }
