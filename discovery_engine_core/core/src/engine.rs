@@ -343,7 +343,7 @@ impl Engine {
             )) as BoxedOps,
             Box::new(PersonalizedNews::new(
                 &endpoint_config,
-                providers.news.clone(),
+                providers.similar_news.clone(),
             )) as BoxedOps,
         ];
         let stack_config = stack_ops
@@ -2086,7 +2086,10 @@ pub(crate) mod tests {
                     )) as _
                 },
                 |config: &EndpointConfig, providers: &Providers| {
-                    Box::new(PersonalizedNews::new(config, providers.news.clone())) as _
+                    Box::new(PersonalizedNews::new(
+                        config,
+                        providers.similar_news.clone(),
+                    )) as _
                 },
             ],
             true,
