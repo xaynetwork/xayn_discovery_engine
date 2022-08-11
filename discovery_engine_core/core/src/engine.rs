@@ -300,6 +300,10 @@ impl Engine {
         let search_config = SearchConfig {
             max_docs_per_batch: config.max_docs_per_search_batch as usize,
         };
+        #[cfg(feature = "storage")]
+        let data_dir = std::path::PathBuf::from(&config.data_dir);
+        #[cfg(feature = "storage")]
+        let use_in_memory_db = config.use_in_memory_db;
         let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?
@@ -312,13 +316,19 @@ impl Engine {
             .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
 
-        // set the states
         #[cfg(feature = "storage")]
         let storage = {
-            let storage = SqliteStorage::connect("sqlite::memory:").await?;
+            let sqlite_uri = if use_in_memory_db {
+                "sqlite::memory:".into()
+            } else {
+                let db_path = data_dir.join("db.sqlite");
+                format!("sqlite:{}", db_path.display())
+            };
+            let storage = SqliteStorage::connect(&sqlite_uri).await?;
             storage.init_database().await?;
-            Box::new(storage) as BoxedStorage
+            Box::new(storage)
         };
+
         let stack_ops = vec![
             Box::new(BreakingNews::new(
                 &endpoint_config,
@@ -1579,6 +1589,8 @@ pub(crate) mod tests {
                     .unwrap_or(u32::MAX),
                 de_config: None,
                 log_file: None,
+                data_dir: "tmp_test_data_dir".into(),
+                use_in_memory_db: true,
             };
 
             // Now we can initialize the engine with no previous history or state. This should
