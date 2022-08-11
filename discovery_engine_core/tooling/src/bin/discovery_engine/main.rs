@@ -30,13 +30,17 @@
     clippy::must_use_candidate
 )]
 
+mod engine;
 mod io;
 
 use anyhow::Result;
 use clap::Parser;
 use xayn_discovery_engine_core::{document::UserReaction, stack};
 
-use crate::io::{Document, Input, Output};
+use crate::{
+    engine::TestEngine,
+    io::{Document, Input, Output},
+};
 
 /// Discovery engine for end-to-end tests.
 #[derive(Debug, Parser)]
@@ -48,19 +52,35 @@ struct Args {
     /// Path to the output JSON file.
     #[clap(long, short)]
     output: String,
+    /// Pretty prints the JSON output.
+    #[clap(action, long, short)]
+    pretty: bool,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
 
-    Input::read(args.input)?;
-    Output(vec![Document {
-        topic: "art".into(),
-        embedding: [1.0, 2.0, 3.0].into(),
-        stack: stack::BreakingNews::id(),
-        user_reaction: UserReaction::Positive,
-    }])
-    .write(args.output)?;
+    let input = Input::read(args.input)?;
+    let output = if input.provider == "dummy" {
+        Output(
+            [(
+                "a".into(),
+                vec![Document {
+                    topic: "art".into(),
+                    embedding: [1.0, 2.0, 3.0].into(),
+                    stack: stack::BreakingNews::id(),
+                    user_reaction: UserReaction::Positive,
+                }],
+            )]
+            .into(),
+        )
+    } else {
+        TestEngine::new(input.provider)
+            .await?
+            .run(input.num_runs, input.num_iterations, input.personas)
+            .await?
+    };
 
-    Ok(())
+    output.write(args.output, args.pretty)
 }

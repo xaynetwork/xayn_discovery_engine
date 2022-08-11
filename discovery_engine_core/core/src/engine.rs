@@ -1798,7 +1798,7 @@ pub(crate) mod tests {
 
             // The config mostly tells the engine were to find the model assets.
             // Here we use the mocked ones, for speed.
-            let asset_base = "../../discovery_engine_flutter/example/assets/";
+            let asset_base = "../../discovery_engine_flutter/example/assets";
             let config = InitConfig {
                 api_key: "test-token".into(),
                 api_base_url: server.uri(),
