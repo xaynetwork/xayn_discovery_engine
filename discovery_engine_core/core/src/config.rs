@@ -24,10 +24,39 @@ use tokio::{join, sync::RwLock};
 use xayn_discovery_engine_ai::CoiSystemConfig;
 use xayn_discovery_engine_providers::{Market, ProviderConfig};
 
-use crate::stack::{
-    exploration::Stack as Exploration,
-    ops::{breaking::BreakingNews, personalized::PersonalizedNews, trusted::TrustedNews},
+use crate::{
+    engine::Engine,
+    stack::{
+        exploration::Stack as Exploration,
+        ops::{breaking::BreakingNews, personalized::PersonalizedNews, trusted::TrustedNews},
+    },
 };
+
+impl Engine {
+    pub fn endpoint_config(&self) -> &EndpointConfig {
+        &self.endpoint_config
+    }
+
+    pub fn core_config(&self) -> &CoreConfig {
+        &self.core_config
+    }
+
+    pub fn feed_config(&self) -> &FeedConfig {
+        &self.feed_config
+    }
+
+    pub fn search_config(&self) -> &SearchConfig {
+        &self.search_config
+    }
+
+    pub fn coi_system_config(&self) -> &CoiSystemConfig {
+        self.coi.config()
+    }
+
+    pub fn exploration_config(&self) -> &ExplorationConfig {
+        &self.exploration_stack.config
+    }
+}
 
 /// Configuration settings to initialize the Discovery [`Engine`].
 ///
@@ -89,31 +118,31 @@ impl From<InitConfig> for ProviderConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(derivative::Derivative), derivative(Eq, PartialEq))]
 #[allow(clippy::unsafe_derive_deserialize)] // probably triggered by join! macro in the method
-pub(crate) struct EndpointConfig {
+pub struct EndpointConfig {
     /// Page size setting for API.
-    pub(crate) page_size: usize,
+    pub page_size: usize,
     /// Write-exclusive access to markets list.
     #[serde(skip)]
     #[cfg_attr(test, derivative(PartialEq = "ignore"))]
-    pub(crate) markets: Arc<RwLock<Vec<Market>>>,
+    pub markets: Arc<RwLock<Vec<Market>>>,
     /// Trusted sources for news queries.
     #[serde(skip)]
     #[cfg_attr(test, derivative(PartialEq = "ignore"))]
-    pub(crate) trusted_sources: Arc<RwLock<Vec<String>>>,
+    pub trusted_sources: Arc<RwLock<Vec<String>>>,
     /// Sources to exclude for news queries.
     #[serde(skip)]
     #[cfg_attr(test, derivative(PartialEq = "ignore"))]
-    pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
+    pub excluded_sources: Arc<RwLock<Vec<String>>>,
     /// The maximum number of requests to try to reach the number of `min_articles`.
-    pub(crate) max_requests: usize,
+    pub max_requests: usize,
     /// The minimum number of new articles to try to return when updating the stack.
-    pub(crate) min_articles: usize,
+    pub min_articles: usize,
     /// The maximum age of a headline, in days, after which we no longer
     /// want to display them.
-    pub(crate) max_headline_age_days: usize,
+    pub max_headline_age_days: usize,
     /// The maximum age of a news article, in days, after which we no longer
     /// want to display them.
-    pub(crate) max_article_age_days: usize,
+    pub max_article_age_days: usize,
 }
 
 impl Default for EndpointConfig {
@@ -152,30 +181,30 @@ impl EndpointConfig {
 /// Internal config to allow for configurations within the core without a mirroring outside impl.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
-pub(crate) struct CoreConfig {
+pub struct CoreConfig {
     /// The number of taken top key phrases while updating the stacks.
-    pub(crate) take_top: usize,
+    pub take_top: usize,
     /// The number of top documents per stack to keep while filtering the stacks.
-    pub(crate) keep_top: usize,
+    pub keep_top: usize,
     /// The lower bound of documents per stack at which new items are requested.
-    pub(crate) request_new: usize,
+    pub request_new: usize,
     /// The number of times to get feed documents after which the stacks are updated without the
     /// limitation of `request_new`.
-    pub(crate) request_after: usize,
+    pub request_after: usize,
     /// The maximum number of top key phrases extracted from the search term in the deep search.
-    pub(crate) deep_search_top: usize,
+    pub deep_search_top: usize,
     /// The maximum number of documents returned from the deep search.
-    pub(crate) deep_search_max: usize,
+    pub deep_search_max: usize,
     /// The minimum cosine similarity wrt the original document below which documents returned from
     /// the deep search are discarded.
-    pub(crate) deep_search_sim: f32,
+    pub deep_search_sim: f32,
     /// The probability for random exploration instead of greedy selection in the MAB.
-    pub(crate) epsilon: f32,
+    pub epsilon: f32,
     /// The maximum number of likes and dislikes after which the MAB parameters are rescaled.
-    pub(crate) max_reactions: usize,
+    pub max_reactions: usize,
     /// The value by how much the likes and dislikes are incremented when the MAB parameters are
     /// updated.
-    pub(crate) incr_reactions: f32,
+    pub incr_reactions: f32,
 }
 
 impl Default for CoreConfig {
@@ -215,14 +244,14 @@ impl Default for StackConfig {
 /// Configurations for the exploration stack.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
-pub(crate) struct ExplorationConfig {
+pub struct ExplorationConfig {
     /// The number of candidates.
-    pub(crate) number_of_candidates: usize,
+    pub number_of_candidates: usize,
     /// The maximum number of documents to keep.
-    pub(crate) max_selected_docs: usize,
+    pub max_selected_docs: usize,
     /// The maximum cosine similarity wrt to the closest coi below which documents are retained
     /// when the exploration stack is updated.
-    pub(crate) max_similarity: f32,
+    pub max_similarity: f32,
 }
 
 impl Default for ExplorationConfig {
@@ -237,9 +266,9 @@ impl Default for ExplorationConfig {
 
 /// Configurations for the feed.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub(crate) struct FeedConfig {
+pub struct FeedConfig {
     /// The maximum number of documents per feed batch.
-    pub(crate) max_docs_per_batch: usize,
+    pub max_docs_per_batch: usize,
 }
 
 impl FeedConfig {
@@ -253,9 +282,9 @@ impl FeedConfig {
 
 /// Configurations for the search.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub(crate) struct SearchConfig {
+pub struct SearchConfig {
     /// The maximum number of documents per search batch.
-    pub(crate) max_docs_per_batch: usize,
+    pub max_docs_per_batch: usize,
 }
 
 impl SearchConfig {

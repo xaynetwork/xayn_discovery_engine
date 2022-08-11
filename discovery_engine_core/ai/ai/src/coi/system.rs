@@ -37,6 +37,10 @@ pub struct CoiSystem {
 }
 
 impl CoiSystem {
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
     /// Updates the view time of the positive coi closest to the embedding.
     pub fn log_document_view_time(
         cois: &mut [PositiveCoi],

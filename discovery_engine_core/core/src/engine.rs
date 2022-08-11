@@ -155,21 +155,21 @@ pub enum Error {
 /// Discovery Engine.
 pub struct Engine {
     // configs
-    endpoint_config: EndpointConfig,
-    core_config: CoreConfig,
-    feed_config: FeedConfig,
-    search_config: SearchConfig,
+    pub(crate) endpoint_config: EndpointConfig,
+    pub(crate) core_config: CoreConfig,
+    pub(crate) feed_config: FeedConfig,
+    pub(crate) search_config: SearchConfig,
     request_after: usize,
 
     // systems
     smbert: SMBert,
-    coi: CoiSystem,
+    pub(crate) coi: CoiSystem,
     kpe: KPE,
     providers: Providers,
 
     // states
     stacks: RwLock<HashMap<StackId, Stack>>,
-    exploration_stack: Exploration,
+    pub(crate) exploration_stack: Exploration,
     state: CoiSystemState,
     #[cfg(feature = "storage")]
     storage: BoxedStorage,
@@ -1445,7 +1445,8 @@ impl Engine {
                 .map_err(Error::InvalidStack)?;
         self.state.reset();
 
-        self.update_stacks_for_all_markets(&[], &[], self.core_config.request_new)
+        self.request_after = 0;
+        self.update_stacks_for_all_markets(&[], &[], usize::MAX)
             .await
             .ok();
 

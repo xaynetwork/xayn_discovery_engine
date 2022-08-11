@@ -39,6 +39,6 @@ pub mod stack;
 pub mod storage;
 
 pub use crate::{
-    config::InitConfig,
+    config::{CoreConfig, EndpointConfig, ExplorationConfig, FeedConfig, InitConfig, SearchConfig},
     engine::{Engine, Error, SearchBy},
 };
