@@ -102,7 +102,12 @@ impl Ops for PersonalizedNews {
             return Err(NewItemsError::NotReady);
         }
 
-        let phrase = key_phrases[0].words(); // TODO maybe refactor key_phrases type later
+        let phrase = key_phrases
+            .iter()
+            .map(|kp| kp.words().to_string())
+            .reduce(|combined, kp| format!("{} {}", combined, kp))
+            .unwrap(/* nonempty key_phrases */);
+
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
 
         request_min_new_items(
