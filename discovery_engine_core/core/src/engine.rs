@@ -1988,6 +1988,50 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_stack_multiple_market_stack_not_ready() {
+        // When handling the errors in update_stacks we where counting
+        // a not ready stack for each market in the configuration.
+
+        let engine = &mut *init_engine(
+            [|_: &'_ _, _: &'_ _| {
+                let mut mock_ops = new_mock_stack_ops();
+                let id = mock_ops.id();
+                mock_ops
+                    .expect_new_items()
+                    .returning(move |_, _, _, _| Err(NewItemsError::NotReady(id)));
+                Box::new(mock_ops) as _
+            }],
+            false,
+        )
+        .await;
+
+        engine
+            .set_markets(
+                &[],
+                &[],
+                vec![Market::new("de", "DE"), Market::new("it", "IT")],
+            )
+            .await
+            .unwrap();
+
+        update_stacks(
+            &mut *engine.stacks.write().await,
+            &mut engine.exploration_stack,
+            &engine.smbert,
+            &engine.coi,
+            &mut engine.state,
+            &[],
+            &[],
+            10,
+            10,
+            10,
+            &[Market::new("en", "US")],
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
     async fn test_update_stack_no_error_when_one_stack_is_successful() {
         let engine = &mut *init_engine(
             [
