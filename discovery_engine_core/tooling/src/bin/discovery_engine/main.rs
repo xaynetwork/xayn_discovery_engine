@@ -53,8 +53,11 @@ struct Args {
     #[clap(long, short)]
     output: String,
     /// Pretty prints the JSON output.
-    #[clap(action, long, short)]
+    #[clap(action, long)]
     pretty: bool,
+    /// Displays engine progress to stderr.
+    #[clap(action, long)]
+    progress: bool,
 }
 
 #[tokio::main]
@@ -76,7 +79,7 @@ async fn main() -> Result<()> {
             .into(),
         )
     } else {
-        TestEngine::new(input.provider)
+        TestEngine::new(input.provider, args.progress)
             .await?
             .run(input.num_runs, input.num_iterations, input.personas)
             .await?
