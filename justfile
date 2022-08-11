@@ -317,8 +317,7 @@ _override-flutter-self-deps $VERSION:
     $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
     $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
 
-
-_dart-publish $WORKSPACE:
+_override-dart-deps $WORKSPACE $VERSION:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$WORKSPACE"
@@ -332,6 +331,16 @@ _dart-publish $WORKSPACE:
 
     # Dependency overrides are not allowed in published dart packages
     $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
+    $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
+
+_dart-publish $WORKSPACE $VERSION:
+    cd "$WORKSPACE"; \
+    dart pub publish --force
+
+# This should only be run by the CI
+_ci-dart-publish:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
 
     # Use the branch name as metadata, replace invalid characters with "-".
     VERSION_METADATA="$(git rev-parse --abbrev-ref HEAD | sed s/[^0-9a-zA-Z-]/-/g )"
@@ -346,14 +355,13 @@ _dart-publish $WORKSPACE:
     VERSION="0.${TIMESTAMP}.0+${VERSION_METADATA}"
     echo "Version: $VERSION"
 
-    $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
-    dart pub publish --force
+    {{just_executable()}} _override-dart-deps "${DART_UTILS_WORKSPACE}" "${VERSION}"
+    {{just_executable()}} _override-dart-deps "${DART_WORKSPACE}" "${VERSION}"
+    {{just_executable()}} _override-dart-deps "${FLUTTER_WORKSPACE}" "${VERSION}"
 
-# This should only be run by the CI
-_ci-dart-publish:
-    {{just_executable()}} _dart-publish "$DART_UTILS_WORKSPACE"
-    {{just_executable()}} _dart-publish "$DART_WORKSPACE"
-    {{just_executable()}} _dart-publish "$FLUTTER_WORKSPACE"
+    {{just_executable()}} _dart-publish "${DART_UTILS_WORKSPACE}" "${VERSION}"
+    {{just_executable()}} _dart-publish "${FLUTTER_WORKSPACE}" "${VERSION}"
+    {{just_executable()}} _dart-publish "${DART_WORKSPACE}" "${VERSION}"
 
 build-web-service:
     #!/usr/bin/env bash
