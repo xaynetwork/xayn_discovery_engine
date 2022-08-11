@@ -1157,16 +1157,7 @@ impl Engine {
         sources: &[WeightedSource],
         trusted: Vec<String>,
     ) -> Result<(), Error> {
-        let sources_set = trusted.iter().cloned().collect::<HashSet<_>>();
         *self.endpoint_config.trusted_sources.write().await = trusted;
-
-        let mut stacks = self.stacks.write().await;
-        for stack in stacks.values_mut() {
-            stack.prune_by_sources(&sources_set, false);
-        }
-        drop(stacks); // guard
-        self.exploration_stack.prune_by_sources(&sources_set, false);
-
         self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
     }
@@ -1183,11 +1174,11 @@ impl Engine {
 
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
-            stack.prune_by_sources(&exclusion_set, true);
+            stack.prune_by_excluded_sources(&exclusion_set);
         }
         drop(stacks); // guard
         self.exploration_stack
-            .prune_by_sources(&exclusion_set, true);
+            .prune_by_excluded_sources(&exclusion_set);
 
         self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
