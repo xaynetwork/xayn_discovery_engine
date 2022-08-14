@@ -37,20 +37,37 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
 
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
 fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
-    let dates = || {
-        documents
-            .iter()
-            .map(|document| document.resource.date_published)
-            .enumerate()
-    };
+    let size = documents.len();
 
-    dates()
-        .cartesian_product(dates())
-        .filter_map(|((i, this), (j, other))| {
-            #[allow(clippy::cast_precision_loss)] // day difference is small
-            (i < j).then(|| (this - other).num_days().abs() as f32)
-        })
-        .collect()
+    if size < 2 {
+        return vec![0.0; 0];
+    }
+
+    let triangle_number = size * (size - 1) / 2;
+    let mut distances = vec![0.0; triangle_number];
+    let mut primary_index = 0;
+    let mut col_count = size - 1;
+    let mut col = 0;
+
+    for i in 0..triangle_number {
+        if col == col_count {
+            col_count -= 1;
+            col = 0;
+            primary_index += 1;
+        }
+
+        col += 1;
+
+        let secondary_index = primary_index + col;
+        let doc_a = &documents[primary_index];
+        let doc_b = &documents[secondary_index];
+        let entry_a = doc_a.resource.date_published;
+        let entry_b = doc_b.resource.date_published;
+
+        distances[i] = (entry_a - entry_b).num_days().abs() as f32;
+    }
+
+    distances
 }
 
 /// Computes the condensed decayed date distance matrix.
