@@ -50,6 +50,7 @@ fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
     let mut col_count = size - 1;
     let mut col = 0;
 
+    #[allow(clippy::needless_range_loop)]
     for i in 0..triangle_number {
         if col == col_count {
             col_count -= 1;
