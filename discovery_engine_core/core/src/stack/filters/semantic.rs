@@ -45,30 +45,29 @@ fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
     }
 
     let triangle_number = size * (size - 1) / 2;
-    let mut distances = Vec::with_capacity(triangle_number);
     let mut primary_index = 0;
     let mut col_count = size - 1;
     let mut col = 0;
 
-    for _i in 0..triangle_number {
-        if col == col_count {
-            col_count -= 1;
-            col = 0;
-            primary_index += 1;
-        }
+    (1..triangle_number)
+        .map(|_i| {
+            if col == col_count {
+                col_count -= 1;
+                col = 0;
+                primary_index += 1;
+            }
 
-        col += 1;
+            col += 1;
 
-        let secondary_index = primary_index + col;
-        let doc_a = &documents[primary_index];
-        let doc_b = &documents[secondary_index];
-        let entry_a = doc_a.resource.date_published;
-        let entry_b = doc_b.resource.date_published;
+            let secondary_index = primary_index + col;
+            let doc_a = &documents[primary_index];
+            let doc_b = &documents[secondary_index];
+            let entry_a = doc_a.resource.date_published;
+            let entry_b = doc_b.resource.date_published;
 
-        distances.push((entry_a - entry_b).num_days().abs() as f32);
-    }
-
-    distances
+            (entry_a - entry_b).num_days().abs() as f32
+        })
+        .collect()
 }
 
 /// Computes the condensed decayed date distance matrix.
