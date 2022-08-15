@@ -44,7 +44,7 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
 /// C   -    -    -
 ///
 /// The symbol - stands for entries that we don't need, whereas * are items that we do want.
-/// This is basically what cartesian_product > filter_map (i < j).then did before.
+/// This is basically what `cartesian_product` > filter_map (i < j).then did before.
 #[allow(clippy::cast_precision_loss)] // day difference is small
 fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
     let size = documents.len();
