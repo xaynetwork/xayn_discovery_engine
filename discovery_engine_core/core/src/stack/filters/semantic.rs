@@ -36,22 +36,30 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
 }
 
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
+/// Follows the triangle number pattern, if we present dates & dates as a matrix, where dates equals [A, B, C], then:
+///
+///     A    B    C
+/// A   -    *    *
+/// B   -    -    *
+/// C   -    -    -
+///
+/// The symbol - stands for entries that we don't need, whereas * are items that we do want.
+/// This is basically what cartesian_product > filter_map (i < j).then did before.
 #[allow(clippy::cast_precision_loss)] // day difference is small
 fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
     let size = documents.len();
 
     if size < 2 {
-        return vec![0.0; 0];
+        return Vec::with_capacity(0);
     }
 
     let triangle_number = size * (size - 1) / 2;
-    let mut distances = vec![0.0; triangle_number];
+    let mut distances = Vec::with_capacity(triangle_number);
     let mut primary_index = 0;
     let mut col_count = size - 1;
     let mut col = 0;
 
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..triangle_number {
+    for _i in 0..triangle_number {
         if col == col_count {
             col_count -= 1;
             col = 0;
@@ -66,7 +74,7 @@ fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
         let entry_a = doc_a.resource.date_published;
         let entry_b = doc_b.resource.date_published;
 
-        distances[i] = (entry_a - entry_b).num_days().abs() as f32;
+        distances.push((entry_a - entry_b).num_days().abs() as f32);
     }
 
     distances
