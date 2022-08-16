@@ -86,6 +86,7 @@ where
 
     let norms = iter.clone().map(|a| l2_norm(a.view())).collect::<Vec<_>>();
     let mut similarities = Array2::ones((size, size));
+
     for ((i, a), (j, b)) in iter
         .clone()
         .enumerate()
@@ -97,6 +98,36 @@ where
     }
 
     similarities
+}
+
+pub fn triangular_product<T, R, F>(iter: &[T], f: F) -> Vec<R>
+where
+    F: Fn(&T, &T) -> R,
+{
+    let size = iter.len();
+
+    if size < 2 {
+        return Vec::with_capacity(0);
+    }
+
+    let triangle_number = size * (size - 1) / 2;
+    let mut primary_index = 0;
+    let mut col_count = size - 1;
+    let mut col = 0;
+
+    (0..triangle_number)
+        .map(|_i| {
+            if col == col_count {
+                col_count -= 1;
+                col = 0;
+                primary_index += 1;
+            }
+
+            col += 1;
+
+            f(&iter[primary_index], &iter[primary_index + col])
+        })
+        .collect()
 }
 
 /// Computes the cosine similarity of two vectors.

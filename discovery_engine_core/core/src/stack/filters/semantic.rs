@@ -17,7 +17,12 @@ use std::collections::BTreeMap;
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
-use xayn_discovery_engine_ai::{cosine_similarity, nan_safe_f32_cmp, pairwise_cosine_similarity};
+use xayn_discovery_engine_ai::{
+    cosine_similarity,
+    nan_safe_f32_cmp,
+    pairwise_cosine_similarity,
+    triangular_product,
+};
 
 use crate::document::{Document, WeightedSource};
 
@@ -38,34 +43,11 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
 #[allow(clippy::cast_precision_loss)] // day difference is small
 fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
-    let size = documents.len();
-
-    if size < 2 {
-        return Vec::with_capacity(0);
-    }
-
-    let triangle_number = size * (size - 1) / 2;
-    let mut primary_index = 0;
-    let mut col_count = size - 1;
-    let mut col = 0;
-
-    (0..triangle_number)
-        .map(|_i| {
-            if col == col_count {
-                col_count -= 1;
-                col = 0;
-                primary_index += 1;
-            }
-
-            col += 1;
-
-            let (doc_a, doc_b) = (&documents[primary_index], &documents[primary_index + col]);
-
-            (doc_a.resource.date_published - doc_b.resource.date_published)
-                .num_days()
-                .abs() as f32
-        })
-        .collect()
+    triangular_product(documents, |doc_a: &Document, doc_b: &Document| {
+        (doc_a.resource.date_published - doc_b.resource.date_published)
+            .num_days()
+            .abs() as f32
+    })
 }
 
 /// Computes the condensed decayed date distance matrix.

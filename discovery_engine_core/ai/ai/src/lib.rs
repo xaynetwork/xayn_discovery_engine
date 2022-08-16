@@ -48,9 +48,7 @@ pub use crate::{
     },
     document::{Document, DocumentId},
     embedding::{
-        cosine_similarity,
-        pairwise_cosine_similarity,
-        Embedding,
+        cosine_similarity, pairwise_cosine_similarity, triangular_product, Embedding,
         MalformedBytesEmbedding,
     },
     error::GenericError,
