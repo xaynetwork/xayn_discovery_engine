@@ -36,23 +36,15 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
     triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
         let ni = norms[i];
         let nj = norms[j];
-        let will_take = ni > 0. && nj > 0.;
-        let mut value = 0.;
 
-        if ni > 0. && nj > 0. {
-            value = (doc_a
-                .smbert_embedding
-                .view()
-                .dot(&doc_b.smbert_embedding.view())
-                / ni
-                / nj)
-                .clamp(-1., 1.);
-        }
-
-        (will_take, value)
+        (doc_a
+            .smbert_embedding
+            .view()
+            .dot(&doc_b.smbert_embedding.view())
+            / ni
+            / nj)
+            .clamp(-1., 1.)
     })
-    .filter(|t| t.0)
-    .map(|t| t.1)
     .collect()
 }
 
