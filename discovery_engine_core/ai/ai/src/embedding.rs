@@ -100,23 +100,28 @@ where
     similarities
 }
 
-pub fn triangular_product<T, R, F>(iter: &[T], f: F) -> Vec<R>
+/// Computes the cosine similarity of two vectors.
+///
+/// See [`pairwise_cosine_similarity`] for details.
+pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
+    pairwise_cosine_similarity([a.view(), b.view()])[[0, 1]]
+}
+
+pub fn triangular_product<I, F, B>(
+    iter: &[I],
+    f: F,
+) -> TriangularProduct<'_, I, impl Iterator<Item = (usize, usize)>, F, B>
 where
-    F: Fn(&T, &T) -> R,
+    F: FnMut(&I, &I, usize, usize) -> B,
 {
     let size = iter.len();
-
-    if size < 2 {
-        return Vec::with_capacity(0);
-    }
-
     let triangle_number = size * (size - 1) / 2;
     let mut primary_index = 0;
     let mut col_count = size - 1;
     let mut col = 0;
 
-    (0..triangle_number)
-        .map(|_i| {
+    let sorted = (0..triangle_number)
+        .map(move |_i| {
             if col == col_count {
                 col_count -= 1;
                 col = 0;
@@ -125,16 +130,45 @@ where
 
             col += 1;
 
-            f(&iter[primary_index], &iter[primary_index + col])
+            (primary_index, primary_index + col)
         })
-        .collect()
+        .into_iter();
+
+    TriangularProduct {
+        orig: iter,
+        sorted: sorted,
+        f,
+    }
 }
 
-/// Computes the cosine similarity of two vectors.
-///
-/// See [`pairwise_cosine_similarity`] for details.
-pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
-    pairwise_cosine_similarity([a.view(), b.view()])[[0, 1]]
+pub struct TriangularProduct<'a, I, J, F, B>
+where
+    J: Iterator<Item = (usize, usize)>,
+    F: FnMut(&I, &I, usize, usize) -> B,
+{
+    orig: &'a [I],
+    sorted: J,
+    f: F,
+}
+
+impl<I, J, F, B> Iterator for TriangularProduct<'_, I, J, F, B>
+where
+    J: Iterator<Item = (usize, usize)>,
+    F: FnMut(&I, &I, usize, usize) -> B,
+{
+    type Item = B;
+
+    #[inline]
+    fn next(&mut self) -> Option<B> {
+        self.sorted
+            .next()
+            .map(|o| (self.f)(&(self.orig[o.0]), &(self.orig[o.1]), o.0, o.1))
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.sorted.size_hint()
+    }
 }
 
 #[cfg(test)]

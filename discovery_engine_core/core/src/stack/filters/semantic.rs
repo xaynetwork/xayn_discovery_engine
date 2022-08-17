@@ -43,11 +43,12 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
 #[allow(clippy::cast_precision_loss)] // day difference is small
 fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
-    triangular_product(documents, |doc_a: &Document, doc_b: &Document| {
+    triangular_product(documents, |doc_a: &Document, doc_b: &Document, _i, _j| {
         (doc_a.resource.date_published - doc_b.resource.date_published)
             .num_days()
             .abs() as f32
     })
+    .collect()
 }
 
 /// Computes the condensed decayed date distance matrix.
