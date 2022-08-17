@@ -17,12 +17,7 @@ use std::collections::BTreeMap;
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
-use xayn_discovery_engine_ai::{
-    cosine_similarity,
-    nan_safe_f32_cmp,
-    pairwise_cosine_similarity,
-    triangular_product,
-};
+use xayn_discovery_engine_ai::{cosine_similarity, nan_safe_f32_cmp, triangular_product};
 
 use crate::document::{Document, WeightedSource};
 
@@ -30,13 +25,34 @@ use super::source_weight;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
-    pairwise_cosine_similarity(
-        documents
-            .iter()
-            .map(|document| document.smbert_embedding.view()),
-    )
-    .indexed_iter()
-    .filter_map(|((i, j), &similarity)| (i < j).then(|| similarity))
+    let norms = documents
+        .iter()
+        .map(|a| {
+            let v = a.smbert_embedding.view();
+            v.dot(&v).sqrt()
+        })
+        .collect::<Vec<_>>();
+
+    triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
+        let ni = norms[i];
+        let nj = norms[j];
+        let will_take = ni > 0. && nj > 0.;
+        let mut value = 0.;
+
+        if ni > 0. && nj > 0. {
+            value = (doc_a
+                .smbert_embedding
+                .view()
+                .dot(&doc_b.smbert_embedding.view())
+                / ni
+                / nj)
+                .clamp(-1., 1.)
+        }
+
+        (will_take, value)
+    })
+    .filter(|t| t.0)
+    .map(|t| t.1)
     .collect()
 }
 
