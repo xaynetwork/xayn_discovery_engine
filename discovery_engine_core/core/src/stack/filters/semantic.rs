@@ -25,26 +25,28 @@ use super::source_weight;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
-    let norms = documents
-        .iter()
-        .map(|a| {
-            let v = a.smbert_embedding.view();
-            v.dot(&v).sqrt()
-        })
-        .collect::<Vec<_>>();
-
     triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
-        let ni = norms[i];
-        let nj = norms[j];
+        let mut value = 0.;
+        let v_a = documents[i].smbert_embedding.view();
+        let v_b = documents[j].smbert_embedding.view();
+        let ni = v_a.dot(&v_a).sqrt();
+        let nj = v_b.dot(&v_b).sqrt();
+        let will_take = ni > 0. && nj > 0.;
 
-        (doc_a
-            .smbert_embedding
-            .view()
-            .dot(&doc_b.smbert_embedding.view())
-            / ni
-            / nj)
-            .clamp(-1., 1.)
+        if will_take {
+            value = (doc_a
+                .smbert_embedding
+                .view()
+                .dot(&doc_b.smbert_embedding.view())
+                / ni
+                / nj)
+                .clamp(-1., 1.);
+        }
+
+        (will_take, value)
     })
+    .filter(|t| t.0)
+    .map(|t| t.1)
     .collect()
 }
 
