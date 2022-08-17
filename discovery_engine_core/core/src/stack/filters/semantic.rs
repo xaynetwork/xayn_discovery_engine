@@ -46,7 +46,7 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
                 .dot(&doc_b.smbert_embedding.view())
                 / ni
                 / nj)
-                .clamp(-1., 1.)
+                .clamp(-1., 1.);
         }
 
         (will_take, value)
