@@ -30,16 +30,14 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
         let v_b = doc_b.smbert_embedding.view();
         let ni = v_a.dot(&v_a).sqrt();
         let nj = v_b.dot(&v_b).sqrt();
-        let will_take = ni > 0. && nj > 0.;
 
-        if !will_take {
-            return (false, 0.);
+        if ni > 0. && nj > 0. {
+            return (true, (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.));
         }
 
-        (true, (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.))
+        (false, 0.)
     })
-    .filter(|t| t.0)
-    .map(|t| t.1)
+    .filter_map(|t| t.0.then(|| t.1))
     .collect()
 }
 
