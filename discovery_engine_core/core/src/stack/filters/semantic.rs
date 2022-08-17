@@ -317,6 +317,12 @@ mod tests {
         for n in 0..5 {
             let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
             let condensed = condensed_date_distance(&documents);
+            let size = condensed.len();
+
+            for i in 0..size {
+                println!("entry {}", condensed[i]);
+            } 
+            
             if n < 2 {
                 assert!(condensed.is_empty());
             } else {
