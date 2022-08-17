@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
-use xayn_discovery_engine_ai::{cosine_similarity, nan_safe_f32_cmp, triangular_product};
+use xayn_discovery_engine_ai::{cosine_similarity, l2_norm, nan_safe_f32_cmp, triangular_product};
 
 use crate::document::{Document, WeightedSource};
 
@@ -28,8 +28,8 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
     triangular_product(documents, |doc_a: &Document, doc_b: &Document, _i, _j| {
         let v_a = doc_a.smbert_embedding.view();
         let v_b = doc_b.smbert_embedding.view();
-        let ni = v_a.dot(&v_a).sqrt();
-        let nj = v_b.dot(&v_b).sqrt();
+        let ni = l2_norm(v_a);
+        let nj = l2_norm(v_b);
 
         if ni > 0. && nj > 0. {
             return (true, (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.));

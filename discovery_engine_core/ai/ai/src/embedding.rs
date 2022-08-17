@@ -31,7 +31,7 @@ pub type Embedding = Embedding1;
 /// # Panics
 /// Panics if the vector doesn't consist solely of real values.
 #[allow(clippy::needless_pass_by_value)] // pass by value needed for ArrayView
-pub(crate) fn l2_norm<S>(a: ArrayBase<S, Ix1>) -> f32
+pub fn l2_norm<S>(a: ArrayBase<S, Ix1>) -> f32
 where
     S: Data<Elem = f32>,
 {
