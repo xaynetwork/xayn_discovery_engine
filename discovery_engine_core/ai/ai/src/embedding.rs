@@ -114,29 +114,32 @@ pub fn triangular_product<I, F, B>(
 where
     F: FnMut(&I, &I, usize, usize) -> B,
 {
-    let size = iter.len();
+    let mut size = iter.len();
+
+    if size < 2 {
+        size = 1;
+    }
+
     let triangle_number = size * (size - 1) / 2;
     let mut primary_index = 0;
     let mut col_count = size - 1;
     let mut col = 0;
 
-    let sorted = (0..triangle_number)
-        .map(move |_i| {
-            if col == col_count {
-                col_count -= 1;
-                col = 0;
-                primary_index += 1;
-            }
+    let sorted = (0..triangle_number).map(move |_i| {
+        if col == col_count {
+            col_count -= 1;
+            col = 0;
+            primary_index += 1;
+        }
 
-            col += 1;
+        col += 1;
 
-            (primary_index, primary_index + col)
-        })
-        .into_iter();
+        (primary_index, primary_index + col)
+    });
 
     TriangularProduct {
         orig: iter,
-        sorted: sorted,
+        sorted,
         f,
     }
 }
