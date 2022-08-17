@@ -25,11 +25,21 @@ use super::source_weight;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
-    triangular_product(documents, |doc_a: &Document, doc_b: &Document, _i, _j| {
+    let norms = documents
+        .iter()
+        .map(|a| {
+            a.smbert_embedding
+                .view()
+                .dot(&a.smbert_embedding.view())
+                .sqrt()
+        })
+        .collect::<Vec<_>>();
+
+    triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
         let v_a = doc_a.smbert_embedding.view();
         let v_b = doc_b.smbert_embedding.view();
-        let ni = v_a.dot(&v_a).sqrt();
-        let nj = v_b.dot(&v_b).sqrt();
+        let ni = norms[i];
+        let nj = norms[j];
 
         if ni > 0. && nj > 0. {
             return (true, (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.));
@@ -317,12 +327,6 @@ mod tests {
         for n in 0..5 {
             let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
             let condensed = condensed_date_distance(&documents);
-            let size = condensed.len();
-
-            for i in 0..size {
-                println!("entry {}", condensed[i]);
-            } 
-            
             if n < 2 {
                 assert!(condensed.is_empty());
             } else {
