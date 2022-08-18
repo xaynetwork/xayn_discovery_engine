@@ -12,28 +12,42 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
 use xayn_discovery_engine_ai::{cosine_similarity, l2_norm, nan_safe_f32_cmp, triangular_product};
 
-use crate::document::{Document, WeightedSource};
+use crate::document::{Document, Id, WeightedSource};
 
 use super::source_weight;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 #[cfg(test)]
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
-    triangular_product(documents, condensed_cosine_similarity_single).collect()
+    let mut norms = HashMap::new();
+    triangular_product(documents, |doc_a: &Document, doc_b: &Document| {
+        condensed_cosine_similarity_single(doc_a, doc_b, &mut norms)
+    })
+    .collect()
 }
 
-fn condensed_cosine_similarity_single(doc_a: &Document, doc_b: &Document) -> f32 {
+fn condensed_cosine_similarity_single(
+    doc_a: &Document,
+    doc_b: &Document,
+    norms: &mut HashMap<Id, f32>,
+) -> f32 {
     let v_a = doc_a.smbert_embedding.view();
     let v_b = doc_b.smbert_embedding.view();
-    let ni = l2_norm(v_a);
-    let nj = l2_norm(v_b);
+    let ni = norms
+        .entry(doc_a.id)
+        .or_insert_with(|| l2_norm(v_a))
+        .clone();
+    let nj = norms
+        .entry(doc_b.id)
+        .or_insert_with(|| l2_norm(v_b))
+        .clone();
 
     if ni > 0. && nj > 0. {
         return (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.);
@@ -175,9 +189,10 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
+    let mut norms = HashMap::new();
     // simplified to a single loop, where the indiviudal values are calculated and finally returned as factor
     let combined: Vec<f32> = triangular_product(documents, |doc_a: &Document, doc_b: &Document| {
-        let similarity = condensed_cosine_similarity_single(doc_a, doc_b);
+        let similarity = condensed_cosine_similarity_single(doc_a, doc_b, &mut norms);
         let distance = condensed_date_distance_single(doc_a, doc_b);
         let decay = condensed_decay_factor_single(
             distance,
