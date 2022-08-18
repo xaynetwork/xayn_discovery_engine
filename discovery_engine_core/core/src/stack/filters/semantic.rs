@@ -40,14 +40,8 @@ fn condensed_cosine_similarity_single(
 ) -> f32 {
     let v_a = doc_a.smbert_embedding.view();
     let v_b = doc_b.smbert_embedding.view();
-    let ni = norms
-        .entry(doc_a.id)
-        .or_insert_with(|| l2_norm(v_a))
-        .clone();
-    let nj = norms
-        .entry(doc_b.id)
-        .or_insert_with(|| l2_norm(v_b))
-        .clone();
+    let ni = *norms.entry(doc_a.id).or_insert_with(|| l2_norm(v_a));
+    let nj = *norms.entry(doc_b.id).or_insert_with(|| l2_norm(v_b));
 
     if ni > 0. && nj > 0. {
         return (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.);
