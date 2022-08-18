@@ -19,7 +19,7 @@ use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
 use xayn_discovery_engine_ai::{cosine_similarity, l2_norm, nan_safe_f32_cmp, triangular_product};
 
-use crate::document::{Document, Id, WeightedSource};
+use crate::document::{Document, WeightedSource};
 
 use super::source_weight;
 
@@ -27,8 +27,8 @@ use super::source_weight;
 #[cfg(test)]
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
     let mut norms = HashMap::new();
-    triangular_product(documents, |doc_a: &Document, doc_b: &Document| {
-        condensed_cosine_similarity_single(doc_a, doc_b, &mut norms)
+    triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
+        condensed_cosine_similarity_single(doc_a, doc_b, i, j, &mut norms)
     })
     .collect()
 }
@@ -36,12 +36,14 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
 fn condensed_cosine_similarity_single(
     doc_a: &Document,
     doc_b: &Document,
-    norms: &mut HashMap<Id, f32>,
+    i: usize,
+    j: usize,
+    norms: &mut HashMap<usize, f32>,
 ) -> f32 {
     let v_a = doc_a.smbert_embedding.view();
     let v_b = doc_b.smbert_embedding.view();
-    let ni = *norms.entry(doc_a.id).or_insert_with(|| l2_norm(v_a));
-    let nj = *norms.entry(doc_b.id).or_insert_with(|| l2_norm(v_b));
+    let ni = *norms.entry(i).or_insert_with(|| l2_norm(v_a));
+    let nj = *norms.entry(j).or_insert_with(|| l2_norm(v_b));
 
     if ni > 0. && nj > 0. {
         return (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.);
@@ -57,7 +59,7 @@ fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
 }
 
 #[allow(clippy::cast_precision_loss)] // day difference is small
-fn condensed_date_distance_single(doc_a: &Document, doc_b: &Document) -> f32 {
+fn condensed_date_distance_single(doc_a: &Document, doc_b: &Document, _i: usize, _j: usize) -> f32 {
     (doc_a.resource.date_published - doc_b.resource.date_published)
         .num_days()
         .abs() as f32
@@ -185,17 +187,20 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
     let mut norms = HashMap::new();
     // simplified to a single loop, where the indiviudal values are calculated and finally returned as factor
-    let combined: Vec<f32> = triangular_product(documents, |doc_a: &Document, doc_b: &Document| {
-        let similarity = condensed_cosine_similarity_single(doc_a, doc_b, &mut norms);
-        let distance = condensed_date_distance_single(doc_a, doc_b);
-        let decay = condensed_decay_factor_single(
-            distance,
-            (-0.1 * config.max_days).exp(),
-            config.threshold,
-        );
+    let combined: Vec<f32> = triangular_product(
+        documents,
+        |doc_a: &Document, doc_b: &Document, i: usize, j: usize| {
+            let similarity = condensed_cosine_similarity_single(doc_a, doc_b, i, j, &mut norms);
+            let distance = condensed_date_distance_single(doc_a, doc_b, i, j);
+            let decay = condensed_decay_factor_single(
+                distance,
+                (-0.1 * config.max_days).exp(),
+                config.threshold,
+            );
 
-        similarity * decay
-    })
+            similarity * decay
+        },
+    )
     .collect();
 
     condensed_normalized_distance(combined)
