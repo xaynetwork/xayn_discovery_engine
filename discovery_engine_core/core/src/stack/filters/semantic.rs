@@ -24,34 +24,39 @@ use crate::document::{Document, WeightedSource};
 use super::source_weight;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
+#[cfg(test)]
 fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
-    triangular_product(documents, |doc_a: &Document, doc_b: &Document, _i, _j| {
-        let v_a = doc_a.smbert_embedding.view();
-        let v_b = doc_b.smbert_embedding.view();
-        let ni = l2_norm(v_a);
-        let nj = l2_norm(v_b);
+    triangular_product(documents, condensed_cosine_similarity_single).collect()
+}
 
-        if ni > 0. && nj > 0. {
-            return (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.);
-        }
+fn condensed_cosine_similarity_single(doc_a: &Document, doc_b: &Document) -> f32 {
+    let v_a = doc_a.smbert_embedding.view();
+    let v_b = doc_b.smbert_embedding.view();
+    let ni = l2_norm(v_a);
+    let nj = l2_norm(v_b);
 
-        1.0 // this seems not correct? following the original logic, which uses Array2::ones
-    })
-    .collect()
+    if ni > 0. && nj > 0. {
+        return (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.);
+    }
+
+    1.0
 }
 
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
-#[allow(clippy::cast_precision_loss)] // day difference is small
+#[cfg(test)]
 fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
-    triangular_product(documents, |doc_a: &Document, doc_b: &Document, _i, _j| {
-        (doc_a.resource.date_published - doc_b.resource.date_published)
-            .num_days()
-            .abs() as f32
-    })
-    .collect()
+    triangular_product(documents, condensed_date_distance_single).collect()
+}
+
+#[allow(clippy::cast_precision_loss)] // day difference is small
+fn condensed_date_distance_single(doc_a: &Document, doc_b: &Document) -> f32 {
+    (doc_a.resource.date_published - doc_b.resource.date_published)
+        .num_days()
+        .abs() as f32
 }
 
 /// Computes the condensed decayed date distance matrix.
+#[cfg(test)]
 fn condensed_decay_factor(date_distance: Vec<f32>, max_days: f32, threshold: f32) -> Vec<f32> {
     let exp_max_days = (-0.1 * max_days).exp();
     date_distance
@@ -64,11 +69,13 @@ fn condensed_decay_factor(date_distance: Vec<f32>, max_days: f32, threshold: f32
         .collect()
 }
 
+fn condensed_decay_factor_single(distance: f32, exp_max_days: f32, threshold: f32) -> f32 {
+    ((exp_max_days - (-0.1 * distance).exp()) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
+        + threshold
+}
+
 /// Computes the condensed combined normalized distance matrix.
-fn condensed_normalized_distance(cosine_similarity: Vec<f32>, decay_factor: Vec<f32>) -> Vec<f32> {
-    let combined = izip!(cosine_similarity, decay_factor)
-        .map(|(similarity, factor)| similarity * factor)
-        .collect::<Vec<_>>();
+fn condensed_normalized_distance(combined: Vec<f32>) -> Vec<f32> {
     let (min, max) = combined
         .iter()
         .copied()
@@ -168,10 +175,21 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
-    let cosine_similarity = condensed_cosine_similarity(documents);
-    let date_distance = condensed_date_distance(documents);
-    let decay_factor = condensed_decay_factor(date_distance, config.max_days, config.threshold);
-    condensed_normalized_distance(cosine_similarity, decay_factor)
+    // simplified to a single loop, where the indiviudal values are calculated and finally returned as factor
+    let combined: Vec<f32> = triangular_product(documents, |doc_a: &Document, doc_b: &Document| {
+        let similarity = condensed_cosine_similarity_single(doc_a, doc_b);
+        let distance = condensed_date_distance_single(doc_a, doc_b);
+        let decay = condensed_decay_factor_single(
+            distance,
+            (-0.1 * config.max_days).exp(),
+            config.threshold,
+        );
+
+        similarity * decay
+    })
+    .collect();
+
+    condensed_normalized_distance(combined)
 }
 
 /// Configurations for semantic filtering.
