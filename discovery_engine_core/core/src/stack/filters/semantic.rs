@@ -33,6 +33,7 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
     .collect()
 }
 
+#[inline]
 fn condensed_cosine_similarity_single(
     doc_a: &Document,
     doc_b: &Document,
@@ -58,6 +59,7 @@ fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
     triangular_product(documents, condensed_date_distance_single).collect()
 }
 
+#[inline]
 #[allow(clippy::cast_precision_loss)] // day difference is small
 fn condensed_date_distance_single(doc_a: &Document, doc_b: &Document, _i: usize, _j: usize) -> f32 {
     (doc_a.resource.date_published - doc_b.resource.date_published)
@@ -79,6 +81,7 @@ fn condensed_decay_factor(date_distance: Vec<f32>, max_days: f32, threshold: f32
         .collect()
 }
 
+#[inline]
 fn condensed_decay_factor_single(distance: f32, exp_max_days: f32, threshold: f32) -> f32 {
     ((exp_max_days - (-0.1 * distance).exp()) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
         + threshold
@@ -186,17 +189,14 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
     let mut norms = HashMap::new();
+    let exp_max_days = (-0.1 * config.max_days).exp();
     // simplified to a single loop, where the indiviudal values are calculated and finally returned as factor
     let combined: Vec<f32> = triangular_product(
         documents,
         |doc_a: &Document, doc_b: &Document, i: usize, j: usize| {
             let similarity = condensed_cosine_similarity_single(doc_a, doc_b, i, j, &mut norms);
             let distance = condensed_date_distance_single(doc_a, doc_b, i, j);
-            let decay = condensed_decay_factor_single(
-                distance,
-                (-0.1 * config.max_days).exp(),
-                config.threshold,
-            );
+            let decay = condensed_decay_factor_single(distance, exp_max_days, config.threshold);
 
             similarity * decay
         },
