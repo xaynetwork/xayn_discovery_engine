@@ -32,12 +32,12 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
         let nj = l2_norm(v_b);
 
         if ni > 0. && nj > 0. {
-            return (true, (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.));
+            return Some((v_a.dot(&v_b) / ni / nj).clamp(-1., 1.));
         }
 
-        (false, 0.)
+        None
     })
-    .filter_map(|t| t.0.then(|| t.1))
+    .filter_map(|o| o.is_some().then(|| o.unwrap()))
     .collect()
 }
 
