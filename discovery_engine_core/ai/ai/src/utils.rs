@@ -100,7 +100,7 @@ pub fn triangular_product<I, F, B>(
     f: F,
 ) -> TriangularProduct<'_, I, impl Iterator<Item = (usize, usize)>, F, B>
 where
-    F: FnMut(&I, &I, usize, usize) -> B,
+    F: FnMut(&I, &I) -> B,
 {
     let mut size = iter.len();
 
@@ -135,7 +135,7 @@ where
 pub struct TriangularProduct<'a, I, J, F, B>
 where
     J: Iterator<Item = (usize, usize)>,
-    F: FnMut(&I, &I, usize, usize) -> B,
+    F: FnMut(&I, &I) -> B,
 {
     orig: &'a [I],
     sorted: J,
@@ -145,7 +145,7 @@ where
 impl<I, J, F, B> Iterator for TriangularProduct<'_, I, J, F, B>
 where
     J: Iterator<Item = (usize, usize)>,
-    F: FnMut(&I, &I, usize, usize) -> B,
+    F: FnMut(&I, &I) -> B,
 {
     type Item = B;
 
@@ -153,7 +153,7 @@ where
     fn next(&mut self) -> Option<B> {
         self.sorted
             .next()
-            .map(|o| (self.f)(&(self.orig[o.0]), &(self.orig[o.1]), o.0, o.1))
+            .map(|o| (self.f)(&(self.orig[o.0]), &(self.orig[o.1])))
     }
 
     #[inline]
