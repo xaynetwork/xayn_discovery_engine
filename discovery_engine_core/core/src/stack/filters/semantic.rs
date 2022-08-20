@@ -23,18 +23,9 @@ use crate::document::{Document, WeightedSource};
 
 use super::source_weight;
 
-/// Computes the condensed cosine similarity matrix of the documents' embeddings.
-#[cfg(test)]
-fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
-    let mut norms = HashMap::new();
-    triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
-        condensed_cosine_similarity_single(doc_a, doc_b, i, j, &mut norms)
-    })
-    .collect()
-}
-
+/// Computes the condensed cosine similarity matrix of a documents' embeddings.
 #[inline]
-fn condensed_cosine_similarity_single(
+fn condensed_cosine_similarity(
     doc_a: &Document,
     doc_b: &Document,
     i: usize,
@@ -42,51 +33,40 @@ fn condensed_cosine_similarity_single(
     norms: &mut HashMap<usize, f32>,
 ) -> f32 {
     let v_a = doc_a.smbert_embedding.view();
-    let v_b = doc_b.smbert_embedding.view();
     let ni = *norms.entry(i).or_insert_with(|| l2_norm(v_a));
-    let nj = *norms.entry(j).or_insert_with(|| l2_norm(v_b));
 
-    if ni > 0. && nj > 0. {
-        return (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.);
+    if ni <= 0. {
+        return 1.0;
     }
 
-    1.0
+    let v_b = doc_b.smbert_embedding.view();
+    let nj = *norms.entry(j).or_insert_with(|| l2_norm(v_b));
+
+    if nj <= 0. {
+        return 1.0;
+    }
+
+    (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.)
 }
 
-/// Computes the condensed date distance matrix (in days) of the documents' publication dates.
-#[cfg(test)]
-fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
-    triangular_product(documents, condensed_date_distance_single).collect()
-}
-
+/// Computes the condensed date distance matrix (in days) of a documents' publication dates.
+#[inline]
 #[allow(clippy::cast_precision_loss)] // day difference is small
-fn condensed_date_distance_single(doc_a: &Document, doc_b: &Document, _i: usize, _j: usize) -> f32 {
+fn condensed_date_distance(doc_a: &Document, doc_b: &Document, _i: usize, _j: usize) -> f32 {
     (doc_a.resource.date_published - doc_b.resource.date_published)
         .num_days()
         .abs() as f32
 }
 
 /// Computes the condensed decayed date distance matrix.
-#[cfg(test)]
-fn condensed_decay_factor(date_distance: Vec<f32>, max_days: f32, threshold: f32) -> Vec<f32> {
-    let exp_max_days = (-0.1 * max_days).exp();
-    date_distance
-        .into_iter()
-        .map(|distance| {
-            ((exp_max_days - (-0.1 * distance).exp()) / (exp_max_days - 1.)).max(0.)
-                * (1. - threshold)
-                + threshold
-        })
-        .collect()
-}
-
 #[inline]
-fn condensed_decay_factor_single(distance: f32, exp_max_days: f32, threshold: f32) -> f32 {
+fn condensed_decay_factor(distance: f32, exp_max_days: f32, threshold: f32) -> f32 {
     ((exp_max_days - (-0.1 * distance).exp()) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
         + threshold
 }
 
 /// Computes the condensed combined normalized distance matrix.
+#[inline]
 fn condensed_normalized_distance(combined: Vec<f32>, min: f32, max: f32) -> Vec<f32> {
     let diff = max - min;
     if diff > 0. {
@@ -188,9 +168,9 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
     let combined: Vec<f32> = triangular_product(
         documents,
         |doc_a: &Document, doc_b: &Document, i: usize, j: usize| {
-            let similarity = condensed_cosine_similarity_single(doc_a, doc_b, i, j, &mut norms);
-            let distance = condensed_date_distance_single(doc_a, doc_b, i, j);
-            let decay = condensed_decay_factor_single(distance, exp_max_days, config.threshold);
+            let similarity = condensed_cosine_similarity(doc_a, doc_b, i, j, &mut norms);
+            let distance = condensed_date_distance(doc_a, doc_b, i, j);
+            let decay = condensed_decay_factor(distance, exp_max_days, config.threshold);
             let f = similarity * decay;
 
             nan_safe_f32_cmp(&f, &min).is_lt().then(|| min = f);
@@ -328,9 +308,17 @@ mod tests {
 
     #[test]
     fn test_condensed_cosine_similarity() {
+        fn condensed_cosine_similarity_all(documents: &[Document]) -> Vec<f32> {
+            let mut norms = HashMap::new();
+            triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
+                condensed_cosine_similarity(doc_a, doc_b, i, j, &mut norms)
+            })
+            .collect()
+        }
+
         for n in 0..5 {
             let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
-            let condensed = condensed_cosine_similarity(&documents);
+            let condensed = condensed_cosine_similarity_all(&documents);
             if n < 2 {
                 assert!(condensed.is_empty());
             } else {
@@ -343,9 +331,13 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)] // c represents whole days
     fn test_condensed_date_distance() {
+        fn condensed_date_distance_all(documents: &[Document]) -> Vec<f32> {
+            triangular_product(documents, condensed_date_distance).collect()
+        }
+
         for n in 0..5 {
             let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
-            let condensed = condensed_date_distance(&documents);
+            let condensed = condensed_date_distance_all(&documents);
             if n < 2 {
                 assert!(condensed.is_empty());
             } else {
@@ -359,11 +351,23 @@ mod tests {
     #[allow(clippy::cast_precision_loss)] // d is small
     #[allow(clippy::float_cmp)] // exact equality due to maximum function
     fn test_condensed_decay_factor() {
+        fn condensed_decay_factor_all(
+            date_distance: Vec<f32>,
+            max_days: f32,
+            threshold: f32,
+        ) -> Vec<f32> {
+            let exp_max_days = (-0.1 * max_days).exp();
+            date_distance
+                .into_iter()
+                .map(|distance| condensed_decay_factor(distance, exp_max_days, threshold))
+                .collect()
+        }
+
         for n in 0..5 {
             let date_distance = (0..n).map(|d| d as f32).collect();
             let max_days = 2;
             let threshold = 0.5;
-            let condensed = condensed_decay_factor(date_distance, max_days as f32, threshold);
+            let condensed = condensed_decay_factor_all(date_distance, max_days as f32, threshold);
             for (m, c) in condensed.into_iter().enumerate() {
                 if m < max_days {
                     assert!(c > threshold);
@@ -560,7 +564,7 @@ mod tests {
         let expected_de = [
             0.657_387_55,
             0.,
-            0.235_730_89,
+            0.235_730_89, // on my windows machine, AMD processor, I get 0.235_731_12 here instead, other values are the same
             1.,
             0.812_637_87,
             0.559_570_13,
