@@ -564,7 +564,7 @@ mod tests {
         let expected_de = [
             0.657_387_55,
             0.,
-            0.235_730_89, // on my windows machine, AMD processor, I get 0.235_731_12 here instead, other values are the same
+            0.235_730_89, /* on my windows machine, AMD processor, I get 0.235_731_12 here instead, other values are the same */
             1.,
             0.812_637_87,
             0.559_570_13,
