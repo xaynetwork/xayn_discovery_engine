@@ -59,7 +59,6 @@ fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
     triangular_product(documents, condensed_date_distance_single).collect()
 }
 
-#[inline]
 #[allow(clippy::cast_precision_loss)] // day difference is small
 fn condensed_date_distance_single(doc_a: &Document, doc_b: &Document, _i: usize, _j: usize) -> f32 {
     (doc_a.resource.date_published - doc_b.resource.date_published)
@@ -88,15 +87,8 @@ fn condensed_decay_factor_single(distance: f32, exp_max_days: f32, threshold: f3
 }
 
 /// Computes the condensed combined normalized distance matrix.
-fn condensed_normalized_distance(combined: Vec<f32>) -> Vec<f32> {
-    let (min, max) = combined
-        .iter()
-        .copied()
-        .minmax_by(nan_safe_f32_cmp)
-        .into_option()
-        .unwrap_or_default();
+fn condensed_normalized_distance(combined: Vec<f32>, min: f32, max: f32) -> Vec<f32> {
     let diff = max - min;
-
     if diff > 0. {
         combined
             .into_iter()
@@ -190,6 +182,8 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
     let mut norms = HashMap::new();
     let exp_max_days = (-0.1 * config.max_days).exp();
+    let mut min = f32::MAX;
+    let mut max = f32::MIN;
     // simplified to a single loop, where the indiviudal values are calculated and finally returned as factor
     let combined: Vec<f32> = triangular_product(
         documents,
@@ -197,13 +191,17 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
             let similarity = condensed_cosine_similarity_single(doc_a, doc_b, i, j, &mut norms);
             let distance = condensed_date_distance_single(doc_a, doc_b, i, j);
             let decay = condensed_decay_factor_single(distance, exp_max_days, config.threshold);
+            let f = similarity * decay;
 
-            similarity * decay
+            nan_safe_f32_cmp(&min, &f).is_lt().then(|| min = f);
+            nan_safe_f32_cmp(&max, &f).is_gt().then(|| max = f);
+
+            f
         },
     )
     .collect();
 
-    condensed_normalized_distance(combined)
+    condensed_normalized_distance(combined, min, max)
 }
 
 /// Configurations for semantic filtering.
