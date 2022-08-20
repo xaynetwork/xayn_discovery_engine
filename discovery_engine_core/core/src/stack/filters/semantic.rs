@@ -193,8 +193,8 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
             let decay = condensed_decay_factor_single(distance, exp_max_days, config.threshold);
             let f = similarity * decay;
 
-            nan_safe_f32_cmp(&min, &f).is_lt().then(|| min = f);
-            nan_safe_f32_cmp(&max, &f).is_gt().then(|| max = f);
+            nan_safe_f32_cmp(&f, &min).is_lt().then(|| min = f);
+            nan_safe_f32_cmp(&f, &max).is_gt().then(|| max = f);
 
             f
         },
