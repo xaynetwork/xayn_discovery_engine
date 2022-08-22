@@ -22,13 +22,14 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::{CoiSystem, GenericError, KeyPhrase, UserInterests};
+use xayn_discovery_engine_ai::{CoiPoint, CoiSystem, GenericError, KeyPhrase, UserInterests};
 use xayn_discovery_engine_providers::{GenericArticle, Market};
 
 use crate::{
     config::StackConfig as Config,
     document::{Document, HistoricDocument, Id as DocumentId, UserReaction},
     mab::Bucket,
+    stack::filters::filter_too_similar,
 };
 
 mod data;
@@ -151,13 +152,19 @@ impl Stack {
     ) -> Result<(), Error> {
         Self::validate_documents_stack_id(new_documents, self.ops.id())?;
 
-        let mut items = self
+        let documents = self
             .ops
             .merge(&self.data.documents, new_documents)
             .map_err(Error::Merge)?;
-        coi.rank(&mut items, user_interests);
-        self.data.documents = items;
+        let mut documents = filter_too_similar(
+            documents,
+            user_interests.negative.iter().map(|coi| coi.point().view()),
+            self.config.max_negative_similarity,
+        );
+        coi.rank(&mut documents, user_interests);
+        self.data.documents = documents;
         self.data.documents.reverse();
+
         Ok(())
     }
 

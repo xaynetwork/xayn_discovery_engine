@@ -233,13 +233,17 @@ pub(crate) fn filter_semantically(
 
 /// Computes the cosine similarity between the cois and documents and returns the
 /// cosine similarity of the nearest coi for each document.
-///
-/// # Panics
-/// Panics if `cois` is empty.
-pub(crate) fn max_cosine_similarity<'a, I>(docs: I, cois: &[ArrayView1<'_, f32>]) -> Vec<f32>
+pub(crate) fn max_cosine_similarity<'a, 'b, I, J>(docs: I, cois: J) -> Vec<f32>
 where
     I: IntoIterator<Item = ArrayView1<'a, f32>>,
+    J: IntoIterator<Item = ArrayView1<'b, f32>>,
+    <J as IntoIterator>::IntoIter: Clone,
 {
+    let cois = cois.into_iter();
+    if cois.clone().next().is_none() {
+        return Vec::new();
+    }
+
     // creates a cosine similarity matrix (docs x cois)
     // |      | coi1                  | coi2                  |
     // | doc1 | `cos_sim(doc1, coi1)` | `cos_sim(doc1, coi2)` |
@@ -249,35 +253,31 @@ where
     // [doc1(max(cos_sim1, cos_sim2, ...)), doc2(max(cos_sim1, cos_sim2, ...)), ...]
     docs.into_iter()
         .map(|doc| {
-            cois.iter()
-                .map(|&coi| cosine_similarity(doc, coi))
+            cois.clone()
+                .map(|coi| cosine_similarity(doc, coi))
                 .max_by(nan_safe_f32_cmp)
-                .unwrap()
+                .unwrap(/* cois is not empty */)
         })
         .collect()
 }
 
 /// Filters all documents which are too similar to their closest coi.
-///
-/// # Panics
-/// Panics if `cois` is empty.
-pub(crate) fn filter_too_similar(
+pub(crate) fn filter_too_similar<'a, I>(
     mut documents: Vec<Document>,
-    cois: &[ArrayView1<'_, f32>],
+    cois: I,
     threshold: f32,
-) -> Vec<Document> {
-    let mut retain = max_cosine_similarity(
-        documents
-            .iter()
-            .map(|document| document.smbert_embedding.view()),
-        cois,
-    )
-    .into_iter()
-    .map(|similarity| similarity <= threshold);
-    // the iterator is only empty if:
-    // - the documents are empty => retaining is a no-op and unwrapping doesn't happen
-    // - the cois are empty => the panic is already propagated in `max_cosine_similarity()`
-    documents.retain(|_| retain.next().unwrap());
+) -> Vec<Document>
+where
+    I: IntoIterator<Item = ArrayView1<'a, f32>>,
+    <I as IntoIterator>::IntoIter: Clone,
+{
+    let embeddings = documents
+        .iter()
+        .map(|document| document.smbert_embedding.view());
+    let mut retain = max_cosine_similarity(embeddings, cois)
+        .into_iter()
+        .map(|similarity| similarity <= threshold);
+    documents.retain(|_| retain.next().unwrap_or(true));
 
     documents
 }
@@ -288,7 +288,7 @@ mod tests {
     use std::iter::repeat_with;
 
     use chrono::NaiveDateTime;
-    use ndarray::arr1;
+    use ndarray::aview1;
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
@@ -542,18 +542,25 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn test_max_cosine_similarity_no_cois() {
-        max_cosine_similarity(
-            [arr1(&[1., 1., 0.]).view()],
-            &[] as &[ArrayView1<'_, f32>; 0],
-        );
+    fn test_max_cosine_similarity_no_documents() {
+        assert!(max_cosine_similarity([], [aview1(&[1., 1., 0.])]).is_empty());
     }
 
     #[test]
-    fn test_max_cosine_similarity_no_docs() {
-        let max = max_cosine_similarity([], &[arr1(&[1., 1., 0.]).view()]);
+    fn test_max_cosine_similarity_no_cois() {
+        assert!(max_cosine_similarity([aview1(&[1., 1., 0.])], []).is_empty());
+    }
 
-        assert!(max.is_empty());
+    #[test]
+    fn test_max_cosine_similarity() {
+        let documents = [aview1(&[1., 1., 0.]), aview1(&[-1., 1., 0.])];
+        let cois = [
+            aview1(&[1., 4., 0.]),
+            aview1(&[3., 1., 0.]),
+            aview1(&[4., 1., 0.]),
+        ];
+        let max = max_cosine_similarity(documents, cois);
+
+        assert_approx_eq!(f32, max, [0.894_427_2, 0.514_495_8]);
     }
 }

@@ -15,7 +15,7 @@
 use std::collections::{BTreeSet, HashSet};
 
 use displaydoc::Display;
-use itertools::{chain, Itertools};
+use itertools::chain;
 use ndarray::Array2;
 use rand::{prelude::IteratorRandom, Rng};
 use thiserror::Error;
@@ -75,17 +75,15 @@ where
         return Err(Error::NotEnoughCois);
     }
 
-    let pos_cois = positive_cois.iter().map(|coi| coi.point().view());
-    let neg_cois = negative_cois.iter().map(|coi| coi.point().view());
-    let cois = chain!(pos_cois, neg_cois).collect_vec();
-
-    // max_cosine_similarity can't panic because we make sure beforehand
-    // that both positive and negative cois aren't empty
-    let documents = filter_too_similar(documents, &cois, config.max_similarity);
+    let cois = chain!(
+        positive_cois.iter().map(|coi| coi.point().view()),
+        negative_cois.iter().map(|coi| coi.point().view()),
+    );
+    let documents = filter_too_similar(documents, cois.clone(), config.max_similarity);
     let document_embeddings = documents
         .iter()
         .map(|document| document.smbert_embedding.view());
-    let nearest_coi_for_docs = max_cosine_similarity(document_embeddings.clone(), &cois);
+    let nearest_coi_for_docs = max_cosine_similarity(document_embeddings.clone(), cois);
     let doc_similarities = pairwise_cosine_similarity(document_embeddings);
 
     let selected = select_by_randomization_with_threshold(
@@ -180,7 +178,7 @@ fn retain_documents_by_indices(
 mod tests {
     use std::iter::FromIterator;
 
-    use ndarray::{arr1, ArrayBase, FixedInitializer};
+    use ndarray::{arr1, FixedInitializer};
     use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
     use xayn_discovery_engine_ai::CoiId;
@@ -227,22 +225,6 @@ mod tests {
                 NegativeCoi::new(CoiId::from(mock_uuid(id)), arr1(point.as_init_slice()))
             })
             .collect()
-    }
-
-    #[test]
-    fn test_max_cosine_similarity() {
-        let cois = vec![
-            arr1(&[1., 4., 0.]),
-            arr1(&[3., 1., 0.]),
-            arr1(&[4., 1., 0.]),
-        ];
-        let documents = vec![arr1(&[1., 1., 0.]), arr1(&[-1., 1., 0.])];
-        let max = max_cosine_similarity(
-            documents.iter().map(ArrayBase::view),
-            &cois.iter().map(ArrayBase::view).collect_vec(),
-        );
-
-        assert_approx_eq!(f32, max, [0.894_427_2, 0.514_495_8]);
     }
 
     #[test]
