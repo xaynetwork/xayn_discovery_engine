@@ -32,7 +32,7 @@ pub(crate) enum Error {
     EmptyProviderId,
 }
 
-/// Unique identifier of the document from the provider
+/// Unique identifier of the document from the provider.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display)]
 pub(crate) struct ProviderId(String);
 
