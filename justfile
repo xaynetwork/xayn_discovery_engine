@@ -394,14 +394,14 @@ web-service-up: build-web-service
     ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
     ln -s "../dummy_data.json" "$RUST_WORKSPACE/web-api/assets/data.json"
 
-    docker-compose -f "$RUST_WORKSPACE/web-api/docker-compose.yml" up --detach --remove-orphans
+    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     cd "$RUST_WORKSPACE/web-api"
     ./../target/release/web-api
 
 web-service-down:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    docker-compose -f "$RUST_WORKSPACE/web-api/docker-compose.yml" down
+    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
 
 alias d := dart-test
 alias r := rust-test
