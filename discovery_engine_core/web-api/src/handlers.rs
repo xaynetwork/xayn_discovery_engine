@@ -47,7 +47,7 @@ pub(crate) async fn handle_user_interaction(
     body: InteractionRequestBody,
     db: Db,
 ) -> Result<impl warp::Reply, Infallible> {
-    if let Some(document) = db.documents_by_id.get(&body.document_id) {
+    if let Some(document) = db.documents_by_provider_id.get(&body.document_id) {
         let mut user_interests = db.user_interests.write().await;
         let state = user_interests.entry(user_id).or_default();
 

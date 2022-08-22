@@ -28,6 +28,30 @@ use xayn_discovery_engine_core::document::Id;
 pub(crate) enum Error {
     /// [`UserId`] can't be empty.
     EmptyUserId,
+    /// [`ProviderId`] can't be empty.
+    EmptyProviderId,
+}
+
+/// Unique identifier of the document from the provider
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display)]
+pub(crate) struct ProviderId(String);
+
+impl ProviderId {
+    fn new(value: &str) -> Result<Self, Error> {
+        if value.is_empty() {
+            Err(Error::EmptyProviderId)
+        } else {
+            Ok(Self(value.to_string()))
+        }
+    }
+}
+
+impl TryFrom<&str> for ProviderId {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        ProviderId::new(value)
+    }
 }
 
 /// Represents a result from a query.
@@ -35,6 +59,9 @@ pub(crate) enum Error {
 pub(crate) struct Document {
     /// Unique identifier of the document.
     pub(crate) id: Id,
+
+    /// Identifier of the document from the provider.
+    pub(crate) provider_id: ProviderId,
 
     /// Embedding from smbert.
     pub(crate) smbert_embedding: Embedding,
@@ -44,9 +71,13 @@ pub(crate) struct Document {
 }
 
 impl Document {
-    pub(crate) fn new((id, article, smbert_embedding): (Uuid, Article, Embedding)) -> Self {
+    pub(crate) fn new(
+        (provider_id, article, smbert_embedding): (ProviderId, Article, Embedding),
+    ) -> Self {
+        let id = Uuid::new_v4().into();
         Self {
-            id: id.into(),
+            id,
+            provider_id,
             article,
             smbert_embedding,
         }
@@ -79,7 +110,7 @@ impl From<Document> for Article {
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct InteractionRequestBody {
-    pub(crate) document_id: Id,
+    pub(crate) document_id: ProviderId,
 }
 
 /// Unique identifier for the user.
@@ -87,11 +118,11 @@ pub(crate) struct InteractionRequestBody {
 pub(crate) struct UserId(String);
 
 impl UserId {
-    fn new(user_id: &str) -> Result<Self, Error> {
-        if user_id.is_empty() {
+    fn new(value: &str) -> Result<Self, Error> {
+        if value.is_empty() {
             Err(Error::EmptyUserId)
         } else {
-            Ok(Self(user_id.to_string()))
+            Ok(Self(value.to_string()))
         }
     }
 }
@@ -99,7 +130,7 @@ impl UserId {
 impl FromStr for UserId {
     type Err = Error;
 
-    fn from_str(user_id: &str) -> Result<Self, Self::Err> {
-        UserId::new(user_id)
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        UserId::new(value)
     }
 }
