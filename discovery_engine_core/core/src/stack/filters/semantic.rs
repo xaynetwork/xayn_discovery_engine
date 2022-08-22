@@ -16,7 +16,8 @@ use std::collections::BTreeMap;
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
-use xayn_discovery_engine_ai::{nan_safe_f32_cmp, pairwise_cosine_similarity};
+use ndarray::ArrayView1;
+use xayn_discovery_engine_ai::{cosine_similarity, nan_safe_f32_cmp, pairwise_cosine_similarity};
 
 use crate::document::{Document, WeightedSource};
 
@@ -230,12 +231,64 @@ pub(crate) fn filter_semantically(
         .collect()
 }
 
+/// Computes the cosine similarity between the cois and documents and returns the
+/// cosine similarity of the nearest coi for each document.
+///
+/// # Panics
+/// Panics if `cois` is empty.
+pub(crate) fn max_cosine_similarity<'a, I>(docs: I, cois: &[ArrayView1<'_, f32>]) -> Vec<f32>
+where
+    I: IntoIterator<Item = ArrayView1<'a, f32>>,
+{
+    // creates a cosine similarity matrix (docs x cois)
+    // |      | coi1                  | coi2                  |
+    // | doc1 | `cos_sim(doc1, coi1)` | `cos_sim(doc1, coi2)` |
+    // | doc2 | `cos_sim(doc2, coi1)` | `cos_sim(doc2, coi2)` |
+    //
+    // finds the nearest coi for each document
+    // [doc1(max(cos_sim1, cos_sim2, ...)), doc2(max(cos_sim1, cos_sim2, ...)), ...]
+    docs.into_iter()
+        .map(|doc| {
+            cois.iter()
+                .map(|&coi| cosine_similarity(doc, coi))
+                .max_by(nan_safe_f32_cmp)
+                .unwrap()
+        })
+        .collect()
+}
+
+/// Filters all documents which are too similar to their closest coi.
+///
+/// # Panics
+/// Panics if `cois` is empty.
+pub(crate) fn filter_too_similar(
+    mut documents: Vec<Document>,
+    cois: &[ArrayView1<'_, f32>],
+    threshold: f32,
+) -> Vec<Document> {
+    let mut retain = max_cosine_similarity(
+        documents
+            .iter()
+            .map(|document| document.smbert_embedding.view()),
+        cois,
+    )
+    .into_iter()
+    .map(|similarity| similarity <= threshold);
+    // the iterator is only empty if:
+    // - the documents are empty => retaining is a no-op and unwrapping doesn't happen
+    // - the cois are empty => the panic is already propagated in `max_cosine_similarity()`
+    documents.retain(|_| retain.next().unwrap());
+
+    documents
+}
+
 #[cfg(test)]
 #[allow(clippy::non_ascii_literal)]
 mod tests {
     use std::iter::repeat_with;
 
     use chrono::NaiveDateTime;
+    use ndarray::arr1;
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
@@ -486,5 +539,21 @@ mod tests {
         ];
 
         normalized_distance_for_titles(&titles_de, &smbert, &expected_de);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_max_cosine_similarity_no_cois() {
+        max_cosine_similarity(
+            [arr1(&[1., 1., 0.]).view()],
+            &[] as &[ArrayView1<'_, f32>; 0],
+        );
+    }
+
+    #[test]
+    fn test_max_cosine_similarity_no_docs() {
+        let max = max_cosine_similarity([], &[arr1(&[1., 1., 0.]).view()]);
+
+        assert!(max.is_empty());
     }
 }
