@@ -48,8 +48,8 @@ impl Document {
         let id = Uuid::new_v4().into();
         Self {
             id,
-            article,
             smbert_embedding,
+            article,
         }
     }
 }

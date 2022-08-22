@@ -72,13 +72,14 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
                 .get("id")
                 .expect("Article needs to have an 'id' field")
                 .as_str()
-                .expect("The 'id' field needs to be represented as String")
+                .expect("The article's 'id' field needs to be represented as String")
                 .trim()
                 .to_string();
 
-            if provider_id.is_empty() {
-                panic!("The 'id' field can't be empty")
-            }
+            assert!(
+                !provider_id.is_empty(),
+                "The article's 'id' field can't be empty"
+            );
 
             let description = article
                 .get("description")
