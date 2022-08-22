@@ -111,6 +111,61 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<void> setSources(
+    List<SourceReacted> sources,
+    Set<Source> excluded,
+    Set<Source> trusted,
+  ) async {
+    _incrementCount('setSources');
+    excludedSources = excluded;
+    trustedSources = trusted;
+  }
+
+  @override
+  Future<Set<Source>> getExcludedSources() async {
+    _incrementCount('getExcludedSources');
+    return excludedSources;
+  }
+
+  @override
+  Future<Set<Source>> getTrustedSources() async {
+    _incrementCount('getTrustedSources');
+    return trustedSources;
+  }
+
+  @override
+  Future<void> addExcludedSource(
+    List<SourceReacted> sources,
+    Source excluded,
+  ) async {
+    _incrementCount('addExcludedSource');
+  }
+
+  @override
+  Future<void> removeExcludedSource(
+    List<SourceReacted> sources,
+    Source excluded,
+  ) async {
+    _incrementCount('removeExcludedSource');
+  }
+
+  @override
+  Future<void> addTrustedSource(
+    List<SourceReacted> sources,
+    Source trusted,
+  ) async {
+    _incrementCount('addTrustedSource');
+  }
+
+  @override
+  Future<void> removeTrustedSource(
+    List<SourceReacted> sources,
+    Source trusted,
+  ) async {
+    _incrementCount('removeTrustedSource');
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> feedNextBatch(
     List<SourceReacted> sources,
   ) async {
