@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
@@ -30,17 +30,27 @@ fn condensed_cosine_similarity(
     doc_b: &Document,
     i: usize,
     j: usize,
-    norms: &mut HashMap<usize, f32>,
+    norms: &mut Vec<f32>,
 ) -> f32 {
     let v_a = doc_a.smbert_embedding.view();
-    let ni = *norms.entry(i).or_insert_with(|| l2_norm(v_a));
+    let mut ni = (*norms)[i];
+
+    if ni.is_nan() {
+        ni = l2_norm(v_a);
+        (*norms)[i] = ni;
+    }
 
     if ni <= 0. {
         return 1.0;
     }
 
     let v_b = doc_b.smbert_embedding.view();
-    let nj = *norms.entry(j).or_insert_with(|| l2_norm(v_b));
+    let mut nj = (*norms)[j];
+
+    if nj.is_nan() {
+        nj = l2_norm(v_b);
+        (*norms)[j] = nj;
+    }
 
     if nj <= 0. {
         return 1.0;
@@ -160,7 +170,7 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
-    let mut norms = HashMap::new();
+    let mut norms = vec![f32::NAN; documents.len()];
     let exp_max_days = (-0.1 * config.max_days).exp();
     let mut min = f32::MAX;
     let mut max = f32::MIN;
@@ -309,7 +319,7 @@ mod tests {
     #[test]
     fn test_condensed_cosine_similarity() {
         fn condensed_cosine_similarity_all(documents: &[Document]) -> Vec<f32> {
-            let mut norms = HashMap::new();
+            let mut norms = vec![f32::NAN; documents.len()];
             triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
                 condensed_cosine_similarity(doc_a, doc_b, i, j, &mut norms)
             })
