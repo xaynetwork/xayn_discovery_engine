@@ -303,20 +303,6 @@ download-assets:
 check-android-so:
     {{justfile_directory()}}/.github/scripts/check_android_so.sh "$FLUTTER_WORKSPACE"/android/src/main/jniLibs/
 
-_override-flutter-self-deps $VERSION:
-    #!/usr/bin/env bash
-    set -eux -o pipefail
-    cd "$FLUTTER_EXAMPLE_WORKSPACE"
-
-    SED_CMD="sed"
-    if [[ "{{os()}}" == "macos" ]]; then
-        SED_CMD="gsed"
-    fi
-
-    # This will add changes to your repo which should never be committed.
-    $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
-    $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
-
 _override-dart-deps $WORKSPACE $VERSION:
     #!/usr/bin/env bash
     set -eux -o pipefail
@@ -333,7 +319,7 @@ _override-dart-deps $WORKSPACE $VERSION:
     $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
     $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
 
-_dart-publish $WORKSPACE $VERSION:
+_dart-publish $WORKSPACE:
     cd "$WORKSPACE"; \
     dart pub publish --force
 
@@ -362,9 +348,9 @@ _ci-dart-publish-with-version $VERSION:
     {{just_executable()}} _override-dart-deps "${DART_WORKSPACE}" "${VERSION}"
     {{just_executable()}} _override-dart-deps "${FLUTTER_WORKSPACE}" "${VERSION}"
 
-    {{just_executable()}} _dart-publish "${DART_UTILS_WORKSPACE}" "${VERSION}"
-    {{just_executable()}} _dart-publish "${FLUTTER_WORKSPACE}" "${VERSION}"
-    {{just_executable()}} _dart-publish "${DART_WORKSPACE}" "${VERSION}"
+    {{just_executable()}} _dart-publish "${DART_UTILS_WORKSPACE}"
+    {{just_executable()}} _dart-publish "${FLUTTER_WORKSPACE}"
+    {{just_executable()}} _dart-publish "${DART_WORKSPACE}"
 
 build-web-service:
     #!/usr/bin/env bash
