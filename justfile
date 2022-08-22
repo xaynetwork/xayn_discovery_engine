@@ -338,7 +338,14 @@ _ci-dart-publish:
     # We use a timestamp as major version,
     # for now for our use case this is good enough and simple to do.
     TIMESTAMP="$(date +%y%m%d%H%M%S)"
-    VERSION="0.${TIMESTAMP}.0+${VERSION_METADATA}"
+
+    # Due to bugs in JFrog we can only have small version numbers.
+    # VERSION="0.${TIMESTAMP}.0+${VERSION_METADATA}"
+
+    # This is very prone to problems as it relies on an undocumented implementation
+    # detail of dart pub/jfrog which is in conflict with the semver spec. But it's
+    # the best we can do for now.
+    VERSION="0.1.0+${VERSION_METADATA}.${TIMESTAMP}"
     echo "Version: $VERSION"
 
     {{just_executable()}} _ci-dart-publish-with-version "${VERSION}"
