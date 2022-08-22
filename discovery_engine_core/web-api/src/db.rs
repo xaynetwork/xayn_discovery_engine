@@ -68,7 +68,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
     let documents = articles
         .into_iter()
         .map(|article| {
-            let provider_id = article
+            let article_id = article
                 .get("id")
                 .expect("Article needs to have an 'id' field")
                 .as_str()
@@ -77,7 +77,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
                 .to_string();
 
             assert!(
-                !provider_id.is_empty(),
+                !article_id.is_empty(),
                 "The article's 'id' field can't be empty"
             );
 
@@ -88,7 +88,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
                 .expect("The 'description' field needs to be represented as String");
             let embedding = smbert.run(description).unwrap();
             let document = Document::new((article, embedding));
-            (provider_id, document)
+            (article_id, document)
         })
         .collect();
     let app_state = AppState::new(documents, smbert);
