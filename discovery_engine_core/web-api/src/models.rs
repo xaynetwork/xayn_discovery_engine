@@ -14,6 +14,7 @@
 
 use chrono::{NaiveDateTime, Utc};
 use derive_more::Display;
+use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr};
 use thiserror::Error;
@@ -23,9 +24,9 @@ use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId, Embedding};
 use xayn_discovery_engine_core::document::Id;
 
 /// Web API errors.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, DisplayDoc)]
 pub(crate) enum Error {
-    #[error("`UserId` can't be empty")]
+    /// [`UserId`] can't be empty.
     EmptyUserId,
 }
 
@@ -86,11 +87,11 @@ pub(crate) struct InteractionRequestBody {
 pub(crate) struct UserId(String);
 
 impl UserId {
-    fn new(user_id_str: &str) -> Result<Self, Error> {
-        if user_id_str.is_empty() {
+    fn new(user_id: &str) -> Result<Self, Error> {
+        if user_id.is_empty() {
             Err(Error::EmptyUserId)
         } else {
-            Ok(Self(user_id_str.to_string()))
+            Ok(Self(user_id.to_string()))
         }
     }
 }
@@ -98,7 +99,7 @@ impl UserId {
 impl FromStr for UserId {
     type Err = Error;
 
-    fn from_str(user_id_str: &str) -> Result<Self, Self::Err> {
-        UserId::new(user_id_str)
+    fn from_str(user_id: &str) -> Result<Self, Self::Err> {
+        UserId::new(user_id)
     }
 }

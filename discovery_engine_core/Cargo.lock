@@ -3634,6 +3634,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "derive_more",
+ "displaydoc",
  "dotenvy",
  "serde",
  "serde_json",
