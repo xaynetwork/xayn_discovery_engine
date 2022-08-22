@@ -68,6 +68,7 @@ use crate::{
         FeedConfig,
         InitConfig,
         SearchConfig,
+        StackConfig,
     },
     document::{
         self,
@@ -183,6 +184,7 @@ impl Engine {
     async fn new(
         endpoint_config: EndpointConfig,
         core_config: CoreConfig,
+        mut stack_config: HashMap<StackId, StackConfig>,
         exploration_config: ExplorationConfig,
         feed_config: FeedConfig,
         search_config: SearchConfig,
@@ -206,7 +208,8 @@ impl Engine {
             .map(|ops| {
                 let id = ops.id();
                 let data = stack_data.remove(&id).unwrap_or_default();
-                Stack::new(data, ops).map(|stack| (id, stack))
+                let config = stack_config.remove(&id).unwrap_or_default();
+                Stack::new(data, ops, config).map(|stack| (id, stack))
             })
             .collect::<Result<HashMap<_, _>, _>>()
             .map(RwLock::new)
@@ -333,16 +336,28 @@ impl Engine {
             Box::new(BreakingNews::new(
                 &endpoint_config,
                 providers.headlines.clone(),
-            )) as _,
+            )) as BoxedOps,
             Box::new(TrustedNews::new(
                 &endpoint_config,
                 providers.trusted_headlines.clone(),
-            )) as _,
+            )) as BoxedOps,
             Box::new(PersonalizedNews::new(
                 &endpoint_config,
                 providers.news.clone(),
-            )) as _,
+            )) as BoxedOps,
         ];
+        let stack_config = stack_ops
+            .iter()
+            .try_fold(HashMap::new(), |mut configs, ops| {
+                let id = ops.id();
+                de_config
+                    .extract_inner(&format!("stacks.{}", id))
+                    .map(|config| {
+                        configs.insert(id, config);
+                        configs
+                    })
+                    .map_err(|err| Error::Ranker(err.into()))
+            })?;
         #[cfg(feature = "storage")]
         let (mut stack_data, state) = if state.is_some() {
             storage
@@ -373,6 +388,7 @@ impl Engine {
         Self::new(
             endpoint_config,
             core_config,
+            stack_config,
             exploration_config,
             feed_config,
             search_config,
@@ -1838,6 +1854,7 @@ pub(crate) mod tests {
                     let stack = Stack::new(
                         StackData::default(),
                         stack_ops_new(&engine.endpoint_config, &engine.providers),
+                        StackConfig::default(),
                     )
                     .unwrap();
                     (stack.id(), stack)

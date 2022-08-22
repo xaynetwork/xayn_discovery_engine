@@ -24,7 +24,10 @@ use tokio::{join, sync::RwLock};
 use xayn_discovery_engine_ai::CoiSystemConfig;
 use xayn_discovery_engine_providers::{Market, ProviderConfig};
 
-use crate::stack::exploration::Stack as Exploration;
+use crate::stack::{
+    exploration::Stack as Exploration,
+    ops::{breaking::BreakingNews, personalized::PersonalizedNews, trusted::TrustedNews},
+};
 
 /// Configuration settings to initialize the Discovery [`Engine`].
 ///
@@ -192,6 +195,23 @@ impl Default for CoreConfig {
     }
 }
 
+/// Configurations for the dynamic stacks.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
+pub(crate) struct StackConfig {
+    /// The maximum cosine similarity wrt to the closest negative coi below which documents are
+    /// retained when the stack is updated.
+    pub(crate) max_negative_similarity: f32,
+}
+
+impl Default for StackConfig {
+    fn default() -> Self {
+        Self {
+            max_negative_similarity: 0.7,
+        }
+    }
+}
+
 /// Configurations for the exploration stack.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -261,8 +281,20 @@ pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
         .join(Serialized::default("core", CoreConfig::default()))
         .join(Serialized::default("endpoint", EndpointConfig::default()))
         .join(Serialized::default(
+            &format!("stacks.{}", BreakingNews::id()),
+            StackConfig::default(),
+        ))
+        .join(Serialized::default(
             &format!("stacks.{}", Exploration::id()),
             ExplorationConfig::default(),
+        ))
+        .join(Serialized::default(
+            &format!("stacks.{}", PersonalizedNews::id()),
+            StackConfig::default(),
+        ))
+        .join(Serialized::default(
+            &format!("stacks.{}", TrustedNews::id()),
+            StackConfig::default(),
         ))
 }
 
@@ -311,9 +343,22 @@ mod tests {
             EndpointConfig::default(),
         );
         assert_eq!(
+            de_config.extract_inner::<StackConfig>(&format!("stacks.{}", BreakingNews::id()))?,
+            StackConfig::default(),
+        );
+        assert_eq!(
             de_config
                 .extract_inner::<ExplorationConfig>(&format!("stacks.{}", Exploration::id()))?,
             ExplorationConfig::default(),
+        );
+        assert_eq!(
+            de_config
+                .extract_inner::<StackConfig>(&format!("stacks.{}", PersonalizedNews::id()))?,
+            StackConfig::default(),
+        );
+        assert_eq!(
+            de_config.extract_inner::<StackConfig>(&format!("stacks.{}", TrustedNews::id()))?,
+            StackConfig::default(),
         );
         Ok(())
     }
