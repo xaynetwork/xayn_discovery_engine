@@ -320,7 +320,7 @@ _override-dart-deps $WORKSPACE $VERSION:
     $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
     $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
 
-_dart-publish $WORKSPACE:
+_call-dart-publish $WORKSPACE:
     cd "$WORKSPACE"; \
     dart pub publish --force
 
@@ -356,9 +356,9 @@ _ci-dart-publish-with-version $VERSION:
     {{just_executable()}} _override-dart-deps "${DART_WORKSPACE}" "${VERSION}"
     {{just_executable()}} _override-dart-deps "${FLUTTER_WORKSPACE}" "${VERSION}"
 
-    {{just_executable()}} _dart-publish "${DART_UTILS_WORKSPACE}"
-    {{just_executable()}} _dart-publish "${FLUTTER_WORKSPACE}"
-    {{just_executable()}} _dart-publish "${DART_WORKSPACE}"
+    {{just_executable()}} _call-dart-publish "${DART_UTILS_WORKSPACE}"
+    {{just_executable()}} _call-dart-publish "${FLUTTER_WORKSPACE}"
+    {{just_executable()}} _call-dart-publish "${DART_WORKSPACE}"
 
 build-web-service:
     #!/usr/bin/env bash
