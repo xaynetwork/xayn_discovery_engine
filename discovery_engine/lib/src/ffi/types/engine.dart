@@ -67,6 +67,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
         resultSearchStringFfiAdapter,
         resultSharedEngineStringFfiAdapter,
         resultVecDocumentStringFfiAdapter,
+        resultVecStringStringFfiAdapter,
         resultVecTrendingTopicStringFfiAdapter,
         resultVecU8StringFfiAdapter,
         resultVoidStringFfiAdapter;
@@ -173,6 +174,98 @@ class DiscoveryEngineFfi implements Engine {
       history.allocNative().move(),
       sources.allocVec().move(),
       trusted.toStringList().allocNative().move(),
+    );
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
+  @override
+  Future<void> setSources(
+    List<SourceReacted> sources,
+    Set<Source> excluded,
+    Set<Source> trusted,
+  ) async {
+    final result = await asyncFfi.setSources(
+      _engine.ref,
+      sources.allocVec().move(),
+      excluded.toStringList().allocNative().move(),
+      trusted.toStringList().allocNative().move(),
+    );
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
+  @override
+  Future<Set<Source>> getExcludedSources() async {
+    final result = await asyncFfi.getExcludedSources(_engine.ref);
+
+    return resultVecStringStringFfiAdapter
+        .consumeNative(result)
+        .map((e) => Source(e))
+        .toSet();
+  }
+
+  @override
+  Future<Set<Source>> getTrustedSources() async {
+    final result = await asyncFfi.getTrustedSources(_engine.ref);
+
+    return resultVecStringStringFfiAdapter
+        .consumeNative(result)
+        .map((e) => Source(e))
+        .toSet();
+  }
+
+  @override
+  Future<void> addExcludedSource(
+    List<SourceReacted> sources,
+    Source excluded,
+  ) async {
+    final result = await asyncFfi.addExcludedSource(
+      _engine.ref,
+      sources.allocVec().move(),
+      excluded.toString().allocNative().move(),
+    );
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
+  @override
+  Future<void> removeExcludedSource(
+    List<SourceReacted> sources,
+    Source excluded,
+  ) async {
+    final result = await asyncFfi.removeExcludedSource(
+      _engine.ref,
+      sources.allocVec().move(),
+      excluded.toString().allocNative().move(),
+    );
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
+  @override
+  Future<void> addTrustedSource(
+    List<SourceReacted> sources,
+    Source trusted,
+  ) async {
+    final result = await asyncFfi.addTrustedSource(
+      _engine.ref,
+      sources.allocVec().move(),
+      trusted.toString().allocNative().move(),
+    );
+
+    return resultVoidStringFfiAdapter.consumeNative(result);
+  }
+
+  @override
+  Future<void> removeTrustedSource(
+    List<SourceReacted> sources,
+    Source trusted,
+  ) async {
+    final result = await asyncFfi.removeTrustedSource(
+      _engine.ref,
+      sources.allocVec().move(),
+      trusted.toString().allocNative().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);

@@ -231,6 +231,21 @@ class FeedManager {
       return EngineEvent.setSourcesRequestFailed(duplicates);
     }
 
+    final sources = await _sourceReactedRepo.fetchAll();
+
+    if (cfgFeatureStorage) {
+      await _engine.setSources(
+        sources,
+        excludedSources,
+        trustedSources,
+      );
+
+      return EngineEvent.setSourcesRequestSucceeded(
+        trustedSources: trustedSources,
+        excludedSources: excludedSources,
+      );
+    }
+
     final filters = {
       ...trustedSources.map(SourcePreference.trusted),
       ...excludedSources.map(SourcePreference.excluded),
@@ -242,7 +257,6 @@ class FeedManager {
     final currentTrusted = await _sourcePreferenceRepository.getTrusted();
     final currentExcluded = await _sourcePreferenceRepository.getExcluded();
     final history = await _docRepo.fetchHistory();
-    final sources = await _sourceReactedRepo.fetchAll();
     await _sourcePreferenceRepository.clear();
     await _sourcePreferenceRepository.saveAll(dbEntries);
 
@@ -271,52 +285,89 @@ class FeedManager {
     return true;
   }
 
-  /// Adds a source to excluded sources set.
+  /// Adds an excluded source.
   Future<EngineEvent> addExcludedSource(Source source) async {
     final pref = SourcePreference(source, PreferenceMode.excluded);
     await _sourcePreferenceRepository.save(pref);
+
+    if (cfgFeatureStorage) {
+      final sources = await _sourceReactedRepo.fetchAll();
+      await _engine.addExcludedSource(sources, source);
+      return EngineEvent.addExcludedSourceRequestSucceeded(source);
+    }
 
     await _updateEngineSourcesOnAdd();
     return EngineEvent.addExcludedSourceRequestSucceeded(source);
   }
 
-  /// Removes a source to excluded sources set.
+  /// Removes an excluded source.
   Future<EngineEvent> removeExcludedSource(Source source) async {
     await _sourcePreferenceRepository.remove(source);
+    final sources = await _sourceReactedRepo.fetchAll();
+
+    if (cfgFeatureStorage) {
+      await _engine.removeExcludedSource(sources, source);
+      return EngineEvent.removeExcludedSourceRequestSucceeded(source);
+    }
 
     final history = await _docRepo.fetchHistory();
-    final sources = await _sourceReactedRepo.fetchAll();
     final excluded = await _sourcePreferenceRepository.getExcluded();
     await _engine.setExcludedSources(history, sources, excluded);
     return EngineEvent.removeExcludedSourceRequestSucceeded(source);
   }
 
-  /// Returns excluded sources.
+  /// Returns the excluded sources.
   Future<EngineEvent> getExcludedSourcesList() async {
-    final sources = await _sourcePreferenceRepository.getExcluded();
+    final Set<Source> sources;
+    if (cfgFeatureStorage) {
+      sources = await _engine.getExcludedSources();
+    } else {
+      sources = await _sourcePreferenceRepository.getExcluded();
+    }
+
     return EngineEvent.excludedSourcesListRequestSucceeded(sources);
   }
 
+  /// Adds a trusted source.
   Future<EngineEvent> addTrustedSource(Source source) async {
     final pref = SourcePreference(source, PreferenceMode.trusted);
     await _sourcePreferenceRepository.save(pref);
+
+    if (cfgFeatureStorage) {
+      final sources = await _sourceReactedRepo.fetchAll();
+      await _engine.addTrustedSource(sources, source);
+      return EngineEvent.addTrustedSourceRequestSucceeded(source);
+    }
 
     await _updateEngineSourcesOnAdd();
     return EngineEvent.addTrustedSourceRequestSucceeded(source);
   }
 
+  /// Removes a trusted source.
   Future<EngineEvent> removeTrustedSource(Source source) async {
     await _sourcePreferenceRepository.remove(source);
+    final sources = await _sourceReactedRepo.fetchAll();
+
+    if (cfgFeatureStorage) {
+      await _engine.removeTrustedSource(sources, source);
+      return EngineEvent.removeTrustedSourceRequestSucceeded(source);
+    }
 
     final history = await _docRepo.fetchHistory();
-    final sources = await _sourceReactedRepo.fetchAll();
     final trusted = await _sourcePreferenceRepository.getTrusted();
     await _engine.setTrustedSources(history, sources, trusted);
     return EngineEvent.removeTrustedSourceRequestSucceeded(source);
   }
 
+  /// Returns the trusted sources.
   Future<EngineEvent> getTrustedSourcesList() async {
-    final sources = await _sourcePreferenceRepository.getTrusted();
+    final Set<Source> sources;
+    if (cfgFeatureStorage) {
+      sources = await _engine.getTrustedSources();
+    } else {
+      sources = await _sourcePreferenceRepository.getTrusted();
+    }
+
     return EngineEvent.trustedSourcesListRequestSucceeded(sources);
   }
 
