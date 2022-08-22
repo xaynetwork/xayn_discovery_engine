@@ -60,9 +60,6 @@ pub(crate) struct Document {
     /// Unique identifier of the document.
     pub(crate) id: Id,
 
-    /// Identifier of the document from the provider.
-    pub(crate) provider_id: ProviderId,
-
     /// Embedding from smbert.
     pub(crate) smbert_embedding: Embedding,
 
@@ -71,13 +68,10 @@ pub(crate) struct Document {
 }
 
 impl Document {
-    pub(crate) fn new(
-        (provider_id, article, smbert_embedding): (ProviderId, Article, Embedding),
-    ) -> Self {
+    pub(crate) fn new((article, smbert_embedding): (Article, Embedding)) -> Self {
         let id = Uuid::new_v4().into();
         Self {
             id,
-            provider_id,
             article,
             smbert_embedding,
         }

@@ -68,7 +68,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
     let documents = articles
         .into_iter()
         .map(|article| {
-            let provider_id: ProviderId = article
+            let provider_id = article
                 .get("id")
                 .expect("Article needs to have an 'id' field")
                 .as_str()
@@ -81,7 +81,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
                 .as_str()
                 .expect("The 'description' field needs to be represented as String");
             let embedding = smbert.run(description).unwrap();
-            let document = Document::new((provider_id.clone(), article, embedding));
+            let document = Document::new((article, embedding));
             (provider_id, document)
         })
         .collect();
