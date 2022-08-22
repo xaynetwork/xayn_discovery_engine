@@ -95,7 +95,7 @@ impl UserId {
         let value = value.trim();
         if value.is_empty() {
             Err(Error::UserIdEmpty)
-        } else if value.contains("\u{0000}") {
+        } else if value.contains('\u{0000}') {
             Err(Error::UserIdContainsZeroByte)
         } else {
             Ok(Self(value.to_string()))
