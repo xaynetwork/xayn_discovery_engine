@@ -81,6 +81,11 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
                 "The article's 'id' field can't be empty"
             );
 
+            assert!(
+                !article_id.contains('\u{0000}'),
+                "The article's 'id' field can't contain zero bytes"
+            );
+
             let description = article
                 .get("description")
                 .expect("Article needs to have a 'description' field")

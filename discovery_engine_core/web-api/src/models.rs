@@ -27,7 +27,10 @@ use xayn_discovery_engine_core::document::Id;
 #[derive(Error, Debug, DisplayDoc)]
 pub(crate) enum Error {
     /// [`UserId`] can't be empty.
-    EmptyUserId,
+    UserIdEmpty,
+
+    /// [`UserId`] can't contain zero bytes.
+    UserIdContainsZeroByte,
 }
 
 /// Represents a result from a query.
@@ -91,7 +94,9 @@ impl UserId {
     fn new(value: &str) -> Result<Self, Error> {
         let value = value.trim();
         if value.is_empty() {
-            Err(Error::EmptyUserId)
+            Err(Error::UserIdEmpty)
+        } else if value.contains("\u{0000}") {
+            Err(Error::UserIdContainsZeroByte)
         } else {
             Ok(Self(value.to_string()))
         }
