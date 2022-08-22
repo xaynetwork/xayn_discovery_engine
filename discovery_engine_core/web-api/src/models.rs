@@ -28,30 +28,6 @@ use xayn_discovery_engine_core::document::Id;
 pub(crate) enum Error {
     /// [`UserId`] can't be empty.
     EmptyUserId,
-    /// [`ProviderId`] can't be empty.
-    EmptyProviderId,
-}
-
-/// Unique identifier of the document from the provider.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display)]
-pub(crate) struct ProviderId(String);
-
-impl ProviderId {
-    fn new(value: &str) -> Result<Self, Error> {
-        if value.is_empty() {
-            Err(Error::EmptyProviderId)
-        } else {
-            Ok(Self(value.to_string()))
-        }
-    }
-}
-
-impl TryFrom<&str> for ProviderId {
-    type Error = Error;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        ProviderId::new(value)
-    }
 }
 
 /// Represents a result from a query.
@@ -104,7 +80,7 @@ impl From<Document> for Article {
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct InteractionRequestBody {
-    pub(crate) document_id: ProviderId,
+    pub(crate) document_id: String,
 }
 
 /// Unique identifier for the user.
@@ -113,6 +89,7 @@ pub(crate) struct UserId(String);
 
 impl UserId {
     fn new(value: &str) -> Result<Self, Error> {
+        let value = value.trim();
         if value.is_empty() {
             Err(Error::EmptyUserId)
         } else {

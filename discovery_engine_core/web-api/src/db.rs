@@ -19,7 +19,7 @@ use xayn_discovery_engine_ai::{CoiSystem, CoiSystemConfig, CoiSystemState};
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
-use crate::models::{Article, Document, ProviderId, UserId};
+use crate::models::{Article, Document, UserId};
 
 pub(crate) type Db = Arc<AppState>;
 
@@ -27,16 +27,16 @@ pub(crate) type Db = Arc<AppState>;
 pub(crate) struct AppState {
     pub(crate) smbert: SMBert,
     pub(crate) coi: CoiSystem,
-    pub(crate) documents_by_provider_id: HashMap<ProviderId, Document>,
+    pub(crate) documents_by_id: HashMap<String, Document>,
     pub(crate) documents: Vec<Document>,
     pub(crate) user_interests: RwLock<HashMap<UserId, CoiSystemState>>,
 }
 
 impl AppState {
-    fn new(documents_by_provider_id: HashMap<ProviderId, Document>, smbert: SMBert) -> Self {
-        let documents = documents_by_provider_id.clone().into_values().collect();
+    fn new(documents_by_id: HashMap<String, Document>, smbert: SMBert) -> Self {
+        let documents = documents_by_id.clone().into_values().collect();
         Self {
-            documents_by_provider_id,
+            documents_by_id,
             documents,
             smbert,
             coi: CoiSystemConfig::default().build(),
@@ -73,8 +73,13 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
                 .expect("Article needs to have an 'id' field")
                 .as_str()
                 .expect("The 'id' field needs to be represented as String")
-                .try_into()
-                .expect("The 'id' field needs to be a valid ProviderId");
+                .trim()
+                .to_string();
+
+            if provider_id.is_empty() {
+                panic!("The 'id' field can't be empty")
+            }
+
             let description = article
                 .get("description")
                 .expect("Article needs to have a 'description' field")
