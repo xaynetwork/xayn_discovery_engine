@@ -10,6 +10,7 @@ derive_more = { version = "0.99.17", default-features = false, features = ["disp
 dotenvy = "0.15.1"
 serde = { version = "1.0.143", features = ["derive"] }
 serde_json = "1.0.83"
+thiserror = "1.0.32"
 tokio = { version = "1.20.1", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1.1.2", features = ["serde", "v4"] }
 warp = "0.3.2"
