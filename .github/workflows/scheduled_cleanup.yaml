@@ -9,11 +9,11 @@ on:
         number_days_old:
             description: "pass this value, all the files older than this value will be deleted from our repository. By default, this value is set to 30 days."
             required: false
-            default: "8" 
+            default: "" 
         branch_name:
             description: "deletion by the name of the branch_name"
             required: false
-            default: 
+            default: ""
 
 jobs:
   jfrog_packages_cleanup:
@@ -25,6 +25,8 @@ jobs:
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
+           ${{inputs.branch_name}} = ""
+           ${{inputs.number_days_old}} = 8
            if [ -n "${{inputs.branch_name}}" ]; then
             jf rt s dart.xayn.private/ | grep ${{inputs.branch_name}}
            fi
