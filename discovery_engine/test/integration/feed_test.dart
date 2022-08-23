@@ -26,7 +26,7 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine restoreFeed', () {
+  group('DiscoveryEngine feed', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
     late DiscoveryEngine engine;
