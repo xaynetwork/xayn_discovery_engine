@@ -9,7 +9,7 @@ on:
         number_days_old:
             description: "pass this value, all the files older than this value will be deleted from our repository. By default, this value is set to 30 days."
             required: false
-            default: "" 
+            default: 30 
         branch_name:
             description: "deletion by the name of the branch_name"
             required: false
@@ -25,10 +25,8 @@ jobs:
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
-           var=""
-           varb=8
            if [ -n "$var" ]; then
-            jf rt s dart.xayn.private/ | grep $var
+           sed -i 's/"path":.*/"path": {"$match":"${{inputs.branch_name}}"},/g' .github/scripts/artifactory.spec
            fi
            
            if [ -n "$varb" ]; then
