@@ -4,11 +4,12 @@ on:
   schedule:
     - cron: '30 00 * * sun'
   workflow_dispatch:
+    push:
     inputs:
         number_days_old:
             description: "pass this value, all the files older than this value will be deleted from our repository. By default, this value is set to 30 days."
             required: false
-            default: 30
+            default: 
         branch_name:
             description: "deletion by the name of the branch_name"
             required: false
@@ -25,11 +26,11 @@ jobs:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
            if [ -n "${{inputs.branch_name}}" ]; then
-            jf rt del dart.xayn.private/ | grep ${{inputs.branch_name}}
+            jf rt s dart.xayn.private/ | grep ${{inputs.branch_name}}
            fi
            sed -i 's/number_days_limit/${{inputs.number_days_old}}/g' .github/scripts/artifactory.spec
            jf c use xayn
            cat .github/scripts/artifactory.spec
            # Ping xayn Artifactory server
            jf rt ping
-           jf rt del --spec .github/scripts/artifactory.spec
+           jf rt s --spec .github/scripts/artifactory.spec
