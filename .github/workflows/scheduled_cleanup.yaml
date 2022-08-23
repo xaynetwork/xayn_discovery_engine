@@ -25,14 +25,14 @@ jobs:
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
-           ${{inputs.branch_name}} = ""
-           ${{inputs.number_days_old}} = 8
-           if [ -n "${{inputs.branch_name}}" ]; then
-            jf rt s dart.xayn.private/ | grep ${{inputs.branch_name}}
+           var = ""
+           varb = 8
+           if [ -n "$var" ]; then
+            jf rt s dart.xayn.private/ | grep $var
            fi
            
-           if [ -n "${{inputs.number_days_old}}" ]; then
-            sed -i 's/number_days_limit/${{inputs.number_days_old}}/g' .github/scripts/artifactory.spec
+           if [ -n "$varb" ]; then
+            sed -i 's/number_days_limit/$varb/g' .github/scripts/artifactory.spec
             jf c use xayn
             cat .github/scripts/artifactory.spec
             # Ping xayn Artifactory server
