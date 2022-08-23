@@ -153,7 +153,8 @@ Future<void> main() async {
         expect(
           docRepo.box.values,
           containsAll(
-              engine.feedDocuments.map<Document>((doc) => doc.document)),
+            engine.feedDocuments.map<Document>((doc) => doc.document),
+          ),
         );
         expect(activeRepo.box, hasLength(3));
         expect(
@@ -177,6 +178,7 @@ Future<void> main() async {
         await docRepo.update(doc3..timestamp = later);
         // ignore: deprecated_member_use_from_same_package
         await docRepo
+            // ignore: deprecated_member_use_from_same_package
             .update(engine.feedDocuments[0].document..timestamp = later);
         await docRepo
             // ignore: deprecated_member_use_from_same_package
