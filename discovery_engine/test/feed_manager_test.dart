@@ -198,7 +198,5 @@ Future<void> main() async {
       );
       // doc3 is excluded since it is inactive
     });
-    //TODO[pmk] test use mock engine, check which tests can be recycled
-    //ignore:require_trailing_commas
   }, skip: cfgFeatureStorage);
 }
