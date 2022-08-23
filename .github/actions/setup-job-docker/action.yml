@@ -50,7 +50,7 @@ runs:
           echo "JFROG access token missing"
           exit 1
         fi
-        echo "${JFROG_TOKEN}" | dart pub token add "https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private"
+        echo "${JFROG_TOKEN}" | dart pub token add "https://xayn.jfrog.io/artifactory/api/pub/dart.xayn.private"
 
     - name: dart deps
       shell: bash

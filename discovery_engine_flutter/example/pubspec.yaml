@@ -20,7 +20,7 @@ dependencies:
     sdk: flutter
   path_provider: 2.0.11
   xayn_discovery_engine_flutter:
-    hosted: https://xayn.jfrog.io/artifactory/api/pub/dart.yellow.private
+    hosted: https://xayn.jfrog.io/artifactory/api/pub/dart.xayn.private
     version: 0.1.0+replace.with.version
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
