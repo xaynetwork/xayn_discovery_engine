@@ -32,7 +32,7 @@ jobs:
            fi
            
            if [ -n "$varb" ]; then
-            sed -i 's/number_days_limit/$varb/g' .github/scripts/artifactory.spec
+            sed -i 's/number_days_limit/${{varb}}/g' .github/scripts/artifactory.spec
             jf c use xayn
             cat .github/scripts/artifactory.spec
             # Ping xayn Artifactory server
