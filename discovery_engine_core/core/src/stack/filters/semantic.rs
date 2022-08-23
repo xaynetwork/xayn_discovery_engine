@@ -68,6 +68,7 @@ fn condensed_decay_factor(
     threshold: f32,
     distance_cache: &mut Vec<f32>,
 ) -> f32 {
+    #[deny(clippy::inline_always)]
     let i = distance as usize;
     (*distance_cache)[i]
         .is_nan()
