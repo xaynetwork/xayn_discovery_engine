@@ -16,7 +16,11 @@ import 'dart:io' show Directory;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show DiscoveryEngine, NextFeedBatchRequestSucceeded, RestoreFeedSucceeded;
+    show
+        ClientEventSucceeded,
+        DiscoveryEngine,
+        NextFeedBatchRequestSucceeded,
+        RestoreFeedSucceeded;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -41,6 +45,30 @@ void main() {
       await engine.dispose();
       await server.close();
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
+    });
+
+    test('close documents', () async {
+      final batch = expectEvent<NextFeedBatchRequestSucceeded>(
+        await engine.requestNextFeedBatch(),
+      ).items;
+      //FIXME once we have mock data producing multiple batches close muiltiple but not all documents
+      expect(batch, isNotEmpty);
+      // expect(batch.length, greaterThan(2));
+      final closedId1 = batch[0].documentId;
+      // final closedId2 = batch[1].documentId;
+      // final notClosedId = batch[2].documentId;
+      expectEvent<ClientEventSucceeded>(
+        await engine.closeFeedDocuments({closedId1}),
+      );
+
+      final restoredBatch = expectEvent<RestoreFeedSucceeded>(
+        await engine.restoreFeed(),
+      ).items;
+
+      final restoredIds = restoredBatch.map((doc) => doc.documentId).toSet();
+      expect(restoredIds, isNot(contains(closedId1)));
+      // expect(restoredIds, isNot(contains(closedId2)));
+      // expect(restoredIds, contains(notClosedId));
     });
   });
 
