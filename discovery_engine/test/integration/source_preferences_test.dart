@@ -34,13 +34,17 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
+  final excluded = Source('foo1.example');
+  final excluded2 = Source('foo2.example');
+  final trusted = Source('bar1.example');
+  final trusted2 = Source('bar2.example');
+  final trusted3 = Source('bar3.example');
+  final duplicate = Source('duplicate.example');
+
   group('DiscoveryEngine source preferences', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
     late DiscoveryEngine engine;
-
-    final exclude = Source('example.com');
-    final trusted = Source('xayn.com');
 
     setUp(() async {
       server = await LocalNewsApiServer.start();
@@ -56,13 +60,13 @@ void main() {
 
     test('addSourceToExcludedList adds excluded source', () async {
       expectEvent<AddExcludedSourceRequestSucceeded>(
-        await engine.addSourceToExcludedList(exclude),
+        await engine.addSourceToExcludedList(excluded),
       );
 
       final listResponse = expectEvent<ExcludedSourcesListRequestSucceeded>(
         await engine.getExcludedSourcesList(),
       );
-      expect(listResponse.excludedSources, equals({exclude}));
+      expect(listResponse.excludedSources, equals({excluded}));
 
       final nextBatchResponse = expectEvent<NextFeedBatchRequestFailed>(
         await engine.requestNextFeedBatch(),
@@ -71,22 +75,22 @@ void main() {
 
       expect(server.lastCapturedRequest, isNotNull);
       server.lastCapturedRequest!
-          .expectJsonQueryParams({'not_sources': exclude.toString()});
+          .expectJsonQueryParams({'not_sources': excluded.toString()});
     });
 
     test('removeSourceFromExcludedList removes the added excluded source',
         () async {
       expectEvent<AddExcludedSourceRequestSucceeded>(
-        await engine.addSourceToExcludedList(exclude),
+        await engine.addSourceToExcludedList(excluded),
       );
 
       var listResponse = expectEvent<ExcludedSourcesListRequestSucceeded>(
         await engine.getExcludedSourcesList(),
       );
-      expect(listResponse.excludedSources, equals({exclude}));
+      expect(listResponse.excludedSources, equals({excluded}));
 
       expectEvent<RemoveExcludedSourceRequestSucceeded>(
-        await engine.removeSourceFromExcludedList(exclude),
+        await engine.removeSourceFromExcludedList(excluded),
       );
 
       listResponse = expectEvent<ExcludedSourcesListRequestSucceeded>(
@@ -111,7 +115,7 @@ void main() {
 
     test('non-existent excluded source should have no effect', () async {
       expectEvent<AddExcludedSourceRequestSucceeded>(
-        await engine.addSourceToExcludedList(Source('example.org')),
+        await engine.addSourceToExcludedList(trusted),
       );
 
       final nextBatchResponse = expectEvent<NextFeedBatchRequestSucceeded>(
@@ -166,8 +170,8 @@ void main() {
 
     test('setSources', () async {
       final response1 = await engine.setSources(
-        trustedSources: {Source('trusted1.local')},
-        excludedSources: {Source('excluded1.local')},
+        trustedSources: {trusted},
+        excludedSources: {excluded},
       );
 
       expect(response1, isA<SetSourcesRequestSucceeded>());
@@ -175,56 +179,53 @@ void main() {
         expectEvent<TrustedSourcesListRequestSucceeded>(
           await engine.getTrustedSourcesList(),
         ).sources,
-        equals({Source('trusted1.local')}),
+        equals({trusted}),
       );
       expect(
         expectEvent<ExcludedSourcesListRequestSucceeded>(
           await engine.getExcludedSourcesList(),
         ).excludedSources,
-        equals({Source('excluded1.local')}),
+        equals({excluded}),
       );
 
       final response2 = await engine.setSources(
-        trustedSources: {Source('trusted2.local'), Source('duplicate.local')},
-        excludedSources: {
-          Source('excluded2.local'),
-          Source('duplicate.local'),
-        },
+        trustedSources: {trusted2, duplicate},
+        excludedSources: {excluded2, duplicate},
       );
 
       expect(response2, isA<SetSourcesRequestFailed>());
       expect(
         (response2 as SetSourcesRequestFailed).duplicateSources,
-        equals({Source('duplicate.local')}),
+        equals({duplicate}),
       );
       expect(
         expectEvent<TrustedSourcesListRequestSucceeded>(
           await engine.getTrustedSourcesList(),
         ).sources,
-        equals({Source('trusted1.local')}),
+        equals({trusted}),
       );
       expect(
         expectEvent<ExcludedSourcesListRequestSucceeded>(
           await engine.getExcludedSourcesList(),
         ).excludedSources,
-        equals({Source('excluded1.local')}),
+        equals({excluded}),
       );
 
       final response3 = await engine.setSources(
-        trustedSources: {Source('trusted1.local'), Source('trusted3.local')},
+        trustedSources: {trusted, trusted3},
         excludedSources: {},
       );
       expect(response3, isA<SetSourcesRequestSucceeded>());
       expect(
         (response3 as SetSourcesRequestSucceeded).trustedSources,
-        equals({Source('trusted1.local'), Source('trusted3.local')}),
+        equals({trusted, trusted3}),
       );
       expect(response3.excludedSources, equals(<Source>{}));
       expect(
         expectEvent<TrustedSourcesListRequestSucceeded>(
           await engine.getTrustedSourcesList(),
         ).sources,
-        equals({Source('trusted1.local'), Source('trusted3.local')}),
+        equals({trusted, trusted3}),
       );
       expect(
         expectEvent<ExcludedSourcesListRequestSucceeded>(
@@ -272,16 +273,16 @@ void main() {
       expect(server.requestCount, equals(lastCount));
 
       lastCount = server.requestCount;
-      await engine.addSourceToExcludedList(exclude);
+      await engine.addSourceToExcludedList(excluded);
       expect(server.requestCount, greaterThan(lastCount));
 
       lastCount = server.requestCount;
-      await engine.addSourceToExcludedList(exclude);
+      await engine.addSourceToExcludedList(excluded);
       expect(server.requestCount, equals(lastCount));
 
       lastCount = server.requestCount;
       await engine
-          .setSources(trustedSources: {trusted}, excludedSources: {exclude});
+          .setSources(trustedSources: {trusted}, excludedSources: {excluded});
       expect(server.requestCount, equals(lastCount));
 
       lastCount = server.requestCount;
