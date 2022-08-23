@@ -61,9 +61,18 @@ fn condensed_date_distance(doc_a: &Document, doc_b: &Document, _i: usize, _j: us
 }
 
 /// Computes the condensed decayed date distance matrix.
-#[inline]
-fn condensed_decay_factor(distance: f32, exp_max_days: f32, threshold: f32) -> f32 {
-    ((exp_max_days - (-0.1 * distance).exp()) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
+#[inline(always)]
+fn condensed_decay_factor(
+    distance: f32,
+    exp_max_days: f32,
+    threshold: f32,
+    distance_cache: &mut Vec<f32>,
+) -> f32 {
+    let i = distance as usize;
+    (*distance_cache)[i]
+        .is_nan()
+        .then(|| (*distance_cache)[i] = (-0.1 * distance).exp());
+    ((exp_max_days - (*distance_cache)[i]) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
         + threshold
 }
 
@@ -163,6 +172,7 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
     let mut norms = vec![f32::NAN; documents.len()];
+    let mut distance_cache = vec![f32::NAN; 365];
     let exp_max_days = (-0.1 * config.max_days).exp();
     let mut min = f32::MAX;
     let mut max = f32::MIN;
@@ -172,7 +182,12 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
         |doc_a: &Document, doc_b: &Document, i: usize, j: usize| {
             let similarity = condensed_cosine_similarity(doc_a, doc_b, i, j, &mut norms);
             let distance = condensed_date_distance(doc_a, doc_b, i, j);
-            let decay = condensed_decay_factor(distance, exp_max_days, config.threshold);
+            let decay = condensed_decay_factor(
+                distance,
+                exp_max_days,
+                config.threshold,
+                &mut distance_cache,
+            );
             let f = similarity * decay;
 
             nan_safe_f32_cmp(&f, &min).is_lt().then(|| min = f);
@@ -358,10 +373,13 @@ mod tests {
             max_days: f32,
             threshold: f32,
         ) -> Vec<f32> {
+            let mut distance_cache = vec![f32::NAN; 365];
             let exp_max_days = (-0.1 * max_days).exp();
             date_distance
                 .into_iter()
-                .map(|distance| condensed_decay_factor(distance, exp_max_days, threshold))
+                .map(|distance| {
+                    condensed_decay_factor(distance, exp_max_days, threshold, &mut distance_cache)
+                })
                 .collect()
         }
 
