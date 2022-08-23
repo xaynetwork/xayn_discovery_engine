@@ -188,7 +188,9 @@ Future<void> main() async {
       test('add negative document time', () async {
         const mode = DocumentViewMode.story;
         expect(
-            () => mgr.addActiveDocumentTime(id1, mode, -1), throwsRangeError);
+          () => mgr.addActiveDocumentTime(id1, mode, -1),
+          throwsRangeError,
+        );
       });
 
       test('add time to document without active data', () async {
@@ -238,11 +240,15 @@ Future<void> main() async {
         expect(dataUpdated, isNotNull);
         expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
         expect(
-            dataUpdated.getViewTime(mode), equals(const Duration(seconds: 5)));
+          dataUpdated.getViewTime(mode),
+          equals(const Duration(seconds: 5)),
+        );
 
         // other repos unchanged
         expect(
-            await docRepo.fetchAll(), unorderedEquals(<Document>[doc1, doc2]));
+          await docRepo.fetchAll(),
+          unorderedEquals(<Document>[doc1, doc2]),
+        );
 
         // add a further 3 seconds
         await mgr.addActiveDocumentTime(id1, mode, 3);
@@ -253,7 +259,9 @@ Future<void> main() async {
         expect(dataUpdated, isNotNull);
         expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
         expect(
-            dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
+          dataUpdated.getViewTime(mode),
+          equals(const Duration(seconds: 8)),
+        );
         expect(engine.getCallCount('timeSpent'), equals(2));
       });
     },

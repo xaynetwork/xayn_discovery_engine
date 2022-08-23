@@ -24,8 +24,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         DiscoveryEngine,
         DocumentId,
         NextFeedBatchRequestSucceeded,
-        SearchFailureReason,
-        cfgFeatureStorage;
+        SearchFailureReason;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'

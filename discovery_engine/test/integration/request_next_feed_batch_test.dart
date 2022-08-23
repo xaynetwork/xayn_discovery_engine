@@ -22,8 +22,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         FeedFailureReason,
         NextFeedBatchRequestFailed,
         NextFeedBatchRequestSucceeded,
-        UserReaction,
-        cfgFeatureStorage;
+        UserReaction;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
