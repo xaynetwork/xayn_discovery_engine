@@ -34,7 +34,7 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  final excluded = Source('foo1.example');
+  final excluded = Source('example.com');
   final excluded2 = Source('foo2.example');
   final trusted = Source('bar1.example');
   final trusted2 = Source('bar2.example');
@@ -169,7 +169,7 @@ void main() {
     });
 
     test('setSources', () async {
-      final response1 = await engine.setSources(
+      final response1 = await engine.overrideSources(
         trustedSources: {trusted},
         excludedSources: {excluded},
       );
@@ -188,7 +188,7 @@ void main() {
         equals({excluded}),
       );
 
-      final response2 = await engine.setSources(
+      final response2 = await engine.overrideSources(
         trustedSources: {trusted2, duplicate},
         excludedSources: {excluded2, duplicate},
       );
@@ -211,7 +211,7 @@ void main() {
         equals({excluded}),
       );
 
-      final response3 = await engine.setSources(
+      final response3 = await engine.overrideSources(
         trustedSources: {trusted, trusted3},
         excludedSources: {},
       );
@@ -220,7 +220,7 @@ void main() {
         (response3 as SetSourcesRequestSucceeded).trustedSources,
         equals({trusted, trusted3}),
       );
-      expect(response3.excludedSources, equals(<Source>{}));
+      expect(response3.excludedSources, isEmpty);
       expect(
         expectEvent<TrustedSourcesListRequestSucceeded>(
           await engine.getTrustedSourcesList(),
@@ -231,7 +231,7 @@ void main() {
         expectEvent<ExcludedSourcesListRequestSucceeded>(
           await engine.getExcludedSourcesList(),
         ).excludedSources,
-        equals(<Source>{}),
+        isEmpty,
       );
     });
 
@@ -259,7 +259,9 @@ void main() {
       );
     });
 
-    test('adding sources preferences triggers updates to stacks', () async {
+    test(
+        'adding sources preferences triggers updates to stacks iff sources changed',
+        () async {
       //needed due to the out of sync initial update
       while (server.requestCount < 2) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -281,45 +283,101 @@ void main() {
       expect(server.requestCount, equals(lastCount));
 
       lastCount = server.requestCount;
-      await engine
-          .setSources(trustedSources: {trusted}, excludedSources: {excluded});
+      await engine.overrideSources(
+        trustedSources: {trusted},
+        excludedSources: {excluded},
+      );
       expect(server.requestCount, equals(lastCount));
 
       lastCount = server.requestCount;
-      await engine.setSources(trustedSources: {}, excludedSources: {});
+      await engine.overrideSources(trustedSources: {}, excludedSources: {});
       expect(server.requestCount, greaterThan(lastCount));
     });
   });
 
-  test('DiscoveryEngine source preferences persists between engine instances',
-      () async {
-    final server = await LocalNewsApiServer.start();
-    final data = await setupTestEngineData(useInMemoryDb: false);
-    var engine = await initEngine(data, server.port);
+  group('DiscoveryEngine source preferences with persistent storage', () {
+    late LocalNewsApiServer server;
+    late TestEngineData data;
+    late DiscoveryEngine engine;
 
-    await engine.setSources(
-      trustedSources: {Source('trusted.example'), Source('trusted2.example')},
-      excludedSources: {Source('excluded.example')},
-    );
+    setUp(() async {
+      server = await LocalNewsApiServer.start();
+      data = await setupTestEngineData(useInMemoryDb: false);
+      engine = await initEngine(data, server.port);
+    });
 
-    await engine.dispose();
-    engine = await initEngine(data, server.port);
+    tearDown(() async {
+      await engine.dispose();
+      await server.close();
+      await Directory(data.applicationDirectoryPath).delete(recursive: true);
+    });
 
-    expect(
-      expectEvent<TrustedSourcesListRequestSucceeded>(
-        await engine.getTrustedSourcesList(),
-      ).sources,
-      equals({Source('trusted.example'), Source('trusted2.example')}),
-    );
+    test('setSources persists over engine instances', () async {
+      expectEvent<SetSourcesRequestSucceeded>(
+        await engine.overrideSources(
+          trustedSources: {trusted, trusted2},
+          excludedSources: {excluded},
+        ),
+      );
 
-    expect(
-      expectEvent<ExcludedSourcesListRequestSucceeded>(
-        await engine.getExcludedSourcesList(),
-      ).excludedSources,
-      equals({Source('excluded.example')}),
-    );
+      await engine.dispose();
+      engine = await initEngine(data, server.port);
 
-    await server.close();
-    await Directory(data.applicationDirectoryPath).delete(recursive: true);
+      expect(
+        expectEvent<TrustedSourcesListRequestSucceeded>(
+          await engine.getTrustedSourcesList(),
+        ).sources,
+        equals({trusted, trusted2}),
+      );
+
+      expect(
+        expectEvent<ExcludedSourcesListRequestSucceeded>(
+          await engine.getExcludedSourcesList(),
+        ).excludedSources,
+        equals({excluded}),
+      );
+    });
+
+    test('add/remove trusted/excluded sources persist over engine instances',
+        () async {
+      expectEvent<AddExcludedSourceRequestSucceeded>(
+        await engine.addSourceToExcludedList(excluded),
+      );
+      expectEvent<AddExcludedSourceRequestSucceeded>(
+        await engine.addSourceToExcludedList(excluded2),
+      );
+      expectEvent<AddTrustedSourceRequestSucceeded>(
+        await engine.addSourceToTrustedList(trusted),
+      );
+      expectEvent<AddTrustedSourceRequestSucceeded>(
+        await engine.addSourceToTrustedList(trusted2),
+      );
+      expectEvent<AddTrustedSourceRequestSucceeded>(
+        await engine.addSourceToTrustedList(trusted3),
+      );
+      expectEvent<RemoveExcludedSourceRequestSucceeded>(
+        await engine.removeSourceFromExcludedList(excluded2),
+      );
+      expectEvent<RemoveTrustedSourceRequestSucceeded>(
+        await engine.removeSourceFromTrustedList(trusted2),
+      );
+
+      await engine.dispose();
+      engine = await initEngine(data, server.port);
+
+      expect(
+        expectEvent<TrustedSourcesListRequestSucceeded>(
+          await engine.getTrustedSourcesList(),
+        ).sources,
+        equals({trusted, trusted3}),
+      );
+
+      expect(
+        expectEvent<ExcludedSourcesListRequestSucceeded>(
+          await engine.getExcludedSourcesList(),
+        ).excludedSources,
+        equals({excluded}),
+      );
+    });
   });
 }
