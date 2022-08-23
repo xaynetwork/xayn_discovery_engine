@@ -289,4 +289,36 @@ void main() {
       expect(server.requestCount, greaterThan(lastCount));
     });
   });
+
+  test('DiscoveryEngine source preferences persists between engine instances',
+      () async {
+    final server = await LocalNewsApiServer.start();
+    final data = await setupTestEngineData(useInMemoryDb: false);
+    var engine = await initEngine(data, server.port);
+
+    await engine.setSources(
+      trustedSources: {Source('trusted.example'), Source('trusted2.example')},
+      excludedSources: {Source('excluded.example')},
+    );
+
+    await engine.dispose();
+    engine = await initEngine(data, server.port);
+
+    expect(
+      expectEvent<TrustedSourcesListRequestSucceeded>(
+        await engine.getTrustedSourcesList(),
+      ).sources,
+      equals({Source('trusted.example'), Source('trusted2.example')}),
+    );
+
+    expect(
+      expectEvent<ExcludedSourcesListRequestSucceeded>(
+        await engine.getExcludedSourcesList(),
+      ).excludedSources,
+      equals({Source('excluded.example')}),
+    );
+
+    await server.close();
+    await Directory(data.applicationDirectoryPath).delete(recursive: true);
+  });
 }
