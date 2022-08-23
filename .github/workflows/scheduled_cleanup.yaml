@@ -13,6 +13,7 @@ on:
         branch_name:
             description: "deletion by the name of the branch_name"
             required: false
+            default: ""
 
 jobs:
   jfrog_packages_cleanup:
@@ -24,7 +25,7 @@ jobs:
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
-           if [ -n ${{inputs.branch_name}} ]; then
+           if [ -n "${{inputs.branch_name}}" ]; then
             jf rt s dart.xayn.private/ | grep TO-3259-fix-dart-upload-order
            fi
            sed -i 's/number_days_limit/${{inputs.number_days_old}}/g' .github/scripts/artifactory.spec
