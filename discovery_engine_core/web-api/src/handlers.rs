@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::convert::Infallible;
-use warp::hyper::StatusCode;
-use xayn_discovery_engine_ai::CoiSystemState;
+use warp::{hyper::StatusCode, reject::Reject, Rejection};
+
+use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -25,10 +25,13 @@ use crate::{
 pub(crate) async fn handle_ranked_documents(
     user_id: UserId,
     db: Db,
-) -> Result<impl warp::Reply, Infallible> {
-    let default_state = CoiSystemState::default();
-    let user_interests = db.user_interests.read().await;
-    let state = user_interests.get(&user_id).unwrap_or(&default_state);
+) -> Result<impl warp::Reply, Rejection> {
+    let state = db
+        .user_state
+        .fetch(&user_id)
+        .await
+        .map_err(handle_user_state_op_error)?
+        .unwrap_or_default();
 
     let mut documents = db.documents.clone();
 
@@ -46,10 +49,14 @@ pub(crate) async fn handle_user_interaction(
     user_id: UserId,
     body: InteractionRequestBody,
     db: Db,
-) -> Result<impl warp::Reply, Infallible> {
+) -> Result<impl warp::Reply, Rejection> {
     if let Some(document) = db.documents_by_id.get(&body.document_id) {
-        let mut user_interests = db.user_interests.write().await;
-        let state = user_interests.entry(user_id).or_default();
+        let mut state = db
+            .user_state
+            .fetch(&user_id)
+            .await
+            .map_err(handle_user_state_op_error)?
+            .unwrap_or_default();
 
         db.coi.log_positive_user_reaction(
             &mut state.user_interests.positive,
@@ -60,13 +67,29 @@ pub(crate) async fn handle_user_interaction(
             |words| db.smbert.run(words).map_err(Into::into),
         );
 
+        db.user_state
+            .update(&user_id, &state)
+            .await
+            .map_err(handle_user_state_op_error)?;
+
         Ok(StatusCode::OK)
     } else {
         Ok(StatusCode::NOT_FOUND)
     }
 }
 
-pub(crate) async fn handle_clean_state(db: Db) -> Result<impl warp::Reply, Infallible> {
-    db.user_interests.write().await.clear();
+pub(crate) async fn handle_clean_state(db: Db) -> Result<impl warp::Reply, Rejection> {
+    db.user_state
+        .clear()
+        .await
+        .map_err(handle_user_state_op_error)?;
     Ok(StatusCode::OK)
 }
+
+fn handle_user_state_op_error(_: GenericError) -> Rejection {
+    warp::reject::custom(UserStateOpError)
+}
+
+#[derive(Debug)]
+struct UserStateOpError;
+impl Reject for UserStateOpError {}

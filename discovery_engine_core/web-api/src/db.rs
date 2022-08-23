@@ -14,12 +14,14 @@
 
 use serde_json::from_reader;
 use std::{collections::HashMap, fs::File, path::PathBuf, sync::Arc};
-use tokio::sync::RwLock;
-use xayn_discovery_engine_ai::{CoiSystem, CoiSystemConfig, CoiSystemState};
+use xayn_discovery_engine_ai::{CoiSystem, CoiSystemConfig, GenericError};
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
-use crate::models::{Article, Document, UserId};
+use crate::{
+    models::{Article, Document},
+    storage::UserState,
+};
 
 pub(crate) type Db = Arc<AppState>;
 
@@ -29,18 +31,22 @@ pub(crate) struct AppState {
     pub(crate) coi: CoiSystem,
     pub(crate) documents_by_id: HashMap<String, Document>,
     pub(crate) documents: Vec<Document>,
-    pub(crate) user_interests: RwLock<HashMap<UserId, CoiSystemState>>,
+    pub(crate) user_state: UserState,
 }
 
 impl AppState {
-    fn new(documents_by_id: HashMap<String, Document>, smbert: SMBert) -> Self {
+    fn new(
+        documents_by_id: HashMap<String, Document>,
+        smbert: SMBert,
+        user_state: UserState,
+    ) -> Self {
         let documents = documents_by_id.clone().into_values().collect();
         Self {
             documents_by_id,
             documents,
             smbert,
             coi: CoiSystemConfig::default().build(),
-            user_interests: RwLock::new(HashMap::new()),
+            user_state,
         }
     }
 }
@@ -53,9 +59,11 @@ pub(crate) struct InitConfig {
     pub(crate) smbert_model: PathBuf,
     /// List of [Article]s in JSON format.
     pub(crate) data_store: PathBuf,
+    /// Handler for storing the user state.
+    pub(crate) user_state: UserState,
 }
 
-pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Error>> {
+pub(crate) fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
     let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)?
         .with_accents(AccentChars::Cleanse)
         .with_case(CaseChars::Lower)
@@ -95,7 +103,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
             (article_id, document)
         })
         .collect();
-    let app_state = AppState::new(documents, smbert);
+    let app_state = AppState::new(documents, smbert, config.user_state.clone());
 
     Ok(Arc::new(app_state))
 }
