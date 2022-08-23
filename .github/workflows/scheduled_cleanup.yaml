@@ -29,7 +29,7 @@ jobs:
             jf rt s dart.xayn.private/ | grep ${{inputs.branch_name}}
            fi
            
-           if [ -n "${{inputs.branch_name}}" ]; then
+           if [ -n "${{inputs.number_days_old}}" ]; then
             sed -i 's/number_days_limit/${{inputs.number_days_old}}/g' .github/scripts/artifactory.spec
             jf c use xayn
             cat .github/scripts/artifactory.spec
