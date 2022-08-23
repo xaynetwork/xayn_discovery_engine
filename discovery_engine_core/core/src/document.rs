@@ -351,7 +351,7 @@ impl AiDocument for TrendingTopic {
 
     fn date_published(&self) -> NaiveDateTime {
         // return a default value as there is no `date_published` for trending topics
-        chrono::naive::MIN_DATETIME
+        NaiveDateTime::MIN
     }
 }
 

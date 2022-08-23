@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
+    collections::HashMap,
     fs::File,
     io::{BufReader, BufWriter},
     path::Path,
@@ -32,34 +33,37 @@ where
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct Like {
-    name: String,
-    probability: f32,
+pub(crate) struct Like {
+    pub(crate) probability: f64,
     #[serde(deserialize_with = "deserialize_seconds_as_duration")]
-    time_spent: Duration,
+    pub(crate) time_spent: Duration,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-struct Dislike {
-    name: String,
-    probability: f32,
-}
+pub(crate) type Likes = HashMap<String, Like>;
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct Persona {
-    name: String,
-    like_topics: Vec<Like>,
-    dislike_topics: Vec<Dislike>,
-    trusted_sources: Vec<String>,
-    excluded_sources: Vec<String>,
+pub(crate) struct Dislike {
+    pub(crate) probability: f64,
 }
+
+pub(crate) type Dislikes = HashMap<String, Dislike>;
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub(crate) struct Persona {
+    pub(crate) like_topics: Likes,
+    pub(crate) dislike_topics: Dislikes,
+    pub(crate) trusted_sources: Vec<String>,
+    pub(crate) excluded_sources: Vec<String>,
+}
+
+pub(crate) type Personas = HashMap<String, Persona>;
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub(crate) struct Input {
-    num_iterations: usize,
-    num_runs: usize,
-    personas: Vec<Persona>,
-    provider: String,
+    pub(crate) num_runs: usize,
+    pub(crate) num_iterations: usize,
+    pub(crate) personas: Personas,
+    pub(crate) provider: String,
 }
 
 impl Input {
@@ -96,12 +100,29 @@ pub(crate) struct Document {
     pub(crate) user_reaction: UserReaction,
 }
 
+impl From<xayn_discovery_engine_core::document::Document> for Document {
+    fn from(document: xayn_discovery_engine_core::document::Document) -> Self {
+        Self {
+            topic: document.resource.topic,
+            embedding: document.smbert_embedding,
+            stack: document.stack_id,
+            user_reaction: document.reaction.unwrap_or_default(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
-pub(crate) struct Output(pub(crate) Vec<Document>);
+pub(crate) struct Output(pub(crate) HashMap<String, Vec<Document>>);
 
 impl Output {
-    pub(crate) fn write(&self, path: impl AsRef<Path>) -> Result<()> {
-        serde_json::to_writer(BufWriter::new(File::create(path)?), self).map_err(Into::into)
+    pub(crate) fn write(&self, path: impl AsRef<Path>, pretty: bool) -> Result<()> {
+        let writer = BufWriter::new(File::create(path)?);
+        if pretty {
+            serde_json::to_writer_pretty(writer, self)
+        } else {
+            serde_json::to_writer(writer, self)
+        }
+        .map_err(Into::into)
     }
 }
 
@@ -113,74 +134,82 @@ mod tests {
     fn test_input() {
         let json = r#"
         {
-            "num_iterations": 10,
-            "num_runs": 5,
-            "personas": [
-                {
-                    "name": "a",
-                    "like_topics": [
-                        {
-                            "name": "art",
+            "num_runs": 2,
+            "num_iterations": 5,
+            "personas": {
+                "a": {
+                    "like_topics": {
+                        "art": {
                             "probability": 0.5,
                             "time_spent": 30
                         }
-                    ],
-                    "dislike_topics": [
-                        {
-                            "name": "soccer",
+                    },
+                    "dislike_topics": {
+                        "soccer": {
                             "probability": 0.25
                         }
-                    ],
+                    },
                     "trusted_sources": [
                         "example.com"
                     ],
                     "excluded_sources": []
                 }
-            ],
-            "provider": "mind"
+            },
+            "provider": "dummy"
         }
         "#;
         let input = serde_json::from_str::<Input>(json).unwrap();
         let expected = Input {
-            num_iterations: 10,
-            num_runs: 5,
-            personas: vec![Persona {
-                name: "a".into(),
-                like_topics: vec![Like {
-                    name: "art".into(),
-                    probability: 0.5,
-                    time_spent: Duration::from_secs(30),
-                }],
-                dislike_topics: vec![Dislike {
-                    name: "soccer".into(),
-                    probability: 0.25,
-                }],
-                trusted_sources: vec!["example.com".into()],
-                excluded_sources: vec![],
-            }],
-            provider: "mind".into(),
+            num_runs: 2,
+            num_iterations: 5,
+            personas: [(
+                "a".into(),
+                Persona {
+                    like_topics: [(
+                        "art".into(),
+                        Like {
+                            probability: 0.5,
+                            time_spent: Duration::from_secs(30),
+                        },
+                    )]
+                    .into(),
+                    dislike_topics: [("soccer".into(), Dislike { probability: 0.25 })].into(),
+                    trusted_sources: vec!["example.com".into()],
+                    excluded_sources: vec![],
+                },
+            )]
+            .into(),
+            provider: "dummy".into(),
         };
         assert_eq!(input, expected);
     }
 
     #[test]
     fn test_output() {
-        let output = Output(vec![Document {
-            topic: "art".into(),
-            embedding: [1.0, 2.0, 3.0].into(),
-            stack: stack::BreakingNews::id(),
-            user_reaction: UserReaction::Positive,
-        }]);
+        let output = Output(
+            [(
+                "a".into(),
+                vec![Document {
+                    topic: "art".into(),
+                    embedding: [1.0, 2.0, 3.0].into(),
+                    stack: stack::BreakingNews::id(),
+                    user_reaction: UserReaction::Positive,
+                }],
+            )]
+            .into(),
+        );
         let json = serde_json::to_string(&output).unwrap();
         let expected = r#"
-        [
-            {
-                "topic": "art",
-                "embedding": [1.0, 2.0, 3.0],
-                "stack": "STACK_NAME",
-                "user_reaction": 1
-            }
-        ]
+        {
+            "a": [
+                {
+                    "topic": "art",
+                    "embedding": [1.0, 2.0, 3.0],
+                    "stack": "STACK_NAME",
+                    "user_reaction": 1
+                }
+            ]
+        }
         "#
         .replacen("STACK_NAME", stack::BreakingNews::name(), 1)
         .replace([' ', '\n'], "");

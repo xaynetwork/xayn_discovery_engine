@@ -268,8 +268,8 @@ pub struct Article {
     pub published_date: NaiveDateTime,
 }
 
-fn default_published_date() -> NaiveDateTime {
-    chrono::naive::MIN_DATETIME
+const fn default_published_date() -> NaiveDateTime {
+    NaiveDateTime::MIN
 }
 
 // Taken from https://github.com/serde-rs/serde/issues/1098#issuecomment-760711617

@@ -14,7 +14,7 @@
 
 //! FFI functions for handling date time fields.
 
-use chrono::{naive::MAX_DATETIME, NaiveDateTime};
+use chrono::NaiveDateTime;
 
 const NANOS_PER_MICRO: i64 = 1_000;
 const MICROS_PER_SECOND: i64 = 1_000_000;
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn init_naive_date_time_at(
     let nanos = (micros_since_naive_epoch.abs() % MICROS_PER_SECOND) * NANOS_PER_MICRO;
     // the unwraps failing is unreachable, but we do not want to have any panic path
     let nanos = u32::try_from(nanos).unwrap_or(u32::MAX);
-    let date_time = NaiveDateTime::from_timestamp_opt(seconds, nanos).unwrap_or(MAX_DATETIME);
+    let date_time = NaiveDateTime::from_timestamp_opt(seconds, nanos).unwrap_or(NaiveDateTime::MAX);
     unsafe {
         place.write(date_time);
     }
@@ -88,11 +88,7 @@ pub unsafe extern "C" fn drop_naive_date_time(naive_date_time: *mut NaiveDateTim
 
 #[cfg(test)]
 mod tests {
-    use chrono::{
-        naive::{MAX_DATETIME, MIN_DATETIME},
-        NaiveDate,
-        Timelike,
-    };
+    use chrono::{NaiveDate, Timelike};
 
     use super::*;
 
@@ -100,10 +96,10 @@ mod tests {
     fn test_max_date_is_supported() {
         let place = &mut NaiveDate::from_ymd(1, 1, 1).and_hms(1, 1, 1);
         unsafe { init_naive_date_time_at(place, MAX_MICRO_SECONDS) };
-        let truncated_max = MAX_DATETIME.with_nanosecond(999_999_000).unwrap();
+        let truncated_max = NaiveDateTime::MAX.with_nanosecond(999_999_000).unwrap();
         assert_eq!(*place, truncated_max);
 
-        let micros = unsafe { get_naive_date_time_micros_since_epoch(&MAX_DATETIME) };
+        let micros = unsafe { get_naive_date_time_micros_since_epoch(&NaiveDateTime::MAX) };
         unsafe { init_naive_date_time_at(place, micros) };
         assert_eq!(*place, truncated_max);
     }
@@ -112,25 +108,25 @@ mod tests {
     fn test_min_date_is_supported() {
         let place = &mut NaiveDate::from_ymd(1, 1, 1).and_hms(1, 1, 1);
         unsafe { init_naive_date_time_at(place, MIN_MICRO_SECONDS) };
-        assert_eq!(*place, MIN_DATETIME);
+        assert_eq!(*place, NaiveDateTime::MIN);
 
-        let micros = unsafe { get_naive_date_time_micros_since_epoch(&MIN_DATETIME) };
+        let micros = unsafe { get_naive_date_time_micros_since_epoch(&NaiveDateTime::MIN) };
         unsafe { init_naive_date_time_at(place, micros) };
-        assert_eq!(*place, MIN_DATETIME);
+        assert_eq!(*place, NaiveDateTime::MIN);
     }
 
     #[test]
     fn test_consts_max_is_sync() {
-        let seconds = MAX_DATETIME.timestamp();
-        let sub_micros = MAX_DATETIME.timestamp_subsec_micros();
+        let seconds = NaiveDateTime::MAX.timestamp();
+        let sub_micros = NaiveDateTime::MAX.timestamp_subsec_micros();
         let micros = seconds.checked_mul(MICROS_PER_SECOND).unwrap() + i64::from(sub_micros);
         assert_eq!(micros, MAX_MICRO_SECONDS);
     }
 
     #[test]
     fn test_consts_min_is_sync() {
-        let seconds = MIN_DATETIME.timestamp();
-        let sub_micros = MIN_DATETIME.timestamp_subsec_micros();
+        let seconds = NaiveDateTime::MIN.timestamp();
+        let sub_micros = NaiveDateTime::MIN.timestamp_subsec_micros();
         let micros = seconds.checked_mul(MICROS_PER_SECOND).unwrap() + i64::from(sub_micros);
         assert_eq!(micros, MIN_MICRO_SECONDS);
     }

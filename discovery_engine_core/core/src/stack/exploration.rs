@@ -32,7 +32,7 @@ pub(crate) use self::selection::Error;
 #[derive(Debug)]
 pub struct Stack {
     pub(crate) data: Data,
-    config: Config,
+    pub(crate) config: Config,
 }
 
 impl Stack {
