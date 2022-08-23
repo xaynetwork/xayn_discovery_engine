@@ -1,7 +1,6 @@
 name: Scheduled Cleanup repo
 
 on:
-  push:
   schedule:
     - cron: '30 00 * * sun'
   workflow_dispatch:
