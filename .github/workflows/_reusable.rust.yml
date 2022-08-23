@@ -33,9 +33,10 @@ jobs:
         with:
           rust: true
 
-      - name: cargo clippy
+      - name: rust check
         run: |
           just rust-check
+          XAYN_DE_FEATURES=storage just rust-check
 
   cargo-test:
     runs-on: hetzner-pm
@@ -55,6 +56,7 @@ jobs:
           env
           just download-assets
           just rust-test
+          XAYN_DE_FEATURES=storage just rust-test
 
   cargo-doc:
     runs-on: hetzner-pm
