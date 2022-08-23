@@ -34,7 +34,7 @@ import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
 void main() {
   setupLogging();
 
-  group('DiscoveryEngine excludedSources', () {
+  group('DiscoveryEngine source preferences', () {
     late LocalNewsApiServer server;
     late TestEngineData data;
     late DiscoveryEngine engine;
@@ -163,5 +163,101 @@ void main() {
         equals({someSource}),
       );
     });
+
+    test('setSources', () async {
+      final response1 = await engine.setSources(
+        trustedSources: {Source('trusted1.local')},
+        excludedSources: {Source('excluded1.local')},
+      );
+
+      expect(response1, isA<SetSourcesRequestSucceeded>());
+      expect(
+        expectEvent<TrustedSourcesListRequestSucceeded>(
+          await engine.getTrustedSourcesList(),
+        ).sources,
+        equals({Source('trusted1.local')}),
+      );
+      expect(
+        expectEvent<ExcludedSourcesListRequestSucceeded>(
+          await engine.getExcludedSourcesList(),
+        ).excludedSources,
+        equals({Source('excluded1.local')}),
+      );
+
+      final response2 = await engine.setSources(
+        trustedSources: {Source('trusted2.local'), Source('duplicate.local')},
+        excludedSources: {
+          Source('excluded2.local'),
+          Source('duplicate.local'),
+        },
+      );
+
+      expect(response2, isA<SetSourcesRequestFailed>());
+      expect(
+        (response2 as SetSourcesRequestFailed).duplicateSources,
+        equals({Source('duplicate.local')}),
+      );
+      expect(
+        expectEvent<TrustedSourcesListRequestSucceeded>(
+          await engine.getTrustedSourcesList(),
+        ).sources,
+        equals({Source('trusted1.local')}),
+      );
+      expect(
+        expectEvent<ExcludedSourcesListRequestSucceeded>(
+          await engine.getExcludedSourcesList(),
+        ).excludedSources,
+        equals({Source('excluded1.local')}),
+      );
+
+      final response3 = await engine.setSources(
+        trustedSources: {Source('trusted1.local'), Source('trusted3.local')},
+        excludedSources: {},
+      );
+      expect(response3, isA<SetSourcesRequestSucceeded>());
+      expect(
+        (response3 as SetSourcesRequestSucceeded).trustedSources,
+        equals({Source('trusted1.local'), Source('trusted3.local')}),
+      );
+      expect(response3.excludedSources, equals(<Source>{}));
+      expect(
+        expectEvent<TrustedSourcesListRequestSucceeded>(
+          await engine.getTrustedSourcesList(),
+        ).sources,
+        equals({Source('trusted1.local'), Source('trusted3.local')}),
+      );
+      expect(
+        expectEvent<ExcludedSourcesListRequestSucceeded>(
+          await engine.getExcludedSourcesList(),
+        ).excludedSources,
+        equals(<Source>{}),
+      );
+    });
+
+    test('trusted and excluded sources for the same domain can\'t co-exist',
+        () async {
+      final response1 =
+          await engine.addSourceToTrustedList(Source('example.com'));
+      final response2 =
+          await engine.addSourceToExcludedList(Source('example.com'));
+      expect(response1, isA<AddTrustedSourceRequestSucceeded>());
+      expect(response2, isA<AddExcludedSourceRequestSucceeded>());
+
+      expect(
+        expectEvent<ExcludedSourcesListRequestSucceeded>(
+          await engine.getExcludedSourcesList(),
+        ).excludedSources,
+        equals({Source('example.com')}),
+      );
+
+      expect(
+        expectEvent<TrustedSourcesListRequestSucceeded>(
+          await engine.getTrustedSourcesList(),
+        ).sources,
+        isEmpty,
+      );
+    });
+
+    //TODO[PMK] check if updates stacks is called
   });
 }

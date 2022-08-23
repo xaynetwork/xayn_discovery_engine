@@ -315,7 +315,7 @@ class DiscoveryEngine {
   /// duplicates found in provided sets, containing a set of said duplicates.
   /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
-  Future<EngineEvent> overrideSources({
+  Future<EngineEvent> setSources({
     required Set<Source> trustedSources,
     required Set<Source> excludedSources,
   }) {
