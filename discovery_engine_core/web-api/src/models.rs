@@ -16,7 +16,7 @@ use chrono::{NaiveDateTime, Utc};
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr, string::FromUtf8Error};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -29,8 +29,11 @@ pub(crate) enum Error {
     /// [`UserId`] can't be empty.
     UserIdEmpty,
 
-    /// [`UserId`] can't contain zero bytes.
-    UserIdContainsZeroByte,
+    /// [`UserId`] can't contain NUL character.
+    UserIdContainsNul,
+
+    /// Impossible to parse the provided url: {0}.
+    UserIdUtf8Error(#[from] FromUtf8Error),
 }
 
 /// Represents a result from a query.
@@ -92,11 +95,12 @@ pub(crate) struct UserId(String);
 
 impl UserId {
     fn new(value: &str) -> Result<Self, Error> {
-        let value = value.trim();
-        if value.is_empty() {
+        let value = urlencoding::decode(value).map_err(Error::UserIdUtf8Error)?;
+
+        if value.trim().is_empty() {
             Err(Error::UserIdEmpty)
-        } else if value.contains('\u{0000}') || value.contains("%20") {
-            Err(Error::UserIdContainsZeroByte)
+        } else if value.contains('\u{0000}') {
+            Err(Error::UserIdContainsNul)
         } else {
             Ok(Self(value.to_string()))
         }

@@ -73,11 +73,10 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
                 .expect("Article needs to have an 'id' field")
                 .as_str()
                 .expect("The article's 'id' field needs to be represented as String")
-                .trim()
                 .to_string();
 
             assert!(
-                !article_id.is_empty(),
+                !article_id.trim().is_empty(),
                 "The article's 'id' field can't be empty"
             );
 
