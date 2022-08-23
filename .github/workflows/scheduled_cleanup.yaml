@@ -9,7 +9,7 @@ on:
         number_days_old:
             description: "pass this value, all the files older than this value will be deleted from our repository. By default, this value is set to 30 days."
             required: false
-            default: 
+            default: 8 
         branch_name:
             description: "deletion by the name of the branch_name"
             required: false
