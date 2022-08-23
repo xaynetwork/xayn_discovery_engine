@@ -32,8 +32,8 @@ pub(crate) enum Error {
     /// [`UserId`] can't contain NUL character.
     UserIdContainsNul,
 
-    /// Impossible to parse the provided url: {0}.
-    UserIdUtf8Error(#[from] FromUtf8Error),
+    /// Failed to decode [`UserId] from path param: {0}.
+    UserIdUtf8Conversion(#[from] FromUtf8Error),
 }
 
 /// Represents a result from a query.
@@ -95,7 +95,7 @@ pub(crate) struct UserId(String);
 
 impl UserId {
     fn new(value: &str) -> Result<Self, Error> {
-        let value = urlencoding::decode(value).map_err(Error::UserIdUtf8Error)?;
+        let value = urlencoding::decode(value).map_err(Error::UserIdUtf8Conversion)?;
 
         if value.trim().is_empty() {
             Err(Error::UserIdEmpty)
