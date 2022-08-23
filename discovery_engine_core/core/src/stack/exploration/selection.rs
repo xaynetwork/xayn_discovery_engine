@@ -15,12 +15,11 @@
 use std::collections::{BTreeSet, HashSet};
 
 use displaydoc::Display;
-use itertools::{chain, Itertools};
-use ndarray::{Array2, ArrayView1};
+use itertools::chain;
+use ndarray::Array2;
 use rand::{prelude::IteratorRandom, Rng};
 use thiserror::Error;
 use xayn_discovery_engine_ai::{
-    cosine_similarity,
     nan_safe_f32_cmp,
     pairwise_cosine_similarity,
     CoiPoint,
@@ -28,7 +27,11 @@ use xayn_discovery_engine_ai::{
     PositiveCoi,
 };
 
-use crate::{config::ExplorationConfig as Config, document::Document};
+use crate::{
+    config::ExplorationConfig as Config,
+    document::Document,
+    stack::filters::{filter_too_similar, max_cosine_similarity},
+};
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
@@ -72,17 +75,15 @@ where
         return Err(Error::NotEnoughCois);
     }
 
-    let pos_cois = positive_cois.iter().map(|coi| coi.point().view());
-    let neg_cois = negative_cois.iter().map(|coi| coi.point().view());
-    let cois = chain!(pos_cois, neg_cois).collect_vec();
-
-    // max_cosine_similarity can't panic because we make sure beforehand
-    // that both positive and negative cois aren't empty
-    let documents = filter_too_similar(documents, &cois, config.max_similarity);
+    let cois = chain!(
+        positive_cois.iter().map(|coi| coi.point().view()),
+        negative_cois.iter().map(|coi| coi.point().view()),
+    );
+    let documents = filter_too_similar(documents, cois.clone(), config.max_similarity);
     let document_embeddings = documents
         .iter()
         .map(|document| document.smbert_embedding.view());
-    let nearest_coi_for_docs = max_cosine_similarity(document_embeddings.clone(), &cois);
+    let nearest_coi_for_docs = max_cosine_similarity(document_embeddings.clone(), cois);
     let doc_similarities = pairwise_cosine_similarity(document_embeddings);
 
     let selected = select_by_randomization_with_threshold(
@@ -137,57 +138,6 @@ fn argsort(arr: &[f32]) -> Vec<usize> {
     indices
 }
 
-/// Filters all documents which are too similar to their closest coi.
-///
-/// # Panics
-/// Panics if `cois` is empty.
-fn filter_too_similar(
-    mut documents: Vec<Document>,
-    cois: &[ArrayView1<'_, f32>],
-    threshold: f32,
-) -> Vec<Document> {
-    let mut retain = max_cosine_similarity(
-        documents
-            .iter()
-            .map(|document| document.smbert_embedding.view()),
-        cois,
-    )
-    .into_iter()
-    .map(|similarity| similarity <= threshold);
-    // the iterator is only empty if:
-    // - the documents are empty => retaining is a no-op and unwrapping doesn't happen
-    // - the cois are empty => the panic is already propagated above
-    documents.retain(|_| retain.next().unwrap());
-
-    documents
-}
-
-/// Computes the cosine similarity between the cois and documents and returns the
-/// cosine similarity of the nearest coi for each document.
-///
-/// # Panics
-/// Panics if `cois` is empty.
-fn max_cosine_similarity<'a, I>(docs: I, cois: &[ArrayView1<'_, f32>]) -> Vec<f32>
-where
-    I: IntoIterator<Item = ArrayView1<'a, f32>>,
-{
-    // creates a cosine similarity matrix (docs x cois)
-    // |      | coi1                  | coi2                  |
-    // | doc1 | `cos_sim(doc1, coi1)` | `cos_sim(doc1, coi2)` |
-    // | doc2 | `cos_sim(doc2, coi1)` | `cos_sim(doc2, coi2)` |
-    //
-    // finds the nearest coi for each document
-    // [doc1(max(cos_sim1, cos_sim2, ...)), doc2(max(cos_sim1, cos_sim2, ...)), ...]
-    docs.into_iter()
-        .map(|doc| {
-            cois.iter()
-                .map(|&coi| cosine_similarity(doc, coi))
-                .max_by(nan_safe_f32_cmp)
-                .unwrap()
-        })
-        .collect()
-}
-
 /// Determines the threshold and returns it together with the indices of the documents
 /// that are below that threshold.
 ///
@@ -228,7 +178,7 @@ fn retain_documents_by_indices(
 mod tests {
     use std::iter::FromIterator;
 
-    use ndarray::{arr1, ArrayBase, FixedInitializer};
+    use ndarray::{arr1, FixedInitializer};
     use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
     use xayn_discovery_engine_ai::CoiId;
@@ -275,38 +225,6 @@ mod tests {
                 NegativeCoi::new(CoiId::from(mock_uuid(id)), arr1(point.as_init_slice()))
             })
             .collect()
-    }
-
-    #[test]
-    fn test_max_cosine_similarity() {
-        let cois = vec![
-            arr1(&[1., 4., 0.]),
-            arr1(&[3., 1., 0.]),
-            arr1(&[4., 1., 0.]),
-        ];
-        let documents = vec![arr1(&[1., 1., 0.]), arr1(&[-1., 1., 0.])];
-        let max = max_cosine_similarity(
-            documents.iter().map(ArrayBase::view),
-            &cois.iter().map(ArrayBase::view).collect_vec(),
-        );
-
-        assert_approx_eq!(f32, max, [0.894_427_2, 0.514_495_8]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_max_cosine_similarity_no_cois() {
-        max_cosine_similarity(
-            [arr1(&[1., 1., 0.]).view()],
-            &[] as &[ArrayView1<'_, f32>; 0],
-        );
-    }
-
-    #[test]
-    fn test_max_cosine_similarity_no_docs() {
-        let max = max_cosine_similarity([], &[arr1(&[1., 1., 0.]).view()]);
-
-        assert!(max.is_empty());
     }
 
     #[test]

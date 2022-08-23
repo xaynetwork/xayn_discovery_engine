@@ -22,12 +22,14 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::{CoiSystem, GenericError, KeyPhrase, UserInterests};
+use xayn_discovery_engine_ai::{CoiPoint, CoiSystem, GenericError, KeyPhrase, UserInterests};
 use xayn_discovery_engine_providers::{GenericArticle, Market};
 
 use crate::{
+    config::StackConfig as Config,
     document::{Document, HistoricDocument, Id as DocumentId, UserReaction},
     mab::Bucket,
+    stack::filters::filter_too_similar,
 };
 
 mod data;
@@ -125,14 +127,15 @@ pub(crate) struct Stack {
     pub(crate) data: Data,
     #[derivative(Debug = "ignore")]
     pub(crate) ops: BoxedOps,
+    config: Config,
 }
 
 impl Stack {
     /// Create a new `Stack` with the given [`Data`] and customized [`Ops`].
-    pub(crate) fn new(data: Data, ops: BoxedOps) -> Result<Self, Error> {
+    pub(crate) fn new(data: Data, ops: BoxedOps, config: Config) -> Result<Self, Error> {
         Self::validate_documents_stack_id(&data.documents, ops.id())?;
 
-        Ok(Self { data, ops })
+        Ok(Self { data, ops, config })
     }
 
     /// [`Id`] of this `Stack`.
@@ -149,13 +152,19 @@ impl Stack {
     ) -> Result<(), Error> {
         Self::validate_documents_stack_id(new_documents, self.ops.id())?;
 
-        let mut items = self
+        let documents = self
             .ops
             .merge(&self.data.documents, new_documents)
             .map_err(Error::Merge)?;
-        coi.rank(&mut items, user_interests);
-        self.data.documents = items;
+        let mut documents = filter_too_similar(
+            documents,
+            user_interests.negative.iter().map(|coi| coi.point().view()),
+            self.config.max_negative_similarity,
+        );
+        coi.rank(&mut documents, user_interests);
+        self.data.documents = documents;
         self.data.documents.reverse();
+
         Ok(())
     }
 
@@ -370,7 +379,7 @@ mod tests {
     fn test_stack_new_from_default() {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
-        assert!(Stack::new(Data::default(), Box::new(ops)).is_ok());
+        assert!(Stack::new(Data::default(), Box::new(ops), Config::default()).is_ok());
     }
 
     #[test]
@@ -383,7 +392,7 @@ mod tests {
                 ops.expect_id().returning(move || stack_id);
 
                 let data = Data::new(0.01, 0.99, docs.to_vec()).unwrap();
-                Stack::new(data, Box::new(ops))
+                Stack::new(data, Box::new(ops), Config::default())
             },
             stack_id,
         );
@@ -399,7 +408,7 @@ mod tests {
                 ops.expect_id().returning(move || stack_id);
 
                 let data = Data::new(0.01, 0.99, docs.to_vec()).unwrap();
-                Stack::new(data, Box::new(ops))
+                Stack::new(data, Box::new(ops), Config::default())
             },
             stack_id,
         );
@@ -415,7 +424,7 @@ mod tests {
         ops.expect_id().returning(Id::default);
 
         let data = Data::new(alpha, beta, vec![]).unwrap();
-        let stack = Stack::new(data, Box::new(ops)).unwrap();
+        let stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
 
         assert_eq!(stack.alpha(), alpha);
         assert_eq!(stack.beta(), beta);
@@ -426,7 +435,7 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
 
-        let mut stack = Stack::new(Data::default(), Box::new(ops)).unwrap();
+        let mut stack = Stack::new(Data::default(), Box::new(ops), Config::default()).unwrap();
 
         assert!(stack.pop().is_none());
     }
@@ -438,7 +447,7 @@ mod tests {
         let data = Data::new(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
 
         assert!(stack.pop().is_some());
         assert!(stack.pop().is_some());
@@ -450,7 +459,7 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::default();
-        let stack = Stack::new(data, Box::new(ops)).unwrap();
+        let stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
 
         assert!(stack.is_empty());
 
@@ -459,7 +468,7 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::new(1., 1., vec![doc]).unwrap();
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
 
         assert!(!stack.is_empty());
         stack.pop();
@@ -471,7 +480,7 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::default();
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
         let alpha = stack.alpha();
         let beta = stack.beta();
 
@@ -486,7 +495,7 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::default();
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
         let alpha = stack.alpha();
         let beta = stack.beta();
 
@@ -501,7 +510,7 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::default();
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
         let alpha = stack.alpha();
         let beta = stack.beta();
 

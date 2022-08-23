@@ -16,7 +16,8 @@ use std::collections::BTreeMap;
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
-use xayn_discovery_engine_ai::{nan_safe_f32_cmp, pairwise_cosine_similarity};
+use ndarray::ArrayView1;
+use xayn_discovery_engine_ai::{cosine_similarity, nan_safe_f32_cmp, pairwise_cosine_similarity};
 
 use crate::document::{Document, WeightedSource};
 
@@ -230,12 +231,64 @@ pub(crate) fn filter_semantically(
         .collect()
 }
 
+/// Computes the cosine similarity between the cois and documents and returns the
+/// cosine similarity of the nearest coi for each document.
+pub(crate) fn max_cosine_similarity<'a, 'b, I, J>(docs: I, cois: J) -> Vec<f32>
+where
+    I: IntoIterator<Item = ArrayView1<'a, f32>>,
+    J: IntoIterator<Item = ArrayView1<'b, f32>>,
+    <J as IntoIterator>::IntoIter: Clone,
+{
+    let cois = cois.into_iter();
+    if cois.clone().next().is_none() {
+        return Vec::new();
+    }
+
+    // creates a cosine similarity matrix (docs x cois)
+    // |      | coi1                  | coi2                  |
+    // | doc1 | `cos_sim(doc1, coi1)` | `cos_sim(doc1, coi2)` |
+    // | doc2 | `cos_sim(doc2, coi1)` | `cos_sim(doc2, coi2)` |
+    //
+    // finds the nearest coi for each document
+    // [doc1(max(cos_sim1, cos_sim2, ...)), doc2(max(cos_sim1, cos_sim2, ...)), ...]
+    docs.into_iter()
+        .map(|doc| {
+            cois.clone()
+                .map(|coi| cosine_similarity(doc, coi))
+                .max_by(nan_safe_f32_cmp)
+                .unwrap(/* cois is not empty */)
+        })
+        .collect()
+}
+
+/// Filters all documents which are too similar to their closest coi.
+pub(crate) fn filter_too_similar<'a, I>(
+    mut documents: Vec<Document>,
+    cois: I,
+    threshold: f32,
+) -> Vec<Document>
+where
+    I: IntoIterator<Item = ArrayView1<'a, f32>>,
+    <I as IntoIterator>::IntoIter: Clone,
+{
+    let embeddings = documents
+        .iter()
+        .map(|document| document.smbert_embedding.view());
+    let mut retain = max_cosine_similarity(embeddings, cois)
+        .into_iter()
+        .map(|similarity| similarity <= threshold);
+    documents.retain(|_| retain.next().unwrap_or(true));
+
+    documents
+}
+
 #[cfg(test)]
 #[allow(clippy::non_ascii_literal)]
 mod tests {
     use std::iter::repeat_with;
 
     use chrono::NaiveDateTime;
+    use ndarray::aview1;
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
@@ -486,5 +539,28 @@ mod tests {
         ];
 
         normalized_distance_for_titles(&titles_de, &smbert, &expected_de);
+    }
+
+    #[test]
+    fn test_max_cosine_similarity_no_documents() {
+        assert!(max_cosine_similarity([], [aview1(&[1., 1., 0.])]).is_empty());
+    }
+
+    #[test]
+    fn test_max_cosine_similarity_no_cois() {
+        assert!(max_cosine_similarity([aview1(&[1., 1., 0.])], []).is_empty());
+    }
+
+    #[test]
+    fn test_max_cosine_similarity() {
+        let documents = [aview1(&[1., 1., 0.]), aview1(&[-1., 1., 0.])];
+        let cois = [
+            aview1(&[1., 4., 0.]),
+            aview1(&[3., 1., 0.]),
+            aview1(&[4., 1., 0.]),
+        ];
+        let max = max_cosine_similarity(documents, cois);
+
+        assert_approx_eq!(f32, max, [0.894_427_2, 0.514_495_8]);
     }
 }
