@@ -31,14 +31,29 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, Level};
 
 use xayn_discovery_engine_ai::{
-    cosine_similarity, nan_safe_f32_cmp, CoiSystem, CoiSystemConfig, CoiSystemState, Embedding,
-    GenericError, KeyPhrase, UserInterests,
+    cosine_similarity,
+    nan_safe_f32_cmp,
+    CoiSystem,
+    CoiSystemConfig,
+    CoiSystemState,
+    Embedding,
+    GenericError,
+    KeyPhrase,
+    UserInterests,
 };
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_kpe::{Config as KpeConfig, Pipeline as KPE};
 use xayn_discovery_engine_providers::{
-    clean_query, Filter, GenericArticle, HeadlinesQuery, Market, NewsQuery, Providers, RankLimit,
-    TrendingTopic as BingTopic, TrendingTopicsQuery,
+    clean_query,
+    Filter,
+    GenericArticle,
+    HeadlinesQuery,
+    Market,
+    NewsQuery,
+    Providers,
+    RankLimit,
+    TrendingTopic as BingTopic,
+    TrendingTopicsQuery,
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
@@ -46,11 +61,24 @@ use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
 use crate::{
     config::{
-        de_config_from_json, de_config_from_json_with_defaults, CoreConfig, EndpointConfig,
-        ExplorationConfig, FeedConfig, InitConfig, SearchConfig, StackConfig,
+        de_config_from_json,
+        de_config_from_json_with_defaults,
+        CoreConfig,
+        EndpointConfig,
+        ExplorationConfig,
+        FeedConfig,
+        InitConfig,
+        SearchConfig,
+        StackConfig,
     },
     document::{
-        self, Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, UserReaction,
+        self,
+        Document,
+        HistoricDocument,
+        TimeSpent,
+        TrendingTopic,
+        UserReacted,
+        UserReaction,
         WeightedSource,
     },
     mab::{self, BetaSampler, Bucket, SelectionIter, UniformSampler},
@@ -58,11 +86,23 @@ use crate::{
         self,
         exploration::Stack as Exploration,
         filters::{
-            filter_semantically, ArticleFilter, Criterion, DuplicateFilter, MalformedFilter,
+            filter_semantically,
+            ArticleFilter,
+            Criterion,
+            DuplicateFilter,
+            MalformedFilter,
             SemanticFilterConfig,
         },
-        BoxedOps, BreakingNews, Data as StackData, Id as StackId, Id, NewItemsError, Ops,
-        PersonalizedNews, Stack, TrustedNews,
+        BoxedOps,
+        BreakingNews,
+        Data as StackData,
+        Id as StackId,
+        Id,
+        NewItemsError,
+        Ops,
+        PersonalizedNews,
+        Stack,
+        TrustedNews,
     },
 };
 
@@ -1715,7 +1755,9 @@ pub(crate) mod tests {
     use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
     use wiremock::{
         matchers::{method, path},
-        Mock, MockServer, ResponseTemplate,
+        Mock,
+        MockServer,
+        ResponseTemplate,
     };
 
     use crate::{document::tests::mock_generic_article, stack::ops::MockOps};

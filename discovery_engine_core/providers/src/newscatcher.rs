@@ -13,8 +13,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-    helpers::rest_endpoint::RestEndpoint, models::NewsQuery, Error, GenericArticle,
-    HeadlinesProvider, HeadlinesQuery, Market, NewsProvider, RankLimit, TrustedHeadlinesProvider,
+    helpers::rest_endpoint::RestEndpoint,
+    models::NewsQuery,
+    Error,
+    GenericArticle,
+    HeadlinesProvider,
+    HeadlinesQuery,
+    Market,
+    NewsProvider,
+    RankLimit,
+    TrustedHeadlinesProvider,
     TrustedHeadlinesQuery,
 };
 use async_trait::async_trait;
@@ -323,7 +331,9 @@ mod tests {
     use crate::models::RankLimit;
     use wiremock::{
         matchers::{header, method, path, query_param, query_param_is_missing},
-        Mock, MockServer, ResponseTemplate,
+        Mock,
+        MockServer,
+        ResponseTemplate,
     };
 
     #[tokio::test]
