@@ -33,24 +33,16 @@ fn condensed_cosine_similarity(
     norms: &mut Vec<f32>,
 ) -> f32 {
     let v_a = doc_a.smbert_embedding.view();
-    let mut ni = (*norms)[i];
-
-    if ni.is_nan() {
-        ni = l2_norm(v_a);
-        (*norms)[i] = ni;
-    }
+    (*norms)[i].is_nan().then(|| (*norms)[i] = l2_norm(v_a));
+    let ni = (*norms)[i];
 
     if ni <= 0. {
         return 1.0;
     }
 
     let v_b = doc_b.smbert_embedding.view();
-    let mut nj = (*norms)[j];
-
-    if nj.is_nan() {
-        nj = l2_norm(v_b);
-        (*norms)[j] = nj;
-    }
+    (*norms)[j].is_nan().then(|| (*norms)[j] = l2_norm(v_b));
+    let nj = (*norms)[j];
 
     if nj <= 0. {
         return 1.0;
