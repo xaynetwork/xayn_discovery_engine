@@ -1989,7 +1989,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn test_update_stack_multiple_market_stack_not_ready() {
-        // When handling the errors in update_stacks we where counting
+        // When handling the errors in update_stacks we were counting
         // a not ready stack for each market in the configuration.
 
         let engine = &mut *init_engine(
