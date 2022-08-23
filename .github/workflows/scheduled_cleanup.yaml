@@ -25,7 +25,7 @@ jobs:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
            if [ -n ${{inputs.branch_name}} ]; then
-            jf rt s dart.xayn.private/ --props "pub.name=async_bindgen_dart_utils"
+            jf rt s dart.xayn.private/ --props "pub.version=TO-3259-fix-dart-upload-order"
            fi
            sed -i 's/number_days_limit/${{inputs.number_days_old}}/g' .github/scripts/artifactory.spec
            jf c use xayn
