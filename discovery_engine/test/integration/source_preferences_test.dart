@@ -258,6 +258,35 @@ void main() {
       );
     });
 
-    //TODO[PMK] check if updates stacks is called
+    test('adding sources preferences triggers updates to stacks', () async {
+      //needed due to the out of sync initial update
+      while (server.requestCount < 2) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      var lastCount = server.requestCount;
+      await engine.addSourceToTrustedList(trusted);
+      expect(server.requestCount, greaterThan(lastCount));
+
+      lastCount = server.requestCount;
+      await engine.addSourceToTrustedList(trusted);
+      expect(server.requestCount, equals(lastCount));
+
+      lastCount = server.requestCount;
+      await engine.addSourceToExcludedList(exclude);
+      expect(server.requestCount, greaterThan(lastCount));
+
+      lastCount = server.requestCount;
+      await engine.addSourceToExcludedList(exclude);
+      expect(server.requestCount, equals(lastCount));
+
+      lastCount = server.requestCount;
+      await engine
+          .setSources(trustedSources: {trusted}, excludedSources: {exclude});
+      expect(server.requestCount, equals(lastCount));
+
+      lastCount = server.requestCount;
+      await engine.setSources(trustedSources: {}, excludedSources: {});
+      expect(server.requestCount, greaterThan(lastCount));
+    });
   });
 }
