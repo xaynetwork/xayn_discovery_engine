@@ -17,7 +17,6 @@ use std::{collections::HashMap, fs::File, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use xayn_discovery_engine_ai::{CoiSystem, CoiSystemConfig, CoiSystemState};
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
-use xayn_discovery_engine_core::document::Id;
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::models::{Article, Document, UserId};
@@ -28,13 +27,13 @@ pub(crate) type Db = Arc<AppState>;
 pub(crate) struct AppState {
     pub(crate) smbert: SMBert,
     pub(crate) coi: CoiSystem,
-    pub(crate) documents_by_id: HashMap<Id, Document>,
+    pub(crate) documents_by_id: HashMap<String, Document>,
     pub(crate) documents: Vec<Document>,
     pub(crate) user_interests: RwLock<HashMap<UserId, CoiSystemState>>,
 }
 
 impl AppState {
-    fn new(documents_by_id: HashMap<Id, Document>, smbert: SMBert) -> Self {
+    fn new(documents_by_id: HashMap<String, Document>, smbert: SMBert) -> Self {
         let documents = documents_by_id.clone().into_values().collect();
         Self {
             documents_by_id,
@@ -69,21 +68,31 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
     let documents = articles
         .into_iter()
         .map(|article| {
-            let id = article
+            let article_id = article
                 .get("id")
                 .expect("Article needs to have an 'id' field")
                 .as_str()
-                .expect("The 'id' field needs to be represented as String")
-                .try_into()
-                .expect("The 'id' field needs to be a valid UUID");
+                .expect("The article's 'id' field needs to be represented as String")
+                .to_string();
+
+            assert!(
+                !article_id.trim().is_empty(),
+                "The article's 'id' field can't be empty"
+            );
+
+            assert!(
+                !article_id.contains('\u{0000}'),
+                "The article's 'id' field can't contain zero bytes"
+            );
+
             let description = article
                 .get("description")
                 .expect("Article needs to have a 'description' field")
                 .as_str()
                 .expect("The 'description' field needs to be represented as String");
             let embedding = smbert.run(description).unwrap();
-            let document = Document::new((id, article, embedding));
-            (document.id, document)
+            let document = Document::new((article, embedding));
+            (article_id, document)
         })
         .collect();
     let app_state = AppState::new(documents, smbert);
