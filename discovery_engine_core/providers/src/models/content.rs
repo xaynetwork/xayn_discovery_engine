@@ -79,6 +79,9 @@ pub struct GenericArticle {
 
     /// How much the article match the query.
     pub score: Option<f32>,
+
+    /// Optional article embedding from the provider.
+    pub embedding: Option<Vec<f32>>,
 }
 
 impl GenericArticle {
@@ -115,6 +118,7 @@ impl TryFrom<NewscatcherArticle> for GenericArticle {
             country: article.country,
             language: article.language,
             topic: article.topic,
+            embedding: article.embedding,
         })
     }
 }
@@ -138,6 +142,7 @@ mod tests {
                 country: "US".to_string(),
                 language: "en".to_string(),
                 topic: "news".to_string(),
+                embedding: None,
             }
         }
     }

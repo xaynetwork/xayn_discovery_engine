@@ -397,6 +397,7 @@ pub(crate) mod tests {
             date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
             url: UrlWithDomain::new(Url::parse("https://example.com/news/").unwrap()).unwrap(),
             image: Some(Url::parse("https://example.com/news/image.jpg").unwrap()),
+            embedding: None,
         }
     }
 

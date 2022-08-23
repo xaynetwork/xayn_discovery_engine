@@ -13,16 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-    helpers::rest_endpoint::RestEndpoint,
-    models::NewsQuery,
-    Error,
-    GenericArticle,
-    HeadlinesProvider,
-    HeadlinesQuery,
-    Market,
-    NewsProvider,
-    RankLimit,
-    TrustedHeadlinesProvider,
+    helpers::rest_endpoint::RestEndpoint, models::NewsQuery, Error, GenericArticle,
+    HeadlinesProvider, HeadlinesQuery, Market, NewsProvider, RankLimit, TrustedHeadlinesProvider,
     TrustedHeadlinesQuery,
 };
 use async_trait::async_trait;
@@ -266,6 +258,10 @@ pub struct Article {
         deserialize_with = "deserialize_naive_date_time_from_str"
     )]
     pub published_date: NaiveDateTime,
+
+    /// Optional article embedding from the provider.
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub embedding: Option<Vec<f32>>,
 }
 
 fn default_published_date() -> NaiveDateTime {
@@ -327,9 +323,7 @@ mod tests {
     use crate::models::RankLimit;
     use wiremock::{
         matchers::{header, method, path, query_param, query_param_is_missing},
-        Mock,
-        MockServer,
-        ResponseTemplate,
+        Mock, MockServer, ResponseTemplate,
     };
 
     #[tokio::test]
@@ -575,7 +569,8 @@ mod tests {
             topic: "gaming".to_string(),
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
             country: "US".to_string(),
-            language: "en".to_string()
+            language: "en".to_string(),
+            embedding: None
         };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
@@ -630,7 +625,8 @@ mod tests {
             topic: "gaming".to_string(),
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
             country: "US".to_string(),
-            language: "en".to_string()
+            language: "en".to_string(),
+            embedding: None
         };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
@@ -650,6 +646,7 @@ mod tests {
                 country: "US".to_string(),
                 language: "en".to_string(),
                 published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+                embedding: None,
             }
         }
     }
