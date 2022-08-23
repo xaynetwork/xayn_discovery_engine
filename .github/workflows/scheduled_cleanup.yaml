@@ -28,12 +28,12 @@ jobs:
            #if [ -n "${{inputs.branch_name}}" ]; then
            #sed -i 's/"path":.*/"path": {"$match":"${{inputs.branch_name}}"},/g' .github/scripts/artifactory.spec
            #fi
-           sed -i 's/"path":.*/"path": {"$match":"*.TO-3259-fix-dart-upload-order*."},/g' .github/scripts/artifactory.spec
+           sed -i 's/"path":.*/"path": {"$match":"*.TO-3259-fix-dart-upload-order"},/g' .github/scripts/artifactory.spec
            
            #if [ -n "${{inputs.number_days_old}}" ]; then
            #sed -i 's/number_days_limit/${{inputs.number_days_old}}/g' .github/scripts/artifactory.spec
            #fi
-           sed -i 's/number_days_limit/7d/g' .github/scripts/artifactory.spec
+           sed -i 's/number_days_limit/2d/g' .github/scripts/artifactory.spec
            
            jf c use xayn
            cat .github/scripts/artifactory.spec
