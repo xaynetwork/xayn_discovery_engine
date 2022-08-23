@@ -25,8 +25,8 @@ jobs:
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
        - run: |
-           var = ""
-           varb = 8
+           var=""
+           varb=8
            if [ -n "$var" ]; then
             jf rt s dart.xayn.private/ | grep $var
            fi
