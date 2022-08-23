@@ -19,7 +19,11 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show DiscoveryEngine, EngineInitException, NextFeedBatchRequestSucceeded;
+    show
+        DiscoveryEngine,
+        EngineInitException,
+        NextFeedBatchRequestSucceeded,
+        cfgFeatureStorage;
 
 import '../logging.dart' show setupLogging;
 import 'utils/db.dart' show loadEngineState, saveEngineState;
@@ -57,7 +61,9 @@ void main() {
       final restoredEngine = await initEngine(data, server.port);
       expect(restoredEngine, isA<DiscoveryEngine>());
       await engine.dispose();
-    });
+      // TODO[pmk] loadEngineState is too hive specific
+      // ignore: require_trailing_commas
+    }, skip: cfgFeatureStorage);
 
     test(
         'init the engine from an invalid state should raise an engine init'
@@ -70,6 +76,8 @@ void main() {
         ),
         throwsA(isA<EngineInitException>()),
       );
-    });
+      // TODO[pmk] saveEngineState is too hive specific
+      // ignore: require_trailing_commas
+    }, skip: cfgFeatureStorage);
   });
 }

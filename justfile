@@ -110,14 +110,13 @@ flutter-test: dart-build flutter-deps
 # replaced by a better workaround.
 _codegen-order-workaround:
     cd "$RUST_WORKSPACE"; \
-    cargo check --quiet 2>/dev/null || :
+    cargo check --features "${XAYN_DE_FEATURES:-}" --quiet 2>/dev/null || :
 
 # Checks rust code, fails on warnings on CI
 rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
-    cargo clippy --all-targets --features="storage" --locked; \
-    cargo clippy --all-targets --locked; \
-    cargo check -p xayn-discovery-engine-bindings
+    cargo clippy --all-targets --features "${XAYN_DE_FEATURES:-}" --locked; \
+    cargo check --features "${XAYN_DE_FEATURES:-}" -p xayn-discovery-engine-bindings
 
 # Checks rust and dart code, fails if there are any issues on CI
 check: rust-check dart-check flutter-check
@@ -150,7 +149,7 @@ check-doc: dart-check-doc rust-check-doc
 
 _run-cbindgen: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
-    cargo check
+    cargo check --features "${XAYN_DE_FEATURES:-}"
 
 _run-ffigen:
     cd "$DART_WORKSPACE"; \
@@ -172,7 +171,7 @@ dart-build: _run-cbindgen _run-ffigen _run-async-bindgen _run-build-runner
 # Builds rust
 rust-build: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
-    cargo build --locked
+    cargo build --features "${XAYN_DE_FEATURES:-}" --locked
 
 # Builds dart and rust
 build: rust-build dart-build
@@ -187,34 +186,11 @@ rust-test: _codegen-order-workaround download-assets
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$RUST_WORKSPACE";
-    cargo test --lib --bins --tests --quiet --locked
-    cargo test --doc --quiet --locked
+    cargo test --features "${XAYN_DE_FEATURES:-}" --lib --bins --tests --quiet --locked
+    cargo test --features "${XAYN_DE_FEATURES:-}" --doc --quiet --locked
 
 # Tests dart and rust
 test: rust-test dart-test flutter-test
-
-rust-storage-test:
-    cd "$RUST_WORKSPACE"; \
-    cargo test -p xayn-discovery-engine-core --features storage --locked; \
-    cargo test -p xayn-discovery-engine-bindings --features storage --locked
-
-rust-storage-check:
-    cd "$RUST_WORKSPACE"; \
-    cargo clippy --all-targets --features storage --locked
-
-rust-storage-build:
-    cd "$RUST_WORKSPACE"; \
-    cargo build -p xayn-discovery-engine-bindings --features storage
-
-_run-cbindgen-with-storage:
-    cd "$RUST_WORKSPACE"; \
-    cargo check --features storage
-
-dart-storage-build: _run-cbindgen-with-storage _run-ffigen _run-async-bindgen _run-build-runner
-
-dart-storage-test: rust-storage-build dart-storage-build
-    cd "$DART_WORKSPACE"; \
-    dart test
 
 # Cleans up all generated files
 clean-gen-files:
@@ -265,9 +241,15 @@ pre-push $CI="true":
 _compile-android target:
     # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
     cd "$RUST_WORKSPACE"; \
-    cargo ndk --bindgen -t {{target}} -p $ANDROID_PLATFORM_VERSION \
-        -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build \
-        --release -p xayn-discovery-engine-bindings --locked
+    cargo ndk --bindgen \
+        -t {{target}} \
+        -p $ANDROID_PLATFORM_VERSION \
+        -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" \
+        build \
+        --features "${XAYN_DE_FEATURES:-}" \
+        --release \
+        -p xayn-discovery-engine-bindings \
+        --locked
 
 compile-android-local: _codegen-order-workaround
     #!/usr/bin/env bash
@@ -288,7 +270,7 @@ compile-android-ci target prod_flag="\"\"": _codegen-order-workaround
 # Compiles the bindings for the given iOS target
 _compile-ios target:
     cd "$RUST_WORKSPACE"; \
-    cargo build --target {{target}} -p xayn-discovery-engine-bindings --release --locked
+    cargo build --features "${XAYN_DE_FEATURES:-}" --target {{target}} -p xayn-discovery-engine-bindings --release --locked
 
 # Compiles the bindings for iphoneos (aarch64) and iphonesimulator (x86_64)
 # and copies the binaries to the flutter project
