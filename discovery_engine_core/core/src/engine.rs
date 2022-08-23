@@ -1661,14 +1661,15 @@ fn documentify_articles(
     articles
         .into_par_iter()
         .map(|article| {
-            let embedding = if let Some(embedding) = &article.embedding {
-                Embedding::from(Array::from_vec(embedding.clone()))
-            } else {
-                smbert.run(article.snippet_or_title()).map_err(|error| {
+            let embedding = match &article.embedding {
+                Some(embedding) if embedding.len() == SMBert::embedding_size() => {
+                    Embedding::from(Array::from_vec(embedding.clone()))
+                }
+                Some(_) | None => smbert.run(article.snippet_or_title()).map_err(|error| {
                     let error = Error::Ranker(error.into());
                     error!("{}", error);
                     error
-                })?
+                })?,
             };
             (article, stack_id, embedding).try_into().map_err(|error| {
                 let error = Error::Document(error);
