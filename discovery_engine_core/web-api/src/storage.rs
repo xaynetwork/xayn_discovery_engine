@@ -63,9 +63,9 @@ impl UserState {
         id: &UserId,
         state: &CoiSystemState,
     ) -> Result<(), GenericError> {
-        let mut tx = self.pool.begin().await?;
-
         let serialized_state = bincode::serialize(state)?;
+        
+        let mut tx = self.pool.begin().await?;
 
         sqlx::query(
             "INSERT INTO user_state(id, state) VALUES ($1, $2)
