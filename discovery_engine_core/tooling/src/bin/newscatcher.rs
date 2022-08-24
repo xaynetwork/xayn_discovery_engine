@@ -50,12 +50,13 @@ async fn main() -> Result<()> {
                   The token can be found in 1Password",
     )?;
     let timeout = Duration::from_millis(3500);
+    let retry = 3;
 
     tokio::fs::create_dir("./headlines_download")
         .await
         .context("Failed to create download directory. Does it already exist?")?;
 
-    let provider = NewscatcherHeadlinesProvider::new(url, token, timeout);
+    let provider = NewscatcherHeadlinesProvider::new(url, token, timeout, retry);
     let market = Market::new("en", "US");
 
     // This is updated every iteration, based on the response from Newscatcher. So in reality,

@@ -28,9 +28,9 @@ pub struct BingTrendingTopicsProvider {
 }
 
 impl BingTrendingTopicsProvider {
-    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
         }
     }
 
@@ -48,7 +48,7 @@ impl TrendingTopicsProvider for BingTrendingTopicsProvider {
     ) -> Result<Vec<TrendingTopic>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 let lang = &request.market.lang_code;
                 let country = &request.market.country_code;
                 query_append("mkt", format!("{}-{}", lang, country));
@@ -138,6 +138,7 @@ mod tests {
             endpoint_url,
             "test-token".to_string(),
             Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)

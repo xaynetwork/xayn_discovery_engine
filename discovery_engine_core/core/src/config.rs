@@ -104,13 +104,14 @@ pub struct InitConfig {
 }
 
 impl InitConfig {
-    pub(crate) fn to_provider_config(&self, timeout: Duration) -> ProviderConfig {
+    pub(crate) fn to_provider_config(&self, timeout: Duration, retry: usize) -> ProviderConfig {
         ProviderConfig {
             api_base_url: self.api_base_url.clone(),
             api_key: self.api_key.clone(),
             news_provider_path: self.news_provider_path.clone(),
             headlines_provider_path: self.headlines_provider_path.clone(),
             timeout,
+            retry,
         }
     }
 }
@@ -146,6 +147,8 @@ pub struct EndpointConfig {
     /// The timeout after which a provider aborts a request.
     #[serde(with = "serde_duration_as_milliseconds")]
     pub timeout: Duration,
+    /// The number of retries in case of a timeout.
+    pub retry: usize,
 }
 
 impl Default for EndpointConfig {
@@ -160,6 +163,7 @@ impl Default for EndpointConfig {
             max_headline_age_days: 3,
             max_article_age_days: 30,
             timeout: Duration::from_millis(3500),
+            retry: 0,
         }
     }
 }
