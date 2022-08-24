@@ -41,4 +41,4 @@ jobs:
            # Ping xayn Artifactory server
            jf rt ping
            jf rt s --spec .github/scripts/artifactory.spec
-         curl -XPOST -H 'Accept: application/json' -H "Authorization: Bearer ${JFROG_TOKEN}" https://xayn.jfrog.io/api/trash/empty
+           curl -XPOST -H 'Accept: application/json' -H "Authorization: Bearer ${JFROG_TOKEN}" https://xayn.jfrog.io/api/trash/empty
