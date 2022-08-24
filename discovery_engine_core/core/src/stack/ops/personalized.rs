@@ -99,7 +99,7 @@ impl Ops for PersonalizedNews {
         market: &Market,
     ) -> Result<Vec<GenericArticle>, NewItemsError> {
         if key_phrases.is_empty() {
-            return Err(NewItemsError::NotReady);
+            return Err(NewItemsError::NotReady(self.id()));
         }
 
         let phrase = key_phrases

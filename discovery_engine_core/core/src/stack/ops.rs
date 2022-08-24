@@ -36,7 +36,7 @@ pub(crate) mod trusted;
 #[derive(Error, Debug, Display)]
 pub enum NewItemsError {
     /// The stack is not ready to retrieve new items.
-    NotReady,
+    NotReady(Id),
     /// Retrieving new items error: {0}
     Error(#[from] GenericError),
 }

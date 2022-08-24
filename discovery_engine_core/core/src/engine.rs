@@ -1517,10 +1517,11 @@ async fn update_stacks<'a>(
         })
         .collect_vec();
 
+    let mut stacks_not_ready = HashSet::<StackId>::new();
     for maybe_new_documents in join_all(new_document_futures).await {
         match maybe_new_documents {
-            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady))) => {
-                ready_stacks -= 1;
+            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady(stack_id)))) => {
+                stacks_not_ready.insert(stack_id);
                 continue;
             }
             Err(error) => {
@@ -1531,6 +1532,7 @@ async fn update_stacks<'a>(
             Ok(documents) => all_documents.extend(documents),
         };
     }
+    ready_stacks -= stacks_not_ready.len();
 
     // Since we need to de-duplicate not only the newly retrieved documents among themselves,
     // but also consider the existing documents in all stacks (not just the needy ones), we extract
@@ -1958,14 +1960,59 @@ pub(crate) mod tests {
         let engine = &mut *init_engine(
             [|_: &'_ _, _: &'_ _| {
                 let mut mock_ops = new_mock_stack_ops();
+                let id = mock_ops.id();
                 mock_ops
                     .expect_new_items()
-                    .returning(|_, _, _, _| Err(NewItemsError::NotReady));
+                    .returning(move |_, _, _, _| Err(NewItemsError::NotReady(id)));
                 Box::new(mock_ops) as _
             }],
             false,
         )
         .await;
+
+        update_stacks(
+            &mut *engine.stacks.write().await,
+            &mut engine.exploration_stack,
+            &engine.smbert,
+            &engine.coi,
+            &mut engine.state,
+            &[],
+            &[],
+            10,
+            10,
+            10,
+            &[Market::new("en", "US")],
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_update_stack_multiple_market_stack_not_ready() {
+        // When handling the errors in update_stacks we were counting
+        // a not ready stack for each market in the configuration.
+
+        let engine = &mut *init_engine(
+            [|_: &'_ _, _: &'_ _| {
+                let mut mock_ops = new_mock_stack_ops();
+                let id = mock_ops.id();
+                mock_ops
+                    .expect_new_items()
+                    .returning(move |_, _, _, _| Err(NewItemsError::NotReady(id)));
+                Box::new(mock_ops) as _
+            }],
+            false,
+        )
+        .await;
+
+        engine
+            .set_markets(
+                &[],
+                &[],
+                vec![Market::new("de", "DE"), Market::new("it", "IT")],
+            )
+            .await
+            .unwrap();
 
         update_stacks(
             &mut *engine.stacks.write().await,
