@@ -61,7 +61,7 @@ fn condensed_date_distance(doc_a: &Document, doc_b: &Document, _i: usize, _j: us
 }
 
 /// Computes the condensed decayed date distance matrix.
-#[inline(always)]
+#[inline]
 fn condensed_decay_factor(
     distance: f32,
     exp_max_days: f32,
