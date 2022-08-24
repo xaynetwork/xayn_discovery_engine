@@ -25,6 +25,7 @@ use cfg_if::cfg_if;
 use displaydoc::Display;
 use futures::future::join_all;
 use itertools::{chain, Itertools};
+use ndarray::Array;
 use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -1644,11 +1645,16 @@ fn documentify_articles(
     articles
         .into_par_iter()
         .map(|article| {
-            let embedding = smbert.run(article.snippet_or_title()).map_err(|error| {
-                let error = Error::Ranker(error.into());
-                error!("{}", error);
-                error
-            })?;
+            let embedding = match &article.embedding {
+                Some(embedding) if embedding.len() == SMBert::embedding_size() => {
+                    Embedding::from(Array::from_vec(embedding.clone()))
+                }
+                Some(_) | None => smbert.run(article.snippet_or_title()).map_err(|error| {
+                    let error = Error::Ranker(error.into());
+                    error!("{}", error);
+                    error
+                })?,
+            };
             (article, stack_id, embedding).try_into().map_err(|error| {
                 let error = Error::Document(error);
                 error!("{}", error);
@@ -1731,7 +1737,9 @@ pub(crate) mod tests {
     use std::mem::size_of;
 
     use async_once_cell::OnceCell;
+    use chrono::NaiveDate;
     use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
+    use url::Url;
     use wiremock::{
         matchers::{method, path},
         Mock,
@@ -1740,6 +1748,8 @@ pub(crate) mod tests {
     };
 
     use crate::{document::tests::mock_generic_article, stack::ops::MockOps};
+    use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
+    use xayn_discovery_engine_test_utils::smbert::{model, vocab};
 
     use super::*;
 
@@ -2088,5 +2098,47 @@ pub(crate) mod tests {
             res.get(0).unwrap().resource.title,
             "Some really important article",
         );
+    }
+
+    fn example_url() -> UrlWithDomain {
+        let url = Url::parse("https://example.net").unwrap(/* used only in tests */);
+        UrlWithDomain::new(url).unwrap(/* used only in tests */)
+    }
+
+    #[test]
+    fn test_documentify_articles() {
+        let smbert = SMBertConfig::from_files(vocab().unwrap(), model().unwrap())
+            .unwrap()
+            .with_pooling::<AveragePooler>()
+            .build()
+            .unwrap();
+        let stack_id = StackId::new_random();
+        let size = SMBert::embedding_size();
+        let embedding_1 = vec![1.; size];
+        let embedding_2 = vec![2.; size + 1];
+        let article_1 = GenericArticle {
+            title: String::default(),
+            snippet: String::default(),
+            url: example_url(),
+            image: None,
+            date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            score: None,
+            rank: Rank::default(),
+            country: "US".to_string(),
+            language: "en".to_string(),
+            topic: "news".to_string(),
+            embedding: Some(embedding_1.clone()),
+        };
+        let article_2 = GenericArticle {
+            embedding: Some(embedding_2.clone()),
+            ..article_1.clone()
+        };
+
+        let expected_1 = Embedding::from(Array::from_vec(embedding_1));
+        let expected_2 = Embedding::from(Array::from_vec(embedding_2));
+        let (documents, _) = documentify_articles(stack_id, &smbert, vec![article_1, article_2]);
+
+        assert_eq!(documents[0].smbert_embedding, expected_1);
+        assert_ne!(documents[1].smbert_embedding, expected_2);
     }
 }
