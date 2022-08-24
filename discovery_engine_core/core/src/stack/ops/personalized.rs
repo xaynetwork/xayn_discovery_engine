@@ -20,12 +20,11 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::uuid;
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{
-    Filter,
     GenericArticle,
     Market,
-    NewsProvider,
-    NewsQuery,
     RankLimit,
+    SimilarNewsProvider,
+    SimilarNewsQuery,
 };
 
 use crate::{
@@ -41,7 +40,7 @@ use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for personalized news items.
 pub struct PersonalizedNews {
-    client: Arc<dyn NewsProvider>,
+    client: Arc<dyn SimilarNewsProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: usize,
@@ -59,7 +58,7 @@ impl PersonalizedNews {
     }
 
     /// Creates a personalized news stack.
-    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn NewsProvider>) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn SimilarNewsProvider>) -> Self {
         Self {
             client,
             page_size: config.page_size,
@@ -103,9 +102,12 @@ impl Ops for PersonalizedNews {
             return Err(NewItemsError::NotReady);
         }
 
-        let filter = Arc::new(key_phrases.iter().fold(Filter::default(), |filter, kp| {
-            filter.add_keyword(kp.words())
-        }));
+        let phrase = key_phrases
+            .iter()
+            .map(|kp| kp.words().to_string())
+            .reduce(|combined, kp| format!("{} {}", combined, kp))
+            .unwrap(/* nonempty key_phrases */);
+
         let excluded_sources = Arc::new(self.excluded_sources.read().await.clone());
 
         request_min_new_items(
@@ -116,7 +118,7 @@ impl Ops for PersonalizedNews {
                 spawn_news_request(
                     self.client.clone(),
                     market.clone(),
-                    filter.clone(),
+                    phrase.to_string(),
                     self.page_size,
                     request_num + 1,
                     excluded_sources.clone(),
@@ -135,9 +137,9 @@ impl Ops for PersonalizedNews {
 }
 
 fn spawn_news_request(
-    client: Arc<dyn NewsProvider>,
+    client: Arc<dyn SimilarNewsProvider>,
     market: Market,
-    filter: Arc<Filter>,
+    like: String,
     page_size: usize,
     page: usize,
     excluded_sources: Arc<Vec<String>>,
@@ -145,15 +147,15 @@ fn spawn_news_request(
 ) -> JoinHandle<Result<Vec<GenericArticle>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
-        let query = NewsQuery {
+        let query = SimilarNewsQuery {
             market: &market,
             page_size,
             page,
             rank_limit: RankLimit::LimitedByMarket,
             excluded_sources: &excluded_sources,
-            filter: filter.as_ref(),
+            like: &like,
             max_age_days: Some(max_article_age_days),
         };
-        client.query_news(&query).await.map_err(Into::into)
+        client.query_similar_news(&query).await.map_err(Into::into)
     })
 }
