@@ -64,11 +64,15 @@ fn condensed_date_distance(doc_a: &Document, doc_b: &Document, _i: usize, _j: us
 #[inline]
 fn condensed_decay_factor(
     distance: f32,
+    max_days: f32,
     exp_max_days: f32,
     threshold: f32,
     distance_cache: &mut Vec<f32>,
 ) -> f32 {
-    #[deny(clippy::inline_always)]
+    if max_days <= distance {
+        return threshold;
+    }
+
     let i = distance as usize;
     (*distance_cache)[i]
         .is_nan()
@@ -185,6 +189,7 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
             let distance = condensed_date_distance(doc_a, doc_b, i, j);
             let decay = condensed_decay_factor(
                 distance,
+                config.max_days,
                 exp_max_days,
                 config.threshold,
                 &mut distance_cache,
@@ -379,7 +384,13 @@ mod tests {
             date_distance
                 .into_iter()
                 .map(|distance| {
-                    condensed_decay_factor(distance, exp_max_days, threshold, &mut distance_cache)
+                    condensed_decay_factor(
+                        distance,
+                        max_days,
+                        exp_max_days,
+                        threshold,
+                        &mut distance_cache,
+                    )
                 })
                 .collect()
         }
