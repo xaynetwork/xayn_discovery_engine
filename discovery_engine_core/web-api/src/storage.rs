@@ -46,7 +46,7 @@ impl UserState {
 
         let serialized_state =
             sqlx::query_as::<_, QueriedState>("SELECT state FROM user_state WHERE id = $1;")
-                .bind(id.to_string())
+                .bind(id.as_ref())
                 .fetch_optional(&mut tx)
                 .await?;
 
@@ -64,7 +64,7 @@ impl UserState {
         state: &CoiSystemState,
     ) -> Result<(), GenericError> {
         let serialized_state = bincode::serialize(state)?;
-        
+
         let mut tx = self.pool.begin().await?;
 
         sqlx::query(
