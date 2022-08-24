@@ -746,7 +746,7 @@ impl Engine {
                     &market,
                     &mut self.state.key_phrases,
                     &document.smbert_embedding,
-                    &[document.resource.snippet.clone()],
+                    &[document.resource.snippet_or_title().to_string()],
                     |words| smbert.run(words).map_err(Into::into),
                 );
             }

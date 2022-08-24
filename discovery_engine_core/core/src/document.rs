@@ -177,12 +177,21 @@ pub struct NewsResource {
 }
 
 impl NewsResource {
-    /// Returns the title, if the title is empty it return the snippet instead.
+    /// Returns the title, or if empty the snippet instead.
     pub fn title_or_snippet(&self) -> &str {
         if self.title.is_empty() {
             &self.snippet
         } else {
             &self.title
+        }
+    }
+
+    /// Returns the snippet, or if empty the title instead.
+    pub fn snippet_or_title(&self) -> &str {
+        if self.snippet.is_empty() {
+            &self.title
+        } else {
+            &self.snippet
         }
     }
 }
