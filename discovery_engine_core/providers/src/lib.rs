@@ -37,39 +37,40 @@ mod mlt;
 mod models;
 mod newscatcher;
 
-use mlt::MltSimilarNewsProvider;
-pub use models::{
-    GenericArticle,
-    HeadlinesQuery,
-    NewsQuery,
-    Rank,
-    RankLimit,
-    SimilarNewsQuery,
-    TrendingTopicsQuery,
-    TrustedHeadlinesQuery,
-    UrlWithDomain,
-};
-use std::sync::Arc;
-
-pub use newscatcher::{
-    Article as NewscatcherArticle,
-    NewscatcherHeadlinesProvider,
-    NewscatcherNewsProvider,
-    NewscatcherTrustedHeadlinesProvider,
-    Response as NewscatcherResponse,
-};
-
-pub use bing::{BingTrendingTopicsProvider, Response as BingResponse, TrendingTopic};
-
-pub use error::Error;
-pub use helpers::{
-    clean_query::clean_query,
-    filter::{Filter, Market},
-    rest_endpoint::RestEndpoint,
-};
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use url::Url;
+
+use self::mlt::MltSimilarNewsProvider;
+
+pub use self::{
+    bing::{BingTrendingTopicsProvider, Response as BingResponse, TrendingTopic},
+    error::Error,
+    helpers::{
+        clean_query::clean_query,
+        filter::{Filter, Market},
+        rest_endpoint::RestEndpoint,
+    },
+    models::{
+        GenericArticle,
+        HeadlinesQuery,
+        NewsQuery,
+        Rank,
+        RankLimit,
+        SimilarNewsQuery,
+        TrendingTopicsQuery,
+        TrustedHeadlinesQuery,
+        UrlWithDomain,
+    },
+    newscatcher::{
+        Article as NewscatcherArticle,
+        NewscatcherHeadlinesProvider,
+        NewscatcherNewsProvider,
+        NewscatcherTrustedHeadlinesProvider,
+        Response as NewscatcherResponse,
+    },
+};
 
 /// Provider for news search functionality.
 #[async_trait]
@@ -122,6 +123,8 @@ pub struct ProviderConfig {
     pub news_provider_path: String,
     /// Url path for the latest headlines provider.
     pub headlines_provider_path: String,
+    /// The timeout after which a provider aborts a request.
+    pub timeout: Duration,
 }
 
 pub struct Providers {
@@ -177,13 +180,13 @@ fn select_provider<T: ?Sized>(
 }
 
 impl Providers {
-    pub fn new(config: &ProviderConfig) -> Result<Self, Error> {
+    pub fn new(config: ProviderConfig) -> Result<Self, Error> {
         let headlines_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, &config.headlines_provider_path)?,
             config.api_key.clone(),
+            config.timeout,
         )
         .with_get_as_post(true);
-
         let headlines = select_provider(
             headlines_endpoint,
             NewscatcherHeadlinesProvider::from_endpoint,
@@ -192,18 +195,18 @@ impl Providers {
         let news_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, &config.news_provider_path)?,
             config.api_key.clone(),
+            config.timeout,
         )
         .with_get_as_post(true);
-
         let news = select_provider(news_endpoint, NewscatcherNewsProvider::from_endpoint)?;
 
         // Note: Trusted-sources only works with newscatcher for now.
         let trusted_headlines_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, "newscatcher/v2/trusted-sources")?,
             config.api_key.clone(),
+            config.timeout,
         )
         .with_get_as_post(true);
-
         let trusted_headlines =
             NewscatcherTrustedHeadlinesProvider::from_endpoint(trusted_headlines_endpoint);
 
@@ -211,15 +214,16 @@ impl Providers {
         let trending_topics_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, "bing/v1/trending-topics")?,
             config.api_key.clone(),
+            config.timeout,
         );
         let trending_topics = BingTrendingTopicsProvider::from_endpoint(trending_topics_endpoint);
 
         let similar_news_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, "_mlt")?,
-            config.api_key.clone(),
+            config.api_key,
+            config.timeout,
         )
         .with_get_as_post(true);
-
         let similar_news = MltSimilarNewsProvider::from_endpoint(similar_news_endpoint);
 
         Ok(Providers {

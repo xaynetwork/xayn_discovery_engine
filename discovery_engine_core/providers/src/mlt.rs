@@ -14,6 +14,11 @@
 
 //! Client for "more like this" queries.
 
+use std::{sync::Arc, time::Duration};
+
+use async_trait::async_trait;
+use url::Url;
+
 use crate::{
     newscatcher::{append_market, max_age_to_date_string, to_generic_articles},
     Error,
@@ -23,10 +28,6 @@ use crate::{
     SimilarNewsProvider,
     SimilarNewsQuery,
 };
-
-use async_trait::async_trait;
-use std::sync::Arc;
-use url::Url;
 
 pub(crate) struct MltSimilarNewsProvider {
     endpoint: RestEndpoint,
@@ -66,9 +67,9 @@ impl SimilarNewsProvider for MltSimilarNewsProvider {
 
 impl MltSimilarNewsProvider {
     #[allow(dead_code)] // TEMP
-    pub(crate) fn new(endpoint_url: Url, auth_token: String) -> Self {
+    pub(crate) fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
         }
     }
 

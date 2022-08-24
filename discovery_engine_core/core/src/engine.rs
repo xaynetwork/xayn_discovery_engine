@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(feature = "storage")]
+use std::path::PathBuf;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -256,8 +258,26 @@ impl Engine {
         history: &[HistoricDocument],
         sources: &[WeightedSource],
     ) -> Result<Self, Error> {
+        // read the configs
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
+        let endpoint_config = de_config
+            .extract_inner::<EndpointConfig>("endpoint")
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_init_config(&config);
+        let core_config = de_config
+            .extract_inner("core")
+            .map_err(|err| Error::Ranker(err.into()))?;
+        let feed_config = FeedConfig {
+            max_docs_per_batch: config.max_docs_per_feed_batch as usize,
+        };
+        let search_config = SearchConfig {
+            max_docs_per_batch: config.max_docs_per_search_batch as usize,
+        };
+        let exploration_config = de_config
+            .extract_inner(&format!("stacks.{}", Exploration::id()))
+            .map_err(|err| Error::Ranker(err.into()))?;
+        let provider_config = config.to_provider_config(endpoint_config.timeout);
 
         // build the systems
         let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
@@ -294,44 +314,21 @@ impl Engine {
         .with_case(CaseChars::Keep)
         .build()
         .map_err(GenericError::from)?;
-        let providers = Providers::new(&config.clone().into()).map_err(Error::ProviderError)?;
+        let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
 
-        // read the configs
-        let feed_config = FeedConfig {
-            max_docs_per_batch: config.max_docs_per_feed_batch as usize,
-        };
-        let search_config = SearchConfig {
-            max_docs_per_batch: config.max_docs_per_search_batch as usize,
-        };
-        #[cfg(feature = "storage")]
-        let data_dir = std::path::PathBuf::from(&config.data_dir);
-        #[cfg(feature = "storage")]
-        let use_in_memory_db = config.use_in_memory_db;
-        let endpoint_config = de_config
-            .extract_inner::<EndpointConfig>("endpoint")
-            .map_err(|err| Error::Ranker(err.into()))?
-            .with_init_config(config)
-            .await;
-        let core_config = de_config
-            .extract_inner("core")
-            .map_err(|err| Error::Ranker(err.into()))?;
-        let exploration_config = de_config
-            .extract_inner(&format!("stacks.{}", Exploration::id()))
-            .map_err(|err| Error::Ranker(err.into()))?;
-
+        // initialize the states
         #[cfg(feature = "storage")]
         let storage = {
-            let sqlite_uri = if use_in_memory_db {
+            let sqlite_uri = if config.use_in_memory_db {
                 "sqlite::memory:".into()
             } else {
-                let db_path = data_dir.join("db.sqlite");
+                let db_path = PathBuf::from(&config.data_dir).join("db.sqlite");
                 format!("sqlite:{}", db_path.display())
             };
             let storage = SqliteStorage::connect(&sqlite_uri).await?;
             storage.init_database().await?;
             Box::new(storage)
         };
-
         let stack_ops = vec![
             Box::new(BreakingNews::new(
                 &endpoint_config,

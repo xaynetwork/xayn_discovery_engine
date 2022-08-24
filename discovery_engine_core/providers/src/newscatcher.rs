@@ -12,6 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::{sync::Arc, time::Duration};
+
+use async_trait::async_trait;
+use chrono::{NaiveDateTime, Utc};
+use derive_more::Deref;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use url::Url;
+
 use crate::{
     helpers::rest_endpoint::RestEndpoint,
     models::NewsQuery,
@@ -25,13 +33,6 @@ use crate::{
     TrustedHeadlinesProvider,
     TrustedHeadlinesQuery,
 };
-use async_trait::async_trait;
-use chrono::{NaiveDateTime, Utc};
-use derive_more::Deref;
-use std::sync::Arc;
-
-use serde::{de, Deserialize, Deserializer, Serialize};
-use url::Url;
 
 #[derive(Deref)]
 pub struct NewscatcherNewsProvider {
@@ -39,9 +40,9 @@ pub struct NewscatcherNewsProvider {
 }
 
 impl NewscatcherNewsProvider {
-    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
         }
     }
 
@@ -101,9 +102,9 @@ pub struct NewscatcherHeadlinesProvider {
 
 impl NewscatcherHeadlinesProvider {
     /// Create a new provider.
-    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
         }
     }
 
@@ -149,9 +150,9 @@ pub struct NewscatcherTrustedHeadlinesProvider {
 }
 
 impl NewscatcherTrustedHeadlinesProvider {
-    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
         }
     }
 
@@ -338,6 +339,7 @@ mod tests {
         let provider = NewscatcherNewsProvider::new(
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -384,6 +386,7 @@ mod tests {
         let provider = NewscatcherNewsProvider::new(
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -431,6 +434,7 @@ mod tests {
         let provider = NewscatcherNewsProvider::new(
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -480,6 +484,7 @@ mod tests {
         let provider = NewscatcherNewsProvider::new(
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -529,6 +534,7 @@ mod tests {
         let provider = NewscatcherHeadlinesProvider::new(
             Url::parse(&format!("{}/v1/latest-headlines", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -587,6 +593,7 @@ mod tests {
         let provider = NewscatcherTrustedHeadlinesProvider::new(
             Url::parse(&format!("{}/v2/trusted-sources", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
         );
 
         let tmpl = ResponseTemplate::new(200)

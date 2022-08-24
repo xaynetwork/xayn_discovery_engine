@@ -14,6 +14,8 @@
 
 //! Client to retrieve trending topics.
 
+use std::time::Duration;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::sync::Arc;
@@ -26,9 +28,9 @@ pub struct BingTrendingTopicsProvider {
 }
 
 impl BingTrendingTopicsProvider {
-    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
         }
     }
 
@@ -132,7 +134,11 @@ mod tests {
     async fn test_trending() {
         let mock_server = MockServer::start().await;
         let endpoint_url = Url::parse(&mock_server.uri()).unwrap();
-        let provider = BingTrendingTopicsProvider::new(endpoint_url, "test-token".to_string());
+        let provider = BingTrendingTopicsProvider::new(
+            endpoint_url,
+            "test-token".to_string(),
+            Duration::from_secs(1),
+        );
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/trending-topics.json"));

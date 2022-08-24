@@ -30,6 +30,8 @@
     clippy::must_use_candidate
 )]
 
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use url::Url;
 use xayn_discovery_engine_providers::{
@@ -47,12 +49,13 @@ async fn main() -> Result<()> {
         "Please provide the NEWSCATCHER_DEV_BEARER_AUTH_TOKEN environment variable for the dev environment. \
                   The token can be found in 1Password",
     )?;
+    let timeout = Duration::from_millis(3500);
 
     tokio::fs::create_dir("./headlines_download")
         .await
         .context("Failed to create download directory. Does it already exist?")?;
 
-    let provider = NewscatcherHeadlinesProvider::new(url, token);
+    let provider = NewscatcherHeadlinesProvider::new(url, token, timeout);
     let market = Market::new("en", "US");
 
     // This is updated every iteration, based on the response from Newscatcher. So in reality,

@@ -12,14 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use tokio::{join, sync::RwLock};
+use tokio::sync::RwLock;
 
 use xayn_discovery_engine_ai::CoiSystemConfig;
 use xayn_discovery_engine_providers::{Market, ProviderConfig};
@@ -103,13 +103,14 @@ pub struct InitConfig {
     pub use_in_memory_db: bool,
 }
 
-impl From<InitConfig> for ProviderConfig {
-    fn from(config: InitConfig) -> Self {
+impl InitConfig {
+    pub(crate) fn to_provider_config(&self, timeout: Duration) -> ProviderConfig {
         ProviderConfig {
-            api_base_url: config.api_base_url,
-            api_key: config.api_key,
-            news_provider_path: config.news_provider_path,
-            headlines_provider_path: config.headlines_provider_path,
+            api_base_url: self.api_base_url.clone(),
+            api_key: self.api_key.clone(),
+            news_provider_path: self.news_provider_path.clone(),
+            headlines_provider_path: self.headlines_provider_path.clone(),
+            timeout,
         }
     }
 }
@@ -117,7 +118,6 @@ impl From<InitConfig> for ProviderConfig {
 /// Discovery Engine endpoint settings.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(derivative::Derivative), derivative(Eq, PartialEq))]
-#[allow(clippy::unsafe_derive_deserialize)] // probably triggered by join! macro in the method
 pub struct EndpointConfig {
     /// Page size setting for API.
     pub page_size: usize,
@@ -143,6 +143,9 @@ pub struct EndpointConfig {
     /// The maximum age of a news article, in days, after which we no longer
     /// want to display them.
     pub max_article_age_days: usize,
+    /// The timeout after which a provider aborts a request.
+    #[serde(with = "serde_duration_as_milliseconds")]
+    pub timeout: Duration,
 }
 
 impl Default for EndpointConfig {
@@ -156,24 +159,16 @@ impl Default for EndpointConfig {
             min_articles: 20,
             max_headline_age_days: 3,
             max_article_age_days: 30,
+            timeout: Duration::from_millis(3500),
         }
     }
 }
 
 impl EndpointConfig {
-    pub(crate) async fn with_init_config(self, config: InitConfig) -> Self {
-        join!(
-            async {
-                *self.markets.write().await = config.markets;
-            },
-            async {
-                *self.trusted_sources.write().await = config.trusted_sources;
-            },
-            async {
-                *self.excluded_sources.write().await = config.excluded_sources;
-            },
-        );
-
+    pub(crate) fn with_init_config(mut self, config: &InitConfig) -> Self {
+        self.markets = Arc::new(RwLock::new(config.markets.clone()));
+        self.trusted_sources = Arc::new(RwLock::new(config.trusted_sources.clone()));
+        self.excluded_sources = Arc::new(RwLock::new(config.excluded_sources.clone()));
         self
     }
 }
@@ -327,6 +322,27 @@ pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
         ))
 }
 
+pub(crate) mod serde_duration_as_milliseconds {
+    use std::time::Duration;
+
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[allow(clippy::cast_possible_truncation)] // durations are small enough
+    pub(crate) fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (duration.as_millis() as u64).serialize(serializer)
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        u64::deserialize(deserializer).map(Duration::from_millis)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use xayn_discovery_engine_ai::GenericError;
@@ -412,6 +428,9 @@ mod tests {
                         "number_of_candidates": 42,
                         "alpha": 0.42
                     }
+                },
+                "endpoint": {
+                    "timeout": 1234
                 }
             }"#,
         );
@@ -429,7 +448,10 @@ mod tests {
         );
         assert_eq!(
             de_config.extract_inner::<EndpointConfig>("endpoint")?,
-            EndpointConfig::default(),
+            EndpointConfig {
+                timeout: Duration::from_millis(1234),
+                ..EndpointConfig::default()
+            },
         );
         assert_eq!(
             de_config

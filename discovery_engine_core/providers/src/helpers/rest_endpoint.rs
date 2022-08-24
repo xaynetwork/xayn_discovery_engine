@@ -36,7 +36,7 @@ pub struct RestEndpoint {
 
 impl RestEndpoint {
     /// Create a `RestEndpoint` instance with a default timeout.
-    pub fn new(url: Url, auth_token: String) -> Self {
+    pub fn new(url: Url, auth_token: String, timeout: Duration) -> Self {
         let client = SHARED_CLIENT
             .get_or_init(|| {
                 // Note: If we need to use a ClientBuilder we should pass the `Arc<Client>` as
@@ -49,18 +49,9 @@ impl RestEndpoint {
             client,
             url,
             auth_token,
-            timeout: Duration::from_millis(3500),
+            timeout,
             get_as_post: false,
         }
-    }
-
-    /// Configures the timeout.
-    ///
-    /// The timeout defaults to 3.5s.
-    #[must_use = "dropped changed client"]
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
-        self
     }
 
     /// Configures if we should use POST for GET requests.
