@@ -144,6 +144,7 @@ pub struct EndpointConfig {
     /// want to display them.
     pub max_article_age_days: usize,
     /// The timeout after which a provider aborts a request.
+    #[serde(with = "serde_duration_as_milliseconds")]
     pub timeout: Duration,
 }
 
@@ -321,6 +322,27 @@ pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
         ))
 }
 
+pub(crate) mod serde_duration_as_milliseconds {
+    use std::time::Duration;
+
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[allow(clippy::cast_possible_truncation)] // durations are small enough
+    pub(crate) fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (duration.as_millis() as u64).serialize(serializer)
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        u64::deserialize(deserializer).map(Duration::from_millis)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use xayn_discovery_engine_ai::GenericError;
@@ -406,6 +428,9 @@ mod tests {
                         "number_of_candidates": 42,
                         "alpha": 0.42
                     }
+                },
+                "endpoint": {
+                    "timeout": 1234
                 }
             }"#,
         );
@@ -423,7 +448,10 @@ mod tests {
         );
         assert_eq!(
             de_config.extract_inner::<EndpointConfig>("endpoint")?,
-            EndpointConfig::default(),
+            EndpointConfig {
+                timeout: Duration::from_millis(1234),
+                ..EndpointConfig::default()
+            },
         );
         assert_eq!(
             de_config
