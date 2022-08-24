@@ -71,7 +71,7 @@ impl UserState {
             "INSERT INTO user_state(id, state) VALUES ($1, $2)
                 ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state;",
         )
-        .bind(id.to_string())
+        .bind(id.as_ref())
         .bind(serialized_state)
         .execute(&mut tx)
         .await?;
