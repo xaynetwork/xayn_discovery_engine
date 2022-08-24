@@ -24,6 +24,7 @@ jobs:
        - uses: jfrog/setup-jfrog-cli@v2
          env:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
+           JF_TOKEN: ${{secrets.JFROG_TOKEN}}
        - run: |
            if [ -n "${{inputs.branch_name}}" ]; then
             sed -i 's/"path":.*/"path": {"$match":"*${{inputs.branch_name}}*"},/g' .github/scripts/artifactory.spec
@@ -40,4 +41,4 @@ jobs:
            # Ping xayn Artifactory server
            jf rt ping
            jf rt s --spec .github/scripts/artifactory.spec
-           curl -X POST https://xayn.jfrog.io/api/trash/empty
+           curl --access-token $JFROG_TOKEN -XPOST https://xayn.jfrog.io/api/trash/empty
