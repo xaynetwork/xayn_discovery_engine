@@ -5,6 +5,7 @@ services:
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: pw
+      POSTGRES_DB: xayn
     ports:
       - 5432:5432
 

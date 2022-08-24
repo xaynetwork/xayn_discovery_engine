@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use chrono::{NaiveDateTime, Utc};
-use derive_more::Display;
+use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr, string::FromUtf8Error};
@@ -90,7 +90,7 @@ pub(crate) struct InteractionRequestBody {
 }
 
 /// Unique identifier for the user.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
 pub(crate) struct UserId(String);
 
 impl UserId {
