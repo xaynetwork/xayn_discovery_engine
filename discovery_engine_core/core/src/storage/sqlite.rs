@@ -47,15 +47,16 @@ use crate::{
         },
         Error,
         FeedScope,
+        FeedbackScope,
         SearchScope,
         SourcePreferenceScope,
+        SourceReactionScope,
         StateScope,
         Storage,
     },
 };
 
 use self::utils::SqlxSqliteResultExt;
-use super::FeedbackScope;
 use crate::storage::utils::SqlxPushTupleExt;
 
 mod utils;
@@ -375,6 +376,10 @@ impl Storage for SqliteStorage {
     }
 
     fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync) {
+        self
+    }
+
+    fn source_reaction(&self) -> &(dyn SourceReactionScope + Send + Sync) {
         self
     }
 }
@@ -855,6 +860,10 @@ impl FeedbackScope for SqliteStorage {
 
         Ok(view)
     }
+
+    async fn update_source_reaction(&self, _source: &str, _like: bool) -> Result<(), Error> {
+        Ok(()) // TODO
+    }
 }
 
 #[derive(FromRow)]
@@ -915,6 +924,25 @@ impl SourcePreferenceScope for SqliteStorage {
 
     async fn fetch_excluded(&self) -> Result<HashSet<String>, Error> {
         self.fetch_sources(SourcePreference::Excluded).await
+    }
+}
+
+#[async_trait]
+impl SourceReactionScope for SqliteStorage {
+    async fn fetch_reaction(&self, _source: &str) -> Result<Option<bool>, Error> {
+        Ok(None) // TODO
+    }
+
+    async fn store_new(&self, _source: &str, _like: bool) -> Result<(), Error> {
+        Ok(()) // TODO
+    }
+
+    async fn update(&self, _source: &str) -> Result<(), Error> {
+        Ok(()) // TODO
+    }
+
+    async fn delete(&self, _source: &str) -> Result<(), Error> {
+        Ok(()) // TODO
     }
 }
 
