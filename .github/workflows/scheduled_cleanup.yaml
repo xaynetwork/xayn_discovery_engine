@@ -1,6 +1,7 @@
 name: Scheduled Cleanup repo
 
 on:
+  push:
   schedule:
     - cron: '30 00 * * sun'
   workflow_dispatch:
@@ -36,4 +37,5 @@ jobs:
            cat .github/scripts/artifactory.spec
            # Ping xayn Artifactory server
            jf rt ping
-           jf rt del --spec .github/scripts/artifactory.spec
+           jf rt s --spec .github/scripts/artifactory.spec
+           curl -X POST https://xayn.jfrog.io/api/trash/empty
