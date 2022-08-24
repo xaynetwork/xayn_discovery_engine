@@ -400,6 +400,7 @@ web-service-up: build-web-service
     ln -s "../dummy_data.json" "$RUST_WORKSPACE/web-api/assets/data.json"
 
     docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+    sleep 2
     cd "$RUST_WORKSPACE/web-api"
     ./../target/release/web-api
 
