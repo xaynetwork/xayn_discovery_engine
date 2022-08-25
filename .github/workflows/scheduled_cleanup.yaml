@@ -1,15 +1,14 @@
 name: Scheduled Cleanup repo
 
 on:
-  push:
   schedule:
     - cron: '30 00 * * sun'
   workflow_dispatch:
     inputs:
         number_days_old:
-            description: "pass this value, all the files older than this value will be deleted from our repository. By default, this value is set to 30 days."
+            description: "pass this value, all the files older than this value will be deleted from our repository (format to respect = 7d) d stand for days. By default, this value is set to 30d."
             required: false
-            default: 30 
+            default: 30d
         branch_name:
             description: "deletion by the name of the branch_name"
             required: false
@@ -26,6 +25,7 @@ jobs:
            JF_ENV_DEVOPS: ${{secrets.JF_SECRET_ENV_DEVOPS}}
            JF_TOKEN: ${{secrets.JFROG_TOKEN}}
        - run: |
+           #if the user enter any name of the branch, then the default value will be replaced by the user's input and all the artifacts of its branch will be deleted  
            if [ -n "${{inputs.branch_name}}" ]; then
             sed -i 's/"path":.*/"path": {"$match":"*${{inputs.branch_name}}*"},/g' .github/scripts/artifactory.spec
            fi
@@ -38,4 +38,4 @@ jobs:
            cat .github/scripts/artifactory.spec
            # Ping xayn Artifactory server
            jf rt ping
-           jf rt s --spec .github/scripts/artifactory.spec
+           jf rt del --spec .github/scripts/artifactory.spec
