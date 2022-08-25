@@ -106,7 +106,6 @@ void main() {
       expect(nextResult.search.searchBy, SearchBy.query);
       expect(nextResult.search.searchTerm, searchTerm);
 
-      //FIXME find out what the expected behaviour is (empty or error with noResultsAvailable)
       expect(
         expectEvent<NextActiveSearchBatchRequestSucceeded>(
           await engine.requestNextActiveSearchBatch(),
