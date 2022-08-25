@@ -5,12 +5,12 @@
       "items.find": {
         "repo": {"$eq":"dart.xayn.private"},
         "path": {"$match":"*"},
-        "name": {"$match":"*#main"},
+        "name": {"$match":"*"},
         "$or": [
           {
             "$and": [
               {
-                "created" : {"$last" : "5d"}
+                "created" : {"$last" : "1d"}
               }
             ]
           }
