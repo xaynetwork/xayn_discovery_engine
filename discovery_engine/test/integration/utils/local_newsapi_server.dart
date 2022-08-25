@@ -42,7 +42,12 @@ enum ReplyWith {
 class LocalNewsApiServer {
   final HttpServer _server;
   ReplyWith _replyWith = ReplyWith.data;
-  String _snFile = 'climate-change.json';
+  int _snCounter = 0;
+  List<String> _snFiles = [
+    'climate-change.json',
+    'climate-change2.json',
+    'empty.json'
+  ];
   String _lhFile = 'latest-headlines.json';
   String _ttFile = 'trending-topics.json';
   CapturedRequest? lastCapturedRequest;
@@ -66,7 +71,10 @@ class LocalNewsApiServer {
         case ReplyWith.data:
           switch (request.uri.path) {
             case '/newscatcher/v1/search-news':
-              await _replyWithData(request, _snFile);
+              await _replyWithData(
+                request,
+                _snFiles.asMap()[_snCounter++] ?? 'empty.json',
+              );
               break;
             case '/newscatcher/v1/latest-headlines':
             case '/newscatcher/v2/trusted-sources':
@@ -101,7 +109,7 @@ class LocalNewsApiServer {
 
   set replyWith(ReplyWith flag) => _replyWith = flag;
 
-  set snFile(String filename) => _snFile = filename;
+  set snFile(String filename) => _snFiles = [filename];
 
   set lhFile(String filename) => _lhFile = filename;
 
