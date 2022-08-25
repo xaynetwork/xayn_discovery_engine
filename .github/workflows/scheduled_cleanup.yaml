@@ -34,7 +34,7 @@ jobs:
             sed -i 's/number_days_limit/${{inputs.number_days_old}}/g' .github/scripts/artifactory.spec
            fi
            
-           sed -i 's/number_days_limit/1d/g' .github/scripts/artifactory.spec
+           sed -i 's/number_days_limit/0d/g' .github/scripts/artifactory.spec
 
            jf c use xayn
            cat .github/scripts/artifactory.spec
