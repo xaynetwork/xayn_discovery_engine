@@ -1744,7 +1744,7 @@ pub(crate) mod tests {
     use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
     use url::Url;
     use wiremock::{
-        matchers::{method, path},
+        matchers::{method, path_regex},
         Mock,
         MockServer,
         ResponseTemplate,
@@ -1787,7 +1787,9 @@ pub(crate) mod tests {
                 .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
             Mock::given(method("POST"))
-                .and(path("/newscatcher/headlines-endpoint-name"))
+                .and(path_regex(
+                    "/newscatcher/headlines-endpoint-name|/newscatcher/v2/trusted-sources|newscatcher/news-endpoint-name",
+                ))
                 .respond_with(tmpl)
                 .mount(&server)
                 .await;
