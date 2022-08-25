@@ -40,9 +40,9 @@ pub struct NewscatcherNewsProvider {
 }
 
 impl NewscatcherNewsProvider {
-    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
         }
     }
 
@@ -74,7 +74,7 @@ impl NewsProvider for NewscatcherNewsProvider {
     async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 query_append("page_size", request.page_size.to_string());
                 query_append("page", request.page.to_string());
 
@@ -102,9 +102,9 @@ pub struct NewscatcherHeadlinesProvider {
 
 impl NewscatcherHeadlinesProvider {
     /// Create a new provider.
-    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
         }
     }
 
@@ -121,7 +121,7 @@ impl HeadlinesProvider for NewscatcherHeadlinesProvider {
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 query_append("page_size", request.page_size.to_string());
                 query_append("page", request.page.to_string());
 
@@ -150,9 +150,9 @@ pub struct NewscatcherTrustedHeadlinesProvider {
 }
 
 impl NewscatcherTrustedHeadlinesProvider {
-    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
         }
     }
 
@@ -169,7 +169,7 @@ impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 query_append("page_size", request.page_size.to_string());
                 query_append("page", request.page.to_string());
 
@@ -344,6 +344,7 @@ mod tests {
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
             Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -391,6 +392,7 @@ mod tests {
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
             Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -439,6 +441,7 @@ mod tests {
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
             Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -489,6 +492,7 @@ mod tests {
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
             Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -539,6 +543,7 @@ mod tests {
             Url::parse(&format!("{}/v1/latest-headlines", mock_server.uri())).unwrap(),
             "test-token".into(),
             Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -599,6 +604,7 @@ mod tests {
             Url::parse(&format!("{}/v2/trusted-sources", mock_server.uri())).unwrap(),
             "test-token".into(),
             Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)

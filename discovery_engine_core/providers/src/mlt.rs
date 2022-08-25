@@ -41,7 +41,7 @@ impl SimilarNewsProvider for MltSimilarNewsProvider {
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<NewscatcherResponse, _>(|query_append| {
+            .get_request::<_, NewscatcherResponse>(|query_append| {
                 query_append("like", query.like.to_string());
                 query_append("min_term_freq", "1".to_string());
 
@@ -67,9 +67,14 @@ impl SimilarNewsProvider for MltSimilarNewsProvider {
 
 impl MltSimilarNewsProvider {
     #[allow(dead_code)] // TEMP
-    pub(crate) fn new(endpoint_url: Url, auth_token: String, timeout: Duration) -> Self {
+    pub(crate) fn new(
+        endpoint_url: Url,
+        auth_token: String,
+        timeout: Duration,
+        retry: usize,
+    ) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
         }
     }
 

@@ -125,6 +125,8 @@ pub struct ProviderConfig {
     pub headlines_provider_path: String,
     /// The timeout after which a provider aborts a request.
     pub timeout: Duration,
+    /// The number of retries in case of a timeout.
+    pub retry: usize,
 }
 
 pub struct Providers {
@@ -185,6 +187,7 @@ impl Providers {
             create_endpoint_url(&config.api_base_url, &config.headlines_provider_path)?,
             config.api_key.clone(),
             config.timeout,
+            config.retry,
         )
         .with_get_as_post(true);
         let headlines = select_provider(
@@ -196,6 +199,7 @@ impl Providers {
             create_endpoint_url(&config.api_base_url, &config.news_provider_path)?,
             config.api_key.clone(),
             config.timeout,
+            config.retry,
         )
         .with_get_as_post(true);
         let news = select_provider(news_endpoint, NewscatcherNewsProvider::from_endpoint)?;
@@ -205,6 +209,7 @@ impl Providers {
             create_endpoint_url(&config.api_base_url, "newscatcher/v2/trusted-sources")?,
             config.api_key.clone(),
             config.timeout,
+            config.retry,
         )
         .with_get_as_post(true);
         let trusted_headlines =
@@ -215,6 +220,7 @@ impl Providers {
             create_endpoint_url(&config.api_base_url, "bing/v1/trending-topics")?,
             config.api_key.clone(),
             config.timeout,
+            config.retry,
         );
         let trending_topics = BingTrendingTopicsProvider::from_endpoint(trending_topics_endpoint);
 
@@ -222,6 +228,7 @@ impl Providers {
             create_endpoint_url(&config.api_base_url, "_mlt")?,
             config.api_key,
             config.timeout,
+            config.retry,
         )
         .with_get_as_post(true);
         let similar_news = MltSimilarNewsProvider::from_endpoint(similar_news_endpoint);

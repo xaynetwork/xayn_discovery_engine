@@ -278,7 +278,8 @@ impl Engine {
         let exploration_config = de_config
             .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
-        let provider_config = config.to_provider_config(endpoint_config.timeout);
+        let provider_config =
+            config.to_provider_config(endpoint_config.timeout, endpoint_config.retry);
 
         // build the systems
         let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
