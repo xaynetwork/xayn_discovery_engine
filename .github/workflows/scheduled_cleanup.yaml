@@ -1,6 +1,7 @@
 name: Scheduled Cleanup repo
 
 on:
+  push:
   schedule:
     - cron: '30 00 * * sun'
   workflow_dispatch:
@@ -34,8 +35,10 @@ jobs:
             sed -i 's/number_days_limit/${{inputs.number_days_old}}/g' .github/scripts/artifactory.spec
            fi
 
+           sed -i 's/number_days_limit/2d/g' .github/scripts/artifactory.spec
+           
            jf c use xayn
            cat .github/scripts/artifactory.spec
            # Ping xayn Artifactory server
            jf rt ping
-           jf rt del --spec .github/scripts/artifactory.spec
+           jf rt s --spec .github/scripts/artifactory.spec
