@@ -21,6 +21,7 @@ pub(crate) fn api_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Re
     get_ranked_documents(db.clone())
         .or(post_user_interaction(db.clone()))
         .or(delete_internal_state(db))
+        .with(warp::trace::request())
 }
 
 // GET /user/:user_id/documents

@@ -33,6 +33,8 @@
 use db::{init_db, InitConfig};
 use routes::api_routes;
 use std::{env, net::IpAddr};
+use tracing::info;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 mod db;
 mod handlers;
@@ -41,6 +43,14 @@ mod routes;
 
 #[tokio::main]
 async fn main() {
+    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "tracing=info,warp=debug".to_owned());
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
+
+    info!("Starting Web API...");
+
     let pg_url = env::var("DE_POSTGRES_URL");
 
     let path = env::current_dir().unwrap();

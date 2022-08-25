@@ -15,6 +15,7 @@
 use serde_json::from_reader;
 use std::{collections::HashMap, fs::File, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
+use tracing::info;
 use xayn_discovery_engine_ai::{CoiSystem, CoiSystemConfig, CoiSystemState};
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
@@ -56,12 +57,16 @@ pub(crate) struct InitConfig {
 }
 
 pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Error>> {
+    info!("SMBert model loading...");
+
     let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)?
         .with_accents(AccentChars::Cleanse)
         .with_case(CaseChars::Lower)
         .with_pooling::<AveragePooler>()
         .with_token_size(64)?
         .build()?;
+
+    info!("SMBert model loaded successfully!");
 
     let file = File::open(&config.data_store).expect("Couldn't open the data file");
     let articles: Vec<Article> = from_reader(file).expect("Couldn't deserialize json");
@@ -92,6 +97,9 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Err
                 .expect("The 'description' field needs to be represented as String");
             let embedding = smbert.run(description).unwrap();
             let document = Document::new((article, embedding));
+
+            info!("Embeedings calculated for article_id: {}", article_id);
+
             (article_id, document)
         })
         .collect();
