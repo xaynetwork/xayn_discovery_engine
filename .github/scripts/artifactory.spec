@@ -4,7 +4,7 @@
     "aql": {
       "items.find": {
         "repo": {"$eq":"dart.xayn.private"},
-        "path": {"$match":"/([\s\S]*?)(main)/g"},
+        "path": {"$nmatch":"main"},
         "name": {"$match":"*"},
         "$or": [
           {
