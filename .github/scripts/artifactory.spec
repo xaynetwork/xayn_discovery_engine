@@ -10,7 +10,7 @@
           {
             "$and": [
               {
-                "created" : {"$last" : "10d"}
+                "created" : {"$before" : "7d"}
               }
             ]
           }
