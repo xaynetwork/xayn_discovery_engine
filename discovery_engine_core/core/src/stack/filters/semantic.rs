@@ -185,7 +185,6 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
     let combined: Vec<f32> = triangular_product(
         documents,
         |doc_a: &Document, doc_b: &Document, i: usize, j: usize| {
-            let similarity = condensed_cosine_similarity(doc_a, doc_b, i, j, &mut norms);
             let distance = condensed_date_distance(doc_a, doc_b, i, j);
             let decay = condensed_decay_factor(
                 distance,
@@ -194,7 +193,12 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
                 config.threshold,
                 &mut distance_cache,
             );
-            let f = similarity * decay;
+
+            let f = if decay == 0. {
+                0.
+            } else {
+                condensed_cosine_similarity(doc_a, doc_b, i, j, &mut norms) * decay
+            };
 
             nan_safe_f32_cmp(&f, &min).is_lt().then(|| min = f);
             nan_safe_f32_cmp(&f, &max).is_gt().then(|| max = f);
