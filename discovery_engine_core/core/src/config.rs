@@ -12,19 +12,51 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use figment::{
     providers::{Format, Json, Serialized},
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use tokio::{join, sync::RwLock};
+use tokio::sync::RwLock;
 
 use xayn_discovery_engine_ai::CoiSystemConfig;
 use xayn_discovery_engine_providers::{Market, ProviderConfig};
 
-use crate::stack::exploration::Stack as Exploration;
+use crate::{
+    engine::Engine,
+    stack::{
+        exploration::Stack as Exploration,
+        ops::{breaking::BreakingNews, personalized::PersonalizedNews, trusted::TrustedNews},
+    },
+};
+
+impl Engine {
+    pub fn endpoint_config(&self) -> &EndpointConfig {
+        &self.endpoint_config
+    }
+
+    pub fn core_config(&self) -> &CoreConfig {
+        &self.core_config
+    }
+
+    pub fn feed_config(&self) -> &FeedConfig {
+        &self.feed_config
+    }
+
+    pub fn search_config(&self) -> &SearchConfig {
+        &self.search_config
+    }
+
+    pub fn coi_system_config(&self) -> &CoiSystemConfig {
+        self.coi.config()
+    }
+
+    pub fn exploration_config(&self) -> &ExplorationConfig {
+        &self.exploration_stack.config
+    }
+}
 
 /// Configuration settings to initialize the Discovery [`Engine`].
 ///
@@ -57,19 +89,29 @@ pub struct InitConfig {
     pub kpe_cnn: String,
     /// KPE classifier path.
     pub kpe_classifier: String,
+    /// The maximum number of documents per feed batch.
+    pub max_docs_per_feed_batch: u32,
+    /// The maximum number of documents per search batch.
+    pub max_docs_per_search_batch: u32,
     /// DE config in JSON format.
     pub de_config: Option<String>,
     /// Log file path.
     pub log_file: Option<String>,
+    /// Directory in which user data should be stored.
+    pub data_dir: String,
+    /// Use a in-memory db instead of a db in the `data_dir`
+    pub use_in_memory_db: bool,
 }
 
-impl From<InitConfig> for ProviderConfig {
-    fn from(config: InitConfig) -> Self {
+impl InitConfig {
+    pub(crate) fn to_provider_config(&self, timeout: Duration, retry: usize) -> ProviderConfig {
         ProviderConfig {
-            api_base_url: config.api_base_url,
-            api_key: config.api_key,
-            news_provider_path: config.news_provider_path,
-            headlines_provider_path: config.headlines_provider_path,
+            api_base_url: self.api_base_url.clone(),
+            api_key: self.api_key.clone(),
+            news_provider_path: self.news_provider_path.clone(),
+            headlines_provider_path: self.headlines_provider_path.clone(),
+            timeout,
+            retry,
         }
     }
 }
@@ -77,32 +119,36 @@ impl From<InitConfig> for ProviderConfig {
 /// Discovery Engine endpoint settings.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(derivative::Derivative), derivative(Eq, PartialEq))]
-#[allow(clippy::unsafe_derive_deserialize)] // probably triggered by join! macro in the method
-pub(crate) struct EndpointConfig {
+pub struct EndpointConfig {
     /// Page size setting for API.
-    pub(crate) page_size: usize,
+    pub page_size: usize,
     /// Write-exclusive access to markets list.
     #[serde(skip)]
     #[cfg_attr(test, derivative(PartialEq = "ignore"))]
-    pub(crate) markets: Arc<RwLock<Vec<Market>>>,
+    pub markets: Arc<RwLock<Vec<Market>>>,
     /// Trusted sources for news queries.
     #[serde(skip)]
     #[cfg_attr(test, derivative(PartialEq = "ignore"))]
-    pub(crate) trusted_sources: Arc<RwLock<Vec<String>>>,
+    pub trusted_sources: Arc<RwLock<Vec<String>>>,
     /// Sources to exclude for news queries.
     #[serde(skip)]
     #[cfg_attr(test, derivative(PartialEq = "ignore"))]
-    pub(crate) excluded_sources: Arc<RwLock<Vec<String>>>,
+    pub excluded_sources: Arc<RwLock<Vec<String>>>,
     /// The maximum number of requests to try to reach the number of `min_articles`.
-    pub(crate) max_requests: u32,
+    pub max_requests: usize,
     /// The minimum number of new articles to try to return when updating the stack.
-    pub(crate) min_articles: usize,
+    pub min_articles: usize,
     /// The maximum age of a headline, in days, after which we no longer
     /// want to display them.
-    pub(crate) max_headline_age_days: usize,
+    pub max_headline_age_days: usize,
     /// The maximum age of a news article, in days, after which we no longer
     /// want to display them.
-    pub(crate) max_article_age_days: usize,
+    pub max_article_age_days: usize,
+    /// The timeout after which a provider aborts a request.
+    #[serde(with = "serde_duration_as_milliseconds")]
+    pub timeout: Duration,
+    /// The number of retries in case of a timeout.
+    pub retry: usize,
 }
 
 impl Default for EndpointConfig {
@@ -116,24 +162,17 @@ impl Default for EndpointConfig {
             min_articles: 20,
             max_headline_age_days: 3,
             max_article_age_days: 30,
+            timeout: Duration::from_millis(3500),
+            retry: 0,
         }
     }
 }
 
 impl EndpointConfig {
-    pub(crate) async fn with_init_config(self, config: InitConfig) -> Self {
-        join!(
-            async {
-                *self.markets.write().await = config.markets;
-            },
-            async {
-                *self.trusted_sources.write().await = config.trusted_sources;
-            },
-            async {
-                *self.excluded_sources.write().await = config.excluded_sources;
-            },
-        );
-
+    pub(crate) fn with_init_config(mut self, config: &InitConfig) -> Self {
+        self.markets = Arc::new(RwLock::new(config.markets.clone()));
+        self.trusted_sources = Arc::new(RwLock::new(config.trusted_sources.clone()));
+        self.excluded_sources = Arc::new(RwLock::new(config.excluded_sources.clone()));
         self
     }
 }
@@ -141,23 +180,30 @@ impl EndpointConfig {
 /// Internal config to allow for configurations within the core without a mirroring outside impl.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
-pub(crate) struct CoreConfig {
+pub struct CoreConfig {
     /// The number of taken top key phrases while updating the stacks.
-    pub(crate) take_top: usize,
+    pub take_top: usize,
     /// The number of top documents per stack to keep while filtering the stacks.
-    pub(crate) keep_top: usize,
+    pub keep_top: usize,
     /// The lower bound of documents per stack at which new items are requested.
-    pub(crate) request_new: usize,
+    pub request_new: usize,
     /// The number of times to get feed documents after which the stacks are updated without the
     /// limitation of `request_new`.
-    pub(crate) request_after: usize,
+    pub request_after: usize,
     /// The maximum number of top key phrases extracted from the search term in the deep search.
-    pub(crate) deep_search_top: usize,
+    pub deep_search_top: usize,
     /// The maximum number of documents returned from the deep search.
-    pub(crate) deep_search_max: usize,
+    pub deep_search_max: usize,
     /// The minimum cosine similarity wrt the original document below which documents returned from
     /// the deep search are discarded.
-    pub(crate) deep_search_sim: f32,
+    pub deep_search_sim: f32,
+    /// The probability for random exploration instead of greedy selection in the MAB.
+    pub epsilon: f32,
+    /// The maximum number of likes and dislikes after which the MAB parameters are rescaled.
+    pub max_reactions: usize,
+    /// The value by how much the likes and dislikes are incremented when the MAB parameters are
+    /// updated.
+    pub incr_reactions: f32,
 }
 
 impl Default for CoreConfig {
@@ -170,18 +216,41 @@ impl Default for CoreConfig {
             deep_search_top: 3,
             deep_search_max: 20,
             deep_search_sim: 0.2,
+            epsilon: 0.2,
+            max_reactions: 10,
+            incr_reactions: 1.,
+        }
+    }
+}
+
+/// Configurations for the dynamic stacks.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
+pub(crate) struct StackConfig {
+    /// The maximum cosine similarity wrt to the closest negative coi below which documents are
+    /// retained when the stack is updated.
+    pub(crate) max_negative_similarity: f32,
+}
+
+impl Default for StackConfig {
+    fn default() -> Self {
+        Self {
+            max_negative_similarity: 0.7,
         }
     }
 }
 
 /// Configurations for the exploration stack.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
-pub(crate) struct ExplorationConfig {
+#[cfg_attr(test, derive(PartialEq))]
+pub struct ExplorationConfig {
     /// The number of candidates.
-    pub(crate) number_of_candidates: usize,
+    pub number_of_candidates: usize,
     /// The maximum number of documents to keep.
-    pub(crate) max_selected_docs: usize,
+    pub max_selected_docs: usize,
+    /// The maximum cosine similarity wrt to the closest coi below which documents are retained
+    /// when the exploration stack is updated.
+    pub max_similarity: f32,
 }
 
 impl Default for ExplorationConfig {
@@ -189,22 +258,93 @@ impl Default for ExplorationConfig {
         Self {
             number_of_candidates: 40,
             max_selected_docs: 20,
+            max_similarity: 0.7,
         }
     }
 }
 
-/// Reads the DE configurations from json and sets defaults for missing fields (if possible).
+/// Configurations for the feed.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct FeedConfig {
+    /// The maximum number of documents per feed batch.
+    pub max_docs_per_batch: usize,
+}
+
+impl FeedConfig {
+    /// Merges existent values from the DE configuration into this configuration.
+    pub(crate) fn merge(&mut self, de_config: &Figment) {
+        if let Ok(max_docs_per_batch) = de_config.extract_inner("feed.max_docs_per_batch") {
+            self.max_docs_per_batch = max_docs_per_batch;
+        }
+    }
+}
+
+/// Configurations for the search.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct SearchConfig {
+    /// The maximum number of documents per search batch.
+    pub max_docs_per_batch: usize,
+}
+
+impl SearchConfig {
+    /// Merges existent values from the DE configuration into this configuration
+    pub(crate) fn merge(&mut self, de_config: &Figment) {
+        if let Ok(max_docs_per_batch) = de_config.extract_inner("search.max_docs_per_batch") {
+            self.max_docs_per_batch = max_docs_per_batch;
+        }
+    }
+}
+
+/// Reads the DE configurations from json.
 pub(crate) fn de_config_from_json(json: &str) -> Figment {
     Figment::from(Json::string(json))
+}
+
+/// Reads the DE configurations from json and sets defaults for missing fields (if possible).
+pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
+    de_config_from_json(json)
         .join(Serialized::default("kpe.token_size", 150))
         .join(Serialized::default("smbert.token_size", 150))
         .join(Serialized::defaults(CoiSystemConfig::default()))
         .join(Serialized::default("core", CoreConfig::default()))
         .join(Serialized::default("endpoint", EndpointConfig::default()))
         .join(Serialized::default(
+            &format!("stacks.{}", BreakingNews::id()),
+            StackConfig::default(),
+        ))
+        .join(Serialized::default(
             &format!("stacks.{}", Exploration::id()),
             ExplorationConfig::default(),
         ))
+        .join(Serialized::default(
+            &format!("stacks.{}", PersonalizedNews::id()),
+            StackConfig::default(),
+        ))
+        .join(Serialized::default(
+            &format!("stacks.{}", TrustedNews::id()),
+            StackConfig::default(),
+        ))
+}
+
+pub(crate) mod serde_duration_as_milliseconds {
+    use std::time::Duration;
+
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[allow(clippy::cast_possible_truncation)] // durations are small enough
+    pub(crate) fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (duration.as_millis() as u64).serialize(serializer)
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        u64::deserialize(deserializer).map(Duration::from_millis)
+    }
 }
 
 #[cfg(test)]
@@ -216,10 +356,27 @@ mod tests {
 
     // the f32 fields are never NaN by construction
     impl Eq for CoreConfig {}
+    impl Eq for ExplorationConfig {}
+
+    impl Default for FeedConfig {
+        fn default() -> Self {
+            Self {
+                max_docs_per_batch: 2,
+            }
+        }
+    }
+
+    impl Default for SearchConfig {
+        fn default() -> Self {
+            Self {
+                max_docs_per_batch: 20,
+            }
+        }
+    }
 
     #[test]
     fn test_de_config_from_json_default() -> Result<(), GenericError> {
-        let de_config = de_config_from_json("{}");
+        let de_config = de_config_from_json_with_defaults("{}");
         assert_eq!(de_config.extract_inner::<usize>("kpe.token_size")?, 150);
         assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
@@ -235,16 +392,29 @@ mod tests {
             EndpointConfig::default(),
         );
         assert_eq!(
+            de_config.extract_inner::<StackConfig>(&format!("stacks.{}", BreakingNews::id()))?,
+            StackConfig::default(),
+        );
+        assert_eq!(
             de_config
                 .extract_inner::<ExplorationConfig>(&format!("stacks.{}", Exploration::id()))?,
             ExplorationConfig::default(),
+        );
+        assert_eq!(
+            de_config
+                .extract_inner::<StackConfig>(&format!("stacks.{}", PersonalizedNews::id()))?,
+            StackConfig::default(),
+        );
+        assert_eq!(
+            de_config.extract_inner::<StackConfig>(&format!("stacks.{}", TrustedNews::id()))?,
+            StackConfig::default(),
         );
         Ok(())
     }
 
     #[test]
     fn test_de_config_from_json_modified() -> Result<(), GenericError> {
-        let de_config = de_config_from_json(
+        let de_config = de_config_from_json_with_defaults(
             r#"{
                 "coi": {
                     "threshold": 0.42
@@ -262,6 +432,9 @@ mod tests {
                         "number_of_candidates": 42,
                         "alpha": 0.42
                     }
+                },
+                "endpoint": {
+                    "timeout": 1234
                 }
             }"#,
         );
@@ -279,7 +452,10 @@ mod tests {
         );
         assert_eq!(
             de_config.extract_inner::<EndpointConfig>("endpoint")?,
-            EndpointConfig::default(),
+            EndpointConfig {
+                timeout: Duration::from_millis(1234),
+                ..EndpointConfig::default()
+            },
         );
         assert_eq!(
             de_config

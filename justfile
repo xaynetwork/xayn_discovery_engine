@@ -46,7 +46,17 @@ flutter-deps:
 
 # Fetches rust dependencies
 rust-deps:
-    cd "$RUST_WORKSPACE"; \
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    for TARGET in $ANDROID_TARGETS; do
+        rustup target add $TARGET
+    done
+    if [[ "{{os()}}" == "macos" ]]; then
+        for TARGET in $IOS_TARGETS; do
+            rustup target add $TARGET
+        done
+    fi
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
 # Get/Update/Fetch/Install all dependencies
@@ -105,6 +115,7 @@ _codegen-order-workaround:
 # Checks rust code, fails on warnings on CI
 rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
+    cargo clippy --all-targets --features="storage" --locked; \
     cargo clippy --all-targets --locked; \
     cargo check -p xayn-discovery-engine-bindings
 
@@ -178,7 +189,7 @@ rust-test: _codegen-order-workaround download-assets
     cd "$RUST_WORKSPACE";
     cargo test --lib --bins --tests --quiet --locked
     cargo test --doc --quiet --locked
-    cargo test --lib --features "storage" --quiet --locked
+    cargo test --lib --features storage --quiet --locked
 
 # Tests dart and rust
 test: rust-test dart-test flutter-test
@@ -199,8 +210,14 @@ rust-clean:
     cargo clean
 
 # Cleans up darts build cache
+_dart-clean $WORKSPACE:
+    cd "$WORKSPACE"; \
+    find . -type d -name .dart_tool -prune -exec rm -r '{}' \;
+
 dart-clean:
-    find -type d -name .dart_tool -prune -exec rm -r '{}' \;
+    @{{just_executable()}} _dart-clean "$DART_WORKSPACE"
+    @{{just_executable()}} _dart-clean "$BINDGEN_DART_WORKSPACE"
+    @{{just_executable()}} _dart-clean "$FLUTTER_WORKSPACE"
 
 # Removes all local cargo installs
 clean-tools:
@@ -208,7 +225,7 @@ clean-tools:
 
 # Removes all asset data
 remove-assets:
-    find $FLUTTER_EXAMPLE_WORKSPACE/assets/*_v* -type f ! -name .gitkeep -exec rm '{}' \;
+    find $FLUTTER_EXAMPLE_WORKSPACE/assets/*_v* -type f ! -name .gitkeep ! -name '*-mocked.onnx' -exec rm '{}' \;
 
 # Removes all local cached dependencies and generated files
 clean: clean-gen-files rust-clean dart-clean
@@ -226,14 +243,13 @@ pre-push $CI="true":
 _compile-android target:
     # See also: https://developer.android.com/studio/projects/gradle-external-native-builds#jniLibs
     cd "$RUST_WORKSPACE"; \
-        cargo ndk --bindgen -t $(echo "{{target}}" | sed 's/[^ ]* */&/g') -p $ANDROID_PLATFORM_VERSION \
+    cargo ndk --bindgen -t {{target}} -p $ANDROID_PLATFORM_VERSION \
         -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" build \
         --release -p xayn-discovery-engine-bindings --locked
 
 compile-android-local: _codegen-order-workaround
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE";
     for TARGET in $ANDROID_TARGETS; do
         {{just_executable()}} _compile-android $TARGET
     done
@@ -287,22 +303,7 @@ download-assets:
 check-android-so:
     {{justfile_directory()}}/.github/scripts/check_android_so.sh "$FLUTTER_WORKSPACE"/android/src/main/jniLibs/
 
-_override-flutter-self-deps $VERSION:
-    #!/usr/bin/env bash
-    set -eux -o pipefail
-    cd "$FLUTTER_EXAMPLE_WORKSPACE"
-
-    SED_CMD="sed"
-    if [[ "{{os()}}" == "macos" ]]; then
-        SED_CMD="gsed"
-    fi
-
-    # This will add changes to your repo which should never be committed.
-    $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
-    $SED_CMD -i s/0.1.0+replace.with.version/${VERSION}/ ./pubspec.yaml
-
-
-_dart-publish $WORKSPACE:
+_override-dart-deps $WORKSPACE $VERSION:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$WORKSPACE"
@@ -315,7 +316,18 @@ _dart-publish $WORKSPACE:
     fi
 
     # Dependency overrides are not allowed in published dart packages
-    $SED_CMD -i s/dependency_overrides/HACK_hide_dependency_overrides/ ./pubspec.yaml
+    # This will add changes to your repo which should never be committed.
+    $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
+    $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
+
+_call-dart-publish $WORKSPACE:
+    cd "$WORKSPACE"; \
+    dart pub publish --force
+
+# This should only be run by the CI
+_ci-dart-publish:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
 
     # Use the branch name as metadata, replace invalid characters with "-".
     VERSION_METADATA="$(git rev-parse --abbrev-ref HEAD | sed s/[^0-9a-zA-Z-]/-/g )"
@@ -326,24 +338,76 @@ _dart-publish $WORKSPACE:
 
     # We use a timestamp as major version,
     # for now for our use case this is good enough and simple to do.
-    TIMESTAMP="$(date +%y%m%d%k%M%S)"
-    VERSION="0.${TIMESTAMP}.0+${VERSION_METADATA}"
+    TIMESTAMP="$(date +%y%m%d%H%M%S)"
+
+    # Due to bugs in JFrog we can only have small version numbers.
+    # VERSION="0.${TIMESTAMP}.0+${VERSION_METADATA}"
+
+    # This is very prone to problems as it relies on an undocumented implementation
+    # detail of dart pub/jfrog which is in conflict with the semver spec. But it's
+    # the best we can do for now.
+    VERSION="0.1.0+${VERSION_METADATA}.${TIMESTAMP}"
     echo "Version: $VERSION"
 
-    $SED_CMD -i s/0.1.0+replace.with.version/${VERSION}/ ./pubspec.yaml
-    dart pub publish --force
+    {{just_executable()}} _ci-dart-publish-with-version "${VERSION}"
 
-# This should only be run by the CI
-_ci-dart-publish:
-    {{just_executable()}} _dart-publish "$FLUTTER_WORKSPACE"
-    {{just_executable()}} _dart-publish "$DART_UTILS_WORKSPACE"
-    {{just_executable()}} _dart-publish "$DART_WORKSPACE"
+_ci-dart-publish-with-version $VERSION:
+    {{just_executable()}} _override-dart-deps "${DART_UTILS_WORKSPACE}" "${VERSION}"
+    {{just_executable()}} _override-dart-deps "${DART_WORKSPACE}" "${VERSION}"
+    {{just_executable()}} _override-dart-deps "${FLUTTER_WORKSPACE}" "${VERSION}"
+
+    {{just_executable()}} _call-dart-publish "${DART_UTILS_WORKSPACE}"
+    {{just_executable()}} _call-dart-publish "${FLUTTER_WORKSPACE}"
+    {{just_executable()}} _call-dart-publish "${DART_WORKSPACE}"
 
 build-web-service:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$RUST_WORKSPACE"
     cargo build --release --bin web-api
+
+db-setup:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    ERROR=""
+    (cargo sqlx --help 2>&1 | head -n1) || ERROR=$?
+    if [[ "$ERROR" == "101" ]]; then
+        echo 'You need to install sqlx-cli: `cargo install sqlx-cli`' >&2
+        exit 101
+    elif [[ -n "$ERROR" ]]; then
+        echo '`cargo sqlx --help` failed in an unexpected way with exit code:' "$ERROR" >&2
+        exit "$ERROR"
+    fi
+    export DATABASE_URL="sqlite:file://$(mktemp -d -t sqlx.discovery_engine.XXXX)/db.sqlite?mode=rwc"
+    cargo sqlx database setup --source "core/src/storage/migrations"
+    echo "DATABASE_URL=${DATABASE_URL}" >>.env.db.dev
+
+db-migrate +ARGS:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    export $(cat .env.db.dev | xargs)
+    cargo sqlx migrate --source "core/src/storage/migrations" {{ARGS}}
+
+web-service-up: build-web-service
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    rm -rf "$RUST_WORKSPACE/web-api/assets"
+    mkdir -p "$RUST_WORKSPACE/web-api/assets"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert-quantized.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
+    ln -s "../dummy_data.json" "$RUST_WORKSPACE/web-api/assets/data.json"
+
+    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+    sleep 2
+    cd "$RUST_WORKSPACE/web-api"
+    ./../target/release/web-api
+
+web-service-down:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
 
 alias d := dart-test
 alias r := rust-test

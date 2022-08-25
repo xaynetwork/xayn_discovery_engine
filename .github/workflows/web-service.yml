@@ -13,7 +13,7 @@ jobs:
   rust-build:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v3
+      image: xaynetci/yellow:v4
     timeout-minutes: 10
     steps:
       - name: Checkout repository

@@ -23,8 +23,6 @@ import 'package:xayn_discovery_engine/src/api/models/active_search.dart'
 import 'package:xayn_discovery_engine/src/api/models/document.dart' as api;
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
@@ -49,7 +47,6 @@ typedef DocsByReaction = Map<UserReaction, List<Document>>;
 /// Business logic concerning the management of the active search.
 class SearchManager {
   final Engine _engine;
-  final EventConfig _config;
   final ActiveSearchRepository _searchRepo;
   final DocumentRepository _docRepo;
   final ActiveDocumentDataRepository _activeRepo;
@@ -57,7 +54,6 @@ class SearchManager {
 
   SearchManager(
     this._engine,
-    this._config,
     this._searchRepo,
     this._docRepo,
     this._activeRepo,
@@ -90,14 +86,12 @@ class SearchManager {
         searchDocs = await _engine.searchByQuery(
           search.searchTerm,
           search.requestedPageNb,
-          search.pageSize,
         );
         break;
       case SearchBy.topic:
         searchDocs = await _engine.searchByTopic(
           search.searchTerm,
           search.requestedPageNb,
-          search.pageSize,
         );
         break;
     }
@@ -123,17 +117,14 @@ class SearchManager {
     if (cfgFeatureStorage) {
       final search = ActiveSearch(searchBy: by, searchTerm: term);
       const page = 1;
-      final pageSize = _config.maxSearchDocs;
       final List<DocumentWithActiveData> docs;
       try {
         switch (search.searchBy) {
           case SearchBy.query:
-            docs =
-                await _engine.searchByQuery(search.searchTerm, page, pageSize);
+            docs = await _engine.searchByQuery(search.searchTerm, page);
             break;
           case SearchBy.topic:
-            docs =
-                await _engine.searchByTopic(search.searchTerm, page, pageSize);
+            docs = await _engine.searchByTopic(search.searchTerm, page);
             break;
         }
       } on Exception catch (e) {
@@ -144,7 +135,6 @@ class SearchManager {
         }
         rethrow;
       }
-      await _engineStateRepo.save(await _engine.serialize());
 
       return EngineEvent.activeSearchRequestSucceeded(
         search,
@@ -161,7 +151,7 @@ class SearchManager {
       searchBy: by,
       searchTerm: term,
       requestedPageNb: 1,
-      pageSize: _config.maxSearchDocs,
+      pageSize: -1, // unused
     );
     final docs = await _getActiveSearchDocuments(search);
     await _searchRepo.save(search);
@@ -184,7 +174,6 @@ class SearchManager {
         }
         rethrow;
       }
-      await _engineStateRepo.save(await _engine.serialize());
 
       return EngineEvent.nextActiveSearchBatchRequestSucceeded(
         search.toApiRepr(),
@@ -259,8 +248,10 @@ class SearchManager {
     }
 
     searchDocs.sort((doc1, doc2) {
+      // ignore: deprecated_member_use_from_same_package
       final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
       return timeOrd == 0
+          // ignore: deprecated_member_use_from_same_package
           ? doc1.batchIndex.compareTo(doc2.batchIndex)
           : timeOrd;
     });
@@ -377,10 +368,7 @@ class SearchManager {
 
   /// Return the current trending topics.
   Future<EngineEvent> trendingTopicsRequested() async {
-    final topics = await _engine.getTrendingTopics();
-
-    // TODO: do we need to persist the engine state??
-    await _engineStateRepo.save(await _engine.serialize());
+    final topics = await _engine.trendingTopics();
 
     if (topics.isEmpty) {
       const reason = SearchFailureReason.noResultsAvailable;

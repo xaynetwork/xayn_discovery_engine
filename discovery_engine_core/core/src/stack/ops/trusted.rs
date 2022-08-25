@@ -39,16 +39,24 @@ use crate::{
 use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for trusted news.
-pub(crate) struct TrustedNews {
+pub struct TrustedNews {
     client: Arc<dyn TrustedHeadlinesProvider>,
     sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
-    max_requests: u32,
+    max_requests: usize,
     min_articles: usize,
     max_headline_age_days: usize,
 }
 
 impl TrustedNews {
+    pub const fn id() -> Id {
+        Id(uuid!("d0f699d8-60d2-4008-b3a1-df1cffc4b8a3"))
+    }
+
+    pub const fn name() -> &'static str {
+        "TrustedNews"
+    }
+
     #[allow(unused)]
     /// Creates a trusted news stack.
     pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn TrustedHeadlinesProvider>) -> Self {
@@ -74,7 +82,7 @@ impl TrustedNews {
 #[async_trait]
 impl Ops for TrustedNews {
     fn id(&self) -> Id {
-        Id(uuid!("d0f699d8-60d2-4008-b3a1-df1cffc4b8a3"))
+        Self::id()
     }
 
     fn needs_key_phrases(&self) -> bool {
@@ -90,7 +98,7 @@ impl Ops for TrustedNews {
     ) -> Result<Vec<GenericArticle>, NewItemsError> {
         let sources = Arc::new(self.sources.read().await.clone());
         if sources.is_empty() {
-            return Err(NewItemsError::NotReady);
+            return Err(NewItemsError::NotReady(self.id()));
         }
 
         request_min_new_items(
@@ -101,7 +109,7 @@ impl Ops for TrustedNews {
                 spawn_trusted_request(
                     self.client.clone(),
                     self.page_size,
-                    request_num as usize + 1,
+                    request_num + 1,
                     sources.clone(),
                     self.max_headline_age_days,
                 )

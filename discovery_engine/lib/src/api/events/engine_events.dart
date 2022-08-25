@@ -61,6 +61,8 @@ enum FeedFailureReason {
   noNewsForMarket,
   @JsonValue(2)
   stacksOpsError,
+  @JsonValue(3)
+  dbError,
 }
 
 enum SearchFailureReason {

@@ -22,12 +22,14 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::{CoiSystem, GenericError, KeyPhrase, UserInterests};
+use xayn_discovery_engine_ai::{CoiPoint, CoiSystem, GenericError, KeyPhrase, UserInterests};
 use xayn_discovery_engine_providers::{GenericArticle, Market};
 
 use crate::{
+    config::StackConfig as Config,
     document::{Document, HistoricDocument, Id as DocumentId, UserReaction},
     mab::Bucket,
+    stack::filters::filter_too_similar,
 };
 
 mod data;
@@ -35,14 +37,15 @@ pub(crate) mod exploration;
 pub(crate) mod filters;
 pub(crate) mod ops;
 
-pub use self::ops::{BoxedOps, Ops};
-pub(crate) use self::{
-    data::Data,
+pub(crate) use self::{data::Data, ops::NewItemsError};
+pub use self::{
+    exploration::Stack as Exploration,
     ops::{
         breaking::BreakingNews,
         personalized::PersonalizedNews,
         trusted::TrustedNews,
-        NewItemsError,
+        BoxedOps,
+        Ops,
     },
 };
 
@@ -78,9 +81,15 @@ pub enum Error {
 /// Id of a stack.
 ///
 /// `Id` is used to connect [`Ops`](ops::Ops) with the corresponding data of a stack.
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, From, Display)]
+#[derive(
+    Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq, Hash, From, Display,
+)]
 #[repr(transparent)]
-#[cfg_attr(test, derive(Default))]
+#[cfg_attr(
+    feature = "storage",
+    derive(sqlx::Type, sqlx::FromRow),
+    sqlx(transparent)
+)]
 pub struct Id(Uuid);
 
 impl Id {
@@ -96,6 +105,20 @@ impl Id {
     pub(crate) fn is_nil(&self) -> bool {
         self.0.is_nil()
     }
+
+    pub fn name(&self) -> Option<&'static str> {
+        match self {
+            id if id == &exploration::Stack::id() => Some(exploration::Stack::name()),
+            id if id == &ops::breaking::BreakingNews::id() => {
+                Some(ops::breaking::BreakingNews::name())
+            }
+            id if id == &ops::personalized::PersonalizedNews::id() => {
+                Some(ops::personalized::PersonalizedNews::name())
+            }
+            id if id == &ops::trusted::TrustedNews::id() => Some(ops::trusted::TrustedNews::name()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Derivative)]
@@ -104,14 +127,15 @@ pub(crate) struct Stack {
     pub(crate) data: Data,
     #[derivative(Debug = "ignore")]
     pub(crate) ops: BoxedOps,
+    config: Config,
 }
 
 impl Stack {
     /// Create a new `Stack` with the given [`Data`] and customized [`Ops`].
-    pub(crate) fn new(data: Data, ops: BoxedOps) -> Result<Self, Error> {
+    pub(crate) fn new(data: Data, ops: BoxedOps, config: Config) -> Result<Self, Error> {
         Self::validate_documents_stack_id(&data.documents, ops.id())?;
 
-        Ok(Self { data, ops })
+        Ok(Self { data, ops, config })
     }
 
     /// [`Id`] of this `Stack`.
@@ -128,13 +152,19 @@ impl Stack {
     ) -> Result<(), Error> {
         Self::validate_documents_stack_id(new_documents, self.ops.id())?;
 
-        let mut items = self
+        let documents = self
             .ops
             .merge(&self.data.documents, new_documents)
             .map_err(Error::Merge)?;
-        coi.rank(&mut items, user_interests);
-        self.data.documents = items;
+        let mut documents = filter_too_similar(
+            documents,
+            user_interests.negative.iter().map(|coi| coi.point().view()),
+            self.config.max_negative_similarity,
+        );
+        coi.rank(&mut documents, user_interests);
+        self.data.documents = documents;
         self.data.documents.reverse();
+
         Ok(())
     }
 
@@ -149,21 +179,13 @@ impl Stack {
     }
 
     /// Updates the relevance of the Stack based on the user feedback.
-    pub(crate) fn update_relevance(&mut self, reaction: UserReaction) {
-        // to avoid making the distribution too skewed
-        const MAX_BETA_PARAMS: f32 = 1000.;
-
-        fn incr(value: &mut f32) {
-            if *value < MAX_BETA_PARAMS {
-                (*value) += 1.;
-            }
-        }
-
-        match reaction {
-            UserReaction::Positive => incr(&mut self.data.alpha),
-            UserReaction::Negative => incr(&mut self.data.beta),
-            UserReaction::Neutral => (),
-        }
+    pub(crate) fn update_relevance(
+        &mut self,
+        reaction: UserReaction,
+        max_reactions: usize,
+        incr_reactions: f32,
+    ) {
+        update_relevance(&mut self.data, reaction, max_reactions, incr_reactions);
     }
 
     /// It checks that every document belongs to a stack.
@@ -200,17 +222,51 @@ impl Stack {
             .map_err(Error::New)
     }
 
-    /// Filter documents according to whether their source matches one in `sources`.
-    /// The flag `exclude` indicates whether to ex/include such documents.
-    pub(crate) fn prune_by_sources(&mut self, sources: &HashSet<String>, exclude: bool) {
+    /// Removes documents whose source is an excluded source.
+    pub(crate) fn prune_by_excluded_sources(&mut self, excluded_sources: &HashSet<String>) {
         self.data
             .documents
-            .retain(|doc| sources.contains(&doc.resource.source_domain) ^ exclude);
+            .retain(|doc| !excluded_sources.contains(&doc.resource.source_domain));
     }
 
     pub(crate) fn drain_documents(&mut self) -> std::vec::Drain<'_, Document> {
         self.data.documents.drain(..)
     }
+}
+
+pub(crate) fn update_relevance(
+    data: &mut Data,
+    reaction: UserReaction,
+    max_reactions: usize,
+    incr_reactions: f32,
+) {
+    match reaction {
+        UserReaction::Positive => data.likes += incr_reactions,
+        UserReaction::Negative => data.dislikes += incr_reactions,
+        UserReaction::Neutral => {}
+    }
+    let num_reactions = data.likes + data.dislikes;
+    #[allow(clippy::cast_precision_loss)] // value should be small enough
+    let max_reactions = max_reactions as f32;
+    if num_reactions <= max_reactions {
+        data.alpha = data.likes;
+        data.beta = data.dislikes;
+    } else {
+        data.alpha = data.likes * max_reactions / num_reactions;
+        data.beta = data.dislikes * max_reactions / num_reactions;
+
+        if data.alpha < 1. {
+            data.alpha = 1.;
+            data.beta = max_reactions - 1.;
+        }
+
+        if data.beta < 1. {
+            data.alpha = max_reactions - 1.;
+            data.beta = 1.;
+        }
+    }
+    data.alpha = (10. * data.alpha).round() / 10.;
+    data.beta = (10. * data.beta).round() / 10.;
 }
 
 impl Bucket<Document> for Stack {
@@ -235,7 +291,6 @@ impl Bucket<Document> for Stack {
 mod tests {
     use std::fmt::Debug;
 
-    use claim::{assert_matches, assert_none, assert_ok, assert_some};
     use uuid::Uuid;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
@@ -260,9 +315,9 @@ mod tests {
             ..Document::default()
         };
 
-        assert_ok!(f(&[]));
-        assert_ok!(f(&[doc_1.clone()]));
-        assert_ok!(f(&[doc_1, doc_2]));
+        assert!(f(&[]).is_ok());
+        assert!(f(&[doc_1.clone()]).is_ok());
+        assert!(f(&[doc_1, doc_2]).is_ok());
     }
 
     // assert that `f` returns an error if the argument contains a Document with an invalid `stack_id`
@@ -286,10 +341,11 @@ mod tests {
         };
 
         let assert_invalid_document = |docs: &[Document]| {
-            assert_matches!(
+            assert!(matches!(
                 f(docs),
                 Err(Error::InvalidDocument { document_id, document_stack_id, stack_id})
-                    if document_id == doc_ko.id && document_stack_id == doc_ko.stack_id && stack_id == stack_id_ok);
+                    if document_id == doc_ko.id && document_stack_id == doc_ko.stack_id && stack_id == stack_id_ok,
+            ));
         };
 
         assert_invalid_document(&[doc_ko.clone()]);
@@ -323,7 +379,7 @@ mod tests {
     fn test_stack_new_from_default() {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
-        assert_ok!(Stack::new(Data::default(), Box::new(ops)));
+        assert!(Stack::new(Data::default(), Box::new(ops), Config::default()).is_ok());
     }
 
     #[test]
@@ -336,7 +392,7 @@ mod tests {
                 ops.expect_id().returning(move || stack_id);
 
                 let data = Data::new(0.01, 0.99, docs.to_vec()).unwrap();
-                Stack::new(data, Box::new(ops))
+                Stack::new(data, Box::new(ops), Config::default())
             },
             stack_id,
         );
@@ -352,7 +408,7 @@ mod tests {
                 ops.expect_id().returning(move || stack_id);
 
                 let data = Data::new(0.01, 0.99, docs.to_vec()).unwrap();
-                Stack::new(data, Box::new(ops))
+                Stack::new(data, Box::new(ops), Config::default())
             },
             stack_id,
         );
@@ -368,7 +424,7 @@ mod tests {
         ops.expect_id().returning(Id::default);
 
         let data = Data::new(alpha, beta, vec![]).unwrap();
-        let stack = Stack::new(data, Box::new(ops)).unwrap();
+        let stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
 
         assert_eq!(stack.alpha(), alpha);
         assert_eq!(stack.beta(), beta);
@@ -379,9 +435,9 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
 
-        let mut stack = Stack::new(Data::default(), Box::new(ops)).unwrap();
+        let mut stack = Stack::new(Data::default(), Box::new(ops), Config::default()).unwrap();
 
-        assert_none!(stack.pop());
+        assert!(stack.pop().is_none());
     }
 
     #[test]
@@ -391,11 +447,11 @@ mod tests {
         let data = Data::new(0.01, 0.99, vec![doc.clone(), doc]).unwrap();
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
 
-        assert_some!(stack.pop());
-        assert_some!(stack.pop());
-        assert_none!(stack.pop());
+        assert!(stack.pop().is_some());
+        assert!(stack.pop().is_some());
+        assert!(stack.pop().is_none());
     }
 
     #[test]
@@ -403,7 +459,7 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::default();
-        let stack = Stack::new(data, Box::new(ops)).unwrap();
+        let stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
 
         assert!(stack.is_empty());
 
@@ -412,7 +468,7 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::new(1., 1., vec![doc]).unwrap();
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
 
         assert!(!stack.is_empty());
         stack.pop();
@@ -424,11 +480,11 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::default();
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Positive);
+        stack.update_relevance(UserReaction::Positive, 10, 1.);
 
         assert_approx_eq!(f32, alpha + 1., stack.alpha());
         assert_approx_eq!(f32, beta, stack.beta());
@@ -439,11 +495,11 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::default();
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Negative);
+        stack.update_relevance(UserReaction::Negative, 10, 1.);
 
         assert_approx_eq!(f32, beta + 1., stack.beta());
         assert_approx_eq!(f32, alpha, stack.alpha());
@@ -454,11 +510,11 @@ mod tests {
         let mut ops = MockOps::new();
         ops.expect_id().returning(Id::default);
         let data = Data::default();
-        let mut stack = Stack::new(data, Box::new(ops)).unwrap();
+        let mut stack = Stack::new(data, Box::new(ops), Config::default()).unwrap();
         let alpha = stack.alpha();
         let beta = stack.beta();
 
-        stack.update_relevance(UserReaction::Neutral);
+        stack.update_relevance(UserReaction::Neutral, 10, 1.);
 
         assert_approx_eq!(f32, beta, stack.beta());
         assert_approx_eq!(f32, alpha, stack.alpha());

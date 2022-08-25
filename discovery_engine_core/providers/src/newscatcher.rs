@@ -12,6 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::{sync::Arc, time::Duration};
+
+use async_trait::async_trait;
+use chrono::{NaiveDateTime, Utc};
+use derive_more::Deref;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use url::Url;
+
 use crate::{
     helpers::rest_endpoint::RestEndpoint,
     models::NewsQuery,
@@ -25,13 +33,6 @@ use crate::{
     TrustedHeadlinesProvider,
     TrustedHeadlinesQuery,
 };
-use async_trait::async_trait;
-use chrono::{NaiveDateTime, Utc};
-use derive_more::Deref;
-use std::sync::Arc;
-
-use serde::{de, Deserialize, Deserializer, Serialize};
-use url::Url;
 
 #[derive(Deref)]
 pub struct NewscatcherNewsProvider {
@@ -39,9 +40,9 @@ pub struct NewscatcherNewsProvider {
 }
 
 impl NewscatcherNewsProvider {
-    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
         }
     }
 
@@ -50,7 +51,7 @@ impl NewscatcherNewsProvider {
     }
 }
 
-fn max_age_to_date_string(max_age_days: usize) -> String {
+pub(crate) fn max_age_to_date_string(max_age_days: usize) -> String {
     // (lj): This _could_ overflow if we specified trillions of days, but I don't
     // think that's worth guarding against.
     let days = max_age_days as i64;
@@ -60,7 +61,7 @@ fn max_age_to_date_string(max_age_days: usize) -> String {
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn to_generic_articles(articles: Vec<Article>) -> Result<Vec<GenericArticle>, Error> {
+pub(crate) fn to_generic_articles(articles: Vec<Article>) -> Result<Vec<GenericArticle>, Error> {
     let articles = articles
         .into_iter()
         .flat_map(GenericArticle::try_from)
@@ -73,7 +74,7 @@ impl NewsProvider for NewscatcherNewsProvider {
     async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 query_append("page_size", request.page_size.to_string());
                 query_append("page", request.page.to_string());
 
@@ -101,9 +102,9 @@ pub struct NewscatcherHeadlinesProvider {
 
 impl NewscatcherHeadlinesProvider {
     /// Create a new provider.
-    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
         }
     }
 
@@ -120,7 +121,7 @@ impl HeadlinesProvider for NewscatcherHeadlinesProvider {
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 query_append("page_size", request.page_size.to_string());
                 query_append("page", request.page.to_string());
 
@@ -144,15 +145,14 @@ impl HeadlinesProvider for NewscatcherHeadlinesProvider {
     }
 }
 
-/// Newscatcher based implementation of a `TrustedSourcesProvider`.
 pub struct NewscatcherTrustedHeadlinesProvider {
     endpoint: RestEndpoint,
 }
 
 impl NewscatcherTrustedHeadlinesProvider {
-    pub fn new(endpoint_url: Url, auth_token: String) -> Self {
+    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
         Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token),
+            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
         }
     }
 
@@ -169,7 +169,7 @@ impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<Response, _>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 query_append("page_size", request.page_size.to_string());
                 query_append("page", request.page.to_string());
 
@@ -191,7 +191,7 @@ impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
     }
 }
 
-fn append_market(
+pub(crate) fn append_market(
     query_append: &mut dyn FnMut(&str, String),
     market: &Market,
     rank_limit: &RankLimit,
@@ -267,10 +267,14 @@ pub struct Article {
         deserialize_with = "deserialize_naive_date_time_from_str"
     )]
     pub published_date: NaiveDateTime,
+
+    /// Optional article embedding from the provider.
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub embedding: Option<Vec<f32>>,
 }
 
-fn default_published_date() -> NaiveDateTime {
-    chrono::naive::MIN_DATETIME
+const fn default_published_date() -> NaiveDateTime {
+    NaiveDateTime::MIN
 }
 
 // Taken from https://github.com/serde-rs/serde/issues/1098#issuecomment-760711617
@@ -339,6 +343,8 @@ mod tests {
         let provider = NewscatcherNewsProvider::new(
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -385,6 +391,8 @@ mod tests {
         let provider = NewscatcherNewsProvider::new(
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -432,6 +440,8 @@ mod tests {
         let provider = NewscatcherNewsProvider::new(
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -481,6 +491,8 @@ mod tests {
         let provider = NewscatcherNewsProvider::new(
             Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -530,6 +542,8 @@ mod tests {
         let provider = NewscatcherHeadlinesProvider::new(
             Url::parse(&format!("{}/v1/latest-headlines", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -576,7 +590,8 @@ mod tests {
             topic: "gaming".to_string(),
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
             country: "US".to_string(),
-            language: "en".to_string()
+            language: "en".to_string(),
+            embedding: None
         };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
@@ -588,6 +603,8 @@ mod tests {
         let provider = NewscatcherTrustedHeadlinesProvider::new(
             Url::parse(&format!("{}/v2/trusted-sources", mock_server.uri())).unwrap(),
             "test-token".into(),
+            Duration::from_secs(1),
+            0,
         );
 
         let tmpl = ResponseTemplate::new(200)
@@ -631,7 +648,8 @@ mod tests {
             topic: "gaming".to_string(),
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
             country: "US".to_string(),
-            language: "en".to_string()
+            language: "en".to_string(),
+            embedding: None
         };
 
         assert_eq!(format!("{:?}", doc), format!("{:?}", expected));
@@ -651,6 +669,7 @@ mod tests {
                 country: "US".to_string(),
                 language: "en".to_string(),
                 published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+                embedding: None,
             }
         }
     }

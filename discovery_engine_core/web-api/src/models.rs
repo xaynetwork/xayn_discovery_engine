@@ -13,13 +13,28 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use chrono::{NaiveDateTime, Utc};
-use derive_more::Display;
+use derive_more::{AsRef, Display};
+use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr, string::FromUtf8Error};
+use thiserror::Error;
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId, Embedding};
 use xayn_discovery_engine_core::document::Id;
+
+/// Web API errors.
+#[derive(Error, Debug, DisplayDoc)]
+pub(crate) enum Error {
+    /// [`UserId`] can't be empty.
+    UserIdEmpty,
+
+    /// [`UserId`] can't contain NUL character.
+    UserIdContainsNul,
+
+    /// Failed to decode [`UserId] from path param: {0}.
+    UserIdUtf8Conversion(#[from] FromUtf8Error),
+}
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,11 +50,12 @@ pub(crate) struct Document {
 }
 
 impl Document {
-    pub(crate) fn new((id, article, smbert_embedding): (Uuid, Article, Embedding)) -> Self {
+    pub(crate) fn new((article, smbert_embedding): (Article, Embedding)) -> Self {
+        let id = Uuid::new_v4().into();
         Self {
-            id: id.into(),
-            article,
+            id,
             smbert_embedding,
+            article,
         }
     }
 }
@@ -70,17 +86,31 @@ impl From<Document> for Article {
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct InteractionRequestBody {
-    pub(crate) document_id: Id,
+    pub(crate) document_id: String,
 }
 
 /// Unique identifier for the user.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display)]
-pub(crate) struct UserId(Uuid);
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
+pub(crate) struct UserId(String);
+
+impl UserId {
+    fn new(value: &str) -> Result<Self, Error> {
+        let value = urlencoding::decode(value).map_err(Error::UserIdUtf8Conversion)?;
+
+        if value.trim().is_empty() {
+            Err(Error::UserIdEmpty)
+        } else if value.contains('\u{0000}') {
+            Err(Error::UserIdContainsNul)
+        } else {
+            Ok(Self(value.to_string()))
+        }
+    }
+}
 
 impl FromStr for UserId {
-    type Err = <Uuid as FromStr>::Err;
+    type Err = Error;
 
-    fn from_str(user_id_str: &str) -> Result<Self, Self::Err> {
-        Uuid::from_str(user_id_str).map(Self)
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        UserId::new(value)
     }
 }

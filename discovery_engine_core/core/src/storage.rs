@@ -12,36 +12,49 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
+
 use async_trait::async_trait;
 use displaydoc::Display;
 use thiserror::Error;
-use xayn_discovery_engine_ai::GenericError;
+use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
 
-use crate::document::{self, HistoricDocument};
+use crate::{
+    document::{self, HistoricDocument, UserReaction, ViewMode},
+    stack,
+};
 
-use self::models::{ApiDocumentView, NewDocument, Search};
+use self::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView};
 
 pub mod sqlite;
+mod utils;
 
 pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
 
 #[derive(Error, Debug, Display)]
 pub enum Error {
-    /// Engine doesn't have a document with id {0}
-    InvalidDocumentId(document::Id),
     /// Database error: {0}
     Database(#[source] GenericError),
     /// Search request failed: open search
     OpenSearch,
     /// Search request failed: no search
     NoSearch,
-    /// Search request failed: no document
-    NoDocument,
+    /// Search request failed: no document with id {0}
+    NoDocument(document::Id),
 }
 
 impl From<sqlx::Error> for Error {
     fn from(generic: sqlx::Error) -> Self {
         Error::Database(generic.into())
+    }
+}
+
+impl From<MalformedBytesEmbedding> for Error {
+    fn from(err: MalformedBytesEmbedding) -> Self {
+        Error::Database(Box::new(err))
     }
 }
 
@@ -54,18 +67,29 @@ pub(crate) trait Storage {
     fn feed(&self) -> &(dyn FeedScope + Send + Sync);
 
     fn search(&self) -> &(dyn SearchScope + Send + Sync);
+
+    fn feedback(&self) -> &(dyn FeedbackScope + Send + Sync);
+
+    // temporary helper functions
+    fn state(&self) -> &(dyn StateScope + Send + Sync);
+
+    fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync);
 }
 
 #[async_trait]
 pub(crate) trait FeedScope {
-    async fn close_document(&self, document: &document::Id) -> Result<(), Error>;
+    async fn delete_documents(&self, ids: &[document::Id]) -> Result<bool, Error>;
 
     async fn clear(&self) -> Result<bool, Error>;
 
     async fn fetch(&self) -> Result<Vec<ApiDocumentView>, Error>;
 
     // helper function. will be replaced later by move_from_stacks_to_feed
-    async fn store_documents(&self, documents: &[NewDocument]) -> Result<(), Error>;
+    async fn store_documents(
+        &self,
+        documents: &[NewDocument],
+        stack_ids: &HashMap<document::Id, stack::Id>,
+    ) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -86,10 +110,50 @@ pub(crate) trait SearchScope {
 
     async fn clear(&self) -> Result<bool, Error>;
 
+    //FIXME Return a `DeepSearchTemplateView` or similar in the future which
+    //      only contains the necessary fields (snippet, title, smbert_embedding, market).
     async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error>;
 }
 
+#[async_trait]
+pub(crate) trait FeedbackScope {
+    async fn update_user_reaction(
+        &self,
+        document: document::Id,
+        reaction: UserReaction,
+    ) -> Result<ApiDocumentView, Error>;
+
+    async fn update_time_spent(
+        &self,
+        document: document::Id,
+        view_mode: ViewMode,
+        view_time: Duration,
+    ) -> Result<TimeSpentDocumentView, Error>;
+}
+
+#[async_trait]
+pub(crate) trait StateScope {
+    async fn store(&self, bytes: Vec<u8>) -> Result<(), Error>;
+
+    async fn fetch(&self) -> Result<Option<Vec<u8>>, Error>;
+
+    async fn clear(&self) -> Result<bool, Error>;
+}
+
+#[async_trait]
+pub(crate) trait SourcePreferenceScope {
+    async fn set_trusted(&self, sources: &HashSet<String>) -> Result<(), Error>;
+
+    async fn set_excluded(&self, sources: &HashSet<String>) -> Result<(), Error>;
+
+    async fn fetch_trusted(&self) -> Result<HashSet<String>, Error>;
+
+    async fn fetch_excluded(&self) -> Result<HashSet<String>, Error>;
+}
+
 pub mod models {
+    use std::time::Duration;
+
     use chrono::NaiveDateTime;
     use url::Url;
     use xayn_discovery_engine_ai::Embedding;
@@ -163,29 +227,29 @@ pub mod models {
         pub(crate) document_id: document::Id,
         pub(crate) news_resource: NewsResource,
         pub(crate) newscatcher_data: NewscatcherData,
-        #[allow(dead_code)]
-        pub(crate) user_reacted: Option<UserReaction>,
-        // FIXME I don't think this is helpful as multiple documents in the vec can have the same value for this!
-        #[allow(dead_code)]
-        pub(crate) in_batch_index: u32,
+        pub(crate) user_reaction: Option<UserReaction>,
         pub(crate) embedding: Embedding,
+        pub(crate) stack_id: Option<stack::Id>,
     }
 
     impl ApiDocumentView {
-        pub(crate) fn into_document(self, stack_id: stack::Id) -> document::Document {
-            document::Document {
-                id: self.document_id,
-                stack_id,
-                smbert_embedding: self.embedding,
-                resource: (self.news_resource, self.newscatcher_data).into(),
-            }
-        }
-
         /// Gets the snippet or falls back to the title if the snippet is empty.
         pub(crate) fn snippet_or_title(&self) -> &str {
             (!self.news_resource.snippet.is_empty())
                 .then(|| &self.news_resource.snippet)
                 .unwrap_or(&self.news_resource.title)
+        }
+    }
+
+    impl From<ApiDocumentView> for document::Document {
+        fn from(view: ApiDocumentView) -> Self {
+            document::Document {
+                id: view.document_id,
+                stack_id: view.stack_id.unwrap_or_default(),
+                smbert_embedding: view.embedding,
+                reaction: view.user_reaction,
+                resource: (view.news_resource, view.newscatcher_data).into(),
+            }
         }
     }
 
@@ -243,5 +307,12 @@ pub mod models {
     pub(crate) struct Paging {
         pub(crate) size: u32,
         pub(crate) next_page: u32,
+    }
+
+    #[derive(Debug, PartialEq)]
+    pub(crate) struct TimeSpentDocumentView {
+        pub(crate) smbert_embedding: Embedding,
+        pub(crate) last_reaction: Option<UserReaction>,
+        pub(crate) aggregated_view_time: Duration,
     }
 }

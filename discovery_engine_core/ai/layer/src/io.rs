@@ -33,7 +33,7 @@ use crate::utils::IncompatibleMatrices;
 ///
 /// The flattened array is in row-major order.
 #[derive(Debug, Serialize)]
-#[cfg_attr(test, derive(Default, PartialEq))]
+#[cfg_attr(test, derive(Default, Eq, PartialEq))]
 pub struct FlattenedArray<A> {
     shape: Vec<Ix>,
     /// There is a invariant that the length of data is

@@ -30,9 +30,9 @@ mod selection;
 pub(crate) use self::selection::Error;
 
 #[derive(Debug)]
-pub(crate) struct Stack {
+pub struct Stack {
     pub(crate) data: Data,
-    config: Config,
+    pub(crate) config: Config,
 }
 
 impl Stack {
@@ -43,8 +43,12 @@ impl Stack {
     }
 
     /// [`Id`] of this `Stack`.
-    pub(crate) const fn id() -> Id {
+    pub const fn id() -> Id {
         Id(uuid!("77cf9280-bb93-4158-b660-8732927e0dcc"))
+    }
+
+    pub const fn name() -> &'static str {
+        "Exploration"
     }
 
     /// Updates the internal documents with the new one and returns an updated [`Stack`].
@@ -95,21 +99,13 @@ impl Stack {
     }
 
     /// Updates the relevance of the Stack based on the user feedback.
-    pub(crate) fn update_relevance(&mut self, reaction: UserReaction) {
-        // to avoid making the distribution too skewed
-        const MAX_BETA_PARAMS: f32 = 1000.;
-
-        fn incr(value: &mut f32) {
-            if *value < MAX_BETA_PARAMS {
-                (*value) += 1.;
-            }
-        }
-
-        match reaction {
-            UserReaction::Positive => incr(&mut self.data.alpha),
-            UserReaction::Negative => incr(&mut self.data.beta),
-            UserReaction::Neutral => (),
-        }
+    pub(crate) fn update_relevance(
+        &mut self,
+        reaction: UserReaction,
+        max_reactions: usize,
+        incr_reactions: f32,
+    ) {
+        stack::update_relevance(&mut self.data, reaction, max_reactions, incr_reactions);
     }
 
     /// It checks that every document belongs to a stack.
@@ -132,12 +128,11 @@ impl Stack {
         self.data.documents.is_empty()
     }
 
-    /// Filter documents according to whether their source matches one in `sources`.
-    /// The flag `exclude` indicates whether to ex/include such documents.
-    pub(crate) fn prune_by_sources(&mut self, sources: &HashSet<String>, exclude: bool) {
+    /// Removes documents whose source is an excluded source.
+    pub(crate) fn prune_by_excluded_sources(&mut self, excluded_sources: &HashSet<String>) {
         self.data
             .documents
-            .retain(|doc| sources.contains(&doc.resource.source_domain) ^ exclude);
+            .retain(|doc| !excluded_sources.contains(&doc.resource.source_domain));
     }
 
     pub(crate) fn drain_documents(&mut self) -> std::vec::Drain<'_, Document> {

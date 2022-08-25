@@ -37,7 +37,7 @@ import 'package:xayn_discovery_engine/src/api/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine, mockTrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig, EventHandler;
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
@@ -77,7 +77,6 @@ Future<void> main() async {
 
     final engine = MockEngine()
       ..activeSearchDocuments = mockDocuments(StackId.nil(), true);
-    final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
     final data = ActiveDocumentData(Embedding.fromList([44]));
     final stackId = StackId.fromBytes(Uint8List.fromList(List.filled(16, 0)));
     var doc1 = Document(
@@ -107,7 +106,6 @@ Future<void> main() async {
       engineStateRepo = HiveEngineStateRepository();
       mgr = SearchManager(
         engine,
-        config,
         searchRepo,
         docRepo,
         activeRepo,
@@ -145,7 +143,7 @@ Future<void> main() async {
           searchBy: SearchBy.query,
           searchTerm: 'example query',
           requestedPageNb: 1,
-          pageSize: config.maxSearchDocs,
+          pageSize: -1,
         );
 
         await searchRepo.clear();
@@ -178,7 +176,7 @@ Future<void> main() async {
           activeRepo.box.get('${response.items.last.documentId}'),
           isNotNull,
         );
-        expect(engine.getCallCount('activeSearch'), equals(1));
+        expect(engine.getCallCount('searchByQuery'), equals(1));
         expect(engine.getCallCount('serialize'), equals(1));
       });
     });
@@ -230,7 +228,7 @@ Future<void> main() async {
           activeRepo.box.get('${response.items.last.documentId}'),
           isNotNull,
         );
-        expect(engine.getCallCount('activeSearch'), equals(1));
+        expect(engine.getCallCount('searchByQuery'), equals(1));
         expect(engine.getCallCount('serialize'), equals(1));
       });
     });
@@ -329,7 +327,6 @@ Future<void> main() async {
         final engine = _NoTrendingTopicsMockEngine();
         final mgr = SearchManager(
           engine,
-          config,
           searchRepo,
           docRepo,
           activeRepo,
@@ -424,5 +421,5 @@ Future<void> main() async {
 
 class _NoTrendingTopicsMockEngine extends MockEngine {
   @override
-  Future<List<TrendingTopic>> getTrendingTopics() async => [];
+  Future<List<TrendingTopic>> trendingTopics() async => [];
 }

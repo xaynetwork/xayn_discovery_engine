@@ -20,12 +20,16 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket, FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
+import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
+    show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
@@ -34,7 +38,7 @@ import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
     show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+    show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 
@@ -64,6 +68,11 @@ class MockEngine implements Engine {
 
   void resetCallCounter() {
     callCounter.clear();
+  }
+
+  @override
+  Future<void> configure(String deConfig) async {
+    _incrementCount('configure');
   }
 
   @override
@@ -102,22 +111,86 @@ class MockEngine implements Engine {
   }
 
   @override
+  Future<void> setSources(
+    List<SourceReacted> sources,
+    Set<Source> excluded,
+    Set<Source> trusted,
+  ) async {
+    _incrementCount('setSources');
+    excludedSources = excluded;
+    trustedSources = trusted;
+  }
+
+  @override
+  Future<Set<Source>> getExcludedSources() async {
+    _incrementCount('getExcludedSources');
+    return excludedSources;
+  }
+
+  @override
+  Future<Set<Source>> getTrustedSources() async {
+    _incrementCount('getTrustedSources');
+    return trustedSources;
+  }
+
+  @override
+  Future<void> addExcludedSource(
+    List<SourceReacted> sources,
+    Source excluded,
+  ) async {
+    _incrementCount('addExcludedSource');
+  }
+
+  @override
+  Future<void> removeExcludedSource(
+    List<SourceReacted> sources,
+    Source excluded,
+  ) async {
+    _incrementCount('removeExcludedSource');
+  }
+
+  @override
+  Future<void> addTrustedSource(
+    List<SourceReacted> sources,
+    Source trusted,
+  ) async {
+    _incrementCount('addTrustedSource');
+  }
+
+  @override
+  Future<void> removeTrustedSource(
+    List<SourceReacted> sources,
+    Source trusted,
+  ) async {
+    _incrementCount('removeTrustedSource');
+  }
+
+  @override
   Future<List<DocumentWithActiveData>> feedNextBatch(
     List<SourceReacted> sources,
-    int maxDocuments,
   ) async {
     _incrementCount('feedNextBatch');
-    return feedDocuments.take(maxDocuments).toList(growable: false);
+    return feedDocuments.take(2).toList(growable: false);
   }
 
   @override
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
     List<SourceReacted> sources,
-    int maxDocuments,
   ) async {
     _incrementCount('getFeedDocuments');
-    return feedDocuments.take(maxDocuments).toList(growable: false);
+    return feedDocuments.take(2).toList(growable: false);
+  }
+
+  @override
+  Future<List<DocumentWithActiveData>> restoreFeed() async {
+    _incrementCount('restoreFeed');
+    return feedDocuments.take(2).toList(growable: false);
+  }
+
+  @override
+  Future<void> deleteFeedDocuments(Set<DocumentId> ids) async {
+    _incrementCount('deleteFeedDocuments');
   }
 
   @override
@@ -126,32 +199,48 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> userReacted(
+  Future<Document> userReacted(
     List<HistoricDocument>? history,
     List<SourceReacted> sources,
     UserReacted userReacted,
   ) async {
     _incrementCount('userReacted');
+    return Document(
+      batchIndex: 0,
+      documentId: DocumentId(),
+      resource: NewsResource(
+        country: 'US',
+        datePublished: DateTime.now().toUtc(),
+        image: null,
+        language: '',
+        rank: 0,
+        score: null,
+        snippet: '',
+        sourceDomain: Source('foo.invalid'),
+        title: '',
+        topic: '',
+        url: Uri.parse('https://foo.invalid'),
+      ),
+      stackId: StackId(),
+    );
   }
 
   @override
   Future<List<DocumentWithActiveData>> searchByQuery(
     String query,
     int page,
-    int pageSize,
   ) async {
-    _incrementCount('activeSearch');
-    return activeSearchDocuments.take(pageSize).toList(growable: false);
+    _incrementCount('searchByQuery');
+    return activeSearchDocuments.take(20).toList(growable: false);
   }
 
   @override
   Future<List<DocumentWithActiveData>> searchByTopic(
     String topic,
     int page,
-    int pageSize,
   ) async {
     _incrementCount('searchByTopic');
-    return activeSearchDocuments.take(pageSize).toList(growable: false);
+    return activeSearchDocuments.take(20).toList(growable: false);
   }
 
   @override
@@ -163,13 +252,13 @@ class MockEngine implements Engine {
   @override
   Future<List<DocumentWithActiveData>> searchNextBatch() async {
     _incrementCount('searchNextBatch');
-    return activeSearchDocuments.take(10).toList(growable: false);
+    return activeSearchDocuments.take(20).toList(growable: false);
   }
 
   @override
   Future<List<DocumentWithActiveData>> restoreSearch() async {
-    _incrementCount('searched');
-    return activeSearchDocuments.take(10).toList(growable: false);
+    _incrementCount('restoreSearch');
+    return activeSearchDocuments.take(20).toList(growable: false);
   }
 
   @override
@@ -199,8 +288,8 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<TrendingTopic>> getTrendingTopics() async {
-    _incrementCount('getTrendingTopics');
+  Future<List<TrendingTopic>> trendingTopics() async {
+    _incrementCount('trendingTopics');
     return [mockTrendingTopic];
   }
 

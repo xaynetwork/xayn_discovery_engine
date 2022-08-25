@@ -37,7 +37,14 @@ pub mod types;
 
 use std::path::Path;
 
+use itertools::Itertools;
 use xayn_discovery_engine_core::Engine;
+
+#[allow(unsafe_code)]
+#[no_mangle]
+pub extern "C" fn cfg_feature_storage() -> u8 {
+    u8::from(cfg!(feature = "storage"))
+}
 
 #[async_bindgen::api(
     use uuid::Uuid;
@@ -73,6 +80,11 @@ impl XaynDiscoveryEngineAsyncFfi {
             .map(|engine| tokio::sync::Mutex::new(engine).into())
             .map_err(|error| error.to_string()),
         )
+    }
+
+    /// Configures the running engine.
+    pub async fn configure(engine: &SharedEngine, de_config: Box<String>) {
+        engine.as_ref().lock().await.configure(&de_config);
     }
 
     /// Serializes the engine.
@@ -112,14 +124,13 @@ impl XaynDiscoveryEngineAsyncFfi {
     pub async fn feed_next_batch(
         engine: &SharedEngine,
         sources: Box<Vec<WeightedSource>>,
-        max_documents: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .feed_next_batch(&sources, max_documents)
+                .feed_next_batch(&sources)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -131,27 +142,61 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
         sources: Box<Vec<WeightedSource>>,
-        max_documents: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .get_feed_documents(&history, &sources, max_documents)
+                .get_feed_documents(&history, &sources)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
+    pub async fn restore_feed(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .restore_feed()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Deletes the feed documents.
+    pub async fn delete_feed_documents(
+        engine: &SharedEngine,
+        ids: Box<Vec<Uuid>>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .delete_feed_documents(&ids.into_iter().map_into().collect_vec())
                 .await
                 .map_err(|error| error.to_string()),
         )
     }
 
     /// Processes time spent.
-    pub async fn time_spent(engine: &SharedEngine, time_spent: Box<TimeSpent>) {
-        engine
-            .as_ref()
-            .lock()
-            .await
-            .time_spent(time_spent.as_ref())
-            .await;
+    pub async fn time_spent(
+        engine: &SharedEngine,
+        time_spent: Box<TimeSpent>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .time_spent(*time_spent)
+                .await
+                .map_err(|error| error.to_string()),
+        )
     }
 
     /// Processes user reaction.
@@ -163,17 +208,13 @@ impl XaynDiscoveryEngineAsyncFfi {
         history: Option<Box<Vec<HistoricDocument>>>,
         sources: Box<Vec<WeightedSource>>,
         reacted: Box<UserReacted>,
-    ) -> Box<Result<(), String>> {
+    ) -> Box<Result<Document, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .user_reacted(
-                    history.as_deref().map(Vec::as_slice),
-                    &sources,
-                    reacted.as_ref(),
-                )
+                .user_reacted(history.as_deref().map(Vec::as_slice), &sources, *reacted)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -184,14 +225,13 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine: &SharedEngine,
         query: Box<String>,
         page: u32,
-        page_size: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .search_by_query(query.as_ref(), page, page_size)
+                .search_by_query(query.as_ref(), page)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -202,14 +242,13 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine: &SharedEngine,
         topic: Box<String>,
         page: u32,
-        page_size: u32,
     ) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .search_by_topic(topic.as_ref(), page, page_size)
+                .search_by_topic(topic.as_ref(), page)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -322,7 +361,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the trusted sources and updates the stacks based on that.
-    #[allow(clippy::box_collection)]
     pub async fn set_trusted_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
@@ -341,7 +379,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the excluded sources and updates the stacks based on that.
-    #[allow(clippy::box_collection)]
     pub async fn set_excluded_sources(
         engine: &SharedEngine,
         history: Box<Vec<HistoricDocument>>,
@@ -354,6 +391,118 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .lock()
                 .await
                 .set_excluded_sources(&history, &sources, *excluded)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Sets a new list of excluded and trusted sources.
+    pub async fn set_sources(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        excluded: Box<Vec<String>>,
+        trusted: Box<Vec<String>>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .set_sources(&sources, *excluded, *trusted)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Returns the trusted sources.
+    pub async fn get_trusted_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .trusted_sources()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Returns the excluded sources.
+    pub async fn get_excluded_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .excluded_sources()
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Adds a trusted source.
+    pub async fn add_trusted_source(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        trusted: Box<String>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .add_trusted_source(&sources, *trusted)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Removes a trusted source.
+    pub async fn remove_trusted_source(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        trusted: Box<String>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .remove_trusted_source(&sources, *trusted)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Adds an excluded source.
+    pub async fn add_excluded_source(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        excluded: Box<String>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .add_excluded_source(&sources, *excluded)
+                .await
+                .map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Removes an excluded source.
+    pub async fn remove_excluded_source(
+        engine: &SharedEngine,
+        sources: Box<Vec<WeightedSource>>,
+        excluded: Box<String>,
+    ) -> Box<Result<(), String>> {
+        Box::new(
+            engine
+                .as_ref()
+                .lock()
+                .await
+                .remove_excluded_source(&sources, *excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )

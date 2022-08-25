@@ -12,20 +12,34 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart'
     show HiveType, HiveField, TypeAdapter, BinaryReader, BinaryWriter;
 import 'package:xayn_discovery_engine/src/domain/repository/type_id.dart'
     show documentViewModeTypeId;
+import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
+    show RustViewMode;
 
 part 'view_mode.g.dart';
 
 /// Document viewer mode.
 @HiveType(typeId: documentViewModeTypeId)
+@JsonEnum(alwaysCreate: true)
 enum DocumentViewMode {
-  @HiveField(0)
+  @HiveField(RustViewMode.Story)
+  @JsonValue(RustViewMode.Story)
   story,
-  @HiveField(1)
+  @HiveField(RustViewMode.Reader)
+  @JsonValue(RustViewMode.Reader)
   reader,
-  @HiveField(2)
+  @HiveField(RustViewMode.Web)
+  @JsonValue(RustViewMode.Web)
   web,
+}
+
+extension DocumentViewModeIntConversion on DocumentViewMode {
+  int toIntRepr() => _$DocumentViewModeEnumMap[this]!;
+
+  static DocumentViewMode fromIntRepr(int intRepr) =>
+      $enumDecode(_$DocumentViewModeEnumMap, intRepr);
 }

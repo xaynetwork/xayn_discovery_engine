@@ -39,11 +39,11 @@ use crate::{
 use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for breaking news items.
-pub(crate) struct BreakingNews {
+pub struct BreakingNews {
     client: Arc<dyn HeadlinesProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
-    max_requests: u32,
+    max_requests: usize,
     min_articles: usize,
     max_headline_age_days: usize,
 }
@@ -61,8 +61,12 @@ impl BreakingNews {
         }
     }
 
-    pub(crate) const fn id() -> Id {
+    pub const fn id() -> Id {
         Id(uuid!("1ce442c8-8a96-433e-91db-c0bee37e5a83"))
+    }
+
+    pub const fn name() -> &'static str {
+        "BreakingNews"
     }
 
     /// Filter `articles` based on `stack` documents.
@@ -105,7 +109,7 @@ impl Ops for BreakingNews {
                     self.client.clone(),
                     market.clone(),
                     self.page_size,
-                    request_num as usize + 1,
+                    request_num + 1,
                     excluded_sources.clone(),
                     self.max_headline_age_days,
                 )

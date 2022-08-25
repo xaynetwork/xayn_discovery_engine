@@ -23,6 +23,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
+import 'package:xayn_discovery_engine/src/domain/models/document.dart'
+    show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
@@ -46,6 +48,9 @@ abstract class Engine {
   /// Serializes the state of the [Engine].
   Future<Uint8List> serialize();
 
+  /// Configures the running engine.
+  Future<void> configure(String deConfig);
+
   /// Changes the currently supported markets.
   Future<void> setMarkets(
     List<HistoricDocument> history,
@@ -67,44 +72,82 @@ abstract class Engine {
     Set<Source> trusted,
   );
 
+  /// Changes the excluded and trusted sources.
+  Future<void> setSources(
+    List<SourceReacted> sources,
+    Set<Source> excluded,
+    Set<Source> trusted,
+  );
+
+  /// Returns the excluded sources.
+  Future<Set<Source>> getExcludedSources();
+
+  /// Returns the trusted sources.
+  Future<Set<Source>> getTrustedSources();
+
+  /// Adds an excluded source.
+  Future<void> addExcludedSource(
+    List<SourceReacted> sources,
+    Source excluded,
+  );
+
+  /// Removes an excluded source.
+  Future<void> removeExcludedSource(
+    List<SourceReacted> sources,
+    Source excluded,
+  );
+
+  /// Adds a trusted source.
+  Future<void> addTrustedSource(
+    List<SourceReacted> sources,
+    Source trusted,
+  );
+
+  /// Removes a trusted source.
+  Future<void> removeTrustedSource(
+    List<SourceReacted> sources,
+    Source trusted,
+  );
+
   /// Gets the next batch of feed documents.
   Future<List<DocumentWithActiveData>> feedNextBatch(
     List<SourceReacted> sources,
-    int maxDocuments,
   );
 
-  /// Retrieves at most [maxDocuments] feed documents.
+  /// Gets the next batch of feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(
     List<HistoricDocument> history,
     List<SourceReacted> sources,
-    int maxDocuments,
   );
+
+  /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
+  Future<List<DocumentWithActiveData>> restoreFeed();
+
+  /// Deletes the feed documents.
+  Future<void> deleteFeedDocuments(Set<DocumentId> ids);
 
   /// Process the feedback about the user spending some time on a document.
   Future<void> timeSpent(TimeSpent timeSpent);
 
   /// Process the user's reaction to a document.
   ///
-  /// The history is only required for positive reactions.
-  Future<void> userReacted(
+  /// The history is only required if the reaction is positive and if
+  /// `cfgFeatureStorage` is disabled.
+  ///
+  /// The returned `Document` will only be consistent if `cfgFeatureStorage`
+  /// is enabled. The history and most fields of `UserReacted` can
+  /// be empty/dummy data if `cfgFeatureStorage` feature is enabled.
+  Future<Document> userReacted(
     List<HistoricDocument>? history,
     List<SourceReacted> sources,
     UserReacted userReacted,
   );
 
   /// Perform an active search by query.
-  Future<List<DocumentWithActiveData>> searchByQuery(
-    String query,
-    int page,
-    int pageSize,
-  );
+  Future<List<DocumentWithActiveData>> searchByQuery(String query, int page);
 
   /// Perform an active search by topic.
-  Future<List<DocumentWithActiveData>> searchByTopic(
-    String topic,
-    int page,
-    int pageSize,
-  );
+  Future<List<DocumentWithActiveData>> searchByTopic(String topic, int page);
 
   /// Performs an active search by document id (aka deep search).
   ///
@@ -135,7 +178,7 @@ abstract class Engine {
   );
 
   /// Returns the currently trending topics.
-  Future<List<TrendingTopic>> getTrendingTopics();
+  Future<List<TrendingTopic>> trendingTopics();
 
   /// Disposes the engine.
   Future<void> dispose();

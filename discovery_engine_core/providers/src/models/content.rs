@@ -79,6 +79,9 @@ pub struct GenericArticle {
 
     /// How much the article match the query.
     pub score: Option<f32>,
+
+    /// Optional article embedding from the provider.
+    pub embedding: Option<Vec<f32>>,
 }
 
 impl GenericArticle {
@@ -115,6 +118,7 @@ impl TryFrom<NewscatcherArticle> for GenericArticle {
             country: article.country,
             language: article.language,
             topic: article.topic,
+            embedding: article.embedding,
         })
     }
 }
@@ -122,7 +126,6 @@ impl TryFrom<NewscatcherArticle> for GenericArticle {
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
-    use claim::{assert_matches, assert_none};
 
     use super::*;
 
@@ -139,6 +142,7 @@ mod tests {
                 country: "US".to_string(),
                 language: "en".to_string(),
                 topic: "news".to_string(),
+                embedding: None,
             }
         }
     }
@@ -188,7 +192,7 @@ mod tests {
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), InvalidUrl(_));
+        assert!(matches!(res, Err(InvalidUrl(_))));
     }
 
     #[test]
@@ -199,7 +203,7 @@ mod tests {
         };
 
         let res: GenericArticle = article.try_into().unwrap();
-        assert_none!(res.image);
+        assert!(res.image.is_none());
     }
 
     #[test]
@@ -210,6 +214,6 @@ mod tests {
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
-        assert_matches!(res.unwrap_err(), InvalidUrl(_));
+        assert!(matches!(res, Err(InvalidUrl(_))));
     }
 }

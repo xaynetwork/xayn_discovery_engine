@@ -33,48 +33,52 @@
 mod bing;
 mod error;
 mod helpers;
+mod mlt;
 mod models;
 mod newscatcher;
 
-pub use models::{
-    GenericArticle,
-    HeadlinesQuery,
-    NewsQuery,
-    Rank,
-    RankLimit,
-    TrendingTopicsQuery,
-    TrustedHeadlinesQuery,
-    UrlWithDomain,
-};
-use std::sync::Arc;
-
-pub use newscatcher::{
-    Article as NewscatcherArticle,
-    NewscatcherHeadlinesProvider,
-    NewscatcherNewsProvider,
-    NewscatcherTrustedHeadlinesProvider,
-    Response as NewscatcherResponse,
-};
-
-pub use bing::{BingTrendingTopicsProvider, Response as BingResponse, TrendingTopic};
-
-pub use error::Error;
-pub use helpers::{
-    clean_query::clean_query,
-    filter::{Filter, Market},
-    rest_endpoint::RestEndpoint,
-};
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use url::Url;
 
-/// Abstraction over a provider for a news searching functionality.
+use self::mlt::MltSimilarNewsProvider;
+
+pub use self::{
+    bing::{BingTrendingTopicsProvider, Response as BingResponse, TrendingTopic},
+    error::Error,
+    helpers::{
+        clean_query::clean_query,
+        filter::{Filter, Market},
+        rest_endpoint::RestEndpoint,
+    },
+    models::{
+        GenericArticle,
+        HeadlinesQuery,
+        NewsQuery,
+        Rank,
+        RankLimit,
+        SimilarNewsQuery,
+        TrendingTopicsQuery,
+        TrustedHeadlinesQuery,
+        UrlWithDomain,
+    },
+    newscatcher::{
+        Article as NewscatcherArticle,
+        NewscatcherHeadlinesProvider,
+        NewscatcherNewsProvider,
+        NewscatcherTrustedHeadlinesProvider,
+        Response as NewscatcherResponse,
+    },
+};
+
+/// Provider for news search functionality.
 #[async_trait]
 pub trait NewsProvider: Send + Sync {
     async fn query_news(&self, query: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Abstraction over a provider for the latest headlines.
+/// Provider for the latest headlines.
 #[async_trait]
 pub trait HeadlinesProvider: Send + Sync {
     async fn query_headlines(
@@ -83,7 +87,7 @@ pub trait HeadlinesProvider: Send + Sync {
     ) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Abstraction over a provider for headlines only from trusted sources.
+/// Provider for headlines only from trusted sources.
 #[async_trait]
 pub trait TrustedHeadlinesProvider: Send + Sync {
     async fn query_trusted_sources(
@@ -92,6 +96,7 @@ pub trait TrustedHeadlinesProvider: Send + Sync {
     ) -> Result<Vec<GenericArticle>, Error>;
 }
 
+/// Provider for trending topics.
 #[async_trait]
 pub trait TrendingTopicsProvider: Send + Sync {
     // TODO: `TrendingTopic` here is the bing specific representation, which we don't really want to expose
@@ -99,6 +104,15 @@ pub trait TrendingTopicsProvider: Send + Sync {
         &self,
         query: &TrendingTopicsQuery<'_>,
     ) -> Result<Vec<TrendingTopic>, Error>;
+}
+
+/// Provider for similar news.
+#[async_trait]
+pub trait SimilarNewsProvider: Send + Sync {
+    async fn query_similar_news(
+        &self,
+        query: &SimilarNewsQuery<'_>,
+    ) -> Result<Vec<GenericArticle>, Error>;
 }
 
 pub struct ProviderConfig {
@@ -109,6 +123,10 @@ pub struct ProviderConfig {
     pub news_provider_path: String,
     /// Url path for the latest headlines provider.
     pub headlines_provider_path: String,
+    /// The timeout after which a provider aborts a request.
+    pub timeout: Duration,
+    /// The number of retries in case of a timeout.
+    pub retry: usize,
 }
 
 pub struct Providers {
@@ -116,6 +134,7 @@ pub struct Providers {
     pub trusted_headlines: Arc<dyn TrustedHeadlinesProvider>,
     pub news: Arc<dyn NewsProvider>,
     pub trending_topics: Arc<dyn TrendingTopicsProvider>,
+    pub similar_news: Arc<dyn SimilarNewsProvider>,
 }
 
 fn create_endpoint_url(raw_base_url: &str, path: &str) -> Result<Url, Error> {
@@ -163,13 +182,14 @@ fn select_provider<T: ?Sized>(
 }
 
 impl Providers {
-    pub fn new(config: &ProviderConfig) -> Result<Self, Error> {
+    pub fn new(config: ProviderConfig) -> Result<Self, Error> {
         let headlines_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, &config.headlines_provider_path)?,
             config.api_key.clone(),
+            config.timeout,
+            config.retry,
         )
         .with_get_as_post(true);
-
         let headlines = select_provider(
             headlines_endpoint,
             NewscatcherHeadlinesProvider::from_endpoint,
@@ -178,15 +198,18 @@ impl Providers {
         let news_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, &config.news_provider_path)?,
             config.api_key.clone(),
+            config.timeout,
+            config.retry,
         )
         .with_get_as_post(true);
-
         let news = select_provider(news_endpoint, NewscatcherNewsProvider::from_endpoint)?;
 
         // Note: Trusted-sources only works with newscatcher for now.
         let trusted_headlines_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, "newscatcher/v2/trusted-sources")?,
             config.api_key.clone(),
+            config.timeout,
+            config.retry,
         )
         .with_get_as_post(true);
         let trusted_headlines =
@@ -196,14 +219,26 @@ impl Providers {
         let trending_topics_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, "bing/v1/trending-topics")?,
             config.api_key.clone(),
+            config.timeout,
+            config.retry,
         );
         let trending_topics = BingTrendingTopicsProvider::from_endpoint(trending_topics_endpoint);
+
+        let similar_news_endpoint = RestEndpoint::new(
+            create_endpoint_url(&config.api_base_url, "_mlt")?,
+            config.api_key,
+            config.timeout,
+            config.retry,
+        )
+        .with_get_as_post(true);
+        let similar_news = MltSimilarNewsProvider::from_endpoint(similar_news_endpoint);
 
         Ok(Providers {
             headlines,
             trusted_headlines,
             news,
             trending_topics,
+            similar_news,
         })
     }
 }

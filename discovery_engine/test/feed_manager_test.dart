@@ -20,7 +20,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart' hide Document;
 import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventConfig, EventHandler;
+    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
     show FeedManager;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -55,7 +55,6 @@ Future<void> main() async {
   late FeedManager mgr;
 
   final engine = MockEngine()..feedDocuments = mockDocuments(StackId(), false);
-  final config = EventConfig(maxFeedDocs: 5, maxSearchDocs: 20);
 
   EventHandler.registerHiveAdapters();
 
@@ -76,7 +75,6 @@ Future<void> main() async {
       sourcePreferenceRepo = HiveSourcePreferenceRepository();
       mgr = FeedManager(
         engine,
-        config,
         docRepo,
         activeRepo,
         engineStateRepo,
@@ -168,10 +166,14 @@ Future<void> main() async {
     test('restore feed', () async {
       final earlier = DateTime.utc(1969, 7, 20);
       final later = DateTime.utc(1989, 11, 9);
+      // ignore: deprecated_member_use_from_same_package
       await docRepo.update(doc2..timestamp = earlier);
+      // ignore: deprecated_member_use_from_same_package
       await docRepo.update(doc3..timestamp = later);
+      // ignore: deprecated_member_use_from_same_package
       await docRepo.update(engine.feedDocuments[0].document..timestamp = later);
       await docRepo
+          // ignore: deprecated_member_use_from_same_package
           .update(engine.feedDocuments[1].document..timestamp = earlier);
 
       expect(docRepo.box, hasLength(4));
@@ -186,15 +188,12 @@ Future<void> main() async {
         feed![0].documentId,
         equals(engine.feedDocuments[1].document.documentId),
       );
-      expect(feed[0].batchIndex, equals(1));
       expect(feed[1].documentId, equals(doc2.documentId));
-      expect(feed[1].batchIndex, equals(2));
       // doc0 has the later timestamp
       expect(
         feed[2].documentId,
         equals(engine.feedDocuments[0].document.documentId),
       );
-      expect(feed[2].batchIndex, equals(0));
       // doc3 is excluded since it is inactive
     });
   });
@@ -211,7 +210,6 @@ Future<void> main() async {
       sourcePreferenceRepo = HiveSourcePreferenceRepository();
       mgr = FeedManager(
         engine,
-        config,
         docRepo,
         activeRepo,
         engineStateRepo,

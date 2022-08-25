@@ -15,7 +15,6 @@
 import 'dart:typed_data' show UnmodifiableUint8ListView, Uint8List;
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
-import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:uuid/uuid.dart' show Uuid;
 
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
@@ -80,6 +79,5 @@ class StackId extends UniqueId {
   StackId() : super();
   StackId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
   StackId.fromJson(Map<String, Object> json) : super.fromJson(json);
-  @visibleForTesting
   StackId.nil() : super.fromBytes(Uint8List(16));
 }

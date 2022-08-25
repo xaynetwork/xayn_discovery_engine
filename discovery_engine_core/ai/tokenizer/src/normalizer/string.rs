@@ -138,7 +138,7 @@ pub enum SplitDelimiter {
 ///
 /// Keeps both the original and the normalized sequence, alignment information between both and
 /// provides an interface to retrieve ranges of each sequence, using offsets from any of them.
-#[cfg_attr(test, derive(Clone, Debug, PartialEq))]
+#[cfg_attr(test, derive(Clone, Debug, Eq, PartialEq))]
 pub struct NormalizedString {
     /// The original sequence.
     pub original: String,

@@ -18,12 +18,14 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustSharedEngine;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
+import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
     show Uint8ListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/search.dart' show SearchFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
+    show StringFfi, StringListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart';
 
 abstract class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
@@ -184,6 +186,15 @@ final resultVecU8StringFfiAdapter = ConsumeResultFfiAdapter(
   freeResult: ffi.drop_result_vec_u8_string,
 );
 
+final resultDocumentStringFfiAdapter = ConsumeResultFfiAdapter(
+  getOk: ffi.get_result_document_string_ok,
+  getErr: ffi.get_result_document_string_err,
+  readNativeOk: DocumentFfi.readNative,
+  readNativeErr: StringFfi.readNative,
+  throwErr: _throwStringErr,
+  freeResult: ffi.drop_result_document_string,
+);
+
 final resultVecDocumentStringFfiAdapter = ConsumeResultFfiAdapter(
   getOk: ffi.get_result_vec_document_string_ok,
   getErr: ffi.get_result_vec_document_string_err,
@@ -220,4 +231,13 @@ final resultSearchStringFfiAdapter = ConsumeResultFfiAdapter(
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
   freeResult: ffi.drop_result_search_string,
+);
+
+final resultVecStringStringFfiAdapter = ConsumeResultFfiAdapter(
+  getOk: ffi.get_result_vec_string_string_ok,
+  getErr: ffi.get_result_vec_string_string_err,
+  readNativeOk: StringListFfi.readNative,
+  readNativeErr: StringFfi.readNative,
+  throwErr: _throwStringErr,
+  freeResult: ffi.drop_result_vec_string_string,
 );

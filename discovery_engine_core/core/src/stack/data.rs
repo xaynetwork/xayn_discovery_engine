@@ -40,13 +40,19 @@ pub(crate) struct Data {
     /// The beta parameter of the beta distribution.
     #[derivative(Default(value = "1."))]
     pub(crate) beta: f32,
+    /// The number of likes.
+    #[derivative(Default(value = "1."))]
+    pub(crate) likes: f32,
+    /// The number of dislikes.
+    #[derivative(Default(value = "1."))]
+    pub(crate) dislikes: f32,
     /// Documents in the [`Stack`](super::Stack).
     pub(crate) documents: Vec<Document>,
 }
 
 impl Data {
-    #[allow(dead_code)]
     /// Create a `Data`.
+    #[cfg(test)]
     pub(crate) fn new(alpha: f32, beta: f32, documents: Vec<Document>) -> Result<Self, Error> {
         if alpha <= 0.0 {
             return Err(Error::InvalidAlpha(alpha));
@@ -59,6 +65,7 @@ impl Data {
             alpha,
             beta,
             documents,
+            ..Self::default()
         })
     }
 
@@ -71,8 +78,6 @@ impl Data {
 
 #[cfg(test)]
 mod tests {
-    use claim::{assert_err, assert_matches, assert_ok};
-
     use super::*;
 
     #[test]
@@ -88,31 +93,12 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_stack_from_parts() {
-        let stack = Data::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]);
-        assert_ok!(stack);
-
-        let stack = Data::new(0.0, 0.5, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
-
-        let stack = Data::new(0.5, 0.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
-
-        let stack = Data::new(-0.0, 1.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == 0.0);
-
-        let stack = Data::new(1.0, -0.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == 0.0);
-
-        let stack = Data::new(-1.0, 1.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidAlpha(x) if x == -1.0);
-
-        let stack = Data::new(1.0, -1.0, vec![]);
-        assert_err!(&stack);
-        assert_matches!(stack.unwrap_err(), Error::InvalidBeta(x) if x == -1.0);
+        assert!(Data::new(0. + f32::EPSILON, 0. + f32::EPSILON, vec![]).is_ok());
+        assert!(matches!(Data::new(0.0, 0.5, vec![]), Err(Error::InvalidAlpha(x)) if x == 0.0));
+        assert!(matches!(Data::new(0.5, 0.0, vec![]), Err(Error::InvalidBeta(x)) if x == 0.0));
+        assert!(matches!(Data::new(-0.0, 1.0, vec![]), Err(Error::InvalidAlpha(x)) if x == 0.0));
+        assert!(matches!(Data::new(1.0, -0.0, vec![]), Err(Error::InvalidBeta(x)) if x == 0.0));
+        assert!(matches!(Data::new(-1.0, 1.0, vec![]), Err(Error::InvalidAlpha(x)) if x == -1.0));
+        assert!(matches!(Data::new(1.0, -1.0, vec![]), Err(Error::InvalidBeta(x)) if x == -1.0));
     }
 }

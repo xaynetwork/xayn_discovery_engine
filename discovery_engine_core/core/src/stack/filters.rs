@@ -20,6 +20,12 @@ mod source;
 pub(crate) use self::{
     article::{ArticleFilter, CommonFilter, MalformedFilter, SourcesFilter},
     deduplication::DuplicateFilter,
-    semantic::{filter_semantically, Criterion, SemanticFilterConfig},
+    semantic::{
+        filter_semantically,
+        filter_too_similar,
+        max_cosine_similarity,
+        Criterion,
+        SemanticFilterConfig,
+    },
     source::source_weight,
 };

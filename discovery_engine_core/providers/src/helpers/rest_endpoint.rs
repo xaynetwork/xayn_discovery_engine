@@ -31,12 +31,13 @@ pub struct RestEndpoint {
     url: Url,
     auth_token: String,
     timeout: Duration,
+    retry: usize,
     get_as_post: bool,
 }
 
 impl RestEndpoint {
     /// Create a `RestEndpoint` instance with a default timeout.
-    pub fn new(url: Url, auth_token: String) -> Self {
+    pub fn new(url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
         let client = SHARED_CLIENT
             .get_or_init(|| {
                 // Note: If we need to use a ClientBuilder we should pass the `Arc<Client>` as
@@ -49,18 +50,10 @@ impl RestEndpoint {
             client,
             url,
             auth_token,
-            timeout: Duration::from_millis(3500),
+            timeout,
+            retry,
             get_as_post: false,
         }
-    }
-
-    /// Configures the timeout.
-    ///
-    /// The timeout defaults to 3.5s.
-    #[must_use = "dropped changed client"]
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
-        self
     }
 
     /// Configures if we should use POST for GET requests.
@@ -80,38 +73,46 @@ impl RestEndpoint {
         &self.url
     }
 
-    pub async fn get_request<
+    pub async fn get_request<F, D>(&self, setup_query_params: F) -> Result<D, Error>
+    where
+        F: Fn(&mut dyn FnMut(&str, String)) + Send + Sync,
         D: DeserializeOwned + Send,
-        F: FnOnce(&mut dyn FnMut(&str, String)) + Send,
-    >(
-        &self,
-        setup_query_params: F,
-    ) -> Result<D, Error> {
-        let mut url = self.url.clone();
-
-        let query_builder = if self.get_as_post {
-            let mut query = Map::new();
-            setup_query_params(&mut |key, value| {
-                query.insert(key.into(), Value::String(value));
-            });
-            self.client.post(url).json(&Value::Object(query))
-        } else {
-            let mut query_mut = url.query_pairs_mut();
-            setup_query_params(&mut |key, value| {
-                query_mut.append_pair(key, &value);
-            });
-            drop(query_mut);
-            self.client.get(url)
-        };
-
-        let response = query_builder
+    {
+        let request_builder = || {
+            let mut url = self.url.clone();
+            if self.get_as_post {
+                let mut query = Map::new();
+                setup_query_params(&mut |key, value| {
+                    query.insert(key.into(), Value::String(value));
+                });
+                self.client.post(url).json(&Value::Object(query))
+            } else {
+                let mut query_mut = url.query_pairs_mut();
+                setup_query_params(&mut |key, value| {
+                    query_mut.append_pair(key, &value);
+                });
+                drop(query_mut);
+                self.client.get(url)
+            }
             .timeout(self.timeout)
             .bearer_auth(&self.auth_token)
-            .send()
-            .await
-            .map_err(Error::RequestExecution)?
-            .error_for_status()
-            .map_err(Error::StatusCode)?;
+        };
+
+        let mut retry = 0;
+        let response = loop {
+            match request_builder().send().await {
+                Err(error) if error.is_timeout() && retry < self.retry => {
+                    retry += 1;
+                    continue;
+                }
+                result => {
+                    break result
+                        .map_err(Error::RequestExecution)?
+                        .error_for_status()
+                        .map_err(Error::StatusCode)?;
+                }
+            }
+        };
 
         let raw_response = response.bytes().await.map_err(Error::Fetching)?;
         let deserializer = &mut serde_json::Deserializer::from_slice(&raw_response);

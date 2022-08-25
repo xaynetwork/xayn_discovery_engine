@@ -21,7 +21,7 @@ pub enum RankLimit {
 }
 
 /// Parameters determining which news to fetch.
-
+///
 /// Note that, depending on the provider we're fetching from, some of these parameters
 /// may not be supported.
 pub struct NewsQuery<'a> {
@@ -49,7 +49,7 @@ pub struct NewsQuery<'a> {
 }
 
 /// Parameters determining which headlines to fetch.
-
+///
 /// Note that, depending on the provider we're fetching from, some of these parameters
 /// may not be supported.
 pub struct HeadlinesQuery<'a> {
@@ -75,11 +75,11 @@ pub struct HeadlinesQuery<'a> {
     /// Headlines topic.
     pub topic: Option<&'a str>,
 
-    /// Maximum age of news items we want to include in the results
+    /// Maximum age of news items we want to include in the results.
     pub max_age_days: Option<usize>,
 }
 
-/// Parameters determining which which headlines from trusted sources to fetch.
+/// Parameters determining which headlines from trusted sources to fetch.
 ///
 /// Fields not supported by the used provider will be ignored.
 pub struct TrustedHeadlinesQuery<'a> {
@@ -99,10 +99,10 @@ pub struct TrustedHeadlinesQuery<'a> {
     /// Exclude given sources.
     pub excluded_sources: &'a [String],
 
-    /// Prefer trusted sources
+    /// Prefer trusted sources.
     pub trusted_sources: &'a [String],
 
-    /// Maximum age of news items we want to include in the results
+    /// Maximum age of news items we want to include in the results.
     pub max_age_days: Option<usize>,
 }
 
@@ -110,4 +110,29 @@ pub struct TrustedHeadlinesQuery<'a> {
 pub struct TrendingTopicsQuery<'a> {
     /// Market to fetch results from.
     pub market: &'a Market,
+}
+
+/// Parameters determining similar news to fetch.
+pub struct SimilarNewsQuery<'a> {
+    /// Query text.
+    pub like: &'a str,
+
+    /// Market of news.
+    pub market: &'a Market,
+
+    /// How many articles to return (per page).
+    pub page_size: usize,
+
+    /// The number of the page which should be returned.
+    /// Paging starts with `1`.
+    pub page: usize,
+
+    /// Page rank limiting strategy.
+    pub rank_limit: RankLimit,
+
+    /// Exclude given sources.
+    pub excluded_sources: &'a [String],
+
+    /// Maximum age of news items we want to include in the results
+    pub max_age_days: Option<usize>,
 }
