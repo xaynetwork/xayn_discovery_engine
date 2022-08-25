@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use xayn_discovery_engine_ai::{cosine_similarity, l2_norm, nan_safe_f32_cmp, triangular_product};
 
 use crate::document::{Document, WeightedSource};
@@ -30,10 +31,9 @@ fn condensed_cosine_similarity(
     doc_b: &Document,
     i: usize,
     j: usize,
-    norms: &mut Vec<f32>,
+    norms: &Vec<f32>,
 ) -> f32 {
     let v_a = doc_a.smbert_embedding.view();
-    (*norms)[i].is_nan().then(|| (*norms)[i] = l2_norm(v_a));
     let ni = (*norms)[i];
 
     if ni <= 0. {
@@ -41,7 +41,6 @@ fn condensed_cosine_similarity(
     }
 
     let v_b = doc_b.smbert_embedding.view();
-    (*norms)[j].is_nan().then(|| (*norms)[j] = l2_norm(v_b));
     let nj = (*norms)[j];
 
     if nj <= 0. {
@@ -67,16 +66,15 @@ fn condensed_decay_factor(
     max_days: f32,
     exp_max_days: f32,
     threshold: f32,
-    distance_cache: &mut Vec<f32>,
+    distance_cache: &Vec<f32>,
 ) -> f32 {
     if max_days <= distance {
         return threshold;
     }
 
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_sign_loss)]
     let i = distance as usize;
-    (*distance_cache)[i]
-        .is_nan()
-        .then(|| (*distance_cache)[i] = (-0.1 * distance).exp());
     ((exp_max_days - (*distance_cache)[i]) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
         + threshold
 }
@@ -174,10 +172,27 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
         })
 }
 
+fn lookup_table_distances(exp_max_days: usize) -> Vec<f32> {
+    #[allow(clippy::cast_precision_loss)]
+    (0..exp_max_days)
+        .into_par_iter()
+        .map(|i| (-0.1 * i as f32).exp())
+        .collect()
+}
+
+fn lookup_table_norms(documents: &[Document]) -> Vec<f32> {
+    documents
+        .into_par_iter()
+        .map(|document| l2_norm(document.smbert_embedding.view()))
+        .collect()
+}
+
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
-    let mut norms = vec![f32::NAN; documents.len()];
-    let mut distance_cache = vec![f32::NAN; 365];
+    let norms = lookup_table_norms(documents);
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_sign_loss)]
+    let distance_cache = lookup_table_distances(config.max_days as usize);
     let exp_max_days = (-0.1 * config.max_days).exp();
     let mut min = f32::MAX;
     let mut max = f32::MIN;
@@ -191,13 +206,13 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
                 config.max_days,
                 exp_max_days,
                 config.threshold,
-                &mut distance_cache,
+                &distance_cache,
             );
 
             let f = if decay == 0. {
                 0.
             } else {
-                condensed_cosine_similarity(doc_a, doc_b, i, j, &mut norms) * decay
+                condensed_cosine_similarity(doc_a, doc_b, i, j, &norms) * decay
             };
 
             nan_safe_f32_cmp(&f, &min).is_lt().then(|| min = f);
@@ -336,9 +351,9 @@ mod tests {
     #[test]
     fn test_condensed_cosine_similarity() {
         fn condensed_cosine_similarity_all(documents: &[Document]) -> Vec<f32> {
-            let mut norms = vec![f32::NAN; documents.len()];
+            let norms = lookup_table_norms(documents);
             triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
-                condensed_cosine_similarity(doc_a, doc_b, i, j, &mut norms)
+                condensed_cosine_similarity(doc_a, doc_b, i, j, &norms)
             })
             .collect()
         }
@@ -383,7 +398,9 @@ mod tests {
             max_days: f32,
             threshold: f32,
         ) -> Vec<f32> {
-            let mut distance_cache = vec![f32::NAN; 365];
+            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_sign_loss)]
+            let distance_cache = lookup_table_distances(max_days as usize);
             let exp_max_days = (-0.1 * max_days).exp();
             date_distance
                 .into_iter()
@@ -393,7 +410,7 @@ mod tests {
                         max_days,
                         exp_max_days,
                         threshold,
-                        &mut distance_cache,
+                        &distance_cache,
                     )
                 })
                 .collect()
