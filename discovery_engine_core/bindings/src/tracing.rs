@@ -37,7 +37,7 @@ fn init_tracing_once(log_file: Option<&Path>) {
 
     let subscriber = tracing_subscriber::registry();
 
-    //FIXME fix log capturing for dart integration tests inste
+    //FIXME fix log capturing for dart integration tests instead of filtering out sqlx info logs
     let sqlx_query_no_info = Targets::new().with_target("sqlx::query", Level::WARN);
 
     cfg_if::cfg_if! {
