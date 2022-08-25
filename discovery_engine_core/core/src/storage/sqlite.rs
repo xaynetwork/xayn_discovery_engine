@@ -927,10 +927,23 @@ impl SourcePreferenceScope for SqliteStorage {
     }
 }
 
+#[derive(FromRow)]
+struct Bool(bool);
+
 #[async_trait]
 impl SourceReactionScope for SqliteStorage {
-    async fn fetch_reaction(&self, _source: &str) -> Result<Option<bool>, Error> {
-        Ok(None) // TODO
+    async fn fetch_reaction(&self, source: &str) -> Result<Option<bool>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let reaction =
+            sqlx::query_as::<_, Bool>("SELECT liked FROM SourceReaction WHERE source = ?;")
+                .bind(source)
+                .fetch_optional(&mut tx)
+                .await?;
+
+        tx.commit().await?;
+
+        Ok(reaction.map(|b| b.0))
     }
 
     async fn store_new(&self, _source: &str, _like: bool) -> Result<(), Error> {
@@ -941,8 +954,16 @@ impl SourceReactionScope for SqliteStorage {
         Ok(()) // TODO
     }
 
-    async fn delete(&self, _source: &str) -> Result<(), Error> {
-        Ok(()) // TODO
+    async fn delete(&self, source: &str) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query("DELETE FROM SourceReaction WHERE source = ?;")
+            .bind(source)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
     }
 }
 
