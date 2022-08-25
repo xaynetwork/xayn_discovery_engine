@@ -7,7 +7,7 @@ on:
         required: true
         description: A json file url with the data needed for the service (i.e. pastebin.pl)
       tag:
-        required: true
+        required: false
         description: a tag that will be used for identifying this version (xaynetci/xayn_discovery_web_service:$TAG)
 
 permissions:
