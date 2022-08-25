@@ -52,7 +52,7 @@ pub mod kinds {
 
     impl BertModel for SMBert {
         const TOKEN_RANGE: RangeInclusive<usize> = 2..=512;
-        const EMBEDDING_SIZE: usize = 128;
+        const EMBEDDING_SIZE: usize = 768;
     }
 
     /// Question Answering (Embedding) Multilingual Bert
