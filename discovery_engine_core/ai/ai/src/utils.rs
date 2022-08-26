@@ -101,12 +101,12 @@ pub fn triangular_product_vec(size: usize) -> Vec<(usize, usize)> {
     }
 
     let triangle_number = size * (size - 1) / 2;
-    let mut v = vec![(0, 0); triangle_number];
+    let mut v = Vec::new();
     let mut primary_index = 0;
     let mut col_count = size - 1;
     let mut col = 0;
 
-    for i in 0..triangle_number {
+    for _i in 0..triangle_number {
         if col == col_count {
             col_count -= 1;
             col = 0;
@@ -115,77 +115,10 @@ pub fn triangular_product_vec(size: usize) -> Vec<(usize, usize)> {
 
         col += 1;
 
-        v[i] = (primary_index, primary_index + col);
+        v.push((primary_index, primary_index + col));
     }
 
     v
-}
-
-pub fn triangular_product<I, F, B>(
-    iter: &[I],
-    f: F,
-) -> TriangularProduct<'_, I, impl Iterator<Item = (usize, usize)>, F, B>
-where
-    F: FnMut(&I, &I, usize, usize) -> B,
-{
-    let mut size = iter.len();
-
-    if size < 2 {
-        size = 1;
-    }
-
-    let triangle_number = size * (size - 1) / 2;
-    let mut primary_index = 0;
-    let mut col_count = size - 1;
-    let mut col = 0;
-
-    let sorted = (0..triangle_number).map(move |_i| {
-        if col == col_count {
-            col_count -= 1;
-            col = 0;
-            primary_index += 1;
-        }
-
-        col += 1;
-
-        (primary_index, primary_index + col)
-    });
-
-    TriangularProduct {
-        orig: iter,
-        sorted,
-        f,
-    }
-}
-
-pub struct TriangularProduct<'a, I, J, F, B>
-where
-    J: Iterator<Item = (usize, usize)>,
-    F: FnMut(&I, &I, usize, usize) -> B,
-{
-    orig: &'a [I],
-    sorted: J,
-    f: F,
-}
-
-impl<I, J, F, B> Iterator for TriangularProduct<'_, I, J, F, B>
-where
-    J: Iterator<Item = (usize, usize)>,
-    F: FnMut(&I, &I, usize, usize) -> B,
-{
-    type Item = B;
-
-    #[inline]
-    fn next(&mut self) -> Option<B> {
-        self.sorted
-            .next()
-            .map(|o| (self.f)(&(self.orig[o.0]), &(self.orig[o.1]), o.0, o.1))
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.sorted.size_hint()
-    }
 }
 
 #[cfg(test)]

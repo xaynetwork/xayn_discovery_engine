@@ -212,13 +212,11 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
                 &DISTANCE_CACHE,
             );
 
-            let f = if decay == 0. {
+            if decay == 0. {
                 0.
             } else {
                 condensed_cosine_similarity(doc_a, doc_b, t.0, t.1, &norms) * decay
-            };
-
-            f
+            }
         })
         .collect();
 
