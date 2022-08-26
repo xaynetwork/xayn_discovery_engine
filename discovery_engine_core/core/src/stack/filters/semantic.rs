@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
+use lazy_static::lazy_static;
 use ndarray::ArrayView1;
 use num_traits::ToPrimitive;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
@@ -24,6 +25,11 @@ use xayn_discovery_engine_ai::{cosine_similarity, l2_norm, nan_safe_f32_cmp, tri
 use crate::document::{Document, WeightedSource};
 
 use super::source_weight;
+
+lazy_static! {
+    // 1 year diff max
+    static ref DISTANCE_CACHE:Vec<f32> = lookup_table_distances(365);
+}
 
 /// Computes the condensed cosine similarity matrix of a documents' embeddings.
 #[inline]
@@ -34,19 +40,15 @@ fn condensed_cosine_similarity(
     j: usize,
     norms: &Vec<f32>,
 ) -> f32 {
-    let v_a = doc_a.smbert_embedding.view();
     let ni = (*norms)[i];
-
-    if ni <= 0. {
-        return 1.0;
-    }
-
-    let v_b = doc_b.smbert_embedding.view();
     let nj = (*norms)[j];
 
-    if nj <= 0. {
+    if ni <= 0. || nj <= 0. {
         return 1.0;
     }
+
+    let v_a = doc_a.smbert_embedding.view();
+    let v_b = doc_b.smbert_embedding.view();
 
     (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.)
 }
@@ -188,12 +190,6 @@ fn lookup_table_norms(documents: &[Document]) -> Vec<f32> {
 
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
-    use lazy_static::lazy_static;
-    lazy_static! {
-        // 1 year diff max
-        static ref DISTANCE_CACHE:Vec<f32> = lookup_table_distances(365);
-    }
-
     let norms = lookup_table_norms(documents);
     let exp_max_days = (-0.1 * config.max_days).exp();
     let mut min = f32::MAX;
