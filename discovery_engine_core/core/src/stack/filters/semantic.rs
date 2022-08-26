@@ -20,7 +20,12 @@ use lazy_static::lazy_static;
 use ndarray::ArrayView1;
 use num_traits::ToPrimitive;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-use xayn_discovery_engine_ai::{cosine_similarity, l2_norm, nan_safe_f32_cmp, triangular_product};
+use xayn_discovery_engine_ai::{
+    cosine_similarity,
+    l2_norm,
+    nan_safe_f32_cmp,
+    triangular_product_vec,
+};
 
 use crate::document::{Document, WeightedSource};
 
@@ -192,13 +197,13 @@ fn lookup_table_norms(documents: &[Document]) -> Vec<f32> {
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
     let norms = lookup_table_norms(documents);
     let exp_max_days = (-0.1 * config.max_days).exp();
-    let mut min = f32::MAX;
-    let mut max = f32::MIN;
     // simplified to a single loop, where the indiviudal values are calculated and finally returned as factor
-    let combined: Vec<f32> = triangular_product(
-        documents,
-        |doc_a: &Document, doc_b: &Document, i: usize, j: usize| {
-            let distance = condensed_date_distance(doc_a, doc_b, i, j);
+    let combined: Vec<f32> = triangular_product_vec(documents.len())
+        .into_par_iter()
+        .map(|t| {
+            let doc_a = &(documents[t.0]);
+            let doc_b = &(documents[t.1]);
+            let distance = condensed_date_distance(doc_a, doc_b, t.0, t.1);
             let decay = condensed_decay_factor(
                 distance,
                 config.max_days,
@@ -210,16 +215,19 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
             let f = if decay == 0. {
                 0.
             } else {
-                condensed_cosine_similarity(doc_a, doc_b, i, j, &norms) * decay
+                condensed_cosine_similarity(doc_a, doc_b, t.0, t.1, &norms) * decay
             };
 
-            nan_safe_f32_cmp(&f, &min).is_lt().then(|| min = f);
-            nan_safe_f32_cmp(&f, &max).is_gt().then(|| max = f);
-
             f
-        },
-    )
-    .collect();
+        })
+        .collect();
+
+    let (min, max) = combined
+        .iter()
+        .copied()
+        .minmax_by(nan_safe_f32_cmp)
+        .into_option()
+        .unwrap_or_default();
 
     condensed_normalized_distance(combined, min, max)
 }
@@ -350,10 +358,15 @@ mod tests {
     fn test_condensed_cosine_similarity() {
         fn condensed_cosine_similarity_all(documents: &[Document]) -> Vec<f32> {
             let norms = lookup_table_norms(documents);
-            triangular_product(documents, |doc_a: &Document, doc_b: &Document, i, j| {
-                condensed_cosine_similarity(doc_a, doc_b, i, j, &norms)
-            })
-            .collect()
+
+            triangular_product_vec(documents.len())
+                .into_iter()
+                .map(|t| {
+                    let doc_a = &(documents[t.0]);
+                    let doc_b = &(documents[t.1]);
+                    condensed_cosine_similarity(doc_a, doc_b, t.0, t.1, &norms)
+                })
+                .collect()
         }
 
         for n in 0..5 {
@@ -372,7 +385,14 @@ mod tests {
     #[allow(clippy::float_cmp)] // c represents whole days
     fn test_condensed_date_distance() {
         fn condensed_date_distance_all(documents: &[Document]) -> Vec<f32> {
-            triangular_product(documents, condensed_date_distance).collect()
+            triangular_product_vec(documents.len())
+                .into_iter()
+                .map(|t| {
+                    let doc_a = &(documents[t.0]);
+                    let doc_b = &(documents[t.1]);
+                    condensed_date_distance(doc_a, doc_b, t.0, t.1)
+                })
+                .collect()
         }
 
         for n in 0..5 {

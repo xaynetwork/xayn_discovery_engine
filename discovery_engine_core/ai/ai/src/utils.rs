@@ -95,6 +95,32 @@ pub(crate) mod serde_duration_as_days {
     }
 }
 
+pub fn triangular_product_vec(size: usize) -> Vec<(usize, usize)> {
+    if size < 2 {
+        return vec![(0, 0); 0];
+    }
+
+    let triangle_number = size * (size - 1) / 2;
+    let mut v = vec![(0, 0); triangle_number];
+    let mut primary_index = 0;
+    let mut col_count = size - 1;
+    let mut col = 0;
+
+    for i in 0..triangle_number {
+        if col == col_count {
+            col_count -= 1;
+            col = 0;
+            primary_index += 1;
+        }
+
+        col += 1;
+
+        v[i] = (primary_index, primary_index + col);
+    }
+
+    v
+}
+
 pub fn triangular_product<I, F, B>(
     iter: &[I],
     f: F,
