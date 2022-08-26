@@ -60,7 +60,7 @@ fn condensed_cosine_similarity(
 
 /// Computes the condensed date distance matrix (in days) of a documents' publication dates.
 #[inline]
-fn condensed_date_distance(doc_a: &Document, doc_b: &Document, _i: usize, _j: usize) -> f32 {
+fn condensed_date_distance(doc_a: &Document, doc_b: &Document) -> f32 {
     (doc_a.resource.date_published - doc_b.resource.date_published)
         .num_days()
         .abs()
@@ -201,9 +201,11 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
     let combined: Vec<f32> = triangular_product_vec(documents.len())
         .into_par_iter()
         .map(|t| {
-            let doc_a = &(documents[t.0]);
-            let doc_b = &(documents[t.1]);
-            let distance = condensed_date_distance(doc_a, doc_b, t.0, t.1);
+            let i = t.0;
+            let j = t.1;
+            let doc_a = &(documents[i]);
+            let doc_b = &(documents[j]);
+            let distance = condensed_date_distance(doc_a, doc_b);
             let decay = condensed_decay_factor(
                 distance,
                 config.max_days,
@@ -215,7 +217,7 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
             if decay == 0. {
                 0.
             } else {
-                condensed_cosine_similarity(doc_a, doc_b, t.0, t.1, &norms) * decay
+                condensed_cosine_similarity(doc_a, doc_b, i, j, &norms) * decay
             }
         })
         .collect();
@@ -388,7 +390,7 @@ mod tests {
                 .map(|t| {
                     let doc_a = &(documents[t.0]);
                     let doc_b = &(documents[t.1]);
-                    condensed_date_distance(doc_a, doc_b, t.0, t.1)
+                    condensed_date_distance(doc_a, doc_b)
                 })
                 .collect()
         }
