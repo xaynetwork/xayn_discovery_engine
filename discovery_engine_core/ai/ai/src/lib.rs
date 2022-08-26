@@ -48,11 +48,7 @@ pub use crate::{
     },
     document::{Document, DocumentId},
     embedding::{
-        cosine_similarity,
-        pairwise_cosine_similarity,
-        l2_norm,
-        Embedding,
-        MalformedBytesEmbedding,
+        cosine_similarity, l2_norm, pairwise_cosine_similarity, Embedding, MalformedBytesEmbedding,
     },
     error::GenericError,
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, triangular_product_vec},
