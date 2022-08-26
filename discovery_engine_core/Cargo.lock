@@ -4009,6 +4009,7 @@ dependencies = [
  "futures",
  "itertools",
  "kodama",
+ "lazy_static",
  "maplit",
  "mockall",
  "ndarray",

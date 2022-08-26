@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
+use num_traits::ToPrimitive;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use xayn_discovery_engine_ai::{cosine_similarity, l2_norm, nan_safe_f32_cmp, triangular_product};
 
@@ -52,11 +53,12 @@ fn condensed_cosine_similarity(
 
 /// Computes the condensed date distance matrix (in days) of a documents' publication dates.
 #[inline]
-#[allow(clippy::cast_precision_loss)] // day difference is small
 fn condensed_date_distance(doc_a: &Document, doc_b: &Document, _i: usize, _j: usize) -> f32 {
     (doc_a.resource.date_published - doc_b.resource.date_published)
         .num_days()
-        .abs() as f32
+        .abs()
+        .to_f32()
+        .unwrap()
 }
 
 /// Computes the condensed decayed date distance matrix.
@@ -72,9 +74,7 @@ fn condensed_decay_factor(
         return threshold;
     }
 
-    #[allow(clippy::cast_possible_truncation)]
-    #[allow(clippy::cast_sign_loss)]
-    let i = distance as usize;
+    let i = distance.to_usize().unwrap();
     ((exp_max_days - (*distance_cache)[i]) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
         + threshold
 }
@@ -173,10 +173,9 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 }
 
 fn lookup_table_distances(exp_max_days: usize) -> Vec<f32> {
-    #[allow(clippy::cast_precision_loss)]
     (0..exp_max_days)
         .into_par_iter()
-        .map(|i| (-0.1 * i as f32).exp())
+        .map(|i| (-0.1 * i.to_f32().unwrap()).exp())
         .collect()
 }
 
@@ -189,10 +188,13 @@ fn lookup_table_norms(documents: &[Document]) -> Vec<f32> {
 
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
+    use lazy_static::lazy_static;
+    lazy_static! {
+        // 1 year diff max
+        static ref DISTANCE_CACHE:Vec<f32> = lookup_table_distances(365);
+    }
+
     let norms = lookup_table_norms(documents);
-    #[allow(clippy::cast_possible_truncation)]
-    #[allow(clippy::cast_sign_loss)]
-    let distance_cache = lookup_table_distances(config.max_days as usize);
     let exp_max_days = (-0.1 * config.max_days).exp();
     let mut min = f32::MAX;
     let mut max = f32::MIN;
@@ -206,7 +208,7 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
                 config.max_days,
                 exp_max_days,
                 config.threshold,
-                &distance_cache,
+                &DISTANCE_CACHE,
             );
 
             let f = if decay == 0. {
@@ -398,9 +400,7 @@ mod tests {
             max_days: f32,
             threshold: f32,
         ) -> Vec<f32> {
-            #[allow(clippy::cast_possible_truncation)]
-            #[allow(clippy::cast_sign_loss)]
-            let distance_cache = lookup_table_distances(max_days as usize);
+            let distance_cache = lookup_table_distances(max_days.to_usize().unwrap());
             let exp_max_days = (-0.1 * max_days).exp();
             date_distance
                 .into_iter()
