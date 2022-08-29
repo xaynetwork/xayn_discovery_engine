@@ -764,6 +764,8 @@ impl Engine {
             &self.state.user_interests,
         );
         if let UserReaction::Positive = reaction {
+            #[cfg(feature = "storage")]
+            let history = &self.storage.fetch_history().await?.into();
             if let Some(history) = history {
                 update_stacks(
                     &mut stacks,

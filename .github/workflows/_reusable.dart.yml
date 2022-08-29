@@ -54,8 +54,11 @@ jobs:
           dart: true
           rust: true
 
-      - name: Run tests
+      - name: Run tests without storage
         run: just dart-test
+
+      - name: Run tests with storage
+        run: XAYN_DE_FEATURES=storage just dart-test
 
   dart-doc:
     runs-on: hetzner-pm

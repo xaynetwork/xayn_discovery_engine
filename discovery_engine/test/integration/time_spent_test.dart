@@ -25,7 +25,8 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         EngineExceptionRaised,
         EngineExceptionReason,
         NextFeedBatchRequestSucceeded,
-        UserReaction;
+        UserReaction,
+        cfgFeatureStorage;
 
 import '../logging.dart' show setupLogging;
 import 'utils/db.dart' show loadEngineState;
@@ -51,6 +52,7 @@ void main() {
     });
 
     test('log the view time of a document', () async {
+      data.useInMemoryDb = false;
       var engine = await initEngine(data, server.port);
 
       // fetch some documents
@@ -99,7 +101,9 @@ void main() {
           await loadEngineState(data.applicationDirectoryPath);
       expect(stateAfterRequest, isNotNull);
       expect(stateBeforeRequest, isNot(equals(stateAfterRequest)));
-    });
+      // TODO[pmk] loadEngineState is too hive specific
+      // ignore: require_trailing_commas
+    }, skip: cfgFeatureStorage);
 
     test(
         'if a document id is invalid, the engine should throw an'

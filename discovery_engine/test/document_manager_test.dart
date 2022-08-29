@@ -16,6 +16,8 @@ import 'dart:io' show Directory;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show DocumentsUpdated;
 import 'package:xayn_discovery_engine/src/api/models/document.dart'
@@ -183,7 +185,10 @@ Future<void> main() async {
 
     test('add negative document time', () async {
       const mode = DocumentViewMode.story;
-      expect(() => mgr.addActiveDocumentTime(id1, mode, -1), throwsRangeError);
+      expect(
+        () => mgr.addActiveDocumentTime(id1, mode, -1),
+        throwsRangeError,
+      );
     });
 
     test('add time to document without active data', () async {
@@ -231,10 +236,16 @@ Future<void> main() async {
       var dataUpdated = await activeRepo.fetchById(id1);
       expect(dataUpdated, isNotNull);
       expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
-      expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 5)));
+      expect(
+        dataUpdated.getViewTime(mode),
+        equals(const Duration(seconds: 5)),
+      );
 
       // other repos unchanged
-      expect(await docRepo.fetchAll(), unorderedEquals(<Document>[doc1, doc2]));
+      expect(
+        await docRepo.fetchAll(),
+        unorderedEquals(<Document>[doc1, doc2]),
+      );
 
       // add a further 3 seconds
       await mgr.addActiveDocumentTime(id1, mode, 3);
@@ -244,8 +255,12 @@ Future<void> main() async {
       dataUpdated = await activeRepo.fetchById(id1);
       expect(dataUpdated, isNotNull);
       expect(dataUpdated!.smbertEmbedding, equals(data.smbertEmbedding));
-      expect(dataUpdated.getViewTime(mode), equals(const Duration(seconds: 8)));
+      expect(
+        dataUpdated.getViewTime(mode),
+        equals(const Duration(seconds: 8)),
+      );
       expect(engine.getCallCount('timeSpent'), equals(2));
     });
-  });
+    //ignore:require_trailing_commas
+  }, skip: cfgFeatureStorage);
 }

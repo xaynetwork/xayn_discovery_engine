@@ -50,7 +50,6 @@ void main() {
     });
 
     test('requestNextFeedBatch should return the next feed batch', () async {
-      engine = await initEngine(data, server.port);
       expect(
         engine.engineEvents,
         emitsInOrder(<Matcher>[
@@ -68,7 +67,6 @@ void main() {
     test(
         'if a news api request error occurs, then the requestNextFeedBatch'
         '  should fail with FeedFailureReason.stacksOpsError', () async {
-      engine = await initEngine(data, server.port);
       // the server error only occurs for fetching breaking news, the personalized news succeeds
       // early with empty documents and no error before a server request is made because no key
       // phrases are selected due to no previous feedback. overall breaking news failed and

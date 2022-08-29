@@ -17,6 +17,8 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
     show
         NextActiveSearchBatchRequestFailed,
@@ -416,7 +418,9 @@ Future<void> main() async {
         expect(docRepo.box.get('${doc4.documentId}'), isNull);
       });
     });
-  });
+    //TODO[pmk] test use mock engine, check which tests can be recycled
+    //ignore:require_trailing_commas
+  }, skip: cfgFeatureStorage);
 }
 
 class _NoTrendingTopicsMockEngine extends MockEngine {

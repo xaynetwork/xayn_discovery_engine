@@ -833,7 +833,8 @@ impl FeedbackScope for SqliteStorage {
         .bind(view_mode as u32)
         .bind(view_time_ms)
         .execute(&mut tx)
-        .await?;
+        .await
+        .on_fk_violation(Error::NoDocument(document))?;
 
         let view = sqlx::query_as::<_, QueryTimeSpentDocumentView>(
             "SELECT
