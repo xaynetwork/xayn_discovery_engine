@@ -51,7 +51,8 @@ void main() {
       final batch = expectEvent<NextFeedBatchRequestSucceeded>(
         await engine.requestNextFeedBatch(),
       ).items;
-      //FIXME once we have mock data producing multiple batches close muiltiple but not all documents
+      //FIXME once we have mock data producing multiple batches close muiltiple
+      //      but not all documents
       expect(batch, isNotEmpty);
       // expect(batch.length, greaterThan(2));
       final closedId1 = batch[0].documentId;
@@ -67,6 +68,7 @@ void main() {
 
       final restoredIds = restoredBatch.map((doc) => doc.documentId).toSet();
       expect(restoredIds, isNot(contains(closedId1)));
+      //FIXME see previous fixme
       // expect(restoredIds, isNot(contains(closedId2)));
       // expect(restoredIds, contains(notClosedId));
     });
