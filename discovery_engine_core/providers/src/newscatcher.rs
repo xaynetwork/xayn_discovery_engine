@@ -379,7 +379,7 @@ mod tests {
 
         let docs = provider.query_news(&params).await.unwrap();
 
-        assert_eq!(docs.len(), 2);
+        assert_eq!(docs.len(), 4);
 
         let doc = docs.get(1).unwrap();
         assert_eq!(doc.title, "Businesses \u{2018}more concerned than ever'");
@@ -428,7 +428,7 @@ mod tests {
 
         let docs = provider.query_news(&params).await.unwrap();
 
-        assert_eq!(docs.len(), 2);
+        assert_eq!(docs.len(), 4);
 
         let doc = docs.get(1).unwrap();
         assert_eq!(doc.title, "Businesses \u{2018}more concerned than ever'");
@@ -479,7 +479,7 @@ mod tests {
 
         let docs = provider.query_news(&params).await.unwrap();
 
-        assert_eq!(docs.len(), 2);
+        assert_eq!(docs.len(), 4);
 
         let doc = docs.get(1).unwrap();
         assert_eq!(doc.title, "Businesses \u{2018}more concerned than ever'");
@@ -577,7 +577,7 @@ mod tests {
         };
 
         let docs = provider.query_headlines(&params).await.unwrap();
-        assert_eq!(docs.len(), 2);
+        assert_eq!(docs.len(), 4);
 
         let doc = docs.get(1).unwrap();
         let expected = GenericArticle {
@@ -585,8 +585,8 @@ mod tests {
             score: None,
             rank: Rank::new(6510),
             snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
-            url: UrlWithDomain::parse("https://example.com").unwrap(),
-            image: Some(Url::parse("https://uploads.example.com/image.png").unwrap()),
+            url: UrlWithDomain::parse("https://example.com/a/2").unwrap(),
+            image: Some(Url::parse("https://uploads.example.com/image2.png").unwrap()),
             topic: "gaming".to_string(),
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
             country: "US".to_string(),
@@ -635,7 +635,7 @@ mod tests {
         };
 
         let docs = provider.query_trusted_sources(&params).await.unwrap();
-        assert_eq!(docs.len(), 2);
+        assert_eq!(docs.len(), 4);
 
         let doc = docs.get(1).unwrap();
         let expected = GenericArticle {
@@ -643,8 +643,8 @@ mod tests {
             score: None,
             rank: Rank::new(6510),
             snippet: "We use cookies. By Clicking \"OK\" or any content on this site, you agree to allow cookies to be placed. Read more in our privacy policy.".to_string(),
-            url: UrlWithDomain::parse("https://example.com").unwrap(),
-            image: Some(Url::parse("https://uploads.example.com/image.png").unwrap()),
+            url: UrlWithDomain::parse("https://example.com/a/2").unwrap(),
+            image: Some(Url::parse("https://uploads.example.com/image2.png").unwrap()),
             topic: "gaming".to_string(),
             date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
             country: "US".to_string(),
