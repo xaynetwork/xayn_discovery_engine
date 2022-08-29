@@ -35,8 +35,8 @@ use tracing::{debug, error, info, instrument, Level};
 use xayn_discovery_engine_ai::{
     cosine_similarity,
     nan_safe_f32_cmp,
+    CoiConfig,
     CoiSystem,
-    CoiSystemConfig,
     CoiSystemState,
     Embedding,
     GenericError,
@@ -296,9 +296,13 @@ impl Engine {
             .build()
             .map_err(GenericError::from)?;
         let coi = de_config
-            .extract::<CoiSystemConfig>()
+            .extract_inner::<CoiConfig>("coi")
             .map_err(|err| Error::Ranker(err.into()))?
-            .build();
+            .build(
+                de_config
+                    .extract_inner("kps")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            );
         let kpe = KpeConfig::from_files(
             &config.kpe_vocab,
             &config.kpe_model,
@@ -308,7 +312,7 @@ impl Engine {
         .map_err(|err| Error::Ranker(err.into()))?
         .with_token_size(
             de_config
-                .extract_inner("kpe.token_size")
+                .extract_inner("kps.token_size")
                 .map_err(|err| Error::Ranker(err.into()))?,
         )
         .map_err(|err| Error::Ranker(err.into()))?

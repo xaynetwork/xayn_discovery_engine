@@ -464,7 +464,7 @@ mod tests {
     use ndarray::arr2;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
-    use crate::coi::{config::Config, point::tests::create_pos_cois};
+    use crate::{coi::point::tests::create_pos_cois, kps::config::Config};
 
     use super::*;
 
