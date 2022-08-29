@@ -57,7 +57,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fk_violation_is_invalid_document() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        let storage = SqliteStorage::connect(None).await.unwrap();
 
         sqlx::query("CREATE TABLE Foo(x INTEGER PRIMARY KEY);")
             .execute(&storage.pool)

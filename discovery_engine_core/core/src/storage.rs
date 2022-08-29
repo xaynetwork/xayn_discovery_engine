@@ -58,9 +58,19 @@ impl From<MalformedBytesEmbedding> for Error {
     }
 }
 
+/// Hint about what was done during db init.
+pub enum InitDbHint {
+    /// Hint to use if nothing special happened during init.
+    NormalInit,
+    /// A new db was created, there was no db beforehand.
+    NewDbCreated,
+    /// There was a db but we could not open it so we deleted it and created a new one.
+    DbOverwrittenDueToErrors(Error),
+}
+
 #[async_trait]
 pub(crate) trait Storage {
-    async fn init_database(&self) -> Result<(), Error>;
+    async fn init_database(&mut self) -> Result<InitDbHint, Error>;
 
     async fn clear_database(&self) -> Result<bool, Error>;
 

@@ -332,13 +332,13 @@ impl Engine {
         // initialize the states
         #[cfg(feature = "storage")]
         let storage = {
-            let sqlite_uri = if config.use_in_memory_db {
-                "sqlite::memory:".into()
-            } else {
-                let db_path = PathBuf::from(&config.data_dir).join("db.sqlite");
-                format!("sqlite:{}", db_path.display())
-            };
-            let storage = SqliteStorage::connect(&sqlite_uri).await?;
+            let db_file_path = (!config.use_in_memory_db).then(|| {
+                PathBuf::from(&config.data_dir).join("db.sqlite")
+                        .into_os_string()
+                        .into_string()
+                        .unwrap(/*can't fail as we only join rust strings*/)
+            });
+            let mut storage = SqliteStorage::connect(db_file_path).await?;
             storage.init_database().await?;
             Box::new(storage)
         };
@@ -1813,7 +1813,7 @@ pub(crate) mod tests {
         #[cfg(feature = "storage")]
         {
             engine.storage = {
-                let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+                let mut storage = SqliteStorage::connect(None).await.unwrap();
                 storage.init_database().await.unwrap();
                 Box::new(storage) as BoxedStorage
             };

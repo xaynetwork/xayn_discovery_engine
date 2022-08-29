@@ -28,6 +28,8 @@ use sqlx::{
     QueryBuilder,
     Transaction,
 };
+use tokio::fs;
+use tracing::error;
 use url::Url;
 use xayn_discovery_engine_providers::Market;
 
@@ -45,9 +47,11 @@ use crate::{
             SearchBy,
             TimeSpentDocumentView,
         },
+        utils::SqlxPushTupleExt,
         Error,
         FeedScope,
         FeedbackScope,
+        InitDbHint,
         SearchScope,
         SourcePreferenceScope,
         SourceReactionScope,
@@ -57,7 +61,6 @@ use crate::{
 };
 
 use self::utils::SqlxSqliteResultExt;
-use crate::storage::utils::SqlxPushTupleExt;
 
 mod utils;
 
@@ -66,16 +69,85 @@ const BIND_LIMIT: usize = 32766;
 
 #[derive(Clone)]
 pub(crate) struct SqliteStorage {
+    /// Path to the database file.
+    ///
+    /// `None` in case of a in-memory db.
+    ///
+    /// We didn't use PathBuf as it must be valid string.
+    file_path: Option<String>,
     pool: Pool<Sqlite>,
 }
 
 impl SqliteStorage {
-    pub(crate) async fn connect(uri: &str) -> Result<Self, Error> {
-        let opt = SqliteConnectOptions::from_str(uri)?.create_if_missing(true);
+    pub(crate) async fn connect(file_path: Option<String>) -> Result<Self, Error> {
+        let opt = if let Some(file_path) = &file_path {
+            SqliteConnectOptions::from_str(&format!("sqlite:{}", file_path))
+        } else {
+            SqliteConnectOptions::from_str("sqlite::memory:")
+        }?
+        .create_if_missing(true);
 
         let pool = SqlitePoolOptions::new().connect_with(opt).await?;
+        Ok(Self { pool, file_path })
+    }
 
-        Ok(Self { pool })
+    /// Returns true if there are no tables in the db.
+    async fn query_if_db_is_empty(&self) -> Result<bool, Error> {
+        let (count,) = sqlx::query_as::<_, (u32,)>("SELECT count(*) FROM sqlite_schema")
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(count == 0)
+    }
+
+    async fn init_database(&mut self) -> Result<InitDbHint, Error> {
+        let fresh = self.query_if_db_is_empty().await?;
+
+        let first_error = match (fresh, self.init_database_once().await) {
+            (true, Ok(_)) => return Ok(InitDbHint::NewDbCreated),
+            (false, Ok(_)) => return Ok(InitDbHint::NormalInit),
+            (true, Err(err)) => return Err(err),
+            (false, Err(err)) => err,
+        };
+
+        if let Err(err) = self.force_delete_database().await {
+            // if something fails we _hope_ it still will work (it might)
+            // so we only log it but continue anyway
+            error!("{}", err);
+        }
+
+        self.init_database_once()
+            .await
+            .map(|_| InitDbHint::DbOverwrittenDueToErrors(first_error))
+    }
+
+    async fn init_database_once(&self) -> Result<(), Error> {
+        sqlx::migrate!("src/storage/migrations")
+            .run(&self.pool)
+            .await
+            .map_err(|err| Error::Database(err.into()))?;
+
+        let mut tx = self.pool.begin().await?;
+        Self::setup_stacks_sync(&mut tx).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn force_delete_database(&mut self) -> Result<(), Error> {
+        //TODO 1. close pool connection
+
+        if let Some(path) = &self.file_path {
+            // let mut errors = vec![];
+            //TODO ignore "if not exist error" but warn on
+            //      other errors
+            fs::remove_file(&path).await;
+            fs::remove_file(&format!("{}-wal", path)).await;
+            fs::remove_file(&format!("{}-shm", path)).await;
+        }
+
+        let new_pool = Self::connect(self.file_path.clone()).await?;
+        ::std::mem::replace(self, new_pool);
+        Ok(())
     }
 
     async fn setup_stacks_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {
@@ -352,16 +424,8 @@ impl SqliteStorage {
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    async fn init_database(&self) -> Result<(), Error> {
-        sqlx::migrate!("src/storage/migrations")
-            .run(&self.pool)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        let mut tx = self.pool.begin().await?;
-        Self::setup_stacks_sync(&mut tx).await?;
-        tx.commit().await?;
-        Ok(())
+    async fn init_database(&mut self) -> Result<InitDbHint, Error> {
+        self.init_database().await
     }
 
     async fn clear_database(&self) -> Result<bool, Error> {
@@ -1096,7 +1160,7 @@ mod tests {
     }
 
     async fn create_memory_storage() -> impl Storage {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        let mut storage = SqliteStorage::connect(None).await.unwrap();
         storage.init_database().await.unwrap();
         storage
     }
@@ -1215,7 +1279,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_search() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        let mut storage = SqliteStorage::connect(None).await.unwrap();
         storage.init_database().await.unwrap();
 
         let new_search = Search {
@@ -1238,7 +1302,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_document() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        let mut storage = SqliteStorage::connect(None).await.unwrap();
         storage.init_database().await.unwrap();
 
         let id = document::Id::new();
@@ -1288,7 +1352,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_missing_stacks_are_added_and_removed_stacks_removed() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        let storage = SqliteStorage::connect(None).await.unwrap();
         sqlx::migrate!("src/storage/migrations")
             .run(&storage.pool)
             .await
@@ -1408,7 +1472,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_state() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+        let storage = SqliteStorage::connect(None).await.unwrap();
         storage.init_database().await.unwrap();
 
         assert!(!storage.state().clear().await.unwrap());
