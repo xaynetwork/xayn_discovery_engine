@@ -1956,6 +1956,7 @@ pub(crate) mod tests {
 
         let state2 = engine.storage.state().fetch().await.unwrap();
         assert_ne!(state1, state2);
+        assert!(state2.is_some());
 
         engine
             .time_spent(TimeSpent {
@@ -1970,6 +1971,7 @@ pub(crate) mod tests {
 
         let state3 = engine.storage.state().fetch().await.unwrap();
         assert_ne!(state2, state3);
+        assert!(state3.is_some());
     }
 
     #[tokio::test]
