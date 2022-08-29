@@ -315,6 +315,9 @@ class DiscoveryEngine {
   /// duplicates found in provided sets, containing a set of said duplicates.
   /// - [EngineExceptionRaised] indicating a failed operation, with a reason
   /// for such failure.
+  //FIXME rename to setSourcePreferences when we move to message passing API,
+  //      also rename add/remove trusted/excluded source to not contain the word
+  //      list (it's two sets or more specific a map of source->preference)
   Future<EngineEvent> overrideSources({
     required Set<Source> trustedSources,
     required Set<Source> excludedSources,

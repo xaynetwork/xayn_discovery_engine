@@ -46,6 +46,7 @@ class LocalNewsApiServer {
   String _lhFile = 'latest-headlines.json';
   String _ttFile = 'trending-topics.json';
   CapturedRequest? lastCapturedRequest;
+  int requestCount = 0;
 
   LocalNewsApiServer._(this._server) {
     _handleRequests();
@@ -53,6 +54,7 @@ class LocalNewsApiServer {
 
   Future<void> _handleRequests() async {
     await for (final request in _server) {
+      requestCount += 1;
       lastCapturedRequest = await CapturedRequest.capture(request);
       switch (_replyWith) {
         case ReplyWith.error:
