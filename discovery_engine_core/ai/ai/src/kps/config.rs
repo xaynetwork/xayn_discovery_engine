@@ -12,20 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, time::Duration};
+use std::cmp::Ordering;
 
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::utils::{nan_safe_f32_cmp_desc, serde_duration_as_days, SECONDS_PER_DAY_U64};
+use crate::utils::nan_safe_f32_cmp_desc;
 
 /// Configurations of the kps system.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[must_use]
 pub struct Config {
-    #[serde(with = "serde_duration_as_days")]
-    horizon: Duration,
     gamma: f32,
     penalty: Vec<f32>,
 }
@@ -36,7 +34,6 @@ impl Eq for Config {}
 impl Default for Config {
     fn default() -> Self {
         Self {
-            horizon: Duration::from_secs(SECONDS_PER_DAY_U64 * 30),
             gamma: 0.9,
             penalty: vec![1., 0.75, 0.66],
         }
@@ -53,17 +50,6 @@ pub enum Error {
 }
 
 impl Config {
-    /// The time since the last view after which a coi becomes irrelevant.
-    pub fn horizon(&self) -> Duration {
-        self.horizon
-    }
-
-    /// Sets the horizon.
-    pub fn with_horizon(mut self, horizon: Duration) -> Self {
-        self.horizon = horizon;
-        self
-    }
-
     /// The weighting between coi and pairwise candidate similarities in the key phrase selection.
     pub fn gamma(&self) -> f32 {
         self.gamma

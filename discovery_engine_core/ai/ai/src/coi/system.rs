@@ -95,7 +95,7 @@ impl CoiSystem {
             cois,
             market,
             top,
-            self.kps_config.horizon(),
+            self.coi_config.horizon(),
             self.kps_config.penalty(),
             self.kps_config.gamma(),
         )

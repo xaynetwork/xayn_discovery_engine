@@ -464,7 +464,10 @@ mod tests {
     use ndarray::arr2;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
-    use crate::{coi::point::tests::create_pos_cois, kps::config::Config};
+    use crate::{
+        coi::{config::Config as CoiConfig, point::tests::create_pos_cois},
+        kps::config::Config as KpsConfig,
+    };
 
     use super::*;
 
@@ -799,7 +802,7 @@ mod tests {
         let market = Market::new("aa", "AA");
         let candidates = [];
         let smbert = |_: &str| unreachable!();
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
@@ -823,7 +826,7 @@ mod tests {
         let market = Market::new("aa", "AA");
         let candidates = [];
         let smbert = |_: &str| unreachable!();
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
@@ -852,7 +855,7 @@ mod tests {
             "phrase" => Ok([1., 1., 1.].into()),
             _ => unreachable!(),
         };
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
@@ -877,7 +880,7 @@ mod tests {
         let market = Market::new("aa", "AA");
         let candidates = ["  a  !@#$%  b  ".into()];
         let smbert = |_: &str| Ok([1., 1., 0.].into());
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
@@ -906,7 +909,7 @@ mod tests {
             "words" => Ok([2., 1., 0.].into()),
             _ => unreachable!(),
         };
-        let config = Config::default();
+        let config = KpsConfig::default();
         assert_eq!(config.max_key_phrases(), 3);
 
         key_phrases.update(
@@ -935,7 +938,7 @@ mod tests {
             "phrase" => Ok([1., 1., 1.].into()),
             _ => unreachable!(),
         };
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
@@ -966,7 +969,7 @@ mod tests {
             "words" => Ok([3., 1., 0.].into()),
             _ => unreachable!(),
         };
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
@@ -995,7 +998,7 @@ mod tests {
         let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([(coi_id, ("aa", "AA"), "key", [1., 1., 1.])]);
         swap(&mut key_phrases.selected, &mut key_phrases.removed);
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.refresh(&cois, &market, config.max_key_phrases(), config.gamma());
         assert!(key_phrases.selected.is_empty());
@@ -1009,7 +1012,7 @@ mod tests {
         let market = Market::new("bb", "BB");
         let mut key_phrases = KeyPhrases::new([(cois[0].id, ("aa", "AA"), "key", [1., 1., 1.])]);
         swap(&mut key_phrases.selected, &mut key_phrases.removed);
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.refresh(&cois, &market, config.max_key_phrases(), config.gamma());
         assert!(key_phrases.selected.is_empty());
@@ -1025,7 +1028,7 @@ mod tests {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
         let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::default();
-        let config = Config::default();
+        let config = KpsConfig::default();
 
         key_phrases.refresh(&cois, &market, config.max_key_phrases(), config.gamma());
         assert!(key_phrases.selected.is_empty());
@@ -1048,7 +1051,7 @@ mod tests {
             (cois[1].id, ("bb", "BB"), "enough", [1., 1., 1.]),
         ]);
         swap(&mut key_phrases.selected, &mut key_phrases.removed);
-        let config = Config::default();
+        let config = KpsConfig::default();
         assert_eq!(config.max_key_phrases(), 3);
 
         key_phrases.refresh(&cois, &market, config.max_key_phrases(), config.gamma());
@@ -1182,15 +1185,16 @@ mod tests {
         let coi_id = CoiId::mocked(1);
         let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([(coi_id, ("aa", "AA"), "key", [1., 1., 1.])]);
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
         let top_key_phrases = key_phrases.take(
             &cois,
             &market,
             usize::MAX,
-            config.horizon(),
-            config.penalty(),
-            config.gamma(),
+            coi_config.horizon(),
+            kps_config.penalty(),
+            kps_config.gamma(),
         );
         assert!(top_key_phrases.is_empty());
         assert_eq!(key_phrases.selected.len(), 1);
@@ -1203,15 +1207,16 @@ mod tests {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let market = Market::new("bb", "BB");
         let mut key_phrases = KeyPhrases::new([(cois[0].id, ("aa", "AA"), "key", [1., 1., 1.])]);
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
         let top_key_phrases = key_phrases.take(
             &cois,
             &market,
             usize::MAX,
-            config.horizon(),
-            config.penalty(),
-            config.gamma(),
+            coi_config.horizon(),
+            kps_config.penalty(),
+            kps_config.gamma(),
         );
         assert!(top_key_phrases.is_empty());
         assert_eq!(key_phrases.selected.len(), 1);
@@ -1227,15 +1232,16 @@ mod tests {
         let cois = create_pos_cois(&[[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]);
         let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::default();
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
         let top_key_phrases = key_phrases.take(
             &cois,
             &market,
             usize::MAX,
-            config.horizon(),
-            config.penalty(),
-            config.gamma(),
+            coi_config.horizon(),
+            kps_config.penalty(),
+            kps_config.gamma(),
         );
         assert!(top_key_phrases.is_empty());
         assert!(key_phrases.selected.is_empty());
@@ -1251,15 +1257,16 @@ mod tests {
             (cois[1].id, ("aa", "AA"), "phrase", [2., 1., 1.]),
             (cois[2].id, ("aa", "AA"), "words", [3., 1., 1.]),
         ]);
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
         let top_key_phrases = key_phrases.take(
             &cois,
             &market,
             0,
-            config.horizon(),
-            config.penalty(),
-            config.gamma(),
+            coi_config.horizon(),
+            kps_config.penalty(),
+            kps_config.gamma(),
         );
         assert!(top_key_phrases.is_empty());
         assert_eq!(key_phrases.selected.len(), cois.len());
@@ -1293,15 +1300,16 @@ mod tests {
             (cois[2].id, ("aa", "AA"), "not", [1., 1., 8.]),
             (cois[2].id, ("aa", "AA"), "enough", [1., 1., 7.]),
         ]);
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
         let top_key_phrases = key_phrases.take(
             &cois,
             &market,
             usize::MAX,
-            config.horizon(),
-            config.penalty(),
-            config.gamma(),
+            coi_config.horizon(),
+            kps_config.penalty(),
+            kps_config.gamma(),
         );
         assert_eq!(top_key_phrases.len(), 9);
         assert_eq!(
@@ -1342,15 +1350,16 @@ mod tests {
             (cois[2].id, ("bb", "BB"), "not", [1., 1., 8.]),
             (cois[2].id, ("bb", "BB"), "enough", [1., 1., 7.]),
         ]);
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
         let top_key_phrases = key_phrases.take(
             &cois,
             &market,
             usize::MAX,
-            config.horizon(),
-            config.penalty(),
-            config.gamma(),
+            coi_config.horizon(),
+            kps_config.penalty(),
+            kps_config.gamma(),
         );
         assert_eq!(top_key_phrases.len(), 6);
         assert_eq!(
@@ -1399,23 +1408,24 @@ mod tests {
             (cois[2].id, ("bb", "BB"), "not", [1., 1., 8.]),
             (cois[2].id, ("bb", "BB"), "enough", [1., 1., 7.]),
         ]);
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
         let top_key_phrases_first = key_phrases.take(
             &cois,
             &market,
             usize::MAX,
-            config.horizon(),
-            config.penalty(),
-            config.gamma(),
+            coi_config.horizon(),
+            kps_config.penalty(),
+            kps_config.gamma(),
         );
         let top_key_phrases_second = key_phrases.take(
             &cois,
             &market,
             usize::MAX,
-            config.horizon(),
-            config.penalty(),
-            config.gamma(),
+            coi_config.horizon(),
+            kps_config.penalty(),
+            kps_config.gamma(),
         );
         assert_eq!(top_key_phrases_first, top_key_phrases_second);
     }
