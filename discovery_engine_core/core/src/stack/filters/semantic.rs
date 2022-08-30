@@ -14,6 +14,7 @@
 
 use std::collections::BTreeMap;
 
+use chrono::{offset::Utc, DateTime};
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
@@ -24,25 +25,22 @@ use crate::document::{Document, WeightedSource};
 use super::source_weight;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
-fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
-    pairwise_cosine_similarity(
-        documents
-            .iter()
-            .map(|document| document.smbert_embedding.view()),
-    )
-    .indexed_iter()
-    .filter_map(|((i, j), &similarity)| (i < j).then_some(similarity))
-    .collect()
+fn condensed_cosine_similarity<'a, I>(documents_embedding: I) -> Vec<f32>
+where
+    I: Iterator<Item = ArrayView1<'a, f32>> + Clone,
+{
+    pairwise_cosine_similarity(documents_embedding)
+        .indexed_iter()
+        .filter_map(|((i, j), &similarity)| (i < j).then(|| similarity))
+        .collect()
 }
 
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
-fn condensed_date_distance(documents: &[Document]) -> Vec<f32> {
-    let dates = || {
-        documents
-            .iter()
-            .map(|document| document.resource.date_published)
-            .enumerate()
-    };
+fn condensed_date_distance<I>(dates: &I) -> Vec<f32>
+where
+    I: Iterator<Item = DateTime<Utc>> + Clone,
+{
+    let dates = || dates.clone().enumerate();
 
     dates()
         .cartesian_product(dates())
@@ -170,8 +168,16 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
-    let cosine_similarity = condensed_cosine_similarity(documents);
-    let date_distance = condensed_date_distance(documents);
+    let cosine_similarity = condensed_cosine_similarity(
+        documents
+            .iter()
+            .map(|document| document.smbert_embedding.view()),
+    );
+    let date_distance = condensed_date_distance(
+        &documents
+            .iter()
+            .map(|document| document.resource.date_published),
+    );
     let decay_factor = condensed_decay_factor(date_distance, config.max_days, config.threshold);
     condensed_normalized_distance(cosine_similarity, decay_factor)
 }
@@ -301,7 +307,11 @@ mod tests {
     fn test_condensed_cosine_similarity() {
         for n in 0..5 {
             let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
-            let condensed = condensed_cosine_similarity(&documents);
+            let condensed = condensed_cosine_similarity(
+                documents
+                    .iter()
+                    .map(|document| document.smbert_embedding.view()),
+            );
             if n < 2 {
                 assert!(condensed.is_empty());
             } else {
@@ -316,7 +326,11 @@ mod tests {
     fn test_condensed_date_distance() {
         for n in 0..5 {
             let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
-            let condensed = condensed_date_distance(&documents);
+            let condensed = condensed_date_distance(
+                &documents
+                    .iter()
+                    .map(|document| document.resource.date_published),
+            );
             if n < 2 {
                 assert!(condensed.is_empty());
             } else {
