@@ -10,7 +10,6 @@ use sqlx::{
     Pool,
     QueryBuilder,
     Sqlite,
-    Transaction,
 };
 
 use super::SqliteStorage;
@@ -87,11 +86,12 @@ pub(super) async fn delete_db_files(file_path: Option<&str>) -> Result<(), Error
 
 async fn init_storage_system_once(file_path: Option<String>) -> Result<SqliteStorage, Error> {
     let pool = create_connection_pool(file_path.as_deref()).await?;
-    init_database(&pool);
+    update_schema(&pool).await?;
+    update_static_data(&pool).await?;
     Ok(SqliteStorage { pool, file_path })
 }
 
-async fn create_connection_pool(file_path: Option<&str>) -> Result<Pool<Sqlite>, Error> {
+pub(super) async fn create_connection_pool(file_path: Option<&str>) -> Result<Pool<Sqlite>, Error> {
     let opt = if let Some(file_path) = &file_path {
         SqliteConnectOptions::from_str(&format!("sqlite:{}", file_path))
     } else {
@@ -105,26 +105,27 @@ async fn create_connection_pool(file_path: Option<&str>) -> Result<Pool<Sqlite>,
         .map_err(Into::into)
 }
 
-async fn init_database(pool: &Pool<Sqlite>) -> Result<(), Error> {
+async fn update_schema(pool: &Pool<Sqlite>) -> Result<(), Error> {
     sqlx::migrate!("src/storage/migrations")
         .run(pool)
         .await
-        .map_err(|err| Error::Database(err.into()))?;
-
-    let mut tx = pool.begin().await?;
-    setup_stacks_sync(&mut tx).await?;
-    tx.commit().await?;
-    Ok(())
+        .map_err(|err| Error::Database(err.into()))
 }
 
-async fn setup_stacks_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {
-    let expected_ids = &[
-        stack::ops::breaking::BreakingNews::id(),
-        stack::ops::personalized::PersonalizedNews::id(),
-        stack::ops::trusted::TrustedNews::id(),
-        stack::exploration::Stack::id(),
-    ];
+//FIXME at some point we probably should derive this from the configuration
+//      and also decide what to do we documents in the history which are
+//      associated with a stack which is not included in the current config
+const EXISTING_STACKS: [stack::Id; 4] = [
+    stack::ops::breaking::BreakingNews::id(),
+    stack::ops::personalized::PersonalizedNews::id(),
+    stack::ops::trusted::TrustedNews::id(),
+    stack::exploration::Stack::id(),
+];
 
+async fn update_static_data(pool: &Pool<Sqlite>) -> Result<(), Error> {
+    let mut tx = pool.begin().await?;
+
+    let expected_ids = &EXISTING_STACKS;
     let mut query_builder = QueryBuilder::new(String::new());
     query_builder
         .push("INSERT INTO Stack (stackId) ")
@@ -134,16 +135,53 @@ async fn setup_stacks_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error
         .push(" ON CONFLICT DO NOTHING;")
         .build()
         .persistent(false)
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
-
     query_builder
         .reset()
         .push("DELETE FROM Stack WHERE stackId NOT IN ")
         .push_tuple(expected_ids)
         .build()
         .persistent(false)
-        .execute(tx)
+        .execute(&mut tx)
         .await?;
+
+    tx.commit().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_missing_stacks_are_added_and_removed_stacks_removed() {
+        let pool = create_connection_pool(None).await.unwrap();
+
+        update_schema(&pool).await.unwrap();
+
+        let mut tx = pool.begin().await.unwrap();
+        let random_id = stack::Id::new_random();
+        sqlx::query("INSERT INTO Stack(stackId) VALUES (?), (?);")
+            .bind(stack::PersonalizedNews::id())
+            .bind(random_id)
+            .execute(&mut tx)
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        update_static_data(&pool).await.unwrap();
+
+        let ids = sqlx::query_as::<_, stack::Id>("SELECT stackId FROM Stack;")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            ids.into_iter().collect::<HashSet<_>>(),
+            EXISTING_STACKS.into_iter().collect::<HashSet<_>>()
+        );
+    }
 }

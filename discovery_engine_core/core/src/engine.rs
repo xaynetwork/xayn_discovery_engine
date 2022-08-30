@@ -338,9 +338,9 @@ impl Engine {
                         .into_string()
                         .unwrap(/*can't fail as we only join rust strings*/)
             });
-            let mut storage = SqliteStorage::connect(db_file_path).await?;
-            storage.init_database().await?;
-            Box::new(storage)
+            let (storage, _init_hint) = SqliteStorage::init_storage_system(db_file_path).await?;
+            //FIXME pass the hint to dart for deciding if migrations are needed
+            storage
         };
         let stack_ops = vec![
             Box::new(BreakingNews::new(
@@ -1812,11 +1812,7 @@ pub(crate) mod tests {
         // reset the stacks and states
         #[cfg(feature = "storage")]
         {
-            engine.storage = {
-                let mut storage = SqliteStorage::connect(None).await.unwrap();
-                storage.init_database().await.unwrap();
-                Box::new(storage) as BoxedStorage
-            };
+            engine.storage = SqliteStorage::init_storage_system(None).await.unwrap().0;
         }
         engine.stacks = RwLock::new(
             stack_ops

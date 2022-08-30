@@ -51,21 +51,21 @@ impl<T> SqlxSqliteResultExt<T> for Result<T, sqlx::Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{document, storage::sqlite::SqliteStorage};
+    use crate::{document, storage::sqlite::setup::create_connection_pool};
 
     use super::*;
 
     #[tokio::test]
     async fn test_fk_violation_is_invalid_document() {
-        let storage = SqliteStorage::connect(None).await.unwrap();
+        let pool = create_connection_pool(None).await.unwrap();
 
         sqlx::query("CREATE TABLE Foo(x INTEGER PRIMARY KEY);")
-            .execute(&storage.pool)
+            .execute(&pool)
             .await
             .unwrap();
 
         sqlx::query("CREATE TABLE Bar(x INTEGER PRIMARY KEY REFERENCES Foo(x));")
-            .execute(&storage.pool)
+            .execute(&pool)
             .await
             .unwrap();
 
@@ -73,14 +73,14 @@ mod tests {
 
         let res = sqlx::query("INSERT INTO Bar(x) VALUES (?);")
             .bind(10u32)
-            .execute(&storage.pool)
+            .execute(&pool)
             .await
             .on_fk_violation(Error::NoDocument(document_id));
 
         assert!(matches!(res, Err(Error::NoDocument(id)) if id == document_id));
 
         let res = sqlx::query("malformed;")
-            .execute(&storage.pool)
+            .execute(&pool)
             .await
             .on_fk_violation(Error::NoDocument(document_id));
 

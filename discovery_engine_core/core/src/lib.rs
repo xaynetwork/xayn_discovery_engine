@@ -38,6 +38,8 @@ pub mod stack;
 mod state;
 #[cfg(feature = "storage")]
 pub mod storage;
+//FIXME they are not storage specific but currently only used by storage
+#[cfg(feature = "storage")]
 mod utils;
 
 pub use crate::{

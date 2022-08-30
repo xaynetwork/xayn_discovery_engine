@@ -14,15 +14,14 @@
 
 //! Collection of utility functions.
 
-use std::{borrow::Cow, error::Error, fmt::Display, io, path::Path};
+use std::{borrow::Cow, error::Error, fmt::Display, path::Path};
 
 use tracing::error;
 
 /// Like [`tokio::fs::remove_file()`] but doesn't fail if the file doesn't exist.
-#[cfg(feature = "storage")]
-pub(crate) async fn remove_file_if_exists(path: impl AsRef<Path>) -> Result<(), io::Error> {
+pub(crate) async fn remove_file_if_exists(path: impl AsRef<Path>) -> Result<(), std::io::Error> {
     match tokio::fs::remove_file(path).await {
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         other => other,
     }
 }
@@ -56,7 +55,7 @@ impl<T, E> MiscErrorExt<T, E> for Result<T, E> {
             Ok(val) => Some(val),
             Err(err) => {
                 if slot.is_none() {
-                    *slot = Some(err)
+                    *slot = Some(err);
                 }
                 None
             }
