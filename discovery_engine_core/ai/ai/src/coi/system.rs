@@ -20,25 +20,31 @@ use xayn_discovery_engine_providers::Market;
 
 use crate::{
     coi::{
-        config::Config,
+        config::Config as CoiConfig,
         context::compute_scores_for_docs,
         key_phrase::{KeyPhrase, KeyPhrases},
         point::{find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
     },
     document::Document,
     embedding::Embedding,
+    kps::config::Config as KpsConfig,
     nan_safe_f32_cmp_desc,
     GenericError,
 };
 
 /// The main system of the AI.
 pub struct CoiSystem {
-    pub(crate) config: Config,
+    pub(crate) coi_config: CoiConfig,
+    pub(crate) kps_config: KpsConfig,
 }
 
 impl CoiSystem {
-    pub fn config(&self) -> &Config {
-        &self.config
+    pub fn coi_config(&self) -> &CoiConfig {
+        &self.coi_config
+    }
+
+    pub fn kps_config(&self) -> &KpsConfig {
+        &self.kps_config
     }
 
     /// Updates the view time of the positive coi closest to the embedding.
@@ -64,7 +70,8 @@ impl CoiSystem {
             cois,
             market,
             embedding,
-            &self.config,
+            &self.coi_config,
+            &self.kps_config,
             key_phrases,
             candidates,
             smbert,
@@ -73,7 +80,7 @@ impl CoiSystem {
 
     /// Updates the negative coi closest to the embedding or creates a new one if it's too far away.
     pub fn log_negative_user_reaction(&self, cois: &mut Vec<NegativeCoi>, embedding: &Embedding) {
-        log_negative_user_reaction(cois, embedding, &self.config);
+        log_negative_user_reaction(cois, embedding, &self.coi_config);
     }
 
     /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
@@ -88,9 +95,9 @@ impl CoiSystem {
             cois,
             market,
             top,
-            self.config.horizon(),
-            self.config.penalty(),
-            self.config.gamma(),
+            self.coi_config.horizon(),
+            self.kps_config.penalty(),
+            self.kps_config.gamma(),
         )
     }
 
@@ -102,16 +109,18 @@ impl CoiSystem {
     /// Ranks the given documents in descending order of relevancy based on the
     /// learned user interests.
     pub fn rank(&self, documents: &mut [impl Document], user_interests: &UserInterests) {
-        rank(documents, user_interests, &self.config);
+        rank(documents, user_interests, &self.coi_config);
     }
 }
 
 /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
+#[allow(clippy::too_many_arguments)]
 fn log_positive_user_reaction(
     cois: &mut Vec<PositiveCoi>,
     market: &Market,
     embedding: &Embedding,
-    config: &Config,
+    coi_config: &CoiConfig,
+    kps_config: &KpsConfig,
     key_phrases: &mut KeyPhrases,
     candidates: &[String],
     smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
@@ -119,15 +128,15 @@ fn log_positive_user_reaction(
     match find_closest_coi_mut(cois, embedding) {
         // If the given embedding's similarity to the CoI is above the threshold,
         // we adjust the position of the nearest CoI
-        Some((coi, similarity)) if similarity >= config.threshold() => {
-            coi.shift_point(embedding, config.shift_factor());
+        Some((coi, similarity)) if similarity >= coi_config.threshold() => {
+            coi.shift_point(embedding, coi_config.shift_factor());
             coi.update_key_phrases(
                 market,
                 key_phrases,
                 candidates,
                 smbert,
-                config.max_key_phrases(),
-                config.gamma(),
+                kps_config.max_key_phrases(),
+                kps_config.gamma(),
             );
             coi.log_reaction();
         }
@@ -140,8 +149,8 @@ fn log_positive_user_reaction(
                 key_phrases,
                 candidates,
                 smbert,
-                config.max_key_phrases(),
-                config.gamma(),
+                kps_config.max_key_phrases(),
+                kps_config.gamma(),
             );
             cois.push(coi);
         }
@@ -149,10 +158,14 @@ fn log_positive_user_reaction(
 }
 
 /// Updates the negative coi closest to the embedding or creates a new one if it's too far away.
-fn log_negative_user_reaction(cois: &mut Vec<NegativeCoi>, embedding: &Embedding, config: &Config) {
+fn log_negative_user_reaction(
+    cois: &mut Vec<NegativeCoi>,
+    embedding: &Embedding,
+    coi_config: &CoiConfig,
+) {
     match find_closest_coi_mut(cois, embedding) {
-        Some((coi, similarity)) if similarity >= config.threshold() => {
-            coi.shift_point(embedding, config.shift_factor());
+        Some((coi, similarity)) if similarity >= coi_config.threshold() => {
+            coi.shift_point(embedding, coi_config.shift_factor());
             coi.log_reaction();
         }
         _ => cois.push(NegativeCoi::new(Uuid::new_v4(), embedding.clone())),
@@ -167,7 +180,7 @@ fn log_document_view_time(cois: &mut [PositiveCoi], embedding: &Embedding, viewe
 }
 
 #[instrument(skip_all)]
-fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config: &Config) {
+fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config: &CoiConfig) {
     if documents.len() < 2 {
         return;
     }
@@ -204,15 +217,16 @@ mod tests {
         let mut cois = create_pos_cois(&[[1., 1., 1.], [10., 10., 10.], [20., 20., 20.]]);
         let mut key_phrases = KeyPhrases::default();
         let embedding = arr1(&[2., 3., 4.]).into();
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
-        let last_view_before = cois[0].stats.last_view;
-
+        let last_view = cois[0].stats.last_view;
         log_positive_user_reaction(
             &mut cois,
             &Market::new("aa", "AA"),
             &embedding,
-            &config,
+            &coi_config,
+            &kps_config,
             &mut key_phrases,
             &[],
             |_| unreachable!(),
@@ -224,7 +238,7 @@ mod tests {
         assert_eq!(cois[2].point, arr1(&[20., 20., 20.]));
 
         assert_eq!(cois[0].stats.view_count, 2);
-        assert!(cois[0].stats.last_view > last_view_before);
+        assert!(cois[0].stats.last_view > last_view);
     }
 
     #[test]
@@ -232,13 +246,15 @@ mod tests {
         let mut cois = create_pos_cois(&[[0., 1.]]);
         let mut key_phrases = KeyPhrases::default();
         let embedding = arr1(&[1., 0.]).into();
-        let config = Config::default();
+        let coi_config = CoiConfig::default();
+        let kps_config = KpsConfig::default();
 
         log_positive_user_reaction(
             &mut cois,
             &Market::new("aa", "AA"),
             &embedding,
-            &config,
+            &coi_config,
+            &kps_config,
             &mut key_phrases,
             &[],
             |_| unreachable!(),
@@ -252,11 +268,14 @@ mod tests {
     #[test]
     fn test_log_negative_user_reaction_last_view() {
         let mut cois = create_neg_cois(&[[1., 2., 3.]]);
-        let config = Config::default();
-        let before = cois[0].last_view;
-        log_negative_user_reaction(&mut cois, &arr1(&[1., 2., 4.]).into(), &config);
-        assert!(cois[0].last_view > before);
+        let embedding = arr1(&[1., 2., 4.]).into();
+        let config = CoiConfig::default();
+
+        let last_view = cois[0].last_view;
+        log_negative_user_reaction(&mut cois, &embedding, &config);
+
         assert_eq!(cois.len(), 1);
+        assert!(cois[0].last_view > last_view);
     }
 
     #[test]
@@ -286,15 +305,14 @@ mod tests {
             TestDocument::new(2, arr1(&[1., 2., 0.]), "2000-01-01 00:00:01"),
             TestDocument::new(3, arr1(&[5., 3., 0.]), "2000-01-01 00:00:00"),
         ];
-
-        let config = Config::default()
+        let user_interests = UserInterests {
+            positive: create_pos_cois(&[[1., 0., 0.], [4., 12., 2.]]),
+            negative: create_neg_cois(&[[-100., -10., 0.]]),
+        };
+        let config = CoiConfig::default()
             .with_min_positive_cois(2)
             .unwrap()
             .with_min_negative_cois(1);
-        let positive = create_pos_cois(&[[1., 0., 0.], [4., 12., 2.]]);
-        let negative = create_neg_cois(&[[-100., -10., 0.]]);
-
-        let user_interests = UserInterests { positive, negative };
 
         rank(&mut documents, &user_interests, &config);
 
@@ -311,10 +329,10 @@ mod tests {
             TestDocument::new(1, arr1(&[0., 0., 0.]), "2000-01-01 00:00:01"),
             TestDocument::new(2, arr1(&[0., 0., 0.]), "2000-01-01 00:00:02"),
         ];
+        let user_interests = UserInterests::default();
+        let config = CoiConfig::default().with_min_positive_cois(1).unwrap();
 
-        let config = Config::default().with_min_positive_cois(1).unwrap();
-
-        rank(&mut documents, &UserInterests::default(), &config);
+        rank(&mut documents, &user_interests, &config);
 
         assert_eq!(documents[0].id(), DocumentId::from_u128(0));
         assert_eq!(documents[1].id(), DocumentId::from_u128(2));
@@ -324,11 +342,11 @@ mod tests {
     #[test]
     fn test_rank_no_documents() {
         let mut documents = Vec::<TestDocument>::new();
-        rank(
-            &mut documents,
-            &UserInterests::default(),
-            &Config::default(),
-        );
+        let user_interests = UserInterests::default();
+        let config = CoiConfig::default();
+
+        rank(&mut documents, &user_interests, &config);
+
         assert!(documents.is_empty());
     }
 }

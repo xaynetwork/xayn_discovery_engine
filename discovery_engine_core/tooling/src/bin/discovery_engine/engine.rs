@@ -123,7 +123,7 @@ impl TestEngine {
         self.engine.reset_ai().await?;
 
         let mut cois = 0;
-        while cois < self.engine.coi_system_config().min_positive_cois() {
+        while cois < self.engine.coi_config().min_positive_cois() {
             if let Some(document) = self
                 .engine
                 .get_feed_documents(&[/* TODO: db migration */], &[/* TODO: db migration */])
@@ -135,7 +135,7 @@ impl TestEngine {
             }
         }
         cois = 0;
-        while cois < self.engine.coi_system_config().min_negative_cois() {
+        while cois < self.engine.coi_config().min_negative_cois() {
             if let Some(document) = self
                 .engine
                 .get_feed_documents(&[/* TODO: db migration */], &[/* TODO: db migration */])
