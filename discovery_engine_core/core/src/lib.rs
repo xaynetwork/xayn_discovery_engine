@@ -38,6 +38,7 @@ pub mod stack;
 mod state;
 #[cfg(feature = "storage")]
 pub mod storage;
+mod utils;
 
 pub use crate::{
     config::{CoreConfig, EndpointConfig, ExplorationConfig, FeedConfig, InitConfig, SearchConfig},
