@@ -48,6 +48,7 @@ use crate::{
             TimeSpentDocumentView,
         },
         utils::SqlxPushTupleExt,
+        BoxedStorage,
         Error,
         FeedScope,
         FeedbackScope,
@@ -323,10 +324,15 @@ impl SqliteStorage {
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    async fn init_storage_system(file_path: Option<String>) -> Result<(Self, InitDbHint), Error>
+    async fn init_storage_system(
+        file_path: Option<String>,
+    ) -> Result<(BoxedStorage, InitDbHint), Error>
     where
         Self: Sized,
     {
+        self::setup::init_storage_system(file_path)
+            .await
+            .map(|(storage, hint)| (Box::new(storage) as _, hint))
     }
 
     async fn clear_database(&self) -> Result<bool, Error> {

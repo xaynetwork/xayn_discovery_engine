@@ -20,7 +20,7 @@ use tracing::error;
 
 /// Like [`tokio::fs::remove_file()`] but doesn't fail if the file doesn't exist.
 #[cfg(feature = "storage")]
-pub(crate) async fn remove_file_if_exists(path: &Path) -> Result<(), io::Error> {
+pub(crate) async fn remove_file_if_exists(path: impl AsRef<Path>) -> Result<(), io::Error> {
     match tokio::fs::remove_file(path).await {
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
         other => other,
@@ -82,7 +82,7 @@ pub(crate) struct CompoundError<E: Error + 'static> {
 }
 
 impl<E: Error + 'static> CompoundError<E> {
-    pub(crate) fn new(msg: impl Into<Cow<'static, str>>, errors: Vec<E>) {
+    pub(crate) fn new(msg: impl Into<Cow<'static, str>>, errors: Vec<E>) -> Self {
         Self {
             msg: msg.into(),
             errors,

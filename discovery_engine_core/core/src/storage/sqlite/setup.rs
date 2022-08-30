@@ -31,7 +31,12 @@ pub(super) async fn init_storage_system(
         (true, Err(err)) => err,
     };
 
-    delete_db_files(file_path.as_deref()).await;
+    // either the database was corrupted or we messed up the migrations,
+    // as the app must continue working so we start from scratch
+    //FIXME we could make a backup so that if we push a bad update the
+    //      data could be restored with a follow-up update. But for now
+    //      this is fully out of scope of what we have resources for.
+    delete_db_files(file_path.as_deref()).await?;
 
     init_storage_system_once(file_path)
         .await
@@ -44,16 +49,13 @@ async fn db_file_does_exist(file_path: Option<&str>) -> bool {
         //tokio version of `std::path::Path::exists()`
         tokio::fs::metadata(Path::new(path)).await.is_ok()
     } else {
-        Ok(false)
+        false
     }
 }
 
 /// Deletes all sqlite db files associated with given db file path.
 ///
 /// File does not exist errors are fully ignored.
-///
-/// The first (non ignored) error is returned, but it still tries to
-/// delete the other files.
 pub(super) async fn delete_db_files(file_path: Option<&str>) -> Result<(), Error> {
     if let Some(file_path) = &file_path {
         let mut errors = vec![];
@@ -78,6 +80,8 @@ pub(super) async fn delete_db_files(file_path: Option<&str>) -> Result<(), Error
                 errors,
             ))))
         }
+    } else {
+        Ok(())
     }
 }
 

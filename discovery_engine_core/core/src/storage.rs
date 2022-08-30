@@ -70,7 +70,9 @@ pub enum InitDbHint {
 
 #[async_trait]
 pub(crate) trait Storage {
-    async fn init_storage_system(file_path: Option<String>) -> Result<(Self, InitDbHint), Error>
+    async fn init_storage_system(
+        file_path: Option<String>,
+    ) -> Result<(BoxedStorage, InitDbHint), Error>
     where
         Self: Sized;
 
