@@ -1539,8 +1539,11 @@ async fn update_stacks(
         };
     }
 
-    // return early if all needy stacks failed for all markets
-    if all_documents.is_empty() && errors.len() >= needy_stacks.len() {
+    // return early if all needy-ready stacks failed for all markets
+    if all_documents.is_empty()
+        && !errors.is_empty()
+        && errors.len() >= needy_stacks.len() - not_ready_stacks.len()
+    {
         return Err(Error::Errors(errors.into_values().flatten().collect()));
     }
     errors.clear();
