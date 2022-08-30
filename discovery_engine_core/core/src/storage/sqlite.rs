@@ -62,6 +62,7 @@ use crate::{
 
 use self::utils::SqlxSqliteResultExt;
 
+mod setup;
 mod utils;
 
 // Sqlite bind limit
@@ -79,108 +80,6 @@ pub(crate) struct SqliteStorage {
 }
 
 impl SqliteStorage {
-    pub(crate) async fn connect(file_path: Option<String>) -> Result<Self, Error> {
-        let opt = if let Some(file_path) = &file_path {
-            SqliteConnectOptions::from_str(&format!("sqlite:{}", file_path))
-        } else {
-            SqliteConnectOptions::from_str("sqlite::memory:")
-        }?
-        .create_if_missing(true);
-
-        let pool = SqlitePoolOptions::new().connect_with(opt).await?;
-        Ok(Self { pool, file_path })
-    }
-
-    /// Returns true if there are no tables in the db.
-    async fn query_if_db_is_empty(&self) -> Result<bool, Error> {
-        let (count,) = sqlx::query_as::<_, (u32,)>("SELECT count(*) FROM sqlite_schema")
-            .fetch_one(&self.pool)
-            .await?;
-
-        Ok(count == 0)
-    }
-
-    async fn init_database(&mut self) -> Result<InitDbHint, Error> {
-        let fresh = self.query_if_db_is_empty().await?;
-
-        let first_error = match (fresh, self.init_database_once().await) {
-            (true, Ok(_)) => return Ok(InitDbHint::NewDbCreated),
-            (false, Ok(_)) => return Ok(InitDbHint::NormalInit),
-            (true, Err(err)) => return Err(err),
-            (false, Err(err)) => err,
-        };
-
-        if let Err(err) = self.force_delete_database().await {
-            // if something fails we _hope_ it still will work (it might)
-            // so we only log it but continue anyway
-            error!("{}", err);
-        }
-
-        self.init_database_once()
-            .await
-            .map(|_| InitDbHint::DbOverwrittenDueToErrors(first_error))
-    }
-
-    async fn init_database_once(&self) -> Result<(), Error> {
-        sqlx::migrate!("src/storage/migrations")
-            .run(&self.pool)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        let mut tx = self.pool.begin().await?;
-        Self::setup_stacks_sync(&mut tx).await?;
-        tx.commit().await?;
-        Ok(())
-    }
-
-    async fn force_delete_database(&mut self) -> Result<(), Error> {
-        //TODO 1. close pool connection
-
-        if let Some(path) = &self.file_path {
-            // let mut errors = vec![];
-            //TODO ignore "if not exist error" but warn on
-            //      other errors
-            fs::remove_file(&path).await;
-            fs::remove_file(&format!("{}-wal", path)).await;
-            fs::remove_file(&format!("{}-shm", path)).await;
-        }
-
-        let new_pool = Self::connect(self.file_path.clone()).await?;
-        ::std::mem::replace(self, new_pool);
-        Ok(())
-    }
-
-    async fn setup_stacks_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {
-        let expected_ids = &[
-            stack::ops::breaking::BreakingNews::id(),
-            stack::ops::personalized::PersonalizedNews::id(),
-            stack::ops::trusted::TrustedNews::id(),
-            stack::exploration::Stack::id(),
-        ];
-
-        let mut query_builder = QueryBuilder::new(String::new());
-        query_builder
-            .push("INSERT INTO Stack (stackId) ")
-            .push_values(expected_ids, |mut stm, id| {
-                stm.push_bind(id);
-            })
-            .push(" ON CONFLICT DO NOTHING;")
-            .build()
-            .persistent(false)
-            .execute(&mut *tx)
-            .await?;
-
-        query_builder
-            .reset()
-            .push("DELETE FROM Stack WHERE stackId NOT IN ")
-            .push_tuple(expected_ids)
-            .build()
-            .persistent(false)
-            .execute(tx)
-            .await?;
-        Ok(())
-    }
-
     #[allow(clippy::too_many_lines)]
     async fn store_new_documents(
         tx: &mut Transaction<'_, Sqlite>,
@@ -424,8 +323,10 @@ impl SqliteStorage {
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    async fn init_database(&mut self) -> Result<InitDbHint, Error> {
-        self.init_database().await
+    async fn init_storage_system(file_path: Option<String>) -> Result<(Self, InitDbHint), Error>
+    where
+        Self: Sized,
+    {
     }
 
     async fn clear_database(&self) -> Result<bool, Error> {

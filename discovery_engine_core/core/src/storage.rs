@@ -70,7 +70,9 @@ pub enum InitDbHint {
 
 #[async_trait]
 pub(crate) trait Storage {
-    async fn init_database(&mut self) -> Result<InitDbHint, Error>;
+    async fn init_storage_system(file_path: Option<String>) -> Result<(Self, InitDbHint), Error>
+    where
+        Self: Sized;
 
     async fn clear_database(&self) -> Result<bool, Error>;
 
