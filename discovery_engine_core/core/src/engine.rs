@@ -1428,13 +1428,12 @@ impl Engine {
         unimplemented!("requires 'storage' feature")
     }
 
-    /// Resets the AI state
+    /// Resets the AI state.
     pub async fn reset_ai(&mut self) -> Result<(), Error> {
         self.clear_stack_data().await;
-        self.exploration_stack =
-            Exploration::new(StackData::default(), ExplorationConfig::default())
-                .map_err(Error::InvalidStack)?;
         self.state.reset();
+        #[cfg(feature = "storage")]
+        self.storage.clear_database().await?;
 
         self.request_after = 0;
         self.update_stacks_for_all_markets(&[], &[], usize::MAX)
