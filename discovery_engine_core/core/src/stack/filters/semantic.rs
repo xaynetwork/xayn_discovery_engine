@@ -16,73 +16,67 @@ use std::collections::BTreeMap;
 
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
-use lazy_static::lazy_static;
 use ndarray::ArrayView1;
-use num_traits::ToPrimitive;
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-use xayn_discovery_engine_ai::{
-    cosine_similarity,
-    l2_norm,
-    nan_safe_f32_cmp,
-    triangular_product_vec,
-};
+use once_cell::sync::Lazy;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use xayn_discovery_engine_ai::{l2_norm, nan_safe_f32_cmp};
 
 use crate::document::{Document, WeightedSource};
 
 use super::source_weight;
 
-lazy_static! {
-    // 1 year diff max
-    static ref DISTANCE_CACHE:Vec<f32> = lookup_table_distances(365);
-}
-
-/// Computes the condensed cosine similarity matrix of a documents' embeddings.
+/// Computes the cosine similarity of two documents' embeddings.
+///
+/// # Panics
+/// Panics if the indices `i` or `j` are out of bounds.
 #[inline]
-fn condensed_cosine_similarity(
-    doc_a: &Document,
-    doc_b: &Document,
-    i: usize,
-    j: usize,
-    norms: &Vec<f32>,
-) -> f32 {
-    let ni = (*norms)[i];
-    let nj = (*norms)[j];
-
-    if ni <= 0. || nj <= 0. {
+fn cosine_similarity(documents: &[Document], norms: &[f32], i: usize, j: usize) -> f32 {
+    if norms[i] <= 0. || norms[j] <= 0. {
         return 1.0;
     }
 
-    let v_a = doc_a.smbert_embedding.view();
-    let v_b = doc_b.smbert_embedding.view();
-
-    (v_a.dot(&v_b) / ni / nj).clamp(-1., 1.)
+    (documents[i]
+        .smbert_embedding
+        .view()
+        .dot(&documents[j].smbert_embedding.view())
+        / norms[i]
+        / norms[j])
+        .clamp(-1., 1.)
 }
 
-/// Computes the condensed date distance matrix (in days) of a documents' publication dates.
+/// Computes the date distance (in days) of two documents' publication dates.
+///
+/// # Panics
+/// Panics if the indices `i` or `j` are out of bounds.
 #[inline]
-fn condensed_date_distance(doc_a: &Document, doc_b: &Document) -> f32 {
-    (doc_a.resource.date_published - doc_b.resource.date_published)
+#[allow(clippy::cast_possible_truncation)] // distance is small enough
+fn date_distance(documents: &[Document], i: usize, j: usize) -> usize {
+    (documents[i].resource.date_published - documents[j].resource.date_published)
         .num_days()
-        .abs()
-        .to_f32()
-        .unwrap()
+        .unsigned_abs() as usize
 }
 
-/// Computes the condensed decayed date distance matrix.
+/// Computes the decayed date distance.
+///
+/// # Panics
+/// Panics if the index `distance` is out of bounds.
 #[inline]
-fn condensed_decay_factor(
-    distance: f32,
-    max_days: f32,
-    exp_max_days: f32,
-    threshold: f32,
-    distance_cache: &Vec<f32>,
-) -> f32 {
+fn decay_factor(distance: usize, max_days: usize, exp_max_days: f32, threshold: f32) -> f32 {
     if max_days <= distance {
         return threshold;
     }
 
-    let i = distance.to_usize().unwrap();
-    ((exp_max_days - (*distance_cache)[i]) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
+    static EXP_DISTANCES: Lazy<Vec<f32>> = Lazy::new(|| {
+        (0..365)
+            .into_par_iter()
+            .map(
+                #[allow(clippy::cast_precision_loss)] // distance is small enough
+                |distance| (-0.1 * distance as f32).exp(),
+            )
+            .collect()
+    });
+
+    ((exp_max_days - EXP_DISTANCES[distance]) / (exp_max_days - 1.)).max(0.) * (1. - threshold)
         + threshold
 }
 
@@ -179,48 +173,38 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
         })
 }
 
-fn lookup_table_distances(exp_max_days: usize) -> Vec<f32> {
-    (0..exp_max_days)
-        .into_par_iter()
-        .map(|i| (-0.1 * i.to_f32().unwrap()).exp())
-        .collect()
-}
-
-fn lookup_table_norms(documents: &[Document]) -> Vec<f32> {
+fn compute_norms(documents: &[Document]) -> Vec<f32> {
     documents
         .into_par_iter()
         .map(|document| l2_norm(document.smbert_embedding.view()))
         .collect()
 }
 
+fn triangular_indices(size: usize) -> Vec<(usize, usize)> {
+    (0..size)
+        .flat_map(|row| (row + 1..size).map(move |column| (row, column)))
+        .collect()
+}
+
 /// Calculates the normalized distances.
 fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
-    let norms = lookup_table_norms(documents);
-    let exp_max_days = (-0.1 * config.max_days).exp();
+    let norms = compute_norms(documents);
+    #[allow(clippy::cast_precision_loss)] // max_days is usually small enough
+    let exp_max_days = (-0.1 * config.max_days as f32).exp();
     // simplified to a single loop, where the indiviudal values are calculated and finally returned as factor
-    let combined: Vec<f32> = triangular_product_vec(documents.len())
+    let combined = triangular_indices(documents.len())
         .into_par_iter()
-        .map(|t| {
-            let i = t.0;
-            let j = t.1;
-            let doc_a = &(documents[i]);
-            let doc_b = &(documents[j]);
-            let distance = condensed_date_distance(doc_a, doc_b);
-            let decay = condensed_decay_factor(
-                distance,
-                config.max_days,
-                exp_max_days,
-                config.threshold,
-                &DISTANCE_CACHE,
-            );
+        .map(|(i, j)| {
+            let distance = date_distance(documents, i, j);
+            let decay = decay_factor(distance, config.max_days, exp_max_days, config.threshold);
 
             if decay == 0. {
                 0.
             } else {
-                condensed_cosine_similarity(doc_a, doc_b, i, j, &norms) * decay
+                cosine_similarity(documents, &norms, i, j) * decay
             }
         })
-        .collect();
+        .collect::<Vec<_>>();
 
     let (min, max) = combined
         .iter()
@@ -234,8 +218,8 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
 
 /// Configurations for semantic filtering.
 pub(crate) struct SemanticFilterConfig {
-    /// Maximum days threshold after which documents fully decay (must be non-negative).
-    pub(crate) max_days: f32,
+    /// Maximum days threshold after which documents fully decay.
+    pub(crate) max_days: usize,
     /// Threshold to scale the time decay factor.
     pub(crate) threshold: f32,
     /// The criterion when to stop merging the clusters.
@@ -254,7 +238,7 @@ pub(crate) enum Criterion {
 impl Default for SemanticFilterConfig {
     fn default() -> Self {
         Self {
-            max_days: 10.,
+            max_days: 10,
             threshold: 0.5,
             criterion: Criterion::MaxDissimilarity(0.5),
         }
@@ -310,7 +294,7 @@ where
     docs.into_iter()
         .map(|doc| {
             cois.clone()
-                .map(|coi| cosine_similarity(doc, coi))
+                .map(|coi| xayn_discovery_engine_ai::cosine_similarity(doc, coi))
                 .max_by(nan_safe_f32_cmp)
                 .unwrap(/* cois is not empty */)
         })
@@ -356,22 +340,13 @@ mod tests {
 
     #[test]
     fn test_condensed_cosine_similarity() {
-        fn condensed_cosine_similarity_all(documents: &[Document]) -> Vec<f32> {
-            let norms = lookup_table_norms(documents);
-
-            triangular_product_vec(documents.len())
-                .into_iter()
-                .map(|t| {
-                    let doc_a = &(documents[t.0]);
-                    let doc_b = &(documents[t.1]);
-                    condensed_cosine_similarity(doc_a, doc_b, t.0, t.1, &norms)
-                })
-                .collect()
-        }
-
         for n in 0..5 {
-            let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
-            let condensed = condensed_cosine_similarity_all(&documents);
+            let documents = repeat_with(Document::default).take(n).collect_vec();
+            let norms = compute_norms(&documents);
+            let condensed = triangular_indices(documents.len())
+                .into_iter()
+                .map(|(i, j)| cosine_similarity(&documents, &norms, i, j))
+                .collect_vec();
             if n < 2 {
                 assert!(condensed.is_empty());
             } else {
@@ -382,66 +357,35 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::float_cmp)] // c represents whole days
     fn test_condensed_date_distance() {
-        fn condensed_date_distance_all(documents: &[Document]) -> Vec<f32> {
-            triangular_product_vec(documents.len())
-                .into_iter()
-                .map(|t| {
-                    let doc_a = &(documents[t.0]);
-                    let doc_b = &(documents[t.1]);
-                    condensed_date_distance(doc_a, doc_b)
-                })
-                .collect()
-        }
-
         for n in 0..5 {
-            let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
-            let condensed = condensed_date_distance_all(&documents);
+            let documents = repeat_with(Document::default).take(n).collect_vec();
+            let condensed = triangular_indices(documents.len())
+                .into_iter()
+                .map(|(i, j)| date_distance(&documents, i, j))
+                .collect_vec();
             if n < 2 {
                 assert!(condensed.is_empty());
             } else {
                 assert_eq!(condensed.len(), n * (n - 1) / 2);
             }
-            assert!(condensed.into_iter().all(|c| 0. <= c && c == c.trunc()));
         }
     }
 
     #[test]
-    #[allow(clippy::cast_precision_loss)] // d is small
+    #[allow(clippy::cast_precision_loss)] // max_days is small
     #[allow(clippy::float_cmp)] // exact equality due to maximum function
     fn test_condensed_decay_factor() {
-        fn condensed_decay_factor_all(
-            date_distance: Vec<f32>,
-            max_days: f32,
-            threshold: f32,
-        ) -> Vec<f32> {
-            let distance_cache = lookup_table_distances(max_days.to_usize().unwrap());
-            let exp_max_days = (-0.1 * max_days).exp();
-            date_distance
-                .into_iter()
-                .map(|distance| {
-                    condensed_decay_factor(
-                        distance,
-                        max_days,
-                        exp_max_days,
-                        threshold,
-                        &distance_cache,
-                    )
-                })
-                .collect()
-        }
-
-        for n in 0..5 {
-            let date_distance = (0..n).map(|d| d as f32).collect();
-            let max_days = 2;
-            let threshold = 0.5;
-            let condensed = condensed_decay_factor_all(date_distance, max_days as f32, threshold);
-            for (m, c) in condensed.into_iter().enumerate() {
-                if m < max_days {
-                    assert!(c > threshold);
+        let max_days = 2;
+        let exp_max_days = (-0.1 * max_days as f32).exp();
+        let threshold = 0.5;
+        for distance in 0..5 {
+            for distance in 0..distance {
+                let factor = decay_factor(distance, max_days, exp_max_days, threshold);
+                if distance < max_days {
+                    assert!(factor > threshold);
                 } else {
-                    assert_eq!(c, threshold);
+                    assert_eq!(factor, threshold);
                 }
             }
         }
@@ -598,7 +542,7 @@ mod tests {
             let documents = titles
                 .iter()
                 .map(|(title, secs)| new_doc(smbert.run(title).unwrap(), *secs))
-                .collect::<Vec<_>>();
+                .collect_vec();
             let distances = normalized_distance(&documents, &SemanticFilterConfig::default());
             assert_approx_eq!(f32, distances, expected);
         }

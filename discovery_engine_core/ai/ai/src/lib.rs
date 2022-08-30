@@ -55,7 +55,7 @@ pub use crate::{
         MalformedBytesEmbedding,
     },
     error::GenericError,
-    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, triangular_product_vec},
+    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
 };
 
 #[cfg(doc)]

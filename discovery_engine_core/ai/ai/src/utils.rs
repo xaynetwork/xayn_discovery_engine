@@ -95,32 +95,6 @@ pub(crate) mod serde_duration_as_days {
     }
 }
 
-pub fn triangular_product_vec(size: usize) -> Vec<(usize, usize)> {
-    if size < 2 {
-        return vec![(0, 0); 0];
-    }
-
-    let triangle_number = size * (size - 1) / 2;
-    let mut v = Vec::new();
-    let mut primary_index = 0;
-    let mut col_count = size - 1;
-    let mut col = 0;
-
-    for _i in 0..triangle_number {
-        if col == col_count {
-            col_count -= 1;
-            col = 0;
-            primary_index += 1;
-        }
-
-        col += 1;
-
-        v.push((primary_index, primary_index + col));
-    }
-
-    v
-}
-
 #[cfg(test)]
 mod tests {
     use std::{error::Error, time::Duration};
