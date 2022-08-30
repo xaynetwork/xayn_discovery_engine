@@ -49,6 +49,7 @@ pub(super) async fn request_min_new_items<I: Send>(
             }
             Ok(Err(err)) => {
                 error.replace(err);
+                break;
             }
             // should we also push handle errors?
             Err(_) => {}
@@ -124,28 +125,7 @@ mod tests {
             request_min_new_items(2, 2, 1, |i| Response::err(&format!("{}", i)).request(), Ok)
                 .await;
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err().to_string(), "1");
-    }
-
-    #[tokio::test]
-    async fn test_request_min_new_items_mixed() {
-        let items = request_min_new_items(
-            2,
-            2,
-            1,
-            |i| {
-                match i {
-                    0 => Response::err(&format!("{}", i)),
-                    1 => Response::ok(&[i]),
-                    _ => unreachable!(),
-                }
-                .request()
-            },
-            Ok,
-        )
-        .await
-        .unwrap();
-        assert_eq!(items.len(), 1);
+        assert_eq!(res.unwrap_err().to_string(), "0");
     }
 
     #[tokio::test]
