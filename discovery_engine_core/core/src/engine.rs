@@ -1461,7 +1461,7 @@ fn rank_stacks<'a>(
 /// Updates the stacks with data related to the top key phrases of the current data.
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip(stacks, exploration_stack, smbert, coi, state, history))]
-async fn update_stacks<'a>(
+async fn update_stacks(
     stacks: &mut HashMap<Id, Stack>,
     exploration_stack: &mut Exploration,
     smbert: &SMBert,
@@ -1474,17 +1474,13 @@ async fn update_stacks<'a>(
     request_new: usize,
     markets: &[Market],
 ) -> Result<(), Error> {
-    let mut ready_stacks = stacks.len();
-    let mut errors = Vec::new();
-    let mut all_documents = Vec::new();
-
     // Needy stacks are the ones for which we want to fetch new items.
     let needy_stacks = stacks
         .values_mut()
         .filter(|stack| stack.len() <= request_new)
         .collect_vec();
 
-    // return early if there are no stacks to be updated
+    // return early if there are no needy stacks
     if needy_stacks.is_empty() {
         info!(message = "no stacks needed an update");
         return Ok(());
@@ -1508,38 +1504,46 @@ async fn update_stacks<'a>(
                 .collect::<HashMap<_, _>>()
         })
         .unwrap_or_default();
-
-    // Here we gather new documents for all relevant stacks, and put them into a vector.
-    // We don't update the stacks immediately, because we want to de-duplicate the documents
-    // across stacks first.
     let new_document_futures = needy_stacks
         .iter()
         .flat_map(|stack| {
-            markets.iter().map(|market| {
+            markets.iter().map(|market| async {
                 let key_phrases = key_phrases_by_market
                     .get(market)
                     .map_or(&[] as &[_], Vec::as_slice);
-                fetch_new_documents_for_stack(stack, smbert, key_phrases, history, market)
+                (
+                    stack.id(),
+                    fetch_new_documents_for_stack(stack, smbert, key_phrases, history, market)
+                        .await,
+                )
             })
         })
         .collect_vec();
 
-    let mut stacks_not_ready = HashSet::<StackId>::new();
-    for maybe_new_documents in join_all(new_document_futures).await {
+    // Here we gather new documents for all relevant stacks, and put them into a vector.
+    // We don't update the stacks immediately, because we want to de-duplicate the documents
+    // across stacks first.
+    let mut all_documents = Vec::new();
+    let mut not_ready_stacks = HashSet::new();
+    let mut errors = HashMap::<_, Vec<_>>::new();
+    for (stack_id, maybe_new_documents) in join_all(new_document_futures).await {
         match maybe_new_documents {
-            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady(stack_id)))) => {
-                stacks_not_ready.insert(stack_id);
-                continue;
+            Ok(documents) => all_documents.extend(documents),
+            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady))) => {
+                not_ready_stacks.insert(stack_id);
             }
             Err(error) => {
-                error!("{}", error);
-                errors.push(error);
-                continue;
+                error!("{stack_id}: {error}");
+                errors.entry(stack_id).or_default().push(error);
             }
-            Ok(documents) => all_documents.extend(documents),
         };
     }
-    ready_stacks -= stacks_not_ready.len();
+
+    // return early if all needy stacks failed for all markets
+    if all_documents.is_empty() && errors.len() >= needy_stacks.len() {
+        return Err(Error::Errors(errors.into_values().flatten().collect()));
+    }
+    errors.clear();
 
     // Since we need to de-duplicate not only the newly retrieved documents among themselves,
     // but also consider the existing documents in all stacks (not just the needy ones), we extract
@@ -1564,9 +1568,9 @@ async fn update_stacks<'a>(
 
     // Filter the exploration stack documents from the other documents, in order
     // to keep the loop below simple.
-    let (mut exploration_docs, other_docs): (Vec<Document>, Vec<Document>) = all_documents
+    let (mut exploration_docs, other_docs) = all_documents
         .into_iter()
-        .partition(|doc| doc.stack_id == Exploration::id());
+        .partition::<Vec<_>, _>(|doc| doc.stack_id == Exploration::id());
 
     // Finally, we can update the stacks with their respective documents. To do this, we
     // have to group the fetched documents by `stack_id`, then `update` the stacks.
@@ -1580,8 +1584,8 @@ async fn update_stacks<'a>(
 
         if let Err(error) = stack.update(&documents_group, coi, &state.user_interests) {
             let error = Error::StackOpFailed(error);
-            error!("{}", error);
-            errors.push(error);
+            error!("{stack_id}: {error}");
+            errors.entry(stack_id).or_default().push(error);
         } else {
             let is_breaking_news = stack.id() == BreakingNews::id();
             if let (true, Some(documents)) = (is_breaking_news, stack.data.retain_top(keep_top)) {
@@ -1591,9 +1595,10 @@ async fn update_stacks<'a>(
     }
 
     if let Err(error) = exploration_stack.update(&exploration_docs, coi, &state.user_interests) {
+        let stack_id = Exploration::id();
         let error = Error::StackOpFailed(error);
-        error!("{}", error);
-        errors.push(error);
+        error!("{stack_id}: {error}");
+        errors.entry(stack_id).or_default().push(error);
     } else {
         exploration_stack.data.retain_top(keep_top);
     }
@@ -1615,9 +1620,9 @@ async fn update_stacks<'a>(
         }
     }
 
-    // only return an error if all stacks that were ready to get new items failed
-    if !errors.is_empty() && errors.len() >= ready_stacks {
-        Err(Error::Errors(errors))
+    // only return an error if all stacks (including exploration) failed
+    if errors.len() > stacks.len() {
+        Err(Error::Errors(errors.into_values().flatten().collect()))
     } else {
         Ok(())
     }
@@ -1969,10 +1974,9 @@ pub(crate) mod tests {
         let engine = &mut *init_engine(
             [|_: &'_ _, _: &'_ _| {
                 let mut mock_ops = new_mock_stack_ops();
-                let id = mock_ops.id();
                 mock_ops
                     .expect_new_items()
-                    .returning(move |_, _, _, _| Err(NewItemsError::NotReady(id)));
+                    .returning(|_, _, _, _| Err(NewItemsError::NotReady));
                 Box::new(mock_ops) as _
             }],
             false,
@@ -2004,10 +2008,9 @@ pub(crate) mod tests {
         let engine = &mut *init_engine(
             [|_: &'_ _, _: &'_ _| {
                 let mut mock_ops = new_mock_stack_ops();
-                let id = mock_ops.id();
                 mock_ops
                     .expect_new_items()
-                    .returning(move |_, _, _, _| Err(NewItemsError::NotReady(id)));
+                    .returning(|_, _, _, _| Err(NewItemsError::NotReady));
                 Box::new(mock_ops) as _
             }],
             false,
