@@ -14,7 +14,7 @@
 
 use serde_json::from_reader;
 use std::{collections::HashMap, fs::File, path::PathBuf, sync::Arc};
-use xayn_discovery_engine_ai::{CoiConfig, CoiSystem, GenericError, KpsConfig};
+use xayn_discovery_engine_ai::{CoiConfig, CoiSystem, GenericError};
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
@@ -45,7 +45,7 @@ impl AppState {
             documents_by_id,
             documents,
             smbert,
-            coi: CoiConfig::default().build(KpsConfig::default()),
+            coi: CoiConfig::default().build(),
             user_state,
         }
     }

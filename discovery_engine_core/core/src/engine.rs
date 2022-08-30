@@ -40,6 +40,8 @@ use xayn_discovery_engine_ai::{
     GenericError,
     KeyPhrase,
     KeyPhrases,
+    KpsConfig,
+    KpsSystem,
     UserInterests,
 };
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
@@ -166,6 +168,7 @@ pub struct Engine {
     // systems
     smbert: SMBert,
     pub(crate) coi: CoiSystem,
+    pub(crate) kps: KpsSystem,
     kpe: KPE,
     providers: Providers,
 
@@ -181,9 +184,9 @@ pub struct Engine {
 impl Engine {
     /// Creates a discovery [`Engine`].
     ///
-    /// The engine only keeps in its state data related to the current [`BoxedOps`].
+    /// The engine only keeps in its stack data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::similar_names)]
     async fn new(
         endpoint_config: EndpointConfig,
         core_config: CoreConfig,
@@ -193,6 +196,7 @@ impl Engine {
         search_config: SearchConfig,
         smbert: SMBert,
         coi: CoiSystem,
+        kps: KpsSystem,
         kpe: KPE,
         user_interests: UserInterests,
         key_phrases: KeyPhrases,
@@ -233,6 +237,7 @@ impl Engine {
             request_after: 0,
             smbert,
             coi,
+            kps,
             kpe,
             providers,
             stacks,
@@ -253,7 +258,7 @@ impl Engine {
     }
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines, clippy::similar_names)]
     pub async fn from_config(
         config: InitConfig,
         // TODO: change this to a boolean flag after DB migration
@@ -300,11 +305,11 @@ impl Engine {
         let coi = de_config
             .extract_inner::<CoiConfig>("coi")
             .map_err(|err| Error::Ranker(err.into()))?
-            .build(
-                de_config
-                    .extract_inner("kps")
-                    .map_err(|err| Error::Ranker(err.into()))?,
-            );
+            .build();
+        let kps = de_config
+            .extract_inner::<KpsConfig>("kps")
+            .map_err(|err| Error::Ranker(err.into()))?
+            .build();
         let kpe = KpeConfig::from_files(
             &config.kpe_vocab,
             &config.kpe_model,
@@ -400,6 +405,7 @@ impl Engine {
             search_config,
             smbert,
             coi,
+            kps,
             kpe,
             user_interests,
             key_phrases,
@@ -435,6 +441,7 @@ impl Engine {
             &mut self.exploration_stack,
             &self.smbert,
             &self.coi,
+            &self.kps,
             &self.user_interests,
             &mut self.key_phrases,
             history,
@@ -459,7 +466,7 @@ impl Engine {
         let mut markets_guard = self.endpoint_config.markets.write().await;
         let mut old_markets = replace(&mut *markets_guard, new_markets);
         old_markets.retain(|market| !markets_guard.contains(market));
-        CoiSystem::remove_key_phrases(&old_markets, &mut self.key_phrases);
+        KpsSystem::remove_key_phrases(&old_markets, &mut self.key_phrases);
         drop(markets_guard);
 
         self.clear_stack_data().await;
@@ -715,11 +722,12 @@ impl Engine {
         match reaction {
             UserReaction::Positive => {
                 let smbert = &self.smbert;
-                self.coi.log_positive_user_reaction(
+                self.kps.log_positive_user_reaction(
+                    &self.coi,
                     &mut self.user_interests.positive,
+                    &document.smbert_embedding,
                     &market,
                     &mut self.key_phrases,
-                    &document.smbert_embedding,
                     &[document.resource.snippet_or_title().to_string()],
                     |words| smbert.run(words).map_err(Into::into),
                 );
@@ -747,6 +755,7 @@ impl Engine {
                     &mut self.exploration_stack,
                     &self.smbert,
                     &self.coi,
+                    &self.kps,
                     &self.user_interests,
                     &mut self.key_phrases,
                     history,
@@ -1437,6 +1446,7 @@ fn rank_stacks<'a>(
     exploration_stack,
     smbert,
     coi,
+    kps,
     user_interests,
     key_phrases,
     history
@@ -1446,6 +1456,7 @@ async fn update_stacks(
     exploration_stack: &mut Exploration,
     smbert: &SMBert,
     coi: &CoiSystem,
+    kps: &KpsSystem,
     user_interests: &UserInterests,
     key_phrases: &mut KeyPhrases,
     history: &[HistoricDocument],
@@ -1474,7 +1485,8 @@ async fn update_stacks(
             markets
                 .iter()
                 .map(|market| {
-                    let key_phrases = coi.take_key_phrases(
+                    let key_phrases = kps.take_key_phrases(
+                        coi,
                         &user_interests.positive,
                         market,
                         key_phrases,
@@ -1880,6 +1892,7 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
+            &engine.kps,
             &engine.user_interests,
             &mut engine.key_phrases,
             &[],
@@ -1905,6 +1918,7 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
+            &engine.kps,
             &engine.user_interests,
             &mut engine.key_phrases,
             &[],
@@ -1940,6 +1954,7 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
+            &engine.kps,
             &engine.user_interests,
             &mut engine.key_phrases,
             &[],
@@ -1984,6 +1999,7 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
+            &engine.kps,
             &engine.user_interests,
             &mut engine.key_phrases,
             &[],
@@ -2025,6 +2041,7 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
+            &engine.kps,
             &engine.user_interests,
             &mut engine.key_phrases,
             &[],
@@ -2057,6 +2074,7 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
+            &engine.kps,
             &engine.user_interests,
             &mut engine.key_phrases,
             &[],

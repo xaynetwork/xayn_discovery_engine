@@ -27,10 +27,10 @@ use crate::{
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
 pub struct PositiveCoi {
-    pub(super) id: CoiId,
-    pub(super) point: Embedding,
+    pub(crate) id: CoiId,
+    pub(crate) point: Embedding,
     #[derivative(PartialEq = "ignore")]
-    pub(crate) stats: CoiStats,
+    pub(super) stats: CoiStats,
 }
 
 impl PositiveCoi {
@@ -51,7 +51,7 @@ pub struct NegativeCoi {
     pub(super) id: CoiId,
     pub(super) point: Embedding,
     #[derivative(PartialEq = "ignore")]
-    pub(crate) last_view: SystemTime,
+    pub(super) last_view: SystemTime,
 }
 
 impl NegativeCoi {
@@ -131,7 +131,7 @@ pub(super) fn find_closest_coi_index(
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
-pub(crate) fn find_closest_coi<'coi, CP>(
+pub(super) fn find_closest_coi<'coi, CP>(
     cois: &'coi [CP],
     embedding: &Embedding,
 ) -> Option<(&'coi CP, f32)>
