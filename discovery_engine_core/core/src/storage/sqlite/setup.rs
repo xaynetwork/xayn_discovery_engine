@@ -1,21 +1,91 @@
-use std::str::FromStr;
+use std::{path::Path, str::FromStr};
 
+use crate::{
+    stack,
+    storage::{utils::SqlxPushTupleExt, Error, InitDbHint},
+    utils::{remove_file_if_exists, CompoundError, MiscErrorExt},
+};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     Pool,
     QueryBuilder,
     Sqlite,
-    SqlitePool,
     Transaction,
-};
-use tokio::fs;
-
-use crate::{
-    stack,
-    storage::{utils::SqlxPushTupleExt, Error, InitDbHint},
 };
 
 use super::SqliteStorage;
+
+/// Initializes the Sqlite storage system.
+///
+/// If the opening or schema migrating of an existing db fails it is deleted
+/// and a new db is opened instead.
+pub(super) async fn init_storage_system(
+    file_path: Option<String>,
+) -> Result<(SqliteStorage, InitDbHint), Error> {
+    let file_exists = db_file_does_exist(file_path.as_deref()).await;
+    let result = init_storage_system_once(file_path.clone()).await;
+    let first_error = match (file_exists, result) {
+        (false, Ok(storage)) => return Ok((storage, InitDbHint::NewDbCreated)),
+        (true, Ok(storage)) => return Ok((storage, InitDbHint::NormalInit)),
+        (false, Err(err)) => return Err(err),
+        (true, Err(err)) => err,
+    };
+
+    delete_db_files(file_path.as_deref()).await;
+
+    init_storage_system_once(file_path)
+        .await
+        .map(|storage| (storage, InitDbHint::DbOverwrittenDueToErrors(first_error)))
+}
+
+/// Check if a db file does exist, this must be called before creating a connection pool.
+async fn db_file_does_exist(file_path: Option<&str>) -> bool {
+    if let Some(path) = file_path {
+        //tokio version of `std::path::Path::exists()`
+        tokio::fs::metadata(Path::new(path)).await.is_ok()
+    } else {
+        Ok(false)
+    }
+}
+
+/// Deletes all sqlite db files associated with given db file path.
+///
+/// File does not exist errors are fully ignored.
+///
+/// The first (non ignored) error is returned, but it still tries to
+/// delete the other files.
+pub(super) async fn delete_db_files(file_path: Option<&str>) -> Result<(), Error> {
+    if let Some(file_path) = &file_path {
+        let mut errors = vec![];
+
+        // if deletion fails it is often but not always a problem for the
+        // db recreation, so we log the error but do continue on.
+        remove_file_if_exists(file_path)
+            .await
+            .extract_error(&mut errors);
+        remove_file_if_exists(&format!("{}-wal", file_path))
+            .await
+            .extract_error(&mut errors);
+        remove_file_if_exists(&format!("{}-shm", file_path))
+            .await
+            .extract_error(&mut errors);
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::Database(Box::new(CompoundError::new(
+                "deleting database files failed",
+                errors,
+            ))))
+        }
+    }
+}
+
+async fn init_storage_system_once(file_path: Option<String>) -> Result<SqliteStorage, Error> {
+    let pool = create_connection_pool(file_path.as_deref()).await?;
+    init_database(&pool);
+    Ok(SqliteStorage { pool, file_path })
+}
 
 async fn create_connection_pool(file_path: Option<&str>) -> Result<Pool<Sqlite>, Error> {
     let opt = if let Some(file_path) = &file_path {
@@ -31,36 +101,7 @@ async fn create_connection_pool(file_path: Option<&str>) -> Result<Pool<Sqlite>,
         .map_err(Into::into)
 }
 
-pub async fn init_storage_system(
-    file_path: Option<String>,
-) -> Result<(SqliteStorage, InitDbHint), Error> {
-    let first_error = match init_storage_system_once(file_path.clone()).await {
-        (true, Ok(storage)) => return Ok((storage, InitDbHint::NewDbCreated)),
-        (false, Ok(storage)) => return Ok((storage, InitDbHint::NormalInit)),
-        (true, Err(err)) => return Err(err),
-        (false, Err(err)) => err,
-    };
-
-    if let Some(file_path) = &file_path {
-        fs::remove_file(file_path).await;
-        fs::remove_file(&format!("{}-wal", file_path)).await;
-        fs::remove_file(&format!("{}-shm", file_path)).await;
-    }
-
-    init_storage_system_once(file_path)
-        .await
-        .map(|storage| (storage, InitDbHint::DbOverwrittenDueToErrors(first_error)))
-}
-
-pub async fn init_storage_system_once(
-    file_path: Option<String>,
-) -> Result<(bool, SqliteStorage), Error> {
-    let pool = create_connection_pool(file_path.as_deref()).await?;
-    let fresh = query_if_db_is_empty(&pool).await?;
-    //todo[pmk]
-}
-
-pub(super) async fn init_database(pool: &Pool<Sqlite>) -> Result<(), Error> {
+async fn init_database(pool: &Pool<Sqlite>) -> Result<(), Error> {
     sqlx::migrate!("src/storage/migrations")
         .run(pool)
         .await
@@ -70,15 +111,6 @@ pub(super) async fn init_database(pool: &Pool<Sqlite>) -> Result<(), Error> {
     setup_stacks_sync(&mut tx).await?;
     tx.commit().await?;
     Ok(())
-}
-
-/// Returns true if there are no tables in the db.
-async fn query_if_db_is_empty(pool: &Pool<Sqlite>) -> Result<bool, Error> {
-    let (count,) = sqlx::query_as::<_, (u32,)>("SELECT count(*) FROM sqlite_schema")
-        .fetch_one(pool)
-        .await?;
-
-    Ok(count == 0)
 }
 
 async fn setup_stacks_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {

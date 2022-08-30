@@ -14,7 +14,7 @@
 
 //! Collection of utility functions.
 
-use std::{fmt::Display, io, path::Path};
+use std::{borrow::Cow, error::Error, fmt::Display, io, path::Path};
 
 use tracing::error;
 
@@ -71,5 +71,39 @@ impl<T, E> MiscErrorExt<T, E> for Result<T, E> {
                 None
             }
         }
+    }
+}
+
+/// Minimalists implementation of an compound error consisting of a message an a list of sub-errors.
+#[derive(Debug)]
+pub(crate) struct CompoundError<E: Error + 'static> {
+    msg: Cow<'static, str>,
+    errors: Vec<E>,
+}
+
+impl<E: Error + 'static> CompoundError<E> {
+    pub(crate) fn new(msg: impl Into<Cow<'static, str>>, errors: Vec<E>) {
+        Self {
+            msg: msg.into(),
+            errors,
+        }
+    }
+}
+
+impl<E: Error + 'static> Display for CompoundError<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.msg)?;
+        writeln!(f, "({} errors):", self.errors.len())?;
+        for (idx, error) in self.errors.iter().enumerate() {
+            writeln!(f, "{idx}: {error}")?;
+        }
+        Ok(())
+    }
+}
+
+impl<E: Error + 'static> Error for CompoundError<E> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // we don't use source, so this is good enough
+        self.errors.first().map(|err| err as _)
     }
 }
