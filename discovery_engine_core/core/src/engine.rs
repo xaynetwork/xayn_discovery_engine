@@ -706,7 +706,7 @@ impl Engine {
                         snippet: reacted.snippet,
                         url: Url::parse("https://foobar.invalid").unwrap(),
                         source_domain: "foobar.invalid".into(),
-                        date_published: Utc::now().naive_utc(),
+                        date_published: Utc::now(),
                         image: None,
                         rank: 0,
                         score: None,
@@ -1746,7 +1746,7 @@ pub(crate) mod tests {
     use std::mem::size_of;
 
     use async_once_cell::OnceCell;
-    use chrono::NaiveDate;
+    use chrono::{TimeZone, Utc};
     use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
     use url::Url;
     use wiremock::{
@@ -2177,7 +2177,7 @@ pub(crate) mod tests {
             snippet: String::default(),
             url: example_url(),
             image: None,
-            date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
             score: None,
             rank: Rank::default(),
             country: "US".to_string(),

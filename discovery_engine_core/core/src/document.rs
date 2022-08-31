@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
@@ -134,7 +134,7 @@ impl AiDocument for Document {
         &self.smbert_embedding
     }
 
-    fn date_published(&self) -> NaiveDateTime {
+    fn date_published(&self) -> DateTime<Utc> {
         self.resource.date_published
     }
 }
@@ -155,7 +155,7 @@ pub struct NewsResource {
     pub source_domain: String,
 
     /// Publishing date.
-    pub date_published: NaiveDateTime,
+    pub date_published: DateTime<Utc>,
 
     /// Image attached to the news.
     pub image: Option<Url>,
@@ -358,15 +358,15 @@ impl AiDocument for TrendingTopic {
         &self.smbert_embedding
     }
 
-    fn date_published(&self) -> NaiveDateTime {
+    fn date_published(&self) -> DateTime<Utc> {
         // return a default value as there is no `date_published` for trending topics
-        NaiveDateTime::MIN
+        DateTime::<Utc>::MIN_UTC
     }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use chrono::NaiveDate;
+    use chrono::TimeZone;
 
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
 
@@ -380,7 +380,7 @@ pub(crate) mod tests {
                 url: example_url(),
                 source_domain: "example.com".to_string(),
                 image: None,
-                date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+                date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
                 score: None,
                 rank: 0,
                 country: "GB".to_string(),
@@ -403,7 +403,7 @@ pub(crate) mod tests {
             topic: "news".to_string(),
             country: "GB".to_string(),
             language: "en".to_string(),
-            date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
             url: UrlWithDomain::new(Url::parse("https://example.com/news/").unwrap()).unwrap(),
             image: Some(Url::parse("https://example.com/news/image.jpg").unwrap()),
             embedding: None,

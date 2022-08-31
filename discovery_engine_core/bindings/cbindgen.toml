@@ -8,9 +8,9 @@ no_includes = true
 
 after_includes = """
 // Typedefs to make sure this "unknown" types are treated as opaque by ffigen.
+typedef struct RustDateTimeUtc RustDateTimeUtc;
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
-typedef struct RustNaiveDateTime RustNaiveDateTime;
 typedef struct RustUrl RustUrl;
 typedef struct RustUuid RustUuid;
 """
@@ -21,6 +21,7 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 
 [export.rename]
 # Renamings to avoid name conflicts/confusion in dart.
+"DateTimeUtc" = "RustDateTimeUtc"
 "Document" = "RustDocument"
 "Duration" = "RustDuration"
 "Embedding" = "RustEmbedding"
@@ -28,12 +29,12 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "HistoricDocument" = "RustHistoricDocument"
 "InitConfig" = "RustInitConfig"
 "Market" = "RustMarket"
-"NaiveDateTime" = "RustNaiveDateTime"
 "NewsResource" = "RustNewsResource"
 "Option_f32" = "RustOptionF32"
 "Option_String" = "RustOptionString"
 "Option_Url" = "RustOptionUrl"
 "Option_UserReaction" = "RustOptionUserReaction"
+"Result_Document__String" = "RustResultDocumentString"
 "Result_Search__String" = "RustResultSearchString"
 "Result_SharedEngine__String" = "RustResultSharedEngineString"
 "Result_String" = "RustResultVoidString"

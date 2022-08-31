@@ -12,11 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Error, Error::InvalidUrl, NewscatcherArticle};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use derive_more::Deref;
 use serde::{Deserialize, Serialize};
 use url::Url;
+
+use crate::{Error, Error::InvalidUrl, NewscatcherArticle};
 
 /// A helper type used to ensure that, within the [`GenericArticle`] struct,
 /// we never use a URL which does not have a domain, such as `file:///foo/bar`.
@@ -70,7 +71,7 @@ pub struct GenericArticle {
     pub title: String,
     pub snippet: String,
     pub url: UrlWithDomain,
-    pub date_published: NaiveDateTime,
+    pub date_published: DateTime<Utc>,
     pub country: String,
     pub language: String,
     pub topic: String,
@@ -110,7 +111,7 @@ impl TryFrom<NewscatcherArticle> for GenericArticle {
         Ok(Self {
             title: article.title,
             snippet: article.excerpt,
-            date_published: article.published_date,
+            date_published: article.date_published,
             url,
             image,
             rank: Rank::new(article.rank),
@@ -125,7 +126,7 @@ impl TryFrom<NewscatcherArticle> for GenericArticle {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use chrono::TimeZone;
 
     use super::*;
 
@@ -136,7 +137,7 @@ mod tests {
                 snippet: String::default(),
                 url: example_url(),
                 image: None,
-                date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+                date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
                 score: None,
                 rank: Rank::default(),
                 country: "US".to_string(),
@@ -181,7 +182,7 @@ mod tests {
         assert_eq!(article.score, resource.score);
         assert_eq!(article.rank, resource.rank.0);
         assert_eq!(article.topic, resource.topic);
-        assert_eq!(article.published_date, resource.date_published);
+        assert_eq!(article.date_published, resource.date_published);
     }
 
     #[test]

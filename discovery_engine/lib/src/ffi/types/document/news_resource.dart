@@ -22,7 +22,7 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustNewsResource;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/date_time.dart'
-    show NaiveDateTimeFfi;
+    show DateTimeUtcFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uri.dart' show UriFfi;
@@ -64,7 +64,7 @@ extension NewsResourceFfi on NewsResource {
       image: UriFfi.readNativeOption(
         ffi.news_resource_place_of_image(resource),
       ),
-      datePublished: NaiveDateTimeFfi.readNative(
+      datePublished: DateTimeUtcFfi.readNative(
         ffi.news_resource_place_of_date_published(resource),
       ),
       rank: ffi.news_resource_place_of_rank(resource).value,

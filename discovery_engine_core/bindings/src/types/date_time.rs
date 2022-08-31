@@ -14,17 +14,20 @@
 
 //! FFI functions for handling date time fields.
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, TimeZone, Utc};
+
+/// cbindgen:ignore
+pub(super) type DateTimeUtc = DateTime<Utc>;
 
 const NANOS_PER_MICRO: i64 = 1_000;
 const MICROS_PER_SECOND: i64 = 1_000_000;
 
-/// [`chrono::naive::MAX_DATETIME`] in micros
+/// [`DateTimeUtc::MAX_UTC`] in micros
 const MAX_MICRO_SECONDS: i64 = 8_210_298_412_799_999_999;
-/// [`chrono::naive::MIN_DATETIME`] in micros
+/// [`DateTimeUtc::MIN_UTC`] in micros
 const MIN_MICRO_SECONDS: i64 = -8_334_632_851_200_000_000;
 
-/// Creates a rust `NaiveDateTime` at given memory address.
+/// Creates a rust `DateTimeUtc` at given memory address.
 ///
 /// Returns `1` if it succeeded `0` else wise.
 ///
@@ -33,100 +36,106 @@ const MIN_MICRO_SECONDS: i64 = -8_334_632_851_200_000_000;
 ///
 /// # Safety
 ///
-/// It must be valid to write a `NaiveDateTime` instance to given pointer,
+/// It must be valid to write a `DateTimeUtc` instance to given pointer,
 /// the pointer is expected to point to uninitialized memory.
 #[no_mangle]
-pub unsafe extern "C" fn init_naive_date_time_at(
-    place: *mut NaiveDateTime,
-    micros_since_naive_epoch: i64,
-) {
-    let micros_since_naive_epoch =
-        micros_since_naive_epoch.clamp(MIN_MICRO_SECONDS, MAX_MICRO_SECONDS);
-    let seconds = micros_since_naive_epoch / MICROS_PER_SECOND;
-    let nanos = (micros_since_naive_epoch.abs() % MICROS_PER_SECOND) * NANOS_PER_MICRO;
+pub unsafe extern "C" fn init_date_time_utc_at(place: *mut DateTimeUtc, micros_since_epoch: i64) {
+    let micros_since_epoch = micros_since_epoch.clamp(MIN_MICRO_SECONDS, MAX_MICRO_SECONDS);
+    let seconds = micros_since_epoch / MICROS_PER_SECOND;
+    let nanos = (micros_since_epoch.abs() % MICROS_PER_SECOND) * NANOS_PER_MICRO;
     // the unwraps failing is unreachable, but we do not want to have any panic path
     let nanos = u32::try_from(nanos).unwrap_or(u32::MAX);
-    let date_time = NaiveDateTime::from_timestamp_opt(seconds, nanos).unwrap_or(NaiveDateTime::MAX);
+    let date_time_utc = Utc
+        .timestamp_opt(seconds, nanos)
+        .single()
+        .unwrap_or(DateTimeUtc::MAX_UTC);
     unsafe {
-        place.write(date_time);
+        place.write(date_time_utc);
     }
 }
 
 /// Returns the number of micro seconds since midnight on January 1, 1970.
 ///
-/// More specifically it's the number of micro seconds since `1970-01-01T00:00:00Z` assuming
-/// the naive date time to be in UTC.
+/// More specifically it's the number of micro seconds since `1970-01-01T00:00:00Z`.
 ///
 /// # Safety
 ///
-/// The pointer must point to a sound initialized `NaiveDateTime` instance.
+/// The pointer must point to a soundly initialized `DateTimeUtc` instance.
 #[no_mangle]
-pub unsafe extern "C" fn get_naive_date_time_micros_since_epoch(
-    naive_date_time: *const NaiveDateTime,
+pub unsafe extern "C" fn get_date_time_utc_micros_since_epoch(
+    date_time_utc: *const DateTimeUtc,
 ) -> i64 {
-    let naive_date_time = unsafe { &*naive_date_time };
-    let sub_micros = naive_date_time.timestamp_subsec_micros();
-    let seconds = naive_date_time.timestamp();
+    let date_time_utc = unsafe { &*date_time_utc };
+    let sub_micros = date_time_utc.timestamp_subsec_micros();
+    let seconds = date_time_utc.timestamp();
     seconds * MICROS_PER_SECOND + i64::from(sub_micros)
 }
 
-/// Alloc an uninitialized `Box<NaiveDateTime>`, mainly used for testing.
+/// Alloc an uninitialized `Box<DateTimeUtc>`, mainly used for testing.
 #[no_mangle]
-pub extern "C" fn alloc_uninitialized_naive_date_time() -> *mut NaiveDateTime {
+pub extern "C" fn alloc_uninitialized_date_time_utc() -> *mut DateTimeUtc {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<NaiveDateTime>`, mainly used for testing.
+/// Drops a `Box<DateTimeUtc>`, mainly used for testing.
 ///
 /// # Safety
 ///
-/// The pointer must represent an initialized `Box<NaiveDateTime>`.
+/// The pointer must represent an initialized `Box<DateTimeUtc>`.
 #[no_mangle]
-pub unsafe extern "C" fn drop_naive_date_time(naive_date_time: *mut NaiveDateTime) {
-    unsafe { super::boxed::drop(naive_date_time) }
+pub unsafe extern "C" fn drop_date_time_utc(date_time_utc: *mut DateTimeUtc) {
+    unsafe { super::boxed::drop(date_time_utc) }
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::{NaiveDate, Timelike};
+    use std::mem::MaybeUninit;
+
+    use chrono::Timelike;
 
     use super::*;
 
     #[test]
     fn test_max_date_is_supported() {
-        let place = &mut NaiveDate::from_ymd(1, 1, 1).and_hms(1, 1, 1);
-        unsafe { init_naive_date_time_at(place, MAX_MICRO_SECONDS) };
-        let truncated_max = NaiveDateTime::MAX.with_nanosecond(999_999_000).unwrap();
-        assert_eq!(*place, truncated_max);
+        let mut place = MaybeUninit::uninit();
+        unsafe { init_date_time_utc_at(place.as_mut_ptr(), MAX_MICRO_SECONDS) };
+        let place = unsafe { place.assume_init() };
+        let truncated_max = DateTimeUtc::MAX_UTC.with_nanosecond(999_999_000).unwrap();
+        assert_eq!(place, truncated_max);
 
-        let micros = unsafe { get_naive_date_time_micros_since_epoch(&NaiveDateTime::MAX) };
-        unsafe { init_naive_date_time_at(place, micros) };
-        assert_eq!(*place, truncated_max);
+        let mut place = MaybeUninit::uninit();
+        let micros = unsafe { get_date_time_utc_micros_since_epoch(&DateTimeUtc::MAX_UTC) };
+        unsafe { init_date_time_utc_at(place.as_mut_ptr(), micros) };
+        let place = unsafe { place.assume_init() };
+        assert_eq!(place, truncated_max);
     }
 
     #[test]
     fn test_min_date_is_supported() {
-        let place = &mut NaiveDate::from_ymd(1, 1, 1).and_hms(1, 1, 1);
-        unsafe { init_naive_date_time_at(place, MIN_MICRO_SECONDS) };
-        assert_eq!(*place, NaiveDateTime::MIN);
+        let mut place = MaybeUninit::uninit();
+        unsafe { init_date_time_utc_at(place.as_mut_ptr(), MIN_MICRO_SECONDS) };
+        let place = unsafe { place.assume_init() };
+        assert_eq!(place, DateTimeUtc::MIN_UTC);
 
-        let micros = unsafe { get_naive_date_time_micros_since_epoch(&NaiveDateTime::MIN) };
-        unsafe { init_naive_date_time_at(place, micros) };
-        assert_eq!(*place, NaiveDateTime::MIN);
+        let mut place = MaybeUninit::uninit();
+        let micros = unsafe { get_date_time_utc_micros_since_epoch(&DateTimeUtc::MIN_UTC) };
+        unsafe { init_date_time_utc_at(place.as_mut_ptr(), micros) };
+        let place = unsafe { place.assume_init() };
+        assert_eq!(place, DateTimeUtc::MIN_UTC);
     }
 
     #[test]
     fn test_consts_max_is_sync() {
-        let seconds = NaiveDateTime::MAX.timestamp();
-        let sub_micros = NaiveDateTime::MAX.timestamp_subsec_micros();
+        let seconds = DateTimeUtc::MAX_UTC.timestamp();
+        let sub_micros = DateTimeUtc::MAX_UTC.timestamp_subsec_micros();
         let micros = seconds.checked_mul(MICROS_PER_SECOND).unwrap() + i64::from(sub_micros);
         assert_eq!(micros, MAX_MICRO_SECONDS);
     }
 
     #[test]
     fn test_consts_min_is_sync() {
-        let seconds = NaiveDateTime::MIN.timestamp();
-        let sub_micros = NaiveDateTime::MIN.timestamp_subsec_micros();
+        let seconds = DateTimeUtc::MIN_UTC.timestamp();
+        let sub_micros = DateTimeUtc::MIN_UTC.timestamp_subsec_micros();
         let micros = seconds.checked_mul(MICROS_PER_SECOND).unwrap() + i64::from(sub_micros);
         assert_eq!(micros, MIN_MICRO_SECONDS);
     }
