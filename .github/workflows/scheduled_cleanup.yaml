@@ -27,7 +27,7 @@ jobs:
        - run: |
            #if the user enter any name of the branch, then the default value will be replaced by the user's input and all the artifacts of its branch will be deleted  
            if [ -n "${{inputs.branch_name}}" ]; then
-            sed -i 's/"path":.*/"path": {"$match":"*${{inputs.branch_name}}*"},/g' .github/scripts/artifactory.spec
+            sed -i 's/"name":.*/"name": {"$match":"*${{inputs.branch_name}}*"},/g' .github/scripts/artifactory.spec
            fi
            
            if [ -n "${{inputs.number_days_old}}" ]; then
