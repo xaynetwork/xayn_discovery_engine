@@ -88,7 +88,7 @@ void main() {
       );
     });
 
-    test('we can request more results until we ran out of results', () async {
+    test('we can request more results until we run out of results', () async {
       final result = expectEvent<ActiveSearchRequestSucceeded>(
         await engine.requestQuerySearch(searchTerm),
       );
