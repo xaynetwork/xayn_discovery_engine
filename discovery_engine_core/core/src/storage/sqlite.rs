@@ -861,8 +861,12 @@ impl FeedbackScope for SqliteStorage {
         Ok(view)
     }
 
-    async fn update_source_reaction(&self, _source: &str, _like: bool) -> Result<(), Error> {
-        Ok(()) // TODO
+    async fn update_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
+        match self.fetch_reaction(source).await? {
+            None => self.store_new(source, liked).await,
+            Some(reaction) if reaction == liked => self.update(source).await,
+            _ => self.delete(source).await,
+        }
     }
 }
 
@@ -928,30 +932,69 @@ impl SourcePreferenceScope for SqliteStorage {
 }
 
 #[derive(FromRow)]
-struct Bool(bool);
+struct QueriedSourceReaction {
+    #[allow(dead_code)]
+    source: String,
+    #[allow(dead_code)]
+    weight: i32,
+    liked: bool,
+}
 
 #[async_trait]
 impl SourceReactionScope for SqliteStorage {
     async fn fetch_reaction(&self, source: &str) -> Result<Option<bool>, Error> {
         let mut tx = self.pool.begin().await?;
 
-        let reaction =
-            sqlx::query_as::<_, Bool>("SELECT liked FROM SourceReaction WHERE source = ?;")
-                .bind(source)
-                .fetch_optional(&mut tx)
-                .await?;
+        let reaction = sqlx::query_as::<_, QueriedSourceReaction>(
+            "SELECT source, weight, liked
+            FROM SourceReaction
+            WHERE source = ?;",
+        )
+        .bind(source)
+        .fetch_optional(&mut tx)
+        .await?;
 
         tx.commit().await?;
 
-        Ok(reaction.map(|b| b.0))
+        Ok(reaction.map(|r| r.liked))
     }
 
-    async fn store_new(&self, _source: &str, _like: bool) -> Result<(), Error> {
-        Ok(()) // TODO
+    async fn store_new(&self, source: &str, liked: bool) -> Result<(), Error> {
+        let weight = if liked { 1 } else { -1 };
+        let last_updated = Utc::now().naive_utc();
+
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+            "INSERT INTO SourceReaction (source, weight, lastUpdated, liked) VALUES (?, ?, ?, ?)",
+        )
+        .bind(source)
+        .bind(weight)
+        .bind(last_updated)
+        .bind(liked)
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await.map_err(Into::into)
     }
 
-    async fn update(&self, _source: &str) -> Result<(), Error> {
-        Ok(()) // TODO
+    async fn update(&self, source: &str) -> Result<(), Error> {
+        let last_updated = Utc::now().naive_utc();
+
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+            "UPDATE SourceReaction
+            SET lastUpdated = ?,
+                weight = CASE WHEN liked = 1 THEN (weight + 1) END
+            WHERE source = ?",
+        )
+        .bind(last_updated)
+        .bind(source)
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await.map_err(Into::into)
     }
 
     async fn delete(&self, source: &str) -> Result<(), Error> {
