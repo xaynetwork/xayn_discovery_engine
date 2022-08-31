@@ -70,8 +70,14 @@ pub enum InitDbHint {
 
 #[async_trait]
 pub(crate) trait Storage {
+    /// Initializes the storage system.
+    ///
+    /// The `db_identifier` is storage impl. specific, e.g. in case of sqlite
+    /// this would be the file path to the database file.
+    ///
+    /// Passing in `None` means a new temporary db should be created.
     async fn init_storage_system(
-        file_path: Option<String>,
+        db_identifier: Option<String>,
     ) -> Result<(BoxedStorage, InitDbHint), Error>
     where
         Self: Sized;

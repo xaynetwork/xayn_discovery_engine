@@ -88,7 +88,7 @@ async fn init_storage_system_once(file_path: Option<String>) -> Result<SqliteSto
     let pool = create_connection_pool(file_path.as_deref()).await?;
     update_schema(&pool).await?;
     update_static_data(&pool).await?;
-    Ok(SqliteStorage { pool, file_path })
+    Ok(SqliteStorage { file_path, pool })
 }
 
 pub(super) async fn create_connection_pool(file_path: Option<&str>) -> Result<Pool<Sqlite>, Error> {

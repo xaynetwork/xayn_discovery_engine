@@ -19,7 +19,9 @@ use std::{borrow::Cow, error::Error, fmt::Display, path::Path};
 use tracing::error;
 
 /// Like [`tokio::fs::remove_file()`] but doesn't fail if the file doesn't exist.
-pub(crate) async fn remove_file_if_exists(path: impl AsRef<Path>) -> Result<(), std::io::Error> {
+pub(crate) async fn remove_file_if_exists(
+    path: impl AsRef<Path> + Send,
+) -> Result<(), std::io::Error> {
     match tokio::fs::remove_file(path).await {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         other => other,

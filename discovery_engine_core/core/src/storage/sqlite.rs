@@ -64,7 +64,7 @@ const BIND_LIMIT: usize = 32766;
 pub(crate) struct SqliteStorage {
     /// Path to the database file.
     ///
-    /// `None` in case of a in-memory db.
+    /// `None` in case of a ephemeral (i.e. in memory) db.
     ///
     /// We didn't use PathBuf as it must be valid string.
     //TODO[pmk] use file_path for app triggered db reset

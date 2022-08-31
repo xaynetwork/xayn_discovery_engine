@@ -258,7 +258,7 @@ impl Engine {
     }
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
-    #[allow(clippy::too_many_lines, clippy::similar_names)]
+    #[allow(clippy::too_many_lines, clippy::similar_names, clippy::missing_panics_doc)]
     pub async fn from_config(
         config: InitConfig,
         // TODO: change this to a boolean flag after DB migration
@@ -332,7 +332,7 @@ impl Engine {
         // initialize the states
         #[cfg(feature = "storage")]
         let storage = {
-            let db_file_path = (!config.use_in_memory_db).then(|| {
+            let db_file_path = (!config.use_ephemeral_db).then(|| {
                 PathBuf::from(&config.data_dir).join("db.sqlite")
                         .into_os_string()
                         .into_string()
@@ -1795,7 +1795,7 @@ pub(crate) mod tests {
                 de_config: None,
                 log_file: None,
                 data_dir: "tmp_test_data_dir".into(),
-                use_in_memory_db: true,
+                use_ephemeral_db: true,
             };
 
             // Now we can initialize the engine with no previous history or state. This should

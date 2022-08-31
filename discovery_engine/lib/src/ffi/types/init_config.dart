@@ -163,7 +163,7 @@ class InitConfigFfi with EquatableMixin {
     dataDir.writeNative(
       ffi.init_config_place_of_data_dir(place),
     );
-    useInMemoryDb.writeNative(ffi.init_config_place_of_use_in_memory_db(place));
+    useInMemoryDb.writeNative(ffi.init_config_place_of_use_ephemeral_db(place));
   }
 
   @visibleForTesting
@@ -213,7 +213,7 @@ class InitConfigFfi with EquatableMixin {
         ffi.init_config_place_of_data_dir(config),
       ),
       useInMemoryDb: BoolFfi.readNative(
-        ffi.init_config_place_of_use_in_memory_db(config),
+        ffi.init_config_place_of_use_ephemeral_db(config),
       ),
     );
   }

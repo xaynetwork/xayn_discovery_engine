@@ -104,7 +104,7 @@ pub struct InitConfig {
     /// Directory in which user data should be stored.
     pub data_dir: String,
     /// Use a in-memory db instead of a db in the `data_dir`
-    pub use_in_memory_db: bool,
+    pub use_ephemeral_db: bool,
 }
 
 impl InitConfig {
