@@ -157,15 +157,13 @@ pub(crate) trait SourcePreferenceScope {
 
 #[async_trait]
 pub(crate) trait SourceReactionScope {
-    async fn fetch_reaction(&self, source: &str) -> Result<Option<bool>, Error>;
+    async fn fetch_source_reaction(&self, source: &str) -> Result<Option<bool>, Error>;
 
-    // async fn fetch_all(&self) -> Result<Vec<WeightedSourceView>, Error>; // TODO
+    async fn store_source_reaction(&self, source: &str, like: bool) -> Result<(), Error>;
 
-    async fn store_new(&self, source: &str, like: bool) -> Result<(), Error>;
+    async fn update_source_weight(&self, source: &str) -> Result<(), Error>;
 
-    async fn update(&self, source: &str) -> Result<(), Error>;
-
-    async fn delete(&self, source: &str) -> Result<(), Error>;
+    async fn delete_source_reaction(&self, source: &str) -> Result<(), Error>;
 }
 
 pub mod models {
