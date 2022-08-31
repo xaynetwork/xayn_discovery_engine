@@ -1177,7 +1177,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_search() {
-        let mut storage = create_memory_storage().await;
+        let storage = create_memory_storage().await;
 
         let new_search = Search {
             search_by: SearchBy::Query,
@@ -1199,7 +1199,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_document() {
-        let mut storage = super::setup::init_storage_system(None).await.unwrap().0;
+        let storage = super::setup::init_storage_system(None).await.unwrap().0;
 
         let id = document::Id::new();
         assert!(matches!(

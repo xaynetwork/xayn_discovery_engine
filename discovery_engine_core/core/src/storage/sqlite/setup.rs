@@ -154,6 +154,10 @@ async fn update_static_data(pool: &Pool<Sqlite>) -> Result<(), Error> {
 mod tests {
     use std::collections::HashSet;
 
+    use tempfile::tempdir;
+
+    use crate::storage::Storage;
+
     use super::*;
 
     #[tokio::test]
@@ -183,5 +187,131 @@ mod tests {
             ids.into_iter().collect::<HashSet<_>>(),
             EXISTING_STACKS.into_iter().collect::<HashSet<_>>()
         );
+    }
+
+    fn create_bad_file(path: &Path) {
+        std::fs::write(path, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 77, 88, 112]).unwrap();
+    }
+
+    fn path_as_str(path: &Path) -> &str {
+        path.as_os_str().to_str().unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_db_deletion_deletes_all_db_related_files() {
+        let dir = tempdir().unwrap();
+        let db_file = dir.path().join("db.sqlite");
+        let db_wal_file = dir.path().join("db.sqlite-wal");
+        let db_shm_file = dir.path().join("db.sqlite-shm");
+
+        create_bad_file(&db_file);
+        create_bad_file(&db_wal_file);
+        create_bad_file(&db_shm_file);
+
+        assert!(db_file.exists());
+        assert!(db_wal_file.exists());
+        assert!(db_shm_file.exists());
+
+        delete_db_files(Some(path_as_str(&db_file))).await.unwrap();
+
+        assert!(!db_file.exists());
+        assert!(!db_wal_file.exists());
+        assert!(!db_shm_file.exists());
+    }
+
+    #[tokio::test]
+    async fn test_db_deletion_ignores_non_existing_files() {
+        let dir = tempdir().unwrap();
+        let db_file = dir.path().join("db.sqlite");
+        let db_wal_file = dir.path().join("db.sqlite-wal");
+        let db_shm_file = dir.path().join("db.sqlite-shm");
+
+        create_bad_file(&db_shm_file);
+
+        assert!(!db_file.exists());
+        assert!(!db_wal_file.exists());
+        assert!(db_shm_file.exists());
+
+        delete_db_files(Some(path_as_str(&db_file))).await.unwrap();
+
+        assert!(!db_file.exists());
+        assert!(!db_wal_file.exists());
+        assert!(!db_shm_file.exists());
+    }
+
+    #[tokio::test]
+    async fn test_db_deletion_does_not_short_circuit_on_error() {
+        let dir = tempdir().unwrap();
+        let db_file = dir.path().join("db.sqlite");
+        let db_wal_file = dir.path().join("db.sqlite-wal");
+        let db_shm_file = dir.path().join("db.sqlite-shm");
+
+        create_bad_file(&db_file);
+        std::fs::create_dir(&db_wal_file).unwrap();
+        create_bad_file(&db_shm_file);
+
+        assert!(db_file.exists());
+        assert!(db_wal_file.exists());
+        assert!(db_shm_file.exists());
+
+        let res = delete_db_files(Some(path_as_str(&db_file))).await;
+        assert!(res.is_err());
+
+        assert!(!db_file.exists());
+        assert!(db_wal_file.exists());
+        assert!(!db_shm_file.exists());
+    }
+
+    #[tokio::test]
+    async fn test_db_deletion_can_be_called_without_path() {
+        delete_db_files(None).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_initialization_will_retry_on_bad_db() {
+        let dir = tempdir().unwrap();
+        let db_file = dir.path().join("db.sqlite");
+
+        create_bad_file(&db_file);
+        assert!(db_file.exists());
+
+        let (storage, hint) = init_storage_system(Some(path_as_str(&db_file).into()))
+            .await
+            .unwrap();
+
+        assert!(db_file.exists());
+
+        assert!(matches!(hint, InitDbHint::DbOverwrittenDueToErrors(_)));
+
+        // check if we can interact with the db
+        storage.fetch_history().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_fresh_db_and_reopened_db_return_the_right_hints() {
+        let dir = tempdir().unwrap();
+        let db_file = dir.path().join("db.sqlite");
+
+        let (storage, hint) = init_storage_system(Some(path_as_str(&db_file).into()))
+            .await
+            .unwrap();
+
+        assert!(db_file.exists());
+        assert!(matches!(hint, InitDbHint::NewDbCreated));
+        // check if we can interact with the db
+        storage.fetch_history().await.unwrap();
+        drop(storage);
+
+        assert!(db_file.exists());
+
+        let (storage, hint) = init_storage_system(Some(path_as_str(&db_file).into()))
+            .await
+            .unwrap();
+
+        assert!(db_file.exists());
+        assert!(matches!(hint, InitDbHint::NormalInit));
+        // check if we can interact with the db
+        storage.fetch_history().await.unwrap();
+        drop(storage);
     }
 }
