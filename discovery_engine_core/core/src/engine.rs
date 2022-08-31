@@ -1624,7 +1624,8 @@ async fn update_stacks(
     }
 
     // only return an error if all stacks (including exploration) failed
-    if errors.len() > stacks.len() {
+    #[allow(clippy::int_plus_one)]
+    if errors.len() >= stacks.len() + 1 {
         Err(Error::Errors(errors.into_values().flatten().collect()))
     } else {
         Ok(())
