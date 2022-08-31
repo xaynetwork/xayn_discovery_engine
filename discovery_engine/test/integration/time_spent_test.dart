@@ -100,7 +100,7 @@ void main() {
       final stateAfterRequest =
           await loadEngineState(data.applicationDirectoryPath);
       expect(stateAfterRequest, isNotNull);
-      expect(stateBeforeRequest, isNot(equals(stateAfterRequest)));
+      expect(stateBeforeRequest, isNot(stateAfterRequest));
       // TODO[pmk] loadEngineState is too hive specific
       // ignore: require_trailing_commas
     }, skip: cfgFeatureStorage);
