@@ -348,7 +348,7 @@ mod tests {
         );
 
         let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+            .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
             .and(path("/v1/search-news"))
@@ -396,7 +396,7 @@ mod tests {
         );
 
         let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+            .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
             .and(path("/v1/search-news"))
@@ -445,7 +445,7 @@ mod tests {
         );
 
         let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+            .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
             .and(path("/v1/search-news"))

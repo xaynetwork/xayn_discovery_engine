@@ -44,9 +44,9 @@ class LocalNewsApiServer {
   ReplyWith _replyWith = ReplyWith.data;
   int _snCounter = 0;
   List<String> _snFiles = [
-    'climate-change.json',
-    'climate-change2.json',
-    'empty.json'
+    'search-news.json',
+    'search-news2.json',
+    'search-news-empty.json'
   ];
   String _lhFile = 'latest-headlines.json';
   String _ttFile = 'trending-topics.json';
@@ -73,7 +73,7 @@ class LocalNewsApiServer {
             case '/newscatcher/v1/search-news':
               await _replyWithData(
                 request,
-                _snFiles.asMap()[_snCounter++] ?? 'empty.json',
+                _snFiles.asMap()[_snCounter++] ?? 'search-news-empty.json',
               );
               break;
             case '/newscatcher/v1/latest-headlines':
