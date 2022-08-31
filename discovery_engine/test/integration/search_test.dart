@@ -101,7 +101,7 @@ void main() {
         await engine.requestNextActiveSearchBatch(),
       );
 
-      expect(nextResult.items, isNot(equals(result.items)));
+      expect(nextResult.items, isNot(result.items));
       expect(nextResult.items, isNotEmpty);
       expect(nextResult.search.searchBy, SearchBy.query);
       expect(nextResult.search.searchTerm, searchTerm);
