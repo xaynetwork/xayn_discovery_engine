@@ -59,18 +59,21 @@ impl Default for CoiStats {
 }
 
 impl PositiveCoi {
-    pub(crate) fn log_time(&mut self, viewed: Duration) {
+    pub(crate) fn log_time(&mut self, viewed: Duration) -> &mut Self {
         self.stats.log_time(viewed);
+        self
     }
 
-    pub(super) fn log_reaction(&mut self) {
+    pub(super) fn log_reaction(&mut self) -> &mut Self {
         self.stats.log_reaction();
+        self
     }
 }
 
 impl NegativeCoi {
-    pub(super) fn log_reaction(&mut self) {
+    pub(super) fn log_reaction(&mut self) -> &mut Self {
         self.last_view = system_time_now();
+        self
     }
 }
 

@@ -57,6 +57,7 @@ impl System {
     }
 
     /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
+    #[allow(clippy::missing_panics_doc)]
     pub fn log_positive_user_reaction<'a>(
         &self,
         cois: &'a mut Vec<PositiveCoi>,
@@ -65,19 +66,15 @@ impl System {
         match find_closest_coi_index(cois, embedding) {
             // If the given embedding's similarity to the CoI is above the threshold,
             // we adjust the position of the nearest CoI
-            Some((index, similarity)) if similarity >= self.config.threshold() => {
-                let coi = &mut cois[index];
-                coi.shift_point(embedding, self.config.shift_factor());
-                coi.log_reaction();
-
-                coi
-            }
+            Some((index, similarity)) if similarity >= self.config.threshold() => cois
+                .get_mut(index)
+                .unwrap(/* index is in bounds */)
+                .shift_point(embedding, self.config.shift_factor())
+                .log_reaction(),
             // If the embedding is too dissimilar, we create a new CoI instead
             _ => {
-                let coi = PositiveCoi::new(Uuid::new_v4(), embedding.clone());
-                cois.push(coi);
-
-                &cois[cois.len() - 1]
+                cois.push(PositiveCoi::new(Uuid::new_v4(), embedding.clone()));
+                cois.last().unwrap(/* coi is just pushed */)
             }
         }
     }

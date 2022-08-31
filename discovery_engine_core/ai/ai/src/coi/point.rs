@@ -74,7 +74,7 @@ pub trait CoiPoint {
     fn point(&self) -> &Embedding;
 
     /// Shifts the coi point towards another point by a factor.
-    fn shift_point(&mut self, towards: &Embedding, shift_factor: f32);
+    fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) -> &mut Self;
 }
 
 macro_rules! impl_coi_point {
@@ -90,9 +90,10 @@ macro_rules! impl_coi_point {
                     &self.point
                 }
 
-                fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) {
+                fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) -> &mut Self {
                     self.point *= 1. - shift_factor;
                     self.point += towards * shift_factor;
+                    self
                 }
             }
         )*
