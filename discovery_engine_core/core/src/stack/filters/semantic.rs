@@ -287,7 +287,7 @@ where
 mod tests {
     use std::iter::repeat_with;
 
-    use chrono::NaiveDateTime;
+    use chrono::{TimeZone, Utc};
     use ndarray::aview1;
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
@@ -482,7 +482,7 @@ mod tests {
             Document {
                 smbert_embedding,
                 resource: NewsResource {
-                    date_published: NaiveDateTime::from_timestamp(secs, 0),
+                    date_published: Utc.timestamp(secs, 0),
                     ..NewsResource::default()
                 },
                 ..Document::default()

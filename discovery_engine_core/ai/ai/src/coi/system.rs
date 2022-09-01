@@ -204,6 +204,7 @@ fn rank(documents: &mut [impl Document], user_interests: &UserInterests, config:
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
     use ndarray::arr1;
 
     use super::*;
@@ -300,10 +301,10 @@ mod tests {
     #[test]
     fn test_rank() {
         let mut documents = vec![
-            TestDocument::new(0, arr1(&[3., 7., 0.]), "2000-01-01 00:00:03"),
-            TestDocument::new(1, arr1(&[1., 0., 0.]), "2000-01-01 00:00:02"),
-            TestDocument::new(2, arr1(&[1., 2., 0.]), "2000-01-01 00:00:01"),
-            TestDocument::new(3, arr1(&[5., 3., 0.]), "2000-01-01 00:00:00"),
+            TestDocument::new(0, arr1(&[3., 7., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 3)),
+            TestDocument::new(1, arr1(&[1., 0., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 2)),
+            TestDocument::new(2, arr1(&[1., 2., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 1)),
+            TestDocument::new(3, arr1(&[5., 3., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 0)),
         ];
         let user_interests = UserInterests {
             positive: create_pos_cois(&[[1., 0., 0.], [4., 12., 2.]]),
@@ -325,9 +326,9 @@ mod tests {
     #[test]
     fn test_rank_no_user_interests() {
         let mut documents = vec![
-            TestDocument::new(0, arr1(&[0., 0., 0.]), "2000-01-01 00:00:03"),
-            TestDocument::new(1, arr1(&[0., 0., 0.]), "2000-01-01 00:00:01"),
-            TestDocument::new(2, arr1(&[0., 0., 0.]), "2000-01-01 00:00:02"),
+            TestDocument::new(0, arr1(&[0., 0., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 3)),
+            TestDocument::new(1, arr1(&[0., 0., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 1)),
+            TestDocument::new(2, arr1(&[0., 0., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 2)),
         ];
         let user_interests = UserInterests::default();
         let config = CoiConfig::default().with_min_positive_cois(1).unwrap();

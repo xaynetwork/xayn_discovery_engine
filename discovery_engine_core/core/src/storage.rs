@@ -154,7 +154,7 @@ pub(crate) trait SourcePreferenceScope {
 pub mod models {
     use std::time::Duration;
 
-    use chrono::NaiveDateTime;
+    use chrono::{DateTime, Utc};
     use url::Url;
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_providers::Market;
@@ -272,10 +272,7 @@ pub mod models {
         pub(crate) image: Option<Url>,
 
         /// Publishing date.
-        // FIXME: it's NativeDateTime in the current codebase but we can't compare
-        //      NativeDateTimes across different markets, but we do! So this needs to be
-        //      at least a Utc DateTime.
-        pub(crate) date_published: NaiveDateTime,
+        pub(crate) date_published: DateTime<Utc>,
 
         /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
         pub(crate) source: String,

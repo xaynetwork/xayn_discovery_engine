@@ -14,10 +14,10 @@
 
 use std::ptr::addr_of_mut;
 
-use chrono::NaiveDateTime;
 use url::Url;
-
 use xayn_discovery_engine_core::document::NewsResource;
+
+use crate::types::date_time::DateTimeUtc;
 
 /// Returns a pointer to the `title` field of a news resource.
 ///
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn news_resource_place_of_source_domain(
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_date_published(
     place: *mut NewsResource,
-) -> *mut NaiveDateTime {
+) -> *mut DateTimeUtc {
     unsafe { addr_of_mut!((*place).date_published) }
 }
 

@@ -19,7 +19,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{
     sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
@@ -696,7 +696,7 @@ struct QueriedApiDocumentView {
     topic: String,
     url: String,
     image: Option<String>,
-    date_published: NaiveDateTime,
+    date_published: DateTime<Utc>,
     source: String,
     market: String,
     domain_rank: i64,

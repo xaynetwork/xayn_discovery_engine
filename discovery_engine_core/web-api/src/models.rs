@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
@@ -69,8 +69,8 @@ impl AiDocument for Document {
         &self.smbert_embedding
     }
 
-    fn date_published(&self) -> NaiveDateTime {
-        Utc::now().naive_utc()
+    fn date_published(&self) -> DateTime<Utc> {
+        Utc::now()
     }
 }
 

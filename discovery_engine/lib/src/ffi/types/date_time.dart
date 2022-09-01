@@ -15,26 +15,16 @@
 import 'dart:ffi' show Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustNaiveDateTime;
+    show RustDateTimeUtc;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 
-extension NaiveDateTimeFfi on DateTime {
-  void writeNative(Pointer<RustNaiveDateTime> place) {
-    // micro seconds since since since midnight on
-    // January 1, 1970 ignoring time zone.
-    ffi.init_naive_date_time_at(
-      place,
-      microsecondsSinceEpoch,
-    );
-  }
+extension DateTimeUtcFfi on DateTime {
+  void writeNative(Pointer<RustDateTimeUtc> place) =>
+      ffi.init_date_time_utc_at(place, microsecondsSinceEpoch);
 
-  static DateTime readNative(Pointer<RustNaiveDateTime> naiveDateTime) {
-    final microsecondsSinceEpochLocal =
-        ffi.get_naive_date_time_micros_since_epoch(naiveDateTime);
-    final dateTime = DateTime.fromMicrosecondsSinceEpoch(
-      microsecondsSinceEpochLocal,
-      isUtc: true,
-    );
-    return dateTime;
-  }
+  static DateTime readNative(Pointer<RustDateTimeUtc> dateTimeUtc) =>
+      DateTime.fromMicrosecondsSinceEpoch(
+        ffi.get_date_time_utc_micros_since_epoch(dateTimeUtc),
+        isUtc: true,
+      );
 }
