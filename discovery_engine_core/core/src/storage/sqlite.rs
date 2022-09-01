@@ -220,6 +220,28 @@ impl SqliteStorage {
         Ok(())
     }
 
+    async fn store_new_search_documents(
+        tx: &mut Transaction<'_, Sqlite>,
+        documents: &[NewDocument],
+    ) -> Result<(), Error> {
+        if documents.is_empty() {
+            return Ok(());
+        }
+
+        SqliteStorage::store_new_documents(tx, documents).await?;
+
+        QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
+            .push_values(documents, |mut stm, doc| {
+                stm.push_bind(&doc.id);
+            })
+            .build()
+            .persistent(false)
+            .execute(tx)
+            .await?;
+
+        Ok(())
+    }
+
     async fn get_document(
         tx: &mut Transaction<'_, Sqlite>,
         base_table: &'static str,
@@ -518,20 +540,7 @@ impl SearchScope for SqliteStorage {
             .execute(&mut tx)
             .await?;
 
-        if documents.is_empty() {
-            return tx.commit().await.map_err(Into::into);
-        };
-
-        SqliteStorage::store_new_documents(&mut tx, documents).await?;
-
-        QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
-            .push_values(documents, |mut stm, doc| {
-                stm.push_bind(&doc.id);
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await?;
+        SqliteStorage::store_new_search_documents(&mut tx, documents).await?;
 
         tx.commit().await.map_err(Into::into)
     }
@@ -543,16 +552,7 @@ impl SearchScope for SqliteStorage {
     ) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
-        SqliteStorage::store_new_documents(&mut tx, documents).await?;
-
-        QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
-            .push_values(documents, |mut stm, doc| {
-                stm.push_bind(&doc.id);
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await?;
+        SqliteStorage::store_new_search_documents(&mut tx, documents).await?;
 
         sqlx::query("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
             .bind(page_number)

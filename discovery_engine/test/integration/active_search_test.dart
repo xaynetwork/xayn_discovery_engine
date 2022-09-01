@@ -145,7 +145,7 @@ void main() {
       expect(succeededResponse.items, isNotEmpty);
       expect(
         succeededResponse.items[0].resource.title,
-        isNot(equals(items[0].resource.title)),
+        isNot(items[0].resource.title),
       );
     });
 
