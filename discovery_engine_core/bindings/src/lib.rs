@@ -52,7 +52,7 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_core::{
         document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, WeightedSource},
-        InitConfig,
+        InitConfig, DartMigrationData
     };
     use xayn_discovery_engine_providers::Market;
 
@@ -66,6 +66,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         state: Option<Box<Vec<u8>>>,
         history: Box<Vec<HistoricDocument>>,
         sources: Box<Vec<WeightedSource>>,
+        dart_migration_data: Option<Box<DartMigrationData>>,
     ) -> Box<Result<SharedEngine, String>> {
         tracing::init_tracing(config.log_file.as_deref().map(Path::new));
 
@@ -75,6 +76,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 state.as_deref().map(Vec::as_slice),
                 &history,
                 &sources,
+                dart_migration_data.map(|d| *d),
             )
             .await
             .map(|engine| tokio::sync::Mutex::new(engine).into())

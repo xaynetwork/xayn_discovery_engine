@@ -29,31 +29,18 @@ use crate::{
     stack,
     storage::{
         models::{
-            ApiDocumentView,
-            NewDocument,
-            NewsResource,
-            NewscatcherData,
-            Paging,
-            Search,
-            SearchBy,
+            ApiDocumentView, NewDocument, NewsResource, NewscatcherData, Paging, Search, SearchBy,
             TimeSpentDocumentView,
         },
         utils::SqlxPushTupleExt,
-        BoxedStorage,
-        Error,
-        FeedScope,
-        FeedbackScope,
-        InitDbHint,
-        SearchScope,
-        SourcePreferenceScope,
-        SourceReactionScope,
-        StateScope,
-        Storage,
+        BoxedStorage, Error, FeedScope, FeedbackScope, InitDbHint, SearchScope,
+        SourcePreferenceScope, SourceReactionScope, StateScope, Storage,
     },
 };
 
 use self::utils::SqlxSqliteResultExt;
 
+mod dart_migrations;
 mod setup;
 mod utils;
 
@@ -311,8 +298,9 @@ impl SqliteStorage {
 impl Storage for SqliteStorage {
     async fn init_storage_system(
         file_path: Option<String>,
+        dart_migration_data: Option<DartMigrationData>,
     ) -> Result<(BoxedStorage, InitDbHint), Error> {
-        self::setup::init_storage_system(file_path.map(Into::into))
+        self::setup::init_storage_system(file_path.map(Into::into), dart_migration_data)
             .await
             .map(|(storage, hint)| (Box::new(storage) as _, hint))
     }

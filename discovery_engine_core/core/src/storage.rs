@@ -25,6 +25,7 @@ use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
 use crate::{
     document::{self, HistoricDocument, UserReaction, ViewMode},
     stack,
+    DartMigrationData,
 };
 
 use self::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView};
@@ -78,6 +79,7 @@ pub(crate) trait Storage {
     /// Passing in `None` means a new temporary db should be created.
     async fn init_storage_system(
         db_identifier: Option<String>,
+        dart_migration_data: Option<DartMigrationData>,
     ) -> Result<(BoxedStorage, InitDbHint), Error>
     where
         Self: Sized;

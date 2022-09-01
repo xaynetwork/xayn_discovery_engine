@@ -107,6 +107,7 @@ use crate::{
         Stack,
         TrustedNews,
     },
+    DartMigrationData,
 };
 
 /// Discovery engine errors.
@@ -269,6 +270,7 @@ impl Engine {
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
+        _dart_migration_data: Option<DartMigrationData>,
     ) -> Result<Self, Error> {
         // read the configs
         let de_config =
@@ -342,7 +344,8 @@ impl Engine {
                         .into_string()
                         .unwrap(/*can't fail as we only join rust strings*/)
             });
-            let (storage, _init_hint) = SqliteStorage::init_storage_system(db_file_path).await?;
+            let (storage, _init_hint) =
+                SqliteStorage::init_storage_system(db_file_path, _dart_migration_data).await?;
             //FIXME pass the hint to dart for deciding if migrations are needed
             storage
         };
@@ -1804,7 +1807,9 @@ pub(crate) mod tests {
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
-            let engine = Engine::from_config(config, None, &[], &[]).await.unwrap();
+            let engine = Engine::from_config(config, None, &[], &[], None)
+                .await
+                .unwrap();
 
             Mutex::new((server, engine))
         };

@@ -113,6 +113,8 @@ class DiscoveryEngineFfi implements Engine {
       initializer.engineState?.allocNative().move() ?? nullptr,
       initializer.history.allocNative().move(),
       initializer.reactedSources.allocVec().move(),
+      //TODO[pmk] pass in migration data if needed
+      nullptr,
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
 
