@@ -186,8 +186,8 @@ rust-test: _codegen-order-workaround download-assets
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$RUST_WORKSPACE";
-    cargo test --features "${XAYN_DE_FEATURES:-}" --lib --bins --tests --quiet --locked
-    cargo test --features "${XAYN_DE_FEATURES:-}" --doc --quiet --locked
+    cargo test --features "${XAYN_DE_FEATURES:-}" --lib --bins --tests --quiet --locked --test-threads=1
+    cargo test --features "${XAYN_DE_FEATURES:-}" --doc --quiet --locked --test-threads=1
 
 # Tests dart and rust
 test: rust-test dart-test flutter-test
