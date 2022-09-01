@@ -7,7 +7,7 @@ sys_includes = ["stdint.h"]
 no_includes = true
 
 after_includes = """
-// Typedefs to make sure this "unknown" types are treated as opaque by ffigen.
+// Typedefs to make sure these "unknown" types are treated as opaque by ffigen.
 typedef struct RustDateTimeUtc RustDateTimeUtc;
 typedef struct RustDuration RustDuration;
 typedef struct RustEmbedding RustEmbedding;
