@@ -52,3 +52,6 @@ xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
 [features]
 default = []
 storage = ["sqlx"]
+
+[env]
+RUST_TEST_THREADS = "1"
