@@ -61,7 +61,6 @@ void main() {
       final restoredEngine = await initEngine(data, server.port);
       expect(restoredEngine, isA<DiscoveryEngine>());
       await engine.dispose();
-      // TODO[pmk] loadEngineState is too hive specific
       // ignore: require_trailing_commas
     }, skip: cfgFeatureStorage);
 
@@ -76,7 +75,6 @@ void main() {
         ),
         throwsA(isA<EngineInitException>()),
       );
-      // TODO[pmk] saveEngineState is too hive specific
       // ignore: require_trailing_commas
     }, skip: cfgFeatureStorage);
   });

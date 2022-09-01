@@ -1935,6 +1935,59 @@ pub(crate) mod tests {
         assert_eq!(stacks.values().map(Stack::len).sum::<usize>(), 1);
     }
 
+    #[cfg(feature = "storage")]
+    #[tokio::test]
+    async fn test_serialized_state_is_updated() {
+        let engine = &mut *init_engine(
+            [|config: &EndpointConfig, providers: &Providers| {
+                Box::new(BreakingNews::new(config, providers.headlines.clone())) as _
+            }],
+            false,
+        )
+        .await;
+
+        let documents = engine.feed_next_batch(&[]).await.unwrap();
+        assert!(!documents.is_empty());
+
+        let state1 = engine.storage.state().fetch().await.unwrap();
+
+        engine
+            .user_reacted(
+                None,
+                &[],
+                UserReacted {
+                    id: documents[0].id,
+                    stack_id: BreakingNews::id(),
+                    title: "unused".into(),
+                    snippet: "unused".into(),
+                    smbert_embedding: Embedding::default(),
+                    reaction: UserReaction::Positive,
+                    market: Market::new("de", "DE"),
+                },
+            )
+            .await
+            .unwrap();
+
+        let state2 = engine.storage.state().fetch().await.unwrap();
+        assert_ne!(state1, state2);
+        assert!(state2.is_some());
+
+        engine
+            .time_spent(TimeSpent {
+                id: documents[0].id,
+                smbert_embedding: Embedding::default(),
+                view_time: std::time::Duration::from_secs(1),
+                view_mode: document::ViewMode::Story,
+                reaction: UserReaction::Positive,
+            })
+            .await
+            .unwrap();
+
+        let state3 = engine.storage.state().fetch().await.unwrap();
+        assert_ne!(state2, state3);
+        assert!(state3.is_some());
+    }
+
     #[tokio::test]
     async fn test_update_stack_no_error_when_no_stack_is_ready() {
         let engine = &mut *init_engine(
