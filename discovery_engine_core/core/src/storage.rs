@@ -62,6 +62,8 @@ impl From<MalformedBytesEmbedding> for Error {
 pub(crate) trait Storage {
     async fn init_database(&self) -> Result<(), Error>;
 
+    async fn clear_database(&self) -> Result<bool, Error>;
+
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error>;
 
     fn feed(&self) -> &(dyn FeedScope + Send + Sync);

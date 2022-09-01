@@ -341,6 +341,32 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
+    async fn clear_database(&self) -> Result<bool, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let deletion = sqlx::query("DELETE FROM Document;")
+            .execute(&mut tx)
+            .await?
+            .rows_affected()
+            > 0;
+        let deletion = sqlx::query("DELETE FROM Search;")
+            .execute(&mut tx)
+            .await?
+            .rows_affected()
+            > 0
+            || deletion;
+        let deletion = sqlx::query("DELETE FROM SerializedState;")
+            .execute(&mut tx)
+            .await?
+            .rows_affected()
+            > 0
+            || deletion;
+
+        tx.commit().await?;
+
+        Ok(deletion)
+    }
+
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error> {
         let mut tx = self.pool.begin().await?;
 
