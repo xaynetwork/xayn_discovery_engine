@@ -20,7 +20,7 @@ use sqlx::{
     Pool,
     Postgres,
 };
-use xayn_discovery_engine_ai::{CoiSystemState, GenericError};
+use xayn_discovery_engine_ai::{GenericError, KeyPhrases, UserInterests};
 
 use crate::models::UserId;
 
@@ -41,7 +41,10 @@ impl UserState {
         Ok(())
     }
 
-    pub(crate) async fn fetch(&self, id: &UserId) -> Result<Option<CoiSystemState>, GenericError> {
+    pub(crate) async fn fetch(
+        &self,
+        id: &UserId,
+    ) -> Result<Option<(UserInterests, KeyPhrases)>, GenericError> {
         let mut tx = self.pool.begin().await?;
 
         let serialized_state =
@@ -61,9 +64,10 @@ impl UserState {
     pub(crate) async fn update(
         &self,
         id: &UserId,
-        state: &CoiSystemState,
+        user_interests: &UserInterests,
+        key_phrases: &KeyPhrases,
     ) -> Result<(), GenericError> {
-        let serialized_state = bincode::serialize(state)?;
+        let serialized_state = bincode::serialize(&(user_interests, key_phrases))?;
 
         let mut tx = self.pool.begin().await?;
 

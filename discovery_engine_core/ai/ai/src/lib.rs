@@ -43,7 +43,6 @@ pub use crate::{
         config::{Config as CoiConfig, Error as CoiConfigError},
         key_phrase::{KeyPhrase, KeyPhrases},
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
-        state::State as CoiSystemState,
         system::CoiSystem,
         CoiId,
     },
