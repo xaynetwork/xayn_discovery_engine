@@ -41,3 +41,4 @@ networks:
   elastic:
     name: elastic
     driver: bridge
+    
