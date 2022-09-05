@@ -191,7 +191,7 @@ async fn handle_add_data(
         .into_iter()
         .map(|mut article| {
             let embedding = model.run(&article.snippet).unwrap_or_default();
-            let embedding = embedding.iter().copied().collect::<Vec<f32>>();
+            let embedding = embedding.iter().copied().collect();
             article.embedding = embedding;
             article
         })
