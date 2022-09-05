@@ -20,9 +20,10 @@ use crate::{storage::Error, DartMigrationData};
 
 /// Add the data from the  dart->rust/sqltie migration to the prepared database.
 pub(super) async fn store_migration_data(
-    pool: &Pool<Sqlite>,
-    data: &DartMigrationData,
+    _pool: &Pool<Sqlite>,
+    _data: &DartMigrationData,
 ) -> Result<(), Error> {
+    #![allow(clippy::unused_async)]
     //TODO[pmk] implement
     Ok(())
 }

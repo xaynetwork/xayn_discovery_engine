@@ -266,13 +266,15 @@ impl Engine {
     )]
     pub async fn from_config(
         config: InitConfig,
-        // TODO: change this to a boolean flag after DB migration
+        // TODO: remove this after db migration, make sure we can still reset the state
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
-        _dart_migration_data: Option<DartMigrationData>,
+        dart_migration_data: Option<DartMigrationData>,
     ) -> Result<Self, Error> {
-        // read the configs
+        #[cfg(not(feature = "storage"))]
+        let _ = dart_migration_data;
+
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
         let endpoint_config = de_config
@@ -345,7 +347,7 @@ impl Engine {
                         .unwrap(/*can't fail as we only join rust strings*/)
             });
             let (storage, _init_hint) =
-                SqliteStorage::init_storage_system(db_file_path, _dart_migration_data).await?;
+                SqliteStorage::init_storage_system(db_file_path, dart_migration_data).await?;
             //FIXME pass the hint to dart for deciding if migrations are needed
             storage
         };
@@ -1821,7 +1823,10 @@ pub(crate) mod tests {
         // reset the stacks and states
         #[cfg(feature = "storage")]
         {
-            engine.storage = SqliteStorage::init_storage_system(None).await.unwrap().0;
+            engine.storage = SqliteStorage::init_storage_system(None, None)
+                .await
+                .unwrap()
+                .0;
         }
         engine.stacks = RwLock::new(
             stack_ops
