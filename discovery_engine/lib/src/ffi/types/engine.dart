@@ -43,6 +43,7 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustSharedEngine;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
+import 'package:xayn_discovery_engine/src/ffi/types/dart_migration_data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
@@ -93,6 +94,7 @@ class DiscoveryEngineFfi implements Engine {
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(
     EngineInitializer initializer,
+    DartMigrationData? dartMigrationData,
   ) async {
     final setupData = initializer.setupData;
     if (setupData is! NativeSetupData) {
@@ -113,8 +115,7 @@ class DiscoveryEngineFfi implements Engine {
       initializer.engineState?.allocNative().move() ?? nullptr,
       initializer.history.allocNative().move(),
       initializer.reactedSources.allocVec().move(),
-      //TODO[pmk] pass in migration data if needed
-      nullptr,
+      dartMigrationData?.allocNative().move() ?? nullptr,
     );
     final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
 

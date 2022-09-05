@@ -17,6 +17,7 @@
 #![allow(unsafe_code)]
 
 mod boxed;
+pub mod dart_migration_data;
 pub mod date_time;
 pub mod document;
 pub mod duration;

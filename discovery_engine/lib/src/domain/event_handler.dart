@@ -16,6 +16,8 @@ import 'dart:typed_data' show Uint8List;
 import 'package:async/async.dart' show StreamGroup;
 import 'package:hive/hive.dart' show Hive;
 import 'package:meta/meta.dart' show visibleForTesting;
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
@@ -60,12 +62,14 @@ import 'package:xayn_discovery_engine/src/domain/models/source.dart'
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
     show SourcePreference, SourcePreferenceAdapter, PreferenceModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
+import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
     show SearchManager;
 import 'package:xayn_discovery_engine/src/domain/system_manager.dart'
     show SystemManager;
+import 'package:xayn_discovery_engine/src/ffi/types/dart_migration_data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/engine.dart'
     show DiscoveryEngineFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
@@ -237,6 +241,31 @@ class EventHandler {
         ? mockedAvailableSources
         : await setupData.getAvailableSources();
 
+    DartMigrationData? dartMigrationData;
+    if (cfgFeatureStorage &&
+        (engineState != null ||
+            history.isNotEmpty ||
+            reactedSources.isNotEmpty ||
+            trustedSources.isNotEmpty ||
+            excludedSources.isNotEmpty)) {
+      final activeSearch = await activeSearchRepository.getCurrent();
+      final activeDocumentData = activeDataRepository.box.toMap().map(
+            // ignore: avoid_annotating_with_dynamic
+            (dynamic key, data) =>
+                MapEntry(DocumentId.fromString(key as String), data),
+          );
+
+      dartMigrationData = DartMigrationData(
+        activeDocumentData: activeDocumentData,
+        activeSearch: activeSearch,
+        engineState: engineState,
+        excludedSources: excludedSources,
+        history: history,
+        reactedSources: reactedSources,
+        trustedSources: trustedSources,
+      );
+    }
+
     final Engine engine;
     try {
       engine = await _initializeEngine(
@@ -250,6 +279,7 @@ class EventHandler {
           trustedSources: trustedSources,
           excludedSources: excludedSources,
         ),
+        dartMigrationData,
       );
     } catch (e) {
       if ('$e'.contains('Unsupported serialized data.')) {
@@ -257,6 +287,16 @@ class EventHandler {
         throw InvalidEngineStateException('$e');
       }
       rethrow;
+    }
+
+    if (cfgFeatureStorage && dartMigrationData != null) {
+      //TODO[pmk] uncomment section once migration part was added
+      // await engineStateRepository.clear();
+      // await documentRepository.box.clear();
+      // await activeSearchRepository.clear();
+      // await activeDataRepository.box.clear();
+      // await sourceReactedRepository.box.clear();
+      // await sourcePreferenceRepository.clear();
     }
 
     // init managers
@@ -296,10 +336,13 @@ class EventHandler {
     return const EngineEvent.clientEventSucceeded();
   }
 
-  Future<Engine> _initializeEngine(EngineInitializer initializer) async =>
+  Future<Engine> _initializeEngine(
+    EngineInitializer initializer,
+    DartMigrationData? migrationData,
+  ) async =>
       initializer.config.isMocked()
           ? MockEngine(initializer)
-          : await DiscoveryEngineFfi.initialize(initializer);
+          : await DiscoveryEngineFfi.initialize(initializer, migrationData);
 
   Future<SetupData> _fetchAssets(Configuration config) async {
     final appDir = config.applicationDirectoryPath;

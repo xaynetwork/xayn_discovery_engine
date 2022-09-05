@@ -66,6 +66,7 @@ void main() {
           trustedSources: {},
           excludedSources: {},
         ),
+        null,
       ),
       allOf(
         throwsException,
