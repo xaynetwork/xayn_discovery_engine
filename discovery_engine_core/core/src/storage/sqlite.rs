@@ -863,7 +863,7 @@ impl FeedbackScope for SqliteStorage {
 
     async fn update_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
         match self.fetch_source_reaction(source).await? {
-            None => self.store_source_reaction(source, liked).await,
+            None => self.create_source_reaction(source, liked).await,
             Some(reaction) if reaction == liked => self.update_source_weight(source).await,
             _ => self.delete_source_reaction(source).await,
         }
@@ -959,7 +959,7 @@ impl SourceReactionScope for SqliteStorage {
         Ok(reaction.map(|r| r.liked))
     }
 
-    async fn store_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
+    async fn create_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
         let weight = if liked { 1 } else { -1 };
         let last_updated = Utc::now().naive_utc();
 
