@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Web service that uses Xayn Discovery Engine.
+//! Ingestion service that uses Xayn Discovery Engine.
 
 use bytes::{BufMut, Bytes, BytesMut};
 use chrono::{DateTime, Utc};
@@ -126,7 +126,7 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), GenericError> {
-    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "tracing=info,warp=debug".to_owned());
+    let filter = env::var("RUST_LOG").unwrap_or_else(|_| "tracing=info,warp=debug".to_owned());
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_span_events(FmtSpan::CLOSE)
@@ -148,7 +148,7 @@ async fn main() -> Result<(), GenericError> {
 fn init_model(config: &Config) -> Result<Model, GenericError> {
     info!("SMBert model loading...");
 
-    let path = env::current_dir().unwrap();
+    let path = env::current_dir()?;
     let vocab_path = path.join(&config.smbert_vocab);
     let model_path = path.join(&config.smbert_model);
     let smbert = SMBertConfig::from_files(&vocab_path, &model_path)?
@@ -190,7 +190,7 @@ async fn handle_add_data(
         .documents
         .into_iter()
         .map(|mut article| {
-            let embedding = model.run(&article.snippet).unwrap();
+            let embedding = model.run(&article.snippet).unwrap_or_default();
             let embedding = embedding.iter().copied().collect::<Vec<f32>>();
             article.embedding = embedding;
             article
@@ -239,7 +239,7 @@ fn with_client(client: Client) -> impl Filter<Extract = (Client,), Error = Infal
     warp::any().map(move || client.clone())
 }
 
-fn serialize_to_ndjson(articles: &Vec<Article>) -> Result<Bytes, GenericError> {
+fn serialize_to_ndjson(articles: &[Article]) -> Result<Bytes, GenericError> {
     let mut bytes = BytesMut::new();
 
     fn write_record(article: &Article, bytes: &mut BytesMut) -> Result<(), GenericError> {
