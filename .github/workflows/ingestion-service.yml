@@ -1,14 +1,11 @@
-name: Web Service Release
+name: Ingestion Service Release
 
 on:
   workflow_dispatch:
     inputs:
-      data_json_url:
-        required: true
-        description: A json file url with the data needed for the service (i.e. pastebin.pl)
       tag:
         required: false
-        description: a tag that will be used for identifying this version (xaynetci/xayn_discovery_web_service:$TAG)
+        description: a tag that will be used for identifying this version (xaynetci/xayn_discovery_ingestion_service:$TAG)
 
 permissions:
   contents: read
@@ -32,7 +29,7 @@ jobs:
           rust: true
 
       - name: Build artifacts
-        run: just build-web-service
+        run: just build-ingestion-service
 
       - name: Download assets
         run: just download-assets
@@ -40,27 +37,25 @@ jobs:
       - name: Prepare temp directory
         working-directory: ${{ runner.temp }}
         run: |
-          rm -rf ./web-service
-          mkdir -p web-service/assets
+          rm -rf ./ingestion-service
+          mkdir -p ingestion-service/assets
 
       - name: Create archive
         working-directory: ${{ runner.temp }}
         run: |
-          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/target/release/web-api ./web-service/web-api
-          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/.env ./web-service/.env
-          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/Dockerfile.web-api ./web-service/Dockerfile
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/smbert-quantized.onnx ./web-service/assets/model.onnx
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/vocab.txt ./web-service/assets/vocab.txt
-          curl "${{ github.event.inputs.data_json_url }}" > ./web-service/assets/data.json
-          tar -cvf web-service.tar ./web-service
+          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/target/release/ingestion ./ingestion-service/ingestion
+          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/Dockerfile.ingestion ./ingestion-service/Dockerfile
+          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/smbert-quantized.onnx ./ingestion-service/assets/model.onnx
+          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/vocab.txt ./ingestion-service/assets/vocab.txt
+          tar -cvf ingestion-service.tar ./ingestion-service
 
       - name: Upload archive
         uses: actions/upload-artifact@v3
         with:
-          name: web-service
+          name: ingestion-service
           retention-days: 1
           if-no-files-found: error
-          path: ${{ runner.temp }}/web-service.tar
+          path: ${{ runner.temp }}/ingestion-service.tar
 
   docker-build:
     runs-on: ubuntu-20.04
@@ -77,12 +72,12 @@ jobs:
         id: artifacts
         uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v3.0.0
         with:
-          name: web-service
+          name: ingestion-service
 
       - name: Create docker image
         run: |
-          tar -xvf web-service.tar
-          cd ./web-service
+          tar -xvf ingestion-service.tar
+          cd ./ingestion-service
           TAG=${{ github.event.inputs.tag }}
           if [ -z "$TAG" ]; then
             TAG="branch-$(git rev-parse --abbrev-ref HEAD)"
@@ -90,7 +85,7 @@ jobs:
               TAG="$(git rev-parse --short HEAD)"
             fi
           fi
-          IMAGE_NAME="xaynetci/xayn_discovery_web_service:$TAG"
+          IMAGE_NAME="xaynetci/xayn_discovery_ingestion_service:$TAG"
           docker build -t "${IMAGE_NAME}" .
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "TAG=${TAG}" >> $GITHUB_ENV

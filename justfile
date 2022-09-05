@@ -370,6 +370,12 @@ build-web-service:
     cd "$RUST_WORKSPACE"
     cargo build --release --bin web-api
 
+build-ingestion-service:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    cargo build --release --bin ingestion
+
 db-setup:
     #!/usr/bin/env bash
     set -eux -o pipefail
