@@ -242,12 +242,17 @@ class EventHandler {
         : await setupData.getAvailableSources();
 
     DartMigrationData? dartMigrationData;
-    if (cfgFeatureStorage &&
-        (engineState != null ||
-            history.isNotEmpty ||
-            reactedSources.isNotEmpty ||
-            trustedSources.isNotEmpty ||
-            excludedSources.isNotEmpty)) {
+    // If we still have history/reactions/state in dart we migrate and then delete
+    // all dart state (iff the migration succeeded). There should ever be only
+    // one dart->rust/sqlite migration as we make sure no database exist before
+    // we start the migration. `activeDataRepository` is not checked as its
+    // implied by history.
+    // FIXME We don't check `sourcePreferenceRepository` as it is changed even if storage enabled
+    final hasDataToMigrate = engineState != null ||
+        history.isNotEmpty ||
+        reactedSources.isNotEmpty ||
+        activeSearchRepository.box.isNotEmpty;
+    if (cfgFeatureStorage && hasDataToMigrate) {
       final activeSearch = await activeSearchRepository.getCurrent();
       final activeDocumentData = activeDataRepository.box.toMap().map(
             // ignore: avoid_annotating_with_dynamic
