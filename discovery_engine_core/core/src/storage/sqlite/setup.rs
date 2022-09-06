@@ -12,7 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use crate::{
     stack,
@@ -33,7 +37,7 @@ use super::SqliteStorage;
 /// If the opening or schema migrating of an existing db fails it is deleted
 /// and a new db is opened instead.
 pub(super) async fn init_storage_system(
-    file_path: Option<String>,
+    file_path: Option<PathBuf>,
 ) -> Result<(SqliteStorage, InitDbHint), Error> {
     let file_exists = if let Some(path) = &file_path {
         //tokio version of `std::path::Path::exists()`
@@ -64,7 +68,7 @@ pub(super) async fn init_storage_system(
 /// Deletes all sqlite db files associated with given db file path.
 ///
 /// File does not exist errors are fully ignored.
-pub(super) async fn delete_db_files(file_path: Option<&str>) -> Result<(), Error> {
+pub(super) async fn delete_db_files(file_path: Option<&Path>) -> Result<(), Error> {
     if let Some(file_path) = &file_path {
         let mut errors = vec![];
 
@@ -73,10 +77,10 @@ pub(super) async fn delete_db_files(file_path: Option<&str>) -> Result<(), Error
         remove_file_if_exists(file_path)
             .await
             .extract_error(&mut errors);
-        remove_file_if_exists(&format!("{}-wal", file_path))
+        remove_file_if_exists(with_file_name_suffix(file_path, "-wal")?)
             .await
             .extract_error(&mut errors);
-        remove_file_if_exists(&format!("{}-shm", file_path))
+        remove_file_if_exists(with_file_name_suffix(file_path, "-shm")?)
             .await
             .extract_error(&mut errors);
 
@@ -93,19 +97,32 @@ pub(super) async fn delete_db_files(file_path: Option<&str>) -> Result<(), Error
     }
 }
 
-async fn init_storage_system_once(file_path: Option<String>) -> Result<SqliteStorage, Error> {
+fn with_file_name_suffix(path: &Path, suffix: &str) -> Result<PathBuf, Error> {
+    let mut file_name = path
+        .file_name()
+        .ok_or_else(|| {
+            Error::Database(format!("path doesn't have a file name: {}", path.display()).into())
+        })?
+        .to_owned();
+    file_name.push(OsStr::new(suffix));
+    Ok(path.with_file_name(file_name))
+}
+
+async fn init_storage_system_once(file_path: Option<PathBuf>) -> Result<SqliteStorage, Error> {
     let pool = create_connection_pool(file_path.as_deref()).await?;
     update_schema(&pool).await?;
     update_static_data(&pool).await?;
     Ok(SqliteStorage { file_path, pool })
 }
 
-pub(super) async fn create_connection_pool(file_path: Option<&str>) -> Result<Pool<Sqlite>, Error> {
+pub(super) async fn create_connection_pool(
+    file_path: Option<&Path>,
+) -> Result<Pool<Sqlite>, Error> {
     let opt = if let Some(file_path) = &file_path {
-        SqliteConnectOptions::from_str(&format!("sqlite:{}", file_path))
+        SqliteConnectOptions::new().filename(file_path)
     } else {
-        SqliteConnectOptions::from_str("sqlite::memory:")
-    }?
+        SqliteConnectOptions::from_str("sqlite::memory:")?
+    }
     .create_if_missing(true);
 
     SqlitePoolOptions::new()
@@ -160,7 +177,7 @@ async fn update_static_data(pool: &Pool<Sqlite>) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, path::Path};
+    use std::collections::HashSet;
 
     use tempfile::tempdir;
 
@@ -201,10 +218,6 @@ mod tests {
         std::fs::write(path, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 77, 88, 112]).unwrap();
     }
 
-    fn path_as_str(path: &Path) -> &str {
-        path.as_os_str().to_str().unwrap()
-    }
-
     #[tokio::test]
     async fn test_db_deletion_deletes_all_db_related_files() {
         let dir = tempdir().unwrap();
@@ -220,7 +233,7 @@ mod tests {
         assert!(db_wal_file.exists());
         assert!(db_shm_file.exists());
 
-        delete_db_files(Some(path_as_str(&db_file))).await.unwrap();
+        delete_db_files(Some(&db_file)).await.unwrap();
 
         assert!(!db_file.exists());
         assert!(!db_wal_file.exists());
@@ -240,7 +253,7 @@ mod tests {
         assert!(!db_wal_file.exists());
         assert!(db_shm_file.exists());
 
-        delete_db_files(Some(path_as_str(&db_file))).await.unwrap();
+        delete_db_files(Some(&db_file)).await.unwrap();
 
         assert!(!db_file.exists());
         assert!(!db_wal_file.exists());
@@ -262,7 +275,7 @@ mod tests {
         assert!(db_wal_file.exists());
         assert!(db_shm_file.exists());
 
-        let res = delete_db_files(Some(path_as_str(&db_file))).await;
+        let res = delete_db_files(Some(&db_file)).await;
         assert!(res.is_err());
 
         assert!(!db_file.exists());
@@ -283,9 +296,7 @@ mod tests {
         create_bad_file(&db_file);
         assert!(db_file.exists());
 
-        let (storage, hint) = init_storage_system(Some(path_as_str(&db_file).into()))
-            .await
-            .unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone())).await.unwrap();
 
         assert!(db_file.exists());
 
@@ -300,9 +311,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let db_file = dir.path().join("db.sqlite");
 
-        let (storage, hint) = init_storage_system(Some(path_as_str(&db_file).into()))
-            .await
-            .unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone())).await.unwrap();
 
         assert!(db_file.exists());
         assert!(matches!(hint, InitDbHint::NewDbCreated));
@@ -312,9 +321,7 @@ mod tests {
 
         assert!(db_file.exists());
 
-        let (storage, hint) = init_storage_system(Some(path_as_str(&db_file).into()))
-            .await
-            .unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone())).await.unwrap();
 
         assert!(db_file.exists());
         assert!(matches!(hint, InitDbHint::NormalInit));

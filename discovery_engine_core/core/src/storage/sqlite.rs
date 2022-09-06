@@ -14,6 +14,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    path::PathBuf,
     time::Duration,
 };
 
@@ -65,11 +66,7 @@ pub(crate) struct SqliteStorage {
     /// Path to the database file.
     ///
     /// `None` in case of an ephemeral (i.e. in memory) db.
-    ///
-    /// We didn't use PathBuf as it must be valid string.
-    //TODO[pmk] use file_path for app triggered db reset
-    #[allow(unused)]
-    file_path: Option<String>,
+    file_path: Option<PathBuf>,
     pool: Pool<Sqlite>,
 }
 
@@ -320,7 +317,7 @@ impl Storage for SqliteStorage {
     async fn init_storage_system(
         file_path: Option<String>,
     ) -> Result<(BoxedStorage, InitDbHint), Error> {
-        self::setup::init_storage_system(file_path)
+        self::setup::init_storage_system(file_path.map(Into::into))
             .await
             .map(|(storage, hint)| (Box::new(storage) as _, hint))
     }
