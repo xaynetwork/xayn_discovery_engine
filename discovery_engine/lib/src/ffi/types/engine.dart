@@ -84,6 +84,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/weighted_source_vec.dart'
     show WeightedSourceListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 
 /// A handle to the discovery engine.
 class DiscoveryEngineFfi implements Engine {

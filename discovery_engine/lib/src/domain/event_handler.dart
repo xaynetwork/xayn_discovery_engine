@@ -62,14 +62,12 @@ import 'package:xayn_discovery_engine/src/domain/models/source.dart'
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
     show SourcePreference, SourcePreferenceAdapter, PreferenceModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart';
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewModeAdapter;
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
     show SearchManager;
 import 'package:xayn_discovery_engine/src/domain/system_manager.dart'
     show SystemManager;
-import 'package:xayn_discovery_engine/src/ffi/types/dart_migration_data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/engine.dart'
     show DiscoveryEngineFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
@@ -86,6 +84,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         searchBox,
         sourcePreferenceBox,
         sourceReactedBox;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
@@ -241,35 +240,16 @@ class EventHandler {
         ? mockedAvailableSources
         : await setupData.getAvailableSources();
 
-    DartMigrationData? dartMigrationData;
-    // If we still have history/reactions/state in dart we migrate and then delete
-    // all dart state (iff the migration succeeded). There should ever be only
-    // one dart->rust/sqlite migration as we make sure no database exist before
-    // we start the migration. `activeDataRepository` is not checked as its
-    // implied by history.
-    // FIXME We don't check `sourcePreferenceRepository` as it is changed even if storage enabled
-    final hasDataToMigrate = engineState != null ||
-        history.isNotEmpty ||
-        reactedSources.isNotEmpty ||
-        activeSearchRepository.box.isNotEmpty;
-    if (cfgFeatureStorage && hasDataToMigrate) {
-      final activeSearch = await activeSearchRepository.getCurrent();
-      final activeDocumentData = activeDataRepository.box.toMap().map(
-            // ignore: avoid_annotating_with_dynamic
-            (dynamic key, data) =>
-                MapEntry(DocumentId.fromString(key as String), data),
-          );
-
-      dartMigrationData = DartMigrationData(
-        activeDocumentData: activeDocumentData,
-        activeSearch: activeSearch,
-        engineState: engineState,
-        excludedSources: excludedSources,
-        history: history,
-        reactedSources: reactedSources,
-        trustedSources: trustedSources,
-      );
-    }
+    final dartMigrationData = cfgFeatureStorage
+        ? await DartMigrationData.fromRepositories(
+            engineStateRepository,
+            documentRepository,
+            activeSearchRepository,
+            activeDataRepository,
+            sourceReactedRepository,
+            sourcePreferenceRepository,
+          )
+        : null;
 
     final Engine engine;
     try {
@@ -294,15 +274,7 @@ class EventHandler {
       rethrow;
     }
 
-    if (cfgFeatureStorage && dartMigrationData != null) {
-      //TODO[pmk] uncomment section once migration part was added
-      // await engineStateRepository.clear();
-      // await documentRepository.box.clear();
-      // await activeSearchRepository.clear();
-      // await activeDataRepository.box.clear();
-      // await sourceReactedRepository.box.clear();
-      // await sourcePreferenceRepository.clear();
-    }
+    await dartMigrationData?.cleanup();
 
     // init managers
     _documentManager = DocumentManager(
