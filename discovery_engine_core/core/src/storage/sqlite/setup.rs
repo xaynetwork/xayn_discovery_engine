@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{path::Path, str::FromStr};
+use std::str::FromStr;
 
 use crate::{
     stack,
@@ -35,34 +35,29 @@ use super::SqliteStorage;
 pub(super) async fn init_storage_system(
     file_path: Option<String>,
 ) -> Result<(SqliteStorage, InitDbHint), Error> {
-    let file_exists = db_file_does_exist(file_path.as_deref()).await;
-    let result = init_storage_system_once(file_path.clone()).await;
-    let first_error = match (file_exists, result) {
-        (false, Ok(storage)) => return Ok((storage, InitDbHint::NewDbCreated)),
-        (true, Ok(storage)) => return Ok((storage, InitDbHint::NormalInit)),
-        (false, Err(err)) => return Err(err),
-        (true, Err(err)) => err,
-    };
-
-    // either the database was corrupted or we messed up the migrations,
-    // as the app must continue working so we start from scratch
-    //FIXME we could make a backup so that if we push a bad update the
-    //      data could be restored with a follow-up update. But for now
-    //      this is fully out of scope of what we have resources for.
-    delete_db_files(file_path.as_deref()).await?;
-
-    init_storage_system_once(file_path)
-        .await
-        .map(|storage| (storage, InitDbHint::DbOverwrittenDueToErrors(first_error)))
-}
-
-/// Check if a db file does exist, this must be called before creating a connection pool.
-async fn db_file_does_exist(file_path: Option<&str>) -> bool {
-    if let Some(path) = file_path {
+    let file_exists = if let Some(path) = &file_path {
         //tokio version of `std::path::Path::exists()`
-        tokio::fs::metadata(Path::new(path)).await.is_ok()
+        tokio::fs::metadata(path).await.is_ok()
     } else {
         false
+    };
+    let result = init_storage_system_once(file_path.clone()).await;
+    match (file_exists, result) {
+        (false, Ok(storage)) => Ok((storage, InitDbHint::NewDbCreated)),
+        (true, Ok(storage)) => Ok((storage, InitDbHint::NormalInit)),
+        (false, Err(err)) => Err(err),
+        (true, Err(first_error)) => {
+            // either the database was corrupted or we messed up the migrations,
+            // as the app must continue working so we start from scratch
+            //FIXME we could make a backup so that if we push a bad update the
+            //      data could be restored with a follow-up update. But for now
+            //      this is fully out of scope of what we have resources for.
+            delete_db_files(file_path.as_deref()).await?;
+
+            init_storage_system_once(file_path)
+                .await
+                .map(|storage| (storage, InitDbHint::DbOverwrittenDueToErrors(first_error)))
+        }
     }
 }
 
@@ -139,11 +134,10 @@ const EXISTING_STACKS: [stack::Id; 4] = [
 async fn update_static_data(pool: &Pool<Sqlite>) -> Result<(), Error> {
     let mut tx = pool.begin().await?;
 
-    let expected_ids = &EXISTING_STACKS;
     let mut query_builder = QueryBuilder::new(String::new());
     query_builder
         .push("INSERT INTO Stack (stackId) ")
-        .push_values(expected_ids, |mut stm, id| {
+        .push_values(EXISTING_STACKS, |mut stm, id| {
             stm.push_bind(id);
         })
         .push(" ON CONFLICT DO NOTHING;")
@@ -154,7 +148,7 @@ async fn update_static_data(pool: &Pool<Sqlite>) -> Result<(), Error> {
     query_builder
         .reset()
         .push("DELETE FROM Stack WHERE stackId NOT IN ")
-        .push_tuple(expected_ids)
+        .push_tuple(EXISTING_STACKS)
         .build()
         .persistent(false)
         .execute(&mut tx)
@@ -166,7 +160,7 @@ async fn update_static_data(pool: &Pool<Sqlite>) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::{collections::HashSet, path::Path};
 
     use tempfile::tempdir;
 

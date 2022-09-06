@@ -319,10 +319,7 @@ impl SqliteStorage {
 impl Storage for SqliteStorage {
     async fn init_storage_system(
         file_path: Option<String>,
-    ) -> Result<(BoxedStorage, InitDbHint), Error>
-    where
-        Self: Sized,
-    {
+    ) -> Result<(BoxedStorage, InitDbHint), Error> {
         self::setup::init_storage_system(file_path)
             .await
             .map(|(storage, hint)| (Box::new(storage) as _, hint))
@@ -1059,13 +1056,15 @@ mod tests {
         }};
     }
 
-    async fn create_memory_storage() -> BoxedStorage {
-        SqliteStorage::init_storage_system(None).await.unwrap().0
+    impl SqliteStorage {
+        async fn test_storage_system() -> BoxedStorage {
+            SqliteStorage::init_storage_system(None).await.unwrap().0
+        }
     }
 
     #[tokio::test]
     async fn test_fetch_history() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let history = storage.fetch_history().await.unwrap();
         assert!(history.is_empty());
 
@@ -1089,7 +1088,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_feed_methods() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let feed = storage.feed().fetch().await.unwrap();
         assert!(feed.is_empty());
 
@@ -1123,7 +1122,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_methods() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let search = storage.search().fetch().await;
         assert!(search.is_err());
         assert!(!storage.search().clear().await.unwrap());
@@ -1177,7 +1176,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_search() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
 
         let new_search = Search {
             search_by: SearchBy::Query,
@@ -1230,7 +1229,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rank_conversion() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let mut docs = create_documents(1);
         docs[0].newscatcher_data.domain_rank = u64::MAX;
         storage
@@ -1249,7 +1248,7 @@ mod tests {
     #[tokio::test]
     #[allow(clippy::similar_names)]
     async fn test_storing_user_reaction() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(10);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
         storage
@@ -1305,7 +1304,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_storing_user_reaction_returns_the_right_document() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(1);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
         storage
@@ -1325,7 +1324,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_state() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
 
         assert!(!storage.state().clear().await.unwrap());
         assert!(storage.state().fetch().await.unwrap().is_none());
@@ -1343,7 +1342,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_source_preference() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
 
         // if no sources are set, return an empty set
         let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
@@ -1411,7 +1410,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_store_time_spent() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(3);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
 
