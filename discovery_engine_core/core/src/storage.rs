@@ -76,6 +76,8 @@ pub(crate) trait Storage {
     fn state(&self) -> &(dyn StateScope + Send + Sync);
 
     fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync);
+
+    fn source_reaction(&self) -> &(dyn SourceReactionScope + Send + Sync);
 }
 
 #[async_trait]
@@ -131,6 +133,8 @@ pub(crate) trait FeedbackScope {
         view_mode: ViewMode,
         view_time: Duration,
     ) -> Result<TimeSpentDocumentView, Error>;
+
+    async fn update_source_reaction(&self, source: &str, like: bool) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -151,6 +155,17 @@ pub(crate) trait SourcePreferenceScope {
     async fn fetch_trusted(&self) -> Result<HashSet<String>, Error>;
 
     async fn fetch_excluded(&self) -> Result<HashSet<String>, Error>;
+}
+
+#[async_trait]
+pub(crate) trait SourceReactionScope {
+    async fn fetch_source_reaction(&self, source: &str) -> Result<Option<bool>, Error>;
+
+    async fn create_source_reaction(&self, source: &str, like: bool) -> Result<(), Error>;
+
+    async fn update_source_weight(&self, source: &str) -> Result<(), Error>;
+
+    async fn delete_source_reaction(&self, source: &str) -> Result<(), Error>;
 }
 
 pub mod models {

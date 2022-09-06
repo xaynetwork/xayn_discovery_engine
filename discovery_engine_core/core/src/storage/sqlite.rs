@@ -47,15 +47,16 @@ use crate::{
         },
         Error,
         FeedScope,
+        FeedbackScope,
         SearchScope,
         SourcePreferenceScope,
+        SourceReactionScope,
         StateScope,
         Storage,
     },
 };
 
 use self::utils::SqlxSqliteResultExt;
-use super::FeedbackScope;
 use crate::storage::utils::SqlxPushTupleExt;
 
 mod utils;
@@ -423,6 +424,10 @@ impl Storage for SqliteStorage {
     }
 
     fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync) {
+        self
+    }
+
+    fn source_reaction(&self) -> &(dyn SourceReactionScope + Send + Sync) {
         self
     }
 }
@@ -882,6 +887,14 @@ impl FeedbackScope for SqliteStorage {
 
         Ok(view)
     }
+
+    async fn update_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
+        match self.fetch_source_reaction(source).await? {
+            None => self.create_source_reaction(source, liked).await,
+            Some(reaction) if reaction == liked => self.update_source_weight(source).await,
+            _ => self.delete_source_reaction(source).await,
+        }
+    }
 }
 
 #[derive(FromRow)]
@@ -942,6 +955,85 @@ impl SourcePreferenceScope for SqliteStorage {
 
     async fn fetch_excluded(&self) -> Result<HashSet<String>, Error> {
         self.fetch_sources(SourcePreference::Excluded).await
+    }
+}
+
+#[derive(FromRow)]
+struct QueriedSourceReaction {
+    #[allow(dead_code)]
+    source: String,
+    #[allow(dead_code)]
+    weight: i32,
+    liked: bool,
+}
+
+#[async_trait]
+impl SourceReactionScope for SqliteStorage {
+    async fn fetch_source_reaction(&self, source: &str) -> Result<Option<bool>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let reaction = sqlx::query_as::<_, QueriedSourceReaction>(
+            "SELECT source, weight, liked
+            FROM SourceReaction
+            WHERE source = ?;",
+        )
+        .bind(source)
+        .fetch_optional(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(reaction.map(|r| r.liked))
+    }
+
+    async fn create_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
+        let weight = if liked { 1 } else { -1 };
+        let last_updated = Utc::now().naive_utc();
+
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+            "INSERT INTO SourceReaction (source, weight, lastUpdated, liked) VALUES (?, ?, ?, ?)",
+        )
+        .bind(source)
+        .bind(weight)
+        .bind(last_updated)
+        .bind(liked)
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await.map_err(Into::into)
+    }
+
+    async fn update_source_weight(&self, source: &str) -> Result<(), Error> {
+        let last_updated = Utc::now().naive_utc();
+
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+            "UPDATE SourceReaction
+            SET lastUpdated = ?,
+                weight = CASE WHEN liked = 1 THEN (weight + 1) END
+            WHERE source = ?",
+        )
+        .bind(last_updated)
+        .bind(source)
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await.map_err(Into::into)
+    }
+
+    async fn delete_source_reaction(&self, source: &str) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query("DELETE FROM SourceReaction WHERE source = ?;")
+            .bind(source)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
     }
 }
 
