@@ -308,7 +308,9 @@ mod tests {
         create_bad_file(&db_file);
         assert!(db_file.exists());
 
-        let (storage, hint) = init_storage_system(Some(db_file.clone()), None).await.unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone()), None)
+            .await
+            .unwrap();
 
         assert!(db_file.exists());
 
@@ -323,7 +325,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let db_file = dir.path().join("db.sqlite");
 
-        let (storage, hint) = init_storage_system(Some(db_file.clone()), None).await.unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone()), None)
+            .await
+            .unwrap();
 
         assert!(db_file.exists());
         assert!(matches!(hint, InitDbHint::NewDbCreated));
@@ -333,7 +337,9 @@ mod tests {
 
         assert!(db_file.exists());
 
-        let (storage, hint) = init_storage_system(Some(db_file.clone()), None).await.unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone()), None)
+            .await
+            .unwrap();
 
         assert!(db_file.exists());
         assert!(matches!(hint, InitDbHint::NormalInit));

@@ -29,12 +29,26 @@ use crate::{
     stack,
     storage::{
         models::{
-            ApiDocumentView, NewDocument, NewsResource, NewscatcherData, Paging, Search, SearchBy,
+            ApiDocumentView,
+            NewDocument,
+            NewsResource,
+            NewscatcherData,
+            Paging,
+            Search,
+            SearchBy,
             TimeSpentDocumentView,
         },
         utils::SqlxPushTupleExt,
-        BoxedStorage, Error, FeedScope, FeedbackScope, InitDbHint, SearchScope,
-        SourcePreferenceScope, SourceReactionScope, StateScope, Storage,
+        BoxedStorage,
+        Error,
+        FeedScope,
+        FeedbackScope,
+        InitDbHint,
+        SearchScope,
+        SourcePreferenceScope,
+        SourceReactionScope,
+        StateScope,
+        Storage,
     },
     DartMigrationData,
 };
@@ -1039,7 +1053,10 @@ mod tests {
 
     impl SqliteStorage {
         async fn test_storage_system() -> BoxedStorage {
-            SqliteStorage::init_storage_system(None, None).await.unwrap().0
+            SqliteStorage::init_storage_system(None, None)
+                .await
+                .unwrap()
+                .0
         }
     }
 
