@@ -56,7 +56,7 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
     };
     use xayn_discovery_engine_providers::Market;
 
-    use crate::types::{engine::SharedEngine, search::Search};
+    use crate::types::{engine::{SharedEngine, InitializationResult}, search::Search};
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
@@ -67,7 +67,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         history: Box<Vec<HistoricDocument>>,
         sources: Box<Vec<WeightedSource>>,
         dart_migration_data: Option<Box<DartMigrationData>>,
-    ) -> Box<Result<SharedEngine, String>> {
+    ) -> Box<Result<InitializationResult, String>> {
         tracing::init_tracing(config.log_file.as_deref().map(Path::new));
 
         Box::new(
@@ -79,7 +79,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 dart_migration_data.map(|d| *d),
             )
             .await
-            .map(|engine| tokio::sync::Mutex::new(engine).into())
+            .map(|(engine, init_db_hint)| InitializationResult::new(engine, init_db_hint))
             .map_err(|error| error.to_string()),
         )
     }

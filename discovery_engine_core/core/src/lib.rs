@@ -51,3 +51,16 @@ pub use crate::{
 pub struct DartMigrationData {
     pub dummy: u8,
 }
+
+//FIXME move into crate::storage once the feature "storage" flag is removed
+/// Hint about what was done during db init.
+pub enum InitDbHint {
+    /// Hint to use if nothing special happened during init.
+    #[cfg(feature = "storage")]
+    NormalInit,
+    /// A new db was created, there was no db beforehand.
+    NewDbCreated,
+    /// There was a db but we could not open it so we deleted it and created a new one.
+    #[cfg(feature = "storage")]
+    DbOverwrittenDueToErrors(crate::storage::Error),
+}

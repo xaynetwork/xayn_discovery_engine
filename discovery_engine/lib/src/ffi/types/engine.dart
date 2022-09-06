@@ -41,7 +41,7 @@ import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustSharedEngine;
-import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi;
+import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/dart_migration_data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
@@ -65,15 +65,15 @@ import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
 import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
     show
         resultDocumentStringFfiAdapter,
+        resultInitializationResultStringFfiAdapter,
         resultSearchStringFfiAdapter,
-        resultSharedEngineStringFfiAdapter,
         resultVecDocumentStringFfiAdapter,
         resultVecStringStringFfiAdapter,
         resultVecTrendingTopicStringFfiAdapter,
         resultVecU8StringFfiAdapter,
         resultVoidStringFfiAdapter;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
-    show StringFfi, StringListFfi;
+    show OptionStringFfi, StringFfi, StringListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart'
     show TrendingTopicSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
@@ -89,8 +89,9 @@ import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 /// A handle to the discovery engine.
 class DiscoveryEngineFfi implements Engine {
   final Boxed<RustSharedEngine> _engine;
+  final String? dbOverrideError;
 
-  const DiscoveryEngineFfi._(this._engine);
+  const DiscoveryEngineFfi._(this._engine, this.dbOverrideError);
 
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(
@@ -118,9 +119,18 @@ class DiscoveryEngineFfi implements Engine {
       initializer.reactedSources.allocVec().move(),
       dartMigrationData?.allocNative().move() ?? nullptr,
     );
-    final boxedEngine = resultSharedEngineStringFfiAdapter.moveNative(result);
-
-    return DiscoveryEngineFfi._(boxedEngine);
+    final boxedInitResult =
+        resultInitializationResultStringFfiAdapter.moveNative(result);
+    final dbOverrideErr = OptionStringFfi.readNative(
+      ffi.initialization_result_place_of_db_override_error(boxedInitResult.ref),
+    );
+    final boxedEngine = Boxed(
+      ffi.destruct_initialization_result_into_shared_engine(
+        boxedInitResult.move(),
+      ),
+      asyncFfi.dispose,
+    );
+    return DiscoveryEngineFfi._(boxedEngine, dbOverrideErr);
   }
 
   @override

@@ -26,6 +26,7 @@ use crate::{
     document::{self, HistoricDocument, UserReaction, ViewMode},
     stack,
     DartMigrationData,
+    InitDbHint,
 };
 
 use self::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView};
@@ -57,16 +58,6 @@ impl From<MalformedBytesEmbedding> for Error {
     fn from(err: MalformedBytesEmbedding) -> Self {
         Error::Database(Box::new(err))
     }
-}
-
-/// Hint about what was done during db init.
-pub enum InitDbHint {
-    /// Hint to use if nothing special happened during init.
-    NormalInit,
-    /// A new db was created, there was no db beforehand.
-    NewDbCreated,
-    /// There was a db but we could not open it so we deleted it and created a new one.
-    DbOverwrittenDueToErrors(Error),
 }
 
 #[async_trait]
