@@ -258,7 +258,11 @@ impl Engine {
     }
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
-    #[allow(clippy::too_many_lines, clippy::similar_names, clippy::missing_panics_doc)]
+    #[allow(
+        clippy::too_many_lines,
+        clippy::similar_names,
+        clippy::missing_panics_doc
+    )]
     pub async fn from_config(
         config: InitConfig,
         // TODO: change this to a boolean flag after DB migration

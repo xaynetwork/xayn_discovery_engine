@@ -308,7 +308,7 @@ void main() {
 
     setUp(() async {
       server = await LocalNewsApiServer.start();
-      data = await setupTestEngineData(useInMemoryDb: false);
+      data = await setupTestEngineData(useInEphemeralDb: false);
       engine = await initEngine(data, server.port);
     });
 

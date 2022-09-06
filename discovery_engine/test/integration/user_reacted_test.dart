@@ -53,7 +53,7 @@ void main() {
     });
 
     test('change the user reaction of a document', () async {
-      data.useInMemoryDb = false;
+      data.useInEphemeralDb = false;
       var engine = await initEngine(data, server.port);
 
       // fetch some documents

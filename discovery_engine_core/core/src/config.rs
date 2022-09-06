@@ -103,7 +103,7 @@ pub struct InitConfig {
     pub log_file: Option<String>,
     /// Directory in which user data should be stored.
     pub data_dir: String,
-    /// Use a in-memory db instead of a db in the `data_dir`
+    /// Use a ephemeral db instead of a db in the `data_dir`
     pub use_ephemeral_db: bool,
 }
 

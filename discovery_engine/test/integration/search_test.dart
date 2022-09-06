@@ -173,7 +173,7 @@ void main() {
     late DiscoveryEngine engine;
 
     setUp(() async {
-      data = await setupTestEngineData(useInMemoryDb: false);
+      data = await setupTestEngineData(useInEphemeralDb: false);
       server = await LocalNewsApiServer.start();
       engine = await initEngine(data, server.port);
     });
