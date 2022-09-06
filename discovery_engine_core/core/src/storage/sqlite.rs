@@ -14,7 +14,6 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
     time::Duration,
 };
 
@@ -63,10 +62,6 @@ const BIND_LIMIT: usize = 32766;
 
 #[derive(Clone)]
 pub(crate) struct SqliteStorage {
-    /// Path to the database file.
-    ///
-    /// `None` in case of an ephemeral (i.e. in memory) db.
-    file_path: Option<PathBuf>,
     pool: Pool<Sqlite>,
 }
 
