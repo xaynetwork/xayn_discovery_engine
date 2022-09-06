@@ -127,7 +127,7 @@ async fn update_schema(pool: &Pool<Sqlite>) -> Result<(), Error> {
 }
 
 //FIXME at some point we probably should derive this from the configuration
-//      and also decide what to do we documents in the history which are
+//      and also decide what to do with documents in the history which are
 //      associated with a stack which is not included in the current config
 const EXISTING_STACKS: [stack::Id; 4] = [
     stack::ops::breaking::BreakingNews::id(),

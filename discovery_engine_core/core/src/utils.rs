@@ -37,7 +37,7 @@ pub(crate) trait MiscErrorExt<T, E> {
     /// Like [`std::result::Result::ok()`] but if `slot` is `None` the error is moved into `slot`.
     fn extract_first_error(self, slot: &mut Option<E>) -> Option<T>;
 
-    /// Like [`std::result::Result::ok()`] the error is moved into the passed in vec (using `push`).
+    /// Like [`std::result::Result::ok()`] and the error is moved into the passed in vec (using `push`).
     fn extract_error(self, push_to: &mut Vec<E>) -> Option<T>;
 }
 
