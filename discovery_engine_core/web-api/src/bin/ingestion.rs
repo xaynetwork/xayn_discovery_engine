@@ -49,6 +49,12 @@ pub(crate) struct Config {
 
     #[envconfig(from = "DE_SMBERT_MODEL")]
     pub(crate) smbert_model: PathBuf,
+
+    #[envconfig(from = "MAX_BODY_SIZE", default = "524288")]
+    pub(crate) max_body_size: u64,
+
+    #[envconfig(from = "MAX_DOCUMENTS_LENGTH", default = "100")]
+    pub(crate) max_documents_len: usize,
 }
 
 /// Represents the `SMBert` model used for calculating embedding from snippets.
@@ -171,8 +177,7 @@ fn post_add_data(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path("add_data")
         .and(warp::post())
-        // TODO: adjust the size that we should allow
-        .and(warp::body::content_length_limit(1024 * 4))
+        .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
         .and(with_model(model))
         .and(with_config(config))
@@ -186,16 +191,28 @@ async fn handle_add_data(
     config: Config,
     client: Client,
 ) -> Result<impl warp::Reply, Rejection> {
-    let documents = body
+    if body.documents.len() > config.max_documents_len {
+        return Err(warp::reject::custom(TooManyDocumentsError));
+    }
+
+    let (docs_with_empty_embeddings, documents): (Vec<_>, Vec<_>) = body
         .documents
         .into_iter()
         .map(|mut article| {
-            let embedding = model.run(&article.snippet).unwrap_or_default();
-            let embedding = embedding.iter().copied().collect();
+            let embedding = match model.run(&article.snippet) {
+                Ok(embedding) => embedding.iter().copied().collect(),
+                Err(_) => Vec::default(),
+            };
             article.embedding = embedding;
             article
         })
-        .collect::<Vec<Article>>();
+        .partition(|article| article.embedding.is_empty());
+
+    if !docs_with_empty_embeddings.is_empty() {
+        return Err(warp::reject::custom(EmbeddingsCalculationError(
+            docs_with_empty_embeddings,
+        )));
+    }
 
     let bytes =
         serialize_to_ndjson(&documents).map_err(|_| warp::reject::custom(SerializeNdJsonError))?;
@@ -239,7 +256,7 @@ fn with_client(client: Client) -> impl Filter<Extract = (Client,), Error = Infal
     warp::any().map(move || client.clone())
 }
 
-fn serialize_to_ndjson(articles: &[Article]) -> Result<Bytes, GenericError> {
+fn serialize_to_ndjson(articles: &Vec<Article>) -> Result<Bytes, GenericError> {
     let mut bytes = BytesMut::new();
 
     fn write_record(article: &Article, bytes: &mut BytesMut) -> Result<(), GenericError> {
@@ -262,6 +279,14 @@ fn serialize_to_ndjson(articles: &[Article]) -> Result<Bytes, GenericError> {
 }
 
 #[derive(Debug)]
+struct TooManyDocumentsError;
+impl Reject for TooManyDocumentsError {}
+
+#[derive(Debug)]
+struct EmbeddingsCalculationError(Vec<Article>);
+impl Reject for EmbeddingsCalculationError {}
+
+#[derive(Debug)]
 struct SerializeNdJsonError;
 impl Reject for SerializeNdJsonError {}
 
@@ -278,9 +303,19 @@ fn handle_elastic_error(err: reqwest::Error) -> Rejection {
     warp::reject::custom(ElasticOpError)
 }
 
+/// An API error serializable to JSON.
+#[derive(Serialize)]
+struct ErrorMessage {
+    code: u16,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    documents: Option<Vec<Article>>,
+}
+
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     let code;
     let message;
+    let mut documents = None;
 
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
@@ -294,11 +329,21 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     } else if let Some(SerializeNdJsonError) = err.find() {
         code = StatusCode::BAD_REQUEST;
         message = "NDJSON_SERIALIZATION_ERROR";
+    } else if let Some(EmbeddingsCalculationError(docs)) = err.find() {
+        code = StatusCode::UNPROCESSABLE_ENTITY;
+        message = "EMBEDDING_CALCULATION_ERROR";
+        documents = Some(docs.to_vec());
     } else {
         error!("unhandled rejection: {:?}", err);
         code = StatusCode::INTERNAL_SERVER_ERROR;
         message = "UNHANDLED_REJECTION";
     }
 
-    Ok(warp::reply::with_status(message, code))
+    let json = warp::reply::json(&ErrorMessage {
+        code: code.as_u16(),
+        message: message.into(),
+        documents,
+    });
+
+    Ok(warp::reply::with_status(json, code))
 }
