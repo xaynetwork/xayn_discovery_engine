@@ -143,7 +143,7 @@ pub(super) async fn create_connection_pool(
         .map_err(Into::into)
 }
 
-async fn update_schema(pool: &Pool<Sqlite>) -> Result<(), Error> {
+pub(super) async fn update_schema(pool: &Pool<Sqlite>) -> Result<(), Error> {
     sqlx::migrate!("src/storage/migrations")
         .run(pool)
         .await

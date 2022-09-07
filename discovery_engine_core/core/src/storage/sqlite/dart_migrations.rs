@@ -34,3 +34,34 @@ pub(super) async fn store_migration_data(
     tx.commit().await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::storage::sqlite::setup::{create_connection_pool, update_schema};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_store_migration_data() {
+        let pool = create_connection_pool(None).await.unwrap();
+        update_schema(&pool).await.unwrap();
+
+        let expected_state = vec![1, 2, 3, 4, 8, 7, 0];
+        store_migration_data(
+            &pool,
+            &DartMigrationData {
+                engine_state: expected_state.clone(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let (state,) =
+            sqlx::query_as::<_, (Vec<u8>,)>("SELECT state FROM SerializedState WHERE rowid = 1")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        assert_eq!(state, expected_state);
+    }
+}
