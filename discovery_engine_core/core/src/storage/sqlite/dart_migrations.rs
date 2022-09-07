@@ -36,6 +36,14 @@ pub(super) async fn store_migration_data(
         storage.state().store(engine_state).await?;
     }
 
+    if !data.trusted_sources.is_empty() {
+        //set trusted sources
+    }
+
+    if !data.excluded_sources.is_empty() {
+        //set excluded sources
+    }
+
     Ok(())
 }
 
@@ -47,9 +55,16 @@ mod tests {
     async fn test_store_migration_data() {
         let data = DartMigrationData {
             engine_state: Some(vec![1, 2, 3, 4, 8, 7, 0]),
+            trusted_sources: vec!["foo.example".into(), "bar.invalid".into()],
+            excluded_sources: vec!["dodo.local".into()],
         };
         let storage = init_storage_system_once(None, Some(&data)).await.unwrap();
         let engine_state = storage.state().fetch().await.unwrap();
+        let trusted_sources = storage.source_preference().fetch_trusted().await.unwrap();
+        let excluded_sources = storage.source_preference().fetch_excluded().await.unwrap();
+
         assert_eq!(engine_state, data.engine_state);
+        assert_eq!(trusted_sources, data.trusted_sources.into_iter().collect());
+        assert_eq!(excluded_sources, data.excluded_sources.into_iter().collect());
     }
 }
