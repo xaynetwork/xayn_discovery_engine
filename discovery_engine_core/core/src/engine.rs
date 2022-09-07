@@ -260,11 +260,10 @@ impl Engine {
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
-        dart_migration_data: Option<DartMigrationData>,
+        #[cfg_attr(not(feature = "storage"), allow(unused_variables))] dart_migration_data: Option<
+            DartMigrationData,
+        >,
     ) -> Result<(Self, InitDbHint), Error> {
-        #[cfg(not(feature = "storage"))]
-        let _ = dart_migration_data;
-
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
         let endpoint_config = de_config
