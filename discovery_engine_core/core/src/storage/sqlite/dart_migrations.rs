@@ -25,10 +25,12 @@ pub(super) async fn store_migration_data(
 ) -> Result<(), Error> {
     let mut tx = pool.begin().await?;
 
-    sqlx::query("INSERT INTO SerializedState (rowid, state) VALUES (1, ?);")
-        .bind(&data.engine_state)
-        .execute(&mut tx)
-        .await?;
+    if let Some(engine_state) = &data.engine_state {
+        sqlx::query("INSERT INTO SerializedState (rowid, state) VALUES (1, ?);")
+            .bind(engine_state)
+            .execute(&mut tx)
+            .await?;
+    }
 
     //TODO[pmk] implement
     tx.commit().await?;
@@ -50,7 +52,7 @@ mod tests {
         store_migration_data(
             &pool,
             &DartMigrationData {
-                engine_state: expected_state.clone(),
+                engine_state: Some(expected_state.clone()),
             },
         )
         .await

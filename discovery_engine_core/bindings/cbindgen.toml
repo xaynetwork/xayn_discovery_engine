@@ -36,6 +36,7 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "Option_String" = "RustOptionString"
 "Option_Url" = "RustOptionUrl"
 "Option_UserReaction" = "RustOptionUserReaction"
+"Option_Vec_u8" = "RustOptionVecU8"
 "Result_Document__String" = "RustResultDocumentString"
 "Result_Search__String" = "RustResultSearchString"
 "Result_SharedEngine__String" = "RustResultSharedEngineString"

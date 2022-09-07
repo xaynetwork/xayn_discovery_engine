@@ -30,7 +30,7 @@ extension DartMigrationDataFfi on DartMigrationData {
 
   void writeNative(final Pointer<RustDartMigrationData> place) {
     engineState
-        ?.writeNative(ffi.dart_migration_data_place_of_engine_state(place));
+        .writeNative(ffi.dart_migration_data_place_of_engine_state(place));
     //TODO[pmk] pass the actual data to rust and use it there
   }
 }
