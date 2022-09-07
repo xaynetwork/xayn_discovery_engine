@@ -48,7 +48,7 @@ pub use crate::{
 
 //FIXME move into crate::storage once the feature "storage" flag is removed
 pub struct DartMigrationData {
-    pub dummy: u8,
+    pub engine_state: Vec<u8>,
 }
 
 //FIXME move into crate::storage once the feature "storage" flag is removed

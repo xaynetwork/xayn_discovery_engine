@@ -128,6 +128,36 @@ pub unsafe extern "C" fn alloc_vec_u8(slice_ptr: *mut u8, slice_len: FfiUsize) -
     unsafe { alloc_vec(slice_ptr, slice_len) }
 }
 
+/// Creates a `Vec<u8>` in given place with given capacity but len 0.
+///
+/// Returns a pointer to the begin of the internally allocated byte slice
+/// with at least `slice_len` reserved bytes.
+///
+/// # Safety
+///
+/// - it must be sound to write a `Vec<u8>` to given `place`.
+#[no_mangle]
+pub unsafe extern "C" fn init_vec_u8_at(place: *mut Vec<u8>, slice_len: FfiUsize) -> *mut u8 {
+    let mut vec = Vec::with_capacity(slice_len.to_usize());
+    let buffer = vec.as_mut_ptr();
+    unsafe {
+        place.write(vec);
+    }
+    buffer
+}
+
+/// Sets the length of given vec.
+///
+/// # Safety
+///
+/// - `&mut Vec<u8>` must be sound
+/// - then length must be less or equal to the capacity
+/// - all bytes up to length must have been written (must be initialized)
+#[no_mangle]
+pub unsafe extern "C" fn set_vec_u8_len(vec: &mut Vec<u8>, slice_len: FfiUsize) {
+    unsafe { vec.set_len(slice_len.to_usize()) }
+}
+
 /// Drops a `Box<Vec<u8>>`.
 ///
 /// # Safety

@@ -52,6 +52,14 @@ extension Uint8ListFfi on Uint8List {
     return Boxed(vec, ffi.drop_vec_u8);
   }
 
+  void writeNative(Pointer<RustVecU8> place) {
+    final len = length;
+    len.checkFfiUsize('List.length');
+    final buffer = ffi.init_vec_u8_at(place, len);
+    buffer.asTypedList(length).setAll(0, this);
+    ffi.set_vec_u8_len(place, len);
+  }
+
   static Uint8List readNative(Pointer<RustVecU8> vec) {
     final len = ffi.get_vec_u8_len(vec);
     final buffer = ffi.get_vec_u8_buffer(vec);
