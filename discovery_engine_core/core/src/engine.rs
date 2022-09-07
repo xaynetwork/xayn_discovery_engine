@@ -108,6 +108,7 @@ use crate::{
         TrustedNews,
     },
     DartMigrationData,
+    InitDbHint,
 };
 
 /// Discovery engine errors.
@@ -271,7 +272,7 @@ impl Engine {
         history: &[HistoricDocument],
         sources: &[WeightedSource],
         dart_migration_data: Option<DartMigrationData>,
-    ) -> Result<Self, Error> {
+    ) -> Result<(Self, InitDbHint), Error> {
         #[cfg(not(feature = "storage"))]
         let _ = dart_migration_data;
 
@@ -339,17 +340,14 @@ impl Engine {
 
         // initialize the states
         #[cfg(feature = "storage")]
-        let storage = {
+        let (storage, init_db_hint) = {
             let db_file_path = (!config.use_ephemeral_db).then(|| {
                 PathBuf::from(&config.data_dir).join("db.sqlite")
                         .into_os_string()
                         .into_string()
                         .unwrap(/*can't fail as we only join rust strings*/)
             });
-            let (storage, _init_hint) =
-                SqliteStorage::init_storage_system(db_file_path, dart_migration_data).await?;
-            //FIXME pass the hint to dart for deciding if migrations are needed
-            storage
+            SqliteStorage::init_storage_system(db_file_path, dart_migration_data).await?
         };
         let stack_ops = vec![
             Box::new(BreakingNews::new(
@@ -405,7 +403,7 @@ impl Engine {
             }
         }
 
-        Self::new(
+        let this = Self::new(
             endpoint_config,
             core_config,
             stack_config,
@@ -426,7 +424,15 @@ impl Engine {
             storage,
             providers,
         )
-        .await
+        .await?;
+
+        cfg_if! {
+            if #[cfg(feature = "storage")] {
+                Ok((this, init_db_hint))
+            } else {
+                Ok((this, InitDbHint::NormalInit))
+            }
+        }
     }
 
     /// Configures the running engine.
@@ -1811,7 +1817,8 @@ pub(crate) mod tests {
             // be the same as when it's initialized for the first time after the app is downloaded.
             let engine = Engine::from_config(config, None, &[], &[], None)
                 .await
-                .unwrap();
+                .unwrap()
+                .0;
 
             Mutex::new((server, engine))
         };

@@ -310,7 +310,7 @@ class EventHandler {
 
     _engine = engine;
 
-    return const EngineEvent.clientEventSucceeded();
+    return EngineEvent.engineInitSucceeded(engine.lastDbOverrideError);
   }
 
   Future<Engine> _initializeEngine(

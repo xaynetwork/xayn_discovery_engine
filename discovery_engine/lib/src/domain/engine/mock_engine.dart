@@ -303,6 +303,9 @@ class MockEngine implements Engine {
     _incrementCount('resetAi');
     return;
   }
+
+  @override
+  String? get lastDbOverrideError => null;
 }
 
 const mockTrendingTopic = TrendingTopic(

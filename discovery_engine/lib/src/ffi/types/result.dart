@@ -15,7 +15,7 @@
 import 'dart:ffi' show NativeType, nullptr, Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustSharedEngine;
+    show RustInitializationResult;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart';
@@ -213,15 +213,20 @@ final resultVecTrendingTopicStringFfiAdapter = ConsumeResultFfiAdapter(
   freeResult: ffi.drop_result_vec_trending_topic_string,
 );
 
-final resultSharedEngineStringFfiAdapter = MoveResultFfiAdapter(
-  getOk: ffi.get_result_shared_engine_string_ok,
-  getErr: ffi.get_result_shared_engine_string_err,
-  moveOk: ffi.move_result_shared_engine_string_ok,
-  readNativeOk: (final Pointer<RustSharedEngine> sharedEngine) => sharedEngine,
+final resultInitializationResultStringFfiAdapter = MoveResultFfiAdapter(
+  getOk: ffi.get_result_initialization_result_string_ok,
+  getErr: ffi.get_result_initialization_result_string_err,
+  moveOk: ffi.move_result_initialization_result_string_ok,
+  readNativeOk: (final Pointer<RustInitializationResult> initResult) =>
+      initResult,
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
-  freeOk: asyncFfi.dispose,
-  freeResult: ffi.drop_result_shared_engine_string,
+  freeOk: (final Pointer<RustInitializationResult> initResult) {
+    final sharedEngine =
+        ffi.destruct_initialization_result_into_shared_engine(initResult);
+    asyncFfi.dispose(sharedEngine);
+  },
+  freeResult: ffi.drop_result_initialization_result_string,
 );
 
 final resultSearchStringFfiAdapter = ConsumeResultFfiAdapter(
