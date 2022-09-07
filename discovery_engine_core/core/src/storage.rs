@@ -23,7 +23,7 @@ use thiserror::Error;
 use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
 
 use crate::{
-    document::{self, HistoricDocument, UserReaction, ViewMode},
+    document::{self, HistoricDocument, UserReaction, ViewMode, WeightedSource},
     stack,
     DartMigrationData,
     InitDbHint,
@@ -78,6 +78,8 @@ pub(crate) trait Storage {
     async fn clear_database(&self) -> Result<bool, Error>;
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error>;
+
+    async fn fetch_sources(&self) -> Result<Vec<WeightedSource>, Error>;
 
     fn feed(&self) -> &(dyn FeedScope + Send + Sync);
 
