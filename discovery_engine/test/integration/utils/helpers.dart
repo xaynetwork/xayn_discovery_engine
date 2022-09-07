@@ -28,16 +28,16 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
 class TestEngineData {
   final Manifest manifest;
   final String applicationDirectoryPath;
-  bool useInEphemeralDb;
+  bool useEphemeralDb;
   TestEngineData(
     this.manifest,
     this.applicationDirectoryPath, {
-    this.useInEphemeralDb = true,
+    this.useEphemeralDb = true,
   });
 }
 
 Future<TestEngineData> setupTestEngineData({
-  bool useInEphemeralDb = true,
+  bool useEphemeralDb = true,
 }) async {
   final applicationDirectoryPath =
       (await Directory.systemTemp.createTemp()).path;
@@ -63,7 +63,7 @@ Future<TestEngineData> setupTestEngineData({
   return TestEngineData(
     mockedManifest,
     applicationDirectoryPath,
-    useInEphemeralDb: useInEphemeralDb,
+    useEphemeralDb: useEphemeralDb,
   );
 }
 
@@ -79,7 +79,7 @@ Configuration createConfig(TestEngineData data, int serverPort) {
     manifest: data.manifest,
     headlinesProviderPath: '/newscatcher/v1/latest-headlines',
     newsProviderPath: '/newscatcher/v1/search-news',
-    useInEphemeralDb: data.useInEphemeralDb,
+    useEphemeralDb: data.useEphemeralDb,
   );
 }
 

@@ -54,7 +54,7 @@ class InitConfigFfi with EquatableMixin {
   final String? deConfig;
   final String? logFile;
   final String dataDir;
-  final bool useInEphemeralDb;
+  final bool useEphemeralDb;
 
   @override
   List<Object?> get props => [
@@ -76,7 +76,7 @@ class InitConfigFfi with EquatableMixin {
         deConfig,
         logFile,
         dataDir,
-        useInEphemeralDb,
+        useEphemeralDb,
       ];
 
   factory InitConfigFfi(
@@ -105,7 +105,7 @@ class InitConfigFfi with EquatableMixin {
         deConfig: deConfig,
         logFile: configuration.logFile,
         dataDir: configuration.applicationDirectoryPath,
-        useInEphemeralDb: configuration.useInEphemeralDb,
+        useEphemeralDb: configuration.useEphemeralDb,
       );
 
   InitConfigFfi.fromParts({
@@ -125,7 +125,7 @@ class InitConfigFfi with EquatableMixin {
     required this.maxDocsPerFeedBatch,
     required this.maxDocsPerSearchBatch,
     required this.dataDir,
-    required this.useInEphemeralDb,
+    required this.useEphemeralDb,
     this.deConfig,
     this.logFile,
   });
@@ -163,7 +163,7 @@ class InitConfigFfi with EquatableMixin {
     dataDir.writeNative(
       ffi.init_config_place_of_data_dir(place),
     );
-    useInEphemeralDb
+    useEphemeralDb
         .writeNative(ffi.init_config_place_of_use_ephemeral_db(place));
   }
 
@@ -213,7 +213,7 @@ class InitConfigFfi with EquatableMixin {
       dataDir: StringFfi.readNative(
         ffi.init_config_place_of_data_dir(config),
       ),
-      useInEphemeralDb: BoolFfi.readNative(
+      useEphemeralDb: BoolFfi.readNative(
         ffi.init_config_place_of_use_ephemeral_db(config),
       ),
     );
