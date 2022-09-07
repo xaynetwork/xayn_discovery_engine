@@ -196,7 +196,6 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> setSources(
-    List<SourceReacted> sources, // TODO remove
     Set<Source> excluded,
     Set<Source> trusted,
   ) async {
@@ -231,7 +230,6 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> addExcludedSource(
-    List<SourceReacted> sources, // TODO remove
     Source excluded,
   ) async {
     final result = await asyncFfi.addExcludedSource(
@@ -244,7 +242,6 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> removeExcludedSource(
-    List<SourceReacted> sources, // TODO remove
     Source excluded,
   ) async {
     final result = await asyncFfi.removeExcludedSource(
@@ -257,7 +254,6 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> addTrustedSource(
-    List<SourceReacted> sources, // TODO remove
     Source trusted,
   ) async {
     final result = await asyncFfi.addTrustedSource(
@@ -270,7 +266,6 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> removeTrustedSource(
-    List<SourceReacted> sources, // TODO remove
     Source trusted,
   ) async {
     final result = await asyncFfi.removeTrustedSource(
@@ -282,11 +277,8 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> feedNextBatch(
-    final List<SourceReacted> sources, // TODO remove
-  ) async {
-    final result =
-        await asyncFfi.feedNextBatch(_engine.ref);
+  Future<List<DocumentWithActiveData>> feedNextBatch() async {
+    final result = await asyncFfi.feedNextBatch(_engine.ref);
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)

@@ -125,10 +125,9 @@ class FeedManager {
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
     if (cfgFeatureStorage) {
-      final sources = await _sourceReactedRepo.fetchAll();
       final List<DocumentWithActiveData> docs;
       try {
-        docs = await _engine.feedNextBatch(sources);
+        docs = await _engine.feedNextBatch();
       } on Exception catch (e) {
         return EngineEvent.nextFeedBatchRequestFailed(
           FeedFailureReason.stacksOpsError,
@@ -231,11 +230,8 @@ class FeedManager {
       return EngineEvent.setSourcesRequestFailed(duplicates);
     }
 
-    final sources = await _sourceReactedRepo.fetchAll();
-
     if (cfgFeatureStorage) {
       await _engine.setSources(
-        sources,
         excludedSources,
         trustedSources,
       );
@@ -257,6 +253,7 @@ class FeedManager {
     final currentTrusted = await _sourcePreferenceRepository.getTrusted();
     final currentExcluded = await _sourcePreferenceRepository.getExcluded();
     final history = await _docRepo.fetchHistory();
+    final sources = await _sourceReactedRepo.fetchAll();
     await _sourcePreferenceRepository.clear();
     await _sourcePreferenceRepository.saveAll(dbEntries);
 
@@ -291,8 +288,7 @@ class FeedManager {
     await _sourcePreferenceRepository.save(pref);
 
     if (cfgFeatureStorage) {
-      final sources = await _sourceReactedRepo.fetchAll();
-      await _engine.addExcludedSource(sources, source);
+      await _engine.addExcludedSource(source);
       return EngineEvent.addExcludedSourceRequestSucceeded(source);
     }
 
@@ -303,14 +299,14 @@ class FeedManager {
   /// Removes an excluded source.
   Future<EngineEvent> removeExcludedSource(Source source) async {
     await _sourcePreferenceRepository.remove(source);
-    final sources = await _sourceReactedRepo.fetchAll();
 
     if (cfgFeatureStorage) {
-      await _engine.removeExcludedSource(sources, source);
+      await _engine.removeExcludedSource(source);
       return EngineEvent.removeExcludedSourceRequestSucceeded(source);
     }
 
     final history = await _docRepo.fetchHistory();
+    final sources = await _sourceReactedRepo.fetchAll();
     final excluded = await _sourcePreferenceRepository.getExcluded();
     await _engine.setExcludedSources(history, sources, excluded);
     return EngineEvent.removeExcludedSourceRequestSucceeded(source);
@@ -334,8 +330,7 @@ class FeedManager {
     await _sourcePreferenceRepository.save(pref);
 
     if (cfgFeatureStorage) {
-      final sources = await _sourceReactedRepo.fetchAll();
-      await _engine.addTrustedSource(sources, source);
+      await _engine.addTrustedSource(source);
       return EngineEvent.addTrustedSourceRequestSucceeded(source);
     }
 
@@ -346,14 +341,14 @@ class FeedManager {
   /// Removes a trusted source.
   Future<EngineEvent> removeTrustedSource(Source source) async {
     await _sourcePreferenceRepository.remove(source);
-    final sources = await _sourceReactedRepo.fetchAll();
 
     if (cfgFeatureStorage) {
-      await _engine.removeTrustedSource(sources, source);
+      await _engine.removeTrustedSource(source);
       return EngineEvent.removeTrustedSourceRequestSucceeded(source);
     }
 
     final history = await _docRepo.fetchHistory();
+    final sources = await _sourceReactedRepo.fetchAll();
     final trusted = await _sourcePreferenceRepository.getTrusted();
     await _engine.setTrustedSources(history, sources, trusted);
     return EngineEvent.removeTrustedSourceRequestSucceeded(source);
