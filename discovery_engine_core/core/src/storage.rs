@@ -58,9 +58,29 @@ impl From<MalformedBytesEmbedding> for Error {
     }
 }
 
+/// Hint about what was done during db init.
+pub enum InitDbHint {
+    /// Hint to use if nothing special happened during init.
+    NormalInit,
+    /// A new db was created, there was no db beforehand.
+    NewDbCreated,
+    /// There was a db but we could not open it so we deleted it and created a new one.
+    DbOverwrittenDueToErrors(Error),
+}
+
 #[async_trait]
 pub(crate) trait Storage {
-    async fn init_database(&self) -> Result<(), Error>;
+    /// Initializes the storage system.
+    ///
+    /// The `db_identifier` is storage impl. specific, e.g. in case of sqlite
+    /// this would be the file path to the database file.
+    ///
+    /// Passing in `None` means a new temporary db should be created.
+    async fn init_storage_system(
+        db_identifier: Option<String>,
+    ) -> Result<(BoxedStorage, InitDbHint), Error>
+    where
+        Self: Sized;
 
     async fn clear_database(&self) -> Result<bool, Error>;
 

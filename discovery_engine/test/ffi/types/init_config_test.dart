@@ -40,7 +40,7 @@ void main() {
       maxDocsPerFeedBatch: 2,
       maxDocsPerSearchBatch: 20,
       dataDir: 'foo/bar',
-      useInMemoryDb: false,
+      useEphemeralDb: false,
     );
     final boxed = config.allocNative();
     final res = InitConfigFfi.readNative(boxed.ref);
@@ -70,7 +70,7 @@ void main() {
       maxDocsPerSearchBatch: 20,
       deConfig: '{ "key": "value" }',
       dataDir: 'bar/foo',
-      useInMemoryDb: true,
+      useEphemeralDb: true,
     );
     final boxed = config.allocNative();
     final res = InitConfigFfi.readNative(boxed.ref);

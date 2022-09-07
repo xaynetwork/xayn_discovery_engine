@@ -258,7 +258,11 @@ impl Engine {
     }
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
-    #[allow(clippy::too_many_lines, clippy::similar_names)]
+    #[allow(
+        clippy::too_many_lines,
+        clippy::similar_names,
+        clippy::missing_panics_doc
+    )]
     pub async fn from_config(
         config: InitConfig,
         // TODO: change this to a boolean flag after DB migration
@@ -332,15 +336,15 @@ impl Engine {
         // initialize the states
         #[cfg(feature = "storage")]
         let storage = {
-            let sqlite_uri = if config.use_in_memory_db {
-                "sqlite::memory:".into()
-            } else {
-                let db_path = PathBuf::from(&config.data_dir).join("db.sqlite");
-                format!("sqlite:{}", db_path.display())
-            };
-            let storage = SqliteStorage::connect(&sqlite_uri).await?;
-            storage.init_database().await?;
-            Box::new(storage)
+            let db_file_path = (!config.use_ephemeral_db).then(|| {
+                PathBuf::from(&config.data_dir).join("db.sqlite")
+                        .into_os_string()
+                        .into_string()
+                        .unwrap(/*can't fail as we only join rust strings*/)
+            });
+            let (storage, _init_hint) = SqliteStorage::init_storage_system(db_file_path).await?;
+            //FIXME pass the hint to dart for deciding if migrations are needed
+            storage
         };
         let stack_ops = vec![
             Box::new(BreakingNews::new(
@@ -1795,7 +1799,7 @@ pub(crate) mod tests {
                 de_config: None,
                 log_file: None,
                 data_dir: "tmp_test_data_dir".into(),
-                use_in_memory_db: true,
+                use_ephemeral_db: true,
             };
 
             // Now we can initialize the engine with no previous history or state. This should
@@ -1812,11 +1816,7 @@ pub(crate) mod tests {
         // reset the stacks and states
         #[cfg(feature = "storage")]
         {
-            engine.storage = {
-                let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-                storage.init_database().await.unwrap();
-                Box::new(storage) as BoxedStorage
-            };
+            engine.storage = SqliteStorage::init_storage_system(None).await.unwrap().0;
         }
         engine.stacks = RwLock::new(
             stack_ops

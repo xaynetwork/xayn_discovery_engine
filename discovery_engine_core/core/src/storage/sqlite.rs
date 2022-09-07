@@ -14,20 +14,13 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    str::FromStr,
     time::Duration,
 };
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use num_traits::FromPrimitive;
-use sqlx::{
-    sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
-    FromRow,
-    Pool,
-    QueryBuilder,
-    Transaction,
-};
+use sqlx::{sqlite::Sqlite, FromRow, Pool, QueryBuilder, Transaction};
 use url::Url;
 use xayn_discovery_engine_providers::Market;
 
@@ -45,9 +38,12 @@ use crate::{
             SearchBy,
             TimeSpentDocumentView,
         },
+        utils::SqlxPushTupleExt,
+        BoxedStorage,
         Error,
         FeedScope,
         FeedbackScope,
+        InitDbHint,
         SearchScope,
         SourcePreferenceScope,
         SourceReactionScope,
@@ -57,8 +53,8 @@ use crate::{
 };
 
 use self::utils::SqlxSqliteResultExt;
-use crate::storage::utils::SqlxPushTupleExt;
 
+mod setup;
 mod utils;
 
 // Sqlite bind limit
@@ -70,45 +66,6 @@ pub(crate) struct SqliteStorage {
 }
 
 impl SqliteStorage {
-    pub(crate) async fn connect(uri: &str) -> Result<Self, Error> {
-        let opt = SqliteConnectOptions::from_str(uri)?.create_if_missing(true);
-
-        let pool = SqlitePoolOptions::new().connect_with(opt).await?;
-
-        Ok(Self { pool })
-    }
-
-    async fn setup_stacks_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {
-        let expected_ids = &[
-            stack::ops::breaking::BreakingNews::id(),
-            stack::ops::personalized::PersonalizedNews::id(),
-            stack::ops::trusted::TrustedNews::id(),
-            stack::exploration::Stack::id(),
-        ];
-
-        let mut query_builder = QueryBuilder::new(String::new());
-        query_builder
-            .push("INSERT INTO Stack (stackId) ")
-            .push_values(expected_ids, |mut stm, id| {
-                stm.push_bind(id);
-            })
-            .push(" ON CONFLICT DO NOTHING;")
-            .build()
-            .persistent(false)
-            .execute(&mut *tx)
-            .await?;
-
-        query_builder
-            .reset()
-            .push("DELETE FROM Stack WHERE stackId NOT IN ")
-            .push_tuple(expected_ids)
-            .build()
-            .persistent(false)
-            .execute(tx)
-            .await?;
-        Ok(())
-    }
-
     #[allow(clippy::too_many_lines)]
     async fn store_new_documents(
         tx: &mut Transaction<'_, Sqlite>,
@@ -352,16 +309,12 @@ impl SqliteStorage {
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    async fn init_database(&self) -> Result<(), Error> {
-        sqlx::migrate!("src/storage/migrations")
-            .run(&self.pool)
+    async fn init_storage_system(
+        file_path: Option<String>,
+    ) -> Result<(BoxedStorage, InitDbHint), Error> {
+        self::setup::init_storage_system(file_path.map(Into::into))
             .await
-            .map_err(|err| Error::Database(err.into()))?;
-
-        let mut tx = self.pool.begin().await?;
-        Self::setup_stacks_sync(&mut tx).await?;
-        tx.commit().await?;
-        Ok(())
+            .map(|(storage, hint)| (Box::new(storage) as _, hint))
     }
 
     async fn clear_database(&self) -> Result<bool, Error> {
@@ -1095,15 +1048,15 @@ mod tests {
         }};
     }
 
-    async fn create_memory_storage() -> impl Storage {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
-        storage
+    impl SqliteStorage {
+        async fn test_storage_system() -> BoxedStorage {
+            SqliteStorage::init_storage_system(None).await.unwrap().0
+        }
     }
 
     #[tokio::test]
     async fn test_fetch_history() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let history = storage.fetch_history().await.unwrap();
         assert!(history.is_empty());
 
@@ -1127,7 +1080,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_feed_methods() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let feed = storage.feed().fetch().await.unwrap();
         assert!(feed.is_empty());
 
@@ -1161,7 +1114,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_methods() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let search = storage.search().fetch().await;
         assert!(search.is_err());
         assert!(!storage.search().clear().await.unwrap());
@@ -1215,8 +1168,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_search() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = SqliteStorage::test_storage_system().await;
 
         let new_search = Search {
             search_by: SearchBy::Query,
@@ -1238,8 +1190,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_document() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = super::setup::init_storage_system(None).await.unwrap().0;
 
         let id = document::Id::new();
         assert!(matches!(
@@ -1270,7 +1221,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rank_conversion() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let mut docs = create_documents(1);
         docs[0].newscatcher_data.domain_rank = u64::MAX;
         storage
@@ -1287,52 +1238,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_missing_stacks_are_added_and_removed_stacks_removed() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        sqlx::migrate!("src/storage/migrations")
-            .run(&storage.pool)
-            .await
-            .unwrap();
-
-        let mut tx = storage.pool.begin().await.unwrap();
-
-        let random_id = stack::Id::new_random();
-        sqlx::query("INSERT INTO Stack(stackId) VALUES (?), (?);")
-            .bind(stack::PersonalizedNews::id())
-            .bind(random_id)
-            .execute(&mut tx)
-            .await
-            .unwrap();
-
-        SqliteStorage::setup_stacks_sync(&mut tx).await.unwrap();
-
-        //FIXME: For some reason if I try to read the stackIds from the database
-        //       without first committing here the select statement will hang (sometimes).
-        //       This happens even if no cached statements are used.
-        tx.commit().await.unwrap();
-
-        let ids = sqlx::query_as::<_, stack::Id>("SELECT stackId FROM Stack;")
-            .fetch_all(&storage.pool)
-            .await
-            .unwrap();
-
-        let expected_ids = [
-            stack::ops::breaking::BreakingNews::id(),
-            stack::ops::personalized::PersonalizedNews::id(),
-            stack::ops::trusted::TrustedNews::id(),
-            stack::exploration::Stack::id(),
-        ];
-
-        assert_eq!(
-            ids.into_iter().collect::<HashSet<_>>(),
-            expected_ids.into_iter().collect::<HashSet<_>>()
-        );
-    }
-
-    #[tokio::test]
     #[allow(clippy::similar_names)]
     async fn test_storing_user_reaction() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(10);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
         storage
@@ -1388,7 +1296,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_storing_user_reaction_returns_the_right_document() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(1);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
         storage
@@ -1408,8 +1316,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_state() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = SqliteStorage::test_storage_system().await;
 
         assert!(!storage.state().clear().await.unwrap());
         assert!(storage.state().fetch().await.unwrap().is_none());
@@ -1427,7 +1334,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_source_preference() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
 
         // if no sources are set, return an empty set
         let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
@@ -1495,7 +1402,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_store_time_spent() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(3);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
 

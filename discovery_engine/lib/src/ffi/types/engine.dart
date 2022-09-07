@@ -88,7 +88,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_prov
 class DiscoveryEngineFfi implements Engine {
   final Boxed<RustSharedEngine> _engine;
 
-  const DiscoveryEngineFfi._(final this._engine);
+  const DiscoveryEngineFfi._(this._engine);
 
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(

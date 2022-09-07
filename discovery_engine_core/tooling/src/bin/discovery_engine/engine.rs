@@ -56,7 +56,7 @@ impl TestEngine {
             de_config: None,
             log_file: None,
             data_dir: String::new(),
-            use_in_memory_db: true,
+            use_ephemeral_db: true,
         };
         let engine = Engine::from_config(config, None, &[], &[]).await?;
 
