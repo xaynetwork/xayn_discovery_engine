@@ -75,8 +75,7 @@ class DartMigrationData {
       engineState: await engineStateRepository.load(),
       documents: await documentRepository.fetchAll(),
       activeDocumentData: activeDocumentDataRepository.box.toMap().map(
-            // ignore: avoid_annotating_with_dynamic
-            (dynamic key, data) =>
+            (Object? key, data) =>
                 MapEntry(DocumentId.fromString(key as String), data),
           ),
       reactedSources: await sourceReactedRepository.fetchAll(),
