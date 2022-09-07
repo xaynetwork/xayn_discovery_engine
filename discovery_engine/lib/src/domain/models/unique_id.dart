@@ -32,6 +32,10 @@ abstract class UniqueId with EquatableMixin {
   UniqueId.fromJson(Map<String, Object> json)
       : value = _validateId(_bytesFromJson(json));
 
+  UniqueId.fromString(String string)
+      : value =
+            UnmodifiableUint8ListView(Uint8List.fromList(Uuid.parse(string)));
+
   static UnmodifiableUint8ListView _generateId() {
     final id = const Uuid().v4();
     final bytes = Uuid.parseAsByteList(id);
@@ -61,6 +65,7 @@ abstract class UniqueId with EquatableMixin {
 /// Unique identifier of a [Document].
 class DocumentId extends UniqueId {
   DocumentId() : super();
+  DocumentId.fromString(String string) : super.fromString(string);
   DocumentId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
   DocumentId.fromJson(Map<String, Object> json) : super.fromJson(json);
 }

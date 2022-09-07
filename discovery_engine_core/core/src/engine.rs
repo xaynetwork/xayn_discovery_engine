@@ -107,6 +107,7 @@ use crate::{
         Stack,
         TrustedNews,
     },
+    DartMigrationData,
 };
 
 /// Discovery engine errors.
@@ -265,12 +266,15 @@ impl Engine {
     )]
     pub async fn from_config(
         config: InitConfig,
-        // TODO: change this to a boolean flag after DB migration
+        // TODO: remove this after db migration, make sure we can still reset the state
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
+        dart_migration_data: Option<DartMigrationData>,
     ) -> Result<Self, Error> {
-        // read the configs
+        #[cfg(not(feature = "storage"))]
+        let _ = dart_migration_data;
+
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
         let endpoint_config = de_config
@@ -342,7 +346,8 @@ impl Engine {
                         .into_string()
                         .unwrap(/*can't fail as we only join rust strings*/)
             });
-            let (storage, _init_hint) = SqliteStorage::init_storage_system(db_file_path).await?;
+            let (storage, _init_hint) =
+                SqliteStorage::init_storage_system(db_file_path, dart_migration_data).await?;
             //FIXME pass the hint to dart for deciding if migrations are needed
             storage
         };
@@ -1804,7 +1809,9 @@ pub(crate) mod tests {
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
-            let engine = Engine::from_config(config, None, &[], &[]).await.unwrap();
+            let engine = Engine::from_config(config, None, &[], &[], None)
+                .await
+                .unwrap();
 
             Mutex::new((server, engine))
         };
@@ -1816,7 +1823,10 @@ pub(crate) mod tests {
         // reset the stacks and states
         #[cfg(feature = "storage")]
         {
-            engine.storage = SqliteStorage::init_storage_system(None).await.unwrap().0;
+            engine.storage = SqliteStorage::init_storage_system(None, None)
+                .await
+                .unwrap()
+                .0;
         }
         engine.stacks = RwLock::new(
             stack_ops

@@ -16,6 +16,8 @@ import 'dart:typed_data' show Uint8List;
 import 'package:async/async.dart' show StreamGroup;
 import 'package:hive/hive.dart' show Hive;
 import 'package:meta/meta.dart' show visibleForTesting;
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
@@ -82,6 +84,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
         searchBox,
         sourcePreferenceBox,
         sourceReactedBox;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
@@ -237,6 +240,17 @@ class EventHandler {
         ? mockedAvailableSources
         : await setupData.getAvailableSources();
 
+    final dartMigrationData = cfgFeatureStorage
+        ? await DartMigrationData.fromRepositories(
+            engineStateRepository,
+            documentRepository,
+            activeSearchRepository,
+            activeDataRepository,
+            sourceReactedRepository,
+            sourcePreferenceRepository,
+          )
+        : null;
+
     final Engine engine;
     try {
       engine = await _initializeEngine(
@@ -250,6 +264,7 @@ class EventHandler {
           trustedSources: trustedSources,
           excludedSources: excludedSources,
         ),
+        dartMigrationData,
       );
     } catch (e) {
       if ('$e'.contains('Unsupported serialized data.')) {
@@ -258,6 +273,8 @@ class EventHandler {
       }
       rethrow;
     }
+
+    await dartMigrationData?.cleanup();
 
     // init managers
     _documentManager = DocumentManager(
@@ -296,10 +313,13 @@ class EventHandler {
     return const EngineEvent.clientEventSucceeded();
   }
 
-  Future<Engine> _initializeEngine(EngineInitializer initializer) async =>
+  Future<Engine> _initializeEngine(
+    EngineInitializer initializer,
+    DartMigrationData? migrationData,
+  ) async =>
       initializer.config.isMocked()
           ? MockEngine(initializer)
-          : await DiscoveryEngineFfi.initialize(initializer);
+          : await DiscoveryEngineFfi.initialize(initializer, migrationData);
 
   Future<SetupData> _fetchAssets(Configuration config) async {
     final appDir = config.applicationDirectoryPath;

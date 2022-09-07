@@ -22,6 +22,7 @@ use crate::{
     stack,
     storage::{utils::SqlxPushTupleExt, Error, InitDbHint},
     utils::{remove_file_if_exists, CompoundError, MiscErrorExt},
+    DartMigrationData,
 };
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
@@ -38,14 +39,19 @@ use super::SqliteStorage;
 /// and a new db is opened instead.
 pub(super) async fn init_storage_system(
     file_path: Option<PathBuf>,
+    dart_migration_data: Option<DartMigrationData>,
 ) -> Result<(SqliteStorage, InitDbHint), Error> {
-    let file_exists = if let Some(path) = &file_path {
+    let file_exists = if dart_migration_data.is_some() {
+        delete_db_files(file_path.as_deref()).await?;
+        false
+    } else if let Some(path) = &file_path {
         //tokio version of `std::path::Path::exists()`
         tokio::fs::metadata(path).await.is_ok()
     } else {
         false
     };
-    let result = init_storage_system_once(file_path.clone()).await;
+
+    let result = init_storage_system_once(file_path.clone(), dart_migration_data.as_ref()).await;
     match (file_exists, result) {
         (false, Ok(storage)) => Ok((storage, InitDbHint::NewDbCreated)),
         (true, Ok(storage)) => Ok((storage, InitDbHint::NormalInit)),
@@ -58,7 +64,7 @@ pub(super) async fn init_storage_system(
             //      this is fully out of scope of what we have resources for.
             delete_db_files(file_path.as_deref()).await?;
 
-            init_storage_system_once(file_path)
+            init_storage_system_once(file_path, dart_migration_data.as_ref())
                 .await
                 .map(|storage| (storage, InitDbHint::DbOverwrittenDueToErrors(first_error)))
         }
@@ -108,10 +114,16 @@ fn with_file_name_suffix(path: &Path, suffix: &str) -> Result<PathBuf, Error> {
     Ok(path.with_file_name(file_name))
 }
 
-async fn init_storage_system_once(file_path: Option<PathBuf>) -> Result<SqliteStorage, Error> {
+async fn init_storage_system_once(
+    file_path: Option<PathBuf>,
+    dart_migration_data: Option<&DartMigrationData>,
+) -> Result<SqliteStorage, Error> {
     let pool = create_connection_pool(file_path.as_deref()).await?;
     update_schema(&pool).await?;
     update_static_data(&pool).await?;
+    if let Some(dart_migration_data) = dart_migration_data {
+        super::dart_migrations::store_migration_data(&pool, dart_migration_data).await?;
+    }
     Ok(SqliteStorage { pool })
 }
 
@@ -296,7 +308,9 @@ mod tests {
         create_bad_file(&db_file);
         assert!(db_file.exists());
 
-        let (storage, hint) = init_storage_system(Some(db_file.clone())).await.unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone()), None)
+            .await
+            .unwrap();
 
         assert!(db_file.exists());
 
@@ -311,7 +325,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let db_file = dir.path().join("db.sqlite");
 
-        let (storage, hint) = init_storage_system(Some(db_file.clone())).await.unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone()), None)
+            .await
+            .unwrap();
 
         assert!(db_file.exists());
         assert!(matches!(hint, InitDbHint::NewDbCreated));
@@ -321,7 +337,9 @@ mod tests {
 
         assert!(db_file.exists());
 
-        let (storage, hint) = init_storage_system(Some(db_file.clone())).await.unwrap();
+        let (storage, hint) = init_storage_system(Some(db_file.clone()), None)
+            .await
+            .unwrap();
 
         assert!(db_file.exists());
         assert!(matches!(hint, InitDbHint::NormalInit));

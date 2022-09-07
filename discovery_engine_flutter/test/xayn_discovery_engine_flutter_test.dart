@@ -34,8 +34,15 @@ void main() {
 
     tearDown(() {
       final dir = Directory(outputPath);
-      if (dir.existsSync()) {
+      try {
         dir.deleteSync(recursive: true);
+      } on FileSystemException catch (exception) {
+        // don't fail if it is already deleted,
+        // checking dir exists creates a subtle
+        // race condition and can fail
+        if (exception.osError?.errorCode != 2) {
+          rethrow;
+        }
       }
     });
 

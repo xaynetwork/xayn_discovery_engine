@@ -58,7 +58,7 @@ impl TestEngine {
             data_dir: String::new(),
             use_ephemeral_db: true,
         };
-        let engine = Engine::from_config(config, None, &[], &[]).await?;
+        let engine = Engine::from_config(config, None, &[], &[], None).await?;
 
         spinner.finish_with_message("initialized engine");
 

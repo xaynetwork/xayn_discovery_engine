@@ -50,10 +50,12 @@ use crate::{
         StateScope,
         Storage,
     },
+    DartMigrationData,
 };
 
 use self::utils::SqlxSqliteResultExt;
 
+mod dart_migrations;
 mod setup;
 mod utils;
 
@@ -311,8 +313,9 @@ impl SqliteStorage {
 impl Storage for SqliteStorage {
     async fn init_storage_system(
         file_path: Option<String>,
+        dart_migration_data: Option<DartMigrationData>,
     ) -> Result<(BoxedStorage, InitDbHint), Error> {
-        self::setup::init_storage_system(file_path.map(Into::into))
+        self::setup::init_storage_system(file_path.map(Into::into), dart_migration_data)
             .await
             .map(|(storage, hint)| (Box::new(storage) as _, hint))
     }
@@ -1050,7 +1053,10 @@ mod tests {
 
     impl SqliteStorage {
         async fn test_storage_system() -> BoxedStorage {
-            SqliteStorage::init_storage_system(None).await.unwrap().0
+            SqliteStorage::init_storage_system(None, None)
+                .await
+                .unwrap()
+                .0
         }
     }
 
@@ -1190,7 +1196,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_document() {
-        let storage = super::setup::init_storage_system(None).await.unwrap().0;
+        let storage = super::setup::init_storage_system(None, None)
+            .await
+            .unwrap()
+            .0;
 
         let id = document::Id::new();
         assert!(matches!(

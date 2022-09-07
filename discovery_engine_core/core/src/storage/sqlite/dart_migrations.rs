@@ -12,34 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Modules containing FFI glue for various types.
+//! Module for handling dart->rust/sqltie migrations
 
-#![allow(unsafe_code)]
+use sqlx::{Pool, Sqlite};
 
-mod boxed;
-pub mod dart_migration_data;
-pub mod date_time;
-pub mod document;
-pub mod duration;
-pub mod embedding;
-pub mod engine;
-pub mod history;
-pub mod history_vec;
-pub mod init_config;
-pub mod market;
-pub mod market_vec;
-pub mod option;
-pub mod primitives;
-pub mod result;
-pub mod search;
-pub mod slice;
-pub mod string;
-pub mod string_vec;
-pub mod trending_topic;
-pub mod trending_topic_vec;
-pub mod url;
-pub mod uuid;
-pub mod uuid_vec;
-pub mod vec;
-pub mod weighted_source;
-pub mod weighted_source_vec;
+use crate::{storage::Error, DartMigrationData};
+
+/// Add the data from the  dart->rust/sqltie migration to the prepared database.
+pub(super) async fn store_migration_data(
+    _pool: &Pool<Sqlite>,
+    _data: &DartMigrationData,
+) -> Result<(), Error> {
+    #![allow(clippy::unused_async)]
+    //TODO[pmk] implement
+    Ok(())
+}

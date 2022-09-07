@@ -95,7 +95,7 @@ dart-check: dart-build
 flutter-check: dart-build flutter-deps
     @{{just_executable()}} _dart-analyze "$FLUTTER_WORKSPACE"
 
-flutter-test: dart-build flutter-deps
+flutter-test: rust-build dart-build flutter-deps
     cd "$FLUTTER_WORKSPACE"; \
     flutter test
 

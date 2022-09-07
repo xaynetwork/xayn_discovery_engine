@@ -46,3 +46,8 @@ pub use crate::{
     config::{CoreConfig, EndpointConfig, ExplorationConfig, FeedConfig, InitConfig, SearchConfig},
     engine::{Engine, Error, SearchBy},
 };
+
+//FIXME move into crate::storage once the feature "storage" flag is removed
+pub struct DartMigrationData {
+    pub dummy: u8,
+}

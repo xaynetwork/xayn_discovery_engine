@@ -24,6 +24,7 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "DateTimeUtc" = "RustDateTimeUtc"
 "Document" = "RustDocument"
 "Duration" = "RustDuration"
+"DartMigrationData" = "RustDartMigrationData"
 "Embedding" = "RustEmbedding"
 "FfiUsize" = "RustFfiUsize"
 "HistoricDocument" = "RustHistoricDocument"
