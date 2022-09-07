@@ -25,7 +25,7 @@ use xayn_discovery_engine_core::DartMigrationData;
 #[no_mangle]
 pub unsafe extern "C" fn dart_migration_data_place_of_engine_state(
     place: *mut DartMigrationData,
-) -> *mut Vec<u8> {
+) -> *mut Option<Vec<u8>> {
     unsafe { addr_of_mut!((*place).engine_state) }
 }
 

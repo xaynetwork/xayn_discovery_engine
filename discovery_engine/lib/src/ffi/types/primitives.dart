@@ -17,7 +17,7 @@ import 'dart:ffi'
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustFfiUsize, RustOptionF32, RustVecU8;
+    show RustFfiUsize, RustOptionF32, RustVecU8, RustOptionVecU8;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 
@@ -52,18 +52,25 @@ extension Uint8ListFfi on Uint8List {
     return Boxed(vec, ffi.drop_vec_u8);
   }
 
-  void writeNative(Pointer<RustVecU8> place) {
-    final len = length;
-    len.checkFfiUsize('List.length');
-    final buffer = ffi.init_vec_u8_at(place, len);
-    buffer.asTypedList(length).setAll(0, this);
-    ffi.set_vec_u8_len(place, len);
-  }
-
   static Uint8List readNative(Pointer<RustVecU8> vec) {
     final len = ffi.get_vec_u8_len(vec);
     final buffer = ffi.get_vec_u8_buffer(vec);
     return Uint8List.fromList(buffer.asTypedList(len));
+  }
+}
+
+extension OptionUint8ListFfi on Uint8List? {
+  void writeNative(Pointer<RustOptionVecU8> place) {
+    final self = this;
+    if (self == null) {
+      ffi.init_option_vec_u8_none_at(place);
+    } else {
+      final len = self.length;
+      len.checkFfiUsize('List.length');
+      final buffer = ffi.init_option_vec_u8_some_at(place, len);
+      buffer.asTypedList(len).setAll(0, self);
+      ffi.set_option_vec_u8_len(place, len);
+    }
   }
 }
 
