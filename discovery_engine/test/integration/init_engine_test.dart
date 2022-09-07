@@ -55,7 +55,7 @@ void main() {
     });
 
     test('db override error is reported when the db was corrupted', () async {
-      data.useInEphemeralDb = false;
+      data.useEphemeralDb = false;
       await File('${data.applicationDirectoryPath}/db.sqlite')
           .writeAsBytes([11, 11, 11, 11, 11, 11, 11, 11], flush: true);
       final engine = await initEngine(data, server.port);
