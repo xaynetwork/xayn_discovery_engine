@@ -14,6 +14,8 @@
 
 //! Module for handling dart->rust/sqltie migrations
 
+use itertools::Itertools;
+
 use crate::{
     storage::{Error, Storage},
     DartMigrationData,
@@ -29,20 +31,24 @@ pub(super) async fn store_migration_data(
     // it's okay to not have a transaction across the various migrations:
     // 1. by taking `&mut SqliteStorage` we know we have exclusive access
     // 2. databases of failed migrations should be discarded at some point
-    // 3. even if the database is not discarded the db is still in a valid state,
+    // 3. even if the database is not discarded the db is still in a sound state,
     //    just with some history/config/preference or similar missing
 
     if let Some(engine_state) = &data.engine_state {
         storage.state().store(engine_state).await?;
     }
 
-    if !data.trusted_sources.is_empty() {
-        //set trusted sources
-    }
+    storage
+        .source_preference()
+        .set_trusted(&data.trusted_sources.iter().map_into().collect())
+        .await
+        .unwrap();
 
-    if !data.excluded_sources.is_empty() {
-        //set excluded sources
-    }
+    storage
+        .source_preference()
+        .set_excluded(&data.excluded_sources.iter().map_into().collect())
+        .await
+        .unwrap();
 
     Ok(())
 }
@@ -65,6 +71,9 @@ mod tests {
 
         assert_eq!(engine_state, data.engine_state);
         assert_eq!(trusted_sources, data.trusted_sources.into_iter().collect());
-        assert_eq!(excluded_sources, data.excluded_sources.into_iter().collect());
+        assert_eq!(
+            excluded_sources,
+            data.excluded_sources.into_iter().collect()
+        );
     }
 }
