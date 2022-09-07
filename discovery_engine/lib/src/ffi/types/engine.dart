@@ -89,9 +89,10 @@ import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 /// A handle to the discovery engine.
 class DiscoveryEngineFfi implements Engine {
   final Boxed<RustSharedEngine> _engine;
-  final String? dbOverrideError;
+  @override
+  final String? lastDbOverrideError;
 
-  const DiscoveryEngineFfi._(this._engine, this.dbOverrideError);
+  const DiscoveryEngineFfi._(this._engine, this.lastDbOverrideError);
 
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(

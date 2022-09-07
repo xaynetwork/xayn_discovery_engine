@@ -45,6 +45,9 @@ import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
+  /// Returns the intermediate error which caused a db reset when initializing the engine.
+  String? get lastDbOverrideError;
+
   /// Serializes the state of the [Engine].
   Future<Uint8List> serialize();
 

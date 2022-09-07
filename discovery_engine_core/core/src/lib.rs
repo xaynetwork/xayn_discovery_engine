@@ -56,9 +56,9 @@ pub struct DartMigrationData {
 /// Hint about what was done during db init.
 pub enum InitDbHint {
     /// Hint to use if nothing special happened during init.
-    #[cfg(feature = "storage")]
     NormalInit,
     /// A new db was created, there was no db beforehand.
+    #[cfg(feature = "storage")]
     NewDbCreated,
     /// There was a db but we could not open it so we deleted it and created a new one.
     #[cfg(feature = "storage")]
