@@ -1959,7 +1959,7 @@ pub(crate) mod tests {
         )
         .await;
 
-        let documents = engine.feed_next_batch(&[]).await.unwrap();
+        let documents = engine.feed_next_batch().await.unwrap();
         assert!(!documents.is_empty());
 
         let state1 = engine.storage.state().fetch().await.unwrap();
