@@ -27,10 +27,10 @@ use crate::{
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
 pub struct PositiveCoi {
-    pub(crate) id: CoiId,
-    pub(crate) point: Embedding,
+    pub(super) id: CoiId,
+    pub(super) point: Embedding,
     #[derivative(PartialEq = "ignore")]
-    pub(super) stats: CoiStats,
+    pub(crate) stats: CoiStats,
 }
 
 impl PositiveCoi {
@@ -51,7 +51,7 @@ pub struct NegativeCoi {
     pub(super) id: CoiId,
     pub(super) point: Embedding,
     #[derivative(PartialEq = "ignore")]
-    pub(super) last_view: SystemTime,
+    pub(crate) last_view: SystemTime,
 }
 
 impl NegativeCoi {
@@ -74,7 +74,7 @@ pub trait CoiPoint {
     fn point(&self) -> &Embedding;
 
     /// Shifts the coi point towards another point by a factor.
-    fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) -> &mut Self;
+    fn shift_point(&mut self, towards: &Embedding, shift_factor: f32);
 }
 
 macro_rules! impl_coi_point {
@@ -90,10 +90,9 @@ macro_rules! impl_coi_point {
                     &self.point
                 }
 
-                fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) -> &mut Self {
+                fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) {
                     self.point *= 1. - shift_factor;
                     self.point += towards * shift_factor;
-                    self
                 }
             }
         )*
@@ -132,7 +131,7 @@ pub(super) fn find_closest_coi_index(
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
-pub(super) fn find_closest_coi<'coi, CP>(
+pub(crate) fn find_closest_coi<'coi, CP>(
     cois: &'coi [CP],
     embedding: &Embedding,
 ) -> Option<(&'coi CP, f32)>
