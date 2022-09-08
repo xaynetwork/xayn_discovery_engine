@@ -26,7 +26,7 @@ pub(crate) async fn handle_ranked_documents(
     user_id: UserId,
     db: Db,
 ) -> Result<impl warp::Reply, Rejection> {
-    let (user_interests, _) = db
+    let state = db
         .user_state
         .fetch(&user_id)
         .await
@@ -35,7 +35,7 @@ pub(crate) async fn handle_ranked_documents(
 
     let mut documents = db.documents.clone();
 
-    db.coi.rank(&mut documents, &user_interests);
+    db.coi.rank(&mut documents, &state.user_interests);
 
     let articles = documents
         .into_iter()
@@ -51,7 +51,7 @@ pub(crate) async fn handle_user_interaction(
     db: Db,
 ) -> Result<impl warp::Reply, Rejection> {
     if let Some(document) = db.documents_by_id.get(&body.document_id) {
-        let (mut user_interests, mut key_phrases) = db
+        let mut state = db
             .user_state
             .fetch(&user_id)
             .await
@@ -59,16 +59,16 @@ pub(crate) async fn handle_user_interaction(
             .unwrap_or_default();
 
         db.coi.log_positive_user_reaction(
-            &mut user_interests.positive,
+            &mut state.user_interests.positive,
             &Market::new("en", "US"),
-            &mut key_phrases,
+            &mut state.key_phrases,
             &document.smbert_embedding,
             &[], //candidates,
             |words| db.smbert.run(words).map_err(Into::into),
         );
 
         db.user_state
-            .update(&user_id, &user_interests, &key_phrases)
+            .update(&user_id, &state)
             .await
             .map_err(handle_user_state_op_error)?;
 
