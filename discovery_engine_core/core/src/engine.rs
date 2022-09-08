@@ -668,7 +668,7 @@ impl Engine {
 
     /// Process the feedback about the user reacting to a document.
     ///
-    /// The history is only required for positive reactions.
+    /// The history and sources are required only for positive reactions.
     #[instrument(skip(self), level = "debug")]
     pub async fn user_reacted(
         &mut self,

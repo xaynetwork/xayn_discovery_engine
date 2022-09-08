@@ -79,8 +79,7 @@ class DocumentManager {
     if (cfgFeatureStorage) {
       final document = await _engine.userReacted(
         null,
-        //FIXME sources are not yet migrated
-        await _sourceRepo.fetchAll(),
+        [],
         // The engine will ignore all fields except the id and reaction,
         // but while we have feature flags we will still have to keep the
         // other fields intact. But we can pass dummy data.
