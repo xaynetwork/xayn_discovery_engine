@@ -26,7 +26,7 @@ use itertools::izip;
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix, Ix2};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use xayn_discovery_engine_providers::{clean_query, Market};
+use xayn_discovery_engine_providers::Market;
 
 use crate::{
     coi::{point::PositiveCoi, stats::compute_coi_relevances, CoiError, CoiId},
@@ -213,7 +213,6 @@ fn unify(
     let mut candidates = candidates
         .iter()
         .filter_map(|candidate| {
-            let candidate = clean_query(candidate);
             key_phrases
                 .iter()
                 .all(|key_phrase| key_phrase.words() != candidate)
@@ -222,7 +221,7 @@ fn unify(
         .collect::<HashSet<_>>()
         .into_par_iter()
         .filter_map(|candidate| {
-            smbert(&candidate)
+            smbert(candidate)
                 .and_then(|point| KeyPhrase::new(candidate, point).map_err(Into::into))
                 .ok()
         })
@@ -543,7 +542,10 @@ mod tests {
         };
 
         let key_phrases = unify(key_phrases, &candidates, smbert);
-        assert_eq!(key_phrases, ["key", "phrase", "words"]);
+        assert_eq!(
+            key_phrases,
+            ["key", "phrase", "phrase.", "words!", "words?"]
+        );
     }
 
     #[test]
@@ -878,7 +880,8 @@ mod tests {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let mut key_phrases = KeyPhrases::default();
         let market = Market::new("aa", "AA");
-        let candidates = ["  a  !@#$%  b  ".into()];
+        let candidate = "  a  !@#$%  b  ".to_string();
+        let candidates = [candidate.clone()];
         let smbert = |_: &str| Ok([1., 1., 0.].into());
         let config = KpsConfig::default();
 
@@ -891,7 +894,10 @@ mod tests {
             config.gamma(),
         );
         assert_eq!(key_phrases.selected.len(), cois.len());
-        assert_eq!(key_phrases.selected[&(cois[0].id, market)], ["a b"]);
+        assert_eq!(
+            key_phrases.selected[&(cois[0].id, market)][0].0.words,
+            candidate
+        );
         assert!(key_phrases.removed.is_empty());
     }
 
