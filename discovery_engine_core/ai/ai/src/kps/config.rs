@@ -18,7 +18,7 @@ use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{kps::system::System, utils::nan_safe_f32_cmp_desc};
+use crate::utils::nan_safe_f32_cmp_desc;
 
 /// Configurations of the kps system.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -101,10 +101,5 @@ impl Config {
     /// The maximum number of key phrases picked during the coi key phrase selection.
     pub fn max_key_phrases(&self) -> usize {
         self.penalty.len()
-    }
-
-    /// Creates a kps system.
-    pub fn build(self) -> System {
-        System { config: self }
     }
 }

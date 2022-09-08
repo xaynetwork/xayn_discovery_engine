@@ -41,8 +41,9 @@ mod utils;
 pub use crate::{
     coi::{
         config::{Config as CoiConfig, Error as CoiConfigError},
+        key_phrase::{KeyPhrase, KeyPhrases},
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
-        system::System as CoiSystem,
+        system::CoiSystem,
         CoiId,
     },
     document::{Document, DocumentId},
@@ -53,11 +54,7 @@ pub use crate::{
         MalformedBytesEmbedding,
     },
     error::GenericError,
-    kps::{
-        config::{Config as KpsConfig, Error as KpsConfigError},
-        key_phrase::{KeyPhrase, KeyPhrases},
-        system::System as KpsSystem,
-    },
+    kps::config::{Config as KpsConfig, Error as KpsConfigError},
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
 };
 
