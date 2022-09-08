@@ -203,6 +203,9 @@ void main() {
         (response2 as ActiveSearchRequestSucceeded).items,
         isNotEmpty,
       );
+
+      final restoreResponse = await engine.restoreActiveSearch();
+      expect(restoreResponse, isA<RestoreActiveSearchSucceeded>());
     });
   });
 }
