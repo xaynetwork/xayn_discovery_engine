@@ -44,10 +44,10 @@ pub(crate) struct Config {
     #[envconfig(from = "ELASTIC_INDEX_NAME", default = "test_index")]
     pub(crate) elastic_index_name: String,
 
-    #[envconfig(from = "DE_SMBERT_VOCAB")]
+    #[envconfig(from = "DE_SMBERT_VOCAB", default = "assets/vocab.txt")]
     pub(crate) smbert_vocab: PathBuf,
 
-    #[envconfig(from = "DE_SMBERT_MODEL")]
+    #[envconfig(from = "DE_SMBERT_MODEL", default = "assets/model.onnx")]
     pub(crate) smbert_model: PathBuf,
 
     #[envconfig(from = "MAX_BODY_SIZE", default = "524288")]
