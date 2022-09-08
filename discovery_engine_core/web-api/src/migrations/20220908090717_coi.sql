@@ -12,7 +12,15 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-CREATE TABLE IF NOT EXISTS user_state (
-    id TEXT NOT NULL PRIMARY KEY,
-    state BYTEA NOT NULL
+CREATE TABLE IF NOT EXISTS center_of_interest (
+    coi_id UUID NOT NULL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    is_positive BOOLEAN NOT NULL,
+    embedding FLOAT4[] NOT NULL,
+    view_count INTEGER NOT NULL DEFAULT 0,
+    view_time_ms INTEGER NOT NULL DEFAULT 0,
+    last_view TIMESTAMPTZ NOT NULL DEFAULT Now()
 );
+
+CREATE INDEX IF NOT EXISTS idx_coi_by_user_id
+    ON center_of_interest(user_id);
