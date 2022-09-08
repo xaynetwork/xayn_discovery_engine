@@ -176,5 +176,33 @@ void main() {
         equals(SearchFailureReason.openActiveSearch),
       );
     });
+
+    test('start second search works', () async {
+      final response1 = await engine.requestQuerySearch('first search');
+
+      expect(response1, isA<ActiveSearchRequestSucceeded>());
+      expect(
+        (response1 as ActiveSearchRequestSucceeded).items,
+        isNotEmpty,
+      );
+
+      final closeResponse = await engine.closeActiveSearch();
+      expect(closeResponse, isA<ActiveSearchClosedSucceeded>());
+
+      final response = await engine.restoreActiveSearch();
+      expect(response, isA<RestoreActiveSearchFailed>());
+      expect(
+        (response as RestoreActiveSearchFailed).reason,
+        equals(SearchFailureReason.noActiveSearch),
+      );
+
+      final response2 = await engine.requestQuerySearch('second search');
+
+      expect(response2, isA<ActiveSearchRequestSucceeded>());
+      expect(
+        (response2 as ActiveSearchRequestSucceeded).items,
+        isNotEmpty,
+      );
+    });
   });
 }
