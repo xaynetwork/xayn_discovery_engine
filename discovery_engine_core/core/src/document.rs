@@ -490,7 +490,7 @@ pub(crate) mod tests {
 
         assert_eq!(custom_deserializer.dt, DateTime::<Utc>::from_utc(dt, Utc));
 
-        let dt = NaiveDate::from_ymd(2022, 09, 12).and_hms(17, 28, 15);
+        let dt = NaiveDate::from_ymd(2022, 9, 12).and_hms(17, 28, 15);
         let dt = DateTime::<Utc>::from_utc(dt, Utc);
         let data = StructWithDateTime { dt };
         let bytes = bincode::serialize(&data).unwrap();
