@@ -41,14 +41,12 @@ pub(super) async fn store_migration_data(
     storage
         .source_preference()
         .set_trusted(&data.trusted_sources.iter().map_into().collect())
-        .await
-        .unwrap();
+        .await?;
 
     storage
         .source_preference()
         .set_excluded(&data.excluded_sources.iter().map_into().collect())
-        .await
-        .unwrap();
+        .await?;
 
     Ok(())
 }
