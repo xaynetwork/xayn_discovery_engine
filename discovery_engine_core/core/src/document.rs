@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
@@ -202,7 +202,13 @@ fn deserialize_date_time_with_fallback<'de, D>(deserializer: D) -> Result<DateTi
 where
     D: Deserializer<'de>,
 {
-    DateTime::<Utc>::deserialize(deserializer).or_else(|_| Ok(DateTime::<Utc>::default()))
+    // const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+    const FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
+    let s = String::deserialize(deserializer).unwrap_or_default();
+
+    DateTime::parse_from_rfc3339(&s)
+        .map(|dt| dt.with_timezone(&Utc))
+        .or_else(|_| Ok(Utc.datetime_from_str(&s, FORMAT).unwrap_or_default()))
 }
 
 impl From<GenericArticle> for NewsResource {
@@ -375,7 +381,7 @@ impl AiDocument for TrendingTopic {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use chrono::{NaiveDateTime, TimeZone};
+    use chrono::{NaiveDate, NaiveDateTime, TimeZone};
 
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
 
@@ -461,9 +467,8 @@ pub(crate) mod tests {
             dt: NaiveDateTime,
         }
 
-        #[derive(Debug, Deserialize)]
-        struct StructWithDefaultDeserializer {
-            #[allow(dead_code)]
+        #[derive(Debug, Serialize, Deserialize)]
+        struct StructWithDateTime {
             dt: DateTime<Utc>,
         }
 
@@ -473,17 +478,25 @@ pub(crate) mod tests {
             dt: DateTime<Utc>,
         }
 
-        let data = StructWithNaiveDateTime {
-            dt: NaiveDateTime::default(),
-        };
+        let dt = NaiveDate::from_ymd(2016, 7, 8).and_hms(10, 25, 55);
+        let data = StructWithNaiveDateTime { dt };
         let bytes = bincode::serialize(&data).unwrap();
-        let default_deserializer = bincode::deserialize::<StructWithDefaultDeserializer>(&bytes);
+        let default_deserializer = bincode::deserialize::<StructWithDateTime>(&bytes);
 
         assert!(default_deserializer.is_err());
 
         let custom_deserializer =
             bincode::deserialize::<StructWithCustomDeserializer>(&bytes).unwrap();
 
-        assert_eq!(custom_deserializer.dt, DateTime::<Utc>::default());
+        assert_eq!(custom_deserializer.dt, DateTime::<Utc>::from_utc(dt, Utc));
+
+        let dt = NaiveDate::from_ymd(2022, 09, 12).and_hms(17, 28, 15);
+        let dt = DateTime::<Utc>::from_utc(dt, Utc);
+        let data = StructWithDateTime { dt };
+        let bytes = bincode::serialize(&data).unwrap();
+
+        let custom_deserializer =
+            bincode::deserialize::<StructWithCustomDeserializer>(&bytes).unwrap();
+        assert_eq!(custom_deserializer.dt, dt);
     }
 }
