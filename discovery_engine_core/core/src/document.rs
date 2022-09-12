@@ -16,11 +16,11 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use thiserror::Error;
 use url::Url;
@@ -155,6 +155,7 @@ pub struct NewsResource {
     pub source_domain: String,
 
     /// Publishing date.
+    #[serde(deserialize_with = "deserialize_date_time_custom")]
     pub date_published: DateTime<Utc>,
 
     /// Image attached to the news.
@@ -194,6 +195,24 @@ impl NewsResource {
             &self.snippet
         }
     }
+}
+
+/// NaiveDateTime tolerant deserialization of `DateTime<Utc>`.
+fn deserialize_date_time_custom<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+
+    let s = String::deserialize(deserializer)?;
+    Utc.datetime_from_str(&s, FORMAT)
+        // .or(Ok(DateTime::<Utc>::MIN_UTC))
+        // .map_err(|err| serde::de::Error::custom(format!("err: {}, s: {}", err, s)))
+        .or_else(|_| {
+            let val = NaiveDateTime::parse_from_str(&s, FORMAT).unwrap_or(NaiveDateTime::default());
+            let val = DateTime::<Utc>::from_utc(val, Utc);
+            Ok(val)
+        })
 }
 
 impl From<GenericArticle> for NewsResource {
@@ -366,7 +385,7 @@ impl AiDocument for TrendingTopic {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use chrono::TimeZone;
+    use chrono::{NaiveDateTime, TimeZone};
 
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
 
@@ -443,5 +462,40 @@ pub(crate) mod tests {
         assert_eq!(rank, resource.rank);
         assert_eq!(article.topic, resource.topic);
         assert_eq!(article.date_published, resource.date_published);
+    }
+
+    #[test]
+    fn test_date_time_serde() {
+        #[derive(Debug, Serialize)]
+        struct StructWithNaiveDateTime {
+            dt: NaiveDateTime,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct StructWithDefaultDeserializer {
+            #[allow(dead_code)]
+            dt: DateTime<Utc>,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct StructWithCustomDeserializer {
+            #[serde(deserialize_with = "deserialize_date_time_custom")]
+            dt: DateTime<Utc>,
+        }
+
+        let naive_dt = NaiveDateTime::default();
+        let data = StructWithNaiveDateTime { dt: naive_dt };
+        let bytes = bincode::serialize(&data).unwrap();
+
+        let default_deserializer = bincode::deserialize::<StructWithDefaultDeserializer>(&bytes);
+
+        assert!(default_deserializer.is_err());
+
+        let custom_deserializer =
+            bincode::deserialize::<StructWithCustomDeserializer>(&bytes).unwrap();
+
+        let utc_from_dt = DateTime::<Utc>::from_utc(naive_dt, Utc);
+
+        assert_eq!(custom_deserializer.dt, utc_from_dt);
     }
 }
