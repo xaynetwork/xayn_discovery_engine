@@ -197,19 +197,19 @@ impl NewsResource {
     }
 }
 
-/// NaiveDateTime tolerant deserialization of `DateTime<Utc>`.
+/// `NaiveDateTime` tolerant deserialization of `DateTime<Utc>`.
 fn deserialize_date_time_custom<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+    const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
     let s = String::deserialize(deserializer)?;
     Utc.datetime_from_str(&s, FORMAT)
         // .or(Ok(DateTime::<Utc>::MIN_UTC))
         // .map_err(|err| serde::de::Error::custom(format!("err: {}, s: {}", err, s)))
         .or_else(|_| {
-            let val = NaiveDateTime::parse_from_str(&s, FORMAT).unwrap_or(NaiveDateTime::default());
+            let val = NaiveDateTime::parse_from_str(&s, FORMAT).unwrap_or_default();
             let val = DateTime::<Utc>::from_utc(val, Utc);
             Ok(val)
         })
