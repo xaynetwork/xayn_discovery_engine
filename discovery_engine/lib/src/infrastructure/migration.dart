@@ -88,8 +88,7 @@ class DartMigrationData {
         await documentRepository.box.clear();
         await activeSearchRepository.clear();
         await activeDocumentDataRepository.box.clear();
-        //TODO[pmk] uncomment section once migration part was added
-        // await sourceReactedRepository.box.clear();
+        await sourceReactedRepository.box.clear();
       },
     );
   }

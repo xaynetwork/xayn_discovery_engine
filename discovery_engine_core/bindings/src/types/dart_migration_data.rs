@@ -14,7 +14,10 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::storage2::{DartMigrationData, MigrationDocument};
+use xayn_discovery_engine_core::{
+    document::WeightedSource,
+    storage2::{DartMigrationData, MigrationDocument},
+};
 
 use super::migration_search::MigrationSearch;
 
@@ -81,6 +84,19 @@ pub unsafe extern "C" fn dart_migration_data_place_of_documents(
     place: *mut DartMigrationData,
 ) -> *mut Vec<MigrationDocument> {
     unsafe { addr_of_mut!((*place).documents) }
+}
+
+/// Returns a pointer to the `reacted_sources` field of a [`DartMigrationData`].
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`DartMigrationData`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn dart_migration_data_place_of_reacted_sources(
+    place: *mut DartMigrationData,
+) -> *mut Vec<WeightedSource> {
+    unsafe { addr_of_mut!((*place).reacted_sources) }
 }
 
 /// Alloc an uninitialized `Box<DartMigrationData>`, mainly used for testing.

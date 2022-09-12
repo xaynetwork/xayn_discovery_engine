@@ -14,6 +14,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    iter,
     time::Duration,
 };
 
@@ -325,6 +326,34 @@ impl SqliteStorage {
 
         tx.commit().await?;
         Ok(sources)
+    }
+
+    async fn store_source_reactions(
+        &self,
+        reactions: impl IntoIterator<Item = &WeightedSource> + Send,
+    ) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let now = Utc::now().naive_utc();
+
+        let mut count = 0;
+        QueryBuilder::new("INSERT INTO SourceReaction (source, weight, lastUpdated) ")
+            .push_values(reactions, |mut query, item| {
+                count += 1;
+                query
+                    .push_bind(&item.source)
+                    .push_bind(item.weight)
+                    .push_bind(now);
+            })
+            .build()
+            // outside of migrations we always will call this with exactly one
+            // values tuple, there is no reason to not cache it in that case
+            .persistent(count == 1)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
     }
 }
 
@@ -978,18 +1007,12 @@ impl SourceReactionScope for SqliteStorage {
 
     async fn create_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
         let weight = if liked { 1 } else { -1 };
-        let last_updated = Utc::now().naive_utc();
 
-        let mut tx = self.pool.begin().await?;
-
-        sqlx::query("INSERT INTO SourceReaction (source, weight, lastUpdated) VALUES (?, ?, ?);")
-            .bind(source)
-            .bind(weight)
-            .bind(last_updated)
-            .execute(&mut tx)
-            .await?;
-
-        tx.commit().await.map_err(Into::into)
+        self.store_source_reactions(iter::once(&WeightedSource {
+            source: source.into(),
+            weight,
+        }))
+        .await
     }
 
     async fn update_source_weight(&self, source: &str, add_weight: i32) -> Result<(), Error> {

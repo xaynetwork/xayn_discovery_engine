@@ -58,6 +58,10 @@ pub(super) async fn store_migration_data(
         .set_excluded(&data.excluded_sources.iter().map_into().collect())
         .await?;
 
+    storage
+        .store_source_reactions(data.reacted_sources.iter())
+        .await?;
+
     if let Some(search) = &data.search {
         storage.search().store_new_search(search, &[]).await?;
     }
@@ -301,6 +305,7 @@ mod tests {
             engine_state: Some(vec![1, 2, 3, 4, 8, 7, 0]),
             trusted_sources: vec!["foo.example".into(), "bar.invalid".into()],
             excluded_sources: vec!["dodo.local".into()],
+            reacted_sources: vec![],
             search: Some(Search {
                 search_by: SearchBy::Query,
                 search_term: "foo bar".into(),
