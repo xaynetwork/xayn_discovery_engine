@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
@@ -202,9 +202,7 @@ fn deserialize_date_time_with_fallback<'de, D>(deserializer: D) -> Result<DateTi
 where
     D: Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
-    Utc.datetime_from_str(&s, "%Y-%m-%d %H:%M:%S")
-        .or_else(|_| Ok(DateTime::<Utc>::default()))
+    DateTime::<Utc>::deserialize(deserializer).or_else(|_| Ok(DateTime::<Utc>::default()))
 }
 
 impl From<GenericArticle> for NewsResource {
