@@ -152,7 +152,7 @@ pub(crate) trait FeedbackScope {
 
 #[async_trait]
 pub(crate) trait StateScope {
-    async fn store(&self, bytes: Vec<u8>) -> Result<(), Error>;
+    async fn store(&self, bytes: &[u8]) -> Result<(), Error>;
 
     async fn fetch(&self) -> Result<Option<Vec<u8>>, Error>;
 

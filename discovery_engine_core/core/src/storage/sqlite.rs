@@ -609,7 +609,7 @@ impl SearchScope for SqliteStorage {
 
 #[async_trait]
 impl StateScope for SqliteStorage {
-    async fn store(&self, bytes: Vec<u8>) -> Result<(), Error> {
+    async fn store(&self, bytes: &[u8]) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
         sqlx::query(
@@ -1333,11 +1333,11 @@ mod tests {
         assert!(storage.state().fetch().await.unwrap().is_none());
 
         let state = (0..100).collect::<Vec<u8>>();
-        storage.state().store(state.clone()).await.unwrap();
+        storage.state().store(&state).await.unwrap();
         assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
 
         let state = (100..=255).collect::<Vec<u8>>();
-        storage.state().store(state.clone()).await.unwrap();
+        storage.state().store(&state).await.unwrap();
         assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
 
         assert!(storage.state().clear().await.unwrap());

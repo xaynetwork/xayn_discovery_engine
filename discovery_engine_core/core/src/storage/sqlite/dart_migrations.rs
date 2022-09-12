@@ -14,56 +14,42 @@
 
 //! Module for handling dart->rust/sqltie migrations
 
-use sqlx::{Pool, Sqlite};
+use crate::{
+    storage::{Error, Storage},
+    DartMigrationData,
+};
 
-use crate::{storage::Error, DartMigrationData};
+use super::SqliteStorage;
 
 /// Add the data from the  dart->rust/sqltie migration to the prepared database.
 pub(super) async fn store_migration_data(
-    pool: &Pool<Sqlite>,
+    storage: &mut SqliteStorage,
     data: &DartMigrationData,
 ) -> Result<(), Error> {
-    let mut tx = pool.begin().await?;
+    // it's okay to not have an transaction across the various migrations:
+    // 1. by taking `&mut SqliteStorage` we know we have exclusive access
+    // 2. databases of failed migrations should be discarded at some point
+    // 3. even if the database is not discarded the db is still in a valid state,
+    //    just with some history/config/preference or similar missing
 
     if let Some(engine_state) = &data.engine_state {
-        sqlx::query("INSERT INTO SerializedState (rowid, state) VALUES (1, ?);")
-            .bind(engine_state)
-            .execute(&mut tx)
-            .await?;
+        storage.state().store(engine_state).await?;
     }
 
-    //TODO[pmk] implement
-    tx.commit().await?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::sqlite::setup::{create_connection_pool, update_schema};
-
-    use super::*;
+    use super::{super::setup::init_storage_system_once, *};
 
     #[tokio::test]
     async fn test_store_migration_data() {
-        let pool = create_connection_pool(None).await.unwrap();
-        update_schema(&pool).await.unwrap();
-
-        let expected_state = vec![1, 2, 3, 4, 8, 7, 0];
-        store_migration_data(
-            &pool,
-            &DartMigrationData {
-                engine_state: Some(expected_state.clone()),
-            },
-        )
-        .await
-        .unwrap();
-
-        let (state,) =
-            sqlx::query_as::<_, (Vec<u8>,)>("SELECT state FROM SerializedState WHERE rowid = 1")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
-
-        assert_eq!(state, expected_state);
+        let data = DartMigrationData {
+            engine_state: Some(vec![1, 2, 3, 4, 8, 7, 0]),
+        };
+        let storage = init_storage_system_once(None, Some(&data)).await.unwrap();
+        let engine_state = storage.state().fetch().await.unwrap();
+        assert_eq!(engine_state, data.engine_state);
     }
 }
