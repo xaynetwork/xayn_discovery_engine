@@ -151,3 +151,10 @@ components:
       properties:
         documents:
           $ref: '#/components/schemas/IngestedDocuments'
+    IngestionResponseFail:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentId'
