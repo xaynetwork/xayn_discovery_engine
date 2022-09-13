@@ -309,17 +309,20 @@ struct ErrorMessage {
     code: u16,
     message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    documents: Option<Vec<String>>,
+    errored_ids: Option<Vec<String>>,
 }
 
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     let code;
     let message;
-    let mut documents = None;
+    let mut errored_ids = None;
 
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "NOT_FOUND";
+    } else if let Some(_) = err.find::<warp::filters::body::BodyDeserializeError>() {
+        code = StatusCode::BAD_REQUEST;
+        message = "REQUEST_BODY_DESERIALIZATION_ERROR";
     } else if let Some(ElasticOpError) = err.find() {
         code = StatusCode::BAD_REQUEST;
         message = "ELASTIC_ERROR";
@@ -329,10 +332,10 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     } else if let Some(SerializeNdJsonError) = err.find() {
         code = StatusCode::BAD_REQUEST;
         message = "NDJSON_SERIALIZATION_ERROR";
-    } else if let Some(EmbeddingsCalculationError(docs)) = err.find() {
+    } else if let Some(EmbeddingsCalculationError(ids)) = err.find() {
         code = StatusCode::UNPROCESSABLE_ENTITY;
         message = "EMBEDDING_CALCULATION_ERROR";
-        documents = Some(docs.to_vec());
+        errored_ids = Some(ids.to_vec());
     } else {
         error!("unhandled rejection: {:?}", err);
         code = StatusCode::INTERNAL_SERVER_ERROR;
@@ -342,7 +345,7 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     let json = warp::reply::json(&ErrorMessage {
         code: code.as_u16(),
         message: message.into(),
-        documents,
+        errored_ids,
     });
 
     Ok(warp::reply::with_status(json, code))
