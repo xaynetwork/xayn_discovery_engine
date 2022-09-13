@@ -84,6 +84,8 @@ impl Engine {
             bincode::deserialize::<SerializedState>(bytes)
                 .and_then(|state| {
                     bincode::deserialize::<HashMap<Id, Data>>(&state.stacks.0)
+                        // deserialization might fail due to parsing error of `DateTime<Utc>` from serialized `NaiveDateTime`
+                        .or_else(|_| naive_date_time_migration::deserialize(&state.stacks.0))
                         .map(|stacks| (stacks, state))
                 })
                 .and_then(|(stacks, state)| {
@@ -106,5 +108,165 @@ impl Engine {
                 })
                 .map_err(|_| error)
         })
+    }
+}
+
+mod naive_date_time_migration {
+    use crate::{
+        document::{Document, Id, NewsResource, UserReaction},
+        stack::{Data, Id as StackId},
+    };
+    use chrono::{DateTime, NaiveDateTime, Utc};
+    use serde::{Deserialize, Serialize};
+    use std::collections::HashMap;
+    use url::Url;
+    use xayn_discovery_engine_ai::Embedding;
+
+    #[derive(Serialize, Deserialize)]
+    pub(super) struct DataWithNaiveDateTime {
+        pub(super) alpha: f32,
+        pub(super) beta: f32,
+        pub(super) likes: f32,
+        pub(super) dislikes: f32,
+        pub(super) documents: Vec<DocumentWithNaiveDateTime>,
+    }
+
+    impl From<DataWithNaiveDateTime> for Data {
+        fn from(data: DataWithNaiveDateTime) -> Self {
+            Data {
+                alpha: data.alpha,
+                beta: data.beta,
+                likes: data.likes,
+                dislikes: data.dislikes,
+                documents: data.documents.into_iter().map(Into::into).collect(),
+            }
+        }
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub(super) struct DocumentWithNaiveDateTime {
+        pub(super) id: Id,
+        pub(super) stack_id: StackId,
+        pub(super) smbert_embedding: Embedding,
+        pub(super) reaction: Option<UserReaction>,
+        pub(super) resource: NewsResourceWithNaiveDateTime,
+    }
+
+    impl From<DocumentWithNaiveDateTime> for Document {
+        fn from(document: DocumentWithNaiveDateTime) -> Self {
+            Document {
+                id: document.id,
+                stack_id: document.stack_id,
+                smbert_embedding: document.smbert_embedding,
+                reaction: document.reaction,
+                resource: document.resource.into(),
+            }
+        }
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub(super) struct NewsResourceWithNaiveDateTime {
+        pub(super) title: String,
+        pub(super) snippet: String,
+        pub(super) url: Url,
+        pub(super) source_domain: String,
+        pub(super) date_published: NaiveDateTime,
+        pub(super) image: Option<Url>,
+        pub(super) rank: u64,
+        pub(super) score: Option<f32>,
+        pub(super) country: String,
+        pub(super) language: String,
+        pub(super) topic: String,
+    }
+
+    impl From<NewsResourceWithNaiveDateTime> for NewsResource {
+        fn from(resource: NewsResourceWithNaiveDateTime) -> Self {
+            NewsResource {
+                title: resource.title,
+                snippet: resource.snippet,
+                url: resource.url,
+                source_domain: resource.source_domain,
+                date_published: DateTime::<Utc>::from_utc(resource.date_published, Utc),
+                image: resource.image,
+                rank: resource.rank,
+                score: resource.score,
+                country: resource.country,
+                language: resource.language,
+                topic: resource.topic,
+            }
+        }
+    }
+
+    pub(crate) fn deserialize(bytes: &[u8]) -> Result<HashMap<StackId, Data>, bincode::Error> {
+        bincode::deserialize::<HashMap<StackId, DataWithNaiveDateTime>>(bytes).map(|stacks| {
+            stacks
+                .into_iter()
+                .map(|(id, data)| (id, data.into()))
+                .collect()
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use chrono::{DateTime, NaiveDate, Utc};
+    use url::Url;
+    use xayn_discovery_engine_ai::Embedding;
+
+    use super::naive_date_time_migration::DataWithNaiveDateTime;
+    use crate::{
+        document::Id,
+        stack::{Data, Id as StackId},
+        state::naive_date_time_migration::{
+            self,
+            DocumentWithNaiveDateTime,
+            NewsResourceWithNaiveDateTime,
+        },
+    };
+
+    #[test]
+    fn test_naive_date_time_migration() {
+        let stack_id = StackId::nil();
+        let date_published = NaiveDate::from_ymd(2016, 7, 8).and_hms(10, 25, 55);
+        let old_document = DocumentWithNaiveDateTime {
+            id: Id::new(),
+            stack_id,
+            reaction: None,
+            smbert_embedding: Embedding::default(),
+            resource: NewsResourceWithNaiveDateTime {
+                title: String::default(),
+                snippet: String::default(),
+                url: Url::parse("https://example.net").unwrap(/* used only in tests */),
+                source_domain: "example.com".to_string(),
+                image: None,
+                score: None,
+                rank: 0,
+                country: "GB".to_string(),
+                language: "en".to_string(),
+                topic: "news".to_string(),
+                date_published,
+            },
+        };
+        let old_data = DataWithNaiveDateTime {
+            alpha: 1.,
+            beta: 1.,
+            likes: 1.,
+            dislikes: 1.,
+            documents: vec![old_document],
+        };
+        let old_stacks_data = HashMap::from([(stack_id, old_data)]);
+        let bytes = bincode::serialize(&old_stacks_data).unwrap();
+        let failing_op = bincode::deserialize::<HashMap<StackId, Data>>(&bytes);
+
+        assert!(failing_op.is_err());
+
+        let successful_op = naive_date_time_migration::deserialize(&bytes).unwrap();
+        let new_data = successful_op.get(&stack_id).unwrap();
+        let new_doc = new_data.documents.first().unwrap();
+        let date_published = DateTime::<Utc>::from_utc(date_published, Utc);
+
+        assert_eq!(new_doc.resource.date_published, date_published);
     }
 }
