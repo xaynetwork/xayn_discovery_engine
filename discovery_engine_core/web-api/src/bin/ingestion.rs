@@ -201,7 +201,7 @@ async fn handle_add_data(
         .into_iter()
         .map(|mut article| match model.run(&article.snippet) {
             Ok(embedding) => {
-                article.embedding = embedding.iter().cloned().collect();
+                article.embedding = embedding.to_vec();
                 Ok(article)
             }
             Err(_) => Err(article.document_id),
