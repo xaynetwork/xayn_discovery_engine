@@ -220,7 +220,9 @@ mod tests {
         document::Id,
         stack::{Data, Id as StackId},
         state::naive_date_time_migration::{
-            self, DocumentWithNaiveDateTime, NewsResourceWithNaiveDateTime,
+            self,
+            DocumentWithNaiveDateTime,
+            NewsResourceWithNaiveDateTime,
         },
     };
 
