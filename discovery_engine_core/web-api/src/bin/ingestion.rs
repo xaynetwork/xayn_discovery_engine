@@ -44,17 +44,17 @@ pub(crate) struct Config {
     #[envconfig(from = "ELASTIC_INDEX_NAME", default = "test_index")]
     pub(crate) elastic_index_name: String,
 
-    #[envconfig(from = "DE_SMBERT_VOCAB", default = "assets/vocab.txt")]
+    #[envconfig(from = "SMBERT_VOCAB", default = "assets/vocab.txt")]
     pub(crate) smbert_vocab: PathBuf,
 
-    #[envconfig(from = "DE_SMBERT_MODEL", default = "assets/model.onnx")]
+    #[envconfig(from = "SMBERT_MODEL", default = "assets/model.onnx")]
     pub(crate) smbert_model: PathBuf,
 
     #[envconfig(from = "MAX_BODY_SIZE", default = "524288")]
     pub(crate) max_body_size: u64,
 
     #[envconfig(from = "MAX_DOCUMENTS_LENGTH", default = "100")]
-    pub(crate) max_documents_len: usize,
+    pub(crate) max_documents_length: usize,
 }
 
 /// Represents the `SMBert` model used for calculating embedding from snippets.
@@ -191,7 +191,7 @@ async fn handle_add_data(
     config: Config,
     client: Client,
 ) -> Result<impl warp::Reply, Rejection> {
-    if body.documents.len() > config.max_documents_len {
+    if body.documents.len() > config.max_documents_length {
         return Err(warp::reject::custom(TooManyDocumentsError));
     }
 
