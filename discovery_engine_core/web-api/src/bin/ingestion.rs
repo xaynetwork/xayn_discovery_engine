@@ -204,7 +204,13 @@ async fn handle_add_data(
                 article.embedding = embedding.to_vec();
                 Ok(article)
             }
-            Err(_) => Err(article.document_id),
+            Err(err) => {
+                error!(
+                    "Document with id '{}' caused a PipelineError: {:#?}",
+                    article.document_id, err
+                );
+                Err(article.document_id)
+            }
         })
         .partition_result();
 
