@@ -137,7 +137,7 @@ components:
           $ref: '#/components/schemas/DocumentId'
         snippet:
           type: string
-          description: Text that that will be used to match the document against the user interests
+          description: Text that will be used to match the document against the user interests
         published_date:
           type: string
           format: date-time
