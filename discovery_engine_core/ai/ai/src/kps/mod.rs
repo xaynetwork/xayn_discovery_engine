@@ -13,3 +13,5 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub(crate) mod config;
+pub(crate) mod key_phrase;
+pub(crate) mod system;

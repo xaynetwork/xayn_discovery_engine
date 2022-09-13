@@ -19,9 +19,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    coi::system::CoiSystem,
+    coi::system::System,
     embedding::COSINE_SIMILARITY_RANGE,
-    kps::config::Config as KpsConfig,
     utils::{serde_duration_as_days, SECONDS_PER_DAY_U64},
 };
 
@@ -143,10 +142,7 @@ impl Config {
     }
 
     /// Creates a coi system.
-    pub fn build(self, kps_config: KpsConfig) -> CoiSystem {
-        CoiSystem {
-            coi_config: self,
-            kps_config,
-        }
+    pub fn build(self) -> System {
+        System { config: self }
     }
 }
