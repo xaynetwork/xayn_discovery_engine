@@ -17,6 +17,7 @@
 use bytes::{BufMut, Bytes, BytesMut};
 use chrono::{DateTime, Utc};
 use envconfig::Envconfig;
+use itertools::Itertools;
 use reqwest::{
     header::{HeaderValue, CONTENT_TYPE},
     Client,
@@ -195,22 +196,21 @@ async fn handle_add_data(
         return Err(warp::reject::custom(TooManyDocumentsError));
     }
 
-    let (docs_with_empty_embeddings, documents): (Vec<_>, Vec<_>) = body
+    let (documents, errored_ids): (Vec<_>, Vec<_>) = body
         .documents
         .into_iter()
-        .map(|mut article| {
-            let embedding = match model.run(&article.snippet) {
-                Ok(embedding) => embedding.iter().copied().collect(),
-                Err(_) => Vec::default(),
-            };
-            article.embedding = embedding;
-            article
+        .map(|mut article| match model.run(&article.snippet) {
+            Ok(embedding) => {
+                article.embedding = embedding.iter().cloned().collect();
+                Ok(article)
+            }
+            Err(_) => Err(article.document_id),
         })
-        .partition(|article| article.embedding.is_empty());
+        .partition_result();
 
-    if !docs_with_empty_embeddings.is_empty() {
+    if !errored_ids.is_empty() {
         return Err(warp::reject::custom(EmbeddingsCalculationError(
-            docs_with_empty_embeddings,
+            errored_ids,
         )));
     }
 
@@ -283,7 +283,7 @@ struct TooManyDocumentsError;
 impl Reject for TooManyDocumentsError {}
 
 #[derive(Debug)]
-struct EmbeddingsCalculationError(Vec<Article>);
+struct EmbeddingsCalculationError(Vec<String>);
 impl Reject for EmbeddingsCalculationError {}
 
 #[derive(Debug)]
@@ -309,7 +309,7 @@ struct ErrorMessage {
     code: u16,
     message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    documents: Option<Vec<Article>>,
+    documents: Option<Vec<String>>,
 }
 
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
