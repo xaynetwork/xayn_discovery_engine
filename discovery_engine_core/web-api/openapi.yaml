@@ -23,7 +23,8 @@ paths:
       summary: Get personalized document for the user
       description: |-
         Returns a map from `document_id` to the score of that document for the
-        specified `user_id`.
+        specified `user_id`. The score is a value between 0 and 1 where an higher value
+        means that the document matches more the preferences of the user.
       parameters:
         - name: user_id
           in: path
