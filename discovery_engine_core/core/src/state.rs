@@ -19,7 +19,7 @@ use xayn_discovery_engine_ai::{GenericError, KeyPhrases, UserInterests};
 
 use crate::{
     engine::{Engine, Error},
-    stack::{exploration::Stack as Exploration, Data, Id as StackId},
+    stack::{exploration::Stack as Exploration, Data, Id},
 };
 
 const STATE_VERSION: u8 = 2;
@@ -56,7 +56,7 @@ impl Engine {
 
     pub(crate) fn deserialize(
         bytes: &[u8],
-    ) -> Result<(HashMap<StackId, Data>, UserInterests, KeyPhrases), Error> {
+    ) -> Result<(HashMap<Id, Data>, UserInterests, KeyPhrases), Error> {
         match bytes.get(0) {
             Some(version) if *version < STATE_VERSION => Ok(Default::default()),
             Some(&STATE_VERSION) => {
@@ -83,7 +83,7 @@ impl Engine {
 
             bincode::deserialize::<SerializedState>(bytes)
                 .and_then(|state| {
-                    bincode::deserialize::<HashMap<StackId, Data>>(&state.stacks.0)
+                    bincode::deserialize::<HashMap<Id, Data>>(&state.stacks.0)
                         // deserialization might fail due to parsing error of `DateTime<Utc>` from serialized `NaiveDateTime`
                         .or_else(|_| naive_date_time_migration::deserialize(&state.stacks.0))
                         .map(|stacks| (stacks, state))
