@@ -320,7 +320,10 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "NOT_FOUND";
-    } else if let Some(_) = err.find::<warp::filters::body::BodyDeserializeError>() {
+    } else if err
+        .find::<warp::filters::body::BodyDeserializeError>()
+        .is_some()
+    {
         code = StatusCode::BAD_REQUEST;
         message = "REQUEST_BODY_DESERIALIZATION_ERROR";
     } else if let Some(ElasticOpError) = err.find() {
@@ -334,7 +337,7 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         message = "NDJSON_SERIALIZATION_ERROR";
     } else if let Some(EmbeddingsCalculationError(ids)) = err.find() {
         code = StatusCode::UNPROCESSABLE_ENTITY;
-        message = "EMBEDDING_CALCULATION_ERROR";
+        message = "UNPROCESSABLE_DOCUMENTS";
         errored_ids = Some(ids.to_vec());
     } else {
         error!("unhandled rejection: {:?}", err);
