@@ -8,7 +8,7 @@ info:
     
     # Auth
     To authenticate with the API two bearer tokens will be provided. One will work for the
-    personalization endpoints and the other one will allow to add documents to the system.
+    personalization endpoints and the other one will allow documents to be added to the system.
     
 tags:
   - name: personalization
