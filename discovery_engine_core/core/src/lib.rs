@@ -35,6 +35,7 @@ pub mod document;
 mod engine;
 mod mab;
 pub mod stack;
+mod state;
 #[cfg(feature = "storage")]
 pub mod storage;
 //FIXME they are not storage specific but currently only used by storage

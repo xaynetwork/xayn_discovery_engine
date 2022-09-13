@@ -50,11 +50,11 @@ impl Engine {
     }
 
     pub fn coi_config(&self) -> &CoiConfig {
-        self.coi.coi_config()
+        self.coi.config()
     }
 
     pub fn kps_config(&self) -> &KpsConfig {
-        self.coi.kps_config()
+        self.kps.config()
     }
 
     pub fn exploration_config(&self) -> &ExplorationConfig {

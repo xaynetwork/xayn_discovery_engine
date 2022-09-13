@@ -27,7 +27,6 @@ use futures::future::join_all;
 use itertools::{chain, Itertools};
 use ndarray::Array;
 use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, Level};
@@ -37,10 +36,12 @@ use xayn_discovery_engine_ai::{
     nan_safe_f32_cmp,
     CoiConfig,
     CoiSystem,
-    CoiSystemState,
     Embedding,
     GenericError,
     KeyPhrase,
+    KeyPhrases,
+    KpsConfig,
+    KpsSystem,
     UserInterests,
 };
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
@@ -114,7 +115,7 @@ use crate::{
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// Failed to serialize internal state of the engine: {0}.
-    Serialization(#[source] GenericError),
+    Serialization(#[source] bincode::Error),
 
     /// Failed to deserialize internal state to create the engine: {0}.
     Deserialization(#[source] bincode::Error),
@@ -169,23 +170,25 @@ pub struct Engine {
     // systems
     smbert: SMBert,
     pub(crate) coi: CoiSystem,
+    pub(crate) kps: KpsSystem,
     kpe: KPE,
     providers: Providers,
 
     // states
-    stacks: RwLock<HashMap<StackId, Stack>>,
+    pub(crate) stacks: RwLock<HashMap<StackId, Stack>>,
     pub(crate) exploration_stack: Exploration,
-    state: CoiSystemState,
+    pub(crate) user_interests: UserInterests,
+    pub(crate) key_phrases: KeyPhrases,
     #[cfg(feature = "storage")]
-    storage: BoxedStorage,
+    pub(crate) storage: BoxedStorage,
 }
 
 impl Engine {
     /// Creates a discovery [`Engine`].
     ///
-    /// The engine only keeps in its state data related to the current [`BoxedOps`].
+    /// The engine only keeps in its stack data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::similar_names)]
     async fn new(
         endpoint_config: EndpointConfig,
         core_config: CoreConfig,
@@ -195,8 +198,10 @@ impl Engine {
         search_config: SearchConfig,
         smbert: SMBert,
         coi: CoiSystem,
+        kps: KpsSystem,
         kpe: KPE,
-        state: CoiSystemState,
+        user_interests: UserInterests,
+        key_phrases: KeyPhrases,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
@@ -234,11 +239,13 @@ impl Engine {
             request_after: 0,
             smbert,
             coi,
+            kps,
             kpe,
             providers,
             stacks,
             exploration_stack,
-            state,
+            user_interests,
+            key_phrases,
             #[cfg(feature = "storage")]
             storage,
         };
@@ -253,7 +260,11 @@ impl Engine {
     }
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
-    #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
+    #[allow(
+        clippy::too_many_lines,
+        clippy::similar_names,
+        clippy::missing_panics_doc
+    )]
     pub async fn from_config(
         config: InitConfig,
         // TODO: remove this after db migration, make sure we can still reset the state
@@ -303,11 +314,11 @@ impl Engine {
         let coi = de_config
             .extract_inner::<CoiConfig>("coi")
             .map_err(|err| Error::Ranker(err.into()))?
-            .build(
-                de_config
-                    .extract_inner("kps")
-                    .map_err(|err| Error::Ranker(err.into()))?,
-            );
+            .build();
+        let kps = de_config
+            .extract_inner::<KpsConfig>("kps")
+            .map_err(|err| Error::Ranker(err.into()))?
+            .build();
         let kpe = KpeConfig::from_files(
             &config.kpe_vocab,
             &config.kpe_model,
@@ -365,12 +376,13 @@ impl Engine {
                     .map_err(|err| Error::Ranker(err.into()))
             })?;
         #[cfg(feature = "storage")]
-        let (mut stack_data, state) = if state.is_some() {
+        let (mut stack_data, user_interests, key_phrases) = if state.is_some() {
             storage
                 .state()
                 .fetch()
                 .await?
-                .map(|state| SerializedState::deserialize(&state))
+                .as_deref()
+                .map(Engine::deserialize)
                 .transpose()?
         } else {
             storage.state().clear().await?;
@@ -378,8 +390,8 @@ impl Engine {
         }
         .unwrap_or_default();
         #[cfg(not(feature = "storage"))]
-        let (mut stack_data, state) = state
-            .map(SerializedState::deserialize)
+        let (mut stack_data, user_interests, key_phrases) = state
+            .map(Engine::deserialize)
             .transpose()?
             .unwrap_or_default();
         for id in stack_ops.iter().map(Ops::id).chain(once(Exploration::id())) {
@@ -400,8 +412,10 @@ impl Engine {
             search_config,
             smbert,
             coi,
+            kps,
             kpe,
-            state,
+            user_interests,
+            key_phrases,
             history,
             sources,
             stack_data,
@@ -442,7 +456,9 @@ impl Engine {
             &mut self.exploration_stack,
             &self.smbert,
             &self.coi,
-            &mut self.state,
+            &self.kps,
+            &self.user_interests,
+            &mut self.key_phrases,
             history,
             sources,
             self.core_config.take_top,
@@ -451,40 +467,6 @@ impl Engine {
             &markets,
         )
         .await
-    }
-
-    /// Serializes the state of the `Engine` and `Ranker` state.
-    // TODO: remove the ffi for this method and reduce its visibility after DB migration
-    pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
-        let stacks = self.stacks.read().await;
-        let mut stacks_data = stacks
-            .iter()
-            .map(|(id, stack)| (id, &stack.data))
-            .collect::<HashMap<_, _>>();
-        let exploration_stack_id = Exploration::id();
-        stacks_data.insert(&exploration_stack_id, &self.exploration_stack.data);
-
-        let stacks = bincode::serialize(&stacks_data)
-            .map(SerializedStackState)
-            .map_err(|err| Error::Serialization(err.into()))?;
-
-        let coi = self
-            .state
-            .serialize()
-            .map(SerializedCoiSystemState)
-            .map_err(Error::Serialization)?;
-
-        let state = bincode::serialize(&SerializedState { stacks, coi })
-            .map_err(|err| Error::Serialization(err.into()))?;
-
-        #[cfg(feature = "storage")]
-        {
-            self.storage.state().store(state).await?;
-            Ok(Vec::new())
-        }
-
-        #[cfg(not(feature = "storage"))]
-        Ok(state)
     }
 
     /// Updates the markets configuration.
@@ -499,7 +481,7 @@ impl Engine {
         let mut markets_guard = self.endpoint_config.markets.write().await;
         let mut old_markets = replace(&mut *markets_guard, new_markets);
         old_markets.retain(|market| !markets_guard.contains(market));
-        CoiSystem::remove_key_phrases(&old_markets, &mut self.state.key_phrases);
+        KpsSystem::remove_key_phrases(&old_markets, &mut self.key_phrases);
         drop(markets_guard);
 
         self.clear_stack_data().await;
@@ -665,7 +647,7 @@ impl Engine {
 
         if let UserReaction::Positive | UserReaction::Neutral = last_reaction {
             CoiSystem::log_document_view_time(
-                &mut self.state.user_interests.positive,
+                &mut self.user_interests.positive,
                 &smbert_embedding,
                 aggregated_view_time,
             );
@@ -675,7 +657,7 @@ impl Engine {
             self.stacks.write().await.values_mut(),
             &mut self.exploration_stack,
             &self.coi,
-            &self.state.user_interests,
+            &self.user_interests,
         );
 
         #[cfg(feature = "storage")]
@@ -755,28 +737,29 @@ impl Engine {
         match reaction {
             UserReaction::Positive => {
                 let smbert = &self.smbert;
-                self.coi.log_positive_user_reaction(
-                    &mut self.state.user_interests.positive,
-                    &market,
-                    &mut self.state.key_phrases,
+                self.kps.log_positive_user_reaction(
+                    &self.coi,
+                    &mut self.user_interests.positive,
                     &document.smbert_embedding,
+                    &market,
+                    &mut self.key_phrases,
                     &[document.resource.snippet_or_title().to_string()],
                     |words| smbert.run(words).map_err(Into::into),
                 );
             }
             UserReaction::Negative => self.coi.log_negative_user_reaction(
-                &mut self.state.user_interests.negative,
+                &mut self.user_interests.negative,
                 &document.smbert_embedding,
             ),
             UserReaction::Neutral => {}
         }
-        debug!(user_interests = ?self.state.user_interests);
+        debug!(user_interests = ?self.user_interests);
 
         rank_stacks(
             stacks.values_mut(),
             &mut self.exploration_stack,
             &self.coi,
-            &self.state.user_interests,
+            &self.user_interests,
         );
         if let UserReaction::Positive = reaction {
             #[cfg(feature = "storage")]
@@ -787,7 +770,9 @@ impl Engine {
                     &mut self.exploration_stack,
                     &self.smbert,
                     &self.coi,
-                    &mut self.state,
+                    &self.kps,
+                    &self.user_interests,
+                    &mut self.key_phrases,
                     history,
                     sources,
                     self.core_config.take_top,
@@ -1069,7 +1054,7 @@ impl Engine {
         );
         errors.extend(article_errors);
 
-        self.coi.rank(&mut documents, &self.state.user_interests);
+        self.coi.rank(&mut documents, &self.user_interests);
         if documents.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
@@ -1170,7 +1155,7 @@ impl Engine {
         let (mut topics, topic_errors) = documentify_topics(&self.smbert, topics);
         errors.extend(topic_errors);
 
-        self.coi.rank(&mut topics, &self.state.user_interests);
+        self.coi.rank(&mut topics, &self.user_interests);
         if topics.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
@@ -1442,7 +1427,8 @@ impl Engine {
     /// Resets the AI state.
     pub async fn reset_ai(&mut self) -> Result<(), Error> {
         self.clear_stack_data().await;
-        self.state.reset();
+        self.user_interests = UserInterests::default();
+        self.key_phrases = KeyPhrases::default();
         #[cfg(feature = "storage")]
         self.storage.clear_database().await?;
 
@@ -1470,13 +1456,24 @@ fn rank_stacks<'a>(
 
 /// Updates the stacks with data related to the top key phrases of the current data.
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip(stacks, exploration_stack, smbert, coi, state, history))]
+#[instrument(skip(
+    stacks,
+    exploration_stack,
+    smbert,
+    coi,
+    kps,
+    user_interests,
+    key_phrases,
+    history
+))]
 async fn update_stacks(
     stacks: &mut HashMap<Id, Stack>,
     exploration_stack: &mut Exploration,
     smbert: &SMBert,
     coi: &CoiSystem,
-    state: &mut CoiSystemState,
+    kps: &KpsSystem,
+    user_interests: &UserInterests,
+    key_phrases: &mut KeyPhrases,
     history: &[HistoricDocument],
     sources: &[WeightedSource],
     take_top: usize,
@@ -1503,10 +1500,11 @@ async fn update_stacks(
             markets
                 .iter()
                 .map(|market| {
-                    let key_phrases = coi.take_key_phrases(
-                        &state.user_interests.positive,
+                    let key_phrases = kps.take_key_phrases(
+                        coi,
+                        &user_interests.positive,
                         market,
-                        &mut state.key_phrases,
+                        key_phrases,
                         take_top,
                     );
                     (market, key_phrases)
@@ -1595,7 +1593,7 @@ async fn update_stacks(
         // to the exploration stack have been filtered before.
         let stack = stacks.get_mut(&stack_id).unwrap();
 
-        if let Err(error) = stack.update(&documents_group, coi, &state.user_interests) {
+        if let Err(error) = stack.update(&documents_group, coi, user_interests) {
             let error = Error::StackOpFailed(error);
             error!("{stack_id}: {error}");
             errors.entry(stack_id).or_default().push(error);
@@ -1607,7 +1605,7 @@ async fn update_stacks(
         }
     }
 
-    if let Err(error) = exploration_stack.update(&exploration_docs, coi, &state.user_interests) {
+    if let Err(error) = exploration_stack.update(&exploration_docs, coi, user_interests) {
         let stack_id = Exploration::id();
         let error = Error::StackOpFailed(error);
         error!("{stack_id}: {error}");
@@ -1714,42 +1712,6 @@ fn documentify_topics(smbert: &SMBert, topics: Vec<BingTopic>) -> (Vec<TrendingT
             Ok(topic) => Either::Left(topic),
             Err(error) => Either::Right(error),
         })
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializedStackState(Vec<u8>);
-
-impl SerializedStackState {
-    fn deserialize(&self) -> Result<HashMap<StackId, StackData>, Error> {
-        bincode::deserialize(&self.0).map_err(Error::Deserialization)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializedCoiSystemState(Vec<u8>);
-
-impl SerializedCoiSystemState {
-    fn deserialize(&self) -> Result<CoiSystemState, Error> {
-        CoiSystemState::deserialize(&self.0).map_err(Into::into)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializedState {
-    /// The serialized stacks state.
-    stacks: SerializedStackState,
-    /// The serialized coi system state.
-    coi: SerializedCoiSystemState,
-}
-
-impl SerializedState {
-    fn deserialize(state: &[u8]) -> Result<(HashMap<StackId, StackData>, CoiSystemState), Error> {
-        let state = bincode::deserialize::<Self>(state).map_err(Error::Deserialization)?;
-        let stacks = state.stacks.deserialize()?;
-        let coi = state.coi.deserialize()?;
-
-        Ok((stacks, coi))
-    }
 }
 
 /// Active search mode.
@@ -1888,7 +1850,8 @@ pub(crate) mod tests {
                 .collect(),
         );
         engine.exploration_stack.data = StackData::default();
-        engine.state = CoiSystemState::default();
+        engine.user_interests = UserInterests::default();
+        engine.key_phrases = KeyPhrases::default();
 
         if update_after_reset {
             engine
@@ -1946,7 +1909,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -1970,7 +1935,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -2057,7 +2024,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -2100,7 +2069,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -2140,7 +2111,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -2171,7 +2144,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
