@@ -14,12 +14,15 @@
 
 use std::collections::HashMap;
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::Deserialize;
-use xayn_discovery_engine_ai::{GenericError, KeyPhrases, UserInterests};
+use url::Url;
+use xayn_discovery_engine_ai::{Embedding, GenericError, KeyPhrases, UserInterests};
 
 use crate::{
+    document::{Document, Id, NewsResource, UserReaction},
     engine::{Engine, Error},
-    stack::{exploration::Stack as Exploration, Data, Id},
+    stack::{exploration::Stack as Exploration, Data, Id as StackId},
 };
 
 const STATE_VERSION: u8 = 2;
@@ -56,7 +59,7 @@ impl Engine {
 
     pub(crate) fn deserialize(
         bytes: &[u8],
-    ) -> Result<(HashMap<Id, Data>, UserInterests, KeyPhrases), Error> {
+    ) -> Result<(HashMap<StackId, Data>, UserInterests, KeyPhrases), Error> {
         match bytes.get(0) {
             Some(version) if *version < STATE_VERSION => Ok(Default::default()),
             Some(&STATE_VERSION) => {
@@ -83,7 +86,19 @@ impl Engine {
 
             bincode::deserialize::<SerializedState>(bytes)
                 .and_then(|state| {
-                    bincode::deserialize::<HashMap<Id, Data>>(&state.stacks.0)
+                    bincode::deserialize::<HashMap<StackId, Data>>(&state.stacks.0)
+                        // deserialization might fail due to parsing error of `DateTime<Utc>` from serialized `NaiveDateTime`
+                        .or_else(|_error| {
+                            bincode::deserialize::<HashMap<StackId, DataWithNaiveDateTime>>(
+                                &state.stacks.0,
+                            )
+                            .map(|stacks| {
+                                stacks
+                                    .into_iter()
+                                    .map(|(id, data)| (id, data.into()))
+                                    .collect()
+                            })
+                        })
                         .map(|stacks| (stacks, state))
                 })
                 .and_then(|(stacks, state)| {
@@ -106,5 +121,80 @@ impl Engine {
                 })
                 .map_err(|_| error)
         })
+    }
+}
+
+#[derive(Deserialize)]
+struct DataWithNaiveDateTime {
+    alpha: f32,
+    beta: f32,
+    likes: f32,
+    dislikes: f32,
+    documents: Vec<DocumentWithNaiveDateTime>,
+}
+
+impl From<DataWithNaiveDateTime> for Data {
+    fn from(data: DataWithNaiveDateTime) -> Self {
+        Data {
+            alpha: data.alpha,
+            beta: data.beta,
+            likes: data.likes,
+            dislikes: data.dislikes,
+            documents: data.documents.into_iter().map(|d| d.into()).collect(),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct DocumentWithNaiveDateTime {
+    id: Id,
+    stack_id: StackId,
+    smbert_embedding: Embedding,
+    reaction: Option<UserReaction>,
+    resource: NewsResourceWithNaiveDateTime,
+}
+
+impl From<DocumentWithNaiveDateTime> for Document {
+    fn from(document: DocumentWithNaiveDateTime) -> Self {
+        Document {
+            id: document.id,
+            stack_id: document.stack_id,
+            smbert_embedding: document.smbert_embedding,
+            reaction: document.reaction,
+            resource: document.resource.into(),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct NewsResourceWithNaiveDateTime {
+    title: String,
+    snippet: String,
+    url: Url,
+    source_domain: String,
+    date_published: NaiveDateTime,
+    image: Option<Url>,
+    rank: u64,
+    score: Option<f32>,
+    country: String,
+    language: String,
+    topic: String,
+}
+
+impl From<NewsResourceWithNaiveDateTime> for NewsResource {
+    fn from(resource: NewsResourceWithNaiveDateTime) -> Self {
+        NewsResource {
+            title: resource.title,
+            snippet: resource.snippet,
+            url: resource.url,
+            source_domain: resource.source_domain,
+            date_published: DateTime::<Utc>::from_utc(resource.date_published, Utc),
+            image: resource.image,
+            rank: resource.rank,
+            score: resource.score,
+            country: resource.country,
+            language: resource.language,
+            topic: resource.topic,
+        }
     }
 }
