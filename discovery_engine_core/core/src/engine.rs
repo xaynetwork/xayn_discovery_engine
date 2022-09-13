@@ -106,8 +106,7 @@ use crate::{
         Stack,
         TrustedNews,
     },
-    DartMigrationData,
-    InitDbHint,
+    storage2::{DartMigrationData, InitDbHint},
 };
 
 /// Discovery engine errors.

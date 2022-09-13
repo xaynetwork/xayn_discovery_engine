@@ -21,8 +21,8 @@ use std::{
 use crate::{
     stack,
     storage::{utils::SqlxPushTupleExt, Error, InitDbHint},
+    storage2::DartMigrationData,
     utils::{remove_file_if_exists, CompoundError, MiscErrorExt},
-    DartMigrationData,
 };
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},

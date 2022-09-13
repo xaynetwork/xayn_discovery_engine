@@ -14,7 +14,7 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::DartMigrationData;
+use xayn_discovery_engine_core::storage2::DartMigrationData;
 
 /// Returns a pointer to the `engine_state` field of a [`DartMigrationData`].
 ///

@@ -25,8 +25,7 @@ use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
 use crate::{
     document::{self, HistoricDocument, UserReaction, ViewMode},
     stack,
-    DartMigrationData,
-    InitDbHint,
+    storage2::{DartMigrationData, InitDbHint},
 };
 
 use self::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView};

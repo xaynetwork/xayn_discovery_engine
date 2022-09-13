@@ -52,7 +52,8 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_core::{
         document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, WeightedSource},
-        InitConfig, DartMigrationData
+        storage2::DartMigrationData,
+        InitConfig,
     };
     use xayn_discovery_engine_providers::Market;
 

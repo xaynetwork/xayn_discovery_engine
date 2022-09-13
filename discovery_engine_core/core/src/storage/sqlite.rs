@@ -50,7 +50,7 @@ use crate::{
         StateScope,
         Storage,
     },
-    DartMigrationData,
+    storage2::DartMigrationData,
 };
 
 use self::utils::SqlxSqliteResultExt;

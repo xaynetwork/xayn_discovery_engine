@@ -18,7 +18,7 @@ use itertools::Itertools;
 
 use crate::{
     storage::{Error, Storage},
-    DartMigrationData,
+    storage2::DartMigrationData,
 };
 
 use super::SqliteStorage;
