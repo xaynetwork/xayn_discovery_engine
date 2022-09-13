@@ -24,7 +24,7 @@ paths:
       description: |-
         Returns a map from `document_id` to the score of that document for the
         specified `user_id`. The score is a value between 0 and 1 where a higher value
-        means that the document matches more the preferences of the user.
+        means that the document matches the preferences of the user better.
       parameters:
         - name: user_id
           in: path
