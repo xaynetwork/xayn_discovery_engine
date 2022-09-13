@@ -31,6 +31,13 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/UserId'
+        - name: count
+          in: query
+          description: Maximum number of personalized documents to return
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
       responses:
         '200':
           description: successful operation
@@ -103,13 +110,21 @@ components:
     UserId:
       type: string
       example: "user_id_1"
+    PersonalizedDocumentData:
+      type: object
+      properties:
+        score:
+          type: number
+      example:
+        - score: 0.872
     PersonalizedDocuments:
       type: object
       additionalProperties:
-        type: number
+        type: object
+        $ref: '#/components/schemas/PersonalizedDocumentData'
       example:
-        "document_id_1": 0.873
-        "document_id_2": 0.376
+        - "document_id_1":
+          - score: 0.872
     UserInteraction:
       type: object
       properties:
