@@ -507,7 +507,7 @@ impl Engine {
         #[cfg(feature = "storage")]
         {
             let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_sources().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
 
             // TODO: merge `get_feed_documents()` into this method after DB migration
             self.get_feed_documents(&history, &sources).await
@@ -770,7 +770,7 @@ impl Engine {
             #[cfg(feature = "storage")]
             let history = &self.storage.fetch_history().await?.into();
             #[cfg(feature = "storage")]
-            let sources = &self.storage.fetch_sources().await?;
+            let sources = &self.storage.fetch_weighted_sources().await?;
             if let Some(history) = history {
                 update_stacks(
                     &mut stacks,
@@ -1247,7 +1247,7 @@ impl Engine {
             }
 
             let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_sources().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
             self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
@@ -1317,7 +1317,7 @@ impl Engine {
 
             *self.endpoint_config.trusted_sources.write().await = trusted.iter().cloned().collect();
             let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_sources().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
             self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
@@ -1345,7 +1345,7 @@ impl Engine {
                 trusted_set.iter().cloned().collect();
 
             let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_sources().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
             self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
@@ -1382,7 +1382,7 @@ impl Engine {
             self.filter_excluded_sources_for_all_stacks(&excluded).await;
 
             let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_sources().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
             self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
@@ -1410,7 +1410,7 @@ impl Engine {
                 excluded_set.iter().cloned().collect();
 
             let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_sources().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
             self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }

@@ -363,7 +363,7 @@ impl Storage for SqliteStorage {
         documents.into_iter().map(TryInto::try_into).collect()
     }
 
-    async fn fetch_sources(&self) -> Result<Vec<WeightedSource>, Error> {
+    async fn fetch_weighted_sources(&self) -> Result<Vec<WeightedSource>, Error> {
         let mut tx = self.pool.begin().await?;
 
         let sources = sqlx::query_as::<_, QueriedSourceReaction>(

@@ -79,7 +79,7 @@ pub(crate) trait Storage {
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error>;
 
-    async fn fetch_sources(&self) -> Result<Vec<WeightedSource>, Error>;
+    async fn fetch_weighted_sources(&self) -> Result<Vec<WeightedSource>, Error>;
 
     fn feed(&self) -> &(dyn FeedScope + Send + Sync);
 
