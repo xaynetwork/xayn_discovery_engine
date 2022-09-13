@@ -55,7 +55,7 @@ paths:
     post:
       tags:
         - personalization
-      summary: Add interaction between an user and a document
+      summary: Add interaction between a user and a document
       description: |-
         The interaction is used to provide personalized documents to the user.
       parameters:
