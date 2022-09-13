@@ -85,7 +85,7 @@ paths:
       summary: Add documents to the system
       description: |-
         Add documents to the system. The system will create a representation of the document
-        that will be used to match it against the preference of a user.
+        that will be used to match it against the preferences of a user.
       requestBody:
         content:
           application/json:
