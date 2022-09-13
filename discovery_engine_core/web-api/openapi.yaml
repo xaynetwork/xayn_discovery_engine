@@ -1,0 +1,137 @@
+openapi: 3.0.3
+info:
+  title: Personalization API
+  version: 1.0.0-rc1
+  description: |-
+    The endpoints can be contacted at `t<name>.xaynet.dev/v1` or `t<name>.xaynet.dev/v1.0`.
+    The `v1` path will always point to the latest `v1.x`.
+    
+    # Auth
+    To authenticate with the API two bearer tokens will be provided. One will work for the
+    personalization endpoints and the other one will allow to add documents to the system.
+    
+tags:
+  - name: personalization
+    description: Interaction of the user and personalized document
+  - name: ingestion
+    description: Add documents to the system
+paths:
+  /users/{user_id}/documents/personalized:
+    get:
+      tags:
+        - personalization
+      summary: Get personalized document for the user
+      description: |-
+        Returns a map from `document_id` to the score of that document for the
+        specified `user_id`.
+      parameters:
+        - name: user_id
+          in: path
+          description: Id of the user
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocuments'
+        '400':
+          description: invalid user id
+        '404':
+          description: user not found or the user does not have enough interactions
+
+  /users/{user_id}/documents/interacted:
+    post:
+      tags:
+        - personalization
+      summary: Add interaction between an user and a document
+      description: |-
+        The interaction is used to provide personalized documents to the user
+      parameters:
+        - name: user_id
+          in: path
+          description: Id of the user
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInteraction'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request. User or document id is invalid
+        '404':
+          description: user not found
+        
+  /documents/:
+    post:
+      tags:
+        - ingestion
+      summary: Add documents to the system
+      description: |-
+        Add documents to the system. The system will create a representation of the document
+        that will be used to match it against the preference of a user.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestionRequest'
+      responses:
+        '200':
+          description: successful operation
+        '400':
+          description: invalid request
+        '422':
+          description: all or some of the documents were not successfully uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInteraction'
+  
+components:
+  schemas:
+    DocumentId:
+      type: string
+      example: "document_id_1"
+    UserId:
+      type: string
+      example: "user_id_1"
+    PersonalizedDocuments:
+      type: object
+      additionalProperties:
+        type: number
+      example:
+        "document_id_1": 0.873
+        "document_id_2": 0.376
+    UserInteraction:
+      type: object
+      properties:
+        document_id:
+          $ref: '#/components/schemas/DocumentId'
+    IngestedDocument:
+      type: object
+      properties:
+        document_id:
+          $ref: '#/components/schemas/DocumentId'
+        snippet:
+          type: string
+          description: Text that that will be used to match the document against the user interests
+        published_date:
+          type: string
+          format: date-time
+    IngestedDocuments:
+      type: array
+      items:
+        $ref: '#/components/schemas/IngestedDocument'
+    IngestionRequest:
+      type: object
+      properties:
+        documents:
+          $ref: '#/components/schemas/IngestedDocuments'
