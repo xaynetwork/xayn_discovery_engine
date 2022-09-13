@@ -56,7 +56,7 @@ paths:
         - personalization
       summary: Add interaction between an user and a document
       description: |-
-        The interaction is used to provide personalized documents to the user
+        The interaction is used to provide personalized documents to the user.
       parameters:
         - name: user_id
           in: path
