@@ -143,15 +143,13 @@ components:
         published_date:
           type: string
           format: date-time
-    IngestedDocuments:
-      type: array
-      items:
-        $ref: '#/components/schemas/IngestedDocument'
     IngestionRequest:
       type: object
       properties:
         documents:
-          $ref: '#/components/schemas/IngestedDocuments'
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestedDocument'
     IngestionResponseFail:
       type: object
       properties:
