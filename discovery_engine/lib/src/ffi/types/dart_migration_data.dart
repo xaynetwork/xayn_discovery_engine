@@ -14,12 +14,21 @@
 
 import 'dart:ffi';
 
-import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustDartMigrationData;
+import 'package:xayn_discovery_engine/src/domain/models/active_data.dart';
+import 'package:xayn_discovery_engine/src/domain/models/document.dart';
+import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart';
+import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart';
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/date_time.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/document/news_resource.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/duration.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/list.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/source.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 
 extension DartMigrationDataFfi on DartMigrationData {
@@ -37,6 +46,70 @@ extension DartMigrationDataFfi on DartMigrationData {
     excludedSources
         .writeNative(ffi.dart_migration_data_place_of_excluded_sources(place));
 
+    final documentsWithData = documents
+        .map(
+          (document) => MigrationDocument(
+            document,
+            activeDocumentData[document.documentId],
+          ),
+        )
+        .toList();
+
+    _listAdapter.writeVec(
+      documentsWithData,
+      ffi.dart_migration_data_place_of_documents(place),
+    );
+
     //TODO[pmk] pass the actual data to rust and use it there
   }
 }
+
+class MigrationDocument {
+  final Document document;
+  final ActiveDocumentData? activeData;
+
+  MigrationDocument(this.document, this.activeData);
+
+  void writeNative(Pointer<RustMigrationDocument> place) {
+    document.documentId.writeNative(ffi.migration_document_place_of_id(place));
+    document.stackId
+        .writeNative(ffi.migration_document_place_of_stack_id(place));
+    (activeData?.smbertEmbedding)
+        .writeNative(ffi.migration_document_place_of_smbert_embedding(place));
+    document.userReaction
+        .writeNative(ffi.migration_document_place_of_reaction(place));
+    document.resource
+        .writeNative(ffi.migration_document_place_of_resource(place));
+    ffi.init_migration_document_is_active_at(place, document.isActive as int);
+    ffi.init_migration_document_is_searched_at(
+      place,
+      document.isSearched as int,
+    );
+    ffi.migration_document_place_of_batch_index(place).value =
+        // ignore: deprecated_member_use_from_same_package
+        document.batchIndex;
+    // ignore: deprecated_member_use_from_same_package
+    document.timestamp
+        .writeNative(ffi.migration_document_place_of_timestamp(place));
+
+    (activeData?.viewTime[DocumentViewMode.web])
+        .writeNative(ffi.migration_document_place_of_web_view_time(place));
+    (activeData?.viewTime[DocumentViewMode.reader])
+        .writeNative(ffi.migration_document_place_of_reader_view_time(place));
+    (activeData?.viewTime[DocumentViewMode.story])
+        .writeNative(ffi.migration_document_place_of_story_view_time(place));
+  }
+}
+
+final _listAdapter = ListFfiAdapter<MigrationDocument, RustMigrationDocument,
+    RustVecMigrationDocument>(
+  alloc: ffi.alloc_uninitialized_migration_document_slice,
+  next: ffi.next_migration_document,
+  writeNative: (doc, place) {
+    doc.writeNative(place);
+  },
+  readNative: (_) => throw UnimplementedError(),
+  getVecLen: (_) => throw UnimplementedError(),
+  getVecBuffer: (_) => throw UnimplementedError(),
+  writeNativeVec: ffi.init_migration_document_vec_at,
+);

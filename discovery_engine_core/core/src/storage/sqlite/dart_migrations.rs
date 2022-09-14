@@ -48,6 +48,7 @@ pub(super) async fn store_migration_data(
         .set_excluded(&data.excluded_sources.iter().map_into().collect())
         .await?;
 
+    //FIXME handle documents
     Ok(())
 }
 
@@ -61,6 +62,7 @@ mod tests {
             engine_state: Some(vec![1, 2, 3, 4, 8, 7, 0]),
             trusted_sources: vec!["foo.example".into(), "bar.invalid".into()],
             excluded_sources: vec!["dodo.local".into()],
+            documents: vec![],
         };
         let storage = init_storage_system_once(None, Some(&data)).await.unwrap();
         let engine_state = storage.state().fetch().await.unwrap();
@@ -73,5 +75,7 @@ mod tests {
             excluded_sources,
             data.excluded_sources.into_iter().collect()
         );
+
+        //FIXME test documents search, feed, with history and without history
     }
 }

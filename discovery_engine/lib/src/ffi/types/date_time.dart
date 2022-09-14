@@ -15,7 +15,7 @@
 import 'dart:ffi' show Pointer;
 
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustDateTimeUtc;
+    show RustDateTimeUtc, RustOptionDateTimeUtc;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 
 extension DateTimeUtcFfi on DateTime {
@@ -27,4 +27,26 @@ extension DateTimeUtcFfi on DateTime {
         ffi.get_date_time_utc_micros_since_epoch(dateTimeUtc),
         isUtc: true,
       );
+}
+
+// doesn't work when transpiled to js, but native ffi doesn't work there anyway
+const noneMarker = -9223372036854775808;
+
+extension OptionDateTimeUtcFfi on DateTime? {
+  void writeNative(Pointer<RustOptionDateTimeUtc> place) {
+    final micros = this?.microsecondsSinceEpoch ?? noneMarker;
+    ffi.init_option_date_time_utc_at(place, micros);
+  }
+
+  static DateTime? readNative(Pointer<RustOptionDateTimeUtc> dateTimeUtc) {
+    final time = ffi.get_option_date_time_utc_micros_since_epoch(dateTimeUtc);
+    if (time == noneMarker) {
+      return null;
+    } else {
+      return DateTime.fromMicrosecondsSinceEpoch(
+        time,
+        isUtc: true,
+      );
+    }
+  }
 }
