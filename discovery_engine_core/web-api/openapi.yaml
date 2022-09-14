@@ -3,8 +3,7 @@ info:
   title: Personalization API
   version: 1.0.0-rc1
   description: |-
-    The endpoints can be contacted at `t<name>.xaynet.dev/v1` or `t<name>.xaynet.dev/v1.0`.
-    The `v1` path will always point to the latest `v1.x`.
+    The endpoints can be contacted at `t<name>.xaynet.dev/v1`.
     
     # Auth
     To authenticate with the API two bearer tokens will be provided. One will work for the
@@ -35,25 +34,33 @@ paths:
         - name: count
           in: query
           description: Maximum number of personalized documents to return
+          required: false
           schema:
             type: integer
             format: int32
             minimum: 1
             maximum: 100
+            default: 10
       responses:
         '200':
           description: successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PersonalizedDocuments'
+                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
         '400':
-          description: invalid user id
+          description: invalid user id.
         '404':
-          description: user not found or the user does not have enough interactions
+          description: user not found.
+        '422':
+          description: impossible to create a personalized list for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
 
-  /users/{user_id}/documents/interacted:
-    post:
+  /users/{user_id}/documents/interact:
+    patch:
       tags:
         - personalization
       summary: Add interaction between a user and a document
@@ -70,14 +77,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserInteraction'
+              $ref: '#/components/schemas/UserInteractionRequest'
       responses:
         '204':
           description: successful operation
         '400':
           description: invalid request. User or document id is invalid
-        '404':
-          description: user not found
         
   /documents/:
     post:
@@ -102,40 +107,53 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IngestionResponseFail'
-  
+                $ref: '#/components/schemas/IngestionError'
+
 components:
   schemas:
     DocumentId:
       type: string
-      example: "document_id_1"
+      description: A document id can be any UTF-8 string that does not contain the null byte.
+      example: "document id"
     UserId:
       type: string
-      example: "user_id_1"
+      description: A document id can be any UTF-8 string that does not contain the null byte.
+      example: "user id"
     PersonalizedDocumentData:
       type: object
+      required: [id, score]
       properties:
+        id:
+          $ref: '#/components/schemas/DocumentId'
         score:
           type: number
-      example:
-        score: 0.872
-    PersonalizedDocuments:
+    PersonalizedDocumentsResponse:
       type: object
-      additionalProperties:
-        type: object
-        $ref: '#/components/schemas/PersonalizedDocumentData'
-      example:
-        - "document_id_1":
-          - score: 0.872
-    UserInteraction:
-      type: object
+      required: [documents]
       properties:
-        document_id:
-          $ref: '#/components/schemas/DocumentId'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalizedDocumentData'
+    PersonalizedDocumentsError:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+    UserInteractionRequest:
+      type: object
+      required: [documents_id]
+      properties:
+        documents_id:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentId'
     IngestedDocument:
       type: object
+      required: [id, snippet, published_date]
       properties:
-        document_id:
+        id:
           $ref: '#/components/schemas/DocumentId'
         snippet:
           type: string
@@ -145,13 +163,15 @@ components:
           format: date-time
     IngestionRequest:
       type: object
+      required: [documents]
       properties:
         documents:
           type: array
           items:
             $ref: '#/components/schemas/IngestedDocument'
-    IngestionResponseFail:
+    IngestionError:
       type: object
+      required: [documents]
       properties:
         documents:
           type: array
