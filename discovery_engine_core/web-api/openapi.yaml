@@ -17,7 +17,7 @@ paths:
     get:
       tags:
         - personalization
-      summary: Get personalized document for the user
+      summary: Get personalized documents for the user
       description: |-
         Returns a map from `document_id` to the score of that document for the
         specified `user_id`. The score is a value between 0 and 1 where a higher value
