@@ -29,6 +29,8 @@ const MIN_MICRO_SECONDS: i64 = -8_334_632_851_200_000_000;
 
 /// Creates a rust `DateTimeUtc` at given memory address.
 ///
+/// Returns `1` if it succeeded `0` else wise.
+///
 /// A time above the max or below the min supported
 /// date time will be clamped to the max/min time.
 ///
@@ -38,72 +40,35 @@ const MIN_MICRO_SECONDS: i64 = -8_334_632_851_200_000_000;
 /// the pointer is expected to point to uninitialized memory.
 #[no_mangle]
 pub unsafe extern "C" fn init_date_time_utc_at(place: *mut DateTimeUtc, micros_since_epoch: i64) {
-    let date_time_utc = create_date_time_utc(micros_since_epoch);
-    unsafe {
-        place.write(date_time_utc);
-    }
-}
-
-/// Initializes a rust `Option<DateTimeUtc>` at given memory address.
-///
-/// If  `i64::MIN` is passed in it will be initialized to `None`,
-/// else to `Some`.
-///
-/// A time above the max or below the min supported
-/// date time will be clamped to the max/min time.
-///
-/// # Safety
-///
-/// It must be valid to write a `DateTimeUtc` instance to given pointer,
-/// the pointer is expected to point to uninitialized memory.
-#[no_mangle]
-pub unsafe extern "C" fn init_option_date_time_utc_at(
-    place: *mut Option<DateTimeUtc>,
-    micros_since_epoch: i64,
-) {
-    let value = (micros_since_epoch != i64::MIN).then(|| create_date_time_utc(micros_since_epoch));
-    unsafe {
-        place.write(value);
-    }
-}
-
-fn create_date_time_utc(micros_since_epoch: i64) -> DateTimeUtc {
     let micros_since_epoch = micros_since_epoch.clamp(MIN_MICRO_SECONDS, MAX_MICRO_SECONDS);
     let seconds = micros_since_epoch / MICROS_PER_SECOND;
     let nanos = (micros_since_epoch.abs() % MICROS_PER_SECOND) * NANOS_PER_MICRO;
     // the unwraps failing is unreachable, but we do not want to have any panic path
     let nanos = u32::try_from(nanos).unwrap_or(u32::MAX);
-    Utc.timestamp_opt(seconds, nanos)
+    let date_time_utc = Utc
+        .timestamp_opt(seconds, nanos)
         .single()
-        .unwrap_or(DateTimeUtc::MAX_UTC)
-}
-
-/// Returns the number of micro seconds since midnight on January 1, 1970.
-///
-/// More specifically it's the number of micro seconds since `1970-01-01T00:00:00Z`.
-#[no_mangle]
-pub extern "C" fn get_date_time_utc_micros_since_epoch(date_time: &DateTimeUtc) -> i64 {
-    let sub_micros = date_time.timestamp_subsec_micros();
-    let seconds = date_time.timestamp();
-    seconds * MICROS_PER_SECOND + i64::from(sub_micros)
-}
-
-/// Returns the number of micro seconds since midnight on January 1, 1970.
-///
-/// More specifically it's the number of micro seconds since `1970-01-01T00:00:00Z`.
-///
-/// If the `Option<DateTimeUtc>` is `None` then `i64::MIN` is returned instead.
-///
-/// As `i64::MIN < MIN_MICRO_SECONDS` we can differentiate it from the smallest date time.
-#[no_mangle]
-pub extern "C" fn get_option_date_time_utc_micros_since_epoch(
-    date_time: &Option<DateTimeUtc>,
-) -> i64 {
-    if let Some(date_time) = date_time {
-        get_date_time_utc_micros_since_epoch(date_time)
-    } else {
-        i64::MIN
+        .unwrap_or(DateTimeUtc::MAX_UTC);
+    unsafe {
+        place.write(date_time_utc);
     }
+}
+
+/// Returns the number of micro seconds since midnight on January 1, 1970.
+///
+/// More specifically it's the number of micro seconds since `1970-01-01T00:00:00Z`.
+///
+/// # Safety
+///
+/// The pointer must point to a soundly initialized `DateTimeUtc` instance.
+#[no_mangle]
+pub unsafe extern "C" fn get_date_time_utc_micros_since_epoch(
+    date_time_utc: *const DateTimeUtc,
+) -> i64 {
+    let date_time_utc = unsafe { &*date_time_utc };
+    let sub_micros = date_time_utc.timestamp_subsec_micros();
+    let seconds = date_time_utc.timestamp();
+    seconds * MICROS_PER_SECOND + i64::from(sub_micros)
 }
 
 /// Alloc an uninitialized `Box<DateTimeUtc>`, mainly used for testing.
@@ -139,7 +104,7 @@ mod tests {
         assert_eq!(place, truncated_max);
 
         let mut place = MaybeUninit::uninit();
-        let micros = get_date_time_utc_micros_since_epoch(&DateTimeUtc::MAX_UTC);
+        let micros = unsafe { get_date_time_utc_micros_since_epoch(&DateTimeUtc::MAX_UTC) };
         unsafe { init_date_time_utc_at(place.as_mut_ptr(), micros) };
         let place = unsafe { place.assume_init() };
         assert_eq!(place, truncated_max);
@@ -153,7 +118,7 @@ mod tests {
         assert_eq!(place, DateTimeUtc::MIN_UTC);
 
         let mut place = MaybeUninit::uninit();
-        let micros = get_date_time_utc_micros_since_epoch(&DateTimeUtc::MIN_UTC);
+        let micros = unsafe { get_date_time_utc_micros_since_epoch(&DateTimeUtc::MIN_UTC) };
         unsafe { init_date_time_utc_at(place.as_mut_ptr(), micros) };
         let place = unsafe { place.assume_init() };
         assert_eq!(place, DateTimeUtc::MIN_UTC);
@@ -173,38 +138,5 @@ mod tests {
         let sub_micros = DateTimeUtc::MIN_UTC.timestamp_subsec_micros();
         let micros = seconds.checked_mul(MICROS_PER_SECOND).unwrap() + i64::from(sub_micros);
         assert_eq!(micros, MIN_MICRO_SECONDS);
-    }
-
-    #[test]
-    #[allow(clippy::assertions_on_constants)]
-    fn test_none_marker_is_usable() {
-        assert!(i64::MIN < MIN_MICRO_SECONDS);
-    }
-
-    #[test]
-    fn test_init_option_date_time() {
-        let mut place = MaybeUninit::uninit();
-        unsafe { init_option_date_time_utc_at(place.as_mut_ptr(), 123) };
-        let place = unsafe { place.assume_init() };
-        assert_eq!(place, Some(Utc.timestamp(0, 123_000)));
-
-        let mut place = MaybeUninit::uninit();
-        unsafe { init_option_date_time_utc_at(place.as_mut_ptr(), i64::MIN) };
-        let place = unsafe { place.assume_init() };
-        assert_eq!(place, None);
-    }
-
-    #[test]
-    fn test_read_option_date_time() {
-        let date_time = Some(Utc.timestamp(1, 123_000));
-        assert_eq!(
-            get_option_date_time_utc_micros_since_epoch(&date_time),
-            1_000_123
-        );
-        let date_time = None;
-        assert_eq!(
-            get_option_date_time_utc_micros_since_epoch(&date_time),
-            i64::MIN
-        );
     }
 }
