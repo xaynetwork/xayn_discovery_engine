@@ -141,14 +141,24 @@ components:
       properties:
         kind:
           type: string
+    UserInteractionType:
+      type: string
+      enum: [positive]
+    UserInteractionData:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/DocumentId'
+        type:
+          $ref: '#/components/schemas/UserInteractionType'
     UserInteractionRequest:
       type: object
-      required: [documents_id]
+      required: [documents]
       properties:
-        documents_id:
+        documents:
           type: array
           items:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: '#/components/schemas/UserInteractionData'
     IngestedDocument:
       type: object
       required: [id, snippet, published_date]
