@@ -3,8 +3,6 @@ info:
   title: Personalization API
   version: 1.0.0-rc1
   description: |-
-    The endpoints can be contacted at `t<name>.xaynet.dev/v1`.
-    
     # Auth
     To authenticate with the API two bearer tokens will be provided. One will work for the
     personalization endpoints and the other one will allow documents to be added to the system.
@@ -83,7 +81,11 @@ paths:
           description: successful operation
         '400':
           description: invalid request. User or document id is invalid
-        
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInteractionError'
+
   /documents:
     post:
       tags:
@@ -98,7 +100,7 @@ paths:
             schema:
               $ref: '#/components/schemas/IngestionRequest'
       responses:
-        '200':
+        '204':
           description: successful operation
         '400':
           description: invalid request
@@ -159,6 +161,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserInteractionData'
+    UserInteractionError:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [invalid_user_id, invalid_document_id]
     IngestedDocument:
       type: object
       required: [id, snippet, published_date]
