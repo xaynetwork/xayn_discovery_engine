@@ -101,7 +101,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserInteraction'
+                $ref: '#/components/schemas/IngestionResponseFail'
   
 components:
   schemas:
