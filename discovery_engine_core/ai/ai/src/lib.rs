@@ -42,15 +42,13 @@ pub use crate::{
     coi::{
         config::{Config as CoiConfig, Error as CoiConfigError},
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+        stats::CoiStats,
         system::System as CoiSystem,
         CoiId,
     },
     document::{Document, DocumentId},
     embedding::{
-        cosine_similarity,
-        pairwise_cosine_similarity,
-        Embedding,
-        MalformedBytesEmbedding,
+        cosine_similarity, pairwise_cosine_similarity, Embedding, MalformedBytesEmbedding,
     },
     error::GenericError,
     kps::{

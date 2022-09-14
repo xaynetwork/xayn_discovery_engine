@@ -27,10 +27,10 @@ use crate::{
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
 pub struct PositiveCoi {
-    pub(crate) id: CoiId,
-    pub(crate) point: Embedding,
+    pub id: CoiId,
+    pub point: Embedding,
     #[derivative(PartialEq = "ignore")]
-    pub(super) stats: CoiStats,
+    pub stats: CoiStats,
 }
 
 impl PositiveCoi {
@@ -48,10 +48,10 @@ impl PositiveCoi {
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
 pub struct NegativeCoi {
-    pub(super) id: CoiId,
-    pub(super) point: Embedding,
+    pub id: CoiId,
+    pub point: Embedding,
     #[derivative(PartialEq = "ignore")]
-    pub(super) last_view: SystemTime,
+    pub last_view: SystemTime,
 }
 
 impl NegativeCoi {
