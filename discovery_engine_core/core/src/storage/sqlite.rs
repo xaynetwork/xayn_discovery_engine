@@ -25,7 +25,7 @@ use url::Url;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    document::{self, HistoricDocument, UserReaction, ViewMode},
+    document::{self, HistoricDocument, UserReaction, ViewMode, WeightedSource},
     stack,
     storage::{
         models::{
@@ -361,6 +361,21 @@ impl Storage for SqliteStorage {
         tx.commit().await?;
 
         documents.into_iter().map(TryInto::try_into).collect()
+    }
+
+    async fn fetch_weighted_sources(&self) -> Result<Vec<WeightedSource>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let sources = sqlx::query_as::<_, QueriedSourceReaction>(
+            "SELECT source, weight, liked
+             FROM SourceReaction;",
+        )
+        .fetch_all(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(sources.into_iter().map(Into::into).collect())
     }
 
     fn feed(&self) -> &(dyn FeedScope + Send + Sync) {
@@ -923,6 +938,13 @@ struct QueriedSourceReaction {
     liked: bool,
 }
 
+impl From<QueriedSourceReaction> for WeightedSource {
+    fn from(queried_source: QueriedSourceReaction) -> Self {
+        let QueriedSourceReaction { source, weight, .. } = queried_source;
+        Self { source, weight }
+    }
+}
+
 #[async_trait]
 impl SourceReactionScope for SqliteStorage {
     async fn fetch_source_reaction(&self, source: &str) -> Result<Option<bool>, Error> {
@@ -949,7 +971,7 @@ impl SourceReactionScope for SqliteStorage {
         let mut tx = self.pool.begin().await?;
 
         sqlx::query(
-            "INSERT INTO SourceReaction (source, weight, lastUpdated, liked) VALUES (?, ?, ?, ?)",
+            "INSERT INTO SourceReaction (source, weight, lastUpdated, liked) VALUES (?, ?, ?, ?);",
         )
         .bind(source)
         .bind(weight)

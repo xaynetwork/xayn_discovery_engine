@@ -503,16 +503,14 @@ impl Engine {
     /// Gets the next batch of feed documents.
     #[instrument(skip(self))]
     #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
-    pub async fn feed_next_batch(
-        &mut self,
-        sources: &[WeightedSource],
-    ) -> Result<Vec<Document>, Error> {
+    pub async fn feed_next_batch(&mut self) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
         {
             let history = self.storage.fetch_history().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
 
             // TODO: merge `get_feed_documents()` into this method after DB migration
-            self.get_feed_documents(&history, sources).await
+            self.get_feed_documents(&history, &sources).await
         }
 
         #[cfg(not(feature = "storage"))]
@@ -679,10 +677,17 @@ impl Engine {
         let reaction = reacted.reaction;
         cfg_if! {
             if #[cfg(feature="storage")] {
-                let document: Document = self.storage
-                    .feedback()
+                let feedback = self.storage.feedback();
+                let document: Document = feedback
                     .update_user_reaction(reacted.id, reaction).await?
                     .into();
+
+                let source = &document.resource.source_domain;
+                match reaction {
+                    UserReaction::Positive => feedback.update_source_reaction(source, true).await?,
+                    UserReaction::Negative => feedback.update_source_reaction(source, false).await?,
+                    UserReaction::Neutral => (),
+                }
             } else {
                 use chrono::Utc;
                 use url::Url;
@@ -764,6 +769,8 @@ impl Engine {
         if let UserReaction::Positive = reaction {
             #[cfg(feature = "storage")]
             let history = &self.storage.fetch_history().await?.into();
+            #[cfg(feature = "storage")]
+            let sources = &self.storage.fetch_weighted_sources().await?;
             if let Some(history) = history {
                 update_stacks(
                     &mut stacks,
@@ -1204,7 +1211,6 @@ impl Engine {
     #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
     pub async fn set_sources(
         &mut self,
-        sources: &[WeightedSource],
         excluded: Vec<String>,
         trusted: Vec<String>,
     ) -> Result<(), Error> {
@@ -1241,7 +1247,8 @@ impl Engine {
             }
 
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1283,11 +1290,7 @@ impl Engine {
 
     /// Adds a trusted source.
     #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn add_trusted_source(
-        &mut self,
-        sources: &[WeightedSource],
-        new_trusted: String,
-    ) -> Result<(), Error> {
+    pub async fn add_trusted_source(&mut self, new_trusted: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             let mut trusted = self.storage.source_preference().fetch_trusted().await?;
@@ -1314,7 +1317,8 @@ impl Engine {
 
             *self.endpoint_config.trusted_sources.write().await = trusted.iter().cloned().collect();
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1324,11 +1328,7 @@ impl Engine {
 
     /// Removes a trusted source.
     #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn remove_trusted_source(
-        &mut self,
-        sources: &[WeightedSource],
-        trusted: String,
-    ) -> Result<(), Error> {
+    pub async fn remove_trusted_source(&mut self, trusted: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             let mut trusted_set = self.storage.source_preference().fetch_trusted().await?;
@@ -1345,7 +1345,8 @@ impl Engine {
                 trusted_set.iter().cloned().collect();
 
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1355,11 +1356,7 @@ impl Engine {
 
     /// Adds an excluded source.
     #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn add_excluded_source(
-        &mut self,
-        sources: &[WeightedSource],
-        new_excluded: String,
-    ) -> Result<(), Error> {
+    pub async fn add_excluded_source(&mut self, new_excluded: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             let mut excluded = self.storage.source_preference().fetch_excluded().await?;
@@ -1385,7 +1382,8 @@ impl Engine {
             self.filter_excluded_sources_for_all_stacks(&excluded).await;
 
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1395,11 +1393,7 @@ impl Engine {
 
     /// Removes an excluded source.
     #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn remove_excluded_source(
-        &mut self,
-        sources: &[WeightedSource],
-        excluded: String,
-    ) -> Result<(), Error> {
+    pub async fn remove_excluded_source(&mut self, excluded: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             let mut excluded_set = self.storage.source_preference().fetch_excluded().await?;
@@ -1416,7 +1410,8 @@ impl Engine {
                 excluded_set.iter().cloned().collect();
 
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1464,7 +1459,8 @@ fn rank_stacks<'a>(
     kps,
     user_interests,
     key_phrases,
-    history
+    history,
+    sources
 ))]
 async fn update_stacks(
     stacks: &mut HashMap<Id, Stack>,
@@ -1963,7 +1959,7 @@ pub(crate) mod tests {
         )
         .await;
 
-        let documents = engine.feed_next_batch(&[]).await.unwrap();
+        let documents = engine.feed_next_batch().await.unwrap();
         assert!(!documents.is_empty());
 
         let state1 = engine.storage.state().fetch().await.unwrap();

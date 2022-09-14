@@ -123,16 +123,13 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Gets the next batch of feed documents.
     #[allow(clippy::box_collection)]
-    pub async fn feed_next_batch(
-        engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
-    ) -> Box<Result<Vec<Document>, String>> {
+    pub async fn feed_next_batch(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .feed_next_batch(&sources)
+                .feed_next_batch()
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -401,7 +398,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Sets a new list of excluded and trusted sources.
     pub async fn set_sources(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         excluded: Box<Vec<String>>,
         trusted: Box<Vec<String>>,
     ) -> Box<Result<(), String>> {
@@ -410,7 +406,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .set_sources(&sources, *excluded, *trusted)
+                .set_sources(*excluded, *trusted)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -445,7 +441,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Adds a trusted source.
     pub async fn add_trusted_source(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         trusted: Box<String>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -453,7 +448,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .add_trusted_source(&sources, *trusted)
+                .add_trusted_source(*trusted)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -462,7 +457,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Removes a trusted source.
     pub async fn remove_trusted_source(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         trusted: Box<String>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -470,7 +464,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .remove_trusted_source(&sources, *trusted)
+                .remove_trusted_source(*trusted)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -479,7 +473,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Adds an excluded source.
     pub async fn add_excluded_source(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         excluded: Box<String>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -487,7 +480,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .add_excluded_source(&sources, *excluded)
+                .add_excluded_source(*excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -496,7 +489,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Removes an excluded source.
     pub async fn remove_excluded_source(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         excluded: Box<String>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -504,7 +496,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .remove_excluded_source(&sources, *excluded)
+                .remove_excluded_source(*excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )

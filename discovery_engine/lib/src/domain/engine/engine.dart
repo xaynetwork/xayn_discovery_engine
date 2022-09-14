@@ -77,7 +77,6 @@ abstract class Engine {
 
   /// Changes the excluded and trusted sources.
   Future<void> setSources(
-    List<SourceReacted> sources,
     Set<Source> excluded,
     Set<Source> trusted,
   );
@@ -90,32 +89,26 @@ abstract class Engine {
 
   /// Adds an excluded source.
   Future<void> addExcludedSource(
-    List<SourceReacted> sources,
     Source excluded,
   );
 
   /// Removes an excluded source.
   Future<void> removeExcludedSource(
-    List<SourceReacted> sources,
     Source excluded,
   );
 
   /// Adds a trusted source.
   Future<void> addTrustedSource(
-    List<SourceReacted> sources,
     Source trusted,
   );
 
   /// Removes a trusted source.
   Future<void> removeTrustedSource(
-    List<SourceReacted> sources,
     Source trusted,
   );
 
   /// Gets the next batch of feed documents.
-  Future<List<DocumentWithActiveData>> feedNextBatch(
-    List<SourceReacted> sources,
-  );
+  Future<List<DocumentWithActiveData>> feedNextBatch();
 
   /// Gets the next batch of feed documents.
   Future<List<DocumentWithActiveData>> getFeedDocuments(

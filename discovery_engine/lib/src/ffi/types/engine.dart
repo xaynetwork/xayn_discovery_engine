@@ -196,13 +196,11 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> setSources(
-    List<SourceReacted> sources,
     Set<Source> excluded,
     Set<Source> trusted,
   ) async {
     final result = await asyncFfi.setSources(
       _engine.ref,
-      sources.allocVec().move(),
       excluded.toStringList().allocNative().move(),
       trusted.toStringList().allocNative().move(),
     );
@@ -232,12 +230,10 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> addExcludedSource(
-    List<SourceReacted> sources,
     Source excluded,
   ) async {
     final result = await asyncFfi.addExcludedSource(
       _engine.ref,
-      sources.allocVec().move(),
       excluded.toString().allocNative().move(),
     );
 
@@ -246,12 +242,10 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> removeExcludedSource(
-    List<SourceReacted> sources,
     Source excluded,
   ) async {
     final result = await asyncFfi.removeExcludedSource(
       _engine.ref,
-      sources.allocVec().move(),
       excluded.toString().allocNative().move(),
     );
 
@@ -260,12 +254,10 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> addTrustedSource(
-    List<SourceReacted> sources,
     Source trusted,
   ) async {
     final result = await asyncFfi.addTrustedSource(
       _engine.ref,
-      sources.allocVec().move(),
       trusted.toString().allocNative().move(),
     );
 
@@ -274,12 +266,10 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<void> removeTrustedSource(
-    List<SourceReacted> sources,
     Source trusted,
   ) async {
     final result = await asyncFfi.removeTrustedSource(
       _engine.ref,
-      sources.allocVec().move(),
       trusted.toString().allocNative().move(),
     );
 
@@ -287,11 +277,8 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> feedNextBatch(
-    final List<SourceReacted> sources,
-  ) async {
-    final result =
-        await asyncFfi.feedNextBatch(_engine.ref, sources.allocVec().move());
+  Future<List<DocumentWithActiveData>> feedNextBatch() async {
+    final result = await asyncFfi.feedNextBatch(_engine.ref);
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
