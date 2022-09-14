@@ -118,7 +118,7 @@ components:
         score:
           type: number
       example:
-        - score: 0.872
+        score: 0.872
     PersonalizedDocuments:
       type: object
       additionalProperties:
