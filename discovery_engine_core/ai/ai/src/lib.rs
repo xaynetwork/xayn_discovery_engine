@@ -48,7 +48,10 @@ pub use crate::{
     },
     document::{Document, DocumentId},
     embedding::{
-        cosine_similarity, pairwise_cosine_similarity, Embedding, MalformedBytesEmbedding,
+        cosine_similarity,
+        pairwise_cosine_similarity,
+        Embedding,
+        MalformedBytesEmbedding,
     },
     error::GenericError,
     kps::{
