@@ -13,7 +13,7 @@ tags:
   - name: ingestion
     description: Add documents to the system
 paths:
-  /users/{user_id}/documents/personalized:
+  /users/{user_id}/personalized_documents:
     get:
       tags:
         - personalization
@@ -57,7 +57,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PersonalizedDocumentsError'
 
-  /users/{user_id}/documents/interact:
+  /users/{user_id}/interactactions:
     patch:
       tags:
         - personalization
