@@ -84,7 +84,7 @@ paths:
         '400':
           description: invalid request. User or document id is invalid
         
-  /documents/:
+  /documents:
     post:
       tags:
         - ingestion
