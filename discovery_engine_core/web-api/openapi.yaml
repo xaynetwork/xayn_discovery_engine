@@ -35,10 +35,11 @@ paths:
         - name: count
           in: query
           description: Maximum number of personalized documents to return
-          type: integer
-          format: int32
-          minimum: 1
-          maximum: 100
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
       responses:
         '200':
           description: successful operation
