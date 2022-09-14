@@ -104,7 +104,7 @@ paths:
           description: successful operation
         '400':
           description: invalid request
-        '422':
+        '500':
           description: all or some of the documents were not successfully uploaded
           content:
             application/json:
