@@ -119,7 +119,7 @@ components:
       example: "document id"
     UserId:
       type: string
-      description: A document id can be any UTF-8 string that does not contain the null byte.
+      description: A user id can be any non-empty UTF-8 string that does not contain the null byte.
       example: "user id"
     PersonalizedDocumentData:
       type: object
