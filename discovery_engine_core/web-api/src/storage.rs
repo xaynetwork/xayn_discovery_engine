@@ -21,7 +21,6 @@ use sqlx::{
     FromRow,
     Pool,
     Postgres,
-    QueryBuilder,
 };
 use uuid::Uuid;
 use xayn_discovery_engine_ai::{
@@ -34,9 +33,6 @@ use xayn_discovery_engine_ai::{
 };
 
 use crate::models::UserId;
-
-// PostgreSQL bind limit
-const BIND_LIMIT: usize = 65535;
 
 #[derive(Debug, Clone)]
 pub(crate) struct UserState {
@@ -99,77 +95,68 @@ impl UserState {
         Ok(UserInterests { positive, negative })
     }
 
-    pub(crate) async fn update(
+    pub(crate) async fn update_positive_cois<F>(
         &self,
         id: &UserId,
-        user_interests: &UserInterests,
-    ) -> Result<(), GenericError> {
-        let positive_cois = &user_interests.positive;
-        let negative_cois = &user_interests.negative;
-
+        update_cois: F,
+    ) -> Result<(), GenericError>
+    where
+        F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync,
+    {
         let mut tx = self.pool.begin().await?;
-        let mut query_builder = QueryBuilder::new("INSERT INTO ");
 
-        // The amount of rows that we can store via bulk inserts
-        // (<https://docs.rs/sqlx-core/latest/sqlx_core/query_builder/struct.QueryBuilder.html#method.push_values>)
-        // is limited by the postgreSQL bind limit. Hence, the BIND_LIMIT is divided by the number of
-        // fields in the largest tuple.
-        for cois in positive_cois.chunks(BIND_LIMIT / 7) {
-            query_builder
-                .reset()
-                .push("center_of_interest (coi_id, user_id, is_positive, embedding, view_count, view_time_ms, last_view) ")
-                .push_values(cois, |mut stm, coi| {
-                    let timestamp: DateTime<Utc> = coi.stats.last_view.into();
+        // fine as we convert it to i32 when we store it in the database
+        #[allow(clippy::cast_sign_loss)]
+        let mut positive_cois: Vec<_> = sqlx::query_as::<_, QueriedCoi>(
+            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view 
+            FROM center_of_interest 
+            WHERE user_id = $1 AND is_positive 
+            FOR UPDATE;",
+        )
+        .bind(id.as_ref())
+        .fetch_all(&mut tx)
+        .await?
+        .into_iter()
+        .map(|coi| PositiveCoi {
+            id: coi.coi_id.into(),
+            point: Embedding::from(Array::from_vec(coi.embedding)),
+            stats: CoiStats {
+                view_count: coi.view_count as usize,
+                view_time: Duration::from_millis(coi.view_time_ms as u64),
+                last_view: coi.last_view.into(),
+            },
+        })
+        .collect();
 
-                    // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
-                    // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
-                    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-                    stm.push_bind(coi.id.as_ref())
-                        .push_bind(id.as_ref())
-                        .push_bind(true)
-                        .push_bind(coi.point.to_vec())
-                        .push_bind(coi.stats.view_count as i32)
-                        .push_bind(coi.stats.view_time.as_millis() as i64)
-                        .push_bind(timestamp);
-                })
-                .push(
-                    " ON CONFLICT (coi_id) DO UPDATE SET
-                        embedding = EXCLUDED.embedding,
-                        view_count = EXCLUDED.view_count,
-                        view_time_ms = EXCLUDED.view_time_ms,
-                        last_view = EXCLUDED.last_view;"
-                )
-                .build()
-                .persistent(false)
-                .execute(&mut *tx)
-                .await?;
-        }
+        let updated_coi = update_cois(&mut positive_cois);
+        let timestamp: DateTime<Utc> = updated_coi.stats.last_view.into();
 
-        for cois in negative_cois.chunks(BIND_LIMIT / 5) {
-            query_builder
-                .reset()
-                .push("center_of_interest (coi_id, user_id, is_positive, embedding, last_view) ")
-                .push_values(cois, |mut stm, coi| {
-                    let timestamp: DateTime<Utc> = coi.last_view.into();
+        // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
+        // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
+        #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+        sqlx::query(
+            "INSERT INTO center_of_interest (coi_id, user_id, is_positive, embedding, view_count, view_time_ms, last_view) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7) 
+            ON CONFLICT (coi_id) DO UPDATE SET 
+                embedding = EXCLUDED.embedding, 
+                view_count = EXCLUDED.view_count, 
+                view_time_ms = EXCLUDED.view_time_ms, 
+                last_view = EXCLUDED.last_view;",
+        )
+        .bind(updated_coi.id.as_ref())
+        .bind(id.as_ref())
+        .bind(true)
+        .bind(updated_coi.point.to_vec())
+        .bind(updated_coi.stats.view_count as i32)
+        .bind(updated_coi.stats.view_time.as_millis() as i64)
+        .bind(timestamp)
+        .execute(&mut tx)
+        .await?;
 
-                    stm.push_bind(coi.id.as_ref())
-                        .push_bind(id.as_ref())
-                        .push_bind(false)
-                        .push_bind(coi.point.to_vec())
-                        .push_bind(timestamp);
-                })
-                .push(
-                    " ON CONFLICT (coi_id) DO UPDATE SET
-                        embedding = EXCLUDED.embedding,
-                        last_view = EXCLUDED.last_view;",
-                )
-                .build()
-                .persistent(false)
-                .execute(&mut *tx)
-                .await?;
-        }
+        sqlx::query("COMMIT;").execute(&mut tx).await?;
 
         tx.commit().await?;
+
         Ok(())
     }
 
