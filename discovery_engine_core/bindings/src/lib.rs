@@ -203,7 +203,7 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Processes user reaction.
     ///
-    /// The history is only required for positive reactions.
+    /// The history and sources are required only for positive reactions.
     #[allow(clippy::box_collection)]
     pub async fn user_reacted(
         engine: &SharedEngine,
