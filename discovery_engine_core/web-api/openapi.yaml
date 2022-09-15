@@ -11,19 +11,13 @@ info:
     The id uniquely identifies the document in the system.
     The system uses the snippet to create a document representation that can be matched against user interests.
 
-    It is possible to attach any properties to a document; the system will not use them but will be returned
-    together with the document when asking for personalized documents for a user.
-    They could help store information like a title and the URL where it is possible to find the document.
-    Each document can have its own set of properties.
+    It is possible to attach any properties to a document; the system will not use them but will be returned together with the document when asking for personalized documents for a user. They could help store information like a title and the URL where it is possible to find the document. Each document can have its own set of properties.
 
-    The API offers an endpoint that allows uploading the documents to the system.
-    After a successful upload, it will be possible to use the document in other endpoints.
+    The API offers an endpoint that allows uploading the documents to the system. After a successful upload, it will be possible to use the document in other endpoints.
 
     ## User management
     The system identifies a user with only an id.
-    There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document),
-    and one to retrieve a personalized set of documents for the user.
-    The system needs a few user interactions with documents before it can generate a personalized list.
+    There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document), and one to retrieve a personalized set of documents for the user. The system needs a few user interactions with documents before it can generate a personalized list.
   
     # Auth
     To authenticate with the API two bearer tokens will be provided. One will work for the
