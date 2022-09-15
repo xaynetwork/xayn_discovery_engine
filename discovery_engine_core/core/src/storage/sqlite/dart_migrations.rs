@@ -58,10 +58,13 @@ pub(super) async fn store_migration_data(
         .set_excluded(&data.excluded_sources.iter().map_into().collect())
         .await?;
 
-    add_missing_embeddings(smbert, &mut data.documents);
-    store_migration_documents(storage, &data.documents).await?;
+    if let Some(search) = &data.search {
+        storage.search().store_new_search(&search, &[]).await?;
+    }
 
-    //FIXME handle documents
+    add_missing_embeddings(smbert, &mut data.documents);
+    store_migration_document_data(storage, &data.documents).await?;
+
     Ok(())
 }
 
@@ -76,7 +79,7 @@ fn add_missing_embeddings<'a>(
     }
 }
 
-async fn store_migration_documents(
+async fn store_migration_document_data(
     storage: &mut SqliteStorage,
     documents: &[MigrationDocument],
 ) -> Result<(), Error> {
@@ -125,7 +128,7 @@ async fn store_migration_documents(
 
     let stack_documents = documents_iter
         .clone()
-        .filter(|doc| doc.is_active && !doc.is_searched && doc.stack_id != stack::Id::nil());
+        .filter(|doc| !doc.is_searched && doc.stack_id != stack::Id::nil());
 
     builder
         .reset()
@@ -139,7 +142,20 @@ async fn store_migration_documents(
         .execute(&mut tx)
         .await?;
 
-    //TODO search once we pass the search to the engine
+    let search_documents = documents_iter
+        .clone()
+        .filter(|doc| doc.is_active && doc.is_searched && doc.stack_id == stack::Id::nil());
+
+    builder
+        .reset()
+        .push("SearchDocument(documentId) ")
+        .push_values(search_documents, |mut query, doc| {
+            query.push_bind(doc.id);
+        })
+        .build()
+        .persistent(false)
+        .execute(&mut tx)
+        .await?;
 
     //we can only have reacted if we have seen the document
     let reacted_documents = documents_iter.clone().filter(|doc| doc.has_view_time());
@@ -206,6 +222,7 @@ mod tests {
             trusted_sources: vec!["foo.example".into(), "bar.invalid".into()],
             excluded_sources: vec!["dodo.local".into()],
             documents: vec![],
+            search: None,
         };
         let storage = init_storage_system_once(None, Some(&data)).await.unwrap();
         let engine_state = storage.state().fetch().await.unwrap();

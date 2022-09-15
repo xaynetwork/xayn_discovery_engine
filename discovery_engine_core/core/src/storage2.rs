@@ -43,6 +43,33 @@ pub struct DartMigrationData {
     pub trusted_sources: Vec<String>,
     pub excluded_sources: Vec<String>,
     pub documents: Vec<MigrationDocument>,
+    pub search: Option<Search>,
+}
+
+#[cfg_attr(feature = "storage", derive(Debug, PartialEq, Eq))]
+#[derive(Clone)]
+pub struct Search {
+    pub search_by: SearchBy,
+    pub search_term: String,
+    pub paging: Paging,
+}
+
+#[cfg_attr(
+    feature = "storage",
+    derive(Debug, PartialEq, Eq, num_derive::FromPrimitive)
+)]
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum SearchBy {
+    Query = 0,
+    Topic = 1,
+}
+
+#[cfg_attr(feature = "storage", derive(Debug, PartialEq, Eq))]
+#[derive(Clone)]
+pub struct Paging {
+    pub size: u32,
+    pub next_page: u32,
 }
 
 /// Represents a result from a query.

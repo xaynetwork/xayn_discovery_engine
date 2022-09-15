@@ -18,7 +18,7 @@ use uuid::Uuid;
 use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_core::{
     document::{NewsResource, UserReaction},
-    storage2::{DartMigrationData, MigrationDocument},
+    storage2::MigrationDocument,
 };
 
 use super::{
@@ -26,19 +26,6 @@ use super::{
     primitives::FfiUsize,
     slice::{alloc_uninitialized_slice, boxed_slice_from_raw_parts, next_element},
 };
-
-/// Returns a pointer to the `documents` field of a [`DartMigrationData`].
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`DartMigrationData`] memory object,
-/// it might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn dart_migration_data_place_of_documents(
-    place: *mut DartMigrationData,
-) -> *mut Vec<MigrationDocument> {
-    unsafe { addr_of_mut!((*place).documents) }
-}
 
 /// Returns a pointer to the `id` field of a [`MigrationDocument`].
 ///

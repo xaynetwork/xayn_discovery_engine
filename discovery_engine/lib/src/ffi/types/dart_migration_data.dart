@@ -26,6 +26,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
 import 'package:xayn_discovery_engine/src/ffi/types/duration.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/list.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/migration_search.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/source.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart';
@@ -46,6 +47,8 @@ extension DartMigrationDataFfi on DartMigrationData {
     excludedSources
         .writeNative(ffi.dart_migration_data_place_of_excluded_sources(place));
 
+    activeSearch.writeNative(ffi.dart_migration_data_place_of_search(place));
+
     final documentsWithData = documents
         .map(
           (document) => MigrationDocument(
@@ -59,8 +62,6 @@ extension DartMigrationDataFfi on DartMigrationData {
       documentsWithData,
       ffi.dart_migration_data_place_of_documents(place),
     );
-
-    //TODO[pmk] pass the actual data to rust and use it there
   }
 }
 
@@ -85,9 +86,11 @@ class MigrationDocument {
       place,
       document.isSearched as int,
     );
-    ffi.migration_document_place_of_batch_index(place).value =
-        // ignore: deprecated_member_use_from_same_package
-        document.batchIndex;
+
+    // ignore: deprecated_member_use_from_same_package
+    document.batchIndex
+        .writeNative(ffi.migration_document_place_of_batch_index(place));
+
     // ignore: deprecated_member_use_from_same_package
     document.timestamp
         .writeNative(ffi.migration_document_place_of_timestamp(place));

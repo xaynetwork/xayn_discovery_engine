@@ -30,11 +30,11 @@ import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_
 class DartMigrationData {
   final Uint8List? engineState;
   final List<Document> documents;
-  final Map<DocumentId, ActiveDocumentData> activeDocumentData;
   final List<SourceReacted> reactedSources;
   final Set<Source> trustedSources;
   final Set<Source> excludedSources;
   final ActiveSearch? activeSearch;
+  final Map<DocumentId, ActiveDocumentData> activeDocumentData;
 
   /// Cleanup callback (which should be) called after successfully initializing the engine.
   final Future<void> Function() cleanup;
