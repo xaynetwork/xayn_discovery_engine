@@ -176,16 +176,13 @@ components:
           enum: [invalid_user_id, invalid_document_id]
     IngestedDocument:
       type: object
-      required: [id, snippet, published_date]
+      required: [id, snippet]
       properties:
         id:
           $ref: '#/components/schemas/DocumentId'
         snippet:
-          type: string
           description: Text that will be used to match the document against the user interests.
-        published_date:
           type: string
-          format: date-time
         properties:
           $ref: '#/components/schemas/DocumentProperties'
     IngestionRequest:
