@@ -60,7 +60,7 @@ use xayn_discovery_engine_providers::{
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[cfg(feature = "storage")]
-use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
+use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage};
 use crate::{
     config::{
         de_config_from_json,
@@ -107,6 +107,7 @@ use crate::{
         TrustedNews,
     },
     storage2::{DartMigrationData, InitDbHint},
+    utils::MiscErrorExt,
 };
 
 /// Discovery engine errors.
@@ -334,7 +335,10 @@ impl Engine {
                         .into_string()
                         .unwrap(/*can't fail as we only join rust strings*/)
             });
-            SqliteStorage::init_storage_system(db_file_path, dart_migration_data).await?
+            SqliteStorage::init_storage_system(db_file_path, dart_migration_data, &|s| {
+                smbert.run(s).log_error().ok()
+            })
+            .await?
         };
         let stack_ops = vec![
             Box::new(BreakingNews::new(
@@ -1866,7 +1870,7 @@ pub(crate) mod tests {
         // reset the stacks and states
         #[cfg(feature = "storage")]
         {
-            engine.storage = SqliteStorage::init_storage_system(None, None)
+            engine.storage = SqliteStorage::init_storage_system(None, None, &|_| None)
                 .await
                 .unwrap()
                 .0;

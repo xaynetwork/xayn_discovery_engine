@@ -25,7 +25,7 @@ use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
 use crate::{
     document::{self, HistoricDocument, UserReaction, ViewMode},
     stack,
-    storage2::{DartMigrationData, InitDbHint},
+    storage2::InitDbHint,
 };
 
 use self::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView};
@@ -61,19 +61,6 @@ impl From<MalformedBytesEmbedding> for Error {
 
 #[async_trait]
 pub(crate) trait Storage {
-    /// Initializes the storage system.
-    ///
-    /// The `db_identifier` is storage impl. specific, e.g. in case of sqlite
-    /// this would be the file path to the database file.
-    ///
-    /// Passing in `None` means a new temporary db should be created.
-    async fn init_storage_system(
-        db_identifier: Option<String>,
-        dart_migration_data: Option<DartMigrationData>,
-    ) -> Result<(BoxedStorage, InitDbHint), Error>
-    where
-        Self: Sized;
-
     async fn clear_database(&self) -> Result<bool, Error>;
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error>;
