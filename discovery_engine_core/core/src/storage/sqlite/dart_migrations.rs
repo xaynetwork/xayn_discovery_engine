@@ -214,7 +214,7 @@ impl MigrationDocument {
 
 #[cfg(test)]
 mod tests {
-    use std::{cmp::Ord, time::Duration};
+    use std::{cmp::Ord, collections::HashSet, time::Duration};
 
     use chrono::Utc;
     use ndarray::arr1;
@@ -381,9 +381,14 @@ mod tests {
         assert_eq!(Some(search), data.search);
         assert_compare_migration_and_search_documents(&data.documents, search_docs);
 
+        let history = storage.fetch_history().await.unwrap();
+        assert_eq!(
+            history.iter().map(|d| d.id).collect::<HashSet<_>>(),
+            data.documents.iter().map(|d| d.id).collect::<HashSet<_>>()
+        );
         //TODO[pmk] test view times
         //TODO[pmk] test feed docs
-        //TODO[pmk] test history
+        //TODO[pmk] test filter out bad bad smbert doc
     }
 
     fn assert_compare_migration_and_search_documents(
