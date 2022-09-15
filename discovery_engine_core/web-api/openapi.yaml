@@ -3,6 +3,9 @@ info:
   title: Personalization API
   version: 1.0.0-rc1
   description: |-
+    # Overview
+    The API is divided 
+  
     # Auth
     To authenticate with the API two bearer tokens will be provided. One will work for the
     personalization endpoints and the other one will allow documents to be added to the system.
@@ -121,6 +124,10 @@ components:
     DocumentProperties:
       description: Arbitrary properties that can be attached to a document.
       type: object
+      example:
+        title: "News title"
+        image_url: "http://example.com/news_image.jpg"
+        link: "http://example.com/this_news"
     UserId:
       description: A user id can be any non-empty UTF-8 string that does not contain the null byte.
       type: string
