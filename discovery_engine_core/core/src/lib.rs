@@ -39,8 +39,6 @@ pub mod stack;
 pub mod storage;
 //FIXME merge with storage once the storage feature is gone
 pub mod storage2;
-//FIXME they are not storage specific but currently only used by storage
-#[cfg(feature = "storage")]
 mod utils;
 
 pub use crate::{

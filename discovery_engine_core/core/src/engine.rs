@@ -59,8 +59,6 @@ use xayn_discovery_engine_providers::{
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
-#[cfg(feature = "storage")]
-use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage};
 use crate::{
     config::{
         de_config_from_json,
@@ -107,6 +105,10 @@ use crate::{
         TrustedNews,
     },
     storage2::{DartMigrationData, InitDbHint},
+};
+#[cfg(feature = "storage")]
+use crate::{
+    storage::{self, sqlite::SqliteStorage, BoxedStorage},
     utils::MiscErrorExt,
 };
 
