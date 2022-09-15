@@ -8,15 +8,16 @@ info:
     personalization endpoints and the other one will allow documents to be added to the system.
     
 tags:
-  - name: personalization
-    description: Interaction of the user and personalized document
-  - name: ingestion
-    description: Add documents to the system
+  - name: users
+    description: Interaction of the user and personalized document.
+  - name: documents
+    description: Managment of the documents in the system.
+
 paths:
   /users/{user_id}/personalized_documents:
     get:
       tags:
-        - personalization
+        - users
       summary: Get personalized documents for the user
       description: |-
         Returns a map from `document_id` to the score of that document for the
@@ -57,10 +58,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/PersonalizedDocumentsError'
 
-  /users/{user_id}/interactactions:
+  /users/{user_id}/interactions:
     patch:
       tags:
-        - personalization
+        - users
       summary: Add interaction between a user and a document
       description: |-
         The interaction is used to provide personalized documents to the user.
@@ -89,7 +90,7 @@ paths:
   /documents:
     post:
       tags:
-        - ingestion
+        - documents
       summary: Add documents to the system
       description: |-
         Add documents to the system. The system will create a representation of the document
