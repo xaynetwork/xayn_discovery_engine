@@ -36,9 +36,9 @@ paths:
         - users
       summary: Get personalized documents for the user
       description: |-
-        Returns a map from `document_id` to the score of that document for the
-        specified `user_id`. The score is a value between 0 and 1 where a higher value
-        means that the document matches the preferences of the user better.
+        Returns a list of documents personalized for the given `user_id`.
+        Each document contains the id, the score and the properties that are attached to the document.
+        The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
       parameters:
         - name: user_id
           in: path
