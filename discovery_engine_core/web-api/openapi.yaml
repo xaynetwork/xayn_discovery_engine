@@ -115,12 +115,15 @@ paths:
 components:
   schemas:
     DocumentId:
-      type: string
       description: A document id can be any non-empty UTF-8 string that does not contain the null byte.
-      example: "document id"
-    UserId:
       type: string
+      example: "document id"
+    DocumentProperties:
+      description: Arbitrary properties that can be attached to a document.
+      type: object
+    UserId:
       description: A user id can be any non-empty UTF-8 string that does not contain the null byte.
+      type: string
       example: "user id"
     PersonalizedDocumentData:
       type: object
@@ -130,6 +133,8 @@ components:
           $ref: '#/components/schemas/DocumentId'
         score:
           type: number
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
     PersonalizedDocumentsResponse:
       type: object
       required: [documents]
@@ -181,6 +186,8 @@ components:
         published_date:
           type: string
           format: date-time
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
     IngestionRequest:
       type: object
       required: [documents]
