@@ -34,7 +34,8 @@ extension ActiveSearchFfi on ActiveSearch {
     searchBy.writeNative(ffi.migration_search_place_of_search_by(place));
     searchTerm.writeNative(ffi.migration_search_place_of_search_term(place));
     pageSize.writeNative(ffi.migration_search_place_of_page_size(place));
-    requestedPageNb.writeNative(ffi.migration_search_place_of_next_page(place));
+    (requestedPageNb + 1)
+        .writeNative(ffi.migration_search_place_of_next_page(place));
   }
 }
 
