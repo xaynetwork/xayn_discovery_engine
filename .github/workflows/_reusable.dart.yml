@@ -55,7 +55,7 @@ jobs:
           rust: true
 
       - name: Run tests without storage
-        run: just dart-test
+        run: XAYN_DE_FEATURES="" just dart-test
 
       - name: Run tests with storage
         run: XAYN_DE_FEATURES=storage just dart-test
