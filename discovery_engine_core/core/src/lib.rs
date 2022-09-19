@@ -38,32 +38,12 @@ pub mod stack;
 mod state;
 #[cfg(feature = "storage")]
 pub mod storage;
-//FIXME they are not storage specific but currently only used by storage
-#[cfg(feature = "storage")]
+//FIXME merge with storage once the storage feature is gone
+pub mod storage2;
 mod utils;
 
 pub use crate::{
     config::{CoreConfig, EndpointConfig, ExplorationConfig, FeedConfig, InitConfig, SearchConfig},
     engine::{Engine, Error, SearchBy},
+    storage2::{DartMigrationData, InitDbHint},
 };
-
-//FIXME move into crate::storage once the feature "storage" flag is removed
-#[cfg_attr(test, derive(Clone))]
-pub struct DartMigrationData {
-    pub engine_state: Option<Vec<u8>>,
-    pub trusted_sources: Vec<String>,
-    pub excluded_sources: Vec<String>,
-}
-
-//FIXME move into crate::storage once the feature "storage" flag is removed
-/// Hint about what was done during db init.
-pub enum InitDbHint {
-    /// Hint to use if nothing special happened during init.
-    NormalInit,
-    /// A new db was created, there was no db beforehand.
-    #[cfg(feature = "storage")]
-    NewDbCreated,
-    /// There was a db but we could not open it so we deleted it and created a new one.
-    #[cfg(feature = "storage")]
-    DbOverwrittenDueToErrors(crate::storage::Error),
-}
