@@ -220,4 +220,7 @@ components:
         documents:
           type: array
           items:
-            $ref: '#/components/schemas/DocumentId'
+            type: object
+            properties:
+              id:
+                $ref: '#/components/schemas/DocumentId'
