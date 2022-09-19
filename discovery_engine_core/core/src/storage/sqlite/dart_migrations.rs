@@ -26,7 +26,7 @@ pub(super) async fn store_migration_data(
     storage: &mut SqliteStorage,
     data: &DartMigrationData,
 ) -> Result<(), Error> {
-    // it's okay to not have an transaction across the various migrations:
+    // it's okay to not have a transaction across the various migrations:
     // 1. by taking `&mut SqliteStorage` we know we have exclusive access
     // 2. databases of failed migrations should be discarded at some point
     // 3. even if the database is not discarded the db is still in a valid state,
