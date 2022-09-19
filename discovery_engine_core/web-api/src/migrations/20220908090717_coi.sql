@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS center_of_interest (
     is_positive BOOLEAN NOT NULL,
     embedding FLOAT4[] NOT NULL,
     view_count INTEGER NOT NULL DEFAULT 0,
-    view_time_ms INTEGER NOT NULL DEFAULT 0,
+    view_time_ms BIGINT NOT NULL DEFAULT 0,
     last_view TIMESTAMPTZ NOT NULL DEFAULT Now()
 );
 

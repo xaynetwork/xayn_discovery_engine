@@ -55,7 +55,7 @@ impl UserState {
         Ok(())
     }
 
-    pub(crate) async fn fetch(&self, id: &UserId) -> Result<Option<UserInterests>, GenericError> {
+    pub(crate) async fn fetch(&self, id: &UserId) -> Result<UserInterests, GenericError> {
         let mut tx = self.pool.begin().await?;
 
         let cois = sqlx::query_as::<_, QueriedCoi>(
@@ -96,7 +96,7 @@ impl UserState {
             })
             .collect();
 
-        Ok(Some(UserInterests { positive, negative }))
+        Ok(UserInterests { positive, negative })
     }
 
     pub(crate) async fn update(
@@ -121,14 +121,15 @@ impl UserState {
                 .push_values(cois, |mut stm, coi| {
                     let timestamp: DateTime<Utc> = coi.stats.last_view.into();
 
-                    // fine as we convert it back to usize/u64 when we fetch it from the database
+                    // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
+                    // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
                     #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
                     stm.push_bind(coi.id.as_ref())
-                    .push_bind(id.as_ref())
-                    .push_bind(true)
-                    .push_bind(coi.point.to_vec())
+                        .push_bind(id.as_ref())
+                        .push_bind(true)
+                        .push_bind(coi.point.to_vec())
                         .push_bind(coi.stats.view_count as i32)
-                        .push_bind(coi.stats.view_time.as_millis() as i32)
+                        .push_bind(coi.stats.view_time.as_millis() as i64)
                         .push_bind(timestamp);
                 })
                 .push(
@@ -190,7 +191,9 @@ struct QueriedCoi {
     coi_id: Uuid,
     is_positive: bool,
     embedding: Vec<f32>,
+    /// The count is a `usize` stored as `i32` in database
     view_count: i32,
-    view_time_ms: i32,
+    /// The time is a `u64` stored as `i64` in database
+    view_time_ms: i64,
     last_view: DateTime<Utc>,
 }
