@@ -29,6 +29,32 @@ pub unsafe extern "C" fn dart_migration_data_place_of_engine_state(
     unsafe { addr_of_mut!((*place).engine_state) }
 }
 
+/// Returns a pointer to the `trusted_sources` field of a [`DartMigrationData`].
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`DartMigrationData`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn dart_migration_data_place_of_trusted_sources(
+    place: *mut DartMigrationData,
+) -> *mut Vec<String> {
+    unsafe { addr_of_mut!((*place).trusted_sources) }
+}
+
+/// Returns a pointer to the `excluded_sources` field of a [`DartMigrationData`].
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`DartMigrationData`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn dart_migration_data_place_of_excluded_sources(
+    place: *mut DartMigrationData,
+) -> *mut Vec<String> {
+    unsafe { addr_of_mut!((*place).excluded_sources) }
+}
+
 /// Alloc an uninitialized `Box<DartMigrationData>`, mainly used for testing.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_dart_migration_data() -> *mut DartMigrationData {

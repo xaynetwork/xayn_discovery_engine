@@ -94,7 +94,7 @@ class BoxedStr {
   }
 }
 
-final _listAdapter = ListFfiAdapter<String, RustString, RustVecString>(
+final listAdapter = ListFfiAdapter<String, RustString, RustVecString>(
   alloc: ffi.alloc_uninitialized_string_slice,
   next: ffi.next_string,
   writeNative: (string, place) => string.writeNative(place),
@@ -116,11 +116,11 @@ extension StringListFfi on List<String> {
   void writeNative(
     final Pointer<RustVecString> place,
   ) =>
-      _listAdapter.writeVec(this, place);
+      listAdapter.writeVec(this, place);
 
   /// Reads a `&Vec<String>` returning a dart-`List<String>`.
   static List<String> readNative(
     final Pointer<RustVecString> vec,
   ) =>
-      _listAdapter.readVec(vec);
+      listAdapter.readVec(vec);
 }
