@@ -22,10 +22,10 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-pub(super) struct CoiStats {
-    pub(super) view_count: usize,
-    pub(super) view_time: Duration,
-    pub(super) last_view: SystemTime,
+pub struct CoiStats {
+    pub view_count: usize,
+    pub view_time: Duration,
+    pub last_view: SystemTime,
 }
 
 impl CoiStats {

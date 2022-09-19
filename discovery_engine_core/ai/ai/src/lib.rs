@@ -42,6 +42,7 @@ pub use crate::{
     coi::{
         config::{Config as CoiConfig, Error as CoiConfigError},
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+        stats::CoiStats,
         system::System as CoiSystem,
         CoiId,
     },

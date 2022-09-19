@@ -18,7 +18,7 @@ pub(crate) mod point;
 pub(crate) mod stats;
 pub(crate) mod system;
 
-use derive_more::From;
+use derive_more::{AsRef, From};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -29,7 +29,7 @@ use crate::embedding::Embedding;
 /// A unique identifier of a `CoI`.
 #[repr(transparent)] // needed for FFI
 #[derive(
-    Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize, From,
+    Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize, From, AsRef,
 )]
 pub struct CoiId(Uuid);
 

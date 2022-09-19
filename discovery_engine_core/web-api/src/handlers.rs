@@ -29,8 +29,7 @@ pub(crate) async fn handle_ranked_documents(
         .user_state
         .fetch(&user_id)
         .await
-        .map_err(handle_user_state_op_error)?
-        .unwrap_or_default();
+        .map_err(handle_user_state_op_error)?;
 
     let mut documents = db.documents.clone();
 
@@ -54,8 +53,7 @@ pub(crate) async fn handle_user_interaction(
             .user_state
             .fetch(&user_id)
             .await
-            .map_err(handle_user_state_op_error)?
-            .unwrap_or_default();
+            .map_err(handle_user_state_op_error)?;
 
         db.coi
             .log_positive_user_reaction(&mut user_interests.positive, &document.smbert_embedding);

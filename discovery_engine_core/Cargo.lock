@@ -3775,6 +3775,7 @@ dependencies = [
  "dotenvy",
  "envconfig",
  "itertools",
+ "ndarray",
  "reqwest",
  "serde",
  "serde_json",
