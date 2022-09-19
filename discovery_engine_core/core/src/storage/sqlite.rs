@@ -624,28 +624,30 @@ impl SearchScope for SqliteStorage {
 
 #[async_trait]
 impl StateScope for SqliteStorage {
-    async fn store(&self, bytes: Vec<u8>) -> Result<(), Error> {
+    async fn store(&self, bytes: &[u8]) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
-        sqlx::query("DELETE FROM SerializedState;")
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-        sqlx::query("INSERT INTO SerializedState (state) VALUES (?);")
-            .bind(bytes)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        sqlx::query(
+            "INSERT INTO SerializedState (rowid, state)
+            VALUES (1, ?)
+            ON CONFLICT DO UPDATE
+            SET state = excluded.state;",
+        )
+        .bind(bytes)
+        .execute(&mut tx)
+        .await?;
 
-        tx.commit().await.map_err(Into::into)
+        tx.commit().await?;
+        Ok(())
     }
 
     async fn fetch(&self) -> Result<Option<Vec<u8>>, Error> {
         let mut tx = self.pool.begin().await?;
 
-        let state = sqlx::query_as::<_, QueriedState>("SELECT state FROM SerializedState;")
-            .fetch_optional(&mut tx)
-            .await?;
+        let state =
+            sqlx::query_as::<_, QueriedState>("SELECT state FROM SerializedState WHERE rowid = 1;")
+                .fetch_optional(&mut tx)
+                .await?;
 
         tx.commit().await?;
 
@@ -1353,11 +1355,11 @@ mod tests {
         assert!(storage.state().fetch().await.unwrap().is_none());
 
         let state = (0..100).collect::<Vec<u8>>();
-        storage.state().store(state.clone()).await.unwrap();
+        storage.state().store(&state).await.unwrap();
         assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
 
         let state = (100..=255).collect::<Vec<u8>>();
-        storage.state().store(state.clone()).await.unwrap();
+        storage.state().store(&state).await.unwrap();
         assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
 
         assert!(storage.state().clear().await.unwrap());

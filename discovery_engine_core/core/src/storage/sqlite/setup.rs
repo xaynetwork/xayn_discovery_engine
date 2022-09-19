@@ -114,17 +114,18 @@ fn with_file_name_suffix(path: &Path, suffix: &str) -> Result<PathBuf, Error> {
     Ok(path.with_file_name(file_name))
 }
 
-async fn init_storage_system_once(
+pub(super) async fn init_storage_system_once(
     file_path: Option<PathBuf>,
     dart_migration_data: Option<&DartMigrationData>,
 ) -> Result<SqliteStorage, Error> {
     let pool = create_connection_pool(file_path.as_deref()).await?;
     update_schema(&pool).await?;
     update_static_data(&pool).await?;
+    let mut this = SqliteStorage { pool };
     if let Some(dart_migration_data) = dart_migration_data {
-        super::dart_migrations::store_migration_data(&pool, dart_migration_data).await?;
+        super::dart_migrations::store_migration_data(&mut this, dart_migration_data).await?;
     }
-    Ok(SqliteStorage { pool })
+    Ok(this)
 }
 
 pub(super) async fn create_connection_pool(
@@ -143,7 +144,7 @@ pub(super) async fn create_connection_pool(
         .map_err(Into::into)
 }
 
-async fn update_schema(pool: &Pool<Sqlite>) -> Result<(), Error> {
+pub(super) async fn update_schema(pool: &Pool<Sqlite>) -> Result<(), Error> {
     sqlx::migrate!("src/storage/migrations")
         .run(pool)
         .await

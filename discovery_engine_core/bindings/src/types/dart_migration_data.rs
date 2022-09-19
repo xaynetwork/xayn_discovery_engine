@@ -16,17 +16,17 @@ use std::ptr::addr_of_mut;
 
 use xayn_discovery_engine_core::DartMigrationData;
 
-/// Returns a pointer to the `dummy` field of a [`DartMigrationData`].
+/// Returns a pointer to the `engine_state` field of a [`DartMigrationData`].
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`DartMigrationData`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn dart_migration_data_place_of_dummy(
+pub unsafe extern "C" fn dart_migration_data_place_of_engine_state(
     place: *mut DartMigrationData,
-) -> *mut u8 {
-    unsafe { addr_of_mut!((*place).dummy) }
+) -> *mut Option<Vec<u8>> {
+    unsafe { addr_of_mut!((*place).engine_state) }
 }
 
 /// Alloc an uninitialized `Box<DartMigrationData>`, mainly used for testing.

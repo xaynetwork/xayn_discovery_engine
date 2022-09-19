@@ -46,7 +46,7 @@ impl Engine {
 
         #[cfg(feature = "storage")]
         {
-            self.storage.state().store(bytes).await?;
+            self.storage.state().store(&bytes).await?;
             Ok(Vec::new())
         }
 

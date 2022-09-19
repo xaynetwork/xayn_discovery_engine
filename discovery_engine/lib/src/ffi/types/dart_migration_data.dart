@@ -18,6 +18,7 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustDartMigrationData;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 
 extension DartMigrationDataFfi on DartMigrationData {
@@ -27,8 +28,9 @@ extension DartMigrationDataFfi on DartMigrationData {
     return Boxed(place, ffi.drop_dart_migration_data);
   }
 
-  void writeNative(final Pointer<RustDartMigrationData> data) {
+  void writeNative(final Pointer<RustDartMigrationData> place) {
+    engineState
+        .writeNative(ffi.dart_migration_data_place_of_engine_state(place));
     //TODO[pmk] pass the actual data to rust and use it there
-    ffi.dart_migration_data_place_of_dummy(data).value = 42;
   }
 }

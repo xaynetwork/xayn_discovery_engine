@@ -14,16 +14,42 @@
 
 //! Module for handling dart->rust/sqltie migrations
 
-use sqlx::{Pool, Sqlite};
+use crate::{
+    storage::{Error, Storage},
+    DartMigrationData,
+};
 
-use crate::{storage::Error, DartMigrationData};
+use super::SqliteStorage;
 
 /// Add the data from the  dart->rust/sqltie migration to the prepared database.
 pub(super) async fn store_migration_data(
-    _pool: &Pool<Sqlite>,
-    _data: &DartMigrationData,
+    storage: &mut SqliteStorage,
+    data: &DartMigrationData,
 ) -> Result<(), Error> {
-    #![allow(clippy::unused_async)]
-    //TODO[pmk] implement
+    // it's okay to not have a transaction across the various migrations:
+    // 1. by taking `&mut SqliteStorage` we know we have exclusive access
+    // 2. databases of failed migrations should be discarded at some point
+    // 3. even if the database is not discarded the db is still in a valid state,
+    //    just with some history/config/preference or similar missing
+
+    if let Some(engine_state) = &data.engine_state {
+        storage.state().store(engine_state).await?;
+    }
+
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{super::setup::init_storage_system_once, *};
+
+    #[tokio::test]
+    async fn test_store_migration_data() {
+        let data = DartMigrationData {
+            engine_state: Some(vec![1, 2, 3, 4, 8, 7, 0]),
+        };
+        let storage = init_storage_system_once(None, Some(&data)).await.unwrap();
+        let engine_state = storage.state().fetch().await.unwrap();
+        assert_eq!(engine_state, data.engine_state);
+    }
 }

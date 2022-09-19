@@ -82,15 +82,14 @@ class DartMigrationData {
       trustedSources: await sourcePreferenceRepository.getTrusted(),
       excludedSources: await sourcePreferenceRepository.getExcluded(),
       activeSearch: await activeSearchRepository.getCurrent(),
-      cleanup: () {
+      cleanup: () async {
+        await engineStateRepository.clear();
         //TODO[pmk] uncomment section once migration part was added
-        // await engineStateRepository.clear();
         // await documentRepository.box.clear();
         // await activeSearchRepository.clear();
         // await activeDocumentDataRepository.box.clear();
         // await sourceReactedRepository.box.clear();
         // await sourcePreferenceRepository.clear();
-        return Future<void>.value(null);
       },
     );
   }
