@@ -55,6 +55,7 @@ use xayn_discovery_engine_providers::{
     NewsQuery,
     Providers,
     RankLimit,
+    SimilarNewsQuery,
     TrendingTopic as BingTopic,
     TrendingTopicsQuery,
 };
@@ -171,6 +172,7 @@ pub struct Engine {
     smbert: SMBert,
     pub(crate) coi: CoiSystem,
     pub(crate) kps: KpsSystem,
+    #[allow(dead_code)] // TODO remove references to kpe
     kpe: KPE,
     providers: Providers,
 
@@ -1079,35 +1081,24 @@ impl Engine {
         market: &Market,
         embedding: &Embedding,
     ) -> Result<Vec<Document>, Error> {
-        let key_phrases = self
-            .kpe
-            .run(clean_query(term))
-            .map_err(GenericError::from)?;
-        if key_phrases.is_empty() {
+        if term.is_empty() {
             return Ok(Vec::new());
         }
 
-        let excluded_sources = &self.endpoint_config.excluded_sources.read().await.clone();
-        let filter = &key_phrases
-            .iter()
-            .take(self.core_config.deep_search_top)
-            .fold(Filter::default(), |filter, key_phrase| {
-                filter.add_keyword(key_phrase)
-            });
-        let query = NewsQuery {
+        let query = SimilarNewsQuery {
+            like: term,
             market,
             page_size: self.core_config.deep_search_max,
             page: 1,
             rank_limit: RankLimit::Unlimited,
-            excluded_sources,
-            filter,
+            excluded_sources: &self.endpoint_config.excluded_sources.read().await.clone(),
             max_age_days: None,
         };
 
         let articles = self
             .providers
-            .news
-            .query_news(&query)
+            .similar_news
+            .query_similar_news(&query)
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
