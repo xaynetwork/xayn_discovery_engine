@@ -49,17 +49,11 @@ pub(crate) async fn handle_user_interaction(
     db: Db,
 ) -> Result<impl warp::Reply, Rejection> {
     if let Some(document) = db.documents_by_id.get(&body.document_id) {
-        let mut user_interests = db
-            .user_state
-            .fetch(&user_id)
-            .await
-            .map_err(handle_user_state_op_error)?;
-
-        db.coi
-            .log_positive_user_reaction(&mut user_interests.positive, &document.smbert_embedding);
-
         db.user_state
-            .update(&user_id, &user_interests)
+            .update_positive_cois(&user_id, |positive_cois| {
+                db.coi
+                    .log_positive_user_reaction(positive_cois, &document.smbert_embedding)
+            })
             .await
             .map_err(handle_user_state_op_error)?;
 
