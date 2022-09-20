@@ -98,11 +98,11 @@ impl Id {
         Id(Uuid::new_v4())
     }
 
-    pub(crate) const fn nil() -> Self {
+    pub const fn nil() -> Self {
         Id(Uuid::nil())
     }
 
-    pub(crate) fn is_nil(&self) -> bool {
+    pub fn is_nil(&self) -> bool {
         self.0.is_nil()
     }
 
