@@ -22,6 +22,7 @@ use chrono::{DateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{sqlite::Sqlite, FromRow, Pool, QueryBuilder, Transaction};
 use url::Url;
+use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
@@ -50,7 +51,7 @@ use crate::{
         StateScope,
         Storage,
     },
-    DartMigrationData,
+    storage2::DartMigrationData,
 };
 
 use self::utils::SqlxSqliteResultExt;
@@ -68,6 +69,24 @@ pub(crate) struct SqliteStorage {
 }
 
 impl SqliteStorage {
+    /// Initializes the storage system.
+    ///
+    /// The `db_identifier` is storage impl. specific, e.g. in case of sqlite
+    /// this would be the file path to the database file.
+    ///
+    /// Passing in `None` means a new temporary db should be created.
+    //NOTE: Any storage implementation should have an interface like this,
+    //      but we have no reason to be generic about it for now.
+    pub(crate) async fn init_storage_system(
+        file_path: Option<String>,
+        dart_migration_data: Option<DartMigrationData>,
+        smbert: &(impl Fn(&str) -> Option<Embedding> + Sync),
+    ) -> Result<(BoxedStorage, InitDbHint), Error> {
+        self::setup::init_storage_system(file_path.map(Into::into), dart_migration_data, smbert)
+            .await
+            .map(|(storage, hint)| (Box::new(storage) as _, hint))
+    }
+
     #[allow(clippy::too_many_lines)]
     async fn store_new_documents(
         tx: &mut Transaction<'_, Sqlite>,
@@ -311,15 +330,6 @@ impl SqliteStorage {
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    async fn init_storage_system(
-        file_path: Option<String>,
-        dart_migration_data: Option<DartMigrationData>,
-    ) -> Result<(BoxedStorage, InitDbHint), Error> {
-        self::setup::init_storage_system(file_path.map(Into::into), dart_migration_data)
-            .await
-            .map(|(storage, hint)| (Box::new(storage) as _, hint))
-    }
-
     async fn clear_database(&self) -> Result<bool, Error> {
         let mut tx = self.pool.begin().await?;
 
@@ -1075,7 +1085,7 @@ mod tests {
 
     impl SqliteStorage {
         async fn test_storage_system() -> BoxedStorage {
-            SqliteStorage::init_storage_system(None, None)
+            SqliteStorage::init_storage_system(None, None, &|_| None)
                 .await
                 .unwrap()
                 .0
@@ -1218,7 +1228,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_document() {
-        let storage = super::setup::init_storage_system(None, None)
+        let storage = super::setup::init_storage_system(None, None, &|_| None)
             .await
             .unwrap()
             .0;

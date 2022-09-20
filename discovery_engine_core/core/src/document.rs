@@ -44,7 +44,9 @@ pub enum Error {
 }
 
 /// Unique identifier of the [`Document`].
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Serialize, Deserialize, Display,
+)]
 #[repr(transparent)]
 #[cfg_attr(
     feature = "storage",
