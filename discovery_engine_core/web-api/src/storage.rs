@@ -153,8 +153,6 @@ impl UserState {
         .execute(&mut tx)
         .await?;
 
-        sqlx::query("COMMIT;").execute(&mut tx).await?;
-
         tx.commit().await?;
 
         Ok(())
