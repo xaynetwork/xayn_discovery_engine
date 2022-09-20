@@ -265,7 +265,7 @@ pub struct TimeSpent {
     pub reaction: UserReaction,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
 #[repr(u32)]
 pub enum ViewMode {
