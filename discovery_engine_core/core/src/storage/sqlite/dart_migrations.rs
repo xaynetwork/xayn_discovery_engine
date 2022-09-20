@@ -214,14 +214,19 @@ impl MigrationDocument {
 
 #[cfg(test)]
 mod tests {
-    use std::{cmp::Ord, collections::HashSet, time::Duration};
+    use std::{
+        collections::{HashMap, HashSet},
+        time::Duration,
+    };
 
     use chrono::Utc;
     use ndarray::arr1;
+    use num_traits::FromPrimitive;
+    use tracing::warn;
 
     use crate::{
         document::{self, UserReaction},
-        storage::models::{ApiDocumentView, Paging, Search, SearchBy},
+        storage::models::{Paging, Search, SearchBy},
     };
 
     use super::{super::setup::init_storage_system_once, *};
@@ -283,6 +288,7 @@ mod tests {
         }};
     }
 
+    #[allow(clippy::too_many_lines)]
     #[tokio::test]
     async fn test_store_migration_data() {
         let mut data = DartMigrationData {
@@ -308,9 +314,9 @@ mod tests {
                     is_searched: false,
                     batch_index: 1,
                     timestamp: Utc::now(),
-                    story_view_time: Some(Duration::new(3, 4)),
+                    story_view_time: Some(Duration::new(3, 4_000_000)),
                     web_view_time: None,
-                    reader_view_time: Some(Duration::new(5, 6)),
+                    reader_view_time: Some(Duration::new(5, 6_000_000)),
                 },
                 MigrationDocument {
                     id: document::Id::new(),
@@ -324,7 +330,7 @@ mod tests {
                     timestamp: Utc::now(),
                     story_view_time: None,
                     web_view_time: None,
-                    reader_view_time: Some(Duration::new(5, 6)),
+                    reader_view_time: Some(Duration::new(50, 60_000_000)),
                 },
                 MigrationDocument {
                     id: document::Id::new(),
@@ -336,9 +342,9 @@ mod tests {
                     is_searched: true,
                     batch_index: 1,
                     timestamp: Utc::now(),
-                    story_view_time: Some(Duration::new(3, 4)),
-                    web_view_time: Some(Duration::new(30, 40)),
-                    reader_view_time: Some(Duration::new(5, 6)),
+                    story_view_time: Some(Duration::new(32, 42_000_000)),
+                    web_view_time: Some(Duration::new(30, 40_000_000)),
+                    reader_view_time: Some(Duration::new(52, 62_000_000)),
                 },
                 MigrationDocument {
                     id: document::Id::new(),
@@ -363,50 +369,77 @@ mod tests {
         .await
         .unwrap();
 
-        let engine_state = storage.state().fetch().await.unwrap();
-        let trusted_sources = storage.source_preference().fetch_trusted().await.unwrap();
-        let excluded_sources = storage.source_preference().fetch_excluded().await.unwrap();
-        let (search, search_docs) = storage.search().fetch().await.unwrap();
-
-        assert_eq!(engine_state, data.engine_state);
-        assert_eq!(trusted_sources, data.trusted_sources.into_iter().collect());
-        assert_eq!(
-            excluded_sources,
-            data.excluded_sources.into_iter().collect()
-        );
         assert_eq!(
             data.documents[3].smbert_embedding.as_ref(),
             Some(&Embedding::from(arr1(&[3., 2., 1.])))
         );
-        assert_eq!(Some(search), data.search);
-        assert_compare_migration_and_search_documents(&data.documents, search_docs);
+
+        let engine_state = storage.state().fetch().await.unwrap();
+        assert_eq!(engine_state, data.engine_state);
+
+        let trusted_sources = storage.source_preference().fetch_trusted().await.unwrap();
+        assert_eq!(trusted_sources, data.trusted_sources.into_iter().collect());
+
+        let excluded_sources = storage.source_preference().fetch_excluded().await.unwrap();
+        assert_eq!(
+            excluded_sources,
+            data.excluded_sources.into_iter().collect()
+        );
 
         let history = storage.fetch_history().await.unwrap();
         assert_eq!(
             history.iter().map(|d| d.id).collect::<HashSet<_>>(),
             data.documents.iter().map(|d| d.id).collect::<HashSet<_>>()
         );
-        //TODO[pmk] test view times
-        //TODO[pmk] test feed docs
-        //TODO[pmk] test filter out bad bad smbert doc
+
+        let (search, search_docs) = storage.search().fetch().await.unwrap();
+        assert_eq!(Some(search), data.search);
+        assert_eq!(search_docs.len(), 1);
+        assert_migration_doc_eq_api_doc!(data.documents[2], search_docs[0]);
+
+        let feed = storage.feed().fetch().await.unwrap();
+        assert_eq!(feed.len(), 1);
+        assert_migration_doc_eq_api_doc!(data.documents[0], feed[0]);
+
+        let view_times = fetch_all_view_times(&storage).await;
+        let mut expected_times = HashMap::<_, HashMap<_, _>>::new();
+        let expected_times_doc_0 = expected_times.entry(data.documents[0].id).or_default();
+        expected_times_doc_0.insert(ViewMode::Story, Duration::new(3, 4_000_000));
+        expected_times_doc_0.insert(ViewMode::Reader, Duration::new(5, 6_000_000));
+        let expected_times_doc_1 = expected_times.entry(data.documents[1].id).or_default();
+        expected_times_doc_1.insert(ViewMode::Reader, Duration::new(50, 60_000_000));
+        let expected_times_doc_2 = expected_times.entry(data.documents[2].id).or_default();
+        expected_times_doc_2.insert(ViewMode::Story, Duration::new(32, 42_000_000));
+        expected_times_doc_2.insert(ViewMode::Web, Duration::new(30, 40_000_000));
+        expected_times_doc_2.insert(ViewMode::Reader, Duration::new(52, 62_000_000));
+        assert_eq!(view_times, expected_times);
     }
 
-    fn assert_compare_migration_and_search_documents(
-        migration_docs: &[MigrationDocument],
-        mut search_docs: Vec<ApiDocumentView>,
-    ) {
-        let mut migration_docs = migration_docs
-            .iter()
-            .filter(|d| d.is_searched && d.is_active && d.stack_id == stack::Id::nil())
-            .collect::<Vec<_>>();
+    async fn fetch_all_view_times(
+        storage: &SqliteStorage,
+    ) -> HashMap<document::Id, HashMap<ViewMode, Duration>> {
+        let mut tx = storage.pool.begin().await.unwrap();
 
-        migration_docs.sort_by(|l, r| l.id.cmp(&r.id));
-        search_docs.sort_by(|l, r| l.document_id.cmp(&r.document_id));
+        let rows = sqlx::query_as::<_, (document::Id, u32, u32)>(
+            "SELECT documentId, viewMode, viewTimeMs FROM ViewTimes",
+        )
+        .fetch_all(&mut tx)
+        .await
+        .unwrap();
 
-        for (migration_doc, search_doc) in migration_docs.iter().zip(search_docs.iter()) {
-            assert_migration_doc_eq_api_doc!(migration_doc, search_doc);
-        }
+        tx.commit().await.unwrap();
 
-        assert_eq!(migration_docs.len(), search_docs.len());
+        rows.into_iter()
+            .fold(HashMap::new(), |mut times, (id, mode_repr, time)| {
+                if let Some(mode) = ViewMode::from_u32(mode_repr) {
+                    times
+                        .entry(id)
+                        .or_default()
+                        .insert(mode, Duration::from_millis(u64::from(time)));
+                } else {
+                    warn!("unknown view mode in test: {}", mode_repr);
+                }
+                times
+            })
     }
 }
