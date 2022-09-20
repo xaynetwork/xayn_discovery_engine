@@ -17,7 +17,7 @@ import 'dart:ffi' show Pointer, FloatPointer;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
     show Embedding;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustEmbedding;
+    show RustEmbedding, RustOptionEmbedding;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
@@ -46,5 +46,22 @@ extension EmbeddingFfi on Embedding {
     final place = ffi.alloc_uninitialized_embedding();
     writeNative(place);
     return Boxed(place, ffi.drop_embedding);
+  }
+}
+
+extension OptionEmbeddingFfi on Embedding? {
+  void writeNative(
+    final Pointer<RustOptionEmbedding> place,
+  ) {
+    final self = this;
+    if (self == null) {
+      ffi.init_option_embedding_none_at(place);
+    } else {
+      final len = self.values.length;
+      len.checkFfiUsize('Embedding.length');
+      final buffer = ffi.alloc_uninitialized_f32_slice(len);
+      buffer.asTypedList(len).setAll(0, self.values);
+      ffi.init_option_embedding_some_at(place, buffer, len);
+    }
   }
 }

@@ -28,6 +28,7 @@ pub mod history_vec;
 pub mod init_config;
 pub mod market;
 pub mod market_vec;
+pub mod migration_document;
 pub mod migration_search;
 pub mod option;
 pub mod primitives;
