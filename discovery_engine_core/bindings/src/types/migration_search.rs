@@ -22,7 +22,7 @@ use std::ptr::addr_of_mut;
 use xayn_discovery_engine_core::storage2::{Search, SearchBy};
 
 //cbindgen:ignore
-pub(super) type MigrationSearch = Search;
+pub type MigrationSearch = Search;
 
 /// Initializes a `Option<MigrationSearch>` to `None` at given place.
 ///
