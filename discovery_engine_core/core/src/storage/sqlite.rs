@@ -864,7 +864,9 @@ impl FeedbackScope for SqliteStorage {
     async fn update_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
         match self.fetch_source_reaction(source).await? {
             None => self.create_source_reaction(source, liked).await,
-            Some(reaction) if reaction == liked => self.update_source_weight(source).await,
+            Some(reaction) if reaction == liked => {
+                self.update_source_weight(source, liked.into()).await
+            }
             _ => self.delete_source_reaction(source).await,
         }
     }
@@ -935,9 +937,7 @@ impl SourcePreferenceScope for SqliteStorage {
 struct QueriedSourceReaction {
     #[allow(dead_code)]
     source: String,
-    #[allow(dead_code)]
     weight: i32,
-    liked: bool,
 }
 
 impl From<QueriedSourceReaction> for WeightedSource {
@@ -953,7 +953,7 @@ impl SourceReactionScope for SqliteStorage {
         let mut tx = self.pool.begin().await?;
 
         let reaction = sqlx::query_as::<_, QueriedSourceReaction>(
-            "SELECT source, weight, liked
+            "SELECT source, weight
             FROM SourceReaction
             WHERE source = ?;",
         )
@@ -963,7 +963,7 @@ impl SourceReactionScope for SqliteStorage {
 
         tx.commit().await?;
 
-        Ok(reaction.map(|r| r.liked))
+        Ok(reaction.map(|r| r.weight > 0))
     }
 
     async fn create_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
@@ -972,20 +972,17 @@ impl SourceReactionScope for SqliteStorage {
 
         let mut tx = self.pool.begin().await?;
 
-        sqlx::query(
-            "INSERT INTO SourceReaction (source, weight, lastUpdated, liked) VALUES (?, ?, ?, ?);",
-        )
-        .bind(source)
-        .bind(weight)
-        .bind(last_updated)
-        .bind(liked)
-        .execute(&mut tx)
-        .await?;
+        sqlx::query("INSERT INTO SourceReaction (source, weight, lastUpdated) VALUES (?, ?, ?);")
+            .bind(source)
+            .bind(weight)
+            .bind(last_updated)
+            .execute(&mut tx)
+            .await?;
 
         tx.commit().await.map_err(Into::into)
     }
 
-    async fn update_source_weight(&self, source: &str) -> Result<(), Error> {
+    async fn update_source_weight(&self, source: &str, add_weight: i32) -> Result<(), Error> {
         let last_updated = Utc::now().naive_utc();
 
         let mut tx = self.pool.begin().await?;
@@ -993,10 +990,11 @@ impl SourceReactionScope for SqliteStorage {
         sqlx::query(
             "UPDATE SourceReaction
             SET lastUpdated = ?,
-                weight = CASE WHEN liked = 1 THEN (weight + 1) END
+                weight = weight + ?
             WHERE source = ?",
         )
         .bind(last_updated)
+        .bind(add_weight)
         .bind(source)
         .execute(&mut tx)
         .await?;
