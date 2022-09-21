@@ -71,6 +71,7 @@ class LocalNewsApiServer {
         case ReplyWith.data:
           switch (request.uri.path) {
             case '/newscatcher/v1/search-news':
+            case '/_mlt':
               await _replyWithData(
                 request,
                 _snFiles.asMap()[_snCounter++] ?? 'search-news-empty.json',
