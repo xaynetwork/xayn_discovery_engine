@@ -114,102 +114,108 @@ async fn store_migration_document_data(
 
     let feed_documents = documents_iter
         .clone()
-        .filter(|doc| doc.is_active && !doc.is_searched && doc.stack_id != stack::Id::nil());
+        .filter(|doc| doc.is_active && !doc.is_searched && doc.stack_id != stack::Id::nil())
+        .collect_vec();
 
-    builder
-        .reset()
-        .push("FeedDocument(documentId) ")
-        .push_values(feed_documents, |mut query, doc| {
-            query.push_bind(doc.id);
-        })
-        .build()
-        .persistent(false)
-        .execute(&mut tx)
-        .await?;
+    if !feed_documents.is_empty() {
+        builder
+            .reset()
+            .push("FeedDocument(documentId) ")
+            .push_values(feed_documents, |mut query, doc| {
+                query.push_bind(doc.id);
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await?;
+    }
 
     let stack_documents = documents_iter
         .clone()
-        .filter(|doc| !doc.is_searched && doc.stack_id != stack::Id::nil());
+        .filter(|doc| !doc.is_searched && doc.stack_id != stack::Id::nil())
+        .collect_vec();
 
-    builder
-        .reset()
-        .push("StackDocument(documentId, stackId) ")
-        .push_values(stack_documents, |mut query, doc| {
-            query.push_bind(doc.id);
-            query.push_bind(doc.stack_id);
-        })
-        .build()
-        .persistent(false)
-        .execute(&mut tx)
-        .await?;
+    if !stack_documents.is_empty() {
+        builder
+            .reset()
+            .push("StackDocument(documentId, stackId) ")
+            .push_values(stack_documents, |mut query, doc| {
+                query.push_bind(doc.id);
+                query.push_bind(doc.stack_id);
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await?;
+    }
 
     let search_documents = documents_iter
         .clone()
-        .filter(|doc| doc.is_active && doc.is_searched && doc.stack_id == stack::Id::nil());
+        .filter(|doc| doc.is_active && doc.is_searched && doc.stack_id == stack::Id::nil())
+        .collect_vec();
 
-    builder
-        .reset()
-        .push("SearchDocument(documentId) ")
-        .push_values(search_documents, |mut query, doc| {
-            query.push_bind(doc.id);
-        })
-        .build()
-        .persistent(false)
-        .execute(&mut tx)
-        .await?;
+    if !search_documents.is_empty() {
+        builder
+            .reset()
+            .push("SearchDocument(documentId) ")
+            .push_values(search_documents, |mut query, doc| {
+                query.push_bind(doc.id);
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await?;
+    }
 
     //we can only have reacted if we have seen the document
-    let reacted_documents = documents_iter.clone().filter(|doc| doc.has_view_time());
+    let reacted_documents = documents_iter.clone().collect_vec();
 
-    builder
-        .reset()
-        .push("UserReaction(documentId, userReaction) ")
-        .push_values(reacted_documents, |mut query, doc| {
-            query.push_bind(doc.id);
-            query.push_bind(doc.reaction as u32);
-        })
-        .build()
-        .persistent(false)
-        .execute(&mut tx)
-        .await?;
+    if !reacted_documents.is_empty() {
+        builder
+            .reset()
+            .push("UserReaction(documentId, userReaction) ")
+            .push_values(reacted_documents, |mut query, doc| {
+                query.push_bind(doc.id);
+                query.push_bind(doc.reaction as u32);
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await?;
+    }
 
-    let viewed_documents = documents_iter.clone().filter(|doc| doc.has_view_time());
     let view_info = chain!(
-        viewed_documents.clone().filter_map(|doc| {
+        documents_iter.clone().clone().filter_map(|doc| {
             doc.story_view_time
                 .map(|time| (doc.id, ViewMode::Story, time))
         }),
-        viewed_documents.clone().filter_map(|doc| {
+        documents_iter.clone().clone().filter_map(|doc| {
             doc.reader_view_time
                 .map(|time| (doc.id, ViewMode::Reader, time))
         }),
-        viewed_documents
+        documents_iter
+            .clone()
             .filter_map(|doc| { doc.web_view_time.map(|time| (doc.id, ViewMode::Web, time)) })
-    );
+    )
+    .collect_vec();
 
-    builder
-        .reset()
-        .push("ViewTimes(documentId, viewMode, viewTimeMs) ")
-        .push_values(view_info, |mut query, (id, mode, time)| {
-            query.push_bind(id);
-            query.push_bind(mode as u32);
-            query.push_bind(u32::try_from(time.as_millis()).ok().unwrap_or(u32::MAX));
-        })
-        .build()
-        .persistent(false)
-        .execute(&mut tx)
-        .await?;
+    if !view_info.is_empty() {
+        builder
+            .reset()
+            .push("ViewTimes(documentId, viewMode, viewTimeMs) ")
+            .push_values(view_info, |mut query, (id, mode, time)| {
+                query.push_bind(id);
+                query.push_bind(mode as u32);
+                query.push_bind(u32::try_from(time.as_millis()).ok().unwrap_or(u32::MAX));
+            })
+            .build()
+            .persistent(false)
+            .execute(&mut tx)
+            .await?;
+    }
 
     tx.commit().await?;
     Ok(())
-}
-
-impl MigrationDocument {
-    fn has_view_time(&self) -> bool {
-        !(self.web_view_time.map_or(true, |d| d.is_zero())
-            & self.reader_view_time.map_or(true, |d| d.is_zero())
-            & self.story_view_time.map_or(true, |d| d.is_zero()))
-    }
 }
 
 #[cfg(test)]
