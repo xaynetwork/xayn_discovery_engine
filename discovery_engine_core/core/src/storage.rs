@@ -178,7 +178,7 @@ pub(crate) trait SourceReactionScope {
 
     async fn create_source_reaction(&self, source: &str, like: bool) -> Result<(), Error>;
 
-    async fn update_source_weight(&self, source: &str) -> Result<(), Error>;
+    async fn update_source_weight(&self, source: &str, add_weight: i32) -> Result<(), Error>;
 
     async fn delete_source_reaction(&self, source: &str) -> Result<(), Error>;
 }

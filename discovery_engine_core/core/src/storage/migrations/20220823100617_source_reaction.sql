@@ -16,7 +16,5 @@ CREATE TABLE IF NOT EXISTS SourceReaction (
     source TEXT NOT NULL PRIMARY KEY,
     weight INTEGER NOT NULL,
     -- format should be RFC3339/ISO8601 & sqlite compliant
-    lastUpdated TEXT NOT NULL,
-    -- 0 = FALSE, 1 = TRUE
-    liked INTEGER NOT NULL
+    lastUpdated TEXT NOT NULL
 );
