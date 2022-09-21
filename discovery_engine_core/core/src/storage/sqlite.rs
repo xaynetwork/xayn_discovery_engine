@@ -367,7 +367,7 @@ impl Storage for SqliteStorage {
         let mut tx = self.pool.begin().await?;
 
         let sources = sqlx::query_as::<_, QueriedSourceReaction>(
-            "SELECT source, weight, liked
+            "SELECT source, weight
              FROM SourceReaction;",
         )
         .fetch_all(&mut tx)
