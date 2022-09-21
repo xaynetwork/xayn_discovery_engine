@@ -81,10 +81,10 @@ class MigrationDocument {
         .writeNative(ffi.migration_document_place_of_reaction(place));
     document.resource
         .writeNative(ffi.migration_document_place_of_resource(place));
-    ffi.init_migration_document_is_active_at(place, document.isActive as int);
+    ffi.init_migration_document_is_active_at(place, document.isActive ? 1 : 0);
     ffi.init_migration_document_is_searched_at(
       place,
-      document.isSearched as int,
+      document.isSearched ? 1 : 0,
     );
 
     // ignore: deprecated_member_use_from_same_package

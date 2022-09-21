@@ -105,7 +105,7 @@ pub unsafe extern "C" fn init_migration_document_is_active_at(
     place: *mut MigrationDocument,
     is_active: u8,
 ) {
-    unsafe { addr_of_mut!((*place).is_active).write(is_active == 0) }
+    unsafe { addr_of_mut!((*place).is_active).write(is_active != 0) }
 }
 
 /// Inits the `is_searched` field of an [`MigrationDocument`] memory object.
@@ -121,7 +121,7 @@ pub unsafe extern "C" fn init_migration_document_is_searched_at(
     place: *mut MigrationDocument,
     is_searched: u8,
 ) {
-    unsafe { addr_of_mut!((*place).is_searched).write(is_searched == 0) }
+    unsafe { addr_of_mut!((*place).is_searched).write(is_searched != 0) }
 }
 
 /// Returns a pointer to the `batch_index` field of a [`MigrationDocument`].
