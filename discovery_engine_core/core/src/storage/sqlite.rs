@@ -14,7 +14,6 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    iter,
     time::Duration,
 };
 
@@ -328,10 +327,11 @@ impl SqliteStorage {
         Ok(sources)
     }
 
-    async fn store_source_reactions(
-        &self,
-        reactions: impl IntoIterator<Item = &WeightedSource> + Send,
-    ) -> Result<(), Error> {
+    async fn store_source_reactions(&self, reactions: &[WeightedSource]) -> Result<(), Error> {
+        if reactions.is_empty() {
+            return Ok(());
+        }
+
         let mut tx = self.pool.begin().await?;
 
         let now = Utc::now().naive_utc();
@@ -1008,10 +1008,10 @@ impl SourceReactionScope for SqliteStorage {
     async fn create_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
         let weight = if liked { 1 } else { -1 };
 
-        self.store_source_reactions(iter::once(&WeightedSource {
+        self.store_source_reactions(&[WeightedSource {
             source: source.into(),
             weight,
-        }))
+        }])
         .await
     }
 

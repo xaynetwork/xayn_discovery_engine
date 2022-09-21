@@ -59,7 +59,7 @@ pub(super) async fn store_migration_data(
         .await?;
 
     storage
-        .store_source_reactions(data.reacted_sources.iter())
+        .store_source_reactions(&data.reacted_sources)
         .await?;
 
     if let Some(search) = &data.search {
