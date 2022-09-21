@@ -61,13 +61,13 @@ class DartMigrationData {
     HiveSourceReactedRepository sourceReactedRepository,
     HiveSourcePreferenceRepository sourcePreferenceRepository,
   ) async {
-    if (await engineStateRepository.isEmpty() &&
-        await documentRepository.isEmpty() &&
-        await activeSearchRepository.isEmpty() &&
-        await activeDocumentDataRepository.isEmpty() &&
+    if (engineStateRepository.isEmpty &&
+        documentRepository.isEmpty &&
+        activeSearchRepository.isEmpty &&
+        activeDocumentDataRepository.isEmpty &&
         //FIXME even with cfgFeatureStorage we still set this values to hive
         // sourcePreferenceRepository.box.isEmpty &&
-        await sourceReactedRepository.isEmpty()) {
+        sourceReactedRepository.isEmpty) {
       return null;
     }
 

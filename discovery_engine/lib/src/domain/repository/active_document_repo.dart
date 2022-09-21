@@ -39,5 +39,5 @@ abstract class ActiveDocumentDataRepository {
   Future<void> clear();
 
   /// Checks if the repository is semantically empty.
-  Future<bool> isEmpty();
+  bool get isEmpty;
 }

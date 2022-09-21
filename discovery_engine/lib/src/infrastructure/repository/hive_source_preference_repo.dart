@@ -63,5 +63,5 @@ class HiveSourcePreferenceRepository implements SourcePreferenceRepository {
   }
 
   @override
-  Future<bool> isEmpty() => Future.value(box.isEmpty);
+  bool get isEmpty => box.isEmpty;
 }

@@ -224,12 +224,12 @@ void main() {
 
       await HiveInjection.accessRepositories(data.applicationDirectoryPath,
           (repos) async {
-        expect(await repos.engineStateRepository.isEmpty(), isTrue);
-        expect(await repos.documentRepository.isEmpty(), isTrue);
-        expect(await repos.activeSearchRepository.isEmpty(), isTrue);
-        expect(await repos.activeDocumentDataRepository.isEmpty(), isTrue);
-        expect(await repos.sourceReactedRepository.isEmpty(), isTrue);
-        expect(await repos.sourcePreferenceRepository.isEmpty(), isTrue);
+        expect(repos.engineStateRepository.isEmpty, isTrue);
+        expect(repos.documentRepository.isEmpty, isTrue);
+        expect(repos.activeSearchRepository.isEmpty, isTrue);
+        expect(repos.activeDocumentDataRepository.isEmpty, isTrue);
+        expect(repos.sourceReactedRepository.isEmpty, isTrue);
+        expect(repos.sourcePreferenceRepository.isEmpty, isTrue);
       });
     });
 
@@ -248,12 +248,12 @@ void main() {
 
       await HiveInjection.accessRepositories(data.applicationDirectoryPath,
           (repos) async {
-        expect(await repos.engineStateRepository.isEmpty(), isTrue);
-        expect(await repos.documentRepository.isEmpty(), isTrue);
-        expect(await repos.activeSearchRepository.isEmpty(), isTrue);
-        expect(await repos.activeDocumentDataRepository.isEmpty(), isTrue);
-        expect(await repos.sourceReactedRepository.isEmpty(), isTrue);
-        expect(await repos.sourcePreferenceRepository.isEmpty(), isTrue);
+        expect(repos.engineStateRepository.isEmpty, isTrue);
+        expect(repos.documentRepository.isEmpty, isTrue);
+        expect(repos.activeSearchRepository.isEmpty, isTrue);
+        expect(repos.activeDocumentDataRepository.isEmpty, isTrue);
+        expect(repos.sourceReactedRepository.isEmpty, isTrue);
+        expect(repos.sourcePreferenceRepository.isEmpty, isTrue);
       });
     });
 
@@ -348,12 +348,12 @@ void main() {
 
       await HiveInjection.accessRepositories(data.applicationDirectoryPath,
           (repos) async {
-        expect(await repos.engineStateRepository.isEmpty(), isTrue);
-        expect(await repos.documentRepository.isEmpty(), isTrue);
-        expect(await repos.activeSearchRepository.isEmpty(), isTrue);
-        expect(await repos.activeDocumentDataRepository.isEmpty(), isTrue);
-        expect(await repos.sourceReactedRepository.isEmpty(), isTrue);
-        expect(await repos.sourcePreferenceRepository.isEmpty(), isTrue);
+        expect(repos.engineStateRepository.isEmpty, isTrue);
+        expect(repos.documentRepository.isEmpty, isTrue);
+        expect(repos.activeSearchRepository.isEmpty, isTrue);
+        expect(repos.activeDocumentDataRepository.isEmpty, isTrue);
+        expect(repos.sourceReactedRepository.isEmpty, isTrue);
+        expect(repos.sourcePreferenceRepository.isEmpty, isTrue);
       });
     });
 

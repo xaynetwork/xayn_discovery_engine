@@ -60,5 +60,5 @@ class HiveDocumentRepository extends DocumentRepository {
   }
 
   @override
-  Future<bool> isEmpty() => Future.value(box.isEmpty);
+  bool get isEmpty => box.isEmpty;
 }

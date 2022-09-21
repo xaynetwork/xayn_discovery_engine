@@ -39,5 +39,5 @@ class HiveActiveSearchRepository implements ActiveSearchRepository {
   Future<void> save(ActiveSearch data) => box.put(stateKey, data);
 
   @override
-  Future<bool> isEmpty() => Future.value(box.isEmpty);
+  bool get isEmpty => box.isEmpty;
 }

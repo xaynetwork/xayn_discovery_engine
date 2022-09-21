@@ -39,5 +39,5 @@ class HiveEngineStateRepository implements EngineStateRepository {
   }
 
   @override
-  Future<bool> isEmpty() => Future.value(box.isEmpty);
+  bool get isEmpty => box.isEmpty;
 }
