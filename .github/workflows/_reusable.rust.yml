@@ -34,7 +34,7 @@ jobs:
           rust: true
 
       - name: rust check without storage
-        run: just rust-check
+        run: XAYN_DE_FEATURES="" just rust-check
 
       - name: rust check with storage
         run: XAYN_DE_FEATURES=storage just rust-check
@@ -56,7 +56,7 @@ jobs:
         run: just download-assets
 
       - name: Run tests without storage
-        run: just rust-test
+        run: XAYN_DE_FEATURES="" just rust-test
 
       - name: Run tests with storage
         run: XAYN_DE_FEATURES=storage just rust-test
