@@ -24,4 +24,7 @@ abstract class EngineStateRepository {
 
   /// Remove current engine state.
   Future<void> clear();
+
+  /// Checks if the repository is semantically empty.
+  Future<bool> isEmpty();
 }
