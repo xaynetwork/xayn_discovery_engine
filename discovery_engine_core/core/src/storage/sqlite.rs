@@ -1364,6 +1364,63 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_source_reaction() {
+        let storage = SqliteStorage::test_storage_system().await;
+
+        let sources = storage.fetch_weighted_sources().await.unwrap();
+        assert!(sources.is_empty());
+
+        storage
+            .feedback()
+            .update_source_reaction("a", true)
+            .await
+            .unwrap();
+
+        storage
+            .feedback()
+            .update_source_reaction("b", false)
+            .await
+            .unwrap();
+
+        let sources = storage.fetch_weighted_sources().await.unwrap();
+        assert_eq!(sources.len(), 2);
+        assert!(sources.iter().any(|ws| ws.source == "a" && ws.weight == 1));
+        assert!(sources.iter().any(|ws| ws.source == "b" && ws.weight == -1));
+
+        storage
+            .feedback()
+            .update_source_reaction("a", true)
+            .await
+            .unwrap();
+
+        storage
+            .feedback()
+            .update_source_reaction("b", false)
+            .await
+            .unwrap();
+
+        let sources = storage.fetch_weighted_sources().await.unwrap();
+        assert_eq!(sources.len(), 2);
+        assert!(sources.iter().any(|ws| ws.source == "a" && ws.weight == 2));
+        assert!(sources.iter().any(|ws| ws.source == "b" && ws.weight == -1));
+
+        storage
+            .feedback()
+            .update_source_reaction("a", false)
+            .await
+            .unwrap();
+
+        storage
+            .feedback()
+            .update_source_reaction("b", true)
+            .await
+            .unwrap();
+
+        let sources = storage.fetch_weighted_sources().await.unwrap();
+        assert!(sources.is_empty());
+    }
+
+    #[tokio::test]
     async fn test_source_preference() {
         let storage = SqliteStorage::test_storage_system().await;
 
