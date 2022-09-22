@@ -84,7 +84,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
         .map(|ingestion_doc| {
             let embedding = smbert.run(&ingestion_doc.snippet).unwrap();
             let document = PersonalizedDocument::new((ingestion_doc, embedding));
-            (document.id.clone(), document)
+            (document.id.0.clone(), document)
         })
         .collect();
     let app_state = AppState::new(documents, smbert, config.user_state.clone());
