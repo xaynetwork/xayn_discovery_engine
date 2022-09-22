@@ -33,28 +33,42 @@ pub(crate) enum Error {
 
     /// Failed to decode [`UserId] from path param: {0}.
     UserIdUtf8Conversion(#[from] FromUtf8Error),
+
+    /// Elastic search error: {0}
+    Elastic(#[source] reqwest::Error),
+
+    /// Error receiving response: {0}
+    Receiving(#[source] reqwest::Error),
 }
+
+/// A unique identifier of a document.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display)]
+pub(crate) struct DocumentId(pub(crate) String);
 
 /// Represents a result from a query.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Document {
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct PersonalizedDocument {
     /// Unique identifier of the document.
-    pub(crate) id: Id,
+    pub(crate) id: DocumentId,
+
+    /// Similarity score of the personalized document.
+    pub(crate) score: f32,
 
     /// Embedding from smbert.
-    pub(crate) smbert_embedding: Embedding,
+    #[serde(skip_serializing)]
+    pub(crate) embedding: Embedding,
 
-    /// Contents of the article.
-    pub(crate) article: Article,
+    /// Contents of the document properties.
+    pub(crate) properties: DocumentProperties,
 }
 
-impl Document {
-    pub(crate) fn new((article, smbert_embedding): (Article, Embedding)) -> Self {
-        let id = Uuid::new_v4().into();
+impl PersonalizedDocument {
+    pub(crate) fn new((ingested_doc, embedding): (IngestedDocument, Embedding)) -> Self {
         Self {
-            id,
-            smbert_embedding,
-            article,
+            id: DocumentId(ingested_doc.id),
+            score: 0.0,
+            embedding,
+            properties: ingested_doc.properties,
         }
     }
 }
@@ -67,18 +81,25 @@ impl AiDocument for Document {
     }
 
     fn smbert_embedding(&self) -> &Embedding {
-        &self.smbert_embedding
+        &self.embedding
     }
 }
 
-/// Represents an article that is stored and loaded from local json file.
-pub(crate) type Article = HashMap<String, serde_json::Value>;
+/// Represents a document sent for ingestion.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct IngestedDocument {
+    /// Unique identifier of the document.
+    pub(crate) id: String,
 
-impl From<Document> for Article {
-    fn from(doc: Document) -> Self {
-        doc.article
-    }
+    /// Snippet used to calculate embeddings for a document.
+    pub(crate) snippet: String,
+
+    /// Contents of the document properties.
+    pub(crate) properties: DocumentProperties,
 }
+
+/// Arbitrary properties that can be attached to a document.
+pub(crate) type DocumentProperties = HashMap<String, serde_json::Value>;
 
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Serialize, Deserialize)]
