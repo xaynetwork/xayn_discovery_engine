@@ -126,7 +126,9 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
 }
 
 impl AiDocument for Document {
-    fn id(&self) -> DocumentId {
+    type Id = DocumentId;
+
+    fn id(&self) -> Self::Id {
         self.id.into()
     }
 
@@ -351,7 +353,9 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
 }
 
 impl AiDocument for TrendingTopic {
-    fn id(&self) -> DocumentId {
+    type Id = DocumentId;
+
+    fn id(&self) -> Self::Id {
         self.id.into()
     }
 

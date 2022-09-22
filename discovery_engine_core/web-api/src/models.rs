@@ -20,7 +20,7 @@ use std::{collections::HashMap, str::FromStr, string::FromUtf8Error};
 use thiserror::Error;
 use uuid::Uuid;
 
-use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId, Embedding};
+use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 use xayn_discovery_engine_core::document::Id;
 
 /// Web API errors.
@@ -61,8 +61,10 @@ impl Document {
 }
 
 impl AiDocument for Document {
-    fn id(&self) -> DocumentId {
-        self.id.into()
+    type Id = Id;
+
+    fn id(&self) -> Self::Id {
+        self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {
