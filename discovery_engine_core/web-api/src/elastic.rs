@@ -103,7 +103,7 @@ fn convert_response(response: Response<ElasticDocumentData>) -> Vec<Personalized
         .hits
         .into_iter()
         .map(|hit| PersonalizedDocument {
-            id: DocumentId(hit.id),
+            id: hit.id,
             score: hit.score,
             embedding: Embedding::from(Array::from_vec(hit.source.embedding)),
             properties: hit.source.properties,

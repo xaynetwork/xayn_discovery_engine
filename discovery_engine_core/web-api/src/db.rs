@@ -67,7 +67,7 @@ pub(crate) struct InitConfig {
     pub(crate) elastic: elastic::Config,
 }
 
-// NOTE this will be removed by follow up tasks so it's not necessary to validate data here anymore
+// NOTE this will be removed by follow up tasks so it's not necessary to validate data here
 pub(crate) fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
     let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)?
         .with_accents(AccentChars::Cleanse)
@@ -84,7 +84,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
         .map(|ingestion_doc| {
             let embedding = smbert.run(&ingestion_doc.snippet).unwrap();
             let document = PersonalizedDocument::new((ingestion_doc, embedding));
-            (document.id.0.clone(), document)
+            (document.id.clone(), document)
         })
         .collect();
     let app_state = AppState::new(documents, smbert, config.user_state.clone());
