@@ -97,7 +97,8 @@ impl UserState {
 
     pub(crate) async fn update_positive_cois<F>(
         &self,
-        id: &UserId,
+        doc_id: &str,
+        user_id: &UserId,
         update_cois: F,
     ) -> Result<(), GenericError>
     where
@@ -113,7 +114,7 @@ impl UserState {
             WHERE user_id = $1 AND is_positive 
             FOR UPDATE;",
         )
-        .bind(id.as_ref())
+        .bind(user_id.as_ref())
         .fetch_all(&mut tx)
         .await?
         .into_iter()
@@ -144,12 +145,22 @@ impl UserState {
                 last_view = EXCLUDED.last_view;",
         )
         .bind(updated_coi.id.as_ref())
-        .bind(id.as_ref())
+        .bind(user_id.as_ref())
         .bind(true)
         .bind(updated_coi.point.to_vec())
         .bind(updated_coi.stats.view_count as i32)
         .bind(updated_coi.stats.view_time.as_millis() as i64)
         .bind(timestamp)
+        .execute(&mut tx)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO document (doc_id, user_id)
+            VALUES ($1, $2)
+            ON CONFLICT (doc_id, user_id) DO NOTHING;",
+        )
+        .bind(doc_id)
+        .bind(user_id.as_ref())
         .execute(&mut tx)
         .await?;
 
@@ -163,11 +174,19 @@ impl UserState {
 
         let deletion = sqlx::query("DELETE FROM center_of_interest;")
             .execute(&mut tx)
-            .await?;
+            .await?
+            .rows_affected()
+            > 0;
+        let deletion = sqlx::query("DELETE FROM document;")
+            .execute(&mut tx)
+            .await?
+            .rows_affected()
+            > 0
+            || deletion;
 
         tx.commit().await?;
 
-        Ok(deletion.rows_affected() > 0)
+        Ok(deletion)
     }
 }
 
