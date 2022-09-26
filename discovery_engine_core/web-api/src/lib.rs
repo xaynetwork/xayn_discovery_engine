@@ -12,17 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod db;
 mod elastic;
 mod handlers;
 mod models;
 mod routes;
+mod state;
 mod storage;
 
 pub use crate::{
-    db::{init_db, InitConfig},
     elastic::{Config as ElasticConfig, ElasticDocumentData},
     models::DocumentProperties,
     routes::api_routes,
+    state::{AppState, InitConfig},
     storage::UserState,
 };

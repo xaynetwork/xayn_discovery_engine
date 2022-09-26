@@ -3,9 +3,6 @@ name: Web Service Release
 on:
   workflow_dispatch:
     inputs:
-      data_json_url:
-        required: true
-        description: A json file url with the data needed for the service (i.e. pastebin.pl)
       tag:
         required: false
         description: a tag that will be used for identifying this version (xaynetci/xayn_discovery_web_service:$TAG)
@@ -34,9 +31,6 @@ jobs:
       - name: Build artifacts
         run: just build-web-service
 
-      - name: Download assets
-        run: just download-assets
-
       - name: Prepare temp directory
         working-directory: ${{ runner.temp }}
         run: |
@@ -49,9 +43,6 @@ jobs:
           cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/target/release/web-api ./web-service/web-api
           cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/.env ./web-service/.env
           cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/Dockerfile.web-api ./web-service/Dockerfile
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/smbert.onnx ./web-service/assets/model.onnx
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/vocab.txt ./web-service/assets/vocab.txt
-          curl "${{ github.event.inputs.data_json_url }}" > ./web-service/assets/data.json
           tar -cvf web-service.tar ./web-service
 
       - name: Upload archive

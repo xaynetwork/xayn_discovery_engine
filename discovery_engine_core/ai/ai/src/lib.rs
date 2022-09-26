@@ -41,8 +41,9 @@ pub mod utils;
 pub use crate::{
     coi::{
         config::{Config as CoiConfig, Error as CoiConfigError},
+        context::Error as CoiContextError,
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
-        stats::CoiStats,
+        stats::{compute_coi_relevances, CoiStats},
         system::System as CoiSystem,
         CoiId,
     },
@@ -59,7 +60,7 @@ pub use crate::{
         key_phrase::{KeyPhrase, KeyPhrases},
         system::System as KpsSystem,
     },
-    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
+    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, system_time_now},
 };
 
 #[cfg(doc)]

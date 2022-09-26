@@ -400,21 +400,27 @@ db-migrate +ARGS:
     export $(cat .env.db.dev | xargs)
     cargo sqlx migrate --source "core/src/storage/migrations" {{ARGS}}
 
-web-service-up: build-web-service
+web-ingestion-up: build-ingestion-service
     #!/usr/bin/env bash
     set -eux -o pipefail
     rm -rf "$RUST_WORKSPACE/web-api/assets"
     mkdir -p "$RUST_WORKSPACE/web-api/assets"
     ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
     ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
-    ln -s "../dummy_data.json" "$RUST_WORKSPACE/web-api/assets/data.json"
+    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+    sleep 2
+    cd "$RUST_WORKSPACE/web-api"
+    ./../target/release/ingestion
 
+web-api-up: build-web-service
+    #!/usr/bin/env bash
+    set -eux -o pipefail
     docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     sleep 2
     cd "$RUST_WORKSPACE/web-api"
     ./../target/release/web-api
 
-web-service-down:
+web-down:
     #!/usr/bin/env bash
     set -eux -o pipefail
     docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
