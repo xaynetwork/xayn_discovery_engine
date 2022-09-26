@@ -143,7 +143,7 @@ async fn main() -> Result<(), GenericError> {
     let client = Client::new();
     let model = init_model(&config)?;
 
-    let routes = post_add_data(config, model, client)
+    let routes = post_documents(config, model, client)
         .recover(handle_rejection)
         .with(warp::trace::request());
 
@@ -170,13 +170,13 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
     Ok(Arc::new(smbert))
 }
 
-// POST /add_data
-fn post_add_data(
+// POST /documents
+fn post_documents(
     config: Config,
     model: Model,
     client: Client,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::path("add_data")
+    warp::path("documents")
         .and(warp::post())
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
