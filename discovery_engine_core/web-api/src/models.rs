@@ -35,6 +35,19 @@ pub(crate) enum IdValidationError {
     InvalidUtf8(#[from] FromUtf8Error),
 }
 
+fn validate_id_from_string(id: impl AsRef<str>) -> Result<(), IdValidationError> {
+    let id = id.as_ref();
+
+    if id.is_empty() {
+        return Err(IdValidationError::Empty);
+    }
+    if id.contains('\u{0000}') {
+        return Err(IdValidationError::ContainsNul);
+    }
+
+    Ok(())
+}
+
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Document {
@@ -91,16 +104,12 @@ pub(crate) struct InteractionRequestBody {
 pub(crate) struct UserId(String);
 
 impl UserId {
-    fn new(value: String) -> Result<Self, IdValidationError> {
-        let value = urlencoding::decode(&value).map_err(IdValidationError::InvalidUtf8)?;
+    fn new(id: String) -> Result<Self, IdValidationError> {
+        let id = urlencoding::decode(&id).map_err(IdValidationError::InvalidUtf8)?;
 
-        if value.is_empty() {
-            Err(IdValidationError::Empty)
-        } else if value.contains('\u{0000}') {
-            Err(IdValidationError::ContainsNul)
-        } else {
-            Ok(Self(value.to_string()))
-        }
+        validate_id_from_string(&*id)?;
+
+        Ok(Self(id.into_owned()))
     }
 }
 
