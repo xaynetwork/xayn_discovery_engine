@@ -22,7 +22,7 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::{CoiPoint, CoiSystem, GenericError, KeyPhrase, UserInterests};
+use xayn_discovery_engine_ai::{CoiPoint, GenericError, KeyPhrase, UserInterests};
 use xayn_discovery_engine_providers::{GenericArticle, Market};
 
 use crate::{
@@ -146,9 +146,9 @@ impl Stack {
     /// Updates the internal documents with the new one and returns an updated [`Stack`].
     pub(crate) fn update(
         &mut self,
-        new_documents: &[Document],
-        coi: &CoiSystem,
         user_interests: &UserInterests,
+        ranker: impl FnOnce(&mut [Document]),
+        new_documents: &[Document],
     ) -> Result<(), Error> {
         Self::validate_documents_stack_id(new_documents, self.ops.id())?;
 
@@ -161,7 +161,7 @@ impl Stack {
             user_interests.negative.iter().map(|coi| coi.point().view()),
             self.config.max_negative_similarity,
         );
-        coi.rank(&mut documents, user_interests);
+        ranker(&mut documents);
         self.data.documents = documents;
         self.data.documents.reverse();
 
@@ -173,8 +173,8 @@ impl Stack {
     /// This is useful when the [`Engine`] has been updated.
     ///
     /// [`Engine`]: crate::engine::Engine
-    pub(crate) fn rank(&mut self, coi: &CoiSystem, user_interests: &UserInterests) {
-        coi.rank(&mut self.data.documents, user_interests);
+    pub(crate) fn rank(&mut self, ranker: impl FnOnce(&mut [Document])) {
+        ranker(&mut self.data.documents);
         self.data.documents.reverse();
     }
 

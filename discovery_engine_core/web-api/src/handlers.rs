@@ -14,7 +14,7 @@
 
 use warp::{hyper::StatusCode, reject::Reject, Rejection};
 
-use xayn_discovery_engine_ai::GenericError;
+use xayn_discovery_engine_ai::{utils::rank, GenericError};
 
 use crate::{
     db::Db,
@@ -33,7 +33,9 @@ pub(crate) async fn handle_ranked_documents(
 
     let mut documents = db.documents.clone();
 
-    db.coi.rank(&mut documents, &user_interests);
+    // TODO TO-3339: Return 500 with the correct kind if this fail
+    let scores = db.coi.score(&mut documents, &user_interests).unwrap();
+    rank(&mut documents, &scores);
 
     let articles = documents
         .into_iter()

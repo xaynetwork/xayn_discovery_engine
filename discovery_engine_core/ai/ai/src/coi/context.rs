@@ -34,7 +34,7 @@ use crate::{
 
 #[derive(Error, Debug, Display)]
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum Error {
+pub enum Error {
     /// Not enough cois
     NotEnoughCois,
     /// Failed to find the closest cois

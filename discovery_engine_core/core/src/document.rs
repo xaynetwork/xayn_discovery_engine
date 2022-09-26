@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{offset::Utc, DateTime};
 use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
@@ -134,10 +134,6 @@ impl AiDocument for Document {
 
     fn smbert_embedding(&self) -> &Embedding {
         &self.smbert_embedding
-    }
-
-    fn date_published(&self) -> DateTime<Utc> {
-        self.resource.date_published
     }
 }
 
@@ -361,11 +357,6 @@ impl AiDocument for TrendingTopic {
 
     fn smbert_embedding(&self) -> &Embedding {
         &self.smbert_embedding
-    }
-
-    fn date_published(&self) -> DateTime<Utc> {
-        // return a default value as there is no `date_published` for trending topics
-        DateTime::<Utc>::MIN_UTC
     }
 }
 

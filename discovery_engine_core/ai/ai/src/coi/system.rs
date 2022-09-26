@@ -12,14 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
-use tracing::{debug, info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
     coi::{
         config::Config,
+        context,
         context::compute_scores_for_docs,
         point::{
             find_closest_coi_index,
@@ -32,7 +33,6 @@ use crate::{
     },
     document::Document,
     embedding::Embedding,
-    nan_safe_f32_cmp_desc,
 };
 
 /// The center of interest (coi) system.
@@ -90,43 +90,29 @@ impl System {
         }
     }
 
-    /// Ranks the given documents in descending order of relevancy based on the
-    /// learned user interests.
     #[instrument(skip_all)]
-    pub fn rank(&self, documents: &mut [impl Document], user_interests: &UserInterests) {
-        if documents.len() < 2 {
-            return;
-        }
-
-        if let Ok(scores_for_docs) =
-            compute_scores_for_docs(documents, user_interests, &self.config)
-        {
-            for (document, score) in &scores_for_docs {
-                debug!(%document, score);
-            }
-            documents.sort_unstable_by(|this, other| {
-                nan_safe_f32_cmp_desc(
-                    scores_for_docs.get(&this.id()).unwrap(),
-                    scores_for_docs.get(&other.id()).unwrap(),
-                )
-            });
-        } else {
-            info!(message = "no scores could be computed");
-            documents
-                .sort_unstable_by(|this, other| other.date_published().cmp(&this.date_published()));
-        }
+    /// Return the score of each document given the interests of the user.
+    pub fn score<D>(
+        &self,
+        documents: &mut [D],
+        user_interests: &UserInterests,
+    ) -> Result<HashMap<D::Id, f32>, context::Error>
+    where
+        D: Document,
+    {
+        compute_scores_for_docs(documents, user_interests, &self.config)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::{TimeZone, Utc};
     use ndarray::arr1;
 
     use super::*;
     use crate::{
         coi::point::tests::{create_neg_cois, create_pos_cois},
         document::{tests::TestDocument, DocumentId},
+        utils,
     };
 
     #[test]
@@ -195,10 +181,10 @@ mod tests {
     #[test]
     fn test_rank() {
         let mut documents = vec![
-            TestDocument::new(0, arr1(&[3., 7., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 3)),
-            TestDocument::new(1, arr1(&[1., 0., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 2)),
-            TestDocument::new(2, arr1(&[1., 2., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 1)),
-            TestDocument::new(3, arr1(&[5., 3., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 0)),
+            TestDocument::new(0, arr1(&[3., 7., 0.])),
+            TestDocument::new(1, arr1(&[1., 0., 0.])),
+            TestDocument::new(2, arr1(&[1., 2., 0.])),
+            TestDocument::new(3, arr1(&[5., 3., 0.])),
         ];
         let user_interests = UserInterests {
             positive: create_pos_cois(&[[1., 0., 0.], [4., 12., 2.]]),
@@ -210,7 +196,8 @@ mod tests {
             .with_min_negative_cois(1)
             .build();
 
-        system.rank(&mut documents, &user_interests);
+        let scores = system.score(&mut documents, &user_interests).unwrap();
+        utils::rank(&mut documents, &scores);
 
         assert_eq!(documents[0].id(), DocumentId::from_u128(1));
         assert_eq!(documents[1].id(), DocumentId::from_u128(3));
@@ -221,28 +208,13 @@ mod tests {
     #[test]
     fn test_rank_no_user_interests() {
         let mut documents = vec![
-            TestDocument::new(0, arr1(&[0., 0., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 3)),
-            TestDocument::new(1, arr1(&[0., 0., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 1)),
-            TestDocument::new(2, arr1(&[0., 0., 0.]), Utc.ymd(2000, 1, 1).and_hms(0, 0, 2)),
+            TestDocument::new(0, arr1(&[0., 0., 0.])),
+            TestDocument::new(1, arr1(&[0., 0., 0.])),
+            TestDocument::new(2, arr1(&[0., 0., 0.])),
         ];
         let user_interests = UserInterests::default();
         let system = Config::default().with_min_positive_cois(1).unwrap().build();
 
-        system.rank(&mut documents, &user_interests);
-
-        assert_eq!(documents[0].id(), DocumentId::from_u128(0));
-        assert_eq!(documents[1].id(), DocumentId::from_u128(2));
-        assert_eq!(documents[2].id(), DocumentId::from_u128(1));
-    }
-
-    #[test]
-    fn test_rank_no_documents() {
-        let mut documents = Vec::<TestDocument>::new();
-        let user_interests = UserInterests::default();
-        let system = Config::default().build();
-
-        system.rank(&mut documents, &user_interests);
-
-        assert!(documents.is_empty());
+        assert!(system.score(&mut documents, &user_interests).is_err());
     }
 }
