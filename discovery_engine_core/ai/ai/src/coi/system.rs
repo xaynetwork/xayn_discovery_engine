@@ -94,7 +94,7 @@ impl System {
     /// Return the score of each document given the interests of the user.
     pub fn score<D>(
         &self,
-        documents: &mut [D],
+        documents: &[D],
         user_interests: &UserInterests,
     ) -> Result<HashMap<D::Id, f32>, context::Error>
     where
@@ -196,18 +196,18 @@ mod tests {
             .with_min_negative_cois(1)
             .build();
 
-        let scores = system.score(&mut documents, &user_interests).unwrap();
+        let scores = system.score(&documents, &user_interests).unwrap();
         utils::rank(&mut documents, &scores);
 
-        assert_eq!(documents[0].id(), DocumentId::from_u128(1));
-        assert_eq!(documents[1].id(), DocumentId::from_u128(3));
-        assert_eq!(documents[2].id(), DocumentId::from_u128(2));
-        assert_eq!(documents[3].id(), DocumentId::from_u128(0));
+        assert_eq!(*documents[0].id(), DocumentId::from_u128(1));
+        assert_eq!(*documents[1].id(), DocumentId::from_u128(3));
+        assert_eq!(*documents[2].id(), DocumentId::from_u128(2));
+        assert_eq!(*documents[3].id(), DocumentId::from_u128(0));
     }
 
     #[test]
     fn test_rank_no_user_interests() {
-        let mut documents = vec![
+        let documents = vec![
             TestDocument::new(0, arr1(&[0., 0., 0.])),
             TestDocument::new(1, arr1(&[0., 0., 0.])),
             TestDocument::new(2, arr1(&[0., 0., 0.])),
@@ -215,6 +215,6 @@ mod tests {
         let user_interests = UserInterests::default();
         let system = Config::default().with_min_positive_cois(1).unwrap().build();
 
-        assert!(system.score(&mut documents, &user_interests).is_err());
+        assert!(system.score(&documents, &user_interests).is_err());
     }
 }

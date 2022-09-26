@@ -62,8 +62,8 @@ impl Document {
 impl AiDocument for Document {
     type Id = Id;
 
-    fn id(&self) -> Self::Id {
-        self.id
+    fn id(&self) -> &Self::Id {
+        &self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {

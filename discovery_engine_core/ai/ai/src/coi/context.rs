@@ -201,7 +201,7 @@ pub(crate) fn compute_scores_for_docs<T: Document>(
                 config.horizon(),
                 now,
             )?;
-            Ok((document.id(), score))
+            Ok((document.id().clone(), score))
         })
         .collect()
 }

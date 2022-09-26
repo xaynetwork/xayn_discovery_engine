@@ -82,10 +82,10 @@ pub(crate) fn system_time_now() -> SystemTime {
 pub fn rank<D, S>(documents: &mut [D], scores: &HashMap<D::Id, f32, S>)
 where
     D: Document,
-    S: ::std::hash::BuildHasher,
+    S: std::hash::BuildHasher,
 {
     documents.sort_unstable_by(|a, b| {
-        nan_safe_f32_cmp_desc(scores.get(&a.id()).unwrap(), scores.get(&b.id()).unwrap())
+        nan_safe_f32_cmp_desc(scores.get(a.id()).unwrap(), scores.get(b.id()).unwrap())
     });
 }
 

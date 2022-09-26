@@ -29,10 +29,10 @@ impl From<Uuid> for DocumentId {
 
 /// Common document properties.
 pub trait Document {
-    type Id: std::fmt::Display + std::fmt::Debug + Eq + std::hash::Hash;
+    type Id: std::fmt::Display + std::fmt::Debug + Eq + std::hash::Hash + Clone;
 
     /// Gets the document id.
-    fn id(&self) -> Self::Id;
+    fn id(&self) -> &Self::Id;
 
     /// Gets the `SMBert` embedding of the document.
     fn smbert_embedding(&self) -> &Embedding;
@@ -66,8 +66,8 @@ pub(crate) mod tests {
     impl Document for TestDocument {
         type Id = DocumentId;
 
-        fn id(&self) -> Self::Id {
-            self.id
+        fn id(&self) -> &Self::Id {
+            &self.id
         }
 
         fn smbert_embedding(&self) -> &Embedding {

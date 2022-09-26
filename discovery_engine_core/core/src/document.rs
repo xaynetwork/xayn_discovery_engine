@@ -126,10 +126,10 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
 }
 
 impl AiDocument for Document {
-    type Id = DocumentId;
+    type Id = Id;
 
-    fn id(&self) -> Self::Id {
-        self.id.into()
+    fn id(&self) -> &Self::Id {
+        &self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {
@@ -349,10 +349,10 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
 }
 
 impl AiDocument for TrendingTopic {
-    type Id = DocumentId;
+    type Id = Id;
 
-    fn id(&self) -> Self::Id {
-        self.id.into()
+    fn id(&self) -> &Self::Id {
+        &self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {
