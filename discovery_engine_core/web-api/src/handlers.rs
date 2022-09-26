@@ -47,7 +47,7 @@ pub(crate) async fn handle_user_interaction(
 ) -> Result<impl warp::Reply, Rejection> {
     if let Some(document) = db.documents_by_id.get(&body.document_id) {
         db.user_state
-            .update_positive_cois(&user_id, |positive_cois| {
+            .update_positive_cois(&body.document_id, &user_id, |positive_cois| {
                 db.coi
                     .log_positive_user_reaction(positive_cois, &document.embedding)
             })
