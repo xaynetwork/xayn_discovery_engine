@@ -27,7 +27,7 @@ use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::A
 use tracing::{error, info};
 use tracing_subscriber::fmt::format::FmtSpan;
 use warp::{self, hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
-use xayn_discovery_engine_ai::GenericError;
+use xayn_discovery_engine_ai::{Embedding, GenericError};
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
@@ -73,7 +73,7 @@ struct Article {
     published_date: DateTime<Utc>,
 
     #[serde(skip_deserializing)]
-    embedding: Vec<f32>,
+    embedding: Embedding,
 }
 
 impl Article {
@@ -201,7 +201,7 @@ async fn handle_add_data(
         .into_iter()
         .map(|mut article| match model.run(&article.snippet) {
             Ok(embedding) => {
-                article.embedding = embedding.to_vec();
+                article.embedding = embedding;
                 Ok(article)
             }
             Err(err) => {
