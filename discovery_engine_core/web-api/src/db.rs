@@ -19,7 +19,7 @@ use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::{
-    models::{Article, Document},
+    models::{Article, Document, DocumentId},
     storage::UserState,
 };
 
@@ -99,7 +99,7 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
                 .as_str()
                 .expect("The 'description' field needs to be represented as String");
             let embedding = smbert.run(description).unwrap();
-            let document = Document::new((article, embedding));
+            let document = Document::new(DocumentId::new(article_id.clone()).unwrap(/* checked above. This code will be removed */), article, embedding);
             (article_id, document)
         })
         .collect();

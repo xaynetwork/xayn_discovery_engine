@@ -12,15 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use derive_more::{AsRef, Display};
+use derive_more::{AsRef, Deref, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr, string::FromUtf8Error};
 use thiserror::Error;
-use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
-use xayn_discovery_engine_core::document::Id;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
@@ -48,11 +46,23 @@ fn validate_id_from_string(id: impl AsRef<str>) -> Result<(), IdValidationError>
     Ok(())
 }
 
+/// Unique document for the user.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, Deref)]
+pub(crate) struct DocumentId(String);
+
+impl DocumentId {
+    pub(crate) fn new(id: String) -> Result<Self, IdValidationError> {
+        validate_id_from_string(&id)?;
+
+        Ok(Self(id))
+    }
+}
+
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Document {
     /// Unique identifier of the document.
-    pub(crate) id: Id,
+    pub(crate) id: DocumentId,
 
     /// Embedding from smbert.
     pub(crate) smbert_embedding: Embedding,
@@ -62,8 +72,7 @@ pub(crate) struct Document {
 }
 
 impl Document {
-    pub(crate) fn new((article, smbert_embedding): (Article, Embedding)) -> Self {
-        let id = Uuid::new_v4().into();
+    pub(crate) fn new(id: DocumentId, article: Article, smbert_embedding: Embedding) -> Self {
         Self {
             id,
             smbert_embedding,
@@ -73,7 +82,7 @@ impl Document {
 }
 
 impl AiDocument for Document {
-    type Id = Id;
+    type Id = DocumentId;
 
     fn id(&self) -> &Self::Id {
         &self.id
