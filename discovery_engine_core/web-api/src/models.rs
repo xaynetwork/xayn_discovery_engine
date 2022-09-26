@@ -24,15 +24,15 @@ use xayn_discovery_engine_core::document::Id;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
-pub(crate) enum Error {
-    /// [`UserId`] can't be empty.
-    UserIdEmpty,
+pub(crate) enum IdValidationError {
+    /// Id can't be empty.
+    Empty,
 
-    /// [`UserId`] can't contain NUL character.
-    UserIdContainsNul,
+    /// Id can't contain NUL character.
+    ContainsNul,
 
-    /// Failed to decode [`UserId] from path param: {0}.
-    UserIdUtf8Conversion(#[from] FromUtf8Error),
+    /// Id is not a valid UTF-8 string. {0}
+    InvalidUtf8(#[from] FromUtf8Error),
 }
 
 /// Represents a result from a query.
@@ -91,13 +91,13 @@ pub(crate) struct InteractionRequestBody {
 pub(crate) struct UserId(String);
 
 impl UserId {
-    fn new(value: &str) -> Result<Self, Error> {
-        let value = urlencoding::decode(value).map_err(Error::UserIdUtf8Conversion)?;
+    fn new(value: String) -> Result<Self, IdValidationError> {
+        let value = urlencoding::decode(&value).map_err(IdValidationError::InvalidUtf8)?;
 
-        if value.trim().is_empty() {
-            Err(Error::UserIdEmpty)
+        if value.is_empty() {
+            Err(IdValidationError::Empty)
         } else if value.contains('\u{0000}') {
-            Err(Error::UserIdContainsNul)
+            Err(IdValidationError::ContainsNul)
         } else {
             Ok(Self(value.to_string()))
         }
@@ -105,9 +105,9 @@ impl UserId {
 }
 
 impl FromStr for UserId {
-    type Err = Error;
+    type Err = IdValidationError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        UserId::new(value)
+        UserId::new(value.to_string())
     }
 }
