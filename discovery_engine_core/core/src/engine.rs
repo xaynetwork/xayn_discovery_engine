@@ -33,14 +33,34 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, Level};
 
 use xayn_discovery_engine_ai::{
-    self, cosine_similarity, nan_safe_f32_cmp, CoiConfig, CoiSystem, Document as AiDocument,
-    Embedding, GenericError, KeyPhrase, KeyPhrases, KpsConfig, KpsSystem, UserInterests,
+    self,
+    cosine_similarity,
+    nan_safe_f32_cmp,
+    CoiConfig,
+    CoiSystem,
+    Document as AiDocument,
+    Embedding,
+    GenericError,
+    KeyPhrase,
+    KeyPhrases,
+    KpsConfig,
+    KpsSystem,
+    UserInterests,
 };
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_kpe::{Config as KpeConfig, Pipeline as KPE};
 use xayn_discovery_engine_providers::{
-    clean_query, Filter, GenericArticle, HeadlinesQuery, Market, NewsQuery, Providers, RankLimit,
-    SimilarNewsQuery, TrendingTopic as BingTopic, TrendingTopicsQuery,
+    clean_query,
+    Filter,
+    GenericArticle,
+    HeadlinesQuery,
+    Market,
+    NewsQuery,
+    Providers,
+    RankLimit,
+    SimilarNewsQuery,
+    TrendingTopic as BingTopic,
+    TrendingTopicsQuery,
 };
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
@@ -48,11 +68,24 @@ use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
 use crate::{
     config::{
-        de_config_from_json, de_config_from_json_with_defaults, CoreConfig, EndpointConfig,
-        ExplorationConfig, FeedConfig, InitConfig, SearchConfig, StackConfig,
+        de_config_from_json,
+        de_config_from_json_with_defaults,
+        CoreConfig,
+        EndpointConfig,
+        ExplorationConfig,
+        FeedConfig,
+        InitConfig,
+        SearchConfig,
+        StackConfig,
     },
     document::{
-        self, Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, UserReaction,
+        self,
+        Document,
+        HistoricDocument,
+        TimeSpent,
+        TrendingTopic,
+        UserReacted,
+        UserReaction,
         WeightedSource,
     },
     mab::{self, BetaSampler, Bucket, SelectionIter, UniformSampler},
@@ -60,13 +93,26 @@ use crate::{
         self,
         exploration::Stack as Exploration,
         filters::{
-            filter_semantically, ArticleFilter, Criterion, DuplicateFilter, MalformedFilter,
+            filter_semantically,
+            ArticleFilter,
+            Criterion,
+            DuplicateFilter,
+            MalformedFilter,
             SemanticFilterConfig,
         },
-        BoxedOps, BreakingNews, Data as StackData, Id as StackId, Id, NewItemsError, Ops,
-        PersonalizedNews, Stack, TrustedNews,
+        BoxedOps,
+        BreakingNews,
+        Data as StackData,
+        Id as StackId,
+        Id,
+        NewItemsError,
+        Ops,
+        PersonalizedNews,
+        Stack,
+        TrustedNews,
     },
-    DartMigrationData, InitDbHint,
+    DartMigrationData,
+    InitDbHint,
 };
 
 /// Discovery engine errors.
@@ -1403,7 +1449,12 @@ fn rank_documents(coi: &CoiSystem, user_interests: &UserInterests, documents: &m
     rank(
         coi,
         user_interests,
-    |a, b| a.resource.date_published.cmp(&b.resource.date_published).reverse(),
+        |a, b| {
+            a.resource
+                .date_published
+                .cmp(&b.resource.date_published)
+                .reverse()
+        },
         documents,
     );
 }
@@ -1711,12 +1762,14 @@ pub(crate) mod tests {
     use std::mem::size_of;
 
     use async_once_cell::OnceCell;
-    use chrono::{TimeZone, Utc, Datelike};
+    use chrono::{Datelike, TimeZone, Utc};
     use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
     use url::Url;
     use wiremock::{
         matchers::{method, path_regex},
-        Mock, MockServer, ResponseTemplate,
+        Mock,
+        MockServer,
+        ResponseTemplate,
     };
 
     use crate::{document::tests::mock_generic_article, stack::ops::MockOps};
@@ -2243,11 +2296,7 @@ pub(crate) mod tests {
         let coi = CoiConfig::default().build();
         let user_interests = UserInterests::default();
 
-        rank_documents(
-            &coi,
-            &user_interests,
-            &mut documents,
-        );
+        rank_documents(&coi, &user_interests, &mut documents);
 
         assert_eq!(documents[0].resource.date_published.year(), 2022);
         assert_eq!(documents[1].resource.date_published.year(), 2021);
