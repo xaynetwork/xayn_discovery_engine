@@ -58,7 +58,7 @@ pub struct InitConfig {
     pub smbert_vocab: PathBuf,
     /// S-mBert model path.
     pub smbert_model: PathBuf,
-    /// List of [IngestedDocument]s in JSON format.
+    /// List of IngestedDocuments in JSON format.
     pub data_store: PathBuf,
     /// Handler for storing the user state.
     pub user_state: UserState,
