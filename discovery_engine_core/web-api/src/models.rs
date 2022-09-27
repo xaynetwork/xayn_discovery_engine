@@ -47,7 +47,7 @@ fn validate_id_from_string(id: impl AsRef<str>) -> Result<(), IdValidationError>
 }
 
 /// Unique document for the user.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, Deref)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, Deref, AsRef)]
 pub(crate) struct DocumentId(String);
 
 impl DocumentId {
