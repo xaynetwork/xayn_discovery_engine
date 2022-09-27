@@ -49,7 +49,7 @@ pub unsafe extern "C" fn init_embedding_at(
 ///
 /// - It must be valid to write an `Embedding` instance to given pointer.
 /// - The passed in slice must represent a `Box<[f32]>` and transfers ownership,
-///   it must be fully initialized.
+///   and it must be fully initialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_option_embedding_some_at(
     place: *mut Option<Embedding>,

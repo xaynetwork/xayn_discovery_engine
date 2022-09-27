@@ -69,15 +69,15 @@ pub extern "C" fn get_duration_seconds(duration: &Duration) -> u64 {
 
 /// Returns true if given [`Option<Duration>`] is some.
 ///
-/// Due to limitations of darts `ffigen` tool the `bool` is cast to `u8`.
+/// Due to limitations of dart's `ffigen` tool the `bool` is cast to `u8`.
 #[no_mangle]
 pub extern "C" fn get_option_duration_is_some(duration: &Option<Duration>) -> u8 {
     duration.is_some().into()
 }
 
-/// Gets the seconds of a optional duration at given place.
+/// Gets the seconds of an optional duration at given place.
 ///
-/// If the option is `None` the value `0` is returned, use
+/// If the option is `None` the value `0` is returned. Use
 /// [`get_option_duration_is_some()`] to differentiate between a
 /// `0`-duration and no duration.
 #[no_mangle]

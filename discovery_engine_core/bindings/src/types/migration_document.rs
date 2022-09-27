@@ -32,7 +32,7 @@ use super::{
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_id(
     place: *mut MigrationDocument,
@@ -197,7 +197,7 @@ pub unsafe extern "C" fn migration_document_place_of_story_view_time(
 /// # Safety
 ///
 /// - It must be valid to write a `Vec<MigrationDocument>` instance to given pointer,
-///   the pointer is expected to point to uninitialized memory.
+///   and the pointer is expected to point to uninitialized memory.
 /// - It must be valid to construct a `Box<[MigrationDocument]>` from given `slice_ptr`
 ///   and `slice_len`.
 #[no_mangle]

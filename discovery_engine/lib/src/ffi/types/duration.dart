@@ -93,7 +93,7 @@ extension _Helper on Duration {
       throw ArgumentError.value(
         seconds,
         'seconds',
-        'duration is bigger then what dart Duration supports',
+        'duration is bigger than what dart Duration supports',
       );
     }
     final microseconds = readNanos(place) ~/ 1000;
