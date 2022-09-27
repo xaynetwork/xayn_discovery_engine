@@ -17,3 +17,6 @@ CREATE TABLE IF NOT EXISTS document (
     user_id TEXT NOT NULL,
     PRIMARY KEY (doc_id, user_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_doc_by_user_id
+    ON document(user_id);
