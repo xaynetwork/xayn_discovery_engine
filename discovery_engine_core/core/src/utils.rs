@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Collection of utility functions.
+#![cfg_attr(not(feature = "storage"), allow(dead_code))]
 
 use std::{borrow::Cow, error::Error, fmt::Display, path::Path};
 

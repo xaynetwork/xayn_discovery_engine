@@ -18,7 +18,7 @@ use itertools::Itertools;
 
 use crate::{
     storage::{Error, Storage},
-    DartMigrationData,
+    storage2::DartMigrationData,
 };
 
 use super::SqliteStorage;
@@ -48,11 +48,18 @@ pub(super) async fn store_migration_data(
         .set_excluded(&data.excluded_sources.iter().map_into().collect())
         .await?;
 
+    if let Some(search) = &data.search {
+        storage.search().store_new_search(search, &[]).await?;
+    }
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+
+    use crate::storage::models::{Paging, Search, SearchBy};
+
     use super::{super::setup::init_storage_system_once, *};
 
     #[tokio::test]
@@ -61,11 +68,22 @@ mod tests {
             engine_state: Some(vec![1, 2, 3, 4, 8, 7, 0]),
             trusted_sources: vec!["foo.example".into(), "bar.invalid".into()],
             excluded_sources: vec!["dodo.local".into()],
+            search: Some(Search {
+                search_by: SearchBy::Query,
+                search_term: "foo bar".into(),
+                paging: Paging {
+                    size: 123,
+                    next_page: 312,
+                },
+            }),
         };
+
         let storage = init_storage_system_once(None, Some(&data)).await.unwrap();
+
         let engine_state = storage.state().fetch().await.unwrap();
         let trusted_sources = storage.source_preference().fetch_trusted().await.unwrap();
         let excluded_sources = storage.source_preference().fetch_excluded().await.unwrap();
+        let (search, _search_docs) = storage.search().fetch().await.unwrap();
 
         assert_eq!(engine_state, data.engine_state);
         assert_eq!(trusted_sources, data.trusted_sources.into_iter().collect());
@@ -73,5 +91,9 @@ mod tests {
             excluded_sources,
             data.excluded_sources.into_iter().collect()
         );
+        assert_eq!(Some(search), data.search);
+        //TODO[pmk] test view times
+        //TODO[pmk] test feed docs
+        //TODO[pmk] test filter out bad bad smbert doc
     }
 }

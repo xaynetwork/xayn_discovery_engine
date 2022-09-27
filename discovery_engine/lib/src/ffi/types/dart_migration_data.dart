@@ -14,10 +14,10 @@
 
 import 'dart:ffi';
 
-import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
-    show RustDartMigrationData;
+import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart';
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/migration_search.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/source.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
@@ -37,6 +37,6 @@ extension DartMigrationDataFfi on DartMigrationData {
     excludedSources
         .writeNative(ffi.dart_migration_data_place_of_excluded_sources(place));
 
-    //TODO[pmk] pass the actual data to rust and use it there
+    activeSearch.writeNative(ffi.dart_migration_data_place_of_search(place));
   }
 }

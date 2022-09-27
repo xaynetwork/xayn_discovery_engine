@@ -319,24 +319,8 @@ pub mod models {
         pub(crate) score: Option<f32>,
     }
 
-    #[derive(Debug, PartialEq, Eq)]
-    pub(crate) struct Search {
-        pub(crate) search_by: SearchBy,
-        pub(crate) search_term: String,
-        pub(crate) paging: Paging,
-    }
-
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, num_derive::FromPrimitive)]
-    pub(crate) enum SearchBy {
-        Query = 0,
-        Topic = 1,
-    }
-
-    #[derive(Debug, PartialEq, Eq)]
-    pub(crate) struct Paging {
-        pub(crate) size: u32,
-        pub(crate) next_page: u32,
-    }
+    //FIXME move type here once feature storage is removed
+    pub use crate::storage2::{Paging, Search, SearchBy};
 
     #[derive(Debug, PartialEq)]
     pub(crate) struct TimeSpentDocumentView {
