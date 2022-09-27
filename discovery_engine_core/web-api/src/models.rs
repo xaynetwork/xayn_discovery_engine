@@ -114,7 +114,7 @@ pub(crate) struct UserId(String);
 
 impl UserId {
     fn new(id: &str) -> Result<Self, IdValidationError> {
-        let id = urlencoding::decode(&id).map_err(IdValidationError::InvalidUtf8)?;
+        let id = urlencoding::decode(id).map_err(IdValidationError::InvalidUtf8)?;
 
         validate_id_from_string(&*id)?;
 
