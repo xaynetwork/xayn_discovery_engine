@@ -12,12 +12,12 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-CREATE TABLE IF NOT EXISTS document (
+CREATE TABLE IF NOT EXISTS interaction (
     doc_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    last_view TIMESTAMPTZ NOT NULL DEFAULT Now(),
-    user_reaction SMALLINT NOT NULL DEFAULT 0,
-    PRIMARY KEY (doc_id, user_id)
+    time_stamp TIMESTAMPTZ NOT NULL DEFAULT Now(),
+    user_reaction SMALLINT NOT NULL,
+    PRIMARY KEY (doc_id, user_id, time_stamp)
 );
 
 CREATE INDEX IF NOT EXISTS idx_doc_by_user_id
