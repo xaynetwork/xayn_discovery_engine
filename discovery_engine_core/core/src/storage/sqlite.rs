@@ -327,7 +327,7 @@ impl SqliteStorage {
         Ok(sources)
     }
 
-    async fn store_source_reactions(&self, reactions: &[WeightedSource]) -> Result<(), Error> {
+    async fn update_source_weights(&self, reactions: &[WeightedSource]) -> Result<(), Error> {
         if reactions.is_empty() {
             return Ok(());
         }
@@ -345,6 +345,11 @@ impl SqliteStorage {
                     .push_bind(item.weight)
                     .push_bind(now);
             })
+            .push(
+                "ON CONFLICT DO UPDATE SET
+                    weight = weight + EXCLUDED.weight,
+                    lastUpdated = EXCLUDED.lastUpdated;",
+            )
             .build()
             // outside of migrations we always will call this with exactly one
             // values tuple, there is no reason to not cache it in that case
@@ -901,11 +906,12 @@ impl FeedbackScope for SqliteStorage {
     }
 
     async fn update_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
+        let weight_diff = if liked { 1 } else { -1 };
         match self.fetch_source_weight(source).await? {
-            0 => self.create_source_reaction(source, liked).await?,
+            0 => self.update_source_weight(source, weight_diff).await?,
             weight if (weight > 0) == liked => {
                 if liked {
-                    self.update_source_weight(source, 1).await?;
+                    self.update_source_weight(source, weight_diff).await?;
                 }
             }
             _ => self.delete_source_reaction(source).await?,
@@ -1008,34 +1014,12 @@ impl SourceReactionScope for SqliteStorage {
         Ok(reaction.map_or(0, |r| r.weight))
     }
 
-    async fn create_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
-        let weight = if liked { 1 } else { -1 };
-
-        self.store_source_reactions(&[WeightedSource {
+    async fn update_source_weight(&self, source: &str, weight: i32) -> Result<(), Error> {
+        self.update_source_weights(&[WeightedSource {
             source: source.into(),
             weight,
         }])
         .await
-    }
-
-    async fn update_source_weight(&self, source: &str, add_weight: i32) -> Result<(), Error> {
-        let last_updated = Utc::now().naive_utc();
-
-        let mut tx = self.pool.begin().await?;
-
-        sqlx::query(
-            "UPDATE SourceReaction
-            SET lastUpdated = ?,
-                weight = weight + ?
-            WHERE source = ?",
-        )
-        .bind(last_updated)
-        .bind(add_weight)
-        .bind(source)
-        .execute(&mut tx)
-        .await?;
-
-        tx.commit().await.map_err(Into::into)
     }
 
     async fn delete_source_reaction(&self, source: &str) -> Result<(), Error> {

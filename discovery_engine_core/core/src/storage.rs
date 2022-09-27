@@ -160,10 +160,19 @@ pub(crate) trait SourcePreferenceScope {
 
 #[async_trait]
 pub(crate) trait SourceReactionScope {
+    /// Fetch the weight of a source.
+    ///
+    /// The weight defaults to 0 if no weight is stored.
     async fn fetch_source_weight(&self, source: &str) -> Result<i32, Error>;
 
-    async fn create_source_reaction(&self, source: &str, like: bool) -> Result<(), Error>;
-
+    /// Updates the source weight.
+    ///
+    /// If no source weight was stored a new weight equals to `add_weight` will be stored.
+    ///
+    /// If the sign of the source weight stored differs from the sign of `add_weight` it
+    /// will be set to 0 no matter the amount changed.
+    ///
+    /// Currently negative weight is capped at -1.
     async fn update_source_weight(&self, source: &str, add_weight: i32) -> Result<(), Error>;
 
     async fn delete_source_reaction(&self, source: &str) -> Result<(), Error>;

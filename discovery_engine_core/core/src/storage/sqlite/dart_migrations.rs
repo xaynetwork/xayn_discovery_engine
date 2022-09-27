@@ -58,9 +58,7 @@ pub(super) async fn store_migration_data(
         .set_excluded(&data.excluded_sources.iter().map_into().collect())
         .await?;
 
-    storage
-        .store_source_reactions(&data.reacted_sources)
-        .await?;
+    storage.update_source_weights(&data.reacted_sources).await?;
 
     if let Some(search) = &data.search {
         storage.search().store_new_search(search, &[]).await?;
