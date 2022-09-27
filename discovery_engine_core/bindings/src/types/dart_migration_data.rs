@@ -62,7 +62,7 @@ pub unsafe extern "C" fn dart_migration_data_place_of_excluded_sources(
 /// # Safety
 ///
 /// The pointer must point to a valid [`DartMigrationData`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn dart_migration_data_place_of_search(
     place: *mut DartMigrationData,

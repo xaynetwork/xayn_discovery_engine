@@ -24,11 +24,12 @@ use xayn_discovery_engine_core::storage2::{Search, SearchBy};
 //cbindgen:ignore
 pub type MigrationSearch = Search;
 
-/// Initializes a `Option<MigrationSearch>` to `None` at given place.
+/// Initializes an `Option<MigrationSearch>` to `None` at given place.
 ///
 /// # Safety
 ///
-/// It must be sound to write any sound `Option<MigrationSearch>` to given place.
+/// The pointer must point to a valid [`Option<MigrationSearch>`] memory object, it
+/// might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_option_migration_search_none_at(place: *mut Option<MigrationSearch>) {
     unsafe {
@@ -36,13 +37,14 @@ pub unsafe extern "C" fn init_option_migration_search_none_at(place: *mut Option
     }
 }
 
-/// Initializes a `Option<MigrationSearch>` to `Some(search)` at given place.
+/// Initializes an `Option<MigrationSearch>` to `Some(search)` at given place.
 ///
 /// The boxed search is moved into this function.
 ///
 /// # Safety
 ///
-/// It must be sound to write any sound `Option<MigrationSearch>` to given place.
+/// The pointer must point to a valid [`Option<MigrationSearch>`] memory object, it
+/// might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_option_migration_search_some_at(
     place: *mut Option<MigrationSearch>,
@@ -79,7 +81,7 @@ pub unsafe extern "C" fn migration_search_place_of_search_term(
     unsafe { addr_of_mut!((*place).search_term) }
 }
 
-/// Returns a pointer to the `page_size` field of a `Paging` memory object splatted in a [`MigrationSearch`] memory object.
+/// Returns a pointer to the `size` field of a `Paging` memory object contained in a [`MigrationSearch`] memory object.
 ///
 /// # Safety
 ///
@@ -92,7 +94,7 @@ pub unsafe extern "C" fn migration_search_place_of_page_size(
     unsafe { addr_of_mut!((*place).paging.size) }
 }
 
-/// Returns a pointer to the `next_page` field of a `Paging` memory object splatted in a [`MigrationSearch`] memory object.
+/// Returns a pointer to the `next_page` field of a `Paging` memory object contained in a [`MigrationSearch`] memory object.
 ///
 /// # Safety
 ///

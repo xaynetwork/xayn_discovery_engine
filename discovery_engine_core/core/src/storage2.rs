@@ -19,10 +19,10 @@
 pub enum InitDbHint {
     /// Hint to use if nothing special happened during init.
     NormalInit,
-    /// A new db was created, there was no db beforehand.
+    /// A new db was created; There was no db beforehand.
     #[cfg(feature = "storage")]
     NewDbCreated,
-    /// There was a db but we could not open it so we deleted it and created a new one.
+    /// There was a db but it could not be opened so it was deleted and a new one created.
     #[cfg(feature = "storage")]
     DbOverwrittenDueToErrors(crate::storage::Error),
 }
