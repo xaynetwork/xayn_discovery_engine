@@ -24,9 +24,11 @@ use reqwest::{
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::Arc};
-use tracing::{error, info};
+use tracing::{debug, error, info, span, Level, Span};
 use tracing_subscriber::fmt::format::FmtSpan;
+use uuid::Uuid;
 use warp::{self, hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
+
 use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
@@ -145,7 +147,7 @@ async fn main() -> Result<(), GenericError> {
 
     let routes = post_add_data(config, model, client)
         .recover(handle_rejection)
-        .with(warp::trace::request());
+        .with(warp::trace::trace(trace_requests_with_random_id));
 
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 
@@ -314,6 +316,7 @@ fn handle_elastic_error(err: reqwest::Error) -> Rejection {
 struct ErrorMessage {
     code: u16,
     message: String,
+    log_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     errored_ids: Option<Vec<String>>,
 }
@@ -351,11 +354,38 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         message = "UNHANDLED_REJECTION";
     }
 
+    // Requires the request to be wrapped into a
+    // span with a `log.id` field.
+    let log_id = Span::current()
+        .field("log.id")
+        .map(|f| f.to_string())
+        .unwrap_or_default();
+
     let json = warp::reply::json(&ErrorMessage {
         code: code.as_u16(),
         message: message.into(),
+        log_id,
         errored_ids,
     });
 
     Ok(warp::reply::with_status(json, code))
+}
+
+fn trace_requests_with_random_id(request_info: warp::trace::Info<'_>) -> Span {
+    let span = span!(
+        Level::INFO,
+        "request",
+        method = %request_info.method(),
+        path = %request_info.path(),
+        version = ?request_info.version(),
+        // Linked to rejection handling which will include
+        // the spans "log.id" field in error response bodies.
+        //FIXME use v6/v7 once supported/standardized
+        log.id = %Uuid::new_v4(),
+    );
+
+    //keep same wording as in `warp::trace::request()` for forward/backward compatibility
+    debug!(parent: &span, "received request");
+
+    span
 }
