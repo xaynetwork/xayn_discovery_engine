@@ -18,9 +18,7 @@ use warp::{self, Filter, Rejection, Reply};
 use crate::{db::Db, handlers, models::UserId};
 
 pub(crate) fn api_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    get_ranked_documents(db.clone())
-        .or(post_user_interaction(db.clone()))
-        .or(delete_internal_state(db))
+    get_ranked_documents(db.clone()).or(post_user_interaction(db))
 }
 
 // GET /user/:user_id/documents
@@ -41,14 +39,6 @@ fn post_user_interaction(db: Db) -> impl Filter<Extract = impl Reply, Error = Re
         .and(warp::body::json())
         .and(with_db(db))
         .and_then(handlers::handle_user_interaction)
-}
-
-// DELETE /internal-state
-fn delete_internal_state(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::path("internal-state")
-        .and(warp::delete())
-        .and(with_db(db))
-        .and_then(handlers::handle_clean_state)
 }
 
 // PATH /user/:user_id
