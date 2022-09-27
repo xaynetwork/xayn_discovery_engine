@@ -24,7 +24,7 @@ use reqwest::{
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::Arc};
-use tracing::{debug, error, info, span, Level, Span};
+use tracing::{debug, error, info, span, Instrument, Level, Span};
 use tracing_subscriber::fmt::format::FmtSpan;
 use uuid::Uuid;
 use warp::{self, hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
@@ -145,9 +145,7 @@ async fn main() -> Result<(), GenericError> {
     let client = Client::new();
     let model = init_model(&config)?;
 
-    let routes = post_add_data(config, model, client)
-        .recover(handle_rejection)
-        .with(warp::trace::trace(trace_requests_with_random_id));
+    let routes = post_add_data(config, model, client);
 
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 
@@ -172,6 +170,18 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
     Ok(Arc::new(smbert))
 }
 
+macro_rules! handle4 {
+    ($handle:ident) => {
+        |t1, t2, t3, t4| async move {
+            let (span, id) = setup_request_span(stringify!($handle));
+            $handle(t1, t2, t3, t4)
+                .instrument(span)
+                .await
+                .or_else(|err| handle_rejection(err, id))
+        }
+    };
+}
+
 // POST /add_data
 fn post_add_data(
     config: Config,
@@ -185,7 +195,7 @@ fn post_add_data(
         .and(with_model(model))
         .and(with_config(config))
         .and(with_client(client))
-        .and_then(handle_add_data)
+        .and_then(handle4!(handle_add_data))
 }
 
 async fn handle_add_data(
@@ -193,7 +203,8 @@ async fn handle_add_data(
     model: Model,
     config: Config,
     client: Client,
-) -> Result<impl warp::Reply, Rejection> {
+    //FIXME use custom error type to allow better error handling
+) -> Result<Box<dyn Reply>, Rejection> {
     if body.documents.len() > config.max_documents_length {
         return Err(warp::reject::custom(TooManyDocumentsError));
     }
@@ -249,7 +260,7 @@ async fn handle_add_data(
             warp::reject::custom(ReceivingOpError)
         })?;
 
-    Ok(StatusCode::OK)
+    Ok(Box::new(StatusCode::OK))
 }
 
 fn with_config(config: Config) -> impl Filter<Extract = (Config,), Error = Infallible> + Clone {
@@ -316,12 +327,12 @@ fn handle_elastic_error(err: reqwest::Error) -> Rejection {
 struct ErrorMessage {
     code: u16,
     message: String,
-    log_id: String,
+    log_id: Uuid,
     #[serde(skip_serializing_if = "Option::is_none")]
     errored_ids: Option<Vec<String>>,
 }
 
-async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
+fn handle_rejection(err: Rejection, log_id: Uuid) -> Result<Box<dyn Reply>, Rejection> {
     let code;
     let message;
     let mut errored_ids = None;
@@ -354,13 +365,6 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         message = "UNHANDLED_REJECTION";
     }
 
-    // Requires the request to be wrapped into a
-    // span with a `log.id` field.
-    let log_id = Span::current()
-        .field("log_id")
-        .map(|f| f.to_string())
-        .unwrap_or_default();
-
     let json = warp::reply::json(&ErrorMessage {
         code: code.as_u16(),
         message: message.into(),
@@ -368,24 +372,21 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         errored_ids,
     });
 
-    Ok(warp::reply::with_status(json, code))
+    Ok(Box::new(warp::reply::with_status(json, code)))
 }
 
-fn trace_requests_with_random_id(request_info: warp::trace::Info<'_>) -> Span {
+fn setup_request_span(handler_name: &str) -> (Span, Uuid) {
+    //FIXME use v6/v7 once supported/standardized
+    let log_id = Uuid::new_v4();
     let span = span!(
         Level::INFO,
         "request",
-        method = %request_info.method(),
-        path = %request_info.path(),
-        version = ?request_info.version(),
-        // Linked to rejection handling which will include
-        // the spans "log_id" field in error response bodies.
-        //FIXME use v6/v7 once supported/standardized
-        log_id = %Uuid::new_v4(),
+        method = %handler_name,
+        log_id = %log_id,
     );
 
     //keep same wording as in `warp::trace::request()` for forward/backward compatibility
     debug!(parent: &span, "received request");
 
-    span
+    (span, log_id)
 }
