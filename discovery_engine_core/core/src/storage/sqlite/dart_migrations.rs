@@ -412,35 +412,31 @@ mod tests {
 
         let weight = storage
             .source_reaction()
-            .fetch_source_reaction("source1")
+            .fetch_source_weight("source1")
             .await
             .unwrap();
-        assert_eq!(weight, Some(true));
-        // assert_eq!(weight, 1);
+        assert_eq!(weight, 1);
 
         let weight = storage
             .source_reaction()
-            .fetch_source_reaction("source2")
+            .fetch_source_weight("source2")
             .await
             .unwrap();
-        assert_eq!(weight, Some(true));
-        // assert_eq!(weight, 2);
+        assert_eq!(weight, 2);
 
         let weight = storage
             .source_reaction()
-            .fetch_source_reaction("bad source")
+            .fetch_source_weight("bad source")
             .await
             .unwrap();
-        assert_eq!(weight, Some(false));
-        // assert_eq!(weight, -1);
+        assert_eq!(weight, -1);
 
         let weight = storage
             .source_reaction()
-            .fetch_source_reaction("unknown")
+            .fetch_source_weight("unknown")
             .await
             .unwrap();
-        assert_eq!(weight, None);
-        // assert_eq!(weight, 0);
+        assert_eq!(weight, 0);
 
         let history = storage.fetch_history().await.unwrap();
         assert_eq!(

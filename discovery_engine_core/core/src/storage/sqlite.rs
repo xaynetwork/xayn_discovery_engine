@@ -901,13 +901,16 @@ impl FeedbackScope for SqliteStorage {
     }
 
     async fn update_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
-        match self.fetch_source_reaction(source).await? {
-            None => self.create_source_reaction(source, liked).await,
-            Some(reaction) if reaction == liked => {
-                self.update_source_weight(source, liked.into()).await
+        match self.fetch_source_weight(source).await? {
+            0 => self.create_source_reaction(source, liked).await?,
+            weight if (weight > 0) == liked => {
+                if liked {
+                    self.update_source_weight(source, 1).await?;
+                }
             }
-            _ => self.delete_source_reaction(source).await,
+            _ => self.delete_source_reaction(source).await?,
         }
+        Ok(())
     }
 }
 
@@ -988,7 +991,7 @@ impl From<QueriedSourceReaction> for WeightedSource {
 
 #[async_trait]
 impl SourceReactionScope for SqliteStorage {
-    async fn fetch_source_reaction(&self, source: &str) -> Result<Option<bool>, Error> {
+    async fn fetch_source_weight(&self, source: &str) -> Result<i32, Error> {
         let mut tx = self.pool.begin().await?;
 
         let reaction = sqlx::query_as::<_, QueriedSourceReaction>(
@@ -1002,7 +1005,7 @@ impl SourceReactionScope for SqliteStorage {
 
         tx.commit().await?;
 
-        Ok(reaction.map(|r| r.weight > 0))
+        Ok(reaction.map_or(0, |r| r.weight))
     }
 
     async fn create_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {

@@ -160,7 +160,7 @@ pub(crate) trait SourcePreferenceScope {
 
 #[async_trait]
 pub(crate) trait SourceReactionScope {
-    async fn fetch_source_reaction(&self, source: &str) -> Result<Option<bool>, Error>;
+    async fn fetch_source_weight(&self, source: &str) -> Result<i32, Error>;
 
     async fn create_source_reaction(&self, source: &str, like: bool) -> Result<(), Error>;
 
