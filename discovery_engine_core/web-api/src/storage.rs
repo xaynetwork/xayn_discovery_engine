@@ -31,6 +31,7 @@ use xayn_discovery_engine_ai::{
     PositiveCoi,
     UserInterests,
 };
+use xayn_discovery_engine_core::document::UserReaction;
 
 use crate::models::UserId;
 
@@ -155,12 +156,16 @@ impl UserState {
         .await?;
 
         sqlx::query(
-            "INSERT INTO document (doc_id, user_id)
-            VALUES ($1, $2)
-            ON CONFLICT (doc_id, user_id) DO NOTHING;",
+            "INSERT INTO document (doc_id, user_id, last_view, user_reaction)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (doc_id, user_id) DO UPDATE SET
+                last_view = EXCLUDED.last_view,
+                user_reaction = EXCLUDED.user_reaction;",
         )
         .bind(doc_id)
         .bind(user_id.as_ref())
+        .bind(timestamp)
+        .bind(UserReaction::Positive as i16)
         .execute(&mut tx)
         .await?;
 
