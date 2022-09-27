@@ -44,19 +44,11 @@ void main() {
       final finalSetupData = NativeSetupData(
         smbertVocab: '$outputPath/smbertVocab',
         smbertModel: '$outputPath/smbertModel',
-        kpeVocab: '$outputPath/kpeVocab',
-        kpeModel: '$outputPath/kpeModel',
-        kpeClassifier: '$outputPath/kpeClassifier',
-        kpeCnn: '$outputPath/kpeCnn',
         availableSources: '$outputPath/availableSources',
       );
       final tmpSetupData = NativeSetupData(
         smbertVocab: '$outputPath/smbertVocab.$tmpFileExt',
         smbertModel: '$outputPath/smbertModel.$tmpFileExt',
-        kpeVocab: '$outputPath/kpeVocab.$tmpFileExt',
-        kpeModel: '$outputPath/kpeModel.$tmpFileExt',
-        kpeClassifier: '$outputPath/kpeClassifier.$tmpFileExt',
-        kpeCnn: '$outputPath/kpeCnn.$tmpFileExt',
         availableSources: '$outputPath/availableSources.$tmpFileExt',
       );
 
@@ -94,7 +86,7 @@ void main() {
 
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
-        expect(assetFetcher.callCount, equals(9));
+        expect(assetFetcher.callCount, equals(5));
       });
 
       test(
@@ -133,7 +125,7 @@ void main() {
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
         expect(allSetupDataFilesExist(tmpSetupData), isFalse);
-        expect(assetFetcher.callCount, equals(9));
+        expect(assetFetcher.callCount, equals(5));
       });
 
       test(
@@ -155,8 +147,8 @@ void main() {
 
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
-        expect(server.callCountSum, equals(9));
-        expect(assetFetcher.callCount, equals(9));
+        expect(server.callCountSum, equals(5));
+        expect(assetFetcher.callCount, equals(5));
       });
     });
   });
@@ -183,10 +175,6 @@ bool allSetupDataFilesExist(NativeSetupData setupData) {
   final list = [
     File(setupData.smbertVocab).existsSync(),
     File(setupData.smbertModel).existsSync(),
-    File(setupData.kpeVocab).existsSync(),
-    File(setupData.kpeModel).existsSync(),
-    File(setupData.kpeCnn).existsSync(),
-    File(setupData.kpeClassifier).existsSync(),
     File(setupData.availableSources).existsSync(),
   ];
   return list.any((it) => it == false) == false;

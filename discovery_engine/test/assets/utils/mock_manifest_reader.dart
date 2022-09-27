@@ -39,10 +39,6 @@ final goodJson = {
   'assets': [
     'smbertVocab',
     'smbertModel',
-    'kpeVocab',
-    'kpeModel',
-    'kpeCnn',
-    'kpeClassifier',
     'availableSources',
   ]
       .map(

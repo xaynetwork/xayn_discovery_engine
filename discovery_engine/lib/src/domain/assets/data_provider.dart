@@ -27,22 +27,10 @@ const tmpFileExt = 'tmp';
 abstract class SetupData with EquatableMixin {
   Object get smbertVocab;
   Object get smbertModel;
-  Object get kpeVocab;
-  Object get kpeModel;
-  Object get kpeCnn;
-  Object get kpeClassifier;
   Object get availableSources;
 
   @override
-  List<Object?> get props => [
-        smbertVocab,
-        smbertModel,
-        kpeVocab,
-        kpeModel,
-        kpeCnn,
-        kpeClassifier,
-        availableSources,
-      ];
+  List<Object?> get props => [smbertVocab, smbertModel, availableSources];
 
   Future<AvailableSources> getAvailableSources();
 }

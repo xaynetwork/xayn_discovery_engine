@@ -45,7 +45,6 @@ use xayn_discovery_engine_ai::{
     UserInterests,
 };
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
-use xayn_discovery_engine_kpe::{Config as KpeConfig, Pipeline as KPE};
 use xayn_discovery_engine_providers::{
     clean_query,
     Filter,
@@ -174,8 +173,6 @@ pub struct Engine {
     smbert: SMBert,
     pub(crate) coi: CoiSystem,
     pub(crate) kps: KpsSystem,
-    #[allow(dead_code)] // TODO remove references to kpe
-    kpe: KPE,
     providers: Providers,
 
     // states
@@ -192,7 +189,7 @@ impl Engine {
     ///
     /// The engine only keeps in its stack data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
-    #[allow(clippy::too_many_arguments, clippy::similar_names)]
+    #[allow(clippy::too_many_arguments)]
     async fn new(
         endpoint_config: EndpointConfig,
         core_config: CoreConfig,
@@ -203,7 +200,6 @@ impl Engine {
         smbert: SMBert,
         coi: CoiSystem,
         kps: KpsSystem,
-        kpe: KPE,
         user_interests: UserInterests,
         key_phrases: KeyPhrases,
         history: &[HistoricDocument],
@@ -244,7 +240,6 @@ impl Engine {
             smbert,
             coi,
             kps,
-            kpe,
             providers,
             stacks,
             exploration_stack,
@@ -264,11 +259,7 @@ impl Engine {
     }
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
-    #[allow(
-        clippy::too_many_lines,
-        clippy::similar_names,
-        clippy::missing_panics_doc
-    )]
+    #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
     pub async fn from_config(
         config: InitConfig,
         // TODO: remove this after db migration, make sure we can still reset the state
@@ -322,23 +313,6 @@ impl Engine {
             .extract_inner::<KpsConfig>("kps")
             .map_err(|err| Error::Ranker(err.into()))?
             .build();
-        let kpe = KpeConfig::from_files(
-            &config.kpe_vocab,
-            &config.kpe_model,
-            &config.kpe_cnn,
-            &config.kpe_classifier,
-        )
-        .map_err(|err| Error::Ranker(err.into()))?
-        .with_token_size(
-            de_config
-                .extract_inner("kps.token_size")
-                .map_err(|err| Error::Ranker(err.into()))?,
-        )
-        .map_err(|err| Error::Ranker(err.into()))?
-        .with_accents(AccentChars::Cleanse)
-        .with_case(CaseChars::Keep)
-        .build()
-        .map_err(GenericError::from)?;
         let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
 
         // initialize the states
@@ -419,7 +393,6 @@ impl Engine {
             smbert,
             coi,
             kps,
-            kpe,
             user_interests,
             key_phrases,
             history,
@@ -1786,10 +1759,6 @@ pub(crate) mod tests {
                 excluded_sources: vec![],
                 smbert_vocab: format!("{asset_base}/smbert_v0001/vocab.txt"),
                 smbert_model: format!("{asset_base}/smbert_v0001/smbert-mocked.onnx"),
-                kpe_vocab: format!("{asset_base}/kpe_v0001/vocab.txt"),
-                kpe_model: format!("{asset_base}/kpe_v0001/bert-mocked.onnx"),
-                kpe_cnn: format!("{asset_base}/kpe_v0001/cnn.binparams"),
-                kpe_classifier: format!("{asset_base}/kpe_v0001/classifier.binparams"),
                 max_docs_per_feed_batch: FeedConfig::default()
                     .max_docs_per_batch
                     .try_into()

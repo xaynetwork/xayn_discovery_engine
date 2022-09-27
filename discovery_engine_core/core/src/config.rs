@@ -85,14 +85,6 @@ pub struct InitConfig {
     pub smbert_vocab: String,
     /// S-mBert model path.
     pub smbert_model: String,
-    /// KPE vocabulary path.
-    pub kpe_vocab: String,
-    /// KPE model path.
-    pub kpe_model: String,
-    /// KPE CNN path.
-    pub kpe_cnn: String,
-    /// KPE classifier path.
-    pub kpe_classifier: String,
     /// The maximum number of documents per feed batch.
     pub max_docs_per_feed_batch: u32,
     /// The maximum number of documents per search batch.
@@ -307,7 +299,6 @@ pub(crate) fn de_config_from_json(json: &str) -> Figment {
 /// Reads the DE configurations from json and sets defaults for missing fields (if possible).
 pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
     de_config_from_json(json)
-        .join(Serialized::default("kps.token_size", 150))
         .join(Serialized::default("smbert.token_size", 150))
         .join(Serialized::default("coi", CoiConfig::default()))
         .join(Serialized::default("kps", KpsConfig::default()))
@@ -382,7 +373,6 @@ mod tests {
     #[test]
     fn test_de_config_from_json_default() -> Result<(), GenericError> {
         let de_config = de_config_from_json_with_defaults("{}");
-        assert_eq!(de_config.extract_inner::<usize>("kps.token_size")?, 150);
         assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
             de_config.extract_inner::<CoiConfig>("coi")?,
@@ -447,7 +437,6 @@ mod tests {
                 }
             }"#,
         );
-        assert_eq!(de_config.extract_inner::<usize>("kps.token_size")?, 150);
         assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 42);
         assert_eq!(
             de_config.extract_inner::<CoiConfig>("coi")?,

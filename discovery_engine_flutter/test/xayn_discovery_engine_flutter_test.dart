@@ -65,10 +65,6 @@ void main() {
       final assets = [
         'smbertVocab',
         'smbertModel',
-        'kpeVocab',
-        'kpeModel',
-        'kpeCnn',
-        'kpeClassifier',
         'availableSources',
       ]
           .map(

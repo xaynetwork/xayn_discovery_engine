@@ -18,10 +18,6 @@ const _bytes = [48, 48, 10];
 const bytesMap = {
   'smbertVocab': _bytes,
   'smbertModel': _bytes,
-  'kpeVocab': _bytes,
-  'kpeModel': _bytes,
-  'kpeCnn': _bytes,
-  'kpeClassifier': _bytes,
   'availableSources': _bytes,
 };
 
