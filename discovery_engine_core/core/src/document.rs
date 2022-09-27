@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{offset::Utc, DateTime};
 use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
@@ -128,16 +128,14 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
 }
 
 impl AiDocument for Document {
-    fn id(&self) -> DocumentId {
-        self.id.into()
+    type Id = Id;
+
+    fn id(&self) -> &Self::Id {
+        &self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {
         &self.smbert_embedding
-    }
-
-    fn date_published(&self) -> DateTime<Utc> {
-        self.resource.date_published
     }
 }
 
@@ -353,17 +351,14 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
 }
 
 impl AiDocument for TrendingTopic {
-    fn id(&self) -> DocumentId {
-        self.id.into()
+    type Id = Id;
+
+    fn id(&self) -> &Self::Id {
+        &self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {
         &self.smbert_embedding
-    }
-
-    fn date_published(&self) -> DateTime<Utc> {
-        // return a default value as there is no `date_published` for trending topics
-        DateTime::<Utc>::MIN_UTC
     }
 }
 

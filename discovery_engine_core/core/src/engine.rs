@@ -16,6 +16,7 @@
 use std::path::PathBuf;
 use std::{
     borrow::Cow,
+    cmp::Ordering,
     collections::{HashMap, HashSet},
     iter::once,
     mem::replace,
@@ -32,10 +33,12 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, Level};
 
 use xayn_discovery_engine_ai::{
+    self,
     cosine_similarity,
     nan_safe_f32_cmp,
     CoiConfig,
     CoiSystem,
+    Document as AiDocument,
     Embedding,
     GenericError,
     KeyPhrase,
@@ -1040,7 +1043,7 @@ impl Engine {
         );
         errors.extend(article_errors);
 
-        self.coi.rank(&mut documents, &self.user_interests);
+        rank_documents(&self.coi, &self.user_interests, &mut documents);
         if documents.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
@@ -1130,7 +1133,7 @@ impl Engine {
         let (mut topics, topic_errors) = documentify_topics(&self.smbert, topics);
         errors.extend(topic_errors);
 
-        self.coi.rank(&mut topics, &self.user_interests);
+        rank_trending_topics(&self.coi, &self.user_interests, &mut topics);
         if topics.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
@@ -1404,6 +1407,44 @@ impl Engine {
     }
 }
 
+fn rank<F, D>(coi: &CoiSystem, user_interests: &UserInterests, default_ord: F, documents: &mut [D])
+where
+    F: Fn(&D, &D) -> Ordering,
+    D: AiDocument,
+{
+    if documents.len() < 2 {
+        return;
+    };
+
+    if let Ok(scores) = coi.score(documents, user_interests) {
+        xayn_discovery_engine_ai::utils::rank(documents, &scores);
+    } else {
+        documents.sort_unstable_by(default_ord);
+    }
+}
+
+fn rank_documents(coi: &CoiSystem, user_interests: &UserInterests, documents: &mut [Document]) {
+    rank(
+        coi,
+        user_interests,
+        |a, b| {
+            a.resource
+                .date_published
+                .cmp(&b.resource.date_published)
+                .reverse()
+        },
+        documents,
+    );
+}
+
+fn rank_trending_topics(
+    coi: &CoiSystem,
+    user_interests: &UserInterests,
+    documents: &mut [TrendingTopic],
+) {
+    rank(coi, user_interests, |a, b| a.name.cmp(&b.name), documents);
+}
+
 /// The ranker could rank the documents in a different order so we update the stacks with it.
 fn rank_stacks<'a>(
     stacks: impl Iterator<Item = &'a mut Stack>,
@@ -1412,9 +1453,9 @@ fn rank_stacks<'a>(
     user_interests: &UserInterests,
 ) {
     for stack in stacks {
-        stack.rank(coi, user_interests);
+        stack.rank(|documents| rank_documents(coi, user_interests, documents));
     }
-    exploration_stack.rank(coi, user_interests);
+    exploration_stack.rank(|documents| rank_documents(coi, user_interests, documents));
 }
 
 /// Updates the stacks with data related to the top key phrases of the current data.
@@ -1557,7 +1598,11 @@ async fn update_stacks(
         // to the exploration stack have been filtered before.
         let stack = stacks.get_mut(&stack_id).unwrap();
 
-        if let Err(error) = stack.update(&documents_group, coi, user_interests) {
+        if let Err(error) = stack.update(
+            user_interests,
+            |documents| rank_documents(coi, user_interests, documents),
+            &documents_group,
+        ) {
             let error = Error::StackOpFailed(error);
             error!("{stack_id}: {error}");
             errors.entry(stack_id).or_default().push(error);
@@ -1569,7 +1614,11 @@ async fn update_stacks(
         }
     }
 
-    if let Err(error) = exploration_stack.update(&exploration_docs, coi, user_interests) {
+    if let Err(error) = exploration_stack.update(
+        user_interests,
+        |documents| rank_documents(coi, user_interests, documents),
+        &exploration_docs,
+    ) {
         let stack_id = Exploration::id();
         let error = Error::StackOpFailed(error);
         error!("{stack_id}: {error}");
@@ -1691,7 +1740,7 @@ pub(crate) mod tests {
     use std::mem::size_of;
 
     use async_once_cell::OnceCell;
-    use chrono::{TimeZone, Utc};
+    use chrono::{Datelike, TimeZone, Utc};
     use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
     use url::Url;
     use wiremock::{
@@ -2203,5 +2252,28 @@ pub(crate) mod tests {
 
         assert_eq!(documents[0].smbert_embedding, expected_1);
         assert_ne!(documents[1].smbert_embedding, expected_2);
+    }
+
+    #[test]
+    fn test_rank_documents_default() {
+        let mut a = Document::default();
+        a.resource.date_published = Utc.ymd(2022, 1, 1).and_hms(1, 0, 0);
+
+        let mut b = Document::default();
+        b.resource.date_published = Utc.ymd(2020, 1, 1).and_hms(1, 0, 0);
+
+        let mut c = Document::default();
+        c.resource.date_published = Utc.ymd(2021, 1, 1).and_hms(1, 0, 0);
+
+        let mut documents = vec![a, b, c];
+
+        let coi = CoiConfig::default().build();
+        let user_interests = UserInterests::default();
+
+        rank_documents(&coi, &user_interests, &mut documents);
+
+        assert_eq!(documents[0].resource.date_published.year(), 2022);
+        assert_eq!(documents[1].resource.date_published.year(), 2021);
+        assert_eq!(documents[2].resource.date_published.year(), 2020);
     }
 }

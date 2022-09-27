@@ -12,7 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use chrono::{DateTime, Utc};
 use derive_more::Display;
 use uuid::Uuid;
 
@@ -30,14 +29,13 @@ impl From<Uuid> for DocumentId {
 
 /// Common document properties.
 pub trait Document {
+    type Id: std::fmt::Display + std::fmt::Debug + Eq + std::hash::Hash + Clone;
+
     /// Gets the document id.
-    fn id(&self) -> DocumentId;
+    fn id(&self) -> &Self::Id;
 
     /// Gets the `SMBert` embedding of the document.
     fn smbert_embedding(&self) -> &Embedding;
-
-    /// Gets the publishing date.
-    fn date_published(&self) -> DateTime<Utc>;
 }
 
 #[cfg(test)]
@@ -54,34 +52,26 @@ pub(crate) mod tests {
     pub(crate) struct TestDocument {
         pub(crate) id: DocumentId,
         pub(crate) smbert_embedding: Embedding,
-        pub(crate) date_published: DateTime<Utc>,
     }
 
     impl TestDocument {
-        pub(crate) fn new(
-            id: u128,
-            embedding: impl Into<Embedding>,
-            date_published: DateTime<Utc>,
-        ) -> Self {
+        pub(crate) fn new(id: u128, embedding: impl Into<Embedding>) -> Self {
             Self {
                 id: DocumentId::from_u128(id),
                 smbert_embedding: embedding.into(),
-                date_published,
             }
         }
     }
 
     impl Document for TestDocument {
-        fn id(&self) -> DocumentId {
-            self.id
+        type Id = DocumentId;
+
+        fn id(&self) -> &Self::Id {
+            &self.id
         }
 
         fn smbert_embedding(&self) -> &Embedding {
             &self.smbert_embedding
-        }
-
-        fn date_published(&self) -> DateTime<Utc> {
-            self.date_published
         }
     }
 }

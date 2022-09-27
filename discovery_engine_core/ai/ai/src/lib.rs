@@ -36,7 +36,7 @@ mod document;
 mod embedding;
 mod error;
 mod kps;
-mod utils;
+pub mod utils;
 
 pub use crate::{
     coi::{
