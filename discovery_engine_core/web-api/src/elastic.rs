@@ -113,10 +113,10 @@ fn convert_response(response: Response<ElasticDocumentData>) -> Vec<Personalized
 
 /// Represents a document with calculated embeddings that is stored in Elastic Search.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ElasticDocumentData {
-    snippet: String,
-    properties: DocumentProperties,
-    embedding: Vec<f32>,
+pub struct ElasticDocumentData {
+    pub snippet: String,
+    pub properties: DocumentProperties,
+    pub embedding: Vec<f32>,
 }
 
 #[derive(Clone, Deserialize, Debug)]

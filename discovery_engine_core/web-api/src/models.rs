@@ -97,7 +97,7 @@ pub(crate) struct IngestedDocument {
 }
 
 /// Arbitrary properties that can be attached to a document.
-pub(crate) type DocumentProperties = HashMap<String, serde_json::Value>;
+pub type DocumentProperties = HashMap<String, serde_json::Value>;
 
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Serialize, Deserialize)]

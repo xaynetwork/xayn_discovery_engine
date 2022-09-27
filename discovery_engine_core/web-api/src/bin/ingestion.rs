@@ -15,7 +15,6 @@
 //! Ingestion service that uses Xayn Discovery Engine.
 
 use bytes::{BufMut, Bytes, BytesMut};
-use chrono::{DateTime, Utc};
 use envconfig::Envconfig;
 use itertools::Itertools;
 use reqwest::{

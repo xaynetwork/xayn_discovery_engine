@@ -53,18 +53,18 @@ impl AppState {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct InitConfig {
+pub struct InitConfig {
     /// S-mBert vocabulary path.
-    pub(crate) smbert_vocab: PathBuf,
+    pub smbert_vocab: PathBuf,
     /// S-mBert model path.
-    pub(crate) smbert_model: PathBuf,
+    pub smbert_model: PathBuf,
     /// List of [IngestedDocument]s in JSON format.
-    pub(crate) data_store: PathBuf,
+    pub data_store: PathBuf,
     /// Handler for storing the user state.
-    pub(crate) user_state: UserState,
+    pub user_state: UserState,
     /// Elastic configuration.
     #[allow(dead_code)]
-    pub(crate) elastic: elastic::Config,
+    pub elastic: elastic::Config,
 }
 
 // NOTE this will be removed by follow up tasks so it's not necessary to validate data here anymore
