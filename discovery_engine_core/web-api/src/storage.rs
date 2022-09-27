@@ -31,9 +31,8 @@ use xayn_discovery_engine_ai::{
     PositiveCoi,
     UserInterests,
 };
-use xayn_discovery_engine_core::document::UserReaction;
 
-use crate::models::UserId;
+use crate::models::{UserId, UserReaction};
 
 #[derive(Debug, Clone)]
 pub(crate) struct UserState {
@@ -156,10 +155,9 @@ impl UserState {
         .await?;
 
         sqlx::query(
-            "INSERT INTO document (doc_id, user_id, last_view, user_reaction)
+            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)
             VALUES ($1, $2, $3, $4)
-            ON CONFLICT (doc_id, user_id) DO UPDATE SET
-                last_view = EXCLUDED.last_view,
+            ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
                 user_reaction = EXCLUDED.user_reaction;",
         )
         .bind(doc_id)
@@ -182,7 +180,7 @@ impl UserState {
             .await?
             .rows_affected()
             > 0;
-        let deletion = sqlx::query("DELETE FROM document;")
+        let deletion = sqlx::query("DELETE FROM interaction;")
             .execute(&mut tx)
             .await?
             .rows_affected()

@@ -129,3 +129,10 @@ impl FromStr for UserId {
         UserId::new(value)
     }
 }
+
+#[repr(u8)]
+pub(crate) enum UserReaction {
+    Positive = xayn_discovery_engine_core::document::UserReaction::Positive as u8,
+    #[allow(dead_code)]
+    Negative = xayn_discovery_engine_core::document::UserReaction::Negative as u8,
+}
