@@ -113,7 +113,7 @@ pub(crate) struct InteractionRequestBody {
 pub(crate) struct UserId(String);
 
 impl UserId {
-    fn new(id: String) -> Result<Self, IdValidationError> {
+    fn new(id: &str) -> Result<Self, IdValidationError> {
         let id = urlencoding::decode(&id).map_err(IdValidationError::InvalidUtf8)?;
 
         validate_id_from_string(&*id)?;
@@ -126,6 +126,6 @@ impl FromStr for UserId {
     type Err = IdValidationError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        UserId::new(value.to_string())
+        UserId::new(value)
     }
 }
