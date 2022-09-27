@@ -225,7 +225,7 @@ async fn handle_add_data(
     }
 
     let bytes =
-        serialize_to_ndjson(documents).map_err(|_| warp::reject::custom(SerializeNdJsonError))?;
+        serialize_to_ndjson(&documents).map_err(|_| warp::reject::custom(SerializeNdJsonError))?;
 
     let url = format!(
         "{}/{}/_bulk?refresh",
@@ -267,18 +267,18 @@ fn with_client(client: Client) -> impl Filter<Extract = (Client,), Error = Infal
 }
 
 fn serialize_to_ndjson(
-    documents: Vec<(String, ElasticDocumentData)>,
+    documents: &Vec<(String, ElasticDocumentData)>,
 ) -> Result<Bytes, GenericError> {
     let mut bytes = BytesMut::new();
 
     fn write_record(
         document_id: String,
-        doc_data: ElasticDocumentData,
+        doc_data: &ElasticDocumentData,
         bytes: &mut BytesMut,
     ) -> Result<(), GenericError> {
         let bulk_op_instruction = BulkOpInstruction::new(document_id);
         let bulk_op_instruction = serde_json::to_vec(&bulk_op_instruction)?;
-        let documents_bytes = serde_json::to_vec(&doc_data)?;
+        let documents_bytes = serde_json::to_vec(doc_data)?;
 
         bytes.put_slice(&bulk_op_instruction);
         bytes.put_u8(b'\n');
@@ -288,7 +288,7 @@ fn serialize_to_ndjson(
     }
 
     for (doc_id, doc_data) in documents {
-        write_record(doc_id, doc_data, &mut bytes)?;
+        write_record(doc_id.clone(), doc_data, &mut bytes)?;
     }
 
     Ok(bytes.freeze())
