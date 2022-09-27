@@ -15,6 +15,8 @@
 CREATE TABLE IF NOT EXISTS document (
     doc_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
+    last_view TIMESTAMPTZ NOT NULL DEFAULT Now(),
+    user_reaction SMALLINT NOT NULL DEFAULT 0,
     PRIMARY KEY (doc_id, user_id)
 );
 
