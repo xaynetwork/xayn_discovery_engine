@@ -15,7 +15,11 @@
 use std::convert::Infallible;
 use warp::{self, Filter, Rejection, Reply};
 
-use crate::{db::Db, handlers, models::UserId};
+use crate::{
+    db::Db,
+    handlers,
+    models::{Error, UserId},
+};
 
 pub(crate) fn api_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     get_ranked_documents(db.clone()).or(post_user_interaction(db))
@@ -43,7 +47,14 @@ fn post_user_interaction(db: Db) -> impl Filter<Extract = impl Reply, Error = Re
 
 // PATH /user/:user_id
 fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
-    warp::path("user").and(warp::path::param::<UserId>())
+    warp::path("user")
+        .and(warp::path::param::<String>())
+        .and_then(|user_id: String| async move {
+            urlencoding::decode(&user_id)
+                .map_err(Error::UserIdUtf8Conversion)
+                .and_then(UserId::new)
+                .map_err(|_| warp::reject())
+        })
 }
 
 fn with_db(db: Db) -> impl Filter<Extract = (Db,), Error = Infallible> + Clone {

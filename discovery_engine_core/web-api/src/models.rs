@@ -15,7 +15,7 @@
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, str::FromStr, string::FromUtf8Error};
+use std::{collections::HashMap, string::FromUtf8Error};
 use thiserror::Error;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
@@ -110,24 +110,16 @@ pub(crate) struct InteractionRequestBody {
 pub(crate) struct UserId(String);
 
 impl UserId {
-    fn new(value: &str) -> Result<Self, Error> {
-        let value = urlencoding::decode(value).map_err(Error::UserIdUtf8Conversion)?;
+    pub(crate) fn new(id: impl AsRef<str>) -> Result<Self, Error> {
+        let id = id.as_ref();
 
-        if value.trim().is_empty() {
+        if id.is_empty() {
             Err(Error::UserIdEmpty)
-        } else if value.contains('\u{0000}') {
+        } else if id.contains('\u{0000}') {
             Err(Error::UserIdContainsNul)
         } else {
-            Ok(Self(value.to_string()))
+            Ok(Self(id.to_string()))
         }
-    }
-}
-
-impl FromStr for UserId {
-    type Err = Error;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        UserId::new(value)
     }
 }
 
