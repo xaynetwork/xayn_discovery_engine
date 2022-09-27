@@ -34,7 +34,7 @@ pub(crate) async fn handle_ranked_documents(
     let mut documents = db.documents.clone();
 
     // TODO TO-3339: Return 500 with the correct kind if this fail
-    let scores = db.coi.score(&mut documents, &user_interests).unwrap();
+    let scores = db.coi.score(&documents, &user_interests).unwrap();
     rank(&mut documents, &scores);
 
     let articles = documents
