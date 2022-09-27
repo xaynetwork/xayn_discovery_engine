@@ -236,7 +236,7 @@ void main() {
     test('works with mostly empty db (b)', () async {
       await HiveInjection.accessRepositories(data.applicationDirectoryPath,
           (repos) async {
-        await repos.documentRepository.update(docs[0]);
+        await repos.documentRepository.update(docs.first);
       });
 
       engine = await initEngine(data, server.port);
@@ -337,13 +337,13 @@ void main() {
 
       final feed =
           expectEvent<RestoreFeedSucceeded>(await engine!.restoreFeed()).items;
-      expect(feed[0], equals(docs[0].toApiRepr()));
+      expect(feed.first, equals(docs[0].toApiRepr()));
       expect(feed.length, equals(1));
 
       final search = expectEvent<RestoreActiveSearchSucceeded>(
         await engine!.restoreActiveSearch(),
       ).items;
-      expect(search[0], equals(docs[1].toApiRepr()));
+      expect(search.first, equals(docs[1].toApiRepr()));
       expect(search.length, equals(1));
 
       await HiveInjection.accessRepositories(data.applicationDirectoryPath,

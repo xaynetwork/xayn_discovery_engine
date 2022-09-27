@@ -26,6 +26,6 @@ abstract class ActiveSearchRepository {
   /// Remove current search.
   Future<void> clear();
 
-  /// Checks if the repository is semantically empty.
+  /// Indicates if the repository is semantically empty.
   bool get isEmpty;
 }

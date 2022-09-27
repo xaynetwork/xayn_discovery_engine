@@ -45,6 +45,6 @@ abstract class SourceReactedRepository {
   /// Clears the repository.
   Future<void> clear();
 
-  /// Checks if the repository is semantically empty.
+  /// Indicates if the repository is semantically empty.
   bool get isEmpty;
 }
