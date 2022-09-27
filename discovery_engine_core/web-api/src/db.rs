@@ -24,10 +24,10 @@ use crate::{
     storage::UserState,
 };
 
-pub(crate) type Db = Arc<AppState>;
+pub type Db = Arc<AppState>;
 
 #[allow(dead_code)]
-pub(crate) struct AppState {
+pub struct AppState {
     pub(crate) smbert: SMBert,
     pub(crate) coi: CoiSystem,
     pub(crate) documents_by_id: HashMap<String, PersonalizedDocument>,
@@ -68,7 +68,7 @@ pub(crate) struct InitConfig {
 }
 
 // NOTE this will be removed by follow up tasks so it's not necessary to validate data here anymore
-pub(crate) fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
+pub fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
     let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)?
         .with_accents(AccentChars::Cleanse)
         .with_case(CaseChars::Lower)

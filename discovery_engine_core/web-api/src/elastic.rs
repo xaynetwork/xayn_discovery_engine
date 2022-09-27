@@ -21,11 +21,11 @@ use xayn_discovery_engine_ai::Embedding;
 use crate::models::{DocumentId, DocumentProperties, Error, PersonalizedDocument};
 
 #[derive(Clone, Debug)]
-pub(crate) struct Config {
-    pub(crate) url: String,
-    pub(crate) index_name: String,
-    pub(crate) user: String,
-    pub(crate) password: String,
+pub struct Config {
+    pub url: String,
+    pub index_name: String,
+    pub user: String,
+    pub password: String,
 }
 
 pub(crate) struct ElasticState {
