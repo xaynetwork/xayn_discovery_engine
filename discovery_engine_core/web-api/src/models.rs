@@ -17,10 +17,8 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr, string::FromUtf8Error};
 use thiserror::Error;
-use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
-use xayn_discovery_engine_core::document::Id;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
@@ -73,8 +71,8 @@ impl PersonalizedDocument {
     }
 }
 
-impl AiDocument for Document {
-    type Id = Id;
+impl AiDocument for PersonalizedDocument {
+    type Id = DocumentId;
 
     fn id(&self) -> &Self::Id {
         &self.id
