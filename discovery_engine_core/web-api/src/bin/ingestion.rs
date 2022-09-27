@@ -357,7 +357,7 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     // Requires the request to be wrapped into a
     // span with a `log.id` field.
     let log_id = Span::current()
-        .field("log.id")
+        .field("log_id")
         .map(|f| f.to_string())
         .unwrap_or_default();
 
@@ -379,9 +379,9 @@ fn trace_requests_with_random_id(request_info: warp::trace::Info<'_>) -> Span {
         path = %request_info.path(),
         version = ?request_info.version(),
         // Linked to rejection handling which will include
-        // the spans "log.id" field in error response bodies.
+        // the spans "log_id" field in error response bodies.
         //FIXME use v6/v7 once supported/standardized
-        log.id = %Uuid::new_v4(),
+        log_id = %Uuid::new_v4(),
     );
 
     //keep same wording as in `warp::trace::request()` for forward/backward compatibility
