@@ -52,13 +52,13 @@ extension OptionDurationFfi on Duration? {
 
   /// Reads a dart [Duration] from an optional rust duration.
   ///
-  /// Be aware that darts [Duration] has both less precision and  is more
+  /// Be aware that dart's [Duration] has both less precision and is more
   /// limited wrt. the max duration as it stores the duration as an `int`
   /// of microseconds.
   ///
-  /// Sub microseconds precision will be ignored.
+  /// Sub microsecond precision will be ignored.
   ///
-  /// In case of a too large durations an exception will be throw.
+  /// In case of too large durations an exception will be thrown.
   static Duration? readNative(final Pointer<RustOptionDuration> place) {
     if (ffi.get_option_duration_is_some(place) == 0) {
       return null;
