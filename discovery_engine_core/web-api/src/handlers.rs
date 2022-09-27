@@ -60,14 +60,6 @@ pub(crate) async fn handle_user_interaction(
     }
 }
 
-pub(crate) async fn handle_clean_state(db: Db) -> Result<impl warp::Reply, Rejection> {
-    db.user_state
-        .clear()
-        .await
-        .map_err(handle_user_state_op_error)?;
-    Ok(StatusCode::OK)
-}
-
 fn handle_user_state_op_error(_: GenericError) -> Rejection {
     warp::reject::custom(UserStateOpError)
 }
