@@ -177,6 +177,9 @@ macro_rules! handle4 {
             $handle(t1, t2, t3, t4)
                 .instrument(span)
                 .await
+                //FIXME handle our errors here, and then handle rejection separately
+                // by turning them into Reponses and then grabbing the status code
+                // and the text body from the response to create our response.
                 .or_else(|err| handle_rejection(err, id))
         }
     };
