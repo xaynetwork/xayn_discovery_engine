@@ -38,6 +38,7 @@ use routes::api_routes;
 use storage::UserState;
 
 mod db;
+mod elastic;
 mod handlers;
 mod models;
 mod routes;
@@ -60,6 +61,11 @@ async fn main() -> Result<(), GenericError> {
         .unwrap_or_else(|_| "0.0.0.0".to_string())
         .parse::<IpAddr>()?;
 
+    let elastic_url = env::var("ELASTIC_URL")?;
+    let elastic_index_name = env::var("ELASTIC_INDEX_NAME")?;
+    let elastic_user = env::var("ELASTIC_USER")?;
+    let elastic_password = env::var("ELASTIC_PASSWORD")?;
+
     let user_state = UserState::connect(&pg_url).await?;
     user_state.init_database().await?;
 
@@ -68,6 +74,12 @@ async fn main() -> Result<(), GenericError> {
         smbert_model,
         data_store,
         user_state,
+        elastic: elastic::Config {
+            url: elastic_url,
+            index_name: elastic_index_name,
+            user: elastic_user,
+            password: elastic_password,
+        },
     };
     let db = init_db(&config)?;
     let routes = api_routes(db);

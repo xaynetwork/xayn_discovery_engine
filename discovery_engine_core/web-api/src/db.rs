@@ -19,7 +19,8 @@ use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::{
-    models::{Article, Document},
+    elastic,
+    models::{IngestedDocument, PersonalizedDocument},
     storage::UserState,
 };
 
@@ -29,14 +30,14 @@ pub(crate) type Db = Arc<AppState>;
 pub(crate) struct AppState {
     pub(crate) smbert: SMBert,
     pub(crate) coi: CoiSystem,
-    pub(crate) documents_by_id: HashMap<String, Document>,
-    pub(crate) documents: Vec<Document>,
+    pub(crate) documents_by_id: HashMap<String, PersonalizedDocument>,
+    pub(crate) documents: Vec<PersonalizedDocument>,
     pub(crate) user_state: UserState,
 }
 
 impl AppState {
     fn new(
-        documents_by_id: HashMap<String, Document>,
+        documents_by_id: HashMap<String, PersonalizedDocument>,
         smbert: SMBert,
         user_state: UserState,
     ) -> Self {
@@ -57,12 +58,16 @@ pub(crate) struct InitConfig {
     pub(crate) smbert_vocab: PathBuf,
     /// S-mBert model path.
     pub(crate) smbert_model: PathBuf,
-    /// List of [Article]s in JSON format.
+    /// List of [IngestedDocument]s in JSON format.
     pub(crate) data_store: PathBuf,
     /// Handler for storing the user state.
     pub(crate) user_state: UserState,
+    /// Elastic configuration.
+    #[allow(dead_code)]
+    pub(crate) elastic: elastic::Config,
 }
 
+// NOTE this will be removed by follow up tasks so it's not necessary to validate data here anymore
 pub(crate) fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
     let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)?
         .with_accents(AccentChars::Cleanse)
@@ -72,35 +77,14 @@ pub(crate) fn init_db(config: &InitConfig) -> Result<Db, GenericError> {
         .build()?;
 
     let file = File::open(&config.data_store).expect("Couldn't open the data file");
-    let articles: Vec<Article> = from_reader(file).expect("Couldn't deserialize json");
-    let documents = articles
+    let ingestion_docs: Vec<IngestedDocument> =
+        from_reader(file).expect("Couldn't deserialize json");
+    let documents = ingestion_docs
         .into_iter()
-        .map(|article| {
-            let article_id = article
-                .get("id")
-                .expect("Article needs to have an 'id' field")
-                .as_str()
-                .expect("The article's 'id' field needs to be represented as String")
-                .to_string();
-
-            assert!(
-                !article_id.trim().is_empty(),
-                "The article's 'id' field can't be empty"
-            );
-
-            assert!(
-                !article_id.contains('\u{0000}'),
-                "The article's 'id' field can't contain zero bytes"
-            );
-
-            let description = article
-                .get("description")
-                .expect("Article needs to have a 'description' field")
-                .as_str()
-                .expect("The 'description' field needs to be represented as String");
-            let embedding = smbert.run(description).unwrap();
-            let document = Document::new((article, embedding));
-            (article_id, document)
+        .map(|ingestion_doc| {
+            let embedding = smbert.run(&ingestion_doc.snippet).unwrap();
+            let document = PersonalizedDocument::new((ingestion_doc, embedding));
+            (document.id.0.clone(), document)
         })
         .collect();
     let app_state = AppState::new(documents, smbert, config.user_state.clone());

@@ -18,7 +18,7 @@ use xayn_discovery_engine_ai::{utils::rank, GenericError};
 
 use crate::{
     db::Db,
-    models::{Article, InteractionRequestBody, UserId},
+    models::{InteractionRequestBody, UserId},
 };
 
 pub(crate) async fn handle_ranked_documents(
@@ -37,12 +37,7 @@ pub(crate) async fn handle_ranked_documents(
     let scores = db.coi.score(&documents, &user_interests).unwrap();
     rank(&mut documents, &scores);
 
-    let articles = documents
-        .into_iter()
-        .map(Article::from)
-        .collect::<Vec<Article>>();
-
-    Ok(warp::reply::json(&articles))
+    Ok(warp::reply::json(&documents))
 }
 
 pub(crate) async fn handle_user_interaction(
@@ -54,7 +49,7 @@ pub(crate) async fn handle_user_interaction(
         db.user_state
             .update_positive_cois(&user_id, |positive_cois| {
                 db.coi
-                    .log_positive_user_reaction(positive_cois, &document.smbert_embedding)
+                    .log_positive_user_reaction(positive_cois, &document.embedding)
             })
             .await
             .map_err(handle_user_state_op_error)?;
