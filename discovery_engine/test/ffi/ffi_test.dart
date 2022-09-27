@@ -48,10 +48,6 @@ void main() {
     final setupData = NativeSetupData(
       smbertVocab: '',
       smbertModel: '',
-      kpeVocab: '',
-      kpeModel: '',
-      kpeCnn: '',
-      kpeClassifier: '',
       availableSources: '',
     );
     expect(

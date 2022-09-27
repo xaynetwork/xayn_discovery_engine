@@ -13,30 +13,6 @@
       "fragments": []
     },
     {
-      "id": "kpeVocab",
-      "url_suffix": "kpe_v0001/vocab.txt",
-      "checksum": "a81a5deccae9ee2b6d003f5b65023d342c59bb06f8eac2048c8f40002255864e",
-      "fragments": []
-    },
-    {
-      "id": "kpeModel",
-      "url_suffix": "kpe_v0001/bert-quantized.onnx",
-      "checksum": "0319f474a8516de89a7f6e9efe63029021c4539d81ae4f1abb948f8d452190ad",
-      "fragments": []
-    },
-    {
-      "id": "kpeCnn",
-      "url_suffix": "kpe_v0001/cnn.binparams",
-      "checksum": "dec262c1c0d77ca6f8ddc62cd4cc31764ac068a1434875f9a22b6b1b22c2898b",
-      "fragments": []
-    },
-    {
-      "id": "kpeClassifier",
-      "url_suffix": "kpe_v0001/classifier.binparams",
-      "checksum": "cd78be076b246d3065c7a646fe1ca19b57c1c670424f093ce1bd5211fa21082c",
-      "fragments": []
-    },
-    {
       "id": "availableSources",
       "url_suffix": "sources_v0000/available_sources.csv",
       "checksum": "e28996c4bb59ea358f6310835fc93b5b390eed99fab15cfae42f5bed0528742c",

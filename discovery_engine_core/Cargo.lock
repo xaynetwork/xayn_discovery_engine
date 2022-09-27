@@ -4083,7 +4083,6 @@ dependencies = [
  "wiremock",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-bert",
- "xayn-discovery-engine-kpe",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
  "xayn-discovery-engine-tokenizer",

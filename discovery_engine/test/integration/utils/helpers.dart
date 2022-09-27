@@ -49,8 +49,7 @@ Future<TestEngineData> setupTestEngineData({
   );
   final manifest = await createManifestReader().read();
   final assetsWithMockedModels = manifest.assets.map((asset) {
-    final isModelAsset =
-        [AssetType.kpeModel, AssetType.smbertModel].contains(asset.id);
+    final isModelAsset = asset.id == AssetType.smbertModel;
 
     if (isModelAsset) {
       final urlSuffix = asset.urlSuffix.replaceAll(r'quantized', 'mocked');

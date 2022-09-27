@@ -66,10 +66,6 @@ class Asset {
 enum AssetType {
   smbertVocab,
   smbertModel,
-  kpeVocab,
-  kpeModel,
-  kpeCnn,
-  kpeClassifier,
   availableSources,
 }
 
