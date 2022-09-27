@@ -28,7 +28,7 @@ pub type MigrationSearch = Search;
 ///
 /// # Safety
 ///
-/// The pointer must point to a valid [`Option<MigrationSearch>`] memory object, it
+/// The pointer must point to a valid [`Option<MigrationSearch>`] memory object, which
 /// might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_option_migration_search_none_at(place: *mut Option<MigrationSearch>) {

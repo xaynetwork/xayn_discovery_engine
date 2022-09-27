@@ -76,6 +76,7 @@ mod tests {
                     next_page: 312,
                 },
             }),
+            documents: vec![],
         };
 
         let storage = init_storage_system_once(None, Some(&data)).await.unwrap();

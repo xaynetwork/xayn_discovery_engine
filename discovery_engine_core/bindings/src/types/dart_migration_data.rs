@@ -14,7 +14,7 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::storage2::DartMigrationData;
+use xayn_discovery_engine_core::storage2::{DartMigrationData, MigrationDocument};
 
 use super::migration_search::MigrationSearch;
 
@@ -68,6 +68,19 @@ pub unsafe extern "C" fn dart_migration_data_place_of_search(
     place: *mut DartMigrationData,
 ) -> *mut Option<MigrationSearch> {
     unsafe { addr_of_mut!((*place).search) }
+}
+
+/// Returns a pointer to the `documents` field of a [`DartMigrationData`].
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`DartMigrationData`] memory object,
+/// which might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn dart_migration_data_place_of_documents(
+    place: *mut DartMigrationData,
+) -> *mut Vec<MigrationDocument> {
+    unsafe { addr_of_mut!((*place).documents) }
 }
 
 /// Alloc an uninitialized `Box<DartMigrationData>`, mainly used for testing.
