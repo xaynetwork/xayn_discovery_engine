@@ -157,18 +157,6 @@ impl UserState {
 
         Ok(())
     }
-
-    pub(crate) async fn clear(&self) -> Result<bool, GenericError> {
-        let mut tx = self.pool.begin().await?;
-
-        let deletion = sqlx::query("DELETE FROM center_of_interest;")
-            .execute(&mut tx)
-            .await?;
-
-        tx.commit().await?;
-
-        Ok(deletion.rows_affected() > 0)
-    }
 }
 
 #[derive(FromRow)]
