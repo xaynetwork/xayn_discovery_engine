@@ -20,5 +20,5 @@ CREATE TABLE IF NOT EXISTS interaction (
     PRIMARY KEY (doc_id, user_id, time_stamp)
 );
 
-CREATE INDEX IF NOT EXISTS idx_doc_by_user_id
-    ON document(user_id);
+CREATE INDEX IF NOT EXISTS idx_interaction_by_user_id
+    ON interaction(user_id);
