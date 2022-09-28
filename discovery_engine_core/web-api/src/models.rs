@@ -17,6 +17,7 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, string::FromUtf8Error};
 use thiserror::Error;
+use warp::reject::Reject;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
@@ -38,6 +39,7 @@ pub(crate) enum Error {
     /// Error receiving response: {0}
     Receiving(#[source] reqwest::Error),
 }
+impl Reject for Error {}
 
 /// A unique identifier of a document.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display, AsRef)]

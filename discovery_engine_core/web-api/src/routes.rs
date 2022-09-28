@@ -53,7 +53,7 @@ fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
             urlencoding::decode(&user_id)
                 .map_err(Error::UserIdUtf8Conversion)
                 .and_then(UserId::new)
-                .map_err(|_| warp::reject())
+                .map_err(warp::reject::custom)
         })
 }
 
