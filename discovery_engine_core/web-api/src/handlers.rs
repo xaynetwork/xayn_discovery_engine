@@ -15,6 +15,7 @@
 use futures::future::join_all;
 use itertools::Itertools;
 use std::{sync::Arc, time::Duration};
+use tracing::{error, instrument};
 use warp::{hyper::StatusCode, reject::Reject, Rejection};
 
 use xayn_discovery_engine_ai::{
@@ -33,15 +34,18 @@ use crate::{
     state::AppState,
 };
 
+#[instrument(skip(db))]
 pub(crate) async fn handle_ranked_documents(
     user_id: UserId,
     state: Arc<AppState>,
 ) -> Result<impl warp::Reply, Rejection> {
-    let user_interests = state
-        .user
-        .fetch_interests(&user_id)
-        .await
-        .map_err(handle_user_state_op_error)?;
+    let user_interests = state.user.fetch_interests(&user_id).await.map_err(|err| {
+        error!(
+            "Error fetching interests for user '{}': {:#?}",
+            user_id, err
+        );
+        handle_user_state_op_error(err)
+    })?;
 
     if user_interests.positive.is_empty() {
         return Err(warp::reject::custom(NoCenterOfInterestsError));
@@ -125,6 +129,7 @@ pub(crate) async fn handle_ranked_documents(
     Ok(warp::reply::json(&documents))
 }
 
+#[instrument(skip(db))]
 pub(crate) async fn handle_user_interaction(
     user_id: UserId,
     body: InteractionRequestBody,
