@@ -40,7 +40,7 @@ pub(crate) enum Error {
 }
 
 /// A unique identifier of a document.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display, AsRef)]
 pub(crate) struct DocumentId(pub(crate) String);
 
 /// Represents a result from a query.

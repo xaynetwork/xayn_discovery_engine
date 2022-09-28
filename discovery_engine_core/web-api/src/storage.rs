@@ -32,7 +32,7 @@ use xayn_discovery_engine_ai::{
     UserInterests,
 };
 
-use crate::models::{UserId, UserReaction};
+use crate::models::{DocumentId, UserId, UserReaction};
 
 #[derive(Debug, Clone)]
 pub(crate) struct UserState {
@@ -97,7 +97,7 @@ impl UserState {
 
     pub(crate) async fn update_positive_cois<F>(
         &self,
-        doc_id: &str,
+        doc_id: &DocumentId,
         user_id: &UserId,
         update_cois: F,
     ) -> Result<(), GenericError>
@@ -160,7 +160,7 @@ impl UserState {
             ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
                 user_reaction = EXCLUDED.user_reaction;",
         )
-        .bind(doc_id)
+        .bind(doc_id.as_ref())
         .bind(user_id.as_ref())
         .bind(timestamp)
         .bind(UserReaction::Positive as i16)
