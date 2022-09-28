@@ -145,6 +145,12 @@ components:
       description: A user id can be any non-empty UTF-8 string that does not contain the null byte.
       type: string
       example: "user id"
+    BaseError:
+      type: object
+      properties:
+        request_id:
+          description: Request ID optionally generated from the service. It can be comunicated to xayn to help debugging.
+          type: string
     PersonalizedDocumentData:
       type: object
       required: [id, score]
@@ -164,11 +170,13 @@ components:
           items:
             $ref: '#/components/schemas/PersonalizedDocumentData'
     PersonalizedDocumentsError:
-      type: object
-      required: [kind]
-      properties:
-        kind:
-          type: string
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
     UserInteractionType:
       type: string
       enum: [positive]
@@ -188,12 +196,14 @@ components:
           items:
             $ref: '#/components/schemas/UserInteractionData'
     UserInteractionError:
-      type: object
-      required: [kind]
-      properties:
-        kind:
-          type: string
-          enum: [invalid_user_id, invalid_document_id]
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [invalid_user_id, invalid_document_id]
     IngestedDocument:
       type: object
       required: [id, snippet]
@@ -214,13 +224,16 @@ components:
           items:
             $ref: '#/components/schemas/IngestedDocument'
     IngestionError:
-      type: object
-      required: [documents]
-      properties:
-        documents:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                $ref: '#/components/schemas/DocumentId'
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+        - type: object
+          required: [documents]
+          properties:
+            documents:
+              type: array
+              items:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    $ref: '#/components/schemas/DocumentId'
