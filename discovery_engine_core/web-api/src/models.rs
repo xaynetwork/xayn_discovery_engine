@@ -40,7 +40,7 @@ pub(crate) enum Error {
 }
 
 /// A unique identifier of a document.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display, AsRef)]
 pub(crate) struct DocumentId(pub(crate) String);
 
 /// Represents a result from a query.
@@ -129,4 +129,11 @@ impl FromStr for UserId {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         UserId::new(value)
     }
+}
+
+#[repr(u8)]
+pub(crate) enum UserReaction {
+    Positive = xayn_discovery_engine_core::document::UserReaction::Positive as u8,
+    #[allow(dead_code)]
+    Negative = xayn_discovery_engine_core::document::UserReaction::Negative as u8,
 }
