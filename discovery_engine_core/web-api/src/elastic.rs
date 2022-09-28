@@ -105,7 +105,7 @@ fn convert_response(response: Response<ElasticDocumentData>) -> Vec<Personalized
         .map(|hit| PersonalizedDocument {
             id: DocumentId(hit.id),
             score: hit.score,
-            embedding: Embedding::from(Array::from_vec(hit.source.embedding)),
+            embedding: hit.source.embedding,
             properties: hit.source.properties,
         })
         .collect()
@@ -116,7 +116,7 @@ fn convert_response(response: Response<ElasticDocumentData>) -> Vec<Personalized
 pub struct ElasticDocumentData {
     pub snippet: String,
     pub properties: DocumentProperties,
-    pub embedding: Vec<f32>,
+    pub embedding: Embedding,
 }
 
 #[derive(Clone, Deserialize, Debug)]

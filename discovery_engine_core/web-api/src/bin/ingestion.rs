@@ -205,7 +205,7 @@ async fn handle_add_data(
                 ElasticDocumentData {
                     snippet: document.snippet,
                     properties: document.properties,
-                    embedding: embedding.to_vec(),
+                    embedding,
                 },
             )),
             Err(err) => {
