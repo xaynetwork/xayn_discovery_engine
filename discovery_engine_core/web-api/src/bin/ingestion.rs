@@ -273,12 +273,12 @@ fn serialize_to_ndjson(
 
     fn write_record(
         document_id: String,
-        doc_data: &ElasticDocumentData,
+        document_data: &ElasticDocumentData,
         bytes: &mut BytesMut,
     ) -> Result<(), GenericError> {
         let bulk_op_instruction = BulkOpInstruction::new(document_id);
         let bulk_op_instruction = serde_json::to_vec(&bulk_op_instruction)?;
-        let documents_bytes = serde_json::to_vec(doc_data)?;
+        let documents_bytes = serde_json::to_vec(document_data)?;
 
         bytes.put_slice(&bulk_op_instruction);
         bytes.put_u8(b'\n');
