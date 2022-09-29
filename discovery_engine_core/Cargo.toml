@@ -7,6 +7,7 @@ members = [
     "providers",
     "tooling",
     "web-api",
+    "web-api2",
 ]
 
 [workspace.package]

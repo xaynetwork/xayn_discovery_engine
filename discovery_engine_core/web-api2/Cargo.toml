@@ -1,0 +1,21 @@
+[package]
+name = "web-api2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["ingestion", "personalization"]
+ingestion = []
+personalization = []
+
+[dependencies]
+actix-web = "4.2.1"
+derive_more = { version = "0.99.17", features = ["display", "deref"] }
+mime = "0.3.16"
+serde = { version = "1.0.145", features = ["derive"] }
+serde_json = "1.0.85"
+tracing = "0.1.36"
+tracing-actix-web = "0.6.1"
+uuid = { version = "1.1.2", features = ["v4", "serde"] }
