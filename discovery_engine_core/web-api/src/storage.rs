@@ -15,6 +15,7 @@
 use std::{str::FromStr, time::Duration};
 
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use ndarray::Array;
 use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
@@ -171,6 +172,27 @@ impl UserState {
 
         Ok(())
     }
+
+    #[allow(dead_code)]
+    pub(crate) async fn interacted_documents(
+        &self,
+        user_id: &UserId,
+    ) -> Result<Vec<DocumentId>, GenericError> {
+        let mut tx = self.pool.begin().await?;
+
+        let documents = sqlx::query_as::<_, QueriedInteractedDocumentId>(
+            "SELECT DISTINCT doc_id
+            FROM interaction
+            WHERE user_id = $1;",
+        )
+        .bind(user_id.as_ref())
+        .fetch_all(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(documents.into_iter().map_into().collect())
+    }
 }
 
 #[derive(FromRow)]
@@ -183,4 +205,15 @@ struct QueriedCoi {
     /// The time is a `u64` stored as `i64` in database
     view_time_ms: i64,
     last_view: DateTime<Utc>,
+}
+
+#[derive(FromRow)]
+struct QueriedInteractedDocumentId {
+    doc_id: String,
+}
+
+impl From<QueriedInteractedDocumentId> for DocumentId {
+    fn from(document: QueriedInteractedDocumentId) -> Self {
+        Self(document.doc_id)
+    }
 }
