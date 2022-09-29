@@ -24,36 +24,36 @@ use crate::{
 pub fn api_routes(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    get_ranked_documents(state.clone()).or(post_user_interaction(state))
+    get_personalized_documents(state.clone()).or(post_user_interactions(state))
 }
 
-// GET /user/:user_id/documents
-fn get_ranked_documents(
+// GET /users/:user_id/personalized_documents
+fn get_personalized_documents(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     user_path()
-        .and(warp::path("documents"))
+        .and(warp::path("personalized_documents"))
         .and(warp::get())
         .and(with_state(state))
-        .and_then(handlers::handle_ranked_documents)
+        .and_then(handlers::handle_personalized_documents)
 }
 
-// POST /user/:user_id/interaction
-fn post_user_interaction(
+// PATCH /users/:user_id/interactions
+fn post_user_interactions(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     user_path()
-        .and(warp::path("interaction"))
-        .and(warp::post())
+        .and(warp::path("interactions"))
+        .and(warp::patch())
         .and(warp::body::content_length_limit(1024))
         .and(warp::body::json())
         .and(with_state(state))
-        .and_then(handlers::handle_user_interaction)
+        .and_then(handlers::handle_user_interactions)
 }
 
-// PATH /user/:user_id
+// PATH /users/:user_id
 fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
-    warp::path("user")
+    warp::path("users")
         .and(warp::path::param::<String>())
         .and_then(|user_id: String| async move {
             urlencoding::decode(&user_id)

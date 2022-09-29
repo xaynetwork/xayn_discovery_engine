@@ -35,7 +35,7 @@ use crate::{
 };
 
 #[instrument(skip(state))]
-pub(crate) async fn handle_ranked_documents(
+pub(crate) async fn handle_personalized_documents(
     user_id: UserId,
     state: Arc<AppState>,
 ) -> Result<impl warp::Reply, Rejection> {
@@ -136,7 +136,7 @@ pub(crate) async fn handle_ranked_documents(
 }
 
 #[instrument(skip(state))]
-pub(crate) async fn handle_user_interaction(
+pub(crate) async fn handle_user_interactions(
     user_id: UserId,
     body: InteractionRequestBody,
     state: Arc<AppState>,
