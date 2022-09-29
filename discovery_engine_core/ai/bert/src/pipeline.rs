@@ -16,11 +16,12 @@ use std::marker::PhantomData;
 
 use displaydoc::Display;
 use thiserror::Error;
+use tokenizers::Error as TokenizerError;
 
 use crate::{
     model::{BertModel, Model, ModelError},
     pooler::{Embedding1, Embedding2, PoolerError},
-    tokenizer::{Tokenizer, TokenizerError},
+    tokenizer::Tokenizer,
     AveragePooler,
     FirstPooler,
     NonePooler,
@@ -58,7 +59,7 @@ where
 {
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding2, PipelineError> {
-        let encoding = self.tokenizer.encode(sequence);
+        let encoding = self.tokenizer.encode(sequence)?;
         let prediction = self.model.predict(encoding)?;
         NonePooler::pool(&prediction).map_err(Into::into)
     }
@@ -70,7 +71,7 @@ where
 {
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
-        let encoding = self.tokenizer.encode(sequence);
+        let encoding = self.tokenizer.encode(sequence)?;
         let prediction = self.model.predict(encoding)?;
         FirstPooler::pool(&prediction).map_err(Into::into)
     }
@@ -82,8 +83,8 @@ where
 {
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
-        let encoding = self.tokenizer.encode(sequence);
-        let attention_mask = encoding.attention_mask.clone();
+        let encoding = self.tokenizer.encode(sequence)?;
+        let attention_mask = encoding.to_attention_mask();
         let prediction = self.model.predict(encoding)?;
         AveragePooler::pool(&prediction, &attention_mask).map_err(Into::into)
     }

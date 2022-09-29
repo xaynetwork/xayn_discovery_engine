@@ -32,7 +32,6 @@ uuid = { version = "1.1.2", features = ["serde", "v4"] }
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-bert = { path = "../ai/bert" }
 xayn-discovery-engine-providers = { path = "../providers" }
-xayn-discovery-engine-tokenizer = { path = "../ai/tokenizer" }
 
 # feature storage
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "sqlite", "uuid", "chrono"], optional = true }

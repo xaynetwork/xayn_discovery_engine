@@ -29,7 +29,6 @@ use warp::{self, hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 use web_api::{DocumentProperties, ElasticDocumentData};
 use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
-use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[derive(Envconfig, Clone, Debug)]
 pub(crate) struct Config {
@@ -159,8 +158,8 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
     let vocab_path = path.join(&config.smbert_vocab);
     let model_path = path.join(&config.smbert_model);
     let smbert = SMBertConfig::from_files(&vocab_path, &model_path)?
-        .with_accents(AccentChars::Cleanse)
-        .with_case(CaseChars::Lower)
+        .with_cleanse_accents(true)
+        .with_lower_case(true)
         .with_pooling::<AveragePooler>()
         .with_token_size(64)?
         .build()?;

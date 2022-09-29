@@ -28,7 +28,6 @@ use crate::{
     tokenizer::Tokenizer,
     NonePooler,
 };
-use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 /// `BertModel` configuration errors.
 #[derive(Debug, Display, Error)]
@@ -45,8 +44,8 @@ pub struct Config<'a, K, P> {
     model_kind: PhantomData<K>,
     vocab: Box<dyn BufRead + Send + 'a>,
     model: Box<dyn Read + Send + 'a>,
-    accents: AccentChars,
-    case: CaseChars,
+    cleanse_accents: bool,
+    lower_case: bool,
     token_size: usize,
     pooler: PhantomData<P>,
 }
@@ -61,8 +60,8 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
             model_kind: PhantomData,
             vocab,
             model,
-            accents: AccentChars::Cleanse,
-            case: CaseChars::Lower,
+            cleanse_accents: true,
+            lower_case: true,
             token_size: 128,
             pooler: PhantomData,
         }
@@ -80,19 +79,19 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
 }
 
 impl<'a, K: BertModel, P> Config<'a, K, P> {
-    /// Whether the tokenizer keeps accents.
+    /// Whether the tokenizer cleanses accents.
     ///
-    /// Defaults to `AccentChars::Cleanse`.
-    pub fn with_accents(mut self, accents: AccentChars) -> Self {
-        self.accents = accents;
+    /// Defaults to `true`.
+    pub fn with_cleanse_accents(mut self, cleanse_accents: bool) -> Self {
+        self.cleanse_accents = cleanse_accents;
         self
     }
 
     /// Whether the tokenizer lowercases.
     ///
-    /// Defaults to `CaseChars::Lower`.
-    pub fn with_case(mut self, case: CaseChars) -> Self {
-        self.case = case;
+    /// Defaults to `true`.
+    pub fn with_lower_case(mut self, lower_case: bool) -> Self {
+        self.lower_case = lower_case;
         self
     }
 
@@ -119,8 +118,8 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
             vocab: self.vocab,
             model: self.model,
             model_kind: self.model_kind,
-            accents: self.accents,
-            case: self.case,
+            cleanse_accents: self.cleanse_accents,
+            lower_case: self.lower_case,
             token_size: self.token_size,
             pooler: PhantomData,
         }
@@ -128,8 +127,13 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
 
     /// Creates a `BertModel` pipeline from a configuration.
     pub fn build(self) -> Result<Pipeline<K, P>, PipelineError> {
-        let tokenizer = Tokenizer::new(self.vocab, self.accents, self.case, self.token_size)
-            .map_err(PipelineError::TokenizerBuild)?;
+        let tokenizer = Tokenizer::new(
+            self.vocab,
+            self.cleanse_accents,
+            self.lower_case,
+            self.token_size,
+        )
+        .map_err(PipelineError::TokenizerBuild)?;
 
         let model = Model::new(self.model, self.token_size).map_err(PipelineError::ModelBuild)?;
 
