@@ -77,7 +77,8 @@ pub(crate) async fn handle_personalized_documents(
             error!("Error fetching interacted document ids: {err}");
             handle_user_state_op_error(err)
         })?;
-    let documents_count = query.map_or_else(|| state.max_documents_count, |params| params.count);
+    let documents_count =
+        query.map_or_else(|| state.default_documents_count, |params| params.count);
     let document_futures = cois
         .iter()
         .map(|(coi, weight)| async {

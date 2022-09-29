@@ -26,7 +26,7 @@ pub struct InitConfig {
     /// Max nb of Positive CoIs to use in knn search.
     pub max_cois_for_knn: usize,
     /// Max nb of documents to return using personalized documents endpoint.
-    pub max_documents_count: usize,
+    pub default_documents_count: usize,
 }
 
 pub struct AppState {
@@ -39,7 +39,7 @@ pub struct AppState {
     /// Max nb of Positive CoIs to use in knn search.
     pub(crate) max_cois_for_knn: usize,
     /// Max nb of documents to return using personalized documents endpoint.
-    pub(crate) max_documents_count: usize,
+    pub(crate) default_documents_count: usize,
 }
 
 impl AppState {
@@ -54,7 +54,7 @@ impl AppState {
             elastic,
             user,
             max_cois_for_knn: config.max_cois_for_knn,
-            max_documents_count: config.max_documents_count,
+            default_documents_count: config.default_documents_count,
         };
 
         Ok(Arc::new(app_state))

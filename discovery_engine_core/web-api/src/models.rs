@@ -14,7 +14,7 @@
 
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, string::FromUtf8Error};
 use thiserror::Error;
 use warp::reject::Reject;
@@ -93,7 +93,20 @@ pub type DocumentProperties = HashMap<String, serde_json::Value>;
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct PersonalizedDocumentsQuery {
+    #[serde(deserialize_with = "deserialize_count_min_max")]
     pub(crate) count: usize,
+}
+
+fn deserialize_count_min_max<'de, D>(deserializer: D) -> Result<usize, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = usize::deserialize(deserializer)?;
+    if (1_usize..=100_usize).contains(&val) {
+        Ok(val)
+    } else {
+        Err(de::Error::custom("count needs to be between 1 and 100"))
+    }
 }
 
 /// Represents response from personalized documents endpoint.
