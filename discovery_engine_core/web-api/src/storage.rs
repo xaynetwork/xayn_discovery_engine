@@ -52,7 +52,7 @@ impl UserState {
         Ok(())
     }
 
-    pub(crate) async fn fetch(&self, id: &UserId) -> Result<UserInterests, GenericError> {
+    pub(crate) async fn fetch_interests(&self, id: &UserId) -> Result<UserInterests, GenericError> {
         let mut tx = self.pool.begin().await?;
 
         let cois = sqlx::query_as::<_, QueriedCoi>(
@@ -173,8 +173,7 @@ impl UserState {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub(crate) async fn interacted_documents(
+    pub(crate) async fn fetch_interacted_document_ids(
         &self,
         user_id: &UserId,
     ) -> Result<Vec<DocumentId>, GenericError> {

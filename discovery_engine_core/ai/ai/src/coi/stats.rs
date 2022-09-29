@@ -81,7 +81,7 @@ impl NegativeCoi {
 ///
 /// The relevance of each coi is computed from its view count and view time relative to the
 /// other cois. It's an unnormalized score from the interval `[0, ∞)`.
-pub(crate) fn compute_coi_relevances(
+pub fn compute_coi_relevances(
     cois: &[PositiveCoi],
     horizon: Duration,
     now: SystemTime,

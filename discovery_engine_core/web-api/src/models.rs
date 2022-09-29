@@ -62,17 +62,6 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) properties: DocumentProperties,
 }
 
-impl PersonalizedDocument {
-    pub(crate) fn new((ingested_doc, embedding): (IngestedDocument, Embedding)) -> Self {
-        Self {
-            id: DocumentId(ingested_doc.id),
-            score: 0.0,
-            embedding,
-            properties: ingested_doc.properties,
-        }
-    }
-}
-
 impl AiDocument for PersonalizedDocument {
     type Id = DocumentId;
 

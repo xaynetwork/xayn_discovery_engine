@@ -12,36 +12,42 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::convert::Infallible;
+use std::{convert::Infallible, sync::Arc};
 use warp::{self, Filter, Rejection, Reply};
 
 use crate::{
-    db::Db,
     handlers,
     models::{Error, UserId},
+    state::AppState,
 };
 
-pub fn api_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    get_ranked_documents(db.clone()).or(post_user_interaction(db))
+pub fn api_routes(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    get_ranked_documents(state.clone()).or(post_user_interaction(state))
 }
 
 // GET /user/:user_id/documents
-fn get_ranked_documents(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+fn get_ranked_documents(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     user_path()
         .and(warp::path("documents"))
         .and(warp::get())
-        .and(with_db(db))
+        .and(with_state(state))
         .and_then(handlers::handle_ranked_documents)
 }
 
 // POST /user/:user_id/interaction
-fn post_user_interaction(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+fn post_user_interaction(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     user_path()
         .and(warp::path("interaction"))
         .and(warp::post())
         .and(warp::body::content_length_limit(1024))
         .and(warp::body::json())
-        .and(with_db(db))
+        .and(with_state(state))
         .and_then(handlers::handle_user_interaction)
 }
 
@@ -57,6 +63,8 @@ fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
         })
 }
 
-fn with_db(db: Db) -> impl Filter<Extract = (Db,), Error = Infallible> + Clone {
-    warp::any().map(move || db.clone())
+fn with_state(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = (Arc<AppState>,), Error = Infallible> + Clone {
+    warp::any().map(move || state.clone())
 }

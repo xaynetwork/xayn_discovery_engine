@@ -33,6 +33,14 @@ pub(crate) struct ElasticState {
     client: Client,
 }
 
+pub(crate) struct KnnSearchParams {
+    pub(crate) excluded: Vec<DocumentId>,
+    pub(crate) embedding: Vec<f32>,
+    pub(crate) size: usize,
+    pub(crate) k_neighbors: usize,
+    pub(crate) num_candidates: usize,
+}
+
 #[allow(dead_code)]
 impl ElasticState {
     pub(crate) fn new(config: Config) -> Self {
@@ -42,22 +50,21 @@ impl ElasticState {
 
     pub(crate) async fn get_documents_by_embedding(
         &self,
-        embedding: Embedding,
-        excluded: &[DocumentId],
+        params: KnnSearchParams,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
         let body = json!({
+            "size": params.size,
             "knn": {
                 "field": "embedding",
-                "query_vector": embedding.to_vec(),
-                // TODO: make k & num_candidates configurable
-                "k": 10,
-                "num_candidates": 100,
+                "query_vector": params.embedding,
+                "k":params.k_neighbors,
+                "num_candidates": params.num_candidates,
                 "filter": {
                     "bool": {
                         "must_not": {
                             "ids": {
-                                "values": excluded.iter().map(AsRef::as_ref).collect_vec()
+                                "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
                             }
                         }
                     }
@@ -71,7 +78,7 @@ impl ElasticState {
 
     pub(crate) async fn get_documents_by_ids(
         &self,
-        ids: Vec<String>,
+        ids: &[String],
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/query-dsl-ids-query.html
         let body = json!({
@@ -90,7 +97,7 @@ impl ElasticState {
         &self,
         body: Value,
     ) -> Result<Response<ElasticDocumentData>, Error> {
-        let url = format!("{}/{}/_search", self.config.url, self.config.index_name,);
+        let url = format!("{}/{}/_search", self.config.url, self.config.index_name);
 
         let res = self
             .client

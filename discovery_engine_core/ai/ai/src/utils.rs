@@ -71,7 +71,7 @@ pub(crate) const SECONDS_PER_DAY_U64: u64 = 86400;
 
 /// Gets the current system time depending on the target architecture.
 #[inline]
-pub(crate) fn system_time_now() -> SystemTime {
+pub fn system_time_now() -> SystemTime {
     SystemTime::now()
 }
 
