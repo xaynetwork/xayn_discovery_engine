@@ -38,7 +38,7 @@ pub struct AppState {
     pub(crate) user: UserState,
     /// Max nb of Positive CoIs to use in knn search.
     pub(crate) max_cois_for_knn: usize,
-    /// Max nb of documents to return using personalized documents endpoint.
+    /// Default nb of documents to return using personalized documents endpoint.
     pub(crate) default_documents_count: usize,
 }
 
