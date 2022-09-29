@@ -74,19 +74,6 @@ impl AiDocument for PersonalizedDocumentData {
     }
 }
 
-/// Represents a document sent for ingestion.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct IngestedDocument {
-    /// Unique identifier of the document.
-    pub(crate) id: String,
-
-    /// Snippet used to calculate embeddings for a document.
-    pub(crate) snippet: String,
-
-    /// Contents of the document properties.
-    pub(crate) properties: DocumentProperties,
-}
-
 /// Arbitrary properties that can be attached to a document.
 pub type DocumentProperties = HashMap<String, serde_json::Value>;
 
