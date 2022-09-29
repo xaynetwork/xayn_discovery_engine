@@ -83,8 +83,8 @@ struct BulkOpInstruction {
 }
 
 impl BulkOpInstruction {
-    fn new(id: String) -> BulkOpInstruction {
-        BulkOpInstruction {
+    fn new(id: String) -> Self {
+        Self {
             index: IndexInfo { id },
         }
     }
