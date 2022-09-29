@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
-use ndarray::Array;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -22,11 +21,11 @@ use xayn_discovery_engine_ai::Embedding;
 use crate::models::{DocumentId, DocumentProperties, Error, PersonalizedDocument};
 
 #[derive(Clone, Debug)]
-pub(crate) struct Config {
-    pub(crate) url: String,
-    pub(crate) index_name: String,
-    pub(crate) user: String,
-    pub(crate) password: String,
+pub struct Config {
+    pub url: String,
+    pub index_name: String,
+    pub user: String,
+    pub password: String,
 }
 
 pub(crate) struct ElasticState {
@@ -116,7 +115,7 @@ fn convert_response(response: Response<ElasticDocumentData>) -> Vec<Personalized
         .map(|hit| PersonalizedDocument {
             id: DocumentId(hit.id),
             score: hit.score,
-            embedding: Embedding::from(Array::from_vec(hit.source.embedding)),
+            embedding: hit.source.embedding,
             properties: hit.source.properties,
         })
         .collect()
@@ -124,10 +123,10 @@ fn convert_response(response: Response<ElasticDocumentData>) -> Vec<Personalized
 
 /// Represents a document with calculated embeddings that is stored in Elastic Search.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ElasticDocumentData {
-    snippet: String,
-    properties: DocumentProperties,
-    embedding: Vec<f32>,
+pub struct ElasticDocumentData {
+    pub snippet: String,
+    pub properties: DocumentProperties,
+    pub embedding: Embedding,
 }
 
 #[derive(Clone, Deserialize, Debug)]

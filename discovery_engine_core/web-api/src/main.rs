@@ -30,19 +30,8 @@
     clippy::must_use_candidate
 )]
 use std::{env, net::IpAddr};
-
+use web_api::{api_routes, init_db, ElasticConfig, InitConfig, UserState};
 use xayn_discovery_engine_ai::GenericError;
-
-use db::{init_db, InitConfig};
-use routes::api_routes;
-use storage::UserState;
-
-mod db;
-mod elastic;
-mod handlers;
-mod models;
-mod routes;
-mod storage;
 
 #[tokio::main]
 async fn main() -> Result<(), GenericError> {
@@ -74,7 +63,7 @@ async fn main() -> Result<(), GenericError> {
         smbert_model,
         data_store,
         user_state,
-        elastic: elastic::Config {
+        elastic: ElasticConfig {
             url: elastic_url,
             index_name: elastic_index_name,
             user: elastic_user,

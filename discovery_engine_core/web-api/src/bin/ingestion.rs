@@ -15,7 +15,6 @@
 //! Ingestion service that uses Xayn Discovery Engine.
 
 use bytes::{BufMut, Bytes, BytesMut};
-use chrono::{DateTime, Utc};
 use envconfig::Envconfig;
 use itertools::Itertools;
 use reqwest::{
@@ -27,6 +26,7 @@ use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::A
 use tracing::{error, info};
 use tracing_subscriber::fmt::format::FmtSpan;
 use warp::{self, hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
+use web_api::{DocumentProperties, ElasticDocumentData};
 use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
@@ -61,29 +61,19 @@ pub(crate) struct Config {
 /// Represents the `SMBert` model used for calculating embedding from snippets.
 type Model = Arc<SMBert>;
 
-/// Represents an article that is uploaded via ingestion to Elastic Search service.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Article {
+/// Represents a document sent for ingestion.
+#[derive(Debug, Clone, Deserialize)]
+struct IngestedDocument {
+    /// Unique identifier of the document.
     #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
-    document_id: String,
+    id: String,
 
+    /// Snippet used to calculate embeddings for a document.
     #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
     snippet: String,
 
-    published_date: DateTime<Utc>,
-
-    #[serde(skip_deserializing)]
-    embedding: Vec<f32>,
-}
-
-impl Article {
-    fn create_bulk_op_instruction(&self) -> BulkOpInstruction {
-        BulkOpInstruction {
-            index: IndexInfo {
-                document_id: self.document_id.clone(),
-            },
-        }
-    }
+    /// Contents of the document properties.
+    properties: DocumentProperties,
 }
 
 /// Represents an instruction for bulk insert of data into Elastic Search service.
@@ -92,17 +82,25 @@ struct BulkOpInstruction {
     index: IndexInfo,
 }
 
+impl BulkOpInstruction {
+    fn new(id: String) -> Self {
+        Self {
+            index: IndexInfo { id },
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct IndexInfo {
     #[serde(rename(serialize = "_id"))]
-    document_id: String,
+    id: String,
 }
 
-/// Represents body of a POST add_data request.
+/// Represents body of a POST documents request.
 #[derive(Debug, Clone, Deserialize)]
-struct AddDataRequestBody {
+struct IngestionRequest {
     #[serde(deserialize_with = "deserialize_article_vec_not_empty")]
-    documents: Vec<Article>,
+    documents: Vec<IngestedDocument>,
 }
 
 fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -119,7 +117,9 @@ where
     }
 }
 
-fn deserialize_article_vec_not_empty<'de, D>(deserializer: D) -> Result<Vec<Article>, D::Error>
+fn deserialize_article_vec_not_empty<'de, D>(
+    deserializer: D,
+) -> Result<Vec<IngestedDocument>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -143,7 +143,7 @@ async fn main() -> Result<(), GenericError> {
     let client = Client::new();
     let model = init_model(&config)?;
 
-    let routes = post_add_data(config, model, client)
+    let routes = post_documents(config, model, client)
         .recover(handle_rejection)
         .with(warp::trace::request());
 
@@ -170,13 +170,13 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
     Ok(Arc::new(smbert))
 }
 
-// POST /add_data
-fn post_add_data(
+// POST /documents
+fn post_documents(
     config: Config,
     model: Model,
     client: Client,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::path("add_data")
+    warp::path("documents")
         .and(warp::post())
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
@@ -187,7 +187,7 @@ fn post_add_data(
 }
 
 async fn handle_add_data(
-    body: AddDataRequestBody,
+    body: IngestionRequest,
     model: Model,
     config: Config,
     client: Client,
@@ -199,17 +199,21 @@ async fn handle_add_data(
     let (documents, errored_ids): (Vec<_>, Vec<_>) = body
         .documents
         .into_iter()
-        .map(|mut article| match model.run(&article.snippet) {
-            Ok(embedding) => {
-                article.embedding = embedding.to_vec();
-                Ok(article)
-            }
+        .map(|document| match model.run(&document.snippet) {
+            Ok(embedding) => Ok((
+                document.id,
+                ElasticDocumentData {
+                    snippet: document.snippet,
+                    properties: document.properties,
+                    embedding,
+                },
+            )),
             Err(err) => {
                 error!(
                     "Document with id '{}' caused a PipelineError: {:#?}",
-                    article.document_id, err
+                    document.id, err
                 );
-                Err(article.document_id)
+                Err(document.id)
             }
         })
         .partition_result();
@@ -262,23 +266,29 @@ fn with_client(client: Client) -> impl Filter<Extract = (Client,), Error = Infal
     warp::any().map(move || client.clone())
 }
 
-fn serialize_to_ndjson(articles: &Vec<Article>) -> Result<Bytes, GenericError> {
+fn serialize_to_ndjson(
+    documents: &Vec<(String, ElasticDocumentData)>,
+) -> Result<Bytes, GenericError> {
     let mut bytes = BytesMut::new();
 
-    fn write_record(article: &Article, bytes: &mut BytesMut) -> Result<(), GenericError> {
-        let bulk_op_instruction = article.create_bulk_op_instruction();
+    fn write_record(
+        document_id: String,
+        document_data: &ElasticDocumentData,
+        bytes: &mut BytesMut,
+    ) -> Result<(), GenericError> {
+        let bulk_op_instruction = BulkOpInstruction::new(document_id);
         let bulk_op_instruction = serde_json::to_vec(&bulk_op_instruction)?;
-        let article_bytes = serde_json::to_vec(article)?;
+        let documents_bytes = serde_json::to_vec(document_data)?;
 
         bytes.put_slice(&bulk_op_instruction);
         bytes.put_u8(b'\n');
-        bytes.put_slice(&article_bytes);
+        bytes.put_slice(&documents_bytes);
         bytes.put_u8(b'\n');
         Ok(())
     }
 
-    for article in articles {
-        write_record(article, &mut bytes)?;
+    for (doc_id, doc_data) in documents {
+        write_record(doc_id.clone(), doc_data, &mut bytes)?;
     }
 
     Ok(bytes.freeze())

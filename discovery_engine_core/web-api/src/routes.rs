@@ -21,7 +21,7 @@ use crate::{
     models::{Error, UserId},
 };
 
-pub(crate) fn api_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+pub fn api_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     get_ranked_documents(db.clone()).or(post_user_interaction(db))
 }
 

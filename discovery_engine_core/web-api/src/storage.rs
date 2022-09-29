@@ -36,18 +36,18 @@ use xayn_discovery_engine_ai::{
 use crate::models::{DocumentId, UserId, UserReaction};
 
 #[derive(Debug, Clone)]
-pub(crate) struct UserState {
+pub struct UserState {
     pool: Pool<Postgres>,
 }
 
 impl UserState {
-    pub(crate) async fn connect(uri: &str) -> Result<Self, GenericError> {
+    pub async fn connect(uri: &str) -> Result<Self, GenericError> {
         let opt = PgConnectOptions::from_str(uri)?;
         let pool = PgPoolOptions::new().connect_with(opt).await?;
         Ok(Self { pool })
     }
 
-    pub(crate) async fn init_database(&self) -> Result<(), GenericError> {
+    pub async fn init_database(&self) -> Result<(), GenericError> {
         sqlx::migrate!("src/migrations").run(&self.pool).await?;
         Ok(())
     }
