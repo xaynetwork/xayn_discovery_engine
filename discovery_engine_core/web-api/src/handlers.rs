@@ -30,7 +30,7 @@ use xayn_discovery_engine_ai::{
 
 use crate::{
     elastic::KnnSearchParams,
-    models::{Error, InteractionRequestBody, UserId},
+    models::{Error, InteractionRequestBody, PersonalizedDocumentsResponse, UserId},
     state::AppState,
 };
 
@@ -128,8 +128,11 @@ pub(crate) async fn handle_ranked_documents(
 
     let max_docs = max_documents_count.min(all_documents.len());
     let documents = &all_documents[0..max_docs];
+    let response = PersonalizedDocumentsResponse {
+        documents: documents.to_vec(),
+    };
 
-    Ok(warp::reply::json(&documents))
+    Ok(warp::reply::json(&response))
 }
 
 #[instrument(skip(state))]

@@ -47,7 +47,7 @@ pub(crate) struct DocumentId(pub(crate) String);
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct PersonalizedDocument {
+pub(crate) struct PersonalizedDocumentData {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
 
@@ -62,7 +62,7 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) properties: DocumentProperties,
 }
 
-impl AiDocument for PersonalizedDocument {
+impl AiDocument for PersonalizedDocumentData {
     type Id = DocumentId;
 
     fn id(&self) -> &Self::Id {
@@ -90,8 +90,15 @@ pub(crate) struct IngestedDocument {
 /// Arbitrary properties that can be attached to a document.
 pub type DocumentProperties = HashMap<String, serde_json::Value>;
 
+/// Represents response from personalized documents endpoint.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct PersonalizedDocumentsResponse {
+    /// A list of documents personalized for a specific user.
+    pub(crate) documents: Vec<PersonalizedDocumentData>,
+}
+
 /// Represents user interaction request body.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(crate) struct InteractionRequestBody {
     pub(crate) document_id: String,
 }
