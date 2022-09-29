@@ -42,15 +42,25 @@ impl ElasticState {
     pub(crate) async fn get_documents_by_embedding(
         &self,
         embedding: Embedding,
+        excluded: &[DocumentId],
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
         let body = json!({
             "knn": {
                 "field": "embedding",
                 "query_vector": embedding.to_vec(),
-                // TODO: make below configurable
+                // TODO: make k & num_candidates configurable
                 "k": 10,
                 "num_candidates": 100,
+                "filter": {
+                    "bool": {
+                        "must_not": {
+                            "ids": {
+                                "values": excluded.iter().map(AsRef::as_ref).collect_vec()
+                            }
+                        }
+                    }
+                }
             }
         });
 

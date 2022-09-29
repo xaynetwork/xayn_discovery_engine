@@ -15,6 +15,7 @@
 use std::{str::FromStr, time::Duration};
 
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use ndarray::Array;
 use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
@@ -32,7 +33,7 @@ use xayn_discovery_engine_ai::{
     UserInterests,
 };
 
-use crate::models::UserId;
+use crate::models::{DocumentId, UserId, UserReaction};
 
 #[derive(Debug, Clone)]
 pub struct UserState {
@@ -97,7 +98,8 @@ impl UserState {
 
     pub(crate) async fn update_positive_cois<F>(
         &self,
-        id: &UserId,
+        doc_id: &DocumentId,
+        user_id: &UserId,
         update_cois: F,
     ) -> Result<(), GenericError>
     where
@@ -113,7 +115,7 @@ impl UserState {
             WHERE user_id = $1 AND is_positive 
             FOR UPDATE;",
         )
-        .bind(id.as_ref())
+        .bind(user_id.as_ref())
         .fetch_all(&mut tx)
         .await?
         .into_iter()
@@ -144,7 +146,7 @@ impl UserState {
                 last_view = EXCLUDED.last_view;",
         )
         .bind(updated_coi.id.as_ref())
-        .bind(id.as_ref())
+        .bind(user_id.as_ref())
         .bind(true)
         .bind(updated_coi.point.to_vec())
         .bind(updated_coi.stats.view_count as i32)
@@ -153,9 +155,43 @@ impl UserState {
         .execute(&mut tx)
         .await?;
 
+        sqlx::query(
+            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
+                user_reaction = EXCLUDED.user_reaction;",
+        )
+        .bind(doc_id.as_ref())
+        .bind(user_id.as_ref())
+        .bind(timestamp)
+        .bind(UserReaction::Positive as i16)
+        .execute(&mut tx)
+        .await?;
+
         tx.commit().await?;
 
         Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub(crate) async fn interacted_documents(
+        &self,
+        user_id: &UserId,
+    ) -> Result<Vec<DocumentId>, GenericError> {
+        let mut tx = self.pool.begin().await?;
+
+        let documents = sqlx::query_as::<_, QueriedInteractedDocumentId>(
+            "SELECT DISTINCT doc_id
+            FROM interaction
+            WHERE user_id = $1;",
+        )
+        .bind(user_id.as_ref())
+        .fetch_all(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(documents.into_iter().map_into().collect())
     }
 }
 
@@ -169,4 +205,15 @@ struct QueriedCoi {
     /// The time is a `u64` stored as `i64` in database
     view_time_ms: i64,
     last_view: DateTime<Utc>,
+}
+
+#[derive(FromRow)]
+struct QueriedInteractedDocumentId {
+    doc_id: String,
+}
+
+impl From<QueriedInteractedDocumentId> for DocumentId {
+    fn from(document: QueriedInteractedDocumentId) -> Self {
+        Self(document.doc_id)
+    }
 }
