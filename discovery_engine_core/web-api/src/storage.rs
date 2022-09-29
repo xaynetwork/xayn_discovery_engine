@@ -181,7 +181,7 @@ impl UserState {
         let mut tx = self.pool.begin().await?;
 
         let documents = sqlx::query_as::<_, QueriedInteractedDocumentId>(
-            "SELECT doc_id
+            "SELECT DISTINCT doc_id
             FROM interaction
             WHERE user_id = $1;",
         )
