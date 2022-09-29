@@ -90,6 +90,12 @@ pub(crate) struct IngestedDocument {
 /// Arbitrary properties that can be attached to a document.
 pub type DocumentProperties = HashMap<String, serde_json::Value>;
 
+/// Represents personalized documents query params.
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct PersonalizedDocumentsQuery {
+    pub(crate) count: usize,
+}
+
 /// Represents response from personalized documents endpoint.
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct PersonalizedDocumentsResponse {

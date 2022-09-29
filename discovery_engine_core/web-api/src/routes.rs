@@ -17,7 +17,7 @@ use warp::{self, Filter, Rejection, Reply};
 
 use crate::{
     handlers,
-    models::{Error, UserId},
+    models::{Error, PersonalizedDocumentsQuery, UserId},
     state::AppState,
 };
 
@@ -34,6 +34,7 @@ fn get_personalized_documents(
     user_path()
         .and(warp::path("personalized_documents"))
         .and(warp::get())
+        .and(warp::query::<Option<PersonalizedDocumentsQuery>>())
         .and(with_state(state))
         .and_then(handlers::handle_personalized_documents)
 }
