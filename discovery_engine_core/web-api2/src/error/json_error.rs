@@ -1,0 +1,69 @@
+// Copyright 2022 Xayn AG
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, version 3.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+use actix_web::{
+    body::{BoxBody, MessageBody},
+    http::{
+        header::{TryIntoHeaderValue, CONTENT_TYPE},
+        StatusCode,
+    },
+    HttpResponse,
+};
+use serde_json::{json, Value};
+use tracing::error;
+use uuid::Uuid;
+
+pub(super) struct JsonErrorResponseBuilder {
+    body: BoxBody,
+}
+
+impl JsonErrorResponseBuilder {
+    pub(super) fn render(kind: &str, request_id: Uuid, details: &Value) -> Self {
+        match serde_json::to_vec(&json!({
+            "kind": kind,
+            "request_id": request_id,
+            "details": details
+        })) {
+            Ok(encoded) => Self {
+                body: encoded.boxed(),
+            },
+            Err(error) => {
+                error!("Failed to encode body:  {}", error);
+                Self {
+                    body: GENERIC_INTERNAL_SERVER_ERROR.boxed(),
+                }
+            }
+        }
+    }
+
+    pub(super) fn apply_to<B>(self, mut response: HttpResponse<B>) -> HttpResponse {
+        response.headers_mut().insert(
+            CONTENT_TYPE,
+            mime::APPLICATION_JSON.try_into_value().unwrap(/* MIME is guaranteed well formed */),
+        );
+        response.set_body(self.body)
+    }
+
+    pub(super) fn into_response(self, status_code: StatusCode) -> HttpResponse {
+        HttpResponse::build(status_code)
+        .content_type(mime::APPLICATION_JSON)
+        .message_body(self.body)
+        .unwrap(/* can not fail as MIME is guaranteed well formed */)
+    }
+}
+
+const GENERIC_INTERNAL_SERVER_ERROR: &str = r#"{
+    "kind": "Internal",
+    "details": {}
+}"#;

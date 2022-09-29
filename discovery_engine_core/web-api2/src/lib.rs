@@ -25,7 +25,9 @@
         utilities
 */
 
-pub mod error;
+mod error;
+
+pub use error::{application::Error, middleware::json_error_bodies_middleware};
 // mod config;
 // mod personalization;
 // mod ingestion;
