@@ -24,7 +24,7 @@ use crate::{
 pub fn api_routes(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    get_personalized_documents(state.clone()).or(post_user_interactions(state))
+    get_personalized_documents(state.clone()).or(patch_user_interactions(state))
 }
 
 // GET /users/:user_id/personalized_documents
@@ -40,7 +40,7 @@ fn get_personalized_documents(
 }
 
 // PATCH /users/:user_id/interactions
-fn post_user_interactions(
+fn patch_user_interactions(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     user_path()
