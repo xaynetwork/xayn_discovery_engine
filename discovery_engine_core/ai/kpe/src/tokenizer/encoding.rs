@@ -15,10 +15,10 @@
 use std::ops::ControlFlow;
 
 use derive_more::{Deref, From};
-use ndarray::{Array1, Array2, Axis};
+use ndarray::Array2;
+use tokenizers::{Encoding as BertEncoding, Error as TokenizerError, Offsets};
 
 use crate::tokenizer::{key_phrase::KeyPhrases, Tokenizer};
-use xayn_discovery_engine_tokenizer::{Encoding as BertEncoding, Offsets};
 
 /// The token ids of the encoded sequence.
 ///
@@ -110,16 +110,17 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
     pub(crate) fn encode(
         &self,
         sequence: impl AsRef<str>,
-    ) -> Option<(Encoding, KeyPhrases<KEY_PHRASE_SIZE>)> {
+    ) -> Result<(Encoding, KeyPhrases<KEY_PHRASE_SIZE>), TokenizerError> {
         let sequence = sequence.as_ref();
-        let encoding = self.tokenizer.encode(sequence);
-        let (token_ids, _, _, _, ref offsets, _, attention_mask, overflowing) = encoding.into();
+        let encoding = self.tokenizer.encode(sequence, true)?;
+        let array_from =
+            |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
 
-        let token_ids = Array1::from(token_ids).insert_axis(Axis(0)).into();
-        let attention_mask = Array1::from(attention_mask).insert_axis(Axis(0)).into();
+        let token_ids = array_from(encoding.get_ids()).into();
+        let attention_mask = array_from(encoding.get_attention_mask()).into();
 
-        let valid_mask = valid_mask(offsets);
-        let words = decode_words(sequence, offsets, overflowing);
+        let valid_mask = valid_mask(encoding.get_offsets());
+        let words = decode_words(sequence, encoding.get_offsets(), encoding.get_overflowing());
         let key_phrases =
             KeyPhrases::collect(&words, self.key_phrase_max_count, self.key_phrase_min_score);
         let active_mask = key_phrases.active_mask();
@@ -132,8 +133,9 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
         };
 
         encoding
-            .is_valid(self.tokenizer.vocab_size(), KEY_PHRASE_SIZE)
+            .is_valid(self.tokenizer.get_vocab_size(true), KEY_PHRASE_SIZE)
             .then(|| (encoding, key_phrases))
+            .ok_or_else(|| "invalid encoding".into())
     }
 }
 
@@ -141,50 +143,49 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
 ///
 /// Joins starting tokens with their continuing tokens. Everything which is not separated by
 /// whitespace is considered as continuation as well, e.g. punctuation. All words are lowercased.
-fn decode_words(
-    sequence: impl AsRef<str>,
-    offsets: impl AsRef<[Offsets]>,
-    overflowing: Option<impl AsRef<[BertEncoding<i64>]>>,
-) -> Vec<String> {
-    let sequence = sequence.as_ref();
-    let offsets = offsets.as_ref();
+fn decode_words(sequence: &str, offsets: &[Offsets], overflowing: &[BertEncoding]) -> Vec<String> {
     let mut words = Vec::<String>::with_capacity(offsets.len());
     let (word_start, word_end) = offsets.iter().fold(
         (0, 0),
-        |(word_start, word_end), &Offsets(token_start, token_end)| {
+        |(word_start, word_end), &(token_start, token_end)| {
             if word_end < token_start {
                 words.push(sequence[word_start..word_end].to_lowercase());
                 (token_start, token_end)
             } else {
-                (word_start, token_end)
+                (
+                    word_start,
+                    // tokenizers uses (0, 0) instead of (n, n) as offsets for special tokens even
+                    // if they aren't at the beginning of the sequence but at the n-th position
+                    token_end.max(word_end),
+                )
             }
         },
     );
     if word_start < word_end {
-        if let Some(overflowing) = overflowing {
+        if overflowing.is_empty() {
+            words.push(sequence[word_start..word_end].to_lowercase());
+        } else {
             // subtokens of the last word might have been truncated during tokenization, but we can
             // still use the whole word for the keyphrase because the model only pays attention to
             // the starting token
             if let ControlFlow::Continue((word_start, word_end)) = overflowing
                 .as_ref()
                 .iter()
-                .flat_map(BertEncoding::offsets)
+                .flat_map(BertEncoding::get_offsets)
                 .try_fold(
                     (word_start, word_end),
-                    |(word_start, word_end), &Offsets(token_start, token_end)| {
+                    |(word_start, word_end), &(token_start, token_end)| {
                         if word_end < token_start {
                             words.push(sequence[word_start..word_end].to_lowercase());
                             ControlFlow::Break(())
                         } else {
-                            ControlFlow::Continue((word_start, token_end))
+                            ControlFlow::Continue((word_start, token_end.max(word_end)))
                         }
                     },
                 )
             {
                 words.push(sequence[word_start..word_end].to_lowercase());
             }
-        } else {
-            words.push(sequence[word_start..word_end].to_lowercase());
         }
     }
     words.shrink_to_fit();
@@ -197,7 +198,7 @@ fn valid_mask(offsets: impl AsRef<[Offsets]>) -> ValidMask {
     offsets
         .as_ref()
         .iter()
-        .scan(0, |previous_end, &Offsets(start, end)| {
+        .scan(0, |previous_end, &(start, end)| {
             let valid = start > *previous_end || (start == 0 && end > 0);
             *previous_end = end;
             Some(valid)
@@ -214,7 +215,6 @@ mod tests {
 
     use super::*;
     use xayn_discovery_engine_test_utils::smbert::vocab;
-    use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
     /// Tokens: This embedd ##ing fit ##s perfect ##ly .
     const EXACT_SEQUENCE: &str = "This embedding fits perfectly.";
@@ -225,15 +225,15 @@ mod tests {
 
     fn tokenizer(token_size: usize) -> Tokenizer<3> {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
-        let accents = AccentChars::Cleanse;
-        let case = CaseChars::Lower;
+        let cleanse_accents = true;
+        let lower_case = true;
         let key_phrase_count = None;
         let key_phrase_score = None;
 
         Tokenizer::new(
             vocab,
-            accents,
-            case,
+            cleanse_accents,
+            lower_case,
             token_size,
             key_phrase_count,
             key_phrase_score,
@@ -377,51 +377,80 @@ mod tests {
 
     #[test]
     fn test_decode_words_exact() {
-        let encoding = tokenizer(10).tokenizer.encode(EXACT_SEQUENCE);
-        let words = decode_words(EXACT_SEQUENCE, encoding.offsets(), encoding.overflowing());
+        let encoding = tokenizer(10)
+            .tokenizer
+            .encode(EXACT_SEQUENCE, true)
+            .unwrap();
+        let words = decode_words(
+            EXACT_SEQUENCE,
+            encoding.get_offsets(),
+            encoding.get_overflowing(),
+        );
         assert_eq!(words, EXACT_WORDS);
     }
 
     #[test]
     fn test_decode_words_padded() {
-        let encoding = tokenizer(10).tokenizer.encode(SHORT_SEQUENCE);
-        let words = decode_words(SHORT_SEQUENCE, encoding.offsets(), encoding.overflowing());
+        let encoding = tokenizer(10)
+            .tokenizer
+            .encode(SHORT_SEQUENCE, true)
+            .unwrap();
+        let words = decode_words(
+            SHORT_SEQUENCE,
+            encoding.get_offsets(),
+            encoding.get_overflowing(),
+        );
         assert_eq!(words, SHORT_WORDS);
     }
 
     #[test]
     fn test_decode_words_truncated_between() {
-        let encoding = tokenizer(8).tokenizer.encode(LONG_SEQUENCE);
-        let words = decode_words(LONG_SEQUENCE, encoding.offsets(), encoding.overflowing());
+        let encoding = tokenizer(8).tokenizer.encode(LONG_SEQUENCE, true).unwrap();
+        let words = decode_words(
+            LONG_SEQUENCE,
+            encoding.get_offsets(),
+            encoding.get_overflowing(),
+        );
         assert_eq!(words, LONG_WORDS[..5]);
     }
 
     #[test]
     fn test_decode_words_truncated_within() {
-        let encoding = tokenizer(4).tokenizer.encode(LONG_SEQUENCE);
-        let words = decode_words(LONG_SEQUENCE, encoding.offsets(), encoding.overflowing());
+        let encoding = tokenizer(4).tokenizer.encode(LONG_SEQUENCE, true).unwrap();
+        let words = decode_words(
+            LONG_SEQUENCE,
+            encoding.get_offsets(),
+            encoding.get_overflowing(),
+        );
         assert_eq!(words, LONG_WORDS[..2]);
     }
 
     #[test]
     fn test_decode_words_truncated_empty() {
-        let encoding = tokenizer(2).tokenizer.encode(LONG_SEQUENCE);
-        let words = decode_words(LONG_SEQUENCE, encoding.offsets(), encoding.overflowing());
+        let encoding = tokenizer(2).tokenizer.encode(LONG_SEQUENCE, true).unwrap();
+        let words = decode_words(
+            LONG_SEQUENCE,
+            encoding.get_offsets(),
+            encoding.get_overflowing(),
+        );
         assert!(words.is_empty());
     }
 
     #[test]
     fn test_decode_words_empty() {
-        let encoding = tokenizer(5).tokenizer.encode("");
-        let words = decode_words("", encoding.offsets(), encoding.overflowing());
+        let encoding = tokenizer(5).tokenizer.encode("", true).unwrap();
+        let words = decode_words("", encoding.get_offsets(), encoding.get_overflowing());
         assert!(words.is_empty());
     }
 
     #[test]
     fn test_valid_mask_full() {
-        let encoding = tokenizer(10).tokenizer.encode(EXACT_SEQUENCE);
+        let encoding = tokenizer(10)
+            .tokenizer
+            .encode(EXACT_SEQUENCE, true)
+            .unwrap();
         assert_eq!(
-            valid_mask(encoding.offsets()).0,
+            valid_mask(encoding.get_offsets()).0,
             [false, true, true, false, true, false, true, false, false, false],
         );
     }

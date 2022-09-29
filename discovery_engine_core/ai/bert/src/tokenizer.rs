@@ -88,7 +88,7 @@ impl From<Encoding> for Vec<Array2<i64>> {
 impl Tokenizer {
     /// Creates a tokenizer from a vocabulary.
     ///
-    /// Can be set to strip accents and to lowercase the sequences. Requires the maximum number of
+    /// Can be set to cleanse accents and to lowercase the sequences. Requires the maximum number of
     /// tokens per tokenized sequence, which applies to padding and truncation and includes special
     /// tokens as well.
     pub fn new(

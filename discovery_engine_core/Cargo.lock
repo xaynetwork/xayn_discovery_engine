@@ -4293,10 +4293,10 @@ dependencies = [
  "displaydoc",
  "ndarray",
  "thiserror",
+ "tokenizers",
  "tract-onnx",
  "xayn-discovery-engine-layer",
  "xayn-discovery-engine-test-utils",
- "xayn-discovery-engine-tokenizer",
 ]
 
 [[package]]
