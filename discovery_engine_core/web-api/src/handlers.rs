@@ -43,7 +43,7 @@ use crate::{
 #[instrument(skip(state))]
 pub(crate) async fn handle_personalized_documents(
     user_id: UserId,
-    query: Option<PersonalizedDocumentsQuery>,
+    query: PersonalizedDocumentsQuery,
     state: Arc<AppState>,
 ) -> Result<impl warp::Reply, Rejection> {
     let user_interests = state.user.fetch_interests(&user_id).await.map_err(|err| {
@@ -77,8 +77,7 @@ pub(crate) async fn handle_personalized_documents(
             error!("Error fetching interacted document ids: {err}");
             handle_user_state_op_error(err)
         })?;
-    let documents_count =
-        query.map_or_else(|| state.default_documents_count, |params| params.count);
+    let documents_count = query.count;
     let document_futures = cois
         .iter()
         .map(|(coi, weight)| async {
