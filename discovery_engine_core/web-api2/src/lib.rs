@@ -12,19 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/*
-    mountable (using configure)
-        personalization
-            see our openapi spec
-        ingestion
-            see our openapi spec
-
-    shared
-        config loading
-        maybe parts of the config
-        utilities
-*/
-
 mod config;
 mod error;
 mod ingestion;
@@ -37,7 +24,3 @@ pub use error::application::Error;
 pub use ingestion::Ingestion;
 pub use personalization::Personalization;
 pub use server::run;
-
-// mod config;
-// mod personalization;
-// mod ingestion;

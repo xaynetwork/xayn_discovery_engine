@@ -42,7 +42,7 @@ where
         .extensions()
         .get::<RequestId>()
         .copied()
-        .unwrap_or(RequestId::missing());
+        .unwrap_or_else(RequestId::missing);
 
     service
         .call(request)

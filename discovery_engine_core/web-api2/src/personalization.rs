@@ -14,16 +14,14 @@
 use std::net::SocketAddr;
 
 use actix_web::{
-    get,
-    patch,
-    web::{Data, Json, Path, ServiceConfig},
+    web::{self, Data, Json, Path, ServiceConfig},
     Responder,
 };
 use serde::Deserialize;
 
 use crate::{
     config::Config,
-    error::application::Unimplemented,
+    error::application::{Unimplemented, WithRequestIdExt},
     server::{default_bind_address, Application},
     Error,
 };
@@ -34,13 +32,21 @@ impl Application for Personalization {
     type Config = PersonalizationConfig;
 
     fn configure(config: &mut ServiceConfig) {
-        config
-            .service(update_interactions)
-            .service(personalized_documents);
+        let scope = web::scope("/users/{user_id}")
+            .service(
+                web::resource("interactions")
+                    .route(web::post().to(update_interactions.error_with_request_id())),
+            )
+            .service(
+                web::resource("personalized_documents")
+                    .route(web::get().to(personalized_documents.error_with_request_id())),
+            );
+
+        config.service(scope);
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct PersonalizationConfig {
     #[serde(default = "default_bind_address")]
     bind_to: SocketAddr,
@@ -56,15 +62,15 @@ impl Config for PersonalizationConfig {
 type UserId = String;
 
 //FIXME use actual body
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct UpdateInteractions {}
 
-#[patch("/users/{user_id}/interactions")]
 async fn update_interactions(
-    _config: Data<PersonalizationConfig>,
-    _user_id: Path<UserId>,
-    _interactions: Json<UpdateInteractions>,
+    config: Data<PersonalizationConfig>,
+    user_id: Path<UserId>,
+    interactions: Json<UpdateInteractions>,
 ) -> Result<impl Responder, Error> {
+    dbg!((config, user_id, interactions));
     if true {
         Err(Unimplemented {
             functionality: "/users/{user_id}/interactions",
@@ -73,11 +79,11 @@ async fn update_interactions(
     Ok("text body response")
 }
 
-#[get("/users/{user_id}/personalized_documents")]
 async fn personalized_documents(
-    _config: Data<PersonalizationConfig>,
-    _user_id: Path<UserId>,
+    config: Data<PersonalizationConfig>,
+    user_id: Path<UserId>,
 ) -> Result<impl Responder, Error> {
+    dbg!((config, user_id));
     if true {
         Err(Unimplemented {
             functionality: "/users/{user_id}/personalized_documents",

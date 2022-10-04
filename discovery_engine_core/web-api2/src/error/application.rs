@@ -12,10 +12,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::cell::Cell;
+use std::{
+    marker::PhantomData,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
-use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
+use actix_web::{
+    body::BoxBody,
+    http::StatusCode,
+    web::ReqData,
+    FromRequest,
+    Handler,
+    HttpResponse,
+    ResponseError,
+};
 use derive_more::{Deref, Display};
+use futures_util::Future;
+use pin_project_lite::pin_project;
 use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;
@@ -30,22 +44,7 @@ use super::json_error::JsonErrorResponseBuilder;
 pub struct Error {
     #[deref(forward)]
     error: Box<dyn ApplicationError>,
-    request_id: Cell<RequestId>,
-}
-
-impl Error {
-    #[must_use]
-    pub(super) fn try_inject_request_id(
-        this: &mut actix_web::Error,
-        request_id: RequestId,
-    ) -> bool {
-        if let Some(this) = this.as_error::<Self>() {
-            this.request_id.set(request_id);
-            true
-        } else {
-            false
-        }
-    }
+    request_id: RequestId,
 }
 
 impl<T> From<T> for Error
@@ -55,7 +54,7 @@ where
     fn from(error: T) -> Self {
         Self {
             error: Box::new(error),
-            request_id: Cell::new(RequestId::missing()),
+            request_id: RequestId::missing(),
         }
     }
 }
@@ -68,7 +67,7 @@ impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse<BoxBody> {
         JsonErrorResponseBuilder::render(
             self.error.kind(),
-            self.request_id.get(),
+            self.request_id,
             &self.error.encode_details(),
         )
         .into_response(self.error.status_code())
@@ -113,3 +112,147 @@ pub(crate) struct Unimplemented {
 }
 
 derive_application_error!(Unimplemented => INTERNAL_SERVER_ERROR);
+
+/// Allows to argument errors with an request id by wrapping the endpoint handler.
+///
+/// # Explanation/Why
+///
+/// This is a bit complex as it can only work when wrapping the endpoint handler
+/// functions, it can't work with a middle ware nor can it work by wrapping a
+/// `Service` the reason for this is that when endpoint handler functions are
+/// called the result will **immediately convert `Err(error)` to an `Ok(error_response)`**
+/// and we need to inject the request id before that conversion happens.
+///
+/// ## Comparison to other frameworks:
+/// - warp, same problem but way worse as a lot of pub-traits are not pub-exposed
+/// - axum, handles this nicely by a combination of allowing wrapping (layering) of
+///   middleware around `Handlers` which is basically what this helper does but more
+///   generic.
+///
+/// ## Drawbacks (compared ot axum)
+///
+/// - around 100 lines of future/handing wrapping and type hint magic
+/// - only works with `RequestId`, axum can extract any data (we could
+///   probably make this work, but it's not worth the effort)
+/// - can't use `#[get(..)]` and similar
+///
+/// ## Alternatives
+///
+/// - wrap the handles with a (proc)macro (benefit compatible with `#[get(...)]`)
+/// - use axum (but it's eco system is less mature and it will change over time)
+/// - only include the request id in a custom header (trivial to do)
+/// - land a PR in actix which add an additional `ResponseError::error_response_with_context`
+///   method with an auto-forwarding default implementation which can access middleware data
+pub(crate) trait WithRequestIdExt<Args>: Sized {
+    fn error_with_request_id(self) -> HandlerWithIdInjection<Self, Args>;
+}
+
+impl<H, Args> WithRequestIdExt<Args> for H
+where
+    H: Handler<Args>,
+    Args: WithRequestIdHint,
+{
+    fn error_with_request_id(self) -> HandlerWithIdInjection<Self, Args> {
+        HandlerWithIdInjection {
+            inner: self,
+            _args: PhantomData,
+        }
+    }
+}
+
+pub(crate) struct HandlerWithIdInjection<H, Args> {
+    inner: H,
+    _args: PhantomData<Args>,
+}
+
+impl<H, Args> Clone for HandlerWithIdInjection<H, Args>
+where
+    H: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            _args: PhantomData,
+        }
+    }
+}
+
+impl<H, Args, B> Handler<<Args as WithRequestIdHint>::ExtendedArgs>
+    for HandlerWithIdInjection<H, Args>
+where
+    H: Handler<Args, Output = Result<B, Error>>,
+    HandlerWithIdInjectionFut<H::Future>: Future<Output = Result<B, Error>>,
+    Args: WithRequestIdHint,
+{
+    type Output = H::Output;
+
+    type Future = HandlerWithIdInjectionFut<H::Future>;
+
+    fn call(&self, args: <Args as WithRequestIdHint>::ExtendedArgs) -> Self::Future {
+        let (args, request_id) = WithRequestIdHint::strip_request_id(args);
+        HandlerWithIdInjectionFut {
+            inner: self.inner.call(args),
+            request_id,
+        }
+    }
+}
+
+pin_project! {
+    pub(crate) struct HandlerWithIdInjectionFut<F> {
+        #[pin]
+        inner: F,
+        request_id: RequestId
+    }
+}
+
+impl<F, B> Future for HandlerWithIdInjectionFut<F>
+where
+    F: Future<Output = Result<B, Error>>,
+{
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        this.inner.poll(cx).map(|value| {
+            value.map_err(|mut err| {
+                err.request_id = *this.request_id;
+                err
+            })
+        })
+    }
+}
+
+pub(crate) trait WithRequestIdHint: FromRequest + 'static {
+    type ExtendedArgs;
+
+    fn strip_request_id(args: Self::ExtendedArgs) -> (Self, RequestId);
+}
+
+macro_rules! impl_with_request_id_hint {
+    (($first:ident)) => (
+        impl_with_request_id_hint!(@impl ());
+        impl_with_request_id_hint!(@impl ($first));
+    );
+    (($first:ident, $($name:ident),*)) => (
+        impl_with_request_id_hint!(@impl ($first, $($name),*));
+        impl_with_request_id_hint!(($($name),*));
+    );
+    (@impl ($($name:ident),*)) => (
+        impl<$($name),*> WithRequestIdHint for ($($name,)*)
+        where $(
+            $name: FromRequest + 'static,
+        )* {
+            type ExtendedArgs = ($($name,)* ReqData<RequestId>,);
+
+            fn strip_request_id(args: Self::ExtendedArgs) -> (Self, RequestId) {
+                #![allow(non_snake_case)]
+                let ($($name,)* last,) = args;
+                (($($name,)*), *last)
+            }
+        }
+    );
+}
+
+impl_with_request_id_hint! {
+    (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)
+}

@@ -48,7 +48,7 @@ pub trait Application {
 struct CliArgs {
     /// Name of the person to greet
     #[arg(short, long)]
-    bind_to: Option<String>,
+    bind_to: Option<SocketAddr>,
 }
 
 /// Run the server with using given endpoint configuration functions.

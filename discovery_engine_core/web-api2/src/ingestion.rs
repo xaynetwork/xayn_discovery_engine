@@ -15,15 +15,14 @@
 use std::net::SocketAddr;
 
 use actix_web::{
-    post,
-    web::{Data, Json, ServiceConfig},
+    web::{self, Data, Json, ServiceConfig},
     Responder,
 };
 use serde::Deserialize;
 
 use crate::{
     config::Config,
-    error::application::Unimplemented,
+    error::application::{Unimplemented, WithRequestIdExt},
     server::{default_bind_address, Application},
     Error,
 };
@@ -34,7 +33,9 @@ impl Application for Ingestion {
     type Config = IngestionConfig;
 
     fn configure(config: &mut ServiceConfig) {
-        config.service(new_documents);
+        let resource = web::resource("/documents")
+            .route(web::post().to(new_documents.error_with_request_id()));
+        config.service(resource);
     }
 }
 
@@ -54,7 +55,6 @@ impl Config for IngestionConfig {
 #[derive(Deserialize)]
 struct NewDocuments {}
 
-#[post("/documents")]
 async fn new_documents(
     _config: Data<IngestionConfig>,
     _new_documents: Json<NewDocuments>,
