@@ -910,10 +910,10 @@ impl FeedbackScope for SqliteStorage {
         match self.fetch_source_weight(source).await? {
             0 => self.update_source_weight(source, weight_diff).await?,
             weight if (weight > 0) == liked => {
-                if liked {
-                    self.update_source_weight(source, weight_diff).await?;
-                }
+                self.update_source_weight(source, if liked { 1 } else { 0 })
+                    .await?
             }
+
             _ => self.delete_source_reaction(source).await?,
         }
         Ok(())
