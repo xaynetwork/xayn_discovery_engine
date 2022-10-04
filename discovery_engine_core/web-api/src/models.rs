@@ -88,7 +88,7 @@ pub type DocumentProperties = HashMap<String, serde_json::Value>;
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct PersonalizedDocumentsQuery {
-    pub(crate) count: usize,
+    pub(crate) count: Option<usize>,
 }
 
 /// Represents response from personalized documents endpoint.

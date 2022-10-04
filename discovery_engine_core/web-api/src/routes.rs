@@ -34,7 +34,7 @@ fn get_personalized_documents(
     user_path()
         .and(warp::path("personalized_documents"))
         .and(warp::get())
-        .and(with_count_query_param(state.default_documents_count))
+        .and(with_count_param())
         .and(with_state(state))
         .and_then(handlers::handle_personalized_documents)
 }
@@ -65,22 +65,15 @@ fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
 }
 
 /// Extract a "count" from query params and check if within bounds, or reject with InvalidCountParam error.
-fn with_count_query_param(
-    default_documents_count: usize,
+fn with_count_param(
 ) -> impl Filter<Extract = (PersonalizedDocumentsQuery,), Error = Rejection> + Copy {
-    warp::query().and_then(
-        move |params: Option<PersonalizedDocumentsQuery>| async move {
-            let params = params.unwrap_or(PersonalizedDocumentsQuery {
-                count: default_documents_count,
-            });
-
-            if COUNT_PARAM_RANGE.contains(&params.count) {
-                Ok(params)
-            } else {
-                Err(warp::reject::custom(Error::InvalidCountParam(params.count)))
-            }
-        },
-    )
+    warp::query().and_then(|query: PersonalizedDocumentsQuery| async {
+        match query.count {
+            Some(count) if COUNT_PARAM_RANGE.contains(&count) => Ok(query),
+            Some(count) => Err(warp::reject::custom(Error::InvalidCountParam(count))),
+            None => Ok(query),
+        }
+    })
 }
 
 fn with_state(
