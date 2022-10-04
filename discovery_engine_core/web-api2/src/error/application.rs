@@ -22,6 +22,8 @@ use thiserror::Error;
 use tracing::error;
 use uuid::Uuid;
 
+use crate::middleware::tracing::RequestId;
+
 use super::json_error::JsonErrorResponseBuilder;
 
 #[derive(Display, Debug, Deref)]
@@ -29,12 +31,15 @@ use super::json_error::JsonErrorResponseBuilder;
 pub struct Error {
     #[deref(forward)]
     error: Box<dyn ApplicationError>,
-    request_id: Cell<Uuid>,
+    request_id: Cell<RequestId>,
 }
 
 impl Error {
     #[must_use]
-    pub(super) fn try_inject_request_id(this: &mut actix_web::Error, request_id: Uuid) -> bool {
+    pub(super) fn try_inject_request_id(
+        this: &mut actix_web::Error,
+        request_id: RequestId,
+    ) -> bool {
         if let Some(this) = this.as_error::<Self>() {
             this.request_id.set(request_id);
             true
@@ -51,7 +56,7 @@ where
     fn from(error: T) -> Self {
         Self {
             error: Box::new(error),
-            request_id: Cell::new(Uuid::nil()),
+            request_id: Cell::new(RequestId::missing()),
         }
     }
 }

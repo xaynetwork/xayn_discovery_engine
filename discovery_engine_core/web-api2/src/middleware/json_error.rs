@@ -24,7 +24,6 @@ use actix_web::{
 use derive_more::Display;
 use futures_util::TryFutureExt;
 use serde_json::{json, Value};
-use uuid::Uuid;
 
 use crate::error::json_error::JsonErrorResponseBuilder;
 
@@ -50,7 +49,7 @@ where
         .map_ok(move |resp| wrap_service_response(resp, request_id))
         // note that endpoints _directly_ turn any `Err(..)` into an `Ok(err_resp)`,
         // so we will only see middleware errors here, never endpoint errors
-        .map_err(move |resp| wrap_middleware_error(resp, request_id))
+        .map_err(move |resp| WrappedMiddlewareError::wrap(resp, request_id))
 }
 
 fn wrap_service_response<B: MessageBody + 'static>(
@@ -89,6 +88,48 @@ fn is_wrapable_error<B>(response: &ServiceResponse<B>) -> bool {
             })
 }
 
-fn wrap_middleware_error(error: actix_web::Error, request_id: RequestId) -> actix_web::Error {
-    todo!()
+#[derive(Debug, Display)]
+#[display(fmt = "{}", error)]
+pub(super) struct WrappedMiddlewareError {
+    pub(super) error: actix_web::Error,
+    pub(super) request_id: RequestId,
+}
+
+impl WrappedMiddlewareError {
+    fn wrap(error: actix_web::Error, request_id: RequestId) -> actix_web::Error {
+        Self { error, request_id }.into()
+    }
+}
+
+impl ResponseError for WrappedMiddlewareError {
+    fn status_code(&self) -> StatusCode {
+        self.error.as_response_error().status_code()
+    }
+
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        let response = self.error.error_response();
+        let wrap_in_json = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .map_or(false, |content_type| {
+                content_type == mime::TEXT_PLAIN.as_ref()
+            });
+
+        if wrap_in_json {
+            let (response, body) = response.into_parts();
+            let opt_bytes = body.try_into_bytes().ok();
+            let msg = opt_bytes
+                .as_deref()
+                .and_then(|bytes| std::str::from_utf8(bytes).ok());
+
+            JsonErrorResponseBuilder::render(
+                self.status_code().as_str(),
+                self.request_id,
+                &msg.map_or(Value::Null, |msg| json!({ "message": msg })),
+            )
+            .apply_to(response)
+        } else {
+            response
+        }
+    }
 }
