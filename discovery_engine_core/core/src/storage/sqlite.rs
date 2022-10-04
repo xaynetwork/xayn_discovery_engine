@@ -911,7 +911,7 @@ impl FeedbackScope for SqliteStorage {
             0 => self.update_source_weight(source, weight_diff).await?,
             weight if (weight > 0) == liked => {
                 self.update_source_weight(source, if liked { 1 } else { 0 })
-                    .await?
+                    .await?;
             }
 
             _ => self.delete_source_reaction(source).await?,
