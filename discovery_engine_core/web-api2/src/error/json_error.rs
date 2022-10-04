@@ -22,7 +22,6 @@ use actix_web::{
 };
 use serde_json::{json, Value};
 use tracing::error;
-use uuid::Uuid;
 
 use crate::middleware::tracing::RequestId;
 

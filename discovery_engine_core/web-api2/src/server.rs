@@ -29,7 +29,7 @@ use actix_web::{
 
 use crate::{
     config::{load_config, Config},
-    error::tracing::{tracing_log_request, wrap_non_json_errors},
+    middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request},
     tracing::init_tracing,
 };
 

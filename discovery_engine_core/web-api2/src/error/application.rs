@@ -20,7 +20,6 @@ use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;
 use tracing::error;
-use uuid::Uuid;
 
 use crate::middleware::tracing::RequestId;
 

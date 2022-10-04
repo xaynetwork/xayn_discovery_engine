@@ -56,6 +56,8 @@ where
         request_id = %request_id,
     );
 
+    debug!(parent: &span, "request received");
+
     request.extensions_mut().insert(request_id);
 
     service

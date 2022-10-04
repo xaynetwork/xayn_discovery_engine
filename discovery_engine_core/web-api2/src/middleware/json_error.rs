@@ -11,7 +11,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-use std::future::Future;
+use std::{cmp::Ordering, fmt::Debug, future::Future};
 
 use actix_web::{
     body::{BoxBody, MessageBody},
@@ -36,7 +36,7 @@ pub(crate) fn wrap_non_json_errors<S, B>(
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error>,
     S::Future: 'static,
-    B: MessageBody + 'static,
+    B: MessageBody + Debug + 'static,
 {
     let request_id = request
         .extensions()
@@ -52,40 +52,49 @@ where
         .map_err(move |resp| WrappedMiddlewareError::wrap(resp, request_id))
 }
 
-fn wrap_service_response<B: MessageBody + 'static>(
+fn wrap_service_response<B: MessageBody + Debug + 'static>(
     response: ServiceResponse<B>,
     request_id: RequestId,
 ) -> ServiceResponse<BoxBody> {
-    if is_wrapable_error(&response) {
+    if is_wrapable_error(response.response()) {
         let (request, response) = response.into_parts();
         let (response, body) = response.into_parts();
-        let opt_bytes = body.try_into_bytes().ok();
-        let msg = opt_bytes
-            .as_deref()
-            .and_then(|bytes| std::str::from_utf8(bytes).ok());
-
-        let response = JsonErrorResponseBuilder::render(
-            response.status().as_str(),
-            request_id,
-            &msg.map_or(Value::Null, |msg| json!({ "message": msg })),
-        )
-        .apply_to(response);
-
+        let details = extract_message_as_details(body);
+        let response =
+            JsonErrorResponseBuilder::render(response.status().as_str(), request_id, &details)
+                .apply_to(response);
         ServiceResponse::new(request, response)
     } else {
         response.map_into_boxed_body()
     }
 }
 
-fn is_wrapable_error<B>(response: &ServiceResponse<B>) -> bool {
+fn is_wrapable_error<B>(response: &HttpResponse<B>) -> bool {
     let status = response.status();
     (status.is_client_error() || status.is_server_error())
         && response
             .headers()
             .get(CONTENT_TYPE)
-            .map_or(false, |content_type| {
-                content_type == mime::TEXT_PLAIN.as_ref()
+            .map_or(true, |content_type| {
+                let mime_bytes = mime::TEXT_PLAIN.as_ref().as_bytes();
+                let bytes = content_type.as_bytes();
+                match bytes.len().cmp(&mime_bytes.len()) {
+                    Ordering::Less => false,
+                    Ordering::Equal => bytes == mime_bytes,
+                    Ordering::Greater => {
+                        bytes.starts_with(mime_bytes) && bytes[mime_bytes.len()] == b';'
+                    }
+                }
             })
+}
+
+fn extract_message_as_details(body: impl MessageBody + Debug) -> Value {
+    let opt_bytes = body.try_into_bytes().ok();
+    opt_bytes
+        .as_deref()
+        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+        .filter(|msg| !msg.is_empty())
+        .map_or(Value::Null, |msg| json!({ "message": msg }))
 }
 
 #[derive(Debug, Display)]
