@@ -24,12 +24,14 @@ use serde_json::{json, Value};
 use tracing::error;
 use uuid::Uuid;
 
-pub(super) struct JsonErrorResponseBuilder {
+use crate::middleware::tracing::RequestId;
+
+pub(crate) struct JsonErrorResponseBuilder {
     body: BoxBody,
 }
 
 impl JsonErrorResponseBuilder {
-    pub(super) fn render(kind: &str, request_id: Uuid, details: &Value) -> Self {
+    pub(crate) fn render(kind: &str, request_id: RequestId, details: &Value) -> Self {
         match serde_json::to_vec(&json!({
             "kind": kind,
             "request_id": request_id,
@@ -47,7 +49,7 @@ impl JsonErrorResponseBuilder {
         }
     }
 
-    pub(super) fn apply_to<B>(self, mut response: HttpResponse<B>) -> HttpResponse {
+    pub(crate) fn apply_to<B>(self, mut response: HttpResponse<B>) -> HttpResponse {
         response.headers_mut().insert(
             CONTENT_TYPE,
             mime::APPLICATION_JSON.try_into_value().unwrap(/* MIME is guaranteed well formed */),
@@ -55,7 +57,7 @@ impl JsonErrorResponseBuilder {
         response.set_body(self.body)
     }
 
-    pub(super) fn into_response(self, status_code: StatusCode) -> HttpResponse {
+    pub(crate) fn into_response(self, status_code: StatusCode) -> HttpResponse {
         HttpResponse::build(status_code)
         .content_type(mime::APPLICATION_JSON)
         .message_body(self.body)

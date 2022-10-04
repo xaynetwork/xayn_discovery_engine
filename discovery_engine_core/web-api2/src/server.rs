@@ -29,7 +29,7 @@ use actix_web::{
 
 use crate::{
     config::{load_config, Config},
-    error::middleware::json_error_bodies_middleware,
+    error::tracing::{tracing_log_request, wrap_non_json_errors},
     tracing::init_tracing,
 };
 
@@ -68,7 +68,8 @@ pub async fn run<A: Application>(
             App::new()
                 .app_data(config.clone())
                 .configure(A::configure)
-                .wrap_fn(json_error_bodies_middleware)
+                .wrap_fn(wrap_non_json_errors)
+                .wrap_fn(tracing_log_request)
         })
         .bind(addr)?
         .run()

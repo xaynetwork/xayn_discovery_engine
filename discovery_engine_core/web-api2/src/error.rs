@@ -12,7 +12,5 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod application;
-mod json_error;
-mod json_wrapping;
-pub mod middleware;
+pub(crate) mod application;
+pub(crate) mod json_error;

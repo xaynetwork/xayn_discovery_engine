@@ -4163,6 +4163,7 @@ dependencies = [
  "clap 4.0.10",
  "derive_more",
  "figment",
+ "futures-util",
  "mime",
  "once_cell",
  "serde",
