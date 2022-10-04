@@ -16,7 +16,10 @@ use std::cell::Cell;
 
 use actix_web::{body::BoxBody, http::StatusCode, HttpResponse, ResponseError};
 use derive_more::{Deref, Display};
+use serde::Serialize;
 use serde_json::Value;
+use thiserror::Error;
+use tracing::error;
 use uuid::Uuid;
 
 use super::json_error::JsonErrorResponseBuilder;
@@ -78,7 +81,7 @@ pub trait ApplicationError: std::error::Error + Send + Sync + 'static {
 
 /// Derives [`ApplicationError`] for given type using given http status code.
 macro_rules! derive_application_error {
-    ($name:ident $code:ident) => {
+    ($name:ident => $code:ident) => {
         impl ApplicationError for $name {
             fn status_code(&self) -> StatusCode {
                 StatusCode::$code
@@ -90,7 +93,19 @@ macro_rules! derive_application_error {
 
             fn encode_details(&self) -> Value {
                 serde_json::to_value(self)
+                    .unwrap_or_else(|err| {
+                        error!(%err, "serializing error details failed");
+                        Value::Null
+                    })
             }
         }
     };
 }
+
+#[derive(Debug, Display, Error, Serialize)]
+/// Given functionality is not implemented.
+pub(crate) struct Unimplemented {
+    pub(crate) functionality: &'static str,
+}
+
+derive_application_error!(Unimplemented => INTERNAL_SERVER_ERROR);

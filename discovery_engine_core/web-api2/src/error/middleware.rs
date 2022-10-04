@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::future::Future;
+
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse};
 
 use tracing::{debug, Instrument};
@@ -20,14 +22,15 @@ use uuid::Uuid;
 
 use crate::error::json_wrapping::WrappedError;
 
-pub async fn json_error_bodies_middleware<S, B>(
+pub(crate) fn json_error_bodies_middleware<S, B>(
     request: ServiceRequest,
-    service: S,
-) -> Result<ServiceResponse<B>, actix_web::Error>
+    service: &S,
+) -> impl Future<Output = Result<ServiceResponse<B>, actix_web::Error>> + 'static
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error>,
+    S::Future: 'static,
 {
-    //FIXME try to use tracing-actix-web and the request id of it
+    //FIXME try to use tracing-actix-web and the request id of it instead
     let request_id = Uuid::new_v4();
     let span = info_span!(
         "request",
@@ -38,11 +41,9 @@ where
 
     debug!(parent: &span, "request received");
 
-    let res = service
-        .call(request)
-        .instrument(span.clone())
-        .await
-        .map_err(|mut error| {
+    let fut = service.call(request).instrument(span.clone());
+    async move {
+        let res = fut.await.map_err(|mut error| {
             if crate::Error::try_inject_request_id(&mut error, request_id) {
                 error
             } else {
@@ -50,7 +51,10 @@ where
             }
         });
 
-    debug!(parent: &span, "request processed");
+        dbg!(res.is_err());
 
-    res
+        debug!(parent: &span, "request processed");
+
+        res
+    }
 }

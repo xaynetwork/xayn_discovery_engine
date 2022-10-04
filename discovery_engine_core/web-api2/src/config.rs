@@ -12,14 +12,33 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::Path;
+use std::{net::SocketAddr, path::Path};
 
-use serde::de::DeserializeOwned;
+use figment::{
+    providers::{Format, Toml},
+    Figment,
+};
+use serde::{de::DeserializeOwned, Serialize};
 
-pub struct LoadingConfigFailed;
+pub trait Config: DeserializeOwned + Send + Sync + 'static {
+    fn bind_address(&self) -> SocketAddr;
+    fn log_file(&self) -> Option<&Path> {
+        None
+    }
+}
 
-pub fn load_config<C: DeserializeOwned>(
+pub(crate) fn load_config<C, U>(
     config_file: Option<&Path>,
-) -> Result<C, LoadingConfigFailed> {
-    todo!();
+    _update_with: U,
+) -> Result<C, figment::Error>
+where
+    C: DeserializeOwned,
+    U: Serialize,
+{
+    //FIXME this is just MVP for filling in the skeleton, correct implementation is in follow up PR
+    Figment::new()
+        .merge(Toml::file(
+            config_file.unwrap_or_else(|| Path::new("config.toml")),
+        ))
+        .extract()
 }

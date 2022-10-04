@@ -10,21 +10,78 @@
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use actix_web::{web::{ServiceConfig, Data, Path, Json}, patch, get, Responder};
+use std::net::SocketAddr;
 
-pub fn mount_personalization(config: &mut ServiceConfig) {
-    config.service(update_interactions)
-        .service(personalized_documents);
+use actix_web::{
+    get,
+    patch,
+    web::{Data, Json, Path, ServiceConfig},
+    Responder,
+};
+use serde::Deserialize;
+
+use crate::{
+    config::Config,
+    error::application::Unimplemented,
+    server::{default_bind_address, Application},
+    Error,
+};
+
+pub struct Personalization;
+
+impl Application for Personalization {
+    type Config = PersonalizationConfig;
+
+    fn configure(config: &mut ServiceConfig) {
+        config
+            .service(update_interactions)
+            .service(personalized_documents);
+    }
 }
 
+#[derive(Deserialize)]
+pub struct PersonalizationConfig {
+    #[serde(default = "default_bind_address")]
+    bind_to: SocketAddr,
+}
+
+impl Config for PersonalizationConfig {
+    fn bind_address(&self) -> std::net::SocketAddr {
+        self.bind_to
+    }
+}
+
+//FIXME use actual UserId
+type UserId = String;
+
+//FIXME use actual body
+#[derive(Deserialize)]
+struct UpdateInteractions {}
+
 #[patch("/users/{user_id}/interactions")]
-async fn update_interactions(app_state: Data<AppState>, user_id: Path<UserId>, interactions: Json<UpdateInteractions>) -> impl Responder {
-    "foo"
+async fn update_interactions(
+    _config: Data<PersonalizationConfig>,
+    _user_id: Path<UserId>,
+    _interactions: Json<UpdateInteractions>,
+) -> Result<impl Responder, Error> {
+    if true {
+        Err(Unimplemented {
+            functionality: "/users/{user_id}/interactions",
+        })?;
+    }
+    Ok("text body response")
 }
 
 #[get("/users/{user_id}/personalized_documents")]
-async fn personalized_documents(app_state: Data<AppState>, user_id: Path<UserId>) -> impl Responder {
-    "foo"
+async fn personalized_documents(
+    _config: Data<PersonalizationConfig>,
+    _user_id: Path<UserId>,
+) -> Result<impl Responder, Error> {
+    if true {
+        Err(Unimplemented {
+            functionality: "/users/{user_id}/personalized_documents",
+        })?;
+    }
+    Ok("text body response")
 }

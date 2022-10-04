@@ -12,13 +12,57 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use actix_web::{web::{Json, Data, ServiceConfig}, Responder, post};
+use std::net::SocketAddr;
 
-pub fn mount_ingestion(config: &mut ServiceConfig) {
-    config.service(new_documents);
+use actix_web::{
+    post,
+    web::{Data, Json, ServiceConfig},
+    Responder,
+};
+use serde::Deserialize;
+
+use crate::{
+    config::Config,
+    error::application::Unimplemented,
+    server::{default_bind_address, Application},
+    Error,
+};
+
+pub struct Ingestion;
+
+impl Application for Ingestion {
+    type Config = IngestionConfig;
+
+    fn configure(config: &mut ServiceConfig) {
+        config.service(new_documents);
+    }
 }
 
+#[derive(Deserialize)]
+pub struct IngestionConfig {
+    #[serde(default = "default_bind_address")]
+    bind_to: SocketAddr,
+}
+
+impl Config for IngestionConfig {
+    fn bind_address(&self) -> std::net::SocketAddr {
+        self.bind_to
+    }
+}
+
+//FIXME use actual body
+#[derive(Deserialize)]
+struct NewDocuments {}
+
 #[post("/documents")]
-async fn new_documents(app_state: Data<AppState>, new_documents: Json<NewDocuments>) -> impl Responder {
-    todo!()
+async fn new_documents(
+    _config: Data<IngestionConfig>,
+    _new_documents: Json<NewDocuments>,
+) -> Result<impl Responder, Error> {
+    if true {
+        Err(Unimplemented {
+            functionality: "endpoint /documents",
+        })?;
+    }
+    Ok("text body response")
 }

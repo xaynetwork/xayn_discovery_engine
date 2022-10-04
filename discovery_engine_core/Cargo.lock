@@ -1207,6 +1207,7 @@ dependencies = [
  "atomic",
  "serde",
  "serde_json",
+ "toml",
  "uncased",
  "version_check",
 ]
@@ -4159,12 +4160,18 @@ name = "web-api2"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "clap 4.0.10",
  "derive_more",
+ "figment",
  "mime",
+ "once_cell",
  "serde",
  "serde_json",
+ "thiserror",
+ "tokio",
  "tracing",
  "tracing-actix-web",
+ "tracing-subscriber",
  "uuid",
 ]
 
