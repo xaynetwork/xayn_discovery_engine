@@ -12,9 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::{collections::HashMap, sync::Arc, time::Duration};
+
 use futures::future::join_all;
 use itertools::Itertools;
-use std::{sync::Arc, time::Duration};
 use tracing::{debug, error, instrument};
 use warp::{hyper::StatusCode, reject::Reject, Rejection};
 
@@ -149,35 +150,46 @@ pub(crate) async fn handle_user_interactions(
     body: InteractionRequestBody,
     state: Arc<AppState>,
 ) -> Result<impl warp::Reply, Rejection> {
-    let documents = state
+    let ids = body
+        .documents
+        .iter()
+        .map(|document| &document.document_id)
+        .collect::<Vec<_>>();
+    let embeddings = state
         .elastic
-        .get_documents_by_ids(&[body.document_id])
+        .get_documents_by_ids(&ids)
         .await
-        .map_err(handle_elastic_error)?;
+        .map_err(handle_elastic_error)?
+        .into_iter()
+        .map(|document| (document.id, document.embedding))
+        .collect::<HashMap<_, _>>();
 
-    if let Some(document) = documents.first() {
-        match body.user_interaction {
+    if embeddings.len() < ids.iter().unique().count() {
+        debug!("Document not found");
+        return Ok(StatusCode::NOT_FOUND);
+    }
+
+    for document in body.documents {
+        match document.user_interaction {
             UserInteraction::Positive => {
                 state
                     .user
-                    .update_positive_cois(&document.id, &user_id, |positive_cois| {
-                        state
-                            .coi
-                            .log_positive_user_reaction(positive_cois, &document.embedding)
+                    .update_positive_cois(&document.document_id, &user_id, |positive_cois| {
+                        state.coi.log_positive_user_reaction(
+                            positive_cois,
+                            &embeddings[&document.document_id],
+                        )
                     })
                     .await
                     .map_err(|err| {
                         error!("Error updating positive user interests: {err}");
                         handle_user_state_op_error(err)
                     })?;
-
-                Ok(StatusCode::NO_CONTENT)
             }
         }
-    } else {
-        debug!("Document not found");
-        Ok(StatusCode::NOT_FOUND)
     }
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each centers' embedding.
