@@ -15,7 +15,7 @@
 use futures::future::join_all;
 use itertools::Itertools;
 use std::{sync::Arc, time::Duration};
-use tracing::{error, instrument};
+use tracing::{debug, error, instrument};
 use warp::{hyper::StatusCode, reject::Reject, Rejection};
 
 use xayn_discovery_engine_ai::{
@@ -34,20 +34,18 @@ use crate::{
     state::AppState,
 };
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub(crate) async fn handle_ranked_documents(
     user_id: UserId,
     state: Arc<AppState>,
 ) -> Result<impl warp::Reply, Rejection> {
     let user_interests = state.user.fetch_interests(&user_id).await.map_err(|err| {
-        error!(
-            "Error fetching interests for user '{}': {:#?}",
-            user_id, err
-        );
+        error!("Error fetching interests: {err}");
         handle_user_state_op_error(err)
     })?;
 
     if user_interests.positive.is_empty() {
+        error!("No positive user interests");
         return Err(warp::reject::custom(NoCenterOfInterestsError));
     }
 
@@ -68,7 +66,10 @@ pub(crate) async fn handle_ranked_documents(
         .user
         .fetch_interacted_document_ids(&user_id)
         .await
-        .map_err(handle_user_state_op_error)?;
+        .map_err(|err| {
+            error!("Error fetching interacted document ids: {err}");
+            handle_user_state_op_error(err)
+        })?;
     let max_documents_count = state.max_documents_count;
     let document_futures = cois
         .iter()
@@ -104,10 +105,9 @@ pub(crate) async fn handle_ranked_documents(
     for results in join_all(document_futures).await {
         match results {
             Ok(documents) => all_documents.extend(documents),
-            Err(error) => {
-                // TODO TO-3294: Add tracing
-                // error!("Error fetching document: {error}");
-                errors.push(error);
+            Err(err) => {
+                error!("Error fetching document: {err}");
+                errors.push(err);
             }
         };
     }
@@ -120,7 +120,10 @@ pub(crate) async fn handle_ranked_documents(
         .coi
         .score(&all_documents, &user_interests)
         // TODO TO-3339: Return 500 with the correct kind if this fail
-        .map_err(handle_ranking_error)?;
+        .map_err(|err| {
+            error!("Error scoring documents: {err}");
+            handle_ranking_error(err)
+        })?;
     rank(&mut all_documents, &scores);
 
     let max_docs = max_documents_count.min(all_documents.len());
@@ -129,7 +132,7 @@ pub(crate) async fn handle_ranked_documents(
     Ok(warp::reply::json(&documents))
 }
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub(crate) async fn handle_user_interaction(
     user_id: UserId,
     body: InteractionRequestBody,
@@ -150,10 +153,14 @@ pub(crate) async fn handle_user_interaction(
                     .log_positive_user_reaction(positive_cois, &document.embedding)
             })
             .await
-            .map_err(handle_user_state_op_error)?;
+            .map_err(|err| {
+                error!("Error updating positive user interests: {err}");
+                handle_user_state_op_error(err)
+            })?;
 
         Ok(StatusCode::OK)
     } else {
+        debug!("Document not found");
         Ok(StatusCode::NOT_FOUND)
     }
 }

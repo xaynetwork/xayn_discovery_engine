@@ -30,11 +30,19 @@
     clippy::must_use_candidate
 )]
 use std::{env, net::IpAddr};
+use tracing_subscriber::fmt::format::FmtSpan;
+use warp::Filter;
 use web_api::{api_routes, AppState, ElasticConfig, InitConfig};
 use xayn_discovery_engine_ai::GenericError;
 
 #[tokio::main]
 async fn main() -> Result<(), GenericError> {
+    let filter = env::var("RUST_LOG").unwrap_or_else(|_| "tracing=info,warp=debug".to_owned());
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
+
     let pg_url = env::var("DE_POSTGRES_URL");
     let pg_url = pg_url.or_else(|_| dotenvy::var("DE_POSTGRES_URL"))?;
     let elastic_url =
@@ -63,7 +71,7 @@ async fn main() -> Result<(), GenericError> {
         },
     };
     let state = AppState::init(config).await?;
-    let routes = api_routes(state);
+    let routes = api_routes(state).with(warp::trace::request());
 
     warp::serve(routes).run((ip_addr, port)).await;
     Ok(())
