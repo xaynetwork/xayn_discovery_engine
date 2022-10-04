@@ -12,14 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::{collections::HashMap, ops::RangeInclusive, string::FromUtf8Error};
+
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, string::FromUtf8Error};
 use thiserror::Error;
 use warp::reject::Reject;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
+
+/// The range of the count parameter.
+pub(crate) const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
@@ -33,7 +37,7 @@ pub(crate) enum Error {
     /// Failed to decode [`UserId] from path param: {0}.
     UserIdUtf8Conversion(#[from] FromUtf8Error),
 
-    /// Invalid value for count param: {0}. It must be greater than 1 and less than 100.
+    /// Invalid value for count parameter: {0}. It must be in [`COUNT_PARAM_RANGE`].
     InvalidCountParam(usize),
 
     /// Elastic search error: {0}
@@ -42,6 +46,7 @@ pub(crate) enum Error {
     /// Error receiving response: {0}
     Receiving(#[source] reqwest::Error),
 }
+
 impl Reject for Error {}
 
 /// A unique identifier of a document.

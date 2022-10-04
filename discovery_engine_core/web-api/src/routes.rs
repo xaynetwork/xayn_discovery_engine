@@ -17,7 +17,7 @@ use warp::{self, Filter, Rejection, Reply};
 
 use crate::{
     handlers,
-    models::{Error, PersonalizedDocumentsQuery, UserId},
+    models::{Error, PersonalizedDocumentsQuery, UserId, COUNT_PARAM_RANGE},
     state::AppState,
 };
 
@@ -74,7 +74,7 @@ fn with_count_query_param(
                 count: default_documents_count,
             });
 
-            if (1_usize..=100_usize).contains(&params.count) {
+            if COUNT_PARAM_RANGE.contains(&params.count) {
                 Ok(params)
             } else {
                 Err(warp::reject::custom(Error::InvalidCountParam(params.count)))

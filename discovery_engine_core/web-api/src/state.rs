@@ -15,7 +15,12 @@
 use std::sync::Arc;
 use xayn_discovery_engine_ai::{CoiConfig, CoiSystem, GenericError};
 
-use crate::{elastic, elastic::ElasticState, storage::UserState};
+use crate::{
+    elastic,
+    elastic::ElasticState,
+    models::{Error, COUNT_PARAM_RANGE},
+    storage::UserState,
+};
 
 #[derive(Clone, Debug)]
 pub struct InitConfig {
@@ -49,12 +54,16 @@ impl AppState {
 
         let coi = CoiConfig::default().build();
         let elastic = ElasticState::new(config.elastic);
+        let default_documents_count = COUNT_PARAM_RANGE
+            .contains(&config.default_documents_count)
+            .then(|| config.default_documents_count)
+            .ok_or(Error::InvalidCountParam(config.default_documents_count))?;
         let app_state = AppState {
             coi,
             elastic,
             user,
             max_cois_for_knn: config.max_cois_for_knn,
-            default_documents_count: config.default_documents_count,
+            default_documents_count,
         };
 
         Ok(Arc::new(app_state))
