@@ -30,13 +30,20 @@ use xayn_discovery_engine_ai::{
 
 use crate::{
     elastic::KnnSearchParams,
-    models::{Error, InteractionRequestBody, UserId},
+    models::{
+        Error,
+        InteractionRequestBody,
+        PersonalizedDocumentsQuery,
+        PersonalizedDocumentsResponse,
+        UserId,
+    },
     state::AppState,
 };
 
 #[instrument(skip(state))]
-pub(crate) async fn handle_ranked_documents(
+pub(crate) async fn handle_personalized_documents(
     user_id: UserId,
+    query: PersonalizedDocumentsQuery,
     state: Arc<AppState>,
 ) -> Result<impl warp::Reply, Rejection> {
     let user_interests = state.user.fetch_interests(&user_id).await.map_err(|err| {
@@ -70,7 +77,7 @@ pub(crate) async fn handle_ranked_documents(
             error!("Error fetching interacted document ids: {err}");
             handle_user_state_op_error(err)
         })?;
-    let max_documents_count = state.max_documents_count;
+    let documents_count = query.count.unwrap_or(state.default_documents_count);
     let document_futures = cois
         .iter()
         .map(|(coi, weight)| async {
@@ -84,7 +91,7 @@ pub(crate) async fn handle_ranked_documents(
                 // fine as number of neighbors is small enough
                 clippy::cast_possible_truncation
             )]
-            let k_neighbors = (weight * max_documents_count as f32).ceil() as usize;
+            let k_neighbors = (weight * documents_count as f32).ceil() as usize;
 
             state
                 .elastic
@@ -93,7 +100,7 @@ pub(crate) async fn handle_ranked_documents(
                     embedding: coi.point.to_vec(),
                     size: k_neighbors,
                     k_neighbors,
-                    num_candidates: max_documents_count,
+                    num_candidates: documents_count,
                 })
                 .await
         })
@@ -126,14 +133,17 @@ pub(crate) async fn handle_ranked_documents(
         })?;
     rank(&mut all_documents, &scores);
 
-    let max_docs = max_documents_count.min(all_documents.len());
+    let max_docs = documents_count.min(all_documents.len());
     let documents = &all_documents[0..max_docs];
+    let response = PersonalizedDocumentsResponse {
+        documents: documents.to_vec(),
+    };
 
-    Ok(warp::reply::json(&documents))
+    Ok(warp::reply::json(&response))
 }
 
 #[instrument(skip(state))]
-pub(crate) async fn handle_user_interaction(
+pub(crate) async fn handle_user_interactions(
     user_id: UserId,
     body: InteractionRequestBody,
     state: Arc<AppState>,

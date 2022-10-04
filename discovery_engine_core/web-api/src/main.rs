@@ -61,7 +61,7 @@ async fn main() -> Result<(), GenericError> {
 
     let config = InitConfig {
         max_cois_for_knn: 5,
-        max_documents_count: 100,
+        default_documents_count: 10,
         pg_url,
         elastic: ElasticConfig {
             url: elastic_url,

@@ -12,14 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::{collections::HashMap, ops::RangeInclusive, string::FromUtf8Error};
+
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, string::FromUtf8Error};
 use thiserror::Error;
 use warp::reject::Reject;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
+
+/// The range of the count parameter.
+pub(crate) const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
@@ -33,12 +37,16 @@ pub(crate) enum Error {
     /// Failed to decode [`UserId] from path param: {0}.
     UserIdUtf8Conversion(#[from] FromUtf8Error),
 
+    /// Invalid value for count parameter: {0}. It must be in [`COUNT_PARAM_RANGE`].
+    InvalidCountParam(usize),
+
     /// Elastic search error: {0}
     Elastic(#[source] reqwest::Error),
 
     /// Error receiving response: {0}
     Receiving(#[source] reqwest::Error),
 }
+
 impl Reject for Error {}
 
 /// A unique identifier of a document.
@@ -47,7 +55,7 @@ pub(crate) struct DocumentId(pub(crate) String);
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct PersonalizedDocument {
+pub(crate) struct PersonalizedDocumentData {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
 
@@ -62,7 +70,7 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) properties: DocumentProperties,
 }
 
-impl AiDocument for PersonalizedDocument {
+impl AiDocument for PersonalizedDocumentData {
     type Id = DocumentId;
 
     fn id(&self) -> &Self::Id {
@@ -74,24 +82,24 @@ impl AiDocument for PersonalizedDocument {
     }
 }
 
-/// Represents a document sent for ingestion.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct IngestedDocument {
-    /// Unique identifier of the document.
-    pub(crate) id: String,
-
-    /// Snippet used to calculate embeddings for a document.
-    pub(crate) snippet: String,
-
-    /// Contents of the document properties.
-    pub(crate) properties: DocumentProperties,
-}
-
 /// Arbitrary properties that can be attached to a document.
 pub type DocumentProperties = HashMap<String, serde_json::Value>;
 
+/// Represents personalized documents query params.
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct PersonalizedDocumentsQuery {
+    pub(crate) count: Option<usize>,
+}
+
+/// Represents response from personalized documents endpoint.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct PersonalizedDocumentsResponse {
+    /// A list of documents personalized for a specific user.
+    pub(crate) documents: Vec<PersonalizedDocumentData>,
+}
+
 /// Represents user interaction request body.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(crate) struct InteractionRequestBody {
     pub(crate) document_id: String,
 }

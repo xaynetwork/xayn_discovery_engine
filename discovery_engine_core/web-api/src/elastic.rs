@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use xayn_discovery_engine_ai::Embedding;
 
-use crate::models::{DocumentId, DocumentProperties, Error, PersonalizedDocument};
+use crate::models::{DocumentId, DocumentProperties, Error, PersonalizedDocumentData};
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -51,7 +51,7 @@ impl ElasticState {
     pub(crate) async fn get_documents_by_embedding(
         &self,
         params: KnnSearchParams,
-    ) -> Result<Vec<PersonalizedDocument>, Error> {
+    ) -> Result<Vec<PersonalizedDocumentData>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
         let body = json!({
             "size": params.size,
@@ -79,7 +79,7 @@ impl ElasticState {
     pub(crate) async fn get_documents_by_ids(
         &self,
         ids: &[String],
-    ) -> Result<Vec<PersonalizedDocument>, Error> {
+    ) -> Result<Vec<PersonalizedDocumentData>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/query-dsl-ids-query.html
         let body = json!({
             "query": {
@@ -114,12 +114,12 @@ impl ElasticState {
     }
 }
 
-fn convert_response(response: Response<ElasticDocumentData>) -> Vec<PersonalizedDocument> {
+fn convert_response(response: Response<ElasticDocumentData>) -> Vec<PersonalizedDocumentData> {
     response
         .hits
         .hits
         .into_iter()
-        .map(|hit| PersonalizedDocument {
+        .map(|hit| PersonalizedDocumentData {
             id: DocumentId(hit.id),
             score: hit.score,
             embedding: hit.source.embedding,

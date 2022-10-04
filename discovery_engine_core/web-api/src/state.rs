@@ -15,7 +15,12 @@
 use std::sync::Arc;
 use xayn_discovery_engine_ai::{CoiConfig, CoiSystem, GenericError};
 
-use crate::{elastic, elastic::ElasticState, storage::UserState};
+use crate::{
+    elastic,
+    elastic::ElasticState,
+    models::{Error, COUNT_PARAM_RANGE},
+    storage::UserState,
+};
 
 #[derive(Clone, Debug)]
 pub struct InitConfig {
@@ -26,7 +31,7 @@ pub struct InitConfig {
     /// Max nb of Positive CoIs to use in knn search.
     pub max_cois_for_knn: usize,
     /// Max nb of documents to return using personalized documents endpoint.
-    pub max_documents_count: usize,
+    pub default_documents_count: usize,
 }
 
 pub struct AppState {
@@ -38,8 +43,8 @@ pub struct AppState {
     pub(crate) user: UserState,
     /// Max nb of Positive CoIs to use in knn search.
     pub(crate) max_cois_for_knn: usize,
-    /// Max nb of documents to return using personalized documents endpoint.
-    pub(crate) max_documents_count: usize,
+    /// Default nb of documents to return using personalized documents endpoint.
+    pub(crate) default_documents_count: usize,
 }
 
 impl AppState {
@@ -49,12 +54,16 @@ impl AppState {
 
         let coi = CoiConfig::default().build();
         let elastic = ElasticState::new(config.elastic);
+        let default_documents_count = COUNT_PARAM_RANGE
+            .contains(&config.default_documents_count)
+            .then(|| config.default_documents_count)
+            .ok_or(Error::InvalidCountParam(config.default_documents_count))?;
         let app_state = AppState {
             coi,
             elastic,
             user,
             max_cois_for_knn: config.max_cois_for_knn,
-            max_documents_count: config.max_documents_count,
+            default_documents_count,
         };
 
         Ok(Arc::new(app_state))
