@@ -33,7 +33,7 @@ use xayn_discovery_engine_ai::{
     UserInterests,
 };
 
-use crate::models::{DocumentId, UserId, UserReaction};
+use crate::models::{DocumentId, UserId, UserInteraction};
 
 #[derive(Debug, Clone)]
 pub struct UserState {
@@ -164,7 +164,7 @@ impl UserState {
         .bind(doc_id.as_ref())
         .bind(user_id.as_ref())
         .bind(timestamp)
-        .bind(UserReaction::Positive as i16)
+        .bind(UserInteraction::Positive as i16)
         .execute(&mut tx)
         .await?;
 

@@ -101,7 +101,10 @@ pub(crate) struct PersonalizedDocumentsResponse {
 /// Represents user interaction request body.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct InteractionRequestBody {
+    #[serde(rename = "id")]
     pub(crate) document_id: String,
+    #[serde(rename = "type")]
+    pub(crate) user_interaction: UserInteraction,
 }
 
 /// Unique identifier for the user.
@@ -122,9 +125,8 @@ impl UserId {
     }
 }
 
-#[repr(u8)]
-pub(crate) enum UserReaction {
-    Positive = xayn_discovery_engine_core::document::UserReaction::Positive as u8,
-    #[allow(dead_code)]
-    Negative = xayn_discovery_engine_core::document::UserReaction::Negative as u8,
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub(crate) enum UserInteraction {
+    #[serde(rename = "positive")]
+    Positive = xayn_discovery_engine_core::document::UserReaction::Positive as isize,
 }

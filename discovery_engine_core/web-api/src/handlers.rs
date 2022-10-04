@@ -36,6 +36,7 @@ use crate::{
         PersonalizedDocumentsQuery,
         PersonalizedDocumentsResponse,
         UserId,
+        UserInteraction,
     },
     state::AppState,
 };
@@ -155,20 +156,24 @@ pub(crate) async fn handle_user_interactions(
         .map_err(handle_elastic_error)?;
 
     if let Some(document) = documents.first() {
-        state
-            .user
-            .update_positive_cois(&document.id, &user_id, |positive_cois| {
+        match body.user_interaction {
+            UserInteraction::Positive => {
                 state
-                    .coi
-                    .log_positive_user_reaction(positive_cois, &document.embedding)
-            })
-            .await
-            .map_err(|err| {
-                error!("Error updating positive user interests: {err}");
-                handle_user_state_op_error(err)
-            })?;
+                    .user
+                    .update_positive_cois(&document.id, &user_id, |positive_cois| {
+                        state
+                            .coi
+                            .log_positive_user_reaction(positive_cois, &document.embedding)
+                    })
+                    .await
+                    .map_err(|err| {
+                        error!("Error updating positive user interests: {err}");
+                        handle_user_state_op_error(err)
+                    })?;
 
-        Ok(StatusCode::OK)
+                Ok(StatusCode::NO_CONTENT)
+            }
+        }
     } else {
         debug!("Document not found");
         Ok(StatusCode::NOT_FOUND)
