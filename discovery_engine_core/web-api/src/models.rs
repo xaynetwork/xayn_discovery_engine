@@ -50,7 +50,7 @@ pub(crate) enum Error {
 impl Reject for Error {}
 
 /// A unique identifier of a document.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display, AsRef)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
 pub(crate) struct DocumentId(pub(crate) String);
 
 /// Represents a result from a query.
@@ -98,13 +98,18 @@ pub(crate) struct PersonalizedDocumentsResponse {
     pub(crate) documents: Vec<PersonalizedDocumentData>,
 }
 
-/// Represents user interaction request body.
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct InteractionRequestBody {
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct InteractionData {
     #[serde(rename = "id")]
-    pub(crate) document_id: String,
+    pub(crate) document_id: DocumentId,
     #[serde(rename = "type")]
     pub(crate) user_interaction: UserInteraction,
+}
+
+/// Represents user interaction request body.
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct InteractionRequestBody {
+    pub(crate) documents: Vec<InteractionData>,
 }
 
 /// Unique identifier for the user.

@@ -78,7 +78,7 @@ impl ElasticState {
 
     pub(crate) async fn get_documents_by_ids(
         &self,
-        ids: &[String],
+        ids: &[&DocumentId],
     ) -> Result<Vec<PersonalizedDocumentData>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/query-dsl-ids-query.html
         let body = json!({
