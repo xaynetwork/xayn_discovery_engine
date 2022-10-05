@@ -39,6 +39,7 @@ pub(crate) fn default_bind_address() -> SocketAddr {
 
 pub trait Application {
     type Config: Config;
+    type AppState: TryFrom<Self::Config> + Send + Sync + 'static;
     fn configure(config: &mut ServiceConfig);
 }
 
@@ -51,22 +52,26 @@ struct CliArgs {
     bind_to: Option<SocketAddr>,
 }
 
+pub type SetupError = Box<dyn std::error::Error + 'static>;
+
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
-pub async fn run<A: Application>(
-    config_file: Option<&Path>,
-) -> Result<(), Box<dyn std::error::Error + 'static>> {
+pub async fn run<A: Application>(config_file: Option<&Path>) -> Result<(), SetupError>
+where
+    A: Application,
+    <A::AppState as TryFrom<A::Config>>::Error: std::error::Error,
+{
     async {
         let cli_args = CliArgs::parse();
-        let config = web::Data::new(load_config::<A::Config, _>(config_file, cli_args)?);
-
-        init_tracing(config.log_file());
-
+        let config = load_config::<A::Config, _>(config_file, cli_args)?;
         let addr = config.bind_address();
+        init_tracing(config.log_file());
+        let app_state = web::Data::new(A::AppState::try_from(config)?);
+
         HttpServer::new(move || {
             App::new()
-                .app_data(config.clone())
+                .app_data(app_state.clone())
                 .configure(A::configure)
                 .wrap_fn(wrap_non_json_errors)
                 .wrap_fn(tracing_log_request)

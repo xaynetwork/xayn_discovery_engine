@@ -31,6 +31,7 @@ pub struct Ingestion;
 
 impl Application for Ingestion {
     type Config = IngestionConfig;
+    type AppState = IngestionConfig;
 
     fn configure(config: &mut ServiceConfig) {
         let resource = web::resource("/documents")

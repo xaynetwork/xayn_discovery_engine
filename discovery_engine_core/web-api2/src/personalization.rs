@@ -30,6 +30,7 @@ pub struct Personalization;
 
 impl Application for Personalization {
     type Config = PersonalizationConfig;
+    type AppState = PersonalizationConfig;
 
     fn configure(config: &mut ServiceConfig) {
         let scope = web::scope("/users/{user_id}")
