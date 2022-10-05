@@ -35,5 +35,9 @@ class HiveEngineStateRepository implements EngineStateRepository {
   @override
   Future<void> clear() async {
     await box.clear();
+    await box.flush();
   }
+
+  @override
+  bool get isEmpty => box.isEmpty;
 }

@@ -84,5 +84,6 @@ class StackId extends UniqueId {
   StackId() : super();
   StackId.fromBytes(Uint8List bytes) : super.fromBytes(bytes);
   StackId.fromJson(Map<String, Object> json) : super.fromJson(json);
+  StackId.fromString(String id) : super.fromString(id);
   StackId.nil() : super.fromBytes(Uint8List(16));
 }

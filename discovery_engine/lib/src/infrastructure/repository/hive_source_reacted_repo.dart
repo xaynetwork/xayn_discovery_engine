@@ -63,4 +63,13 @@ class HiveSourceReactedRepository implements SourceReactedRepository {
 
   @override
   Future<void> remove(Source source) => box.delete(source.value);
+
+  @override
+  Future<void> clear() async {
+    await box.clear();
+    await box.flush();
+  }
+
+  @override
+  bool get isEmpty => box.isEmpty;
 }

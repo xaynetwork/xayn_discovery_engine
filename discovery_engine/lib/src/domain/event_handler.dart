@@ -333,8 +333,12 @@ class EventHandler {
     return dataProvider.getSetupData(config.manifest);
   }
 
+  static bool _hiveRegistered = false;
+
   @visibleForTesting
   static void registerHiveAdapters() {
+    if (_hiveRegistered) return;
+    _hiveRegistered = true;
     Hive.registerAdapter(DocumentAdapter());
     Hive.registerAdapter(UserReactionAdapter());
     Hive.registerAdapter(DocumentViewModeAdapter());

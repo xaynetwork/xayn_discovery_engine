@@ -44,4 +44,13 @@ class HiveActiveDocumentDataRepository implements ActiveDocumentDataRepository {
   @override
   Future<void> removeByIds(Iterable<DocumentId> ids) =>
       box.deleteAll(ids.map<String>((id) => id.toString()));
+
+  @override
+  Future<void> clear() async {
+    await box.clear();
+    await box.flush();
+  }
+
+  @override
+  bool get isEmpty => box.isEmpty;
 }
