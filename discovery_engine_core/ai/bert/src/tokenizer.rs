@@ -17,6 +17,7 @@ use std::io::BufRead;
 use std::path::PathBuf;
 
 use derive_more::{Deref, From};
+<<<<<<< HEAD
 #[cfg(feature = "japanese")]
 use itertools::Itertools;
 #[cfg(feature = "japanese")]
@@ -32,6 +33,8 @@ use lindera::{
     },
 };
 use derive_more::*;
+=======
+>>>>>>> 640b9e25 (TO-2996 use upstream tokenizer (#625))
 use ndarray::Array2;
 use tokenizers::{
     decoders::wordpiece::WordPiece as WordPieceDecoder,
@@ -48,6 +51,7 @@ use tokenizers::{
     TokenizerBuilder,
     TokenizerImpl,
 };
+use tract_onnx::prelude::{tvec, TVec, Tensor};
 
 /// A pre-configured Bert tokenizer.
 pub struct Tokenizer {
@@ -68,27 +72,47 @@ pub struct Tokenizer {
 #[derive(Clone, Deref, From)]
 pub(crate) struct AttentionMask(pub(crate) Array2<i64>);
 
-/// The type ids of the encoded sequence.
-///
-/// The type ids are of shape `(1, token_size)`.
-#[derive(Clone, Deref, From)]
-pub(crate) struct TypeIds(pub(crate) Array2<i64>);
-
 /// The encoded sequence.
-pub(crate) struct Encoding {
-    pub(crate) token_ids: TokenIds,
-    pub(crate) attention_mask: AttentionMask,
-    pub(crate) type_ids: TypeIds,
+#[derive(Clone)]
+pub struct Encoding {
+    pub(crate) token_ids: Array2<i64>,
+    pub(crate) attention_mask: Array2<i64>,
+    pub(crate) type_ids: Array2<i64>,
+}
+
+impl Encoding {
+    pub(crate) fn to_attention_mask(&self) -> AttentionMask {
+        self.attention_mask.clone().into()
+    }
+}
+
+impl From<Encoding> for TVec<Tensor> {
+    fn from(encoding: Encoding) -> Self {
+        tvec![
+            encoding.token_ids.into(),
+            encoding.attention_mask.into(),
+            encoding.type_ids.into(),
+        ]
+    }
+}
+
+impl From<Encoding> for Vec<Array2<i64>> {
+    fn from(encoding: Encoding) -> Self {
+        vec![
+            encoding.token_ids,
+            encoding.attention_mask,
+            encoding.type_ids,
+        ]
+    }
 }
 
 impl Tokenizer {
     /// Creates a tokenizer from a vocabulary.
     ///
-    /// Can be set to keep accents and to lowercase the sequences. Requires the maximum number of
+    /// Can be set to cleanse accents and to lowercase the sequences. Requires the maximum number of
     /// tokens per tokenized sequence, which applies to padding and truncation and includes special
     /// tokens as well.
-    pub(crate) fn new(
-        // `BufRead` instead of `AsRef<Path>` is needed for wasm
+    pub fn new(
         vocab: impl BufRead,
         accents: AccentChars,
         case: CaseChars,
@@ -97,13 +121,43 @@ impl Tokenizer {
         lower_case: bool,
         token_size: usize,
     ) -> Result<Self, TokenizerError> {
-        let tokenizer = Builder::new(vocab)?
-            .with_normalizer(ControlChars::Cleanse, ChineseChars::Keep, accents, case)
-            .with_model("[UNK]", "##", 100)
-            .with_post_tokenizer("[CLS]", "[SEP]")
-            .with_truncation(Truncation::fixed(token_size, 0))
-            .with_padding(Padding::fixed(token_size, "[PAD]"))
+        let vocab = vocab
+            .lines()
+            .enumerate()
+            .map(|(idx, word)| Ok((word?.trim().to_string(), u32::try_from(idx)?)))
+            .collect::<Result<_, TokenizerError>>()?;
+        let model = WordPieceBuilder::new()
+            .vocab(vocab)
+            .unk_token("[UNK]".into())
+            .continuing_subword_prefix("##".into())
+            .max_input_chars_per_word(100)
             .build()?;
+        let normalizer = BertNormalizer::new(true, false, Some(cleanse_accents), lower_case);
+        let post_processor = BertProcessing::new(
+            (
+                "[SEP]".into(),
+                model.token_to_id("[SEP]").ok_or("missing sep token")?,
+            ),
+            (
+                "[CLS]".into(),
+                model.token_to_id("[CLS]").ok_or("missing cls token")?,
+            ),
+        );
+        let padding = PaddingParams {
+            strategy: PaddingStrategy::Fixed(token_size),
+            direction: PaddingDirection::Right,
+            pad_to_multiple_of: None,
+            pad_id: 0,
+            pad_type_id: 0,
+            pad_token: "[PAD]".into(),
+        };
+        let truncation = TruncationParams {
+            direction: TruncationDirection::Right,
+            max_length: token_size,
+            strategy: TruncationStrategy::LongestFirst,
+            stride: 0,
+        };
+        let decoder = WordPieceDecoder::new("##".into(), true);
 
         let bert = TokenizerBuilder::new()
             .with_model(model)
@@ -155,15 +209,11 @@ impl Tokenizer {
         let array_from =
             |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
 
-        let token_ids = Array1::from(token_ids).insert_axis(Axis(0)).into();
-        let attention_mask = Array1::from(attention_mask).insert_axis(Axis(0)).into();
-        let type_ids = Array1::from(type_ids).insert_axis(Axis(0)).into();
-
-        Encoding {
-            token_ids,
-            attention_mask,
-            type_ids,
-        }
+        Ok(Encoding {
+            token_ids: array_from(encoding.get_ids()),
+            attention_mask: array_from(encoding.get_attention_mask()),
+            type_ids: array_from(encoding.get_type_ids()),
+        })
     }
 }
 
@@ -173,68 +223,8 @@ mod tests {
     use std::{fs::File, io::BufReader};
 
     use xayn_discovery_engine_test_utils::smbert::vocab;
-    use xayn_discovery_engine_tokenizer::{ModelError, PaddingError, PostTokenizerError};
 
     use super::*;
-
-    #[test]
-    fn test_vocab_empty() {
-        assert_eq!(
-            Tokenizer::new(
-                Vec::new().as_slice(),
-                AccentChars::Keep,
-                CaseChars::Lower,
-                10
-            )
-            .unwrap_err(),
-            TokenizerError::Builder(BuilderError::Model(ModelError::EmptyVocab)),
-        );
-    }
-
-    #[test]
-    fn test_vocab_missing_cls() {
-        let vocab = ["[SEP]", "[PAD]", "[UNK]", "a", "##b"].join("\n");
-        assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
-            TokenizerError::Builder(BuilderError::PostTokenizer(PostTokenizerError::ClsToken)),
-        );
-    }
-
-    #[test]
-    fn test_vocab_missing_sep() {
-        let vocab = ["[CLS]", "[PAD]", "[UNK]", "a", "##b"].join("\n");
-        assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
-            TokenizerError::Builder(BuilderError::PostTokenizer(PostTokenizerError::SepToken)),
-        );
-    }
-
-    #[test]
-    fn test_vocab_missing_pad() {
-        let vocab = ["[CLS]", "[SEP]", "[UNK]", "a", "##b"].join("\n");
-        assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
-            TokenizerError::Builder(BuilderError::Padding(PaddingError::PadToken)),
-        );
-    }
-
-    #[test]
-    fn test_vocab_missing_unk() {
-        let vocab = ["[CLS]", "[SEP]", "[PAD]", "a", "##b"].join("\n");
-        assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
-            TokenizerError::Builder(BuilderError::Model(ModelError::UnkToken)),
-        );
-    }
-
-    #[test]
-    fn test_vocab_missing_prefix() {
-        let vocab = ["[CLS]", "[SEP]", "[PAD]", "[UNK]", "a##b"].join("\n");
-        assert_eq!(
-            Tokenizer::new(vocab.as_bytes(), AccentChars::Keep, CaseChars::Lower, 10).unwrap_err(),
-            TokenizerError::Builder(BuilderError::Model(ModelError::SubwordPrefix)),
-        );
-    }
 
     fn tokenizer(token_size: usize) -> Tokenizer {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
@@ -254,9 +244,11 @@ mod tests {
     #[test]
     fn test_encode_short() {
         let shape = (1, 20);
-        let encoding = tokenizer(shape.1).encode("These are normal, common EMBEDDINGS.");
+        let encoding = tokenizer(shape.1)
+            .encode("These are normal, common EMBEDDINGS.")
+            .unwrap();
         assert_eq!(
-            encoding.token_ids.0,
+            encoding.token_ids,
             ArrayView::from_shape(
                 shape,
                 &[2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -264,7 +256,7 @@ mod tests {
             .unwrap(),
         );
         assert_eq!(
-            encoding.attention_mask.0,
+            encoding.attention_mask,
             ArrayView::from_shape(
                 shape,
                 &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -272,7 +264,7 @@ mod tests {
             .unwrap(),
         );
         assert_eq!(
-            encoding.type_ids.0,
+            encoding.type_ids,
             ArrayView::from_shape(
                 shape,
                 &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -284,18 +276,20 @@ mod tests {
     #[test]
     fn test_encode_long() {
         let shape = (1, 10);
-        let encoding = tokenizer(shape.1).encode("These are normal, common EMBEDDINGS.");
+        let encoding = tokenizer(shape.1)
+            .encode("These are normal, common EMBEDDINGS.")
+            .unwrap();
         assert_eq!(
-            encoding.token_ids.0,
+            encoding.token_ids,
             ArrayView::from_shape(shape, &[2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3])
                 .unwrap(),
         );
         assert_eq!(
-            encoding.attention_mask.0,
+            encoding.attention_mask,
             ArrayView::from_shape(shape, &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).unwrap(),
         );
         assert_eq!(
-            encoding.type_ids.0,
+            encoding.type_ids,
             ArrayView::from_shape(shape, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
         );
     }
@@ -303,9 +297,11 @@ mod tests {
     #[test]
     fn test_encode_troublemakers() {
         let shape = (1, 15);
-        let encoding = tokenizer(shape.1).encode("for “life-threatening storm surge” according");
+        let encoding = tokenizer(shape.1)
+            .encode("for “life-threatening storm surge” according")
+            .unwrap();
         assert_eq!(
-            encoding.token_ids.0,
+            encoding.token_ids,
             ArrayView::from_shape(
                 shape,
                 &[2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0],
@@ -313,11 +309,11 @@ mod tests {
             .unwrap(),
         );
         assert_eq!(
-            encoding.attention_mask.0,
+            encoding.attention_mask,
             ArrayView::from_shape(shape, &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0]).unwrap(),
         );
         assert_eq!(
-            encoding.type_ids.0,
+            encoding.type_ids,
             ArrayView::from_shape(shape, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
         );
     }

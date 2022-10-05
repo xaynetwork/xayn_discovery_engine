@@ -30,7 +30,6 @@ use crate::{
     tokenizer::Tokenizer,
     NonePooler,
 };
-use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 /// `BertModel` configuration errors.
 #[derive(Debug, Display, Error)]
@@ -49,8 +48,8 @@ pub struct Config<'a, K, P> {
     #[cfg(feature = "japanese")]
     japanese: Option<PathBuf>,
     model: Box<dyn Read + Send + 'a>,
-    accents: AccentChars,
-    case: CaseChars,
+    cleanse_accents: bool,
+    lower_case: bool,
     token_size: usize,
     pooler: PhantomData<P>,
 }
@@ -68,8 +67,8 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
             #[cfg(feature = "japanese")]
             japanese,
             model,
-            accents: AccentChars::Cleanse,
-            case: CaseChars::Lower,
+            cleanse_accents: true,
+            lower_case: true,
             token_size: 128,
             pooler: PhantomData,
         }
@@ -95,19 +94,19 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
 }
 
 impl<'a, K: BertModel, P> Config<'a, K, P> {
-    /// Whether the tokenizer keeps accents.
+    /// Whether the tokenizer cleanses accents.
     ///
-    /// Defaults to `AccentChars::Cleanse`.
-    pub fn with_accents(mut self, accents: AccentChars) -> Self {
-        self.accents = accents;
+    /// Defaults to `true`.
+    pub fn with_cleanse_accents(mut self, cleanse_accents: bool) -> Self {
+        self.cleanse_accents = cleanse_accents;
         self
     }
 
     /// Whether the tokenizer lowercases.
     ///
-    /// Defaults to `CaseChars::Lower`.
-    pub fn with_case(mut self, case: CaseChars) -> Self {
-        self.case = case;
+    /// Defaults to `true`.
+    pub fn with_lower_case(mut self, lower_case: bool) -> Self {
+        self.lower_case = lower_case;
         self
     }
 
@@ -136,8 +135,8 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
             japanese: self.japanese,
             model: self.model,
             model_kind: self.model_kind,
-            accents: self.accents,
-            case: self.case,
+            cleanse_accents: self.cleanse_accents,
+            lower_case: self.lower_case,
             token_size: self.token_size,
             pooler: PhantomData,
         }

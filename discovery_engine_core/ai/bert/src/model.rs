@@ -24,7 +24,6 @@ use displaydoc::Display;
 use ndarray::{ErrorKind, ShapeError};
 use thiserror::Error;
 use tract_onnx::prelude::{
-    tvec,
     Datum,
     Framework,
     InferenceFact,
@@ -142,11 +141,7 @@ where
         debug_assert_eq!(encoding.token_ids.shape(), [1, self.token_size]);
         debug_assert_eq!(encoding.attention_mask.shape(), [1, self.token_size]);
         debug_assert_eq!(encoding.type_ids.shape(), [1, self.token_size]);
-        let inputs = tvec![
-            encoding.token_ids.0.into(),
-            encoding.attention_mask.0.into(),
-            encoding.type_ids.0.into()
-        ];
+        let inputs = encoding.into();
         let outputs = self.plan.run(inputs)?;
         debug_assert_eq!(outputs[0].shape(), [1, self.token_size, K::EMBEDDING_SIZE]);
 
@@ -204,9 +199,9 @@ mod tests {
         let model = Model::<kinds::SMBert>::new(model, shape.1).unwrap();
 
         let encoding = Encoding {
-            token_ids: Array2::from_elem(shape, 0).into(),
-            attention_mask: Array2::from_elem(shape, 1).into(),
-            type_ids: Array2::from_elem(shape, 0).into(),
+            token_ids: Array2::from_elem(shape, 0),
+            attention_mask: Array2::from_elem(shape, 1),
+            type_ids: Array2::from_elem(shape, 0),
         };
         let prediction = model.predict(encoding).unwrap();
         assert_eq!(

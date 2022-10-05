@@ -1,5 +1,4 @@
-# xayn_discovery_engine
-Xayn Discovery Engine
+# Xayn Discovery Engine
 
 ## License
 

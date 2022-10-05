@@ -56,7 +56,6 @@ use xayn_discovery_engine_providers::{
     TrendingTopic as BingTopic,
     TrendingTopicsQuery,
 };
-use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 #[cfg(feature = "storage")]
 use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
@@ -289,8 +288,8 @@ impl Engine {
                     .map_err(|err| Error::Ranker(err.into()))?,
             )
             .map_err(|err| Error::Ranker(err.into()))?
-            .with_accents(AccentChars::Cleanse)
-            .with_case(CaseChars::Lower)
+            .with_cleanse_accents(true)
+            .with_lower_case(true)
             .with_pooling::<AveragePooler>()
             .build()
             .map_err(GenericError::from)?;

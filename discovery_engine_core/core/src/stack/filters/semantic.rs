@@ -292,7 +292,6 @@ mod tests {
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
-    use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
     use crate::document::NewsResource;
 

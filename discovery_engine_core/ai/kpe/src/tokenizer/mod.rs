@@ -17,39 +17,40 @@ pub(crate) mod key_phrase;
 
 use std::io::BufRead;
 
-use displaydoc::Display;
-use thiserror::Error;
-use xayn_discovery_engine_tokenizer::{
-    AccentChars,
-    Builder,
-    BuilderError,
-    CaseChars,
-    ChineseChars,
-    ControlChars,
-    Padding,
-    Tokenizer as BertTokenizer,
-    Truncation,
+use tokenizers::{
+    decoders::wordpiece::WordPiece as WordPieceDecoder,
+    models::wordpiece::{WordPiece as WordPieceModel, WordPieceBuilder},
+    normalizers::bert::BertNormalizer,
+    pre_tokenizers::bert::BertPreTokenizer,
+    processors::bert::BertProcessing,
+    utils::{
+        padding::{PaddingDirection, PaddingParams, PaddingStrategy},
+        truncation::{TruncationDirection, TruncationParams, TruncationStrategy},
+    },
+    Error as TokenizerError,
+    Model,
+    TokenizerBuilder,
+    TokenizerImpl,
 };
 
 /// A pre-configured Bert tokenizer for key phrase extraction.
 #[derive(Debug)]
 pub(crate) struct Tokenizer<const KEY_PHRASE_SIZE: usize> {
-    tokenizer: BertTokenizer<i64>,
+    tokenizer: TokenizerImpl<
+        WordPieceModel,
+        BertNormalizer,
+        BertPreTokenizer,
+        BertProcessing,
+        WordPieceDecoder,
+    >,
     key_phrase_max_count: Option<usize>,
     key_phrase_min_score: Option<f32>,
-}
-
-/// The potential errors of the tokenizer.
-#[derive(Debug, Display, Error, PartialEq)]
-pub enum TokenizerError {
-    /// Failed to build the tokenizer: {0}
-    Builder(#[from] BuilderError),
 }
 
 impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
     /// Creates a tokenizer from a vocabulary.
     ///
-    /// Can be set to keep accents and to lowercase the sequences. Requires the maximum number of
+    /// Can be set to cleanse accents and to lowercase the sequences. Requires the maximum number of
     /// tokens per tokenized sequence, which applies to padding and truncation and includes special
     /// tokens as well.
     ///
@@ -57,18 +58,58 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
     /// threshold for the scores of returned key phrases.
     pub(crate) fn new(
         vocab: impl BufRead,
-        accents: AccentChars,
-        case: CaseChars,
+        cleanse_accents: bool,
+        lower_case: bool,
         token_size: usize,
         key_phrase_max_count: Option<usize>,
         key_phrase_min_score: Option<f32>,
     ) -> Result<Self, TokenizerError> {
-        let tokenizer = Builder::new(vocab)?
-            .with_normalizer(ControlChars::Cleanse, ChineseChars::Keep, accents, case)
-            .with_model("[UNK]", "##", 100)
-            .with_post_tokenizer("[CLS]", "[SEP]")
-            .with_truncation(Truncation::fixed(token_size, 0))
-            .with_padding(Padding::fixed(token_size, "[PAD]"))
+        let vocab = vocab
+            .lines()
+            .enumerate()
+            .map(|(idx, word)| Ok((word?.trim().to_string(), u32::try_from(idx)?)))
+            .collect::<Result<_, TokenizerError>>()?;
+        let model = WordPieceBuilder::new()
+            .vocab(vocab)
+            .unk_token("[UNK]".into())
+            .continuing_subword_prefix("##".into())
+            .max_input_chars_per_word(100)
+            .build()?;
+        let normalizer = BertNormalizer::new(true, false, Some(cleanse_accents), lower_case);
+        let post_processor = BertProcessing::new(
+            (
+                "[SEP]".into(),
+                model.token_to_id("[SEP]").ok_or("missing sep token")?,
+            ),
+            (
+                "[CLS]".into(),
+                model.token_to_id("[CLS]").ok_or("missing cls token")?,
+            ),
+        );
+        let padding = PaddingParams {
+            strategy: PaddingStrategy::Fixed(token_size),
+            direction: PaddingDirection::Right,
+            pad_to_multiple_of: None,
+            pad_id: 0,
+            pad_type_id: 0,
+            pad_token: "[PAD]".into(),
+        };
+        let truncation = TruncationParams {
+            direction: TruncationDirection::Right,
+            max_length: token_size,
+            strategy: TruncationStrategy::LongestFirst,
+            stride: 0,
+        };
+        let decoder = WordPieceDecoder::new("##".into(), true);
+
+        let tokenizer = TokenizerBuilder::new()
+            .with_model(model)
+            .with_normalizer(Some(normalizer))
+            .with_pre_tokenizer(Some(BertPreTokenizer))
+            .with_post_processor(Some(post_processor))
+            .with_padding(Some(padding))
+            .with_truncation(Some(truncation))
+            .with_decoder(Some(decoder))
             .build()?;
 
         Ok(Tokenizer {
