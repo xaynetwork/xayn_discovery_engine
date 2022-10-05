@@ -225,7 +225,11 @@ async fn handle_add_data(
         .partition_result();
 
     let embeddings_duration = start.elapsed().as_secs();
-    info!("Embeddings calculated in {} sec", embeddings_duration);
+    info!(
+        "{} embeddings calculated in {} sec",
+        documents.len(),
+        embeddings_duration
+    );
 
     if !errored_ids.is_empty() {
         return Err(warp::reject::custom(EmbeddingsCalculationError(
