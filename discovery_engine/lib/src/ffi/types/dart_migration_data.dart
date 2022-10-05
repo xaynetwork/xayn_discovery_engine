@@ -30,6 +30,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/migration_search.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/source.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart';
+import 'package:xayn_discovery_engine/src/ffi/types/weighted_source_vec.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 
 extension DartMigrationDataFfi on DartMigrationData {
@@ -46,6 +47,8 @@ extension DartMigrationDataFfi on DartMigrationData {
         .writeNative(ffi.dart_migration_data_place_of_trusted_sources(place));
     excludedSources
         .writeNative(ffi.dart_migration_data_place_of_excluded_sources(place));
+    reactedSources
+        .writeNative(ffi.dart_migration_data_place_of_reacted_sources(place));
 
     activeSearch.writeNative(ffi.dart_migration_data_place_of_search(place));
 
