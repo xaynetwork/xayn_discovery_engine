@@ -505,7 +505,7 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Disposes the engine.
     pub async fn dispose(engine: Box<SharedEngine>) {
-        engine.as_ref().as_ref().lock().await;
+        drop(engine);
     }
 
     /// Reset the AI state of this engine
