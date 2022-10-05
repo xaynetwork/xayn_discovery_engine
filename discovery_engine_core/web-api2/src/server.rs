@@ -33,10 +33,6 @@ use crate::{
     tracing::init_tracing,
 };
 
-pub(crate) fn default_bind_address() -> SocketAddr {
-    SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080).into()
-}
-
 pub trait Application {
     type Config: Config;
     type AppState: TryFrom<Self::Config> + Send + Sync + 'static;
