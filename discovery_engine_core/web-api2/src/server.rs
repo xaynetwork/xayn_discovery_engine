@@ -14,7 +14,7 @@
 
 use std::{
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use clap::Parser;
@@ -53,6 +53,10 @@ struct CliArgs {
     /// the config and environment.
     #[arg(short, long)]
     bind_to: Option<SocketAddr>,
+
+    /// File to log to additionally to logging to stdout
+    #[arg(short, long)]
+    log_file: Option<PathBuf>,
 }
 
 pub type SetupError = Box<dyn std::error::Error + 'static>;

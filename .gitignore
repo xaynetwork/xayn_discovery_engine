@@ -4,5 +4,7 @@
 # MacOS files
 .DS_Store
 
+.env.local
+
 cargo-installs/
 headlines_download/
