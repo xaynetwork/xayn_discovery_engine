@@ -99,7 +99,9 @@ where
     Figment::new()
         .join(Serialized::globals(update_with))
         .join(Env::prefixed("XAYN_WEB_API_").split("__"))
-        .join(Toml::file(config_file.unwrap_or(Path::new("config.toml"))))
+        .join(Toml::file(
+            config_file.unwrap_or_else(|| Path::new("config.toml")),
+        ))
         .extract()
         .map_err(Into::into)
 }

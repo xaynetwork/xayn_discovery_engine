@@ -12,10 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    path::{Path, PathBuf},
-};
+use std::{net::SocketAddr, path::PathBuf};
 
 use clap::Parser;
 use serde::Serialize;
@@ -73,7 +70,7 @@ where
     <A::AppState as TryFrom<A::Config>>::Error: std::error::Error,
 {
     async {
-        let cli_args = CliArgs::parse();
+        let mut cli_args = CliArgs::parse();
         let config_file = cli_args.config.take();
         let config = load_config::<A::Config, _>(config_file.as_deref(), cli_args)?;
         let addr = config.bind_address();

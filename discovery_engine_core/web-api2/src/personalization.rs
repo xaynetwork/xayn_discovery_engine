@@ -11,8 +11,6 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 
-use std::net::SocketAddr;
-
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
     Responder,
