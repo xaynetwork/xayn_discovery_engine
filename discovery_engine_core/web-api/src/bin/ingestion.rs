@@ -23,7 +23,8 @@ use reqwest::{
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::Arc};
-use tracing::{error, info};
+use tokio::time::Instant;
+use tracing::{debug, error, info, instrument};
 use tracing_subscriber::fmt::format::FmtSpan;
 use warp::{self, hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 use web_api::{DocumentProperties, ElasticDocumentData};
@@ -153,6 +154,7 @@ async fn main() -> Result<(), GenericError> {
 
 fn init_model(config: &Config) -> Result<Model, GenericError> {
     info!("SMBert model loading...");
+    let start = Instant::now();
 
     let path = env::current_dir()?;
     let vocab_path = path.join(&config.smbert_vocab);
@@ -164,7 +166,8 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
         .with_token_size(64)?
         .build()?;
 
-    info!("SMBert model loaded successfully!");
+    let load_duration = start.elapsed().as_secs();
+    info!("SMBert model loaded successfully in {} sec", load_duration);
 
     Ok(Arc::new(smbert))
 }
@@ -185,6 +188,7 @@ fn post_documents(
         .and_then(handle_add_data)
 }
 
+#[instrument(skip(model, config, client))]
 async fn handle_add_data(
     body: IngestionRequest,
     model: Model,
@@ -192,8 +196,11 @@ async fn handle_add_data(
     client: Client,
 ) -> Result<impl warp::Reply, Rejection> {
     if body.documents.len() > config.max_documents_length {
+        error!("{} documents exceeds maximum number", body.documents.len());
         return Err(warp::reject::custom(TooManyDocumentsError));
     }
+
+    let start = Instant::now();
 
     let (documents, errored_ids): (Vec<_>, Vec<_>) = body
         .documents
@@ -217,14 +224,20 @@ async fn handle_add_data(
         })
         .partition_result();
 
+    let embeddings_duration = start.elapsed().as_secs();
+    info!("Embeddings calculated in {} sec", embeddings_duration);
+
     if !errored_ids.is_empty() {
         return Err(warp::reject::custom(EmbeddingsCalculationError(
             errored_ids,
         )));
     }
 
-    let bytes =
-        serialize_to_ndjson(&documents).map_err(|_| warp::reject::custom(SerializeNdJsonError))?;
+    debug!("Serializing documents to ndjson");
+    let bytes = serialize_to_ndjson(&documents).map_err(|e| {
+        error!("Error serializing documents to ndjson: {e}");
+        warp::reject::custom(SerializeNdJsonError)
+    })?;
 
     let url = format!(
         "{}/{}/_bulk?refresh",
