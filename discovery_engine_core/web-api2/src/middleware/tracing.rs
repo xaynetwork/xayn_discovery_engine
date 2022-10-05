@@ -21,7 +21,7 @@ use actix_web::{
     HttpMessage,
 };
 
-use tracing::{debug, Instrument};
+use tracing::{trace, Instrument};
 use tracing_actix_web::root_span_macro::private::tracing::info_span;
 use uuid::Uuid;
 
@@ -56,12 +56,12 @@ where
         request_id = %request_id,
     );
 
-    debug!(parent: &span, "request received");
+    trace!(parent: &span, "request received");
 
     request.extensions_mut().insert(request_id);
 
     service
         .call(request)
         .instrument(span.clone())
-        .inspect(move |_| debug!(parent: &span, "request processed"))
+        .inspect(move |_| trace!(parent: &span, "request processed"))
 }
