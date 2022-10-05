@@ -16,5 +16,5 @@ use web_api2::{run, Personalization};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
-    run::<Personalization>(None).await
+    run::<Personalization>().await
 }

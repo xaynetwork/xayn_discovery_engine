@@ -16,5 +16,5 @@ use web_api2::{run, Ingestion};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
-    run::<Ingestion>(None).await
+    run::<Ingestion>().await
 }
