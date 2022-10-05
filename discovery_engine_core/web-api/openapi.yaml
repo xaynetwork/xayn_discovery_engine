@@ -149,7 +149,7 @@ components:
       type: object
       properties:
         request_id:
-          description: Request ID optionally generated from the service. It can be comunicated to xayn to help debugging.
+          description: Request ID optionally generated from the service. It can be communicated to xayn to help debugging.
           type: string
     PersonalizedDocumentData:
       type: object
@@ -177,6 +177,7 @@ components:
           properties:
             kind:
               type: string
+              enum: [not_enough_interactions]
     UserInteractionType:
       type: string
       enum: [positive]

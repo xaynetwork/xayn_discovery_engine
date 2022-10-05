@@ -33,7 +33,7 @@ use xayn_discovery_engine_ai::{
     UserInterests,
 };
 
-use crate::models::{DocumentId, UserId, UserInteraction};
+use crate::models::{DocumentId, UserId, UserInteractionType};
 
 #[derive(Debug, Clone)]
 pub struct UserState {
@@ -52,7 +52,10 @@ impl UserState {
         Ok(())
     }
 
-    pub(crate) async fn fetch_interests(&self, id: &UserId) -> Result<UserInterests, GenericError> {
+    pub(crate) async fn fetch_interests(
+        &self,
+        user_id: &UserId,
+    ) -> Result<UserInterests, GenericError> {
         let mut tx = self.pool.begin().await?;
 
         let cois = sqlx::query_as::<_, QueriedCoi>(
@@ -60,18 +63,19 @@ impl UserState {
             FROM center_of_interest 
             WHERE user_id = $1",
         )
-        .bind(id.as_ref())
+        .bind(user_id.as_ref())
         .fetch_all(&mut tx)
         .await?;
 
         tx.commit().await?;
 
-        let (positive, negative): (Vec<_>, Vec<_>) =
-            cois.into_iter().partition(|coi| coi.is_positive);
+        let (positive, negative) = cois
+            .into_iter()
+            .partition::<Vec<_>, _>(|coi| coi.is_positive);
 
         // fine as we convert it to i32 when we store it in the database
         #[allow(clippy::cast_sign_loss)]
-        let positive: Vec<_> = positive
+        let positive = positive
             .into_iter()
             .map(|coi| PositiveCoi {
                 id: coi.coi_id.into(),
@@ -82,16 +86,16 @@ impl UserState {
                     last_view: coi.last_view.into(),
                 },
             })
-            .collect();
+            .collect_vec();
 
-        let negative: Vec<_> = negative
+        let negative = negative
             .into_iter()
             .map(|coi| NegativeCoi {
                 id: coi.coi_id.into(),
                 point: Embedding::from(Array::from_vec(coi.embedding)),
                 last_view: coi.last_view.into(),
             })
-            .collect();
+            .collect_vec();
 
         Ok(UserInterests { positive, negative })
     }
@@ -164,7 +168,7 @@ impl UserState {
         .bind(doc_id.as_ref())
         .bind(user_id.as_ref())
         .bind(timestamp)
-        .bind(UserInteraction::Positive as i16)
+        .bind(UserInteractionType::Positive as i16)
         .execute(&mut tx)
         .await?;
 
