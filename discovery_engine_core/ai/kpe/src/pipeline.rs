@@ -14,11 +14,12 @@
 
 use displaydoc::Display;
 use thiserror::Error;
+use tokenizers::Error as TokenizerError;
 use xayn_discovery_engine_layer::io::LoadingBinParamsFailed;
 
 use crate::{
     model::{bert::Bert, classifier::Classifier, cnn::Cnn, ModelError},
-    tokenizer::{key_phrase::RankedKeyPhrases, Tokenizer, TokenizerError},
+    tokenizer::{key_phrase::RankedKeyPhrases, Tokenizer},
 };
 
 /// A pipeline for a KPE model.
@@ -53,7 +54,7 @@ impl Pipeline {
         let (encoding, key_phrases) = self
             .tokenizer
             .encode(sequence)
-            .ok_or(ModelError::NotEnoughWords)?;
+            .or(Err(ModelError::NotEnoughWords))?;
         let embeddings = self.bert.run(encoding.token_ids, encoding.attention_mask)?;
         let features = self.cnn.run(&embeddings, &encoding.valid_mask)?;
         let scores = self.classifier.run(&features, &encoding.active_mask);
@@ -67,7 +68,6 @@ mod tests {
     use std::{collections::HashSet, error::Error};
 
     use xayn_discovery_engine_test_utils::kpe::{bert, classifier, cnn, vocab};
-    use xayn_discovery_engine_tokenizer::CaseChars;
 
     use crate::config::Config;
 
@@ -75,7 +75,7 @@ mod tests {
     fn test_run_unique() -> Result<(), Box<dyn Error>> {
         let kpe = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
             .with_token_size(8)?
-            .with_case(CaseChars::Keep)
+            .with_lower_case(false)
             .build()?;
 
         let actual = kpe.run("A b c d e.")?.0.into_iter().collect::<HashSet<_>>();
@@ -107,7 +107,7 @@ mod tests {
     fn test_run_duplicate() -> Result<(), Box<dyn Error>> {
         let kpe = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
             .with_token_size(7)?
-            .with_case(CaseChars::Keep)
+            .with_lower_case(false)
             .build()?;
 
         let actual = kpe.run("A a A a A")?.0.into_iter().collect::<HashSet<_>>();

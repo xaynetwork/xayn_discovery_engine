@@ -27,7 +27,6 @@ use crate::{
     tokenizer::Tokenizer,
 };
 use xayn_discovery_engine_layer::io::BinParams;
-use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 /// `KPE` configuration errors.
 #[derive(Debug, Display, Error)]
@@ -49,8 +48,8 @@ pub struct Config<'a> {
     model: Box<dyn Read + Send + 'a>,
     cnn: Box<dyn Read + Send + 'a>,
     classifier: Box<dyn Read + Send + 'a>,
-    accents: AccentChars,
-    case: CaseChars,
+    cleanse_accents: bool,
+    lower_case: bool,
     token_size: usize,
     key_phrase_max_count: Option<usize>,
     key_phrase_min_score: Option<f32>,
@@ -69,8 +68,8 @@ impl<'a> Config<'a> {
             model,
             cnn,
             classifier,
-            accents: AccentChars::Cleanse,
-            case: CaseChars::Lower,
+            cleanse_accents: true,
+            lower_case: true,
             token_size: *Bert::TOKEN_RANGE.end(),
             key_phrase_max_count: None,
             key_phrase_min_score: None,
@@ -91,19 +90,19 @@ impl<'a> Config<'a> {
         Ok(Self::from_readers(vocab, model, cnn, classifier))
     }
 
-    /// Whether the tokenizer keeps accents.
+    /// Whether the tokenizer cleanses accents.
     ///
-    /// Defaults to `AccentChars::Cleanse`.
-    pub fn with_accents(mut self, accents: AccentChars) -> Self {
-        self.accents = accents;
+    /// Defaults to `true`.
+    pub fn with_cleanse_accents(mut self, cleanse_accents: bool) -> Self {
+        self.cleanse_accents = cleanse_accents;
         self
     }
 
     /// Whether the tokenizer lowercases.
     ///
-    /// Defaults to `CaseChars::Lower`.
-    pub fn with_case(mut self, case: CaseChars) -> Self {
-        self.case = case;
+    /// Defaults to `true`.
+    pub fn with_lower_case(mut self, lower_case: bool) -> Self {
+        self.lower_case = lower_case;
         self
     }
 
@@ -158,8 +157,8 @@ impl<'a> Config<'a> {
     pub fn build(self) -> Result<Pipeline, PipelineError> {
         let tokenizer = Tokenizer::new(
             self.vocab,
-            self.accents,
-            self.case,
+            self.cleanse_accents,
+            self.lower_case,
             self.token_size,
             self.key_phrase_max_count,
             self.key_phrase_min_score,

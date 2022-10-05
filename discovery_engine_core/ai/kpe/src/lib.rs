@@ -45,4 +45,4 @@ pub use crate::{
 };
 
 #[cfg(doc)]
-pub use crate::{model::ModelError, tokenizer::TokenizerError};
+pub use crate::model::ModelError;
