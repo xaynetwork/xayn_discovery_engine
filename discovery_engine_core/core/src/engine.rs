@@ -1180,7 +1180,10 @@ impl Engine {
     }
 
     /// Sets a new list of excluded and trusted sources.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
     pub async fn set_sources(
         &mut self,
         excluded: Vec<String>,
@@ -1229,6 +1232,7 @@ impl Engine {
     }
 
     /// Returns the trusted sources.
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn trusted_sources(&mut self) -> Result<Vec<String>, Error> {
         #[cfg(feature = "storage")]
         {
@@ -1245,6 +1249,7 @@ impl Engine {
     }
 
     /// Returns the excluded sources.
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn excluded_sources(&mut self) -> Result<Vec<String>, Error> {
         #[cfg(feature = "storage")]
         {
@@ -1261,7 +1266,10 @@ impl Engine {
     }
 
     /// Adds a trusted source.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
     pub async fn add_trusted_source(&mut self, new_trusted: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
@@ -1299,7 +1307,10 @@ impl Engine {
     }
 
     /// Removes a trusted source.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
     pub async fn remove_trusted_source(&mut self, trusted: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
@@ -1327,7 +1338,10 @@ impl Engine {
     }
 
     /// Adds an excluded source.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
     pub async fn add_excluded_source(&mut self, new_excluded: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
@@ -1364,7 +1378,10 @@ impl Engine {
     }
 
     /// Removes an excluded source.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
     pub async fn remove_excluded_source(&mut self, excluded: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
