@@ -9,10 +9,10 @@ derive_more = { version = "0.99.17", default-features = false, features = ["dere
 displaydoc = "0.2.3"
 float-cmp = "0.9.0"
 ndarray = { version = "0.15.6", features = ["serde"] }
-serde = { version = "1.0.144", features = ["derive"] }
-thiserror = "1.0.32"
+serde = { version = "1.0.145", features = ["derive"] }
+thiserror = "1.0.37"
 tokenizers = { version = "0.13.0", default-features = false, features = ["onig"] }
-tract-onnx = "0.17.3"
+tract-onnx = "0.17.8"
 
 # dev-dependencies which don't work for aarch targets
 onnxruntime = { version = "0.0.13", optional = true }
@@ -20,7 +20,7 @@ onnxruntime = { version = "0.0.13", optional = true }
 [dev-dependencies]
 criterion = { version = "0.3.6", features = ["html_reports"] }
 csv = "1.1.6"
-indicatif = "0.17.0"
+indicatif = "0.17.1"
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
 
 [[example]]

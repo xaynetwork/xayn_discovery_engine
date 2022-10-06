@@ -12,9 +12,9 @@ chrono = { version = "0.4.22", default-features = false, features = ["serde"] }
 derivative = "2.2.0"
 derive_more = { version = "0.99.17", default-features = false, features = ["display", "from"] }
 displaydoc = "0.2.3"
-figment = { version = "0.10.6", default-features = false, features = ["json"] }
+figment = { version = "0.10.8", default-features = false, features = ["json"] }
 futures = { version = "0.3.24", default-features = false, features = ["alloc"] }
-itertools = "0.10.3"
+itertools = "0.10.5"
 kodama = "0.2.3"
 ndarray = "0.15.6"
 num-derive = "0.3.3"
@@ -22,10 +22,10 @@ num-traits = "0.2.15"
 rand = "0.8.5"
 rand_distr = "0.4.3"
 rayon = "1.5.3"
-serde = { version = "1.0.144", features = ["derive"] }
+serde = { version = "1.0.145", features = ["derive"] }
 serde_repr = "0.1.9"
-thiserror = "1.0.32"
-tokio = { version = "1.20.1", features = ["macros", "sync", "fs"] }
+thiserror = "1.0.37"
+tokio = { version = "1.21.2", features = ["macros", "sync", "fs"] }
 tracing = "0.1.36"
 url = { version = "2.2.2", features = ["serde"] }
 uuid = { version = "1.1.2", features = ["serde", "v4"] }
@@ -34,7 +34,7 @@ xayn-discovery-engine-bert = { path = "../ai/bert" }
 xayn-discovery-engine-providers = { path = "../providers" }
 
 # feature storage
-sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "sqlite", "uuid", "chrono"], optional = true }
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "uuid", "chrono"], optional = true }
 
 [dev-dependencies]
 async-once-cell = "0.4.2"
@@ -43,7 +43,7 @@ mockall = "0.11.2"
 rand_chacha = "0.3.1"
 serde_json = "1.0.85"
 tempfile = "3.3.0"
-tokio = { version = "1.20.1", features = ["macros", "rt", "sync"] }
+tokio = { version = "1.21.2", features = ["macros", "rt", "sync"] }
 wiremock = "0.5.14"
 xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
 

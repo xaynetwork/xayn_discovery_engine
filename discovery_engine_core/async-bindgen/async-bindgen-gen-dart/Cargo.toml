@@ -5,13 +5,13 @@ edition = "2021"
 license = "Apache-2.0"
 
 [dependencies]
-anyhow = "1.0.62"
-handlebars = "4.3.3"
+anyhow = "1.0.65"
+handlebars = "4.3.5"
 heck = "0.4.0"
-once_cell = "1.12.0"
+once_cell = "1.15.0"
 regex = "1.6.0"
-serde = { version = "1.0.144", features = ["derive"] }
+serde = { version = "1.0.145", features = ["derive"] }
 structopt = "0.3.26"
 
 [dev-dependencies]
-itertools = "0.10.3"
+itertools = "0.10.5"

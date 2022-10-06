@@ -9,13 +9,13 @@ async-bindgen = { path = "../async-bindgen/async-bindgen" }
 cfg-if = "1.0.0"
 chrono = { version = "0.4.22", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
-itertools = "0.10.3"
+itertools = "0.10.5"
 ndarray = "0.15.6"
 num-traits = "0.2.15"
-tokio = { version = "1.20.1", features = ["sync"] }
+tokio = { version = "1.21.2", features = ["sync"] }
 tracing = "0.1.36"
 tracing-subscriber = { version = "0.3.15", features = ["json"] }
-url = "2.2.2"
+url = "2.3.1"
 uuid = "1.1.2"
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-core = { path = "../core" }

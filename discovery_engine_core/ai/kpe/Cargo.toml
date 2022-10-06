@@ -8,9 +8,9 @@ edition = "2021"
 derive_more = { version = "0.99.17", default-features = false, features = ["deref", "from"] }
 displaydoc = "0.2.3"
 ndarray = "0.15.6"
-thiserror = "1.0.32"
+thiserror = "1.0.37"
 tokenizers = { version = "0.13.0", default-features = false, features = ["onig"] }
-tract-onnx = "0.17.3"
+tract-onnx = "0.17.8"
 xayn-discovery-engine-layer = { path = "../layer" }
 
 [dev-dependencies]
