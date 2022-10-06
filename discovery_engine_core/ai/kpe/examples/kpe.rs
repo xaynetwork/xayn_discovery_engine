@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let kpe = Config::from_files(vocab()?, bert()?, cnn()?, classifier()?)?
         .with_token_size(128)?
         .build()?;
-    let key_phrases = kpe.run("Berlin & Brandenburg")?;
+    let key_phrases = kpe.run("This sequence will be split into key phrases.")?;
     println!("{:?}", key_phrases);
     assert_eq!(key_phrases.len(), 30);
 

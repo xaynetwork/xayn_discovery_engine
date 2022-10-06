@@ -76,6 +76,10 @@ impl Bert {
             .model_for_read(&mut model)?
             .with_input_fact(0, input_fact.clone())? // token ids
             .with_input_fact(1, input_fact)? // attention mask
+            .with_output_fact(
+                0,
+                InferenceFact::dt_shape(f32::datum_type(), &[1, token_size, Self::EMBEDDING_SIZE]),
+            )? // embeddings
             .into_optimized()?
             .into_runnable()?;
 

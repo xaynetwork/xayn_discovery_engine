@@ -48,7 +48,7 @@ tokenizers = { version = "0.13.0", default-features = false, features = ["onig"]
 tokio = { version = "1.21.2", default-features = false }
 tracing = "0.1.36"
 tracing-subscriber = "0.3.15"
-tract-onnx = "0.17.8"
+tract-onnx = "0.18.1"
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.1.2", features = ["serde", "v4"] }
 wiremock = "0.5.14"
