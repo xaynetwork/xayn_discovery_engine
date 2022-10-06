@@ -3997,7 +3997,7 @@ dependencies = [
 [[package]]
 name = "xayn-dart-api-dl"
 version = "0.3.0+2.0.0"
-source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#63f02b0e5b54684f20d1910a0588ce727da2f1c5"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#6f87a7f1a9d2e71ca29f24c2edbf1a2dc537aa01"
 dependencies = [
  "displaydoc",
  "once_cell",
@@ -4009,7 +4009,7 @@ dependencies = [
 [[package]]
 name = "xayn-dart-api-dl-sys"
 version = "0.3.0+2.0.0"
-source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#63f02b0e5b54684f20d1910a0588ce727da2f1c5"
+source = "git+https://github.com/xaynetwork/xayn_dart_api_dl.git?branch=main#6f87a7f1a9d2e71ca29f24c2edbf1a2dc537aa01"
 dependencies = [
  "bindgen",
  "cc",
