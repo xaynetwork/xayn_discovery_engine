@@ -505,9 +505,11 @@ impl Engine {
         history: &[HistoricDocument],
         sources: &[WeightedSource],
     ) -> Result<Vec<Document>, Error> {
-        let request_new = (self.request_after < self.core_config.request_after)
-            .then(|| self.core_config.request_new)
-            .unwrap_or(usize::MAX);
+        let request_new = if self.request_after < self.core_config.request_after {
+            self.core_config.request_new
+        } else {
+            usize::MAX
+        };
 
         self.update_stacks_for_all_markets(history, sources, request_new)
             .await?;
@@ -1098,7 +1100,7 @@ impl Engine {
             .filter_map(|document| {
                 let similarity =
                     cosine_similarity(embedding.view(), document.smbert_embedding.view());
-                (similarity > self.core_config.deep_search_sim).then(|| (similarity, document))
+                (similarity > self.core_config.deep_search_sim).then_some((similarity, document))
             })
             .collect_vec();
         documents.sort_unstable_by(|(this, _), (other, _)| nan_safe_f32_cmp(this, other).reverse());

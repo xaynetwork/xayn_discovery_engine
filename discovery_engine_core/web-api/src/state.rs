@@ -56,7 +56,7 @@ impl AppState {
         let elastic = ElasticState::new(config.elastic);
         let default_documents_count = COUNT_PARAM_RANGE
             .contains(&config.default_documents_count)
-            .then(|| config.default_documents_count)
+            .then_some(config.default_documents_count)
             .ok_or(Error::InvalidCountParam(config.default_documents_count))?;
         let app_state = AppState {
             coi,

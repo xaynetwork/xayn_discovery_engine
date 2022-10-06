@@ -38,7 +38,7 @@ pub(crate) fn source_weight(document: &Document, sources: &[WeightedSource]) -> 
     let source = &document.resource.source_domain;
     sources
         .iter()
-        .find_map(|weighted| (&weighted.source == source).then(|| weighted.weight))
+        .find_map(|weighted| (&weighted.source == source).then_some(weighted.weight))
         .unwrap_or(0)
 }
 

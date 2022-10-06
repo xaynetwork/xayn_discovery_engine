@@ -262,9 +262,11 @@ pub mod models {
     impl ApiDocumentView {
         /// Gets the snippet or falls back to the title if the snippet is empty.
         pub(crate) fn snippet_or_title(&self) -> &str {
-            (!self.news_resource.snippet.is_empty())
-                .then(|| &self.news_resource.snippet)
-                .unwrap_or(&self.news_resource.title)
+            if self.news_resource.snippet.is_empty() {
+                &self.news_resource.title
+            } else {
+                &self.news_resource.snippet
+            }
         }
     }
 

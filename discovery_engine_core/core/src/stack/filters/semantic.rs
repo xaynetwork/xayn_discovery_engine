@@ -31,7 +31,7 @@ fn condensed_cosine_similarity(documents: &[Document]) -> Vec<f32> {
             .map(|document| document.smbert_embedding.view()),
     )
     .indexed_iter()
-    .filter_map(|((i, j), &similarity)| (i < j).then(|| similarity))
+    .filter_map(|((i, j), &similarity)| (i < j).then_some(similarity))
     .collect()
 }
 
