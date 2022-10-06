@@ -1704,9 +1704,9 @@ dependencies = [
 
 [[package]]
 name = "matchers"
-version = "0.0.1"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f099785f7595cc4b4553a174ce30dd7589ef93391ff414dbb67f62392b9e0ce1"
+checksum = "8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558"
 dependencies = [
  "regex-automata",
 ]
@@ -3299,7 +3299,7 @@ checksum = "12612be8f868a09c0ceae7113ff26afe79d81a24473a393cb9120ece162e86c0"
 dependencies = [
  "android_log-sys",
  "tracing",
- "tracing-subscriber 0.3.15",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -3346,14 +3346,13 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.2.25"
+version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e0d2eaa99c3c2e41547cfa109e910a68ea03823cccad4a0525dcbc9b01e8c71"
+checksum = "60db860322da191b40952ad9affe65ea23e7dd6a5c442c2c42865810c6ab8e6b"
 dependencies = [
  "ansi_term",
- "chrono",
- "lazy_static",
  "matchers",
+ "once_cell",
  "regex",
  "serde",
  "serde_json",
@@ -3361,23 +3360,6 @@ dependencies = [
  "smallvec",
  "thread_local",
  "tracing",
- "tracing-core",
- "tracing-log",
- "tracing-serde",
-]
-
-[[package]]
-name = "tracing-subscriber"
-version = "0.3.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60db860322da191b40952ad9affe65ea23e7dd6a5c442c2c42865810c6ab8e6b"
-dependencies = [
- "ansi_term",
- "serde",
- "serde_json",
- "sharded-slab",
- "smallvec",
- "thread_local",
  "tracing-core",
  "tracing-log",
  "tracing-serde",
@@ -3865,7 +3847,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber 0.2.25",
+ "tracing-subscriber",
  "urlencoding",
  "uuid",
  "warp",
@@ -4119,7 +4101,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-android",
- "tracing-subscriber 0.3.15",
+ "tracing-subscriber",
  "url",
  "uuid",
  "xayn-discovery-engine-ai",
