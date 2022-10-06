@@ -7,12 +7,12 @@ license = "Apache-2.0"
 
 [dependencies]
 anyhow = { workspace = true }
+clap = { workspace = true }
 handlebars = "4.3.5"
 heck = { workspace = true }
 once_cell = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
-structopt = "0.3.26"
 
 [dev-dependencies]
 itertools = { workspace = true }

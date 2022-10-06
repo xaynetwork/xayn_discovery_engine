@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
-clap = { version = "3.2.12", features = ["derive"] }
+clap = { workspace = true }
 csv = { workspace = true }
 indicatif = { workspace = true }
 rand = { workspace = true }
