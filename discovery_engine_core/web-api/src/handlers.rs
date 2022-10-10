@@ -125,7 +125,7 @@ pub(crate) async fn handle_personalized_documents(
     }
 
     if all_documents.is_empty() && !errors.is_empty() {
-        return Ok(Box::new(StatusCode::BAD_REQUEST));
+        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR));
     }
 
     match state.coi.score(&all_documents, &user_interests) {
