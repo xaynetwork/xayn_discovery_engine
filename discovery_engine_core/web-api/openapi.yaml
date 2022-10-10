@@ -198,12 +198,108 @@ paths:
         '404':
           description: document id not found
 
+  /documents/{document_id}/properties/{property_id}:
+    get:
+      tags:
+        - documents
+      summary: Get a document property
+      description: Gets the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentProperty'
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id or property id not found
+  /documents/{document_id}/properties/{property_id}:
+    put:
+      tags:
+        - documents
+      summary: Set a document property
+      description: Sets or replaces the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentProperty'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id not found
+  /documents/{document_id}/properties/{property_id}:
+    delete:
+      tags:
+        - documents
+      summary: Delete a document property
+      description: Deletes the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id or property id not found
+
 components:
   schemas:
     DocumentId:
       description: A document id can be any non-empty UTF-8 string that does not contain the null byte.
       type: string
       example: "document id"
+    DocumentPropertyId:
+      description: A document property id can be any non-empty UTF-8 string that does not contain the null byte.
+      type: string
+      example: "document property id"
+    DocumentProperty:
+      description: Arbitrary property that can be attached to a document.
+      type: object
+      example: "News title"
     DocumentProperties:
       description: Arbitrary properties that can be attached to a document.
       type: object
