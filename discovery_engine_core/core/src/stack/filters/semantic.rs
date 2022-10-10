@@ -31,7 +31,7 @@ where
 {
     pairwise_cosine_similarity(documents_embedding)
         .indexed_iter()
-        .filter_map(|((i, j), &similarity)| (i < j).then(|| similarity))
+        .filter_map(|((i, j), &similarity)| (i < j).then_some(similarity))
         .collect()
 }
 
