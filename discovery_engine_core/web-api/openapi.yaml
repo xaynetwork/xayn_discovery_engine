@@ -128,6 +128,76 @@ paths:
               schema:
                 $ref: '#/components/schemas/IngestionError'
 
+  /documents/{document_id}/properties:
+    get:
+      tags:
+        - documents
+      summary: Get all document properties
+      description: Gets all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentProperties'
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+  /documents/{document_id}/properties:
+    put:
+      tags:
+        - documents
+      summary: Set all document properties
+      description: Sets or replaces all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentProperties'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+  /documents/{document_id}/properties:
+    delete:
+      tags:
+        - documents
+      summary: Delete all document properties
+      description: Deletes all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+
 components:
   schemas:
     DocumentId:
