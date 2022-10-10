@@ -217,7 +217,7 @@ fn unify(
             key_phrases
                 .iter()
                 .all(|key_phrase| key_phrase.words() != candidate)
-                .then(|| candidate)
+                .then_some(candidate)
         })
         .collect::<HashSet<_>>()
         .into_par_iter()
@@ -299,9 +299,7 @@ fn similarities(key_phrases: &[KeyPhrase], coi_point: &Embedding) -> Array2<f32>
         identity,
         |reduced, element| reduced + element,
         #[allow(clippy::cast_precision_loss)] // small values
-        |reduced, is_within_square| {
-            reduced / is_within_square.then(|| len - 1).unwrap_or(len) as f32
-        },
+        |reduced, is_within_square| reduced / if is_within_square { len - 1 } else { len } as f32,
     );
     let std_dev = reduce_without_diag(
         &normalized - &mean,
@@ -310,12 +308,17 @@ fn similarities(key_phrases: &[KeyPhrase], coi_point: &Embedding) -> Array2<f32>
         |reduced, element| reduced + element,
         #[allow(clippy::cast_precision_loss)] // small values
         |reduced, is_within_square| {
-            (reduced / is_within_square.then(|| len - 1).unwrap_or(len) as f32).sqrt()
+            (reduced / if is_within_square { len - 1 } else { len } as f32).sqrt()
         },
     );
     let normalized = (normalized - mean) / std_dev + 0.5;
-    let normalized = normalized
-        .mapv_into(|normalized| normalized.is_finite().then(|| normalized).unwrap_or(0.5));
+    let normalized = normalized.mapv_into(|normalized| {
+        if normalized.is_finite() {
+            normalized
+        } else {
+            0.5
+        }
+    });
     debug_assert!(normalized.iter().copied().all(f32::is_finite));
 
     normalized
@@ -377,7 +380,7 @@ fn select(
 
     let mut key_phrases = izip!(selected, similarity.slice(s![.., -1]), key_phrases)
         .filter_map(|(is_selected, similarity, key_phrase)| {
-            is_selected.then(|| (*similarity, key_phrase))
+            is_selected.then_some((*similarity, key_phrase))
         })
         .collect::<Vec<_>>();
 
@@ -619,7 +622,7 @@ mod tests {
             Axis(0),
             |element| element,
             |reduced, _| reduced,
-            |reduced, is_within_square| is_within_square.then(|| reduced).unwrap_or_default(),
+            |reduced, is_within_square| is_within_square.then_some(reduced).unwrap_or_default(),
         );
         assert_approx_eq!(f32, reduced, [[5., 2., 3., 0.]]);
     }
@@ -632,7 +635,7 @@ mod tests {
             Axis(0),
             |element| element,
             |reduced, element| reduced + element,
-            |reduced, is_within_square| reduced / is_within_square.then(|| 2.).unwrap_or(3.),
+            |reduced, is_within_square| reduced / if is_within_square { 2. } else { 3. },
         );
         assert_approx_eq!(f32, mean, [[7., 6., 5., 8.]]);
         let stddev = reduce_without_diag(
@@ -641,10 +644,12 @@ mod tests {
             |element| element.powi(2),
             |reduced, element| reduced + element,
             |reduced, is_within_square| {
-                is_within_square
-                    .then(|| reduced / 2.)
-                    .unwrap_or(reduced / 3.)
-                    .sqrt()
+                if is_within_square {
+                    reduced / 2.
+                } else {
+                    reduced / 3.
+                }
+                .sqrt()
             },
         );
         assert_approx_eq!(f32, stddev, [[2., 4., 2., 3.265_986_4]]);

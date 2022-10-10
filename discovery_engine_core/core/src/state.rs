@@ -57,7 +57,7 @@ impl Engine {
     pub(crate) fn deserialize(
         bytes: &[u8],
     ) -> Result<(HashMap<Id, Data>, UserInterests, KeyPhrases), Error> {
-        match bytes.get(0) {
+        match bytes.first() {
             Some(version) if *version < STATE_VERSION => Ok(Default::default()),
             Some(&STATE_VERSION) => {
                 bincode::deserialize(&bytes[1..]).map_err(Error::Deserialization)
@@ -89,7 +89,7 @@ impl Engine {
                         .map(|stacks| (stacks, state))
                 })
                 .and_then(|(stacks, state)| {
-                    match state.coi.0.get(0) {
+                    match state.coi.0.first() {
                         Some(&0) => Ok((stacks, UserInterests::default(), KeyPhrases::default())),
                         Some(&1) => {
                             #[derive(Deserialize)]

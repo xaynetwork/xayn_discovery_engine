@@ -134,7 +134,7 @@ impl<const KEY_PHRASE_SIZE: usize> Tokenizer<KEY_PHRASE_SIZE> {
 
         encoding
             .is_valid(self.tokenizer.get_vocab_size(true), KEY_PHRASE_SIZE)
-            .then(|| (encoding, key_phrases))
+            .then_some((encoding, key_phrases))
             .ok_or_else(|| "invalid encoding".into())
     }
 }

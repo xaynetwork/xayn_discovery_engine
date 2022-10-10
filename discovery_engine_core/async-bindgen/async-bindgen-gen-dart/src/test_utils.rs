@@ -31,6 +31,6 @@ pub(crate) use assert_trimmed_line_eq;
 pub(crate) fn trimmed_non_empty_lines(s: &str) -> impl Iterator<Item = &str> {
     s.lines().flat_map(|line| {
         let line = line.trim();
-        (!line.is_empty()).then(|| line)
+        (!line.is_empty()).then_some(line)
     })
 }

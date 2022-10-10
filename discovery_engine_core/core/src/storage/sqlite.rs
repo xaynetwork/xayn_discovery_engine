@@ -695,7 +695,7 @@ impl StateScope for SqliteStorage {
 
         tx.commit().await?;
 
-        Ok(state.and_then(|state| (!state.state.is_empty()).then(|| state.state)))
+        Ok(state.and_then(|state| (!state.state.is_empty()).then_some(state.state)))
     }
 
     async fn clear(&self) -> Result<bool, Error> {

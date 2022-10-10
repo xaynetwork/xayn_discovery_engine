@@ -40,7 +40,7 @@ runs:
       uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
 
     - name: Setup cmake
-      uses: jwlawson/actions-setup-cmake@884cf5c591490f86b788d68b6f585f26235578d6 # v1.12
+      uses: jwlawson/actions-setup-cmake@48fb828056dab1f20e7f97159f2711efb1742ba1 # v1.12.1
 
     - name: Install just
       uses: extractions/setup-just@aa5d15c144db4585980a44ebfdd2cf337c4f14cb #v1.4.0
@@ -51,7 +51,7 @@ runs:
 
     - name: Install flutter
       if: inputs.flutter == 'true'
-      uses: subosito/flutter-action@d8687e6979e8ef66d2b2970e2c92c1d8e801d7bf # v2.4.0
+      uses: subosito/flutter-action@1e6ee87cb840500837bcd50a667fb28815d8e310 # v2.7.1
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
 
@@ -95,10 +95,10 @@ runs:
       shell: bash
       run: rustup target add ${{ inputs.rust-target }}
 
-    - uses: Swatinem/rust-cache@cb2cf0cc7c5198d3364b9630e2c3d457f160790c # v1.4.0
+    - uses: Swatinem/rust-cache@6720f05bc48b77f96918929a9019fb2203ff71f8 # v2.0.0
       with:
         key: ${{ inputs.cache-key }}
-        working-directory: ${{ env.RUST_WORKSPACE }}
+        workspaces: ${{ env.RUST_WORKSPACE }} -> target
 
     - name: Install rust deps
       working-directory: ${{ env.RUST_WORKSPACE }}

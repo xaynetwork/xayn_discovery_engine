@@ -7,10 +7,10 @@ jobs:
   cargo-format:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v4
+      image: xaynetci/yellow:v5
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
 
       - name: Setup the CI.
         uses: ./.github/actions/setup-job-docker
@@ -23,10 +23,10 @@ jobs:
   cargo-clippy:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v4
+      image: xaynetci/yellow:v5
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
@@ -42,10 +42,10 @@ jobs:
   cargo-test:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v4
+      image: xaynetci/yellow:v5
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
@@ -64,10 +64,10 @@ jobs:
   cargo-doc:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v4
+      image: xaynetci/yellow:v5
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker

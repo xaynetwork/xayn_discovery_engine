@@ -196,7 +196,7 @@ fn captures_as_trimmed_lines<'a>(
         .lines()
         .flat_map(|line| {
             let line = line.trim();
-            (!line.is_empty()).then(|| line)
+            (!line.is_empty()).then_some(line)
         })
 }
 

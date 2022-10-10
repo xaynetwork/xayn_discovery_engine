@@ -47,6 +47,7 @@ pub enum NewItemsError {
 /// or different strategies.
 #[cfg_attr(test, automock)]
 #[async_trait]
+#[allow(unreachable_pub)] // false positive, probably due to proc macro
 pub trait Ops {
     /// Get the id for this set of operations.
     ///

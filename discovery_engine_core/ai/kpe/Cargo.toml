@@ -1,20 +1,21 @@
 [package]
 name = "xayn-discovery-engine-kpe"
-version = "0.1.0"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 license = "AGPL-3.0-only"
-edition = "2021"
 
 [dependencies]
-derive_more = { version = "0.99.17", default-features = false, features = ["deref", "from"] }
-displaydoc = "0.2.3"
-ndarray = "0.15.6"
-thiserror = "1.0.32"
-tokenizers = { version = "0.13.0", default-features = false, features = ["onig"] }
-tract-onnx = "0.17.3"
+derive_more = { workspace = true }
+displaydoc = { workspace = true }
+ndarray = { workspace = true }
+thiserror = { workspace = true }
+tokenizers = { workspace = true }
+tract-onnx = { workspace = true }
 xayn-discovery-engine-layer = { path = "../layer" }
 
 [dev-dependencies]
-criterion = { version = "0.3.6", features = ["html_reports"] }
+criterion = { workspace = true }
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
 
 [[example]]

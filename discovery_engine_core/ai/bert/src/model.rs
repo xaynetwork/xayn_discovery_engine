@@ -117,9 +117,17 @@ where
         let input_fact = InferenceFact::dt_shape(i64::datum_type(), &[1, token_size]);
         let plan = tract_onnx::onnx()
             .model_for_read(&mut model)?
-            .with_input_fact(0, input_fact.clone())?
-            .with_input_fact(1, input_fact.clone())?
-            .with_input_fact(2, input_fact)?
+            .with_input_fact(0, input_fact.clone())? // token ids
+            .with_input_fact(1, input_fact.clone())? // attention mask
+            .with_input_fact(2, input_fact)? // type ids
+            .with_output_fact(
+                0,
+                InferenceFact::dt_shape(f32::datum_type(), &[1, token_size, K::EMBEDDING_SIZE]),
+            )? // all embeddings
+            .with_output_fact(
+                1,
+                InferenceFact::dt_shape(f32::datum_type(), &[1, K::EMBEDDING_SIZE]),
+            )? // [CLS] embedding
             .into_optimized()?
             .into_runnable()?;
 
