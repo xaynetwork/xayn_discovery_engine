@@ -98,7 +98,7 @@ runs:
     - uses: Swatinem/rust-cache@6720f05bc48b77f96918929a9019fb2203ff71f8 # v2.0.0
       with:
         key: ${{ inputs.cache-key }}
-        working-directory: ${{ env.RUST_WORKSPACE }}
+        workspaces: ${{ env.RUST_WORKSPACE }} -> target
 
     - name: Install rust deps
       working-directory: ${{ env.RUST_WORKSPACE }}
