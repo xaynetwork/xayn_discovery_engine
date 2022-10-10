@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Personalization API
-  version: 1.0.0-rc1
+  version: 1.0.0-rc2
   description: |-
     # Overview
     The personalization system is divided into two parts: one to manage documents and one to manage users.
