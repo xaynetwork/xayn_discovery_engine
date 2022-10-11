@@ -152,7 +152,6 @@ paths:
           description: invalid document id
         '404':
           description: document id not found
-  /documents/{document_id}/properties:
     put:
       tags:
         - documents
@@ -177,7 +176,6 @@ paths:
           description: invalid document id
         '404':
           description: document id not found
-  /documents/{document_id}/properties:
     delete:
       tags:
         - documents
@@ -228,7 +226,6 @@ paths:
           description: invalid document id or property id
         '404':
           description: document id or property id not found
-  /documents/{document_id}/properties/{property_id}:
     put:
       tags:
         - documents
@@ -259,7 +256,6 @@ paths:
           description: invalid document id or property id
         '404':
           description: document id not found
-  /documents/{document_id}/properties/{property_id}:
     delete:
       tags:
         - documents
