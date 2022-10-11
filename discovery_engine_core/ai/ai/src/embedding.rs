@@ -140,7 +140,7 @@ mod tests {
     fn test_pairwise_cosine_similarity_empty() {
         assert_approx_eq!(
             f32,
-            pairwise_cosine_similarity([] as [ArrayView1<'_, f32>; 0]),
+            pairwise_cosine_similarity(std::iter::empty()),
             arr2(&[[]]),
         );
     }
