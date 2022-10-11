@@ -14,7 +14,7 @@
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use futures::future::join_all;
+use futures::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use tracing::{debug, error, instrument};
 use warp::{hyper::StatusCode, reject::Reject, Rejection};
@@ -80,7 +80,7 @@ pub(crate) async fn handle_personalized_documents(
             handle_user_state_op_error(err)
         })?;
     let documents_count = query.count.unwrap_or(state.default_documents_count);
-    let document_futures = cois
+    let mut document_futures = cois
         .iter()
         .map(|(coi, weight)| async {
             // weights_sum can't be zero, because coi weights will always return some weights that are > 0
@@ -106,13 +106,13 @@ pub(crate) async fn handle_personalized_documents(
                 })
                 .await
         })
-        .collect_vec();
+        .collect::<FuturesUnordered<_>>();
 
     let mut all_documents = Vec::new();
     let mut errors = Vec::new();
 
-    for results in join_all(document_futures).await {
-        match results {
+    while let Some(result) = document_futures.next().await {
+        match result {
             Ok(documents) => all_documents.extend(documents),
             Err(err) => {
                 error!("Error fetching document: {err}");
