@@ -37,22 +37,22 @@ pub(crate) async fn search_post(
     handle_search(&config, &client, &search.query, &search.pagination).await
 }
 
-#[get("/latest-headlines")]
-pub(crate) async fn latest_headlines_get(
+#[get("/popular")]
+pub(crate) async fn popular_get(
     config: Data<Config>,
     client: Data<Client>,
     page_params: Query<PaginationParams>,
 ) -> Result<impl Responder, BackendError> {
-    handle_latest_headlines(&config, &client, &page_params).await
+    handle_popular(&config, &client, &page_params).await
 }
 
-#[post("/latest-headlines")]
-pub(crate) async fn latest_headlines_post(
+#[post("/popular")]
+pub(crate) async fn popular_post(
     config: Data<Config>,
     client: Data<Client>,
     page_params: Json<PaginationParams>,
 ) -> Result<impl Responder, BackendError> {
-    handle_latest_headlines(&config, &client, &page_params).await
+    handle_popular(&config, &client, &page_params).await
 }
 
 async fn handle_search(
@@ -65,12 +65,12 @@ async fn handle_search(
     Ok(Json(newscatcher::Response::from((response, page_params))))
 }
 
-async fn handle_latest_headlines(
+async fn handle_popular(
     config: &Config,
     client: &Client,
     params: &PaginationParams,
 ) -> Result<impl Responder, BackendError> {
-    let response = fetch_latest_headlines(config, client, params).await?;
+    let response = fetch_popular_results(config, client, params).await?;
     Ok(Json(newscatcher::Response::from((response, params))))
 }
 
@@ -94,7 +94,7 @@ async fn fetch_search_results(
     query_elastic_search(config, client, body).await
 }
 
-async fn fetch_latest_headlines(
+async fn fetch_popular_results(
     config: &Config,
     client: &Client,
     params: &PaginationParams,
@@ -124,16 +124,12 @@ async fn query_elastic_search(
 ) -> Result<elastic::Response<elastic::Article>, BackendError> {
     debug!("Query: {:#?}", body);
 
-    let url = format!(
-        "{}/{}/_search",
-        config.elastic_url, config.elastic_index_name
-    );
+    let url = format!("{}/_search", config.mind_endpoint);
 
     debug!("Querying '{}'", url);
 
     let res = client
         .post(url)
-        .basic_auth(&config.elastic_user, Some(&config.elastic_password))
         .json(&body)
         .send()
         .await

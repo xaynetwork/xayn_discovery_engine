@@ -9,21 +9,12 @@ use log::info;
 use reqwest::Client;
 use serde::Deserialize;
 
-use crate::routes::{latest_headlines_get, latest_headlines_post, search_get, search_post};
+use crate::routes::{popular_get, popular_post, search_get, search_post};
 
 #[derive(Envconfig, Clone, Debug)]
 pub struct Config {
-    #[envconfig(from = "ELASTIC_URL")]
-    pub elastic_url: String,
-
-    #[envconfig(from = "ELASTIC_USER")]
-    pub elastic_user: String,
-
-    #[envconfig(from = "ELASTIC_PASSWORD")]
-    pub elastic_password: String,
-
-    #[envconfig(from = "ELASTIC_INDEX_NAME")]
-    pub elastic_index_name: String,
+    #[envconfig(from = "MIND_ENDPOINT")]
+    pub mind_endpoint: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -91,8 +82,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(Client::new()))
             .service(search_get)
             .service(search_post)
-            .service(latest_headlines_get)
-            .service(latest_headlines_post)
+            .service(popular_get)
+            .service(popular_post)
     })
     .bind((addr, port))?
     .run()
