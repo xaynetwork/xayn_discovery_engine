@@ -406,7 +406,7 @@ web-ingestion-up: build-ingestion-service
     compose="$(command -v podman-compose || command -v docker-compose)"
     rm -rf "$RUST_WORKSPACE/web-api/assets"
     mkdir -p "$RUST_WORKSPACE/web-api/assets"
-    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert-quantized.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
     ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
     $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     sleep 2
