@@ -7,13 +7,21 @@ license = "AGPL-3.0-only"
 publish = false
 
 [dependencies]
+actix-web = "4.2.1"
 anyhow = { workspace = true }
 clap = { workspace = true }
 csv = { workspace = true }
+displaydoc = { workspace = true }
+env_logger = "0.9.1"
+envconfig = "0.10.0"
+envconfig_derive = "0.10.0"
+log = "0.4.17"
 indicatif = { workspace = true }
 rand = { workspace = true }
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "rt-multi-thread"] }
 url = { workspace = true }
 xayn-discovery-engine-ai = { path = "../ai/ai" }
@@ -28,3 +36,6 @@ name = "discovery_engine"
 
 [[bin]]
 name = "newscatcher"
+
+[[bin]]
+name = "backend"
