@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Personalization API
-  version: 1.0.0-rc2
+  version: 1.0.0-rc3
   description: |-
     # Overview
     The personalization system is divided into two parts: one to manage documents and one to manage users.
@@ -18,11 +18,11 @@ info:
     ## User management
     The system identifies a user with only an id.
     There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document), and one to retrieve a personalized set of documents for the user. The system needs a few user interactions with documents before it can generate a personalized list.
-  
+
     # Auth
     To authenticate with the API two bearer tokens will be provided. One will work for the
     user endpoints and the other one to manage the documents.
-    
+
 tags:
   - name: users
     description: Interaction of the user and personalized document.
@@ -128,6 +128,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/IngestionError'
 
+  /documents/{document_id}:
+    delete:
+      tags:
+        - documents
+      summary: Delete documents from the system
+      description: |-
+        TODO
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: 'TODO  #/components/schemas/IngestionRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request
+          
   /documents/{document_id}/properties:
     get:
       tags:
