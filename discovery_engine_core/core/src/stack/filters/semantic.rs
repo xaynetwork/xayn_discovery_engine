@@ -25,14 +25,14 @@ use crate::document::{Document, WeightedSource};
 use super::source_weight;
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
-fn condensed_cosine_similarity<'a, I>(documents_embedding: I) -> Vec<f32>
+fn condensed_cosine_similarity<'a, I>(embeddings: I) -> Vec<f32>
 where
     I: IntoIterator<Item = ArrayView1<'a, f32>>,
     I::IntoIter: Clone,
 {
-    let documents_embedding = documents_embedding.into_iter();
+    let embeddings = embeddings.into_iter();
 
-    pairwise_cosine_similarity(documents_embedding)
+    pairwise_cosine_similarity(embeddings)
         .indexed_iter()
         .filter_map(|((i, j), &similarity)| (i < j).then_some(similarity))
         .collect()
