@@ -18,7 +18,7 @@ use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use warp::reject::Reject;
+use warp::{http::StatusCode, reject::Reject, reply, Reply};
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
@@ -98,18 +98,80 @@ pub(crate) struct PersonalizedDocumentsResponse {
     pub(crate) documents: Vec<PersonalizedDocumentData>,
 }
 
+impl PersonalizedDocumentsResponse {
+    pub(crate) fn new(documents: impl Into<Vec<PersonalizedDocumentData>>) -> Self {
+        Self {
+            documents: documents.into(),
+        }
+    }
+
+    pub(crate) fn to_reply(&self) -> impl Reply {
+        reply::json(self)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+pub(crate) enum PersonalizedDocumentsErrorKind {
+    #[serde(rename = "not_enough_interactions")]
+    NotEnoughInteractions,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct PersonalizedDocumentsError {
+    kind: PersonalizedDocumentsErrorKind,
+}
+
+impl PersonalizedDocumentsError {
+    pub(crate) fn new(kind: PersonalizedDocumentsErrorKind) -> Self {
+        Self { kind }
+    }
+
+    pub(crate) fn to_reply(&self, status: StatusCode) -> impl Reply {
+        reply::with_status(reply::json(self), status)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub(crate) enum UserInteractionType {
+    #[serde(rename = "positive")]
+    Positive = xayn_discovery_engine_core::document::UserReaction::Positive as isize,
+}
+
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct InteractionData {
+pub(crate) struct UserInteractionData {
     #[serde(rename = "id")]
     pub(crate) document_id: DocumentId,
     #[serde(rename = "type")]
-    pub(crate) user_interaction: UserInteraction,
+    pub(crate) interaction_type: UserInteractionType,
 }
 
 /// Represents user interaction request body.
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct InteractionRequestBody {
-    pub(crate) documents: Vec<InteractionData>,
+pub(crate) struct UserInteractionRequestBody {
+    pub(crate) documents: Vec<UserInteractionData>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+pub(crate) enum UserInteractionErrorKind {
+    #[serde(rename = "invalid_user_id")]
+    InvalidUserId,
+    #[serde(rename = "invalid_document_id")]
+    InvalidDocumentId,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct UserInteractionError {
+    kind: UserInteractionErrorKind,
+}
+
+impl UserInteractionError {
+    pub(crate) fn new(kind: UserInteractionErrorKind) -> Self {
+        Self { kind }
+    }
+
+    pub(crate) fn to_reply(&self, status: StatusCode) -> impl Reply {
+        reply::with_status(reply::json(self), status)
+    }
 }
 
 /// Unique identifier for the user.
@@ -128,10 +190,4 @@ impl UserId {
             Ok(Self(id.to_string()))
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-pub(crate) enum UserInteraction {
-    #[serde(rename = "positive")]
-    Positive = xayn_discovery_engine_core::document::UserReaction::Positive as isize,
 }
