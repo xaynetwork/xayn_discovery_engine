@@ -49,11 +49,6 @@ pub(crate) enum Error {
 
 impl Reject for Error {}
 
-#[derive(Clone, Debug, Serialize)]
-struct BaseError {
-    request_id: Option<String>,
-}
-
 /// A unique identifier of a document.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
 pub(crate) struct DocumentId(pub(crate) String);
@@ -123,17 +118,12 @@ pub(crate) enum PersonalizedDocumentsErrorKind {
 
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct PersonalizedDocumentsError {
-    #[serde(flatten)]
-    base: BaseError,
     kind: PersonalizedDocumentsErrorKind,
 }
 
 impl PersonalizedDocumentsError {
-    pub(crate) fn new(request_id: Option<String>, kind: PersonalizedDocumentsErrorKind) -> Self {
-        Self {
-            base: BaseError { request_id },
-            kind,
-        }
+    pub(crate) fn new(kind: PersonalizedDocumentsErrorKind) -> Self {
+        Self { kind }
     }
 
     pub(crate) fn to_reply(&self, status: StatusCode) -> impl Reply {
@@ -171,17 +161,12 @@ pub(crate) enum UserInteractionErrorKind {
 
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct UserInteractionError {
-    #[serde(flatten)]
-    base: BaseError,
     kind: UserInteractionErrorKind,
 }
 
 impl UserInteractionError {
-    pub(crate) fn new(request_id: Option<String>, kind: UserInteractionErrorKind) -> Self {
-        Self {
-            base: BaseError { request_id },
-            kind,
-        }
+    pub(crate) fn new(kind: UserInteractionErrorKind) -> Self {
+        Self { kind }
     }
 
     pub(crate) fn to_reply(&self, status: StatusCode) -> impl Reply {

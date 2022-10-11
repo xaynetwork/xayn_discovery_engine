@@ -134,7 +134,6 @@ pub(crate) async fn handle_personalized_documents(
             error!("Error scoring documents: {error}");
             return Ok(Box::new(
                 PersonalizedDocumentsError::new(
-                    None,
                     PersonalizedDocumentsErrorKind::NotEnoughInteractions,
                 )
                 .to_reply(StatusCode::UNPROCESSABLE_ENTITY),
@@ -169,7 +168,7 @@ pub(crate) async fn handle_user_interactions(
         Err(error) => {
             error!("Error fetching documents: {error}");
             return Ok(Box::new(
-                UserInteractionError::new(None, UserInteractionErrorKind::InvalidDocumentId)
+                UserInteractionError::new(UserInteractionErrorKind::InvalidDocumentId)
                     .to_reply(StatusCode::BAD_REQUEST),
             ) as Box<dyn Reply>);
         }
@@ -178,7 +177,7 @@ pub(crate) async fn handle_user_interactions(
     if embeddings.len() < ids.iter().unique().count() {
         debug!("Document not found");
         return Ok(Box::new(
-            UserInteractionError::new(None, UserInteractionErrorKind::InvalidDocumentId)
+            UserInteractionError::new(UserInteractionErrorKind::InvalidDocumentId)
                 .to_reply(StatusCode::BAD_REQUEST),
         ));
     }
@@ -198,7 +197,7 @@ pub(crate) async fn handle_user_interactions(
                 {
                     error!("Error updating positive user interests: {error}");
                     return Ok(Box::new(
-                        UserInteractionError::new(None, UserInteractionErrorKind::InvalidUserId)
+                        UserInteractionError::new(UserInteractionErrorKind::InvalidUserId)
                             .to_reply(StatusCode::BAD_REQUEST),
                     ));
                 }
