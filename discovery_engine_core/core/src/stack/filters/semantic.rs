@@ -27,8 +27,11 @@ use super::source_weight;
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity<'a, I>(documents_embedding: I) -> Vec<f32>
 where
-    I: Iterator<Item = ArrayView1<'a, f32>> + Clone,
+    I: IntoIterator<Item = ArrayView1<'a, f32>>,
+    I::IntoIter: Clone,
 {
+    let documents_embedding = documents_embedding.into_iter();
+
     pairwise_cosine_similarity(documents_embedding)
         .indexed_iter()
         .filter_map(|((i, j), &similarity)| (i < j).then_some(similarity))
@@ -36,10 +39,12 @@ where
 }
 
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
-fn condensed_date_distance<I>(dates: &I) -> Vec<f32>
+fn condensed_date_distance<I>(dates: I) -> Vec<f32>
 where
-    I: Iterator<Item = DateTime<Utc>> + Clone,
+    I: IntoIterator<Item = DateTime<Utc>>,
+    I::IntoIter: Clone,
 {
+    let dates = dates.into_iter();
     let dates = || dates.clone().enumerate();
 
     dates()
@@ -174,7 +179,7 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
             .map(|document| document.smbert_embedding.view()),
     );
     let date_distance = condensed_date_distance(
-        &documents
+        documents
             .iter()
             .map(|document| document.resource.date_published),
     );
@@ -327,7 +332,7 @@ mod tests {
         for n in 0..5 {
             let documents = repeat_with(Document::default).take(n).collect::<Vec<_>>();
             let condensed = condensed_date_distance(
-                &documents
+                documents
                     .iter()
                     .map(|document| document.resource.date_published),
             );

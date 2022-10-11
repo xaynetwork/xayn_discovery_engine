@@ -74,8 +74,10 @@ pub const COSINE_SIMILARITY_RANGE: RangeInclusive<f32> =
 /// [`Chain`]: std::iter::Chain
 pub fn pairwise_cosine_similarity<'a, I>(iter: I) -> Array2<f32>
 where
-    I: Iterator<Item = ArrayView1<'a, f32>> + Clone,
+    I: IntoIterator<Item = ArrayView1<'a, f32>>,
+    I::IntoIter: Clone,
 {
+    let iter = iter.into_iter();
     let size = match iter.size_hint() {
         (lower, Some(upper)) if lower == upper => lower,
         (lower, None) if lower == usize::MAX => lower,
@@ -101,7 +103,7 @@ where
 ///
 /// See [`pairwise_cosine_similarity`] for details.
 pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
-    pairwise_cosine_similarity([a.view(), b.view()].into_iter())[[0, 1]]
+    pairwise_cosine_similarity([a.view(), b.view()])[[0, 1]]
 }
 
 #[cfg(test)]
@@ -147,7 +149,7 @@ mod tests {
     fn test_pairwise_cosine_similarity_single() {
         assert_approx_eq!(
             f32,
-            pairwise_cosine_similarity(std::iter::once(arr1(&[1., 2., 3.]).view())),
+            pairwise_cosine_similarity([arr1(&[1., 2., 3.]).view()]),
             arr2(&[[1.]]),
         );
     }
@@ -156,9 +158,7 @@ mod tests {
     fn test_pairwise_cosine_similarity_pair() {
         assert_approx_eq!(
             f32,
-            pairwise_cosine_similarity(
-                [arr1(&[1., 2., 3.]).view(), arr1(&[4., 5., 6.]).view()].into_iter()
-            ),
+            pairwise_cosine_similarity([arr1(&[1., 2., 3.]).view(), arr1(&[4., 5., 6.]).view()]),
             arr2(&[[1., 0.974_631_85], [0.974_631_85, 1.]]),
         );
     }
