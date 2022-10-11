@@ -14,5 +14,5 @@
 
 CREATE TABLE IF NOT EXISTS users(
     user_id TEXT NOT NULL PRIMARY KEY,
-    time_stamp TIMESTAMPTZ NOT NULL DEFAULT Now()
+    last_seen TIMESTAMPTZ NOT NULL
 );

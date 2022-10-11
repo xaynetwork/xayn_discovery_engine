@@ -54,8 +54,8 @@ impl UserState {
 
     pub(crate) async fn user_seen(&self, id: &UserId) -> Result<(), GenericError> {
         sqlx::query(
-            "INSERT INTO users
-            VALUES (?, ?)
+            "INSERT INTO users(user_id, last_seen)
+            VALUES ($1, Now())
             ON CONFLICT (user_id)
             DO UPDATE SET last_seen = EXCLUDED.last_seen;",
         )
