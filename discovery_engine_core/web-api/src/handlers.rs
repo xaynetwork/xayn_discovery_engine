@@ -14,7 +14,7 @@
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use futures::{future::join_all, stream::FuturesUnordered, StreamExt};
+use futures::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use tracing::{debug, error, instrument};
 use warp::{hyper::StatusCode, reject::Reject, Rejection};
