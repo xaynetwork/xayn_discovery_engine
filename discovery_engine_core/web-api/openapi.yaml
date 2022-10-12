@@ -294,11 +294,12 @@ components:
       example: "document property id"
     DocumentProperty:
       description: Arbitrary property that can be attached to a document.
-      type: object
       example: "News title"
     DocumentProperties:
       description: Arbitrary properties that can be attached to a document.
       type: object
+      additionalProperties:
+        $ref: '#/components/schemas/DocumentProperty'
       example:
         title: "News title"
         image_url: "http://example.com/news_image.jpg"
