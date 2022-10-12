@@ -121,8 +121,7 @@ impl UserState {
         let mut positive_cois: Vec<_> = sqlx::query_as::<_, QueriedCoi>(
             "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view 
             FROM center_of_interest 
-            WHERE user_id = $1 AND is_positive 
-            FOR UPDATE;",
+            WHERE user_id = $1 AND is_positive;",
         )
         .bind(user_id.as_ref())
         .fetch_all(&mut tx)
