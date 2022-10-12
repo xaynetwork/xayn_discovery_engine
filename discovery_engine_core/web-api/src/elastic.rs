@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -133,6 +134,7 @@ fn convert_response(response: Response<ElasticDocumentData>) -> Vec<Personalized
 pub struct ElasticDocumentData {
     pub snippet: String,
     pub properties: DocumentProperties,
+    #[serde(with = "serde_embedding_as_vec")]
     pub embedding: Embedding,
 }
 
@@ -164,4 +166,24 @@ struct Hit<T> {
 #[allow(dead_code)]
 struct Total {
     value: usize,
+}
+
+pub(crate) mod serde_embedding_as_vec {
+    use ndarray::Array;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use xayn_discovery_engine_ai::Embedding;
+
+    pub(crate) fn serialize<S>(embedding: &Embedding, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        embedding.iter().collect::<Vec<_>>().serialize(serializer)
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Embedding, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Vec::<f32>::deserialize(deserializer).map(|vec| Embedding::from(Array::from_vec(vec)))
+    }
 }
