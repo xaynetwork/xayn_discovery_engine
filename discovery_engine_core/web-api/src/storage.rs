@@ -107,6 +107,15 @@ impl UserState {
     {
         let mut tx = self.pool.begin().await?;
 
+        sqlx::query("INSERT INTO coi_update_lock (user_id) VALUES ($1) ON CONFLICT DO NOTHING;")
+            .bind(user_id.as_ref())
+            .execute(&mut tx)
+            .await?;
+        sqlx::query("SELECT FROM coi_update_lock WHERE user_id = $1 FOR UPDATE;")
+            .bind(user_id.as_ref())
+            .execute(&mut tx)
+            .await?;
+
         // fine as we convert it to i32 when we store it in the database
         #[allow(clippy::cast_sign_loss)]
         let mut positive_cois: Vec<_> = sqlx::query_as::<_, QueriedCoi>(
