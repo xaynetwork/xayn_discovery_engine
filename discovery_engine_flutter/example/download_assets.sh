@@ -39,5 +39,4 @@ download()
 }
 
 download smbert v0001
-download kpe v0001
 download sources v0000
