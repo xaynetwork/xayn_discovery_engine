@@ -33,7 +33,6 @@
 mod approx_eq;
 mod asset;
 pub mod example;
-pub mod kpe;
 pub mod smbert;
 pub mod uuid;
 

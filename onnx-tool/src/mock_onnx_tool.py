@@ -117,67 +117,6 @@ def create_smbert_graph() -> GraphProto:
         [condition_tensor],
     )
 
-def create_kpe_graph() -> GraphProto:
-    # Create inputs (ValueInfoProto)
-    input_type_proto = helper.make_tensor_type_proto(
-        TensorProto.INT64,
-        ['batch', 'sequence'],
-    )
-    inputs = [
-        helper.make_value_info('input_ids', input_type_proto),
-        helper.make_value_info('attention_mask', input_type_proto),
-    ]
-    # Create outputs (ValueInfoProto)
-    outputs = [
-        helper.make_tensor_value_info(
-            'last_hidden_state',
-            TensorProto.FLOAT,
-            ['batch', 'sequence', 768],
-        ),
-    ]
-    # Create nodes (NodeProto)
-    nodes = [
-        helper.make_node(
-            'Constant',
-            inputs=[],
-            outputs=['const_tensor'],
-            value=helper.make_tensor(
-                name='const_tensor',
-                data_type=TensorProto.INT64,
-                dims=[1],
-                vals=[768],
-            ),
-        ),
-        helper.make_node(
-            'Shape',
-            inputs=['input_ids'],
-            outputs=['input_ids_shape'],
-        ),
-        helper.make_node(
-            'Concat',
-            inputs=['input_ids_shape', 'const_tensor'],
-            outputs=['last_hidden_state_shape'],
-            axis=0,
-        ),
-        helper.make_node(
-            'ConstantOfShape',
-            inputs=['last_hidden_state_shape'],
-            outputs=['last_hidden_state'],
-            value=helper.make_tensor(
-                'value',
-                TensorProto.FLOAT,
-                [1],
-                [1],
-            ),
-        ),
-    ]
-    return helper.make_graph(
-        nodes,
-        'bert-mocked',
-        inputs,
-        outputs,
-    )
-
 def verify(model_path: str):
     '''
     Verify the model.
@@ -205,8 +144,9 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--type",
-        choices=["kpe", "smbert"],
-        required=True,
+        choices=["smbert"],
+        required=False,
+        default="smbert",
         help="Type of the model.",
     )
 
@@ -217,11 +157,10 @@ if __name__ == '__main__':
         print(f"The specified path: \"{args.output}\" does not exist: \N{heavy ballot x}")
         exit(1)
 
-    filename_prefix = "bert" if args.type == "kpe" else args.type
+    filename_prefix = args.type
     model_path = os.path.join(model_path, f"{filename_prefix}-mocked.onnx")
     create_graph_choices = {
         "smbert": create_smbert_graph,
-        "kpe": create_kpe_graph,
     }
 
     try:

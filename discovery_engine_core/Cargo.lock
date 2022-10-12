@@ -4124,35 +4124,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "xayn-discovery-engine-kpe"
-version = "0.1.0"
-dependencies = [
- "criterion",
- "derive_more",
- "displaydoc",
- "ndarray",
- "thiserror",
- "tokenizers",
- "tract-onnx",
- "xayn-discovery-engine-layer",
- "xayn-discovery-engine-test-utils",
-]
-
-[[package]]
-name = "xayn-discovery-engine-layer"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "displaydoc",
- "ndarray",
- "rand 0.8.5",
- "rand_distr",
- "serde",
- "thiserror",
- "xayn-discovery-engine-test-utils",
-]
-
-[[package]]
 name = "xayn-discovery-engine-providers"
 version = "0.1.0"
 dependencies = [
