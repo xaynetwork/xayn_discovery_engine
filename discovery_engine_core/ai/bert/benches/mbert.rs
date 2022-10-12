@@ -48,7 +48,7 @@ macro_rules! bench_tract {
     ) => {
         let mut group = $manager.benchmark_group(format!("{} {}", $group, TOKEN_SIZE));
         $(
-            let pipeline = Config::<$kind, _>::from_files($vocab.unwrap(), $model.unwrap())
+            let pipeline = Config::<$kind, _>::from_files($vocab.unwrap(), #[cfg(feature = "japanese")] None::<&str>, $model.unwrap())
                 .unwrap()
                 .with_cleanse_accents(true)
                 .with_lower_case(true)
@@ -72,6 +72,8 @@ fn bench_onnx(
 ) {
     let tokenizer = Tokenizer::new(
         BufReader::new(File::open(vocab.unwrap()).unwrap()),
+        #[cfg(feature = "japanese")]
+        None,
         true,
         true,
         TOKEN_SIZE,

@@ -13,8 +13,24 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::io::BufRead;
+#[cfg(feature = "japanese")]
+use std::path::PathBuf;
 
 use derive_more::{Deref, From};
+#[cfg(feature = "japanese")]
+use itertools::Itertools;
+#[cfg(feature = "japanese")]
+use lindera::{
+    mode::Mode as JapaneseMode,
+    tokenizer::{
+        DictionaryConfig as JapaneseDictionaryConfig,
+        DictionaryKind as JapaneseDictionaryKind,
+        DictionarySourceType as JapaneseDictionarySourceType,
+        Tokenizer as JapanesePreTokenizer,
+        TokenizerConfig as JapanesePreTokenizerConfig,
+        UserDictionaryConfig as JapaneseUserDictionaryConfig,
+    },
+};
 use ndarray::Array2;
 use tokenizers::{
     decoders::wordpiece::WordPiece as WordPieceDecoder,
@@ -34,16 +50,17 @@ use tokenizers::{
 use tract_onnx::prelude::{tvec, TVec, Tensor};
 
 /// A pre-configured Bert tokenizer.
-#[derive(Debug)]
-pub struct Tokenizer(
-    TokenizerImpl<
+pub struct Tokenizer {
+    bert: TokenizerImpl<
         WordPieceModel,
         BertNormalizer,
         BertPreTokenizer,
         BertProcessing,
         WordPieceDecoder,
     >,
-);
+    #[cfg(feature = "japanese")]
+    japanese: JapanesePreTokenizer,
+}
 
 /// The attention mask of the encoded sequence.
 ///
@@ -93,6 +110,7 @@ impl Tokenizer {
     /// tokens as well.
     pub fn new(
         vocab: impl BufRead,
+        #[cfg(feature = "japanese")] japanese: Option<PathBuf>,
         cleanse_accents: bool,
         lower_case: bool,
         token_size: usize,
@@ -135,7 +153,7 @@ impl Tokenizer {
         };
         let decoder = WordPieceDecoder::new("##".into(), true);
 
-        TokenizerBuilder::new()
+        let bert = TokenizerBuilder::new()
             .with_model(model)
             .with_normalizer(Some(normalizer))
             .with_pre_tokenizer(Some(BertPreTokenizer))
@@ -143,15 +161,45 @@ impl Tokenizer {
             .with_padding(Some(padding))
             .with_truncation(Some(truncation))
             .with_decoder(Some(decoder))
-            .build()
-            .map(Tokenizer)
+            .build()?;
+
+        #[cfg(feature = "japanese")]
+        let japanese = JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
+            dictionary: JapaneseDictionaryConfig {
+                kind: JapaneseDictionaryKind::IPADIC,
+                path: None,
+            },
+            user_dictionary: japanese.map(|path| JapaneseUserDictionaryConfig {
+                kind: JapaneseDictionaryKind::IPADIC,
+                source_type: JapaneseDictionarySourceType::Csv,
+                path,
+            }),
+            mode: JapaneseMode::Normal,
+        })?;
+
+        Ok(Tokenizer {
+            bert,
+            #[cfg(feature = "japanese")]
+            japanese,
+        })
     }
 
     /// Encodes the sequence.
     ///
     /// The encoding is in correct shape for the model.
     pub fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, TokenizerError> {
-        let encoding = self.0.encode(sequence.as_ref(), true)?;
+        let sequence = sequence.as_ref();
+        #[cfg(feature = "japanese")]
+        #[allow(unstable_name_collisions)]
+        let sequence = self
+            .japanese
+            .tokenize(sequence)?
+            .into_iter()
+            .map(|token| token.text)
+            .intersperse(" ")
+            .collect::<String>();
+
+        let encoding = self.bert.encode(sequence, true)?;
         let array_from =
             |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
 
@@ -176,7 +224,15 @@ mod tests {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
         let cleanse_accents = true;
         let lower_case = true;
-        Tokenizer::new(vocab, cleanse_accents, lower_case, token_size).unwrap()
+        Tokenizer::new(
+            vocab,
+            #[cfg(feature = "japanese")]
+            None,
+            cleanse_accents,
+            lower_case,
+            token_size,
+        )
+        .unwrap()
     }
 
     #[test]

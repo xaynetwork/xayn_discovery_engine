@@ -148,6 +148,8 @@ impl Pipeline {
             ModelKind::OnnxMBert => {
                 let tokenizer = Tokenizer::new(
                     BufReader::new(File::open(model.vocab.as_path()).unwrap()),
+                    #[cfg(feature = "japanese")]
+                    None,
                     tokenizer.cleanse_accents,
                     tokenizer.lower_case,
                     tokenizer.token_size,
@@ -178,24 +180,34 @@ impl Pipeline {
                 }
             }
             ModelKind::TractSMBert => {
-                let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
-                    .unwrap()
-                    .with_cleanse_accents(tokenizer.cleanse_accents)
-                    .with_lower_case(tokenizer.lower_case)
-                    .with_token_size(tokenizer.token_size)
-                    .unwrap()
-                    .with_pooling::<NonePooler>();
+                let config = Config::from_files(
+                    model.vocab.as_path(),
+                    #[cfg(feature = "japanese")]
+                    None::<&str>,
+                    model.model.as_path(),
+                )
+                .unwrap()
+                .with_cleanse_accents(tokenizer.cleanse_accents)
+                .with_lower_case(tokenizer.lower_case)
+                .with_token_size(tokenizer.token_size)
+                .unwrap()
+                .with_pooling::<NonePooler>();
 
                 Self::TractSMBert(config.build().unwrap())
             }
             ModelKind::TractQAMBert => {
-                let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
-                    .unwrap()
-                    .with_cleanse_accents(tokenizer.cleanse_accents)
-                    .with_lower_case(tokenizer.lower_case)
-                    .with_token_size(tokenizer.token_size)
-                    .unwrap()
-                    .with_pooling::<NonePooler>();
+                let config = Config::from_files(
+                    model.vocab.as_path(),
+                    #[cfg(feature = "japanese")]
+                    None::<&str>,
+                    model.model.as_path(),
+                )
+                .unwrap()
+                .with_cleanse_accents(tokenizer.cleanse_accents)
+                .with_lower_case(tokenizer.lower_case)
+                .with_token_size(tokenizer.token_size)
+                .unwrap()
+                .with_pooling::<NonePooler>();
 
                 Self::TractQAMBert(config.build().unwrap())
             }

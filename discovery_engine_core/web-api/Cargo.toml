@@ -32,5 +32,8 @@ xayn-discovery-engine-bert = { path = "../ai/bert" }
 xayn-discovery-engine-core = { path = "../core" }
 xayn-discovery-engine-providers = { path = "../providers" }
 
+[features]
+japanese = ["xayn-discovery-engine-ai/japanese", "xayn-discovery-engine-bert/japanese", "xayn-discovery-engine-core/japanese"]
+
 [[bin]]
 name = "ingestion"
