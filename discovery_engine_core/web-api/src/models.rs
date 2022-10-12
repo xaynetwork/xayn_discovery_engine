@@ -50,8 +50,8 @@ pub(crate) enum Error {
 impl Reject for Error {}
 
 /// A unique identifier of a document.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display, AsRef)]
-pub(crate) struct DocumentId(pub(crate) String);
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display, AsRef, Deserialize)]
+pub struct DocumentId(pub String);
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]

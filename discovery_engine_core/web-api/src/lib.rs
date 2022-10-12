@@ -21,7 +21,7 @@ mod storage;
 
 pub use crate::{
     elastic::{Config as ElasticConfig, ElasticDocumentData},
-    models::DocumentProperties,
+    models::{DocumentId, DocumentProperties},
     routes::api_routes,
     state::{AppState, InitConfig},
     storage::UserState,

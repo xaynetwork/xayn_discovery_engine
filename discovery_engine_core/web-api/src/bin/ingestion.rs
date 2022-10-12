@@ -25,11 +25,16 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::Arc};
 use tracing::{error, info};
 use tracing_subscriber::fmt::format::FmtSpan;
-use warp::{self, hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
-use web_api::{DocumentProperties, ElasticDocumentData};
+use warp::{self, hyper::StatusCode, reject::Reject, reply, Filter, Rejection, Reply};
+use web_api::{DocumentId, DocumentProperties, ElasticDocumentData};
 use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
+
+#[derive(Clone, Debug, Serialize)]
+struct BaseError {
+    request_id: Option<String>,
+}
 
 #[derive(Envconfig, Clone, Debug)]
 pub(crate) struct Config {
@@ -65,8 +70,7 @@ type Model = Arc<SMBert>;
 #[derive(Debug, Clone, Deserialize)]
 struct IngestedDocument {
     /// Unique identifier of the document.
-    #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
-    id: String,
+    id: DocumentId,
 
     /// Snippet used to calculate embeddings for a document.
     #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
@@ -74,6 +78,27 @@ struct IngestedDocument {
 
     /// Contents of the document properties.
     properties: DocumentProperties,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct IngestionError {
+    #[serde(flatten)]
+    base: BaseError,
+    /// List of Document Indices which were not successfully processed
+    documents: Vec<DocumentId>,
+}
+
+impl IngestionError {
+    pub(crate) fn new(request_id: Option<String>, errored_ids: Vec<DocumentId>) -> Self {
+        Self {
+            base: BaseError { request_id },
+            documents: errored_ids,
+        }
+    }
+
+    pub(crate) fn to_reply(&self, status: StatusCode) -> impl Reply {
+        reply::with_status(reply::json(self), status)
+    }
 }
 
 /// Represents an instruction for bulk insert of data into Elastic Search service.
@@ -191,9 +216,9 @@ async fn handle_add_data(
     model: Model,
     config: Config,
     client: Client,
-) -> Result<impl warp::Reply, Rejection> {
+) -> Result<Box<dyn Reply>, Infallible> {
     if body.documents.len() > config.max_documents_length {
-        return Err(warp::reject::custom(TooManyDocumentsError));
+        return Ok(Box::new(StatusCode::BAD_REQUEST));
     }
 
     let (documents, errored_ids): (Vec<_>, Vec<_>) = body
@@ -217,12 +242,6 @@ async fn handle_add_data(
             }
         })
         .partition_result();
-
-    if !errored_ids.is_empty() {
-        return Err(warp::reject::custom(EmbeddingsCalculationError(
-            errored_ids,
-        )));
-    }
 
     let bytes =
         serialize_to_ndjson(&documents).map_err(|_| warp::reject::custom(SerializeNdJsonError))?;
@@ -251,7 +270,14 @@ async fn handle_add_data(
             warp::reject::custom(ReceivingOpError)
         })?;
 
-    Ok(StatusCode::OK)
+    if !errored_ids.is_empty() {
+        let ingestion_error = IngestionError::new(Option::None, errored_ids);
+        return Ok(Box::new(
+            ingestion_error.to_reply(StatusCode::INTERNAL_SERVER_ERROR),
+        ));
+    }
+
+    Ok(Box::new(StatusCode::NO_CONTENT))
 }
 
 fn with_config(config: Config) -> impl Filter<Extract = (Config,), Error = Infallible> + Clone {
@@ -267,16 +293,16 @@ fn with_client(client: Client) -> impl Filter<Extract = (Client,), Error = Infal
 }
 
 fn serialize_to_ndjson(
-    documents: &Vec<(String, ElasticDocumentData)>,
+    documents: &Vec<(DocumentId, ElasticDocumentData)>,
 ) -> Result<Bytes, GenericError> {
     let mut bytes = BytesMut::new();
 
     fn write_record(
-        document_id: String,
+        document_id: DocumentId,
         document_data: &ElasticDocumentData,
         bytes: &mut BytesMut,
     ) -> Result<(), GenericError> {
-        let bulk_op_instruction = BulkOpInstruction::new(document_id);
+        let bulk_op_instruction = BulkOpInstruction::new(document_id.0);
         let bulk_op_instruction = serde_json::to_vec(&bulk_op_instruction)?;
         let documents_bytes = serde_json::to_vec(document_data)?;
 
@@ -299,7 +325,7 @@ struct TooManyDocumentsError;
 impl Reject for TooManyDocumentsError {}
 
 #[derive(Debug)]
-struct EmbeddingsCalculationError(Vec<String>);
+struct EmbeddingsCalculationError(Vec<DocumentId>);
 impl Reject for EmbeddingsCalculationError {}
 
 #[derive(Debug)]
@@ -325,7 +351,7 @@ struct ErrorMessage {
     code: u16,
     message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    errored_ids: Option<Vec<String>>,
+    errored_ids: Option<Vec<DocumentId>>,
 }
 
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
