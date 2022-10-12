@@ -22,5 +22,12 @@ xayn-discovery-engine-bert = { path = "../bert" }
 xayn-discovery-engine-providers = { path = "../../providers" }
 
 [dev-dependencies]
+criterion = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
 serde_json = { workspace = true }
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
+
+[[bench]]
+name = "benches"
+harness = false

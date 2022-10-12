@@ -14,7 +14,7 @@
 
 mod article;
 mod deduplication;
-mod semantic;
+pub mod semantic;
 mod source;
 
 pub(crate) use self::{
