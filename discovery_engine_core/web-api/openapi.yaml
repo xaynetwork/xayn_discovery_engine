@@ -147,7 +147,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentProperties'
+                $ref: '#/components/schemas/DocumentPropertiesResponse'
         '400':
           description: invalid document id
         '404':
@@ -168,7 +168,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DocumentProperties'
+              $ref: '#/components/schemas/DocumentPropertiesRequest'
       responses:
         '204':
           description: successful operation
@@ -221,7 +221,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentProperty'
+                $ref: '#/components/schemas/DocumentPropertyResponse'
         '400':
           description: invalid document id or property id
         '404':
@@ -248,7 +248,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DocumentProperty'
+              $ref: '#/components/schemas/DocumentPropertyRequest'
       responses:
         '204':
           description: successful operation
@@ -295,6 +295,18 @@ components:
     DocumentProperty:
       description: Arbitrary property that can be attached to a document.
       example: "News title"
+    DocumentPropertyRequest:
+      type: object
+      required: [property]
+      properties:
+        property:
+          $ref: '#/components/schemas/DocumentProperty'
+    DocumentPropertyResponse:
+      type: object
+      required: [property]
+      properties:
+        property:
+          $ref: '#/components/schemas/DocumentProperty'
     DocumentProperties:
       description: Arbitrary properties that can be attached to a document.
       type: object
@@ -304,6 +316,18 @@ components:
         title: "News title"
         image_url: "http://example.com/news_image.jpg"
         link: "http://example.com/this_news"
+    DocumentPropertiesRequest:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
+    DocumentPropertiesResponse:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
     UserId:
       description: A user id can be any non-empty UTF-8 string that does not contain the null byte.
       type: string
