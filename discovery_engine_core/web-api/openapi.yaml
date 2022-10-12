@@ -127,19 +127,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IngestionError'
+    delete:
+      tags:
+        - documents
+      summary: Deletes all listed documents.
+      description: |-
+        Deletes all documents listed in the request body. The endpoint is
+        idempotent. I.e. If the list contains one or multiple non-existing
+        document it does not produce  an error.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteDocumentsRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request
 
   /documents/{document_id}:
     delete:
       tags:
         - documents
-      summary: Delete documents from the system
+      summary: Deletes the document from the system.
       description: |-
-        TODO
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: 'TODO  #/components/schemas/IngestionRequest'
+        Permanently deletes the document from the system. The endpoint is
+        idempotent. Deleting a non-existing document does not produce an error.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
       responses:
         '204':
           description: successful operation
@@ -443,3 +464,11 @@ components:
                 properties:
                   id:
                     $ref: '#/components/schemas/DocumentId'
+    DeleteDocumentsRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentId'
