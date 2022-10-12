@@ -32,6 +32,7 @@ cbindgen = "=0.24.3"
 heck = "0.4.0"
 
 [features]
+japanese = ["xayn-discovery-engine-ai/japanese", "xayn-discovery-engine-core/japanese"]
 storage = ["xayn-discovery-engine-core/storage"]
 
 [lib]

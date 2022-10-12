@@ -116,11 +116,16 @@ mod tests {
     };
 
     fn pipeline<P>() -> Pipeline<SMBert, P> {
-        Config::from_files(vocab().unwrap(), model().unwrap())
-            .unwrap()
-            .with_pooling()
-            .build()
-            .unwrap()
+        Config::from_files(
+            vocab().unwrap(),
+            #[cfg(feature = "japanese")]
+            None::<&str>,
+            model().unwrap(),
+        )
+        .unwrap()
+        .with_pooling()
+        .build()
+        .unwrap()
     }
 
     #[test]

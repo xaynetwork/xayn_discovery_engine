@@ -280,6 +280,7 @@ impl Engine {
         let provider_config = config.to_provider_config(endpoint_config.timeout);
 
         // build the systems
+<<<<<<< HEAD
         let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(
@@ -293,6 +294,26 @@ impl Engine {
             .with_pooling::<AveragePooler>()
             .build()
             .map_err(GenericError::from)?;
+=======
+        let smbert = SMBertConfig::from_files(
+            &config.smbert_vocab,
+            #[cfg(feature = "japanese")]
+            de_config.extract_inner::<&str>("smbert.japanese").ok(),
+            &config.smbert_model,
+        )
+        .map_err(|err| Error::Ranker(err.into()))?
+        .with_token_size(
+            de_config
+                .extract_inner("smbert.token_size")
+                .map_err(|err| Error::Ranker(err.into()))?,
+        )
+        .map_err(|err| Error::Ranker(err.into()))?
+        .with_cleanse_accents(true)
+        .with_lower_case(true)
+        .with_pooling::<AveragePooler>()
+        .build()
+        .map_err(GenericError::from)?;
+>>>>>>> c6244f81 (japanese tokenizer)
         let coi = de_config
             .extract::<CoiSystemConfig>()
             .map_err(|err| Error::Ranker(err.into()))?
@@ -2088,5 +2109,75 @@ pub(crate) mod tests {
             res.get(0).unwrap().resource.title,
             "Some really important article",
         );
+    }
+
+    fn example_url() -> UrlWithDomain {
+        let url = Url::parse("https://example.net").unwrap(/* used only in tests */);
+        UrlWithDomain::new(url).unwrap(/* used only in tests */)
+    }
+
+    #[test]
+    fn test_documentify_articles() {
+        let smbert = SMBertConfig::from_files(
+            vocab().unwrap(),
+            #[cfg(feature = "japanese")]
+            None::<&str>,
+            model().unwrap(),
+        )
+        .unwrap()
+        .with_pooling::<AveragePooler>()
+        .build()
+        .unwrap();
+        let stack_id = StackId::new_random();
+        let size = SMBert::embedding_size();
+        let embedding_1 = vec![1.; size];
+        let embedding_2 = vec![2.; size + 1];
+        let article_1 = GenericArticle {
+            title: String::default(),
+            snippet: String::default(),
+            url: example_url(),
+            image: None,
+            date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
+            score: None,
+            rank: Rank::default(),
+            country: "US".to_string(),
+            language: "en".to_string(),
+            topic: "news".to_string(),
+            embedding: Some(embedding_1.clone()),
+        };
+        let article_2 = GenericArticle {
+            embedding: Some(embedding_2.clone()),
+            ..article_1.clone()
+        };
+
+        let expected_1 = Embedding::from(Array::from_vec(embedding_1));
+        let expected_2 = Embedding::from(Array::from_vec(embedding_2));
+        let (documents, _) = documentify_articles(stack_id, &smbert, vec![article_1, article_2]);
+
+        assert_eq!(documents[0].smbert_embedding, expected_1);
+        assert_ne!(documents[1].smbert_embedding, expected_2);
+    }
+
+    #[test]
+    fn test_rank_documents_default() {
+        let mut a = Document::default();
+        a.resource.date_published = Utc.ymd(2022, 1, 1).and_hms(1, 0, 0);
+
+        let mut b = Document::default();
+        b.resource.date_published = Utc.ymd(2020, 1, 1).and_hms(1, 0, 0);
+
+        let mut c = Document::default();
+        c.resource.date_published = Utc.ymd(2021, 1, 1).and_hms(1, 0, 0);
+
+        let mut documents = vec![a, b, c];
+
+        let coi = CoiConfig::default().build();
+        let user_interests = UserInterests::default();
+
+        rank_documents(&coi, &user_interests, &mut documents);
+
+        assert_eq!(documents[0].resource.date_published.year(), 2022);
+        assert_eq!(documents[1].resource.date_published.year(), 2021);
+        assert_eq!(documents[2].resource.date_published.year(), 2020);
     }
 }

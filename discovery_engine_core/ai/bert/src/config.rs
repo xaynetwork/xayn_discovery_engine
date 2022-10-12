@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(feature = "japanese")]
+use std::path::PathBuf;
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
@@ -44,6 +46,8 @@ pub enum ConfigError {
 pub struct Config<'a, K, P> {
     model_kind: PhantomData<K>,
     vocab: Box<dyn BufRead + Send + 'a>,
+    #[cfg(feature = "japanese")]
+    japanese: Option<PathBuf>,
     model: Box<dyn Read + Send + 'a>,
     accents: AccentChars,
     case: CaseChars,
@@ -55,11 +59,14 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
     /// Creates a `BertModel` configuration from readables.
     pub fn from_readers(
         vocab: Box<dyn BufRead + Send + 'a>,
+        #[cfg(feature = "japanese")] japanese: Option<PathBuf>,
         model: Box<dyn Read + Send + 'a>,
     ) -> Self {
         Config {
             model_kind: PhantomData,
             vocab,
+            #[cfg(feature = "japanese")]
+            japanese,
             model,
             accents: AccentChars::Cleanse,
             case: CaseChars::Lower,
@@ -71,11 +78,19 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
     /// Creates a `BertModel` configuration from files.
     pub fn from_files(
         vocab: impl AsRef<Path>,
+        #[cfg(feature = "japanese")] japanese: Option<impl AsRef<Path>>,
         model: impl AsRef<Path>,
     ) -> Result<Self, ConfigError> {
         let vocab = Box::new(BufReader::new(File::open(vocab)?));
+        #[cfg(feature = "japanese")]
+        let japanese = japanese.map(|japanese| japanese.as_ref().into());
         let model = Box::new(BufReader::new(File::open(model)?));
-        Ok(Self::from_readers(vocab, model))
+        Ok(Self::from_readers(
+            vocab,
+            #[cfg(feature = "japanese")]
+            japanese,
+            model,
+        ))
     }
 }
 
@@ -117,6 +132,8 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
     pub fn with_pooling<NP>(self) -> Config<'a, K, NP> {
         Config {
             vocab: self.vocab,
+            #[cfg(feature = "japanese")]
+            japanese: self.japanese,
             model: self.model,
             model_kind: self.model_kind,
             accents: self.accents,
@@ -128,8 +145,16 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
 
     /// Creates a `BertModel` pipeline from a configuration.
     pub fn build(self) -> Result<Pipeline<K, P>, PipelineError> {
-        let tokenizer = Tokenizer::new(self.vocab, self.accents, self.case, self.token_size)
-            .map_err(PipelineError::TokenizerBuild)?;
+
+        let tokenizer = Tokenizer::new(
+            self.vocab,
+            #[cfg(feature = "japanese")]
+            self.japanese,
+            self.cleanse_accents,
+            self.lower_case,
+            self.token_size,
+        )
+        .map_err(PipelineError::TokenizerBuild)?;
 
         let model = Model::new(self.model, self.token_size).map_err(PipelineError::ModelBuild)?;
 

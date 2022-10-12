@@ -13,41 +13,53 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::io::BufRead;
+#[cfg(feature = "japanese")]
+use std::path::PathBuf;
 
 use derive_more::{Deref, From};
-use displaydoc::Display;
-use ndarray::{Array1, Array2, Axis};
-use thiserror::Error;
-use xayn_discovery_engine_tokenizer::{
-    AccentChars,
-    Builder,
-    BuilderError,
-    CaseChars,
-    ChineseChars,
-    ControlChars,
-    Padding,
-    Tokenizer as BertTokenizer,
-    Truncation,
+#[cfg(feature = "japanese")]
+use itertools::Itertools;
+#[cfg(feature = "japanese")]
+use lindera::{
+    mode::Mode as JapaneseMode,
+    tokenizer::{
+        DictionaryConfig as JapaneseDictionaryConfig,
+        DictionaryKind as JapaneseDictionaryKind,
+        DictionarySourceType as JapaneseDictionarySourceType,
+        Tokenizer as JapanesePreTokenizer,
+        TokenizerConfig as JapanesePreTokenizerConfig,
+        UserDictionaryConfig as JapaneseUserDictionaryConfig,
+    },
+};
+use ndarray::Array2;
+use tokenizers::{
+    decoders::wordpiece::WordPiece as WordPieceDecoder,
+    models::wordpiece::{WordPiece as WordPieceModel, WordPieceBuilder},
+    normalizers::bert::BertNormalizer,
+    pre_tokenizers::bert::BertPreTokenizer,
+    processors::bert::BertProcessing,
+    utils::{
+        padding::{PaddingDirection, PaddingParams, PaddingStrategy},
+        truncation::{TruncationDirection, TruncationParams, TruncationStrategy},
+    },
+    Error as TokenizerError,
+    Model,
+    TokenizerBuilder,
+    TokenizerImpl,
 };
 
 /// A pre-configured Bert tokenizer.
-#[derive(Debug)]
-pub(crate) struct Tokenizer {
-    tokenizer: BertTokenizer<i64>,
+pub struct Tokenizer {
+    bert: TokenizerImpl<
+        WordPieceModel,
+        BertNormalizer,
+        BertPreTokenizer,
+        BertProcessing,
+        WordPieceDecoder,
+    >,
+    #[cfg(feature = "japanese")]
+    japanese: JapanesePreTokenizer,
 }
-
-/// The potential errors of the tokenizer.
-#[derive(Debug, Display, Error, PartialEq)]
-pub enum TokenizerError {
-    /// Failed to build the tokenizer: {0}
-    Builder(#[from] BuilderError),
-}
-
-/// The token ids of the encoded sequence.
-///
-/// The token ids are of shape `(1, token_size)`.
-#[derive(Clone, Deref, From)]
-pub(crate) struct TokenIds(pub(crate) Array2<i64>);
 
 /// The attention mask of the encoded sequence.
 ///
@@ -77,8 +89,14 @@ impl Tokenizer {
     pub(crate) fn new(
         // `BufRead` instead of `AsRef<Path>` is needed for wasm
         vocab: impl BufRead,
+<<<<<<< HEAD
         accents: AccentChars,
         case: CaseChars,
+=======
+        #[cfg(feature = "japanese")] japanese: Option<PathBuf>,
+        cleanse_accents: bool,
+        lower_case: bool,
+>>>>>>> c6244f81 (japanese tokenizer)
         token_size: usize,
     ) -> Result<Self, TokenizerError> {
         let tokenizer = Builder::new(vocab)?
@@ -89,15 +107,65 @@ impl Tokenizer {
             .with_padding(Padding::fixed(token_size, "[PAD]"))
             .build()?;
 
+<<<<<<< HEAD
         Ok(Tokenizer { tokenizer })
+=======
+        let bert = TokenizerBuilder::new()
+            .with_model(model)
+            .with_normalizer(Some(normalizer))
+            .with_pre_tokenizer(Some(BertPreTokenizer))
+            .with_post_processor(Some(post_processor))
+            .with_padding(Some(padding))
+            .with_truncation(Some(truncation))
+            .with_decoder(Some(decoder))
+            .build()?;
+
+        #[cfg(feature = "japanese")]
+        let japanese = JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
+            dictionary: JapaneseDictionaryConfig {
+                kind: JapaneseDictionaryKind::IPADIC,
+                path: None,
+            },
+            user_dictionary: japanese.map(|path| JapaneseUserDictionaryConfig {
+                kind: JapaneseDictionaryKind::IPADIC,
+                source_type: JapaneseDictionarySourceType::Csv,
+                path,
+            }),
+            mode: JapaneseMode::Normal,
+        })?;
+
+        Ok(Tokenizer {
+            bert,
+            #[cfg(feature = "japanese")]
+            japanese,
+        })
+>>>>>>> c6244f81 (japanese tokenizer)
     }
 
     /// Encodes the sequence.
     ///
     /// The encoding is in correct shape for the model.
+<<<<<<< HEAD
     pub(crate) fn encode(&self, sequence: impl AsRef<str>) -> Encoding {
         let encoding = self.tokenizer.encode(sequence);
         let (token_ids, type_ids, _, _, _, _, attention_mask, _) = encoding.into();
+=======
+    pub fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, TokenizerError> {
+        let sequence = sequence.as_ref();
+        #[cfg(feature = "japanese")]
+        #[allow(unstable_name_collisions)]
+        let sequence = self
+            .japanese
+            .tokenize(sequence)?
+            .into_iter()
+            .map(|token| token.text)
+            .intersperse(" ")
+            .collect::<String>();
+
+        let encoding = self.bert.encode(sequence, true)?;
+        let array_from =
+            |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
+>>>>>>> c6244f81 (japanese tokenizer)
 
         let token_ids = Array1::from(token_ids).insert_axis(Axis(0)).into();
         let attention_mask = Array1::from(attention_mask).insert_axis(Axis(0)).into();
@@ -182,9 +250,23 @@ mod tests {
 
     fn tokenizer(token_size: usize) -> Tokenizer {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
+<<<<<<< HEAD
         let accents = AccentChars::Cleanse;
         let case = CaseChars::Lower;
         Tokenizer::new(vocab, accents, case, token_size).unwrap()
+=======
+        let cleanse_accents = true;
+        let lower_case = true;
+        Tokenizer::new(
+            vocab,
+            #[cfg(feature = "japanese")]
+            None,
+            cleanse_accents,
+            lower_case,
+            token_size,
+        )
+        .unwrap()
+>>>>>>> c6244f81 (japanese tokenizer)
     }
 
     #[test]
