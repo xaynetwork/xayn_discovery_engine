@@ -17,14 +17,16 @@ use warp::{self, Filter, Rejection, Reply};
 
 use crate::{
     handlers,
-    models::{Error, PersonalizedDocumentsQuery, UserId, COUNT_PARAM_RANGE},
+    models::{DocumentId, Error, PersonalizedDocumentsQuery, UserId, COUNT_PARAM_RANGE},
     state::AppState,
 };
 
 pub fn api_routes(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    get_personalized_documents(state.clone()).or(patch_user_interactions(state))
+    get_personalized_documents(state.clone())
+        .or(patch_user_interactions(state.clone()))
+        .or(get_document_properties(state))
 }
 
 // GET /users/:user_id/personalized_documents
@@ -60,6 +62,29 @@ fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
             urlencoding::decode(&user_id)
                 .map_err(Error::UserIdUtf8Conversion)
                 .and_then(UserId::new)
+                .map_err(warp::reject::custom)
+        })
+}
+
+// GET /documents/:document_id/properties
+fn get_document_properties(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    document_path()
+        .and(warp::path("properties"))
+        .and(warp::get())
+        .and(with_state(state))
+        .and_then(handlers::handle_get_document_properties)
+}
+
+// PATH /documents/:document_id
+fn document_path() -> impl Filter<Extract = (DocumentId,), Error = Rejection> + Clone {
+    warp::path("documents")
+        .and(warp::path::param::<String>())
+        .and_then(|document_id: String| async move {
+            urlencoding::decode(&document_id)
+                .map_err(Error::DocumentIdUtf8Conversion)
+                .and_then(DocumentId::new)
                 .map_err(warp::reject::custom)
         })
 }

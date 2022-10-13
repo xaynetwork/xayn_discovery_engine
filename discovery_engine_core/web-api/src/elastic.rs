@@ -13,8 +13,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use reqwest::{
+    header::{HeaderValue, CONTENT_TYPE},
+    Client,
+};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use xayn_discovery_engine_ai::Embedding;
 
@@ -53,7 +56,7 @@ impl ElasticState {
         params: KnnSearchParams,
     ) -> Result<Vec<PersonalizedDocumentData>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
-        let body = json!({
+        let body = Some(json!({
             "size": params.size,
             "knn": {
                 "field": "embedding",
@@ -70,10 +73,11 @@ impl ElasticState {
                     }
                 }
             }
-        });
+        }));
 
-        let response = self.query_elastic_search(body).await?;
-        Ok(convert_response(response))
+        self.query_elastic_search::<SearchResponse<_>>("_search", body)
+            .await
+            .map(Into::into)
     }
 
     pub(crate) async fn get_documents_by_ids(
@@ -81,55 +85,60 @@ impl ElasticState {
         ids: &[&DocumentId],
     ) -> Result<Vec<PersonalizedDocumentData>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/query-dsl-ids-query.html
-        let body = json!({
+        let body = Some(json!({
             "query": {
                 "ids" : {
                     "values" : ids
                 }
             }
-        });
+        }));
 
-        let response = self.query_elastic_search(body).await?;
-        Ok(convert_response(response))
-    }
-
-    async fn query_elastic_search(
-        &self,
-        body: Value,
-    ) -> Result<Response<ElasticDocumentData>, Error> {
-        let url = format!("{}/{}/_search", self.config.url, self.config.index_name);
-
-        let res = self
-            .client
-            .post(url)
-            .basic_auth(&self.config.user, Some(&self.config.password))
-            .json(&body)
-            .send()
+        self.query_elastic_search::<SearchResponse<_>>("_search", body)
             .await
-            .map_err(Error::Elastic)?
-            .error_for_status()
-            .map_err(Error::Elastic)?;
-
-        res.json().await.map_err(Error::Receiving)
+            .map(Into::into)
     }
-}
 
-fn convert_response(response: Response<ElasticDocumentData>) -> Vec<PersonalizedDocumentData> {
-    response
-        .hits
-        .hits
-        .into_iter()
-        .map(|hit| PersonalizedDocumentData {
-            id: DocumentId(hit.id),
-            score: hit.score,
-            embedding: hit.source.embedding,
-            properties: hit.source.properties,
-        })
-        .collect()
+    pub(crate) async fn get_document_properties(
+        &self,
+        id: &DocumentId,
+    ) -> Result<DocumentProperties, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
+        self.query_elastic_search::<DocumentPropertiesResponse>(
+            &format!("_source/{id}?_source_includes=properties"),
+            None,
+        )
+        .await
+        .map(|response| response.properties)
+    }
+
+    async fn query_elastic_search<T>(&self, route: &str, body: Option<Value>) -> Result<T, Error>
+    where
+        T: DeserializeOwned,
+    {
+        let url = format!("{}/{}/{}", self.config.url, self.config.index_name, route);
+
+        if let Some(body) = body {
+            self.client
+                .post(url)
+                .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+                .json(&body)
+        } else {
+            self.client.get(url)
+        }
+        .basic_auth(&self.config.user, Some(&self.config.password))
+        .send()
+        .await
+        .map_err(Error::Elastic)?
+        .error_for_status()
+        .map_err(Error::Elastic)?
+        .json()
+        .await
+        .map_err(Error::Receiving)
+    }
 }
 
 /// Represents a document with calculated embeddings that is stored in Elastic Search.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ElasticDocumentData {
     pub snippet: String,
     pub properties: DocumentProperties,
@@ -137,34 +146,54 @@ pub struct ElasticDocumentData {
     pub embedding: Embedding,
 }
 
-#[derive(Clone, Deserialize, Debug)]
-#[allow(dead_code)]
-struct Response<T> {
+impl From<SearchResponse<ElasticDocumentData>> for Vec<PersonalizedDocumentData> {
+    fn from(response: SearchResponse<ElasticDocumentData>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| PersonalizedDocumentData {
+                id: hit.id,
+                score: hit.score,
+                embedding: hit.source.embedding,
+                properties: hit.source.properties,
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct SearchResponse<T> {
     hits: Hits<T>,
 }
 
-#[derive(Clone, Deserialize, Debug)]
-#[allow(dead_code)]
+#[derive(Clone, Debug, Deserialize)]
 struct Hits<T> {
     hits: Vec<Hit<T>>,
+    #[allow(dead_code)]
     total: Total,
 }
 
-#[derive(Clone, Deserialize, Debug)]
-#[allow(dead_code)]
+#[derive(Clone, Debug, Deserialize)]
 struct Hit<T> {
-    #[serde(rename(deserialize = "_id"))]
-    id: String,
-    #[serde(rename(deserialize = "_source"))]
+    #[serde(rename = "_id")]
+    id: DocumentId,
+    #[serde(rename = "_source")]
     source: T,
-    #[serde(rename(deserialize = "_score"))]
+    #[serde(rename = "_score")]
     score: f32,
 }
 
-#[derive(Clone, Deserialize, Debug)]
-#[allow(dead_code)]
+#[derive(Clone, Debug, Deserialize)]
 struct Total {
+    #[allow(dead_code)]
     value: usize,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct DocumentPropertiesResponse {
+    #[serde(default)]
+    properties: DocumentProperties,
 }
 
 pub(crate) mod serde_embedding_as_vec {

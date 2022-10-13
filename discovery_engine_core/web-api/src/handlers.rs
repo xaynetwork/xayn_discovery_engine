@@ -30,6 +30,9 @@ use xayn_discovery_engine_ai::{
 use crate::{
     elastic::KnnSearchParams,
     models::{
+        DocumentId,
+        DocumentPropertiesResponse,
+        Error,
         PersonalizedDocumentsError,
         PersonalizedDocumentsErrorKind,
         PersonalizedDocumentsQuery,
@@ -241,4 +244,21 @@ fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
             }
         })
         .collect()
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_get_document_properties(
+    doc_id: DocumentId,
+    state: Arc<AppState>,
+) -> Result<Box<dyn Reply>, Infallible> {
+    match state.elastic.get_document_properties(&doc_id).await {
+        Ok(properties) => Ok(Box::new(DocumentPropertiesResponse::new(properties).to_reply()) as _),
+        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
+            Ok(Box::new(StatusCode::NOT_FOUND) as _)
+        }
+        Err(error) => {
+            error!("Error fetching document properties: {error}");
+            Ok(Box::new(StatusCode::BAD_REQUEST) as _)
+        }
+    }
 }

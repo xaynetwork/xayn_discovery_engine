@@ -18,7 +18,11 @@ use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use warp::{http::StatusCode, reject::Reject, reply, Reply};
+use warp::{
+    http::StatusCode,
+    reject::Reject,
+    reply::{self, Reply},
+};
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
@@ -35,7 +39,16 @@ pub(crate) enum Error {
     UserIdContainsNul,
 
     /// Failed to decode [`UserId] from path param: {0}.
-    UserIdUtf8Conversion(#[from] FromUtf8Error),
+    UserIdUtf8Conversion(#[source] FromUtf8Error),
+
+    /// [`DocumentId`] can't be empty.
+    DocumentIdEmpty,
+
+    /// [`DocumentId`] can't contain NUL character.
+    DocumentIdContainsNul,
+
+    /// Failed to decode [`DocumentId] from path param: {0}.
+    DocumentIdUtf8Conversion(#[source] FromUtf8Error),
 
     /// Invalid value for count parameter: {0}. It must be in [`COUNT_PARAM_RANGE`].
     InvalidCountParam(usize),
@@ -50,8 +63,59 @@ pub(crate) enum Error {
 impl Reject for Error {}
 
 /// A unique identifier of a document.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
-pub(crate) struct DocumentId(pub(crate) String);
+#[derive(
+    AsRef,
+    Clone,
+    Debug,
+    Display,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    sqlx::Type,
+    sqlx::FromRow,
+)]
+#[sqlx(transparent)]
+pub struct DocumentId(String);
+
+impl DocumentId {
+    pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
+        let id = id.into();
+
+        if id.is_empty() {
+            Err(Error::DocumentIdEmpty)
+        } else if id.contains('\u{0000}') {
+            Err(Error::DocumentIdContainsNul)
+        } else {
+            Ok(Self(id))
+        }
+    }
+}
+
+#[derive(Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct DocumentPropertyId(String);
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct DocumentProperty(serde_json::Value);
+
+/// Arbitrary properties that can be attached to a document.
+pub type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct DocumentPropertiesResponse {
+    properties: DocumentProperties,
+}
+
+impl DocumentPropertiesResponse {
+    pub(crate) fn new(properties: DocumentProperties) -> Self {
+        Self { properties }
+    }
+
+    pub(crate) fn to_reply(&self) -> impl Reply {
+        reply::json(self)
+    }
+}
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]
@@ -81,9 +145,6 @@ impl AiDocument for PersonalizedDocumentData {
         &self.embedding
     }
 }
-
-/// Arbitrary properties that can be attached to a document.
-pub type DocumentProperties = HashMap<String, serde_json::Value>;
 
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
