@@ -43,11 +43,14 @@ pub trait Application {
     fn configure(config: &mut ServiceConfig);
 }
 
-/// Simple program to greet a person
+/// Server for running the web-api.
 #[derive(Parser, Debug, Serialize)]
 #[command(author, version, about)]
 struct CliArgs {
-    /// Name of the person to greet
+    /// Host and port to which the server should bind.
+    ///
+    /// This setting is prioritized over settings through
+    /// the config and environment.
     #[arg(short, long)]
     bind_to: Option<SocketAddr>,
 }
