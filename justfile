@@ -428,6 +428,9 @@ web-down:
     compose="$(command -v podman-compose || command -v docker-compose)"
     $compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
 
+print-just-env:
+    export
+
 alias d := dart-test
 alias r := rust-test
 alias t := test
