@@ -308,7 +308,7 @@ components:
         property:
           $ref: '#/components/schemas/DocumentProperty'
     DocumentProperties:
-      description: Arbitrary properties that can be attached to a document.
+      description: Arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
       type: object
       additionalProperties:
         $ref: '#/components/schemas/DocumentProperty'
