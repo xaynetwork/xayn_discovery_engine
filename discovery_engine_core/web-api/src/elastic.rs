@@ -169,14 +169,18 @@ struct Total {
 
 pub(crate) mod serde_embedding_as_vec {
     use ndarray::Array;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
     use xayn_discovery_engine_ai::Embedding;
 
     pub(crate) fn serialize<S>(embedding: &Embedding, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        embedding.iter().collect::<Vec<_>>().serialize(serializer)
+        let mut seq = serializer.serialize_seq(Some(embedding.len()))?;
+        for element in embedding.iter() {
+            seq.serialize_element(element)?;
+        }
+        seq.end()
     }
 
     pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Embedding, D::Error>
