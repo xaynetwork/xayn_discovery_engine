@@ -51,16 +51,18 @@ impl JsonErrorResponseBuilder {
     pub(crate) fn apply_to<B>(self, mut response: HttpResponse<B>) -> HttpResponse {
         response.headers_mut().insert(
             CONTENT_TYPE,
-            mime::APPLICATION_JSON.try_into_value().unwrap(/* MIME is guaranteed well formed */),
+            //Unwrap: MIME is guaranteed well formed
+            mime::APPLICATION_JSON.try_into_value().unwrap(),
         );
         response.set_body(self.body)
     }
 
     pub(crate) fn into_response(self, status_code: StatusCode) -> HttpResponse {
         HttpResponse::build(status_code)
-        .content_type(mime::APPLICATION_JSON)
-        .message_body(self.body)
-        .unwrap(/* can not fail as MIME is guaranteed well formed */)
+            .content_type(mime::APPLICATION_JSON)
+            .message_body(self.body)
+            //Unwrap: MIME is guaranteed well formed
+            .unwrap()
     }
 }
 
