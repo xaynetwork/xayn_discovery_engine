@@ -133,6 +133,7 @@ fn convert_response(response: Response<ElasticDocumentData>) -> Vec<Personalized
 pub struct ElasticDocumentData {
     pub snippet: String,
     pub properties: DocumentProperties,
+    #[serde(with = "serde_embedding_as_vec")]
     pub embedding: Embedding,
 }
 
@@ -164,4 +165,28 @@ struct Hit<T> {
 #[allow(dead_code)]
 struct Total {
     value: usize,
+}
+
+pub(crate) mod serde_embedding_as_vec {
+    use ndarray::Array;
+    use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
+    use xayn_discovery_engine_ai::Embedding;
+
+    pub(crate) fn serialize<S>(embedding: &Embedding, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(embedding.len()))?;
+        for element in embedding.iter() {
+            seq.serialize_element(element)?;
+        }
+        seq.end()
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Embedding, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Vec::<f32>::deserialize(deserializer).map(|vec| Embedding::from(Array::from_vec(vec)))
+    }
 }
