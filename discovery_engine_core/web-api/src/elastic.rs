@@ -134,6 +134,24 @@ impl ElasticState {
         Ok(())
     }
 
+    pub(crate) async fn delete_document_properties(&self, id: &DocumentId) -> Result<(), Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        // don't delete the field, but put an empty map instead, similar to the ingestion service
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties = params.properties",
+                "params": {
+                    "properties": DocumentProperties::new()
+                }
+            },
+            "_source": false
+        }));
+        self.query_elastic_search::<GenericResponse>(&format!("_update/{id}"), body)
+            .await?;
+
+        Ok(())
+    }
+
     async fn query_elastic_search<T>(&self, route: &str, body: Option<Value>) -> Result<T, Error>
     where
         T: DeserializeOwned,

@@ -27,7 +27,8 @@ pub fn api_routes(
     get_personalized_documents(state.clone())
         .or(patch_user_interactions(state.clone()))
         .or(get_document_properties(state.clone()))
-        .or(put_document_properties(state))
+        .or(put_document_properties(state.clone()))
+        .or(delete_document_properties(state))
 }
 
 // GET /users/:user_id/personalized_documents
@@ -89,6 +90,17 @@ fn put_document_properties(
         .and(warp::body::json())
         .and(with_state(state))
         .and_then(handlers::handle_put_document_properties)
+}
+
+// DELETE /documents/:document_id/properties
+fn delete_document_properties(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    document_path()
+        .and(warp::path("properties"))
+        .and(warp::delete())
+        .and(with_state(state))
+        .and_then(handlers::handle_delete_document_properties)
 }
 
 // PATH /documents/:document_id
