@@ -16,7 +16,12 @@
 
 use std::{fs::OpenOptions, path::Path, sync::Once};
 
-use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing::Level;
+use tracing_subscriber::{
+    filter::{LevelFilter, Targets},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+};
 
 static INIT_TRACING: Once = Once::new();
 
@@ -32,7 +37,10 @@ fn init_tracing_once(log_file: Option<&Path>) {
 
     let stdout_log = tracing_subscriber::fmt::layer();
 
-    // let sqlx_query_no_info = Targets::new().with_target("sqlx::query", Level::WARN);
+    let sqlx_query_no_info = Targets::new()
+        // trace => do not affect filtering of any other targets
+        .with_default(LevelFilter::TRACE)
+        .with_target("sqlx::query", Level::WARN);
 
     let file_log = log_file
         .map(|log_file| {
@@ -51,8 +59,7 @@ fn init_tracing_once(log_file: Option<&Path>) {
 
     subscriber
         .with(stdout_log)
-        //FIXME this doesn't seem to work correctly
-        // .with(sqlx_query_no_info)
+        .with(sqlx_query_no_info)
         .with(file_log)
         //FIXME use env to determine logging level
         .with(LevelFilter::DEBUG)

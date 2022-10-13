@@ -38,7 +38,10 @@ fn init_tracing_once(log_file: Option<&Path>) {
     let subscriber = tracing_subscriber::registry();
 
     //FIXME fix log capturing for dart integration tests instead of filtering out sqlx info logs
-    let sqlx_query_no_info = Targets::new().with_target("sqlx::query", Level::WARN);
+    let sqlx_query_no_info = Targets::new()
+        // trace => do not affect filtering of any other targets
+        .with_default(LevelFilter::TRACE)
+        .with_target("sqlx::query", Level::WARN);
 
     cfg_if::cfg_if! {
         if #[cfg(target_os = "android")] {
