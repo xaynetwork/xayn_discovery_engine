@@ -61,7 +61,7 @@ fn init_tracing_once(log_file: Option<&Path>) {
         .with(stdout_log)
         .with(sqlx_query_no_info)
         .with(file_log)
-        //FIXME use env to determine logging level
+        //FIXME[ET-3444] use env to determine logging level
         .with(LevelFilter::DEBUG)
         .init();
 }
