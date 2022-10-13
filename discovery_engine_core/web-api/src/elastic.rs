@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
-
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

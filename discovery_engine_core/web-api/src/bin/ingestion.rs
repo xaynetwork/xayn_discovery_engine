@@ -185,11 +185,11 @@ fn post_documents(
         .and(with_model(model))
         .and(with_config(config))
         .and(with_client(client))
-        .and_then(handle_post_documents)
+        .and_then(handle_add_data)
 }
 
 #[instrument(skip(model, config, client))]
-async fn handle_post_documents(
+async fn handle_add_data(
     body: IngestionRequest,
     model: Model,
     config: Config,
