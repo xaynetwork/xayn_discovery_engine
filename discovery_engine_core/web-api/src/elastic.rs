@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use itertools::Itertools;
 use reqwest::{
     header::{HeaderValue, CONTENT_TYPE},
@@ -111,6 +113,27 @@ impl ElasticState {
         .map(|response| response.properties)
     }
 
+    pub(crate) async fn put_document_properties(
+        &self,
+        id: &DocumentId,
+        properties: &DocumentProperties,
+    ) -> Result<(), Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties = params.properties",
+                "params": {
+                    "properties": properties
+                }
+            },
+            "_source": false
+        }));
+        self.query_elastic_search::<GenericResponse>(&format!("_update/{id}"), body)
+            .await?;
+
+        Ok(())
+    }
+
     async fn query_elastic_search<T>(&self, route: &str, body: Option<Value>) -> Result<T, Error>
     where
         T: DeserializeOwned,
@@ -161,6 +184,8 @@ impl From<SearchResponse<ElasticDocumentData>> for Vec<PersonalizedDocumentData>
             .collect()
     }
 }
+
+type GenericResponse = HashMap<String, serde_json::Value>;
 
 #[derive(Clone, Debug, Deserialize)]
 struct SearchResponse<T> {

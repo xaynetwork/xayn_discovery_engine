@@ -102,6 +102,11 @@ pub struct DocumentProperty(serde_json::Value);
 /// Arbitrary properties that can be attached to a document.
 pub type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct DocumentPropertiesRequestBody {
+    pub(crate) properties: DocumentProperties,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct DocumentPropertiesResponse {
     properties: DocumentProperties,
