@@ -34,4 +34,10 @@ abstract class ActiveDocumentDataRepository {
 
   /// Remove data associated with the given active documents.
   Future<void> removeByIds(Iterable<DocumentId> ids);
+
+  /// Clears the repository.
+  Future<void> clear();
+
+  /// Indicates if the repository is semantically empty.
+  bool get isEmpty;
 }

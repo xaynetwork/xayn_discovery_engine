@@ -17,6 +17,8 @@
 //! Run as `cargo run --release --example validate --features onnxruntime`.
 
 use std::{
+    fs::File,
+    io::BufReader,
     marker::PhantomPinned,
     ops::{Bound, Deref, RangeBounds},
     path::{Path, PathBuf},
@@ -30,28 +32,19 @@ use onnxruntime::{environment::Environment, session::Session, GraphOptimizationL
 
 use xayn_discovery_engine_bert::{
     kinds::{QAMBert, SMBert},
+    tokenizer::Tokenizer,
     Config,
     Embedding2,
     NonePooler,
     Pipeline as BertPipeline,
 };
 use xayn_discovery_engine_test_utils::{example::validate::transcripts, smbert};
-use xayn_discovery_engine_tokenizer::{
-    AccentChars,
-    Builder as TokenizerBuilder,
-    CaseChars,
-    ChineseChars,
-    ControlChars,
-    Padding,
-    Tokenizer,
-    Truncation,
-};
 
 fn main() {
     ValidatorConfig {
         tokenizer: TokenizerConfig {
-            accents: AccentChars::Cleanse,
-            case: CaseChars::Lower,
+            cleanse_accents: true,
+            lower_case: true,
             token_size: 90,
         },
         source: ModelConfig {
@@ -88,9 +81,9 @@ enum ModelKind {
 /// Tokenizer configurations.
 struct TokenizerConfig {
     /// Whether to keep the accents on characters.
-    accents: AccentChars,
+    cleanse_accents: bool,
     /// Whether to lowercase words.
-    case: CaseChars,
+    lower_case: bool,
     /// The number of tokens for truncation/padding.
     token_size: usize,
 }
@@ -133,7 +126,7 @@ impl<R: RangeBounds<usize>> ValidatorConfig<R> {
 enum Pipeline {
     /// A SMBert or QAMBert model pipeline for the onnx runtime.
     OnnxMBert {
-        tokenizer: Tokenizer<i64>,
+        tokenizer: Tokenizer,
         session: Session<'static>,
         _environment: Pin<Box<(Environment, PhantomPinned)>>,
     },
@@ -153,20 +146,13 @@ impl Pipeline {
     fn build(tokenizer: &TokenizerConfig, model: &ModelConfig) -> Self {
         match model.kind {
             ModelKind::OnnxMBert => {
-                let tokenizer = TokenizerBuilder::from_file(model.vocab.as_path())
-                    .unwrap()
-                    .with_normalizer(
-                        ControlChars::Cleanse,
-                        ChineseChars::Keep,
-                        tokenizer.accents,
-                        tokenizer.case,
-                    )
-                    .with_model("[UNK]", "##", 100)
-                    .with_post_tokenizer("[CLS]", "[SEP]")
-                    .with_truncation(Truncation::fixed(tokenizer.token_size, 0))
-                    .with_padding(Padding::fixed(tokenizer.token_size, "[PAD]"))
-                    .build()
-                    .unwrap();
+                let tokenizer = Tokenizer::new(
+                    BufReader::new(File::open(model.vocab.as_path()).unwrap()),
+                    tokenizer.cleanse_accents,
+                    tokenizer.lower_case,
+                    tokenizer.token_size,
+                )
+                .unwrap();
                 let _environment =
                     Box::pin((Environment::builder().build().unwrap(), PhantomPinned));
                 // Safety:
@@ -194,8 +180,8 @@ impl Pipeline {
             ModelKind::TractSMBert => {
                 let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
                     .unwrap()
-                    .with_accents(tokenizer.accents)
-                    .with_case(tokenizer.case)
+                    .with_cleanse_accents(tokenizer.cleanse_accents)
+                    .with_lower_case(tokenizer.lower_case)
                     .with_token_size(tokenizer.token_size)
                     .unwrap()
                     .with_pooling::<NonePooler>();
@@ -205,8 +191,8 @@ impl Pipeline {
             ModelKind::TractQAMBert => {
                 let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
                     .unwrap()
-                    .with_accents(tokenizer.accents)
-                    .with_case(tokenizer.case)
+                    .with_cleanse_accents(tokenizer.cleanse_accents)
+                    .with_lower_case(tokenizer.lower_case)
                     .with_token_size(tokenizer.token_size)
                     .unwrap()
                     .with_pooling::<NonePooler>();
@@ -222,13 +208,8 @@ impl Pipeline {
             Self::OnnxMBert {
                 tokenizer, session, ..
             } => {
-                let encoding = tokenizer.encode(sequence);
-                let (token_ids, type_ids, _, _, _, _, attention_mask, _) = encoding.into();
-                let inputs = vec![
-                    Array1::<i64>::from(token_ids).insert_axis(Axis(0)),
-                    Array1::<i64>::from(attention_mask).insert_axis(Axis(0)),
-                    Array1::<i64>::from(type_ids).insert_axis(Axis(0)),
-                ];
+                let encoding = tokenizer.encode(sequence).unwrap();
+                let inputs = encoding.into();
                 let outputs = session.run(inputs).unwrap();
 
                 outputs[0].slice(s![0, .., ..]).to_owned().into()

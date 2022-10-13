@@ -12,7 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, time::SystemTime};
+use std::{cmp::Ordering, collections::HashMap, time::SystemTime};
+
+use crate::Document;
 
 /// Pretend that f32 has a total ordering.
 ///
@@ -69,8 +71,22 @@ pub(crate) const SECONDS_PER_DAY_U64: u64 = 86400;
 
 /// Gets the current system time depending on the target architecture.
 #[inline]
-pub(crate) fn system_time_now() -> SystemTime {
+pub fn system_time_now() -> SystemTime {
     SystemTime::now()
+}
+
+/// Rank documents based on their score.
+///
+/// # Panics
+/// This function will panic if a score for a document is missing.
+pub fn rank<D, S>(documents: &mut [D], scores: &HashMap<D::Id, f32, S>)
+where
+    D: Document,
+    S: std::hash::BuildHasher,
+{
+    documents.sort_unstable_by(|a, b| {
+        nan_safe_f32_cmp_desc(scores.get(a.id()).unwrap(), scores.get(b.id()).unwrap())
+    });
 }
 
 pub(crate) mod serde_duration_as_days {

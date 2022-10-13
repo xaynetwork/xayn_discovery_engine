@@ -16,6 +16,7 @@
 use std::path::PathBuf;
 use std::{
     borrow::Cow,
+    cmp::Ordering,
     collections::{HashMap, HashSet},
     iter::once,
     mem::replace,
@@ -27,24 +28,26 @@ use futures::future::join_all;
 use itertools::{chain, Itertools};
 use ndarray::Array;
 use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, Level};
 
 use xayn_discovery_engine_ai::{
+    self,
     cosine_similarity,
     nan_safe_f32_cmp,
+    CoiConfig,
     CoiSystem,
-    CoiSystemConfig,
-    CoiSystemState,
+    Document as AiDocument,
     Embedding,
     GenericError,
     KeyPhrase,
+    KeyPhrases,
+    KpsConfig,
+    KpsSystem,
     UserInterests,
 };
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
-use xayn_discovery_engine_kpe::{Config as KpeConfig, Pipeline as KPE};
 use xayn_discovery_engine_providers::{
     clean_query,
     Filter,
@@ -54,13 +57,11 @@ use xayn_discovery_engine_providers::{
     NewsQuery,
     Providers,
     RankLimit,
+    SimilarNewsQuery,
     TrendingTopic as BingTopic,
     TrendingTopicsQuery,
 };
-use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
-#[cfg(feature = "storage")]
-use crate::storage::{self, sqlite::SqliteStorage, BoxedStorage, Storage};
 use crate::{
     config::{
         de_config_from_json,
@@ -106,13 +107,19 @@ use crate::{
         Stack,
         TrustedNews,
     },
+    storage2::{DartMigrationData, InitDbHint},
+};
+#[cfg(feature = "storage")]
+use crate::{
+    storage::{self, sqlite::SqliteStorage, BoxedStorage},
+    utils::MiscErrorExt,
 };
 
 /// Discovery engine errors.
 #[derive(Error, Debug, Display)]
 pub enum Error {
     /// Failed to serialize internal state of the engine: {0}.
-    Serialization(#[source] GenericError),
+    Serialization(#[source] bincode::Error),
 
     /// Failed to deserialize internal state to create the engine: {0}.
     Deserialization(#[source] bincode::Error),
@@ -167,21 +174,22 @@ pub struct Engine {
     // systems
     smbert: SMBert,
     pub(crate) coi: CoiSystem,
-    kpe: KPE,
+    pub(crate) kps: KpsSystem,
     providers: Providers,
 
     // states
-    stacks: RwLock<HashMap<StackId, Stack>>,
+    pub(crate) stacks: RwLock<HashMap<StackId, Stack>>,
     pub(crate) exploration_stack: Exploration,
-    state: CoiSystemState,
+    pub(crate) user_interests: UserInterests,
+    pub(crate) key_phrases: KeyPhrases,
     #[cfg(feature = "storage")]
-    storage: BoxedStorage,
+    pub(crate) storage: BoxedStorage,
 }
 
 impl Engine {
     /// Creates a discovery [`Engine`].
     ///
-    /// The engine only keeps in its state data related to the current [`BoxedOps`].
+    /// The engine only keeps in its stack data related to the current [`BoxedOps`].
     /// Data related to missing operations will be dropped.
     #[allow(clippy::too_many_arguments)]
     async fn new(
@@ -193,8 +201,9 @@ impl Engine {
         search_config: SearchConfig,
         smbert: SMBert,
         coi: CoiSystem,
-        kpe: KPE,
-        state: CoiSystemState,
+        kps: KpsSystem,
+        user_interests: UserInterests,
+        key_phrases: KeyPhrases,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
@@ -232,11 +241,12 @@ impl Engine {
             request_after: 0,
             smbert,
             coi,
-            kpe,
+            kps,
             providers,
             stacks,
             exploration_stack,
-            state,
+            user_interests,
+            key_phrases,
             #[cfg(feature = "storage")]
             storage,
         };
@@ -251,15 +261,17 @@ impl Engine {
     }
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
     pub async fn from_config(
         config: InitConfig,
-        // TODO: change this to a boolean flag after DB migration
+        // TODO: remove this after db migration, make sure we can still reset the state
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
-    ) -> Result<Self, Error> {
-        // read the configs
+        #[cfg_attr(not(feature = "storage"), allow(unused_variables))] dart_migration_data: Option<
+            DartMigrationData,
+        >,
+    ) -> Result<(Self, InitDbHint), Error> {
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
         let endpoint_config = de_config
@@ -290,46 +302,34 @@ impl Engine {
                     .map_err(|err| Error::Ranker(err.into()))?,
             )
             .map_err(|err| Error::Ranker(err.into()))?
-            .with_accents(AccentChars::Cleanse)
-            .with_case(CaseChars::Lower)
+            .with_cleanse_accents(true)
+            .with_lower_case(true)
             .with_pooling::<AveragePooler>()
             .build()
             .map_err(GenericError::from)?;
         let coi = de_config
-            .extract::<CoiSystemConfig>()
+            .extract_inner::<CoiConfig>("coi")
             .map_err(|err| Error::Ranker(err.into()))?
             .build();
-        let kpe = KpeConfig::from_files(
-            &config.kpe_vocab,
-            &config.kpe_model,
-            &config.kpe_cnn,
-            &config.kpe_classifier,
-        )
-        .map_err(|err| Error::Ranker(err.into()))?
-        .with_token_size(
-            de_config
-                .extract_inner("kpe.token_size")
-                .map_err(|err| Error::Ranker(err.into()))?,
-        )
-        .map_err(|err| Error::Ranker(err.into()))?
-        .with_accents(AccentChars::Cleanse)
-        .with_case(CaseChars::Keep)
-        .build()
-        .map_err(GenericError::from)?;
+        let kps = de_config
+            .extract_inner::<KpsConfig>("kps")
+            .map_err(|err| Error::Ranker(err.into()))?
+            .build();
         let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
 
         // initialize the states
         #[cfg(feature = "storage")]
-        let storage = {
-            let sqlite_uri = if config.use_in_memory_db {
-                "sqlite::memory:".into()
-            } else {
-                let db_path = PathBuf::from(&config.data_dir).join("db.sqlite");
-                format!("sqlite:{}", db_path.display())
-            };
-            let storage = SqliteStorage::connect(&sqlite_uri).await?;
-            storage.init_database().await?;
-            Box::new(storage)
+        let (storage, init_db_hint) = {
+            let db_file_path = (!config.use_ephemeral_db).then(|| {
+                PathBuf::from(&config.data_dir).join("db.sqlite")
+                        .into_os_string()
+                        .into_string()
+                        .unwrap(/*can't fail as we only join rust strings*/)
+            });
+            SqliteStorage::init_storage_system(db_file_path, dart_migration_data, &|s| {
+                smbert.run(s).log_error().ok()
+            })
+            .await?
         };
         let stack_ops = vec![
             Box::new(BreakingNews::new(
@@ -358,12 +358,13 @@ impl Engine {
                     .map_err(|err| Error::Ranker(err.into()))
             })?;
         #[cfg(feature = "storage")]
-        let (mut stack_data, state) = if state.is_some() {
+        let (mut stack_data, user_interests, key_phrases) = if state.is_some() {
             storage
                 .state()
                 .fetch()
                 .await?
-                .map(|state| SerializedState::deserialize(&state))
+                .as_deref()
+                .map(Engine::deserialize)
                 .transpose()?
         } else {
             storage.state().clear().await?;
@@ -371,8 +372,8 @@ impl Engine {
         }
         .unwrap_or_default();
         #[cfg(not(feature = "storage"))]
-        let (mut stack_data, state) = state
-            .map(SerializedState::deserialize)
+        let (mut stack_data, user_interests, key_phrases) = state
+            .map(Engine::deserialize)
             .transpose()?
             .unwrap_or_default();
         for id in stack_ops.iter().map(Ops::id).chain(once(Exploration::id())) {
@@ -384,7 +385,7 @@ impl Engine {
             }
         }
 
-        Self::new(
+        let this = Self::new(
             endpoint_config,
             core_config,
             stack_config,
@@ -393,8 +394,9 @@ impl Engine {
             search_config,
             smbert,
             coi,
-            kpe,
-            state,
+            kps,
+            user_interests,
+            key_phrases,
             history,
             sources,
             stack_data,
@@ -403,7 +405,15 @@ impl Engine {
             storage,
             providers,
         )
-        .await
+        .await?;
+
+        cfg_if! {
+            if #[cfg(feature = "storage")] {
+                Ok((this, init_db_hint))
+            } else {
+                Ok((this, InitDbHint::NormalInit))
+            }
+        }
     }
 
     /// Configures the running engine.
@@ -427,7 +437,9 @@ impl Engine {
             &mut self.exploration_stack,
             &self.smbert,
             &self.coi,
-            &mut self.state,
+            &self.kps,
+            &self.user_interests,
+            &mut self.key_phrases,
             history,
             sources,
             self.core_config.take_top,
@@ -436,40 +448,6 @@ impl Engine {
             &markets,
         )
         .await
-    }
-
-    /// Serializes the state of the `Engine` and `Ranker` state.
-    // TODO: remove the ffi for this method and reduce its visibility after DB migration
-    pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
-        let stacks = self.stacks.read().await;
-        let mut stacks_data = stacks
-            .iter()
-            .map(|(id, stack)| (id, &stack.data))
-            .collect::<HashMap<_, _>>();
-        let exploration_stack_id = Exploration::id();
-        stacks_data.insert(&exploration_stack_id, &self.exploration_stack.data);
-
-        let stacks = bincode::serialize(&stacks_data)
-            .map(SerializedStackState)
-            .map_err(|err| Error::Serialization(err.into()))?;
-
-        let coi = self
-            .state
-            .serialize()
-            .map(SerializedCoiSystemState)
-            .map_err(Error::Serialization)?;
-
-        let state = bincode::serialize(&SerializedState { stacks, coi })
-            .map_err(|err| Error::Serialization(err.into()))?;
-
-        #[cfg(feature = "storage")]
-        {
-            self.storage.state().store(state).await?;
-            Ok(Vec::new())
-        }
-
-        #[cfg(not(feature = "storage"))]
-        Ok(state)
     }
 
     /// Updates the markets configuration.
@@ -484,7 +462,7 @@ impl Engine {
         let mut markets_guard = self.endpoint_config.markets.write().await;
         let mut old_markets = replace(&mut *markets_guard, new_markets);
         old_markets.retain(|market| !markets_guard.contains(market));
-        CoiSystem::remove_key_phrases(&old_markets, &mut self.state.key_phrases);
+        KpsSystem::remove_key_phrases(&old_markets, &mut self.key_phrases);
         drop(markets_guard);
 
         self.clear_stack_data().await;
@@ -506,16 +484,14 @@ impl Engine {
     /// Gets the next batch of feed documents.
     #[instrument(skip(self))]
     #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
-    pub async fn feed_next_batch(
-        &mut self,
-        sources: &[WeightedSource],
-    ) -> Result<Vec<Document>, Error> {
+    pub async fn feed_next_batch(&mut self) -> Result<Vec<Document>, Error> {
         #[cfg(feature = "storage")]
         {
             let history = self.storage.fetch_history().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
 
             // TODO: merge `get_feed_documents()` into this method after DB migration
-            self.get_feed_documents(&history, sources).await
+            self.get_feed_documents(&history, &sources).await
         }
 
         #[cfg(not(feature = "storage"))]
@@ -529,9 +505,11 @@ impl Engine {
         history: &[HistoricDocument],
         sources: &[WeightedSource],
     ) -> Result<Vec<Document>, Error> {
-        let request_new = (self.request_after < self.core_config.request_after)
-            .then(|| self.core_config.request_new)
-            .unwrap_or(usize::MAX);
+        let request_new = if self.request_after < self.core_config.request_after {
+            self.core_config.request_new
+        } else {
+            usize::MAX
+        };
 
         self.update_stacks_for_all_markets(history, sources, request_new)
             .await?;
@@ -650,7 +628,7 @@ impl Engine {
 
         if let UserReaction::Positive | UserReaction::Neutral = last_reaction {
             CoiSystem::log_document_view_time(
-                &mut self.state.user_interests.positive,
+                &mut self.user_interests.positive,
                 &smbert_embedding,
                 aggregated_view_time,
             );
@@ -660,7 +638,7 @@ impl Engine {
             self.stacks.write().await.values_mut(),
             &mut self.exploration_stack,
             &self.coi,
-            &self.state.user_interests,
+            &self.user_interests,
         );
 
         #[cfg(feature = "storage")]
@@ -671,7 +649,7 @@ impl Engine {
 
     /// Process the feedback about the user reacting to a document.
     ///
-    /// The history is only required for positive reactions.
+    /// The history and sources are required only for positive reactions.
     #[instrument(skip(self), level = "debug")]
     pub async fn user_reacted(
         &mut self,
@@ -682,10 +660,17 @@ impl Engine {
         let reaction = reacted.reaction;
         cfg_if! {
             if #[cfg(feature="storage")] {
-                let document: Document = self.storage
-                    .feedback()
+                let feedback = self.storage.feedback();
+                let document: Document = feedback
                     .update_user_reaction(reacted.id, reaction).await?
                     .into();
+
+                let source = &document.resource.source_domain;
+                match reaction {
+                    UserReaction::Positive => feedback.update_source_reaction(source, true).await?,
+                    UserReaction::Negative => feedback.update_source_reaction(source, false).await?,
+                    UserReaction::Neutral => (),
+                }
             } else {
                 use chrono::Utc;
                 use url::Url;
@@ -702,7 +687,7 @@ impl Engine {
                         snippet: reacted.snippet,
                         url: Url::parse("https://foobar.invalid").unwrap(),
                         source_domain: "foobar.invalid".into(),
-                        date_published: Utc::now().naive_utc(),
+                        date_published: Utc::now(),
                         image: None,
                         rank: 0,
                         score: None,
@@ -740,39 +725,44 @@ impl Engine {
         match reaction {
             UserReaction::Positive => {
                 let smbert = &self.smbert;
-                self.coi.log_positive_user_reaction(
-                    &mut self.state.user_interests.positive,
-                    &market,
-                    &mut self.state.key_phrases,
+                self.kps.log_positive_user_reaction(
+                    &self.coi,
+                    &mut self.user_interests.positive,
                     &document.smbert_embedding,
+                    &market,
+                    &mut self.key_phrases,
                     &[document.resource.snippet_or_title().to_string()],
                     |words| smbert.run(words).map_err(Into::into),
                 );
             }
             UserReaction::Negative => self.coi.log_negative_user_reaction(
-                &mut self.state.user_interests.negative,
+                &mut self.user_interests.negative,
                 &document.smbert_embedding,
             ),
             UserReaction::Neutral => {}
         }
-        debug!(user_interests = ?self.state.user_interests);
+        debug!(user_interests = ?self.user_interests);
 
         rank_stacks(
             stacks.values_mut(),
             &mut self.exploration_stack,
             &self.coi,
-            &self.state.user_interests,
+            &self.user_interests,
         );
         if let UserReaction::Positive = reaction {
             #[cfg(feature = "storage")]
             let history = &self.storage.fetch_history().await?.into();
+            #[cfg(feature = "storage")]
+            let sources = &self.storage.fetch_weighted_sources().await?;
             if let Some(history) = history {
                 update_stacks(
                     &mut stacks,
                     &mut self.exploration_stack,
                     &self.smbert,
                     &self.coi,
-                    &mut self.state,
+                    &self.kps,
+                    &self.user_interests,
+                    &mut self.key_phrases,
                     history,
                     sources,
                     self.core_config.take_top,
@@ -1054,7 +1044,7 @@ impl Engine {
         );
         errors.extend(article_errors);
 
-        self.coi.rank(&mut documents, &self.state.user_interests);
+        rank_documents(&self.coi, &self.user_interests, &mut documents);
         if documents.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
@@ -1073,35 +1063,24 @@ impl Engine {
         market: &Market,
         embedding: &Embedding,
     ) -> Result<Vec<Document>, Error> {
-        let key_phrases = self
-            .kpe
-            .run(clean_query(term))
-            .map_err(GenericError::from)?;
-        if key_phrases.is_empty() {
+        if term.is_empty() {
             return Ok(Vec::new());
         }
 
-        let excluded_sources = &self.endpoint_config.excluded_sources.read().await.clone();
-        let filter = &key_phrases
-            .iter()
-            .take(self.core_config.deep_search_top)
-            .fold(Filter::default(), |filter, key_phrase| {
-                filter.add_keyword(key_phrase)
-            });
-        let query = NewsQuery {
+        let query = SimilarNewsQuery {
+            like: term,
             market,
             page_size: self.core_config.deep_search_max,
             page: 1,
             rank_limit: RankLimit::Unlimited,
-            excluded_sources,
-            filter,
+            excluded_sources: &self.endpoint_config.excluded_sources.read().await.clone(),
             max_age_days: None,
         };
 
         let articles = self
             .providers
-            .news
-            .query_news(&query)
+            .similar_news
+            .query_similar_news(&query)
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
@@ -1121,7 +1100,7 @@ impl Engine {
             .filter_map(|document| {
                 let similarity =
                     cosine_similarity(embedding.view(), document.smbert_embedding.view());
-                (similarity > self.core_config.deep_search_sim).then(|| (similarity, document))
+                (similarity > self.core_config.deep_search_sim).then_some((similarity, document))
             })
             .collect_vec();
         documents.sort_unstable_by(|(this, _), (other, _)| nan_safe_f32_cmp(this, other).reverse());
@@ -1155,7 +1134,7 @@ impl Engine {
         let (mut topics, topic_errors) = documentify_topics(&self.smbert, topics);
         errors.extend(topic_errors);
 
-        self.coi.rank(&mut topics, &self.state.user_interests);
+        rank_trending_topics(&self.coi, &self.user_interests, &mut topics);
         if topics.is_empty() && !errors.is_empty() {
             Err(Error::Errors(errors))
         } else {
@@ -1201,10 +1180,12 @@ impl Engine {
     }
 
     /// Sets a new list of excluded and trusted sources.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
     pub async fn set_sources(
         &mut self,
-        sources: &[WeightedSource],
         excluded: Vec<String>,
         trusted: Vec<String>,
     ) -> Result<(), Error> {
@@ -1241,7 +1222,8 @@ impl Engine {
             }
 
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1250,6 +1232,7 @@ impl Engine {
     }
 
     /// Returns the trusted sources.
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn trusted_sources(&mut self) -> Result<Vec<String>, Error> {
         #[cfg(feature = "storage")]
         {
@@ -1266,6 +1249,7 @@ impl Engine {
     }
 
     /// Returns the excluded sources.
+    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn excluded_sources(&mut self) -> Result<Vec<String>, Error> {
         #[cfg(feature = "storage")]
         {
@@ -1282,12 +1266,11 @@ impl Engine {
     }
 
     /// Adds a trusted source.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn add_trusted_source(
-        &mut self,
-        sources: &[WeightedSource],
-        new_trusted: String,
-    ) -> Result<(), Error> {
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
+    pub async fn add_trusted_source(&mut self, new_trusted: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             let mut trusted = self.storage.source_preference().fetch_trusted().await?;
@@ -1314,7 +1297,8 @@ impl Engine {
 
             *self.endpoint_config.trusted_sources.write().await = trusted.iter().cloned().collect();
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1323,12 +1307,11 @@ impl Engine {
     }
 
     /// Removes a trusted source.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn remove_trusted_source(
-        &mut self,
-        sources: &[WeightedSource],
-        trusted: String,
-    ) -> Result<(), Error> {
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
+    pub async fn remove_trusted_source(&mut self, trusted: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             let mut trusted_set = self.storage.source_preference().fetch_trusted().await?;
@@ -1345,7 +1328,8 @@ impl Engine {
                 trusted_set.iter().cloned().collect();
 
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1354,12 +1338,11 @@ impl Engine {
     }
 
     /// Adds an excluded source.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn add_excluded_source(
-        &mut self,
-        sources: &[WeightedSource],
-        new_excluded: String,
-    ) -> Result<(), Error> {
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
+    pub async fn add_excluded_source(&mut self, new_excluded: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             let mut excluded = self.storage.source_preference().fetch_excluded().await?;
@@ -1385,7 +1368,8 @@ impl Engine {
             self.filter_excluded_sources_for_all_stacks(&excluded).await;
 
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1394,12 +1378,11 @@ impl Engine {
     }
 
     /// Removes an excluded source.
-    #[cfg_attr(not(feature = "storage"), allow(unused_variables))]
-    pub async fn remove_excluded_source(
-        &mut self,
-        sources: &[WeightedSource],
-        excluded: String,
-    ) -> Result<(), Error> {
+    #[cfg_attr(
+        not(feature = "storage"),
+        allow(unused_variables, clippy::unused_async)
+    )]
+    pub async fn remove_excluded_source(&mut self, excluded: String) -> Result<(), Error> {
         #[cfg(feature = "storage")]
         {
             let mut excluded_set = self.storage.source_preference().fetch_excluded().await?;
@@ -1416,7 +1399,8 @@ impl Engine {
                 excluded_set.iter().cloned().collect();
 
             let history = self.storage.fetch_history().await?;
-            self.update_stacks_for_all_markets(&history, sources, self.core_config.request_new)
+            let sources = self.storage.fetch_weighted_sources().await?;
+            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
                 .await
         }
 
@@ -1424,13 +1408,13 @@ impl Engine {
         unimplemented!("requires 'storage' feature")
     }
 
-    /// Resets the AI state
+    /// Resets the AI state.
     pub async fn reset_ai(&mut self) -> Result<(), Error> {
         self.clear_stack_data().await;
-        self.exploration_stack =
-            Exploration::new(StackData::default(), ExplorationConfig::default())
-                .map_err(Error::InvalidStack)?;
-        self.state.reset();
+        self.user_interests = UserInterests::default();
+        self.key_phrases = KeyPhrases::default();
+        #[cfg(feature = "storage")]
+        self.storage.clear_database().await?;
 
         self.request_after = 0;
         self.update_stacks_for_all_markets(&[], &[], usize::MAX)
@@ -1441,6 +1425,44 @@ impl Engine {
     }
 }
 
+fn rank<F, D>(coi: &CoiSystem, user_interests: &UserInterests, default_ord: F, documents: &mut [D])
+where
+    F: Fn(&D, &D) -> Ordering,
+    D: AiDocument,
+{
+    if documents.len() < 2 {
+        return;
+    };
+
+    if let Ok(scores) = coi.score(documents, user_interests) {
+        xayn_discovery_engine_ai::utils::rank(documents, &scores);
+    } else {
+        documents.sort_unstable_by(default_ord);
+    }
+}
+
+fn rank_documents(coi: &CoiSystem, user_interests: &UserInterests, documents: &mut [Document]) {
+    rank(
+        coi,
+        user_interests,
+        |a, b| {
+            a.resource
+                .date_published
+                .cmp(&b.resource.date_published)
+                .reverse()
+        },
+        documents,
+    );
+}
+
+fn rank_trending_topics(
+    coi: &CoiSystem,
+    user_interests: &UserInterests,
+    documents: &mut [TrendingTopic],
+) {
+    rank(coi, user_interests, |a, b| a.name.cmp(&b.name), documents);
+}
+
 /// The ranker could rank the documents in a different order so we update the stacks with it.
 fn rank_stacks<'a>(
     stacks: impl Iterator<Item = &'a mut Stack>,
@@ -1449,20 +1471,32 @@ fn rank_stacks<'a>(
     user_interests: &UserInterests,
 ) {
     for stack in stacks {
-        stack.rank(coi, user_interests);
+        stack.rank(|documents| rank_documents(coi, user_interests, documents));
     }
-    exploration_stack.rank(coi, user_interests);
+    exploration_stack.rank(|documents| rank_documents(coi, user_interests, documents));
 }
 
 /// Updates the stacks with data related to the top key phrases of the current data.
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip(stacks, exploration_stack, smbert, coi, state, history))]
-async fn update_stacks<'a>(
+#[instrument(skip(
+    stacks,
+    exploration_stack,
+    smbert,
+    coi,
+    kps,
+    user_interests,
+    key_phrases,
+    history,
+    sources
+))]
+async fn update_stacks(
     stacks: &mut HashMap<Id, Stack>,
     exploration_stack: &mut Exploration,
     smbert: &SMBert,
     coi: &CoiSystem,
-    state: &mut CoiSystemState,
+    kps: &KpsSystem,
+    user_interests: &UserInterests,
+    key_phrases: &mut KeyPhrases,
     history: &[HistoricDocument],
     sources: &[WeightedSource],
     take_top: usize,
@@ -1470,17 +1504,13 @@ async fn update_stacks<'a>(
     request_new: usize,
     markets: &[Market],
 ) -> Result<(), Error> {
-    let mut ready_stacks = stacks.len();
-    let mut errors = Vec::new();
-    let mut all_documents = Vec::new();
-
     // Needy stacks are the ones for which we want to fetch new items.
     let needy_stacks = stacks
         .values_mut()
         .filter(|stack| stack.len() <= request_new)
         .collect_vec();
 
-    // return early if there are no stacks to be updated
+    // return early if there are no needy stacks
     if needy_stacks.is_empty() {
         info!(message = "no stacks needed an update");
         return Ok(());
@@ -1493,10 +1523,11 @@ async fn update_stacks<'a>(
             markets
                 .iter()
                 .map(|market| {
-                    let key_phrases = coi.take_key_phrases(
-                        &state.user_interests.positive,
+                    let key_phrases = kps.take_key_phrases(
+                        coi,
+                        &user_interests.positive,
                         market,
-                        &mut state.key_phrases,
+                        key_phrases,
                         take_top,
                     );
                     (market, key_phrases)
@@ -1504,38 +1535,49 @@ async fn update_stacks<'a>(
                 .collect::<HashMap<_, _>>()
         })
         .unwrap_or_default();
-
-    // Here we gather new documents for all relevant stacks, and put them into a vector.
-    // We don't update the stacks immediately, because we want to de-duplicate the documents
-    // across stacks first.
     let new_document_futures = needy_stacks
         .iter()
         .flat_map(|stack| {
-            markets.iter().map(|market| {
+            markets.iter().map(|market| async {
                 let key_phrases = key_phrases_by_market
                     .get(market)
                     .map_or(&[] as &[_], Vec::as_slice);
-                fetch_new_documents_for_stack(stack, smbert, key_phrases, history, market)
+                (
+                    stack.id(),
+                    fetch_new_documents_for_stack(stack, smbert, key_phrases, history, market)
+                        .await,
+                )
             })
         })
         .collect_vec();
 
-    let mut stacks_not_ready = HashSet::<StackId>::new();
-    for maybe_new_documents in join_all(new_document_futures).await {
+    // Here we gather new documents for all relevant stacks, and put them into a vector.
+    // We don't update the stacks immediately, because we want to de-duplicate the documents
+    // across stacks first.
+    let mut all_documents = Vec::new();
+    let mut not_ready_stacks = HashSet::new();
+    let mut errors = HashMap::<_, Vec<_>>::new();
+    for (stack_id, maybe_new_documents) in join_all(new_document_futures).await {
         match maybe_new_documents {
-            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady(stack_id)))) => {
-                stacks_not_ready.insert(stack_id);
-                continue;
+            Ok(documents) => all_documents.extend(documents),
+            Err(Error::StackOpFailed(stack::Error::New(NewItemsError::NotReady))) => {
+                not_ready_stacks.insert(stack_id);
             }
             Err(error) => {
-                error!("{}", error);
-                errors.push(error);
-                continue;
+                error!("{stack_id}: {error}");
+                errors.entry(stack_id).or_default().push(error);
             }
-            Ok(documents) => all_documents.extend(documents),
         };
     }
-    ready_stacks -= stacks_not_ready.len();
+
+    // return early if all needy-ready stacks failed for all markets
+    if all_documents.is_empty()
+        && !errors.is_empty()
+        && errors.len() >= needy_stacks.len() - not_ready_stacks.len()
+    {
+        return Err(Error::Errors(errors.into_values().flatten().collect()));
+    }
+    errors.clear();
 
     // Since we need to de-duplicate not only the newly retrieved documents among themselves,
     // but also consider the existing documents in all stacks (not just the needy ones), we extract
@@ -1560,9 +1602,9 @@ async fn update_stacks<'a>(
 
     // Filter the exploration stack documents from the other documents, in order
     // to keep the loop below simple.
-    let (mut exploration_docs, other_docs): (Vec<Document>, Vec<Document>) = all_documents
+    let (mut exploration_docs, other_docs) = all_documents
         .into_iter()
-        .partition(|doc| doc.stack_id == Exploration::id());
+        .partition::<Vec<_>, _>(|doc| doc.stack_id == Exploration::id());
 
     // Finally, we can update the stacks with their respective documents. To do this, we
     // have to group the fetched documents by `stack_id`, then `update` the stacks.
@@ -1574,10 +1616,14 @@ async fn update_stacks<'a>(
         // to the exploration stack have been filtered before.
         let stack = stacks.get_mut(&stack_id).unwrap();
 
-        if let Err(error) = stack.update(&documents_group, coi, &state.user_interests) {
+        if let Err(error) = stack.update(
+            user_interests,
+            |documents| rank_documents(coi, user_interests, documents),
+            &documents_group,
+        ) {
             let error = Error::StackOpFailed(error);
-            error!("{}", error);
-            errors.push(error);
+            error!("{stack_id}: {error}");
+            errors.entry(stack_id).or_default().push(error);
         } else {
             let is_breaking_news = stack.id() == BreakingNews::id();
             if let (true, Some(documents)) = (is_breaking_news, stack.data.retain_top(keep_top)) {
@@ -1586,10 +1632,15 @@ async fn update_stacks<'a>(
         }
     }
 
-    if let Err(error) = exploration_stack.update(&exploration_docs, coi, &state.user_interests) {
+    if let Err(error) = exploration_stack.update(
+        user_interests,
+        |documents| rank_documents(coi, user_interests, documents),
+        &exploration_docs,
+    ) {
+        let stack_id = Exploration::id();
         let error = Error::StackOpFailed(error);
-        error!("{}", error);
-        errors.push(error);
+        error!("{stack_id}: {error}");
+        errors.entry(stack_id).or_default().push(error);
     } else {
         exploration_stack.data.retain_top(keep_top);
     }
@@ -1611,9 +1662,10 @@ async fn update_stacks<'a>(
         }
     }
 
-    // only return an error if all stacks that were ready to get new items failed
-    if !errors.is_empty() && errors.len() >= ready_stacks {
-        Err(Error::Errors(errors))
+    // only return an error if all stacks (including exploration) failed
+    #[allow(clippy::int_plus_one)]
+    if errors.len() >= stacks.len() + 1 {
+        Err(Error::Errors(errors.into_values().flatten().collect()))
     } else {
         Ok(())
     }
@@ -1693,42 +1745,6 @@ fn documentify_topics(smbert: &SMBert, topics: Vec<BingTopic>) -> (Vec<TrendingT
         })
 }
 
-#[derive(Serialize, Deserialize)]
-struct SerializedStackState(Vec<u8>);
-
-impl SerializedStackState {
-    fn deserialize(&self) -> Result<HashMap<StackId, StackData>, Error> {
-        bincode::deserialize(&self.0).map_err(Error::Deserialization)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializedCoiSystemState(Vec<u8>);
-
-impl SerializedCoiSystemState {
-    fn deserialize(&self) -> Result<CoiSystemState, Error> {
-        CoiSystemState::deserialize(&self.0).map_err(Into::into)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializedState {
-    /// The serialized stacks state.
-    stacks: SerializedStackState,
-    /// The serialized coi system state.
-    coi: SerializedCoiSystemState,
-}
-
-impl SerializedState {
-    fn deserialize(state: &[u8]) -> Result<(HashMap<StackId, StackData>, CoiSystemState), Error> {
-        let state = bincode::deserialize::<Self>(state).map_err(Error::Deserialization)?;
-        let stacks = state.stacks.deserialize()?;
-        let coi = state.coi.deserialize()?;
-
-        Ok((stacks, coi))
-    }
-}
-
 /// Active search mode.
 pub enum SearchBy<'a> {
     /// Search by query.
@@ -1742,7 +1758,7 @@ pub(crate) mod tests {
     use std::mem::size_of;
 
     use async_once_cell::OnceCell;
-    use chrono::NaiveDate;
+    use chrono::{Datelike, TimeZone, Utc};
     use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
     use url::Url;
     use wiremock::{
@@ -1810,10 +1826,6 @@ pub(crate) mod tests {
                 excluded_sources: vec![],
                 smbert_vocab: format!("{asset_base}/smbert_v0001/vocab.txt"),
                 smbert_model: format!("{asset_base}/smbert_v0001/smbert-mocked.onnx"),
-                kpe_vocab: format!("{asset_base}/kpe_v0001/vocab.txt"),
-                kpe_model: format!("{asset_base}/kpe_v0001/bert-mocked.onnx"),
-                kpe_cnn: format!("{asset_base}/kpe_v0001/cnn.binparams"),
-                kpe_classifier: format!("{asset_base}/kpe_v0001/classifier.binparams"),
                 max_docs_per_feed_batch: FeedConfig::default()
                     .max_docs_per_batch
                     .try_into()
@@ -1825,12 +1837,15 @@ pub(crate) mod tests {
                 de_config: None,
                 log_file: None,
                 data_dir: "tmp_test_data_dir".into(),
-                use_in_memory_db: true,
+                use_ephemeral_db: true,
             };
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
-            let engine = Engine::from_config(config, None, &[], &[]).await.unwrap();
+            let engine = Engine::from_config(config, None, &[], &[], None)
+                .await
+                .unwrap()
+                .0;
 
             Mutex::new((server, engine))
         };
@@ -1842,11 +1857,10 @@ pub(crate) mod tests {
         // reset the stacks and states
         #[cfg(feature = "storage")]
         {
-            engine.storage = {
-                let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-                storage.init_database().await.unwrap();
-                Box::new(storage) as BoxedStorage
-            };
+            engine.storage = SqliteStorage::init_storage_system(None, None, &|_| None)
+                .await
+                .unwrap()
+                .0;
         }
         engine.stacks = RwLock::new(
             stack_ops
@@ -1863,7 +1877,8 @@ pub(crate) mod tests {
                 .collect(),
         );
         engine.exploration_stack.data = StackData::default();
-        engine.state = CoiSystemState::default();
+        engine.user_interests = UserInterests::default();
+        engine.key_phrases = KeyPhrases::default();
 
         if update_after_reset {
             engine
@@ -1921,7 +1936,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -1945,7 +1962,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -1960,15 +1979,67 @@ pub(crate) mod tests {
         assert_eq!(stacks.values().map(Stack::len).sum::<usize>(), 1);
     }
 
+    #[cfg(feature = "storage")]
+    #[tokio::test]
+    async fn test_serialized_state_is_updated() {
+        let engine = &mut *init_engine(
+            [|config: &EndpointConfig, providers: &Providers| {
+                Box::new(BreakingNews::new(config, providers.headlines.clone())) as _
+            }],
+            false,
+        )
+        .await;
+
+        let documents = engine.feed_next_batch().await.unwrap();
+        assert!(!documents.is_empty());
+
+        let state1 = engine.storage.state().fetch().await.unwrap();
+
+        engine
+            .user_reacted(
+                None,
+                &[],
+                UserReacted {
+                    id: documents[0].id,
+                    stack_id: BreakingNews::id(),
+                    title: "unused".into(),
+                    snippet: "unused".into(),
+                    smbert_embedding: Embedding::default(),
+                    reaction: UserReaction::Positive,
+                    market: Market::new("de", "DE"),
+                },
+            )
+            .await
+            .unwrap();
+
+        let state2 = engine.storage.state().fetch().await.unwrap();
+        assert_ne!(state1, state2);
+        assert!(state2.is_some());
+
+        engine
+            .time_spent(TimeSpent {
+                id: documents[0].id,
+                smbert_embedding: Embedding::default(),
+                view_time: std::time::Duration::from_secs(1),
+                view_mode: document::ViewMode::Story,
+                reaction: UserReaction::Positive,
+            })
+            .await
+            .unwrap();
+
+        let state3 = engine.storage.state().fetch().await.unwrap();
+        assert_ne!(state2, state3);
+        assert!(state3.is_some());
+    }
+
     #[tokio::test]
     async fn test_update_stack_no_error_when_no_stack_is_ready() {
         let engine = &mut *init_engine(
             [|_: &'_ _, _: &'_ _| {
                 let mut mock_ops = new_mock_stack_ops();
-                let id = mock_ops.id();
                 mock_ops
                     .expect_new_items()
-                    .returning(move |_, _, _, _| Err(NewItemsError::NotReady(id)));
+                    .returning(|_, _, _, _| Err(NewItemsError::NotReady));
                 Box::new(mock_ops) as _
             }],
             false,
@@ -1980,7 +2051,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -2000,10 +2073,9 @@ pub(crate) mod tests {
         let engine = &mut *init_engine(
             [|_: &'_ _, _: &'_ _| {
                 let mut mock_ops = new_mock_stack_ops();
-                let id = mock_ops.id();
                 mock_ops
                     .expect_new_items()
-                    .returning(move |_, _, _, _| Err(NewItemsError::NotReady(id)));
+                    .returning(|_, _, _, _| Err(NewItemsError::NotReady));
                 Box::new(mock_ops) as _
             }],
             false,
@@ -2024,7 +2096,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -2064,7 +2138,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -2095,7 +2171,9 @@ pub(crate) mod tests {
             &mut engine.exploration_stack,
             &engine.smbert,
             &engine.coi,
-            &mut engine.state,
+            &engine.kps,
+            &engine.user_interests,
+            &mut engine.key_phrases,
             &[],
             &[],
             10,
@@ -2173,7 +2251,7 @@ pub(crate) mod tests {
             snippet: String::default(),
             url: example_url(),
             image: None,
-            date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
             score: None,
             rank: Rank::default(),
             country: "US".to_string(),
@@ -2192,5 +2270,28 @@ pub(crate) mod tests {
 
         assert_eq!(documents[0].smbert_embedding, expected_1);
         assert_ne!(documents[1].smbert_embedding, expected_2);
+    }
+
+    #[test]
+    fn test_rank_documents_default() {
+        let mut a = Document::default();
+        a.resource.date_published = Utc.ymd(2022, 1, 1).and_hms(1, 0, 0);
+
+        let mut b = Document::default();
+        b.resource.date_published = Utc.ymd(2020, 1, 1).and_hms(1, 0, 0);
+
+        let mut c = Document::default();
+        c.resource.date_published = Utc.ymd(2021, 1, 1).and_hms(1, 0, 0);
+
+        let mut documents = vec![a, b, c];
+
+        let coi = CoiConfig::default().build();
+        let user_interests = UserInterests::default();
+
+        rank_documents(&coi, &user_interests, &mut documents);
+
+        assert_eq!(documents[0].resource.date_published.year(), 2022);
+        assert_eq!(documents[1].resource.date_published.year(), 2021);
+        assert_eq!(documents[2].resource.date_published.year(), 2020);
     }
 }

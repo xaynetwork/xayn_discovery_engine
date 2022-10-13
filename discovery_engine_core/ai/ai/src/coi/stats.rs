@@ -22,14 +22,14 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-pub(crate) struct CoiStats {
-    pub(crate) view_count: usize,
-    pub(crate) view_time: Duration,
-    pub(crate) last_view: SystemTime,
+pub struct CoiStats {
+    pub view_count: usize,
+    pub view_time: Duration,
+    pub last_view: SystemTime,
 }
 
 impl CoiStats {
-    pub(crate) fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             view_count: 1,
             view_time: Duration::ZERO,
@@ -37,12 +37,12 @@ impl CoiStats {
         }
     }
 
-    pub(crate) fn log_time(&mut self, viewed: Duration) {
+    pub(super) fn log_time(&mut self, viewed: Duration) {
         self.view_count += 1;
         self.view_time += viewed;
     }
 
-    pub(crate) fn log_reaction(&mut self) {
+    pub(super) fn log_reaction(&mut self) {
         self.view_count += 1;
         self.last_view = system_time_now();
     }
@@ -59,18 +59,21 @@ impl Default for CoiStats {
 }
 
 impl PositiveCoi {
-    pub(crate) fn log_time(&mut self, viewed: Duration) {
+    pub(crate) fn log_time(&mut self, viewed: Duration) -> &mut Self {
         self.stats.log_time(viewed);
+        self
     }
 
-    pub(crate) fn log_reaction(&mut self) {
+    pub(super) fn log_reaction(&mut self) -> &mut Self {
         self.stats.log_reaction();
+        self
     }
 }
 
 impl NegativeCoi {
-    pub(crate) fn log_reaction(&mut self) {
+    pub(super) fn log_reaction(&mut self) -> &mut Self {
         self.last_view = system_time_now();
+        self
     }
 }
 
@@ -78,7 +81,7 @@ impl NegativeCoi {
 ///
 /// The relevance of each coi is computed from its view count and view time relative to the
 /// other cois. It's an unnormalized score from the interval `[0, ∞)`.
-pub(crate) fn compute_coi_relevances(
+pub fn compute_coi_relevances(
     cois: &[PositiveCoi],
     horizon: Duration,
     now: SystemTime,
@@ -105,7 +108,7 @@ pub(crate) fn compute_coi_relevances(
 }
 
 /// Computes the time decay factor for a coi based on its `last_view` stat.
-pub(crate) fn compute_coi_decay_factor(
+pub(super) fn compute_coi_decay_factor(
     horizon: Duration,
     now: SystemTime,
     last_view: SystemTime,

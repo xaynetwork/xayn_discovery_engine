@@ -14,25 +14,19 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    str::FromStr,
     time::Duration,
 };
 
 use async_trait::async_trait;
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use num_traits::FromPrimitive;
-use sqlx::{
-    sqlite::{Sqlite, SqliteConnectOptions, SqlitePoolOptions},
-    FromRow,
-    Pool,
-    QueryBuilder,
-    Transaction,
-};
+use sqlx::{sqlite::Sqlite, FromRow, Pool, QueryBuilder, Transaction};
 use url::Url;
+use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    document::{self, HistoricDocument, UserReaction, ViewMode},
+    document::{self, HistoricDocument, UserReaction, ViewMode, WeightedSource},
     stack,
     storage::{
         models::{
@@ -45,19 +39,25 @@ use crate::{
             SearchBy,
             TimeSpentDocumentView,
         },
+        utils::SqlxPushTupleExt,
+        BoxedStorage,
         Error,
         FeedScope,
+        FeedbackScope,
+        InitDbHint,
         SearchScope,
         SourcePreferenceScope,
+        SourceReactionScope,
         StateScope,
         Storage,
     },
+    storage2::DartMigrationData,
 };
 
 use self::utils::SqlxSqliteResultExt;
-use super::FeedbackScope;
-use crate::storage::utils::SqlxPushTupleExt;
 
+mod dart_migrations;
+mod setup;
 mod utils;
 
 // Sqlite bind limit
@@ -69,43 +69,22 @@ pub(crate) struct SqliteStorage {
 }
 
 impl SqliteStorage {
-    pub(crate) async fn connect(uri: &str) -> Result<Self, Error> {
-        let opt = SqliteConnectOptions::from_str(uri)?.create_if_missing(true);
-
-        let pool = SqlitePoolOptions::new().connect_with(opt).await?;
-
-        Ok(Self { pool })
-    }
-
-    async fn setup_stacks_sync(tx: &mut Transaction<'_, Sqlite>) -> Result<(), Error> {
-        let expected_ids = &[
-            stack::ops::breaking::BreakingNews::id(),
-            stack::ops::personalized::PersonalizedNews::id(),
-            stack::ops::trusted::TrustedNews::id(),
-            stack::exploration::Stack::id(),
-        ];
-
-        let mut query_builder = QueryBuilder::new(String::new());
-        query_builder
-            .push("INSERT INTO Stack (stackId) ")
-            .push_values(expected_ids, |mut stm, id| {
-                stm.push_bind(id);
-            })
-            .push(" ON CONFLICT DO NOTHING;")
-            .build()
-            .persistent(false)
-            .execute(&mut *tx)
-            .await?;
-
-        query_builder
-            .reset()
-            .push("DELETE FROM Stack WHERE stackId NOT IN ")
-            .push_tuple(expected_ids)
-            .build()
-            .persistent(false)
-            .execute(tx)
-            .await?;
-        Ok(())
+    /// Initializes the storage system.
+    ///
+    /// The `db_identifier` is storage impl. specific, e.g. in case of sqlite
+    /// this would be the file path to the database file.
+    ///
+    /// Passing in `None` means a new temporary db should be created.
+    //NOTE: Any storage implementation should have an interface like this,
+    //      but we have no reason to be generic about it for now.
+    pub(crate) async fn init_storage_system(
+        file_path: Option<String>,
+        dart_migration_data: Option<DartMigrationData>,
+        smbert: &(impl Fn(&str) -> Option<Embedding> + Sync),
+    ) -> Result<(BoxedStorage, InitDbHint), Error> {
+        self::setup::init_storage_system(file_path.map(Into::into), dart_migration_data, smbert)
+            .await
+            .map(|(storage, hint)| (Box::new(storage) as _, hint))
     }
 
     #[allow(clippy::too_many_lines)]
@@ -220,6 +199,28 @@ impl SqliteStorage {
         Ok(())
     }
 
+    async fn store_new_search_documents(
+        tx: &mut Transaction<'_, Sqlite>,
+        documents: &[NewDocument],
+    ) -> Result<(), Error> {
+        if documents.is_empty() {
+            return Ok(());
+        }
+
+        SqliteStorage::store_new_documents(tx, documents).await?;
+
+        QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
+            .push_values(documents, |mut stm, doc| {
+                stm.push_bind(&doc.id);
+            })
+            .build()
+            .persistent(false)
+            .execute(tx)
+            .await?;
+
+        Ok(())
+    }
+
     async fn get_document(
         tx: &mut Transaction<'_, Sqlite>,
         base_table: &'static str,
@@ -325,20 +326,68 @@ impl SqliteStorage {
         tx.commit().await?;
         Ok(sources)
     }
+
+    async fn update_source_weights(&self, reactions: &[WeightedSource]) -> Result<(), Error> {
+        if reactions.is_empty() {
+            return Ok(());
+        }
+
+        let mut tx = self.pool.begin().await?;
+
+        let now = Utc::now().naive_utc();
+
+        let mut count = 0;
+        QueryBuilder::new("INSERT INTO SourceReaction (source, weight, lastUpdated) ")
+            .push_values(reactions, |mut query, item| {
+                count += 1;
+                query
+                    .push_bind(&item.source)
+                    .push_bind(item.weight)
+                    .push_bind(now);
+            })
+            .push(
+                "ON CONFLICT DO UPDATE SET
+                    weight = weight + EXCLUDED.weight,
+                    lastUpdated = EXCLUDED.lastUpdated;",
+            )
+            .build()
+            // outside of migrations we always will call this with exactly one
+            // values tuple, there is no reason to not cache it in that case
+            .persistent(count == 1)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    async fn init_database(&self) -> Result<(), Error> {
-        sqlx::migrate!("src/storage/migrations")
-            .run(&self.pool)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-
+    async fn clear_database(&self) -> Result<bool, Error> {
         let mut tx = self.pool.begin().await?;
-        Self::setup_stacks_sync(&mut tx).await?;
+
+        let deletion = sqlx::query("DELETE FROM Document;")
+            .execute(&mut tx)
+            .await?
+            .rows_affected()
+            > 0;
+        let deletion = sqlx::query("DELETE FROM Search;")
+            .execute(&mut tx)
+            .await?
+            .rows_affected()
+            > 0
+            || deletion;
+        let deletion = sqlx::query("DELETE FROM SerializedState;")
+            .execute(&mut tx)
+            .await?
+            .rows_affected()
+            > 0
+            || deletion;
+
         tx.commit().await?;
-        Ok(())
+
+        Ok(deletion)
     }
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error> {
@@ -358,6 +407,21 @@ impl Storage for SqliteStorage {
         documents.into_iter().map(TryInto::try_into).collect()
     }
 
+    async fn fetch_weighted_sources(&self) -> Result<Vec<WeightedSource>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let sources = sqlx::query_as::<_, QueriedSourceReaction>(
+            "SELECT source, weight
+             FROM SourceReaction;",
+        )
+        .fetch_all(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(sources.into_iter().map(Into::into).collect())
+    }
+
     fn feed(&self) -> &(dyn FeedScope + Send + Sync) {
         self
     }
@@ -375,6 +439,10 @@ impl Storage for SqliteStorage {
     }
 
     fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync) {
+        self
+    }
+
+    fn source_reaction(&self) -> &(dyn SourceReactionScope + Send + Sync) {
         self
     }
 }
@@ -492,20 +560,7 @@ impl SearchScope for SqliteStorage {
             .execute(&mut tx)
             .await?;
 
-        if documents.is_empty() {
-            return tx.commit().await.map_err(Into::into);
-        };
-
-        SqliteStorage::store_new_documents(&mut tx, documents).await?;
-
-        QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
-            .push_values(documents, |mut stm, doc| {
-                stm.push_bind(&doc.id);
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await?;
+        SqliteStorage::store_new_search_documents(&mut tx, documents).await?;
 
         tx.commit().await.map_err(Into::into)
     }
@@ -517,16 +572,7 @@ impl SearchScope for SqliteStorage {
     ) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
-        SqliteStorage::store_new_documents(&mut tx, documents).await?;
-
-        QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
-            .push_values(documents, |mut stm, doc| {
-                stm.push_bind(&doc.id);
-            })
-            .build()
-            .persistent(false)
-            .execute(&mut tx)
-            .await?;
+        SqliteStorage::store_new_search_documents(&mut tx, documents).await?;
 
         sqlx::query("UPDATE Search SET pageNumber = ? WHERE rowid = 1;")
             .bind(page_number)
@@ -622,32 +668,34 @@ impl SearchScope for SqliteStorage {
 
 #[async_trait]
 impl StateScope for SqliteStorage {
-    async fn store(&self, bytes: Vec<u8>) -> Result<(), Error> {
+    async fn store(&self, bytes: &[u8]) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
-        sqlx::query("DELETE FROM SerializedState;")
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
-        sqlx::query("INSERT INTO SerializedState (state) VALUES (?);")
-            .bind(bytes)
-            .execute(&mut tx)
-            .await
-            .map_err(|err| Error::Database(err.into()))?;
+        sqlx::query(
+            "INSERT INTO SerializedState (rowid, state)
+            VALUES (1, ?)
+            ON CONFLICT DO UPDATE
+            SET state = excluded.state;",
+        )
+        .bind(bytes)
+        .execute(&mut tx)
+        .await?;
 
-        tx.commit().await.map_err(Into::into)
+        tx.commit().await?;
+        Ok(())
     }
 
     async fn fetch(&self) -> Result<Option<Vec<u8>>, Error> {
         let mut tx = self.pool.begin().await?;
 
-        let state = sqlx::query_as::<_, QueriedState>("SELECT state FROM SerializedState;")
-            .fetch_optional(&mut tx)
-            .await?;
+        let state =
+            sqlx::query_as::<_, QueriedState>("SELECT state FROM SerializedState WHERE rowid = 1;")
+                .fetch_optional(&mut tx)
+                .await?;
 
         tx.commit().await?;
 
-        Ok(state.and_then(|state| (!state.state.is_empty()).then(|| state.state)))
+        Ok(state.and_then(|state| (!state.state.is_empty()).then_some(state.state)))
     }
 
     async fn clear(&self) -> Result<bool, Error> {
@@ -696,7 +744,7 @@ struct QueriedApiDocumentView {
     topic: String,
     url: String,
     image: Option<String>,
-    date_published: NaiveDateTime,
+    date_published: DateTime<Utc>,
     source: String,
     market: String,
     domain_rank: i64,
@@ -856,6 +904,20 @@ impl FeedbackScope for SqliteStorage {
 
         Ok(view)
     }
+
+    async fn update_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
+        let weight_diff = if liked { 1 } else { -1 };
+        match self.fetch_source_weight(source).await? {
+            0 => self.update_source_weight(source, weight_diff).await?,
+            weight if (weight > 0) == liked => {
+                self.update_source_weight(source, if liked { 1 } else { 0 })
+                    .await?;
+            }
+
+            _ => self.delete_source_reaction(source).await?,
+        }
+        Ok(())
+    }
 }
 
 #[derive(FromRow)]
@@ -919,6 +981,60 @@ impl SourcePreferenceScope for SqliteStorage {
     }
 }
 
+#[derive(FromRow)]
+struct QueriedSourceReaction {
+    #[allow(dead_code)]
+    source: String,
+    weight: i32,
+}
+
+impl From<QueriedSourceReaction> for WeightedSource {
+    fn from(queried_source: QueriedSourceReaction) -> Self {
+        let QueriedSourceReaction { source, weight, .. } = queried_source;
+        Self { source, weight }
+    }
+}
+
+#[async_trait]
+impl SourceReactionScope for SqliteStorage {
+    async fn fetch_source_weight(&self, source: &str) -> Result<i32, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let reaction = sqlx::query_as::<_, QueriedSourceReaction>(
+            "SELECT source, weight
+            FROM SourceReaction
+            WHERE source = ?;",
+        )
+        .bind(source)
+        .fetch_optional(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(reaction.map_or(0, |r| r.weight))
+    }
+
+    async fn update_source_weight(&self, source: &str, weight: i32) -> Result<(), Error> {
+        self.update_source_weights(&[WeightedSource {
+            source: source.into(),
+            weight,
+        }])
+        .await
+    }
+
+    async fn delete_source_reaction(&self, source: &str) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query("DELETE FROM SourceReaction WHERE source = ?;")
+            .bind(source)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use maplit::hashset;
@@ -977,15 +1093,18 @@ mod tests {
         }};
     }
 
-    async fn create_memory_storage() -> impl Storage {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
-        storage
+    impl SqliteStorage {
+        async fn test_storage_system() -> BoxedStorage {
+            SqliteStorage::init_storage_system(None, None, &|_| None)
+                .await
+                .unwrap()
+                .0
+        }
     }
 
     #[tokio::test]
     async fn test_fetch_history() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let history = storage.fetch_history().await.unwrap();
         assert!(history.is_empty());
 
@@ -1009,7 +1128,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_feed_methods() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let feed = storage.feed().fetch().await.unwrap();
         assert!(feed.is_empty());
 
@@ -1043,7 +1162,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_methods() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let search = storage.search().fetch().await;
         assert!(search.is_err());
         assert!(!storage.search().clear().await.unwrap());
@@ -1097,8 +1216,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_search() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = SqliteStorage::test_storage_system().await;
 
         let new_search = Search {
             search_by: SearchBy::Query,
@@ -1120,8 +1238,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_document() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = super::setup::init_storage_system(None, None, &|_| None)
+            .await
+            .unwrap()
+            .0;
 
         let id = document::Id::new();
         assert!(matches!(
@@ -1152,7 +1272,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rank_conversion() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let mut docs = create_documents(1);
         docs[0].newscatcher_data.domain_rank = u64::MAX;
         storage
@@ -1169,52 +1289,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_missing_stacks_are_added_and_removed_stacks_removed() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        sqlx::migrate!("src/storage/migrations")
-            .run(&storage.pool)
-            .await
-            .unwrap();
-
-        let mut tx = storage.pool.begin().await.unwrap();
-
-        let random_id = stack::Id::new_random();
-        sqlx::query("INSERT INTO Stack(stackId) VALUES (?), (?);")
-            .bind(stack::PersonalizedNews::id())
-            .bind(random_id)
-            .execute(&mut tx)
-            .await
-            .unwrap();
-
-        SqliteStorage::setup_stacks_sync(&mut tx).await.unwrap();
-
-        //FIXME: For some reason if I try to read the stackIds from the database
-        //       without first committing here the select statement will hang (sometimes).
-        //       This happens even if no cached statements are used.
-        tx.commit().await.unwrap();
-
-        let ids = sqlx::query_as::<_, stack::Id>("SELECT stackId FROM Stack;")
-            .fetch_all(&storage.pool)
-            .await
-            .unwrap();
-
-        let expected_ids = [
-            stack::ops::breaking::BreakingNews::id(),
-            stack::ops::personalized::PersonalizedNews::id(),
-            stack::ops::trusted::TrustedNews::id(),
-            stack::exploration::Stack::id(),
-        ];
-
-        assert_eq!(
-            ids.into_iter().collect::<HashSet<_>>(),
-            expected_ids.into_iter().collect::<HashSet<_>>()
-        );
-    }
-
-    #[tokio::test]
     #[allow(clippy::similar_names)]
     async fn test_storing_user_reaction() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(10);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
         storage
@@ -1270,7 +1347,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_storing_user_reaction_returns_the_right_document() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(1);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
         storage
@@ -1290,26 +1367,82 @@ mod tests {
 
     #[tokio::test]
     async fn test_state() {
-        let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-        storage.init_database().await.unwrap();
+        let storage = SqliteStorage::test_storage_system().await;
 
         assert!(!storage.state().clear().await.unwrap());
         assert!(storage.state().fetch().await.unwrap().is_none());
 
         let state = (0..100).collect::<Vec<u8>>();
-        storage.state().store(state.clone()).await.unwrap();
+        storage.state().store(&state).await.unwrap();
         assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
 
         let state = (100..=255).collect::<Vec<u8>>();
-        storage.state().store(state.clone()).await.unwrap();
+        storage.state().store(&state).await.unwrap();
         assert_eq!(storage.state().fetch().await.unwrap(), Some(state));
 
         assert!(storage.state().clear().await.unwrap());
     }
 
     #[tokio::test]
+    async fn test_source_reaction() {
+        let storage = SqliteStorage::test_storage_system().await;
+
+        let sources = storage.fetch_weighted_sources().await.unwrap();
+        assert!(sources.is_empty());
+
+        storage
+            .feedback()
+            .update_source_reaction("a", true)
+            .await
+            .unwrap();
+
+        storage
+            .feedback()
+            .update_source_reaction("b", false)
+            .await
+            .unwrap();
+
+        let sources = storage.fetch_weighted_sources().await.unwrap();
+        assert_eq!(sources.len(), 2);
+        assert!(sources.iter().any(|ws| ws.source == "a" && ws.weight == 1));
+        assert!(sources.iter().any(|ws| ws.source == "b" && ws.weight == -1));
+
+        storage
+            .feedback()
+            .update_source_reaction("a", true)
+            .await
+            .unwrap();
+
+        storage
+            .feedback()
+            .update_source_reaction("b", false)
+            .await
+            .unwrap();
+
+        let sources = storage.fetch_weighted_sources().await.unwrap();
+        assert_eq!(sources.len(), 2);
+        assert!(sources.iter().any(|ws| ws.source == "a" && ws.weight == 2));
+        assert!(sources.iter().any(|ws| ws.source == "b" && ws.weight == -1));
+
+        storage
+            .feedback()
+            .update_source_reaction("a", false)
+            .await
+            .unwrap();
+
+        storage
+            .feedback()
+            .update_source_reaction("b", true)
+            .await
+            .unwrap();
+
+        let sources = storage.fetch_weighted_sources().await.unwrap();
+        assert!(sources.is_empty());
+    }
+
+    #[tokio::test]
     async fn test_source_preference() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
 
         // if no sources are set, return an empty set
         let trusted_db = storage.source_preference().fetch_trusted().await.unwrap();
@@ -1377,7 +1510,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_store_time_spent() {
-        let storage = create_memory_storage().await;
+        let storage = SqliteStorage::test_storage_system().await;
         let docs = create_documents(3);
         let stack_ids = stack_ids_for(&docs, stack::PersonalizedNews::id());
 

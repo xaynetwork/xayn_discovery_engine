@@ -47,18 +47,14 @@ impl TestEngine {
             excluded_sources: vec![],
             smbert_vocab: format!("{manifest}{assets}/smbert_v0001/vocab.txt"),
             smbert_model: format!("{manifest}{assets}/smbert_v0001/smbert-quantized.onnx"),
-            kpe_vocab: format!("{manifest}{assets}/kpe_v0001/vocab.txt"),
-            kpe_model: format!("{manifest}{assets}/kpe_v0001/bert-quantized.onnx"),
-            kpe_cnn: format!("{manifest}{assets}/kpe_v0001/cnn.binparams"),
-            kpe_classifier: format!("{manifest}{assets}/kpe_v0001/classifier.binparams"),
             max_docs_per_feed_batch: 1,
             max_docs_per_search_batch: 1,
             de_config: None,
             log_file: None,
             data_dir: String::new(),
-            use_in_memory_db: true,
+            use_ephemeral_db: true,
         };
-        let engine = Engine::from_config(config, None, &[], &[]).await?;
+        let engine = Engine::from_config(config, None, &[], &[], None).await?.0;
 
         spinner.finish_with_message("initialized engine");
 
@@ -123,7 +119,7 @@ impl TestEngine {
         self.engine.reset_ai().await?;
 
         let mut cois = 0;
-        while cois < self.engine.coi_system_config().min_positive_cois() {
+        while cois < self.engine.coi_config().min_positive_cois() {
             if let Some(document) = self
                 .engine
                 .get_feed_documents(&[/* TODO: db migration */], &[/* TODO: db migration */])
@@ -135,7 +131,7 @@ impl TestEngine {
             }
         }
         cois = 0;
-        while cois < self.engine.coi_system_config().min_negative_cois() {
+        while cois < self.engine.coi_config().min_negative_cois() {
             if let Some(document) = self
                 .engine
                 .get_feed_documents(&[/* TODO: db migration */], &[/* TODO: db migration */])

@@ -15,13 +15,13 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/date_time.dart'
-    show NaiveDateTimeFfi;
+    show DateTimeUtcFfi;
 
 void readWriteTest(DateTime dateTime) {
-  final place = ffi.alloc_uninitialized_naive_date_time();
+  final place = ffi.alloc_uninitialized_date_time_utc();
   dateTime.writeNative(place);
-  final res = NaiveDateTimeFfi.readNative(place);
-  ffi.drop_naive_date_time(place);
+  final res = DateTimeUtcFfi.readNative(place);
+  ffi.drop_date_time_utc(place);
   expect(res, equals(dateTime));
 }
 

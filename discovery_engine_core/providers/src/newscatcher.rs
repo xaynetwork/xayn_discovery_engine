@@ -15,9 +15,9 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use derive_more::Deref;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{de, Deserialize, Deserializer};
 use url::Url;
 
 use crate::{
@@ -206,7 +206,7 @@ pub(crate) fn append_market(
 }
 
 /// A news article
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Article {
     /// The title of the article.
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -261,54 +261,56 @@ pub struct Article {
     /// While Newscatcher claims to have some sort of timezone support in their
     /// [API][<https://docs.newscatcherapi.com/api-docs/endpoints/search-news>] (via the
     /// `published_date_precision` attribute), in practice they do not seem to be supplying any
-    /// sort of timezone information. As a result, we provide NaiveDateTime for now.
+    /// sort of timezone information. As a result, we provide DateTime<Utc> for now.
     #[serde(
         default = "default_published_date",
-        deserialize_with = "deserialize_naive_date_time_from_str"
+        rename(deserialize = "published_date"),
+        deserialize_with = "deserialize_date_time_utc_from_str"
     )]
-    pub published_date: NaiveDateTime,
+    pub date_published: DateTime<Utc>,
 
     /// Optional article embedding from the provider.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub embedding: Option<Vec<f32>>,
 }
 
-const fn default_published_date() -> NaiveDateTime {
-    NaiveDateTime::MIN
+const fn default_published_date() -> DateTime<Utc> {
+    DateTime::<Utc>::MIN_UTC
 }
 
-// Taken from https://github.com/serde-rs/serde/issues/1098#issuecomment-760711617
+/// Null-value tolerant deserialization of `Option<T: Default>`.
+// see <https://github.com/serde-rs/serde/issues/1098#issuecomment-760711617>
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     T: Default + Deserialize<'de>,
     D: Deserializer<'de>,
 {
-    let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or_default())
+    Option::deserialize(deserializer).map(Option::unwrap_or_default)
 }
 
-/// Null-value tolerant deserialization of `NaiveDateTime`
-fn deserialize_naive_date_time_from_str<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
+/// Null-value tolerant deserialization of `DateTime<Utc>`.
+fn deserialize_date_time_utc_from_str<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let opt: Option<String> = Option::deserialize(deserializer)?;
-    opt.map_or_else(
-        || Ok(NaiveDateTime::from_timestamp(0, 0)),
-        |s| NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S").map_err(de::Error::custom),
+    Option::<String>::deserialize(deserializer)?.map_or_else(
+        || Ok(Utc.ymd(1970, 1, 1).and_hms(0, 0, 0)),
+        |s| {
+            Utc.datetime_from_str(&s, "%Y-%m-%d %H:%M:%S")
+                .map_err(de::Error::custom)
+        },
     )
 }
 
-/// Null-value tolerant deserialization of rank
+/// Null-value tolerant deserialization of rank.
 fn deserialize_rank<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or(u64::MAX))
+    Option::deserialize(deserializer).map(|option| option.unwrap_or(u64::MAX))
 }
 
-/// Query response from the Newscatcher API
+/// Query response from the Newscatcher API.
 #[derive(Deserialize, Debug)]
 pub struct Response {
     /// Status message
@@ -322,20 +324,16 @@ pub struct Response {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use chrono::NaiveDate;
-
-    use crate::{Filter, HeadlinesQuery, Market, Rank, UrlWithDomain};
-
-    use chrono::NaiveDateTime;
-
-    use crate::models::RankLimit;
     use wiremock::{
         matchers::{header, method, path, query_param, query_param_is_missing},
         Mock,
         MockServer,
         ResponseTemplate,
     };
+
+    use crate::{models::RankLimit, Filter, HeadlinesQuery, Market, Rank, UrlWithDomain};
+
+    use super::*;
 
     #[tokio::test]
     async fn test_simple_news_query() {
@@ -348,7 +346,7 @@ mod tests {
         );
 
         let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+            .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
             .and(path("/v1/search-news"))
@@ -396,7 +394,7 @@ mod tests {
         );
 
         let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+            .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
             .and(path("/v1/search-news"))
@@ -445,7 +443,7 @@ mod tests {
         );
 
         let tmpl = ResponseTemplate::new(200)
-            .set_body_string(include_str!("../test-fixtures/climate-change.json"));
+            .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
             .and(path("/v1/search-news"))
@@ -588,7 +586,7 @@ mod tests {
             url: UrlWithDomain::parse("https://example.com/a/2").unwrap(),
             image: Some(Url::parse("https://uploads.example.com/image2.png").unwrap()),
             topic: "gaming".to_string(),
-            date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+            date_published: Utc.ymd(2022, 1, 27).and_hms(13, 24, 33),
             country: "US".to_string(),
             language: "en".to_string(),
             embedding: None
@@ -646,7 +644,7 @@ mod tests {
             url: UrlWithDomain::parse("https://example.com/a/2").unwrap(),
             image: Some(Url::parse("https://uploads.example.com/image2.png").unwrap()),
             topic: "gaming".to_string(),
-            date_published: NaiveDateTime::parse_from_str("2022-01-27 13:24:33", "%Y-%m-%d %H:%M:%S").unwrap(),
+            date_published: Utc.ymd(2022, 1, 27).and_hms(13, 24, 33),
             country: "US".to_string(),
             language: "en".to_string(),
             embedding: None
@@ -668,7 +666,7 @@ mod tests {
                 topic: "news".to_string(),
                 country: "US".to_string(),
                 language: "en".to_string(),
-                published_date: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+                date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
                 embedding: None,
             }
         }

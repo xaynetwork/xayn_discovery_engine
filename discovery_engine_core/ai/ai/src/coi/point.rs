@@ -27,10 +27,10 @@ use crate::{
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
 pub struct PositiveCoi {
-    pub(super) id: CoiId,
-    pub(super) point: Embedding,
+    pub id: CoiId,
+    pub point: Embedding,
     #[derivative(PartialEq = "ignore")]
-    pub(crate) stats: CoiStats,
+    pub stats: CoiStats,
 }
 
 impl PositiveCoi {
@@ -48,10 +48,10 @@ impl PositiveCoi {
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
 #[derivative(PartialEq)]
 pub struct NegativeCoi {
-    pub(super) id: CoiId,
-    pub(super) point: Embedding,
+    pub id: CoiId,
+    pub point: Embedding,
     #[derivative(PartialEq = "ignore")]
-    pub(crate) last_view: SystemTime,
+    pub last_view: SystemTime,
 }
 
 impl NegativeCoi {
@@ -74,7 +74,7 @@ pub trait CoiPoint {
     fn point(&self) -> &Embedding;
 
     /// Shifts the coi point towards another point by a factor.
-    fn shift_point(&mut self, towards: &Embedding, shift_factor: f32);
+    fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) -> &mut Self;
 }
 
 macro_rules! impl_coi_point {
@@ -90,9 +90,10 @@ macro_rules! impl_coi_point {
                     &self.point
                 }
 
-                fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) {
+                fn shift_point(&mut self, towards: &Embedding, shift_factor: f32) -> &mut Self {
                     self.point *= 1. - shift_factor;
                     self.point += towards * shift_factor;
+                    self
                 }
             }
         )*
@@ -109,6 +110,13 @@ impl_coi_point! {
 pub struct UserInterests {
     pub positive: Vec<PositiveCoi>,
     pub negative: Vec<NegativeCoi>,
+}
+
+impl UserInterests {
+    /// Checks if all user interests are empty.
+    pub fn is_empty(&self) -> bool {
+        self.positive.is_empty() && self.negative.is_empty()
+    }
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
@@ -131,7 +139,7 @@ pub(super) fn find_closest_coi_index(
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
-pub(crate) fn find_closest_coi<'coi, CP>(
+pub(super) fn find_closest_coi<'coi, CP>(
     cois: &'coi [CP],
     embedding: &Embedding,
 ) -> Option<(&'coi CP, f32)>

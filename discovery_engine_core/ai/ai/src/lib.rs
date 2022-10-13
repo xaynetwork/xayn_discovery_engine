@@ -35,15 +35,16 @@ mod coi;
 mod document;
 mod embedding;
 mod error;
-mod utils;
+mod kps;
+pub mod utils;
 
 pub use crate::{
     coi::{
-        config::{Config as CoiSystemConfig, Error as CoiSystemConfigError},
-        key_phrase::{KeyPhrase, KeyPhrases},
+        config::{Config as CoiConfig, Error as CoiConfigError},
+        context::Error as CoiContextError,
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
-        state::State as CoiSystemState,
-        system::CoiSystem,
+        stats::{compute_coi_relevances, CoiStats},
+        system::System as CoiSystem,
         CoiId,
     },
     document::{Document, DocumentId},
@@ -55,7 +56,12 @@ pub use crate::{
         MalformedBytesEmbedding,
     },
     error::GenericError,
-    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
+    kps::{
+        config::{Config as KpsConfig, Error as KpsConfigError},
+        key_phrase::{KeyPhrase, KeyPhrases},
+        system::System as KpsSystem,
+    },
+    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, system_time_now},
 };
 
 #[cfg(doc)]

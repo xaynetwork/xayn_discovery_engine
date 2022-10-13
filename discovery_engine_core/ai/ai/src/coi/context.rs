@@ -30,12 +30,11 @@ use crate::{
     document::Document,
     embedding::Embedding,
     utils::system_time_now,
-    DocumentId,
 };
 
 #[derive(Error, Debug, Display)]
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum Error {
+pub enum Error {
     /// Not enough cois
     NotEnoughCois,
     /// Failed to find the closest cois
@@ -179,11 +178,11 @@ fn has_enough_cois(
 ///
 /// # Errors
 /// Fails if the required number of positive or negative cois is not present.
-pub(crate) fn compute_scores_for_docs(
-    documents: &[impl Document],
+pub(crate) fn compute_scores_for_docs<T: Document>(
+    documents: &[T],
     user_interests: &UserInterests,
     config: &Config,
-) -> Result<HashMap<DocumentId, f32>, Error> {
+) -> Result<HashMap<T::Id, f32>, Error> {
     if !has_enough_cois(
         user_interests,
         config.min_positive_cois(),
@@ -202,7 +201,7 @@ pub(crate) fn compute_scores_for_docs(
                 config.horizon(),
                 now,
             )?;
-            Ok((document.id(), score))
+            Ok((document.id().clone(), score))
         })
         .collect()
 }

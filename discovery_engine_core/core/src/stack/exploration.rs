@@ -16,7 +16,7 @@
 
 use std::collections::HashSet;
 use uuid::uuid;
-use xayn_discovery_engine_ai::{CoiSystem, UserInterests};
+use xayn_discovery_engine_ai::UserInterests;
 
 use crate::{
     config::ExplorationConfig as Config,
@@ -54,9 +54,9 @@ impl Stack {
     /// Updates the internal documents with the new one and returns an updated [`Stack`].
     pub(crate) fn update(
         &mut self,
-        new_documents: &[Document],
-        coi: &CoiSystem,
         user_interests: &UserInterests,
+        ranker: impl FnOnce(&mut [Document]),
+        new_documents: &[Document],
     ) -> Result<(), stack::Error> {
         if user_interests.positive.is_empty() && user_interests.negative.is_empty() {
             // we are not ready to run the exploration stack
@@ -82,7 +82,7 @@ impl Stack {
             documents,
             &self.config,
         )?;
-        coi.rank(&mut items, user_interests);
+        ranker(&mut items);
         self.data.documents = items;
         self.data.documents.reverse();
         Ok(())
@@ -93,8 +93,8 @@ impl Stack {
     /// This is useful when the [`Engine`] has been updated.
     ///
     /// [`Engine`]: crate::engine::Engine
-    pub(crate) fn rank(&mut self, coi: &CoiSystem, user_interests: &UserInterests) {
-        coi.rank(&mut self.data.documents, user_interests);
+    pub(crate) fn rank(&mut self, ranker: impl FnOnce(&mut [Document])) {
+        ranker(&mut self.data.documents);
         self.data.documents.reverse();
     }
 

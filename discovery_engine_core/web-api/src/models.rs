@@ -12,16 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use chrono::{NaiveDateTime, Utc};
+use std::{collections::HashMap, ops::RangeInclusive, string::FromUtf8Error};
+
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, str::FromStr, string::FromUtf8Error};
 use thiserror::Error;
-use uuid::Uuid;
+use warp::{http::StatusCode, reject::Reject, reply, Reply};
 
-use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId, Embedding};
-use xayn_discovery_engine_core::document::Id;
+use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
+
+/// The range of the count parameter.
+pub(crate) const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
@@ -34,59 +36,142 @@ pub(crate) enum Error {
 
     /// Failed to decode [`UserId] from path param: {0}.
     UserIdUtf8Conversion(#[from] FromUtf8Error),
+
+    /// Invalid value for count parameter: {0}. It must be in [`COUNT_PARAM_RANGE`].
+    InvalidCountParam(usize),
+
+    /// Elastic search error: {0}
+    Elastic(#[source] reqwest::Error),
+
+    /// Error receiving response: {0}
+    Receiving(#[source] reqwest::Error),
 }
+
+impl Reject for Error {}
+
+/// A unique identifier of a document.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
+pub(crate) struct DocumentId(pub(crate) String);
 
 /// Represents a result from a query.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Document {
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct PersonalizedDocumentData {
     /// Unique identifier of the document.
-    pub(crate) id: Id,
+    pub(crate) id: DocumentId,
+
+    /// Similarity score of the personalized document.
+    pub(crate) score: f32,
 
     /// Embedding from smbert.
-    pub(crate) smbert_embedding: Embedding,
+    #[serde(skip_serializing)]
+    pub(crate) embedding: Embedding,
 
-    /// Contents of the article.
-    pub(crate) article: Article,
+    /// Contents of the document properties.
+    pub(crate) properties: DocumentProperties,
 }
 
-impl Document {
-    pub(crate) fn new((article, smbert_embedding): (Article, Embedding)) -> Self {
-        let id = Uuid::new_v4().into();
-        Self {
-            id,
-            smbert_embedding,
-            article,
-        }
-    }
-}
+impl AiDocument for PersonalizedDocumentData {
+    type Id = DocumentId;
 
-impl AiDocument for Document {
-    fn id(&self) -> DocumentId {
-        self.id.into()
+    fn id(&self) -> &Self::Id {
+        &self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {
-        &self.smbert_embedding
-    }
-
-    fn date_published(&self) -> NaiveDateTime {
-        Utc::now().naive_utc()
+        &self.embedding
     }
 }
 
-/// Represents an article that is stored and loaded from local json file.
-pub(crate) type Article = HashMap<String, serde_json::Value>;
+/// Arbitrary properties that can be attached to a document.
+pub type DocumentProperties = HashMap<String, serde_json::Value>;
 
-impl From<Document> for Article {
-    fn from(doc: Document) -> Self {
-        doc.article
+/// Represents personalized documents query params.
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct PersonalizedDocumentsQuery {
+    pub(crate) count: Option<usize>,
+}
+
+/// Represents response from personalized documents endpoint.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct PersonalizedDocumentsResponse {
+    /// A list of documents personalized for a specific user.
+    pub(crate) documents: Vec<PersonalizedDocumentData>,
+}
+
+impl PersonalizedDocumentsResponse {
+    pub(crate) fn new(documents: impl Into<Vec<PersonalizedDocumentData>>) -> Self {
+        Self {
+            documents: documents.into(),
+        }
     }
+
+    pub(crate) fn to_reply(&self) -> impl Reply {
+        reply::json(self)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+pub(crate) enum PersonalizedDocumentsErrorKind {
+    #[serde(rename = "not_enough_interactions")]
+    NotEnoughInteractions,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct PersonalizedDocumentsError {
+    kind: PersonalizedDocumentsErrorKind,
+}
+
+impl PersonalizedDocumentsError {
+    pub(crate) fn new(kind: PersonalizedDocumentsErrorKind) -> Self {
+        Self { kind }
+    }
+
+    pub(crate) fn to_reply(&self, status: StatusCode) -> impl Reply {
+        reply::with_status(reply::json(self), status)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub(crate) enum UserInteractionType {
+    #[serde(rename = "positive")]
+    Positive = xayn_discovery_engine_core::document::UserReaction::Positive as isize,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct UserInteractionData {
+    #[serde(rename = "id")]
+    pub(crate) document_id: DocumentId,
+    #[serde(rename = "type")]
+    pub(crate) interaction_type: UserInteractionType,
 }
 
 /// Represents user interaction request body.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct InteractionRequestBody {
-    pub(crate) document_id: String,
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct UserInteractionRequestBody {
+    pub(crate) documents: Vec<UserInteractionData>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+pub(crate) enum UserInteractionErrorKind {
+    #[serde(rename = "invalid_user_id")]
+    InvalidUserId,
+    #[serde(rename = "invalid_document_id")]
+    InvalidDocumentId,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct UserInteractionError {
+    kind: UserInteractionErrorKind,
+}
+
+impl UserInteractionError {
+    pub(crate) fn new(kind: UserInteractionErrorKind) -> Self {
+        Self { kind }
+    }
+
+    pub(crate) fn to_reply(&self, status: StatusCode) -> impl Reply {
+        reply::with_status(reply::json(self), status)
+    }
 }
 
 /// Unique identifier for the user.
@@ -94,23 +179,15 @@ pub(crate) struct InteractionRequestBody {
 pub(crate) struct UserId(String);
 
 impl UserId {
-    fn new(value: &str) -> Result<Self, Error> {
-        let value = urlencoding::decode(value).map_err(Error::UserIdUtf8Conversion)?;
+    pub(crate) fn new(id: impl AsRef<str>) -> Result<Self, Error> {
+        let id = id.as_ref();
 
-        if value.trim().is_empty() {
+        if id.is_empty() {
             Err(Error::UserIdEmpty)
-        } else if value.contains('\u{0000}') {
+        } else if id.contains('\u{0000}') {
             Err(Error::UserIdContainsNul)
         } else {
-            Ok(Self(value.to_string()))
+            Ok(Self(id.to_string()))
         }
-    }
-}
-
-impl FromStr for UserId {
-    type Err = Error;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        UserId::new(value)
     }
 }

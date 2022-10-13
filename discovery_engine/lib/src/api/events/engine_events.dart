@@ -226,6 +226,17 @@ class EngineEvent with _$EngineEvent {
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.clientEventSucceeded() = ClientEventSucceeded;
 
+  /// Event created when initializing the engine succeeded.
+  ///
+  /// If `dbOverrideError` is not `null` then due to failing to initialize
+  /// (open, migrate) the database was overridden with a new empty one.
+  ///
+  /// This is necessary as else initializing the engine would be impossible if
+  /// the database is corrupted or the engine migrations buggy.
+  @Implements<SystemEngineEvent>()
+  const factory EngineEvent.engineInitSucceeded(String? dbOverrideError) =
+      EngineInitSucceeded;
+
   /// Event created as a success response to [ResetAiRequested] event.
   @Implements<SystemEngineEvent>()
   const factory EngineEvent.resetAiSucceeded() = ResetAiSucceeded;

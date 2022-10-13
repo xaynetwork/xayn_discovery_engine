@@ -43,6 +43,38 @@ pub unsafe extern "C" fn init_embedding_at(
     }
 }
 
+/// Initializes a rust `Option<Embedding>` to `Some(embedding)` based on given slice at given place.
+///
+/// # Safety
+///
+/// - It must be valid to write an `Embedding` instance to given pointer.
+/// - The passed in slice must represent a `Box<[f32]>` and transfers ownership,
+///   and it must be fully initialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_option_embedding_some_at(
+    place: *mut Option<Embedding>,
+    owning_ptr: *mut f32,
+    len: FfiUsize,
+) {
+    let boxed_slice = unsafe { boxed_slice_from_raw_parts::<f32>(owning_ptr, len) };
+    let value = Some(Embedding::from(Array::from(boxed_slice)));
+    unsafe {
+        place.write(value);
+    }
+}
+
+/// Initializes a rust `Option<Embedding>` to `None`.
+///
+/// # Safety
+///
+/// - It must be valid to write an `Embedding` instance to given pointer.
+#[no_mangle]
+pub unsafe extern "C" fn init_option_embedding_none_at(place: *mut Option<Embedding>) {
+    unsafe {
+        place.write(None);
+    }
+}
+
 /// Returns a pointer to the begin of the `[f32]` backing the `Embedding`
 ///
 /// # Safety

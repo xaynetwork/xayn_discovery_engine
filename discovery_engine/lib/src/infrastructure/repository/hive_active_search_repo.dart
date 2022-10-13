@@ -32,8 +32,12 @@ class HiveActiveSearchRepository implements ActiveSearchRepository {
   @override
   Future<void> clear() async {
     await box.clear();
+    await box.flush();
   }
 
   @override
   Future<void> save(ActiveSearch data) => box.put(stateKey, data);
+
+  @override
+  bool get isEmpty => box.isEmpty;
 }

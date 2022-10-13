@@ -52,11 +52,12 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_core::{
         document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, WeightedSource},
+        storage2::DartMigrationData,
         InitConfig,
     };
     use xayn_discovery_engine_providers::Market;
 
-    use crate::types::{engine::SharedEngine, search::Search};
+    use crate::types::{engine::{SharedEngine, InitializationResult}, search::Search};
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
@@ -66,7 +67,8 @@ impl XaynDiscoveryEngineAsyncFfi {
         state: Option<Box<Vec<u8>>>,
         history: Box<Vec<HistoricDocument>>,
         sources: Box<Vec<WeightedSource>>,
-    ) -> Box<Result<SharedEngine, String>> {
+        dart_migration_data: Option<Box<DartMigrationData>>,
+    ) -> Box<Result<InitializationResult, String>> {
         tracing::init_tracing(config.log_file.as_deref().map(Path::new));
 
         Box::new(
@@ -75,9 +77,10 @@ impl XaynDiscoveryEngineAsyncFfi {
                 state.as_deref().map(Vec::as_slice),
                 &history,
                 &sources,
+                dart_migration_data.map(|d| *d),
             )
             .await
-            .map(|engine| tokio::sync::Mutex::new(engine).into())
+            .map(|(engine, init_db_hint)| InitializationResult::new(engine, init_db_hint))
             .map_err(|error| error.to_string()),
         )
     }
@@ -121,16 +124,13 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Gets the next batch of feed documents.
     #[allow(clippy::box_collection)]
-    pub async fn feed_next_batch(
-        engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
-    ) -> Box<Result<Vec<Document>, String>> {
+    pub async fn feed_next_batch(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .feed_next_batch(&sources)
+                .feed_next_batch()
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -201,7 +201,7 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Processes user reaction.
     ///
-    /// The history is only required for positive reactions.
+    /// The history and sources are required only for positive reactions.
     #[allow(clippy::box_collection)]
     pub async fn user_reacted(
         engine: &SharedEngine,
@@ -399,7 +399,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Sets a new list of excluded and trusted sources.
     pub async fn set_sources(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         excluded: Box<Vec<String>>,
         trusted: Box<Vec<String>>,
     ) -> Box<Result<(), String>> {
@@ -408,7 +407,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .set_sources(&sources, *excluded, *trusted)
+                .set_sources(*excluded, *trusted)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -443,7 +442,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Adds a trusted source.
     pub async fn add_trusted_source(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         trusted: Box<String>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -451,7 +449,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .add_trusted_source(&sources, *trusted)
+                .add_trusted_source(*trusted)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -460,7 +458,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Removes a trusted source.
     pub async fn remove_trusted_source(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         trusted: Box<String>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -468,7 +465,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .remove_trusted_source(&sources, *trusted)
+                .remove_trusted_source(*trusted)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -477,7 +474,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Adds an excluded source.
     pub async fn add_excluded_source(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         excluded: Box<String>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -485,7 +481,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .add_excluded_source(&sources, *excluded)
+                .add_excluded_source(*excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -494,7 +490,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     /// Removes an excluded source.
     pub async fn remove_excluded_source(
         engine: &SharedEngine,
-        sources: Box<Vec<WeightedSource>>,
         excluded: Box<String>,
     ) -> Box<Result<(), String>> {
         Box::new(
@@ -502,7 +497,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .remove_excluded_source(&sources, *excluded)
+                .remove_excluded_source(*excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -510,7 +505,7 @@ impl XaynDiscoveryEngineAsyncFfi {
 
     /// Disposes the engine.
     pub async fn dispose(engine: Box<SharedEngine>) {
-        engine.as_ref().as_ref().lock().await;
+        drop(engine.as_ref().as_ref().lock().await);
     }
 
     /// Reset the AI state of this engine

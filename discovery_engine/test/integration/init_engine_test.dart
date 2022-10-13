@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:io' show Directory;
+import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show DiscoveryEngine;
+    show DiscoveryEngine, cfgFeatureStorage;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -52,6 +52,19 @@ void main() {
       final engine = await initEngine(data, server.port);
       expect(engine, isA<DiscoveryEngine>());
       await engine.dispose();
+    });
+
+    test('db override error is reported when the db was corrupted', () async {
+      data.useEphemeralDb = false;
+      await File('${data.applicationDirectoryPath}/db.sqlite')
+          .writeAsBytes([11, 11, 11, 11, 11, 11, 11, 11], flush: true);
+      final engine = await initEngine(data, server.port);
+
+      if (cfgFeatureStorage) {
+        expect(engine.lastDbOverrideError, isNotNull);
+      } else {
+        expect(engine.lastDbOverrideError, isNull);
+      }
     });
   });
 }

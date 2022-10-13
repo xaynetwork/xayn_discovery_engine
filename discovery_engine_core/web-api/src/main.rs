@@ -30,28 +30,27 @@
     clippy::must_use_candidate
 )]
 use std::{env, net::IpAddr};
-
+use tracing_subscriber::fmt::format::FmtSpan;
+use warp::Filter;
+use web_api::{api_routes, AppState, ElasticConfig, InitConfig};
 use xayn_discovery_engine_ai::GenericError;
-
-use db::{init_db, InitConfig};
-use routes::api_routes;
-use storage::UserState;
-
-mod db;
-mod handlers;
-mod models;
-mod routes;
-mod storage;
 
 #[tokio::main]
 async fn main() -> Result<(), GenericError> {
-    let pg_url = env::var("DE_POSTGRES_URL");
+    let filter = env::var("RUST_LOG").unwrap_or_else(|_| "tracing=info,warp=debug".to_owned());
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
-    let path = env::current_dir().unwrap();
-    let smbert_vocab = path.join(dotenvy::var("DE_SMBERT_VOCAB")?);
-    let smbert_model = path.join(dotenvy::var("DE_SMBERT_MODEL")?);
-    let data_store = path.join(dotenvy::var("DE_DATA_PATH")?);
+    let pg_url = env::var("DE_POSTGRES_URL");
     let pg_url = pg_url.or_else(|_| dotenvy::var("DE_POSTGRES_URL"))?;
+    let elastic_url =
+        env::var("ELASTIC_URL").unwrap_or_else(|_| "http://localhost:9200".to_string());
+    let elastic_index_name =
+        env::var("ELASTIC_INDEX_NAME").unwrap_or_else(|_| "test_index".to_string());
+    let elastic_user = env::var("ELASTIC_USER").unwrap_or_else(|_| "elastic".to_string());
+    let elastic_password = env::var("ELASTIC_PASSWORD").unwrap_or_else(|_| "changeme".to_string());
 
     let port = env::var("DE_PORT")
         .unwrap_or_else(|_| "3000".to_string())
@@ -60,17 +59,19 @@ async fn main() -> Result<(), GenericError> {
         .unwrap_or_else(|_| "0.0.0.0".to_string())
         .parse::<IpAddr>()?;
 
-    let user_state = UserState::connect(&pg_url).await?;
-    user_state.init_database().await?;
-
     let config = InitConfig {
-        smbert_vocab,
-        smbert_model,
-        data_store,
-        user_state,
+        max_cois_for_knn: 5,
+        default_documents_count: 10,
+        pg_url,
+        elastic: ElasticConfig {
+            url: elastic_url,
+            index_name: elastic_index_name,
+            user: elastic_user,
+            password: elastic_password,
+        },
     };
-    let db = init_db(&config)?;
-    let routes = api_routes(db);
+    let state = AppState::init(config).await?;
+    let routes = api_routes(state).with(warp::trace::request());
 
     warp::serve(routes).run((ip_addr, port)).await;
     Ok(())

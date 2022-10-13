@@ -28,15 +28,17 @@ import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
 class TestEngineData {
   final Manifest manifest;
   final String applicationDirectoryPath;
-  bool useInMemoryDb;
+  bool useEphemeralDb;
   TestEngineData(
     this.manifest,
     this.applicationDirectoryPath, {
-    this.useInMemoryDb = true,
+    this.useEphemeralDb = true,
   });
 }
 
-Future<TestEngineData> setupTestEngineData({bool useInMemoryDb = true}) async {
+Future<TestEngineData> setupTestEngineData({
+  bool useEphemeralDb = true,
+}) async {
   final applicationDirectoryPath =
       (await Directory.systemTemp.createTemp()).path;
   await Link(
@@ -47,8 +49,7 @@ Future<TestEngineData> setupTestEngineData({bool useInMemoryDb = true}) async {
   );
   final manifest = await createManifestReader().read();
   final assetsWithMockedModels = manifest.assets.map((asset) {
-    final isModelAsset =
-        [AssetType.kpeModel, AssetType.smbertModel].contains(asset.id);
+    final isModelAsset = asset.id == AssetType.smbertModel;
 
     if (isModelAsset) {
       final urlSuffix = asset.urlSuffix.replaceAll(r'quantized', 'mocked');
@@ -61,7 +62,7 @@ Future<TestEngineData> setupTestEngineData({bool useInMemoryDb = true}) async {
   return TestEngineData(
     mockedManifest,
     applicationDirectoryPath,
-    useInMemoryDb: useInMemoryDb,
+    useEphemeralDb: useEphemeralDb,
   );
 }
 
@@ -77,7 +78,7 @@ Configuration createConfig(TestEngineData data, int serverPort) {
     manifest: data.manifest,
     headlinesProviderPath: '/newscatcher/v1/latest-headlines',
     newsProviderPath: '/newscatcher/v1/search-news',
-    useInMemoryDb: data.useInMemoryDb,
+    useEphemeralDb: data.useEphemeralDb,
   );
 }
 

@@ -21,7 +21,7 @@ use figment::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use xayn_discovery_engine_ai::CoiSystemConfig;
+use xayn_discovery_engine_ai::{CoiConfig, KpsConfig};
 use xayn_discovery_engine_providers::{Market, ProviderConfig};
 
 use crate::{
@@ -49,8 +49,12 @@ impl Engine {
         &self.search_config
     }
 
-    pub fn coi_system_config(&self) -> &CoiSystemConfig {
+    pub fn coi_config(&self) -> &CoiConfig {
         self.coi.config()
+    }
+
+    pub fn kps_config(&self) -> &KpsConfig {
+        self.kps.config()
     }
 
     pub fn exploration_config(&self) -> &ExplorationConfig {
@@ -81,14 +85,6 @@ pub struct InitConfig {
     pub smbert_vocab: String,
     /// S-mBert model path.
     pub smbert_model: String,
-    /// KPE vocabulary path.
-    pub kpe_vocab: String,
-    /// KPE model path.
-    pub kpe_model: String,
-    /// KPE CNN path.
-    pub kpe_cnn: String,
-    /// KPE classifier path.
-    pub kpe_classifier: String,
     /// The maximum number of documents per feed batch.
     pub max_docs_per_feed_batch: u32,
     /// The maximum number of documents per search batch.
@@ -99,8 +95,8 @@ pub struct InitConfig {
     pub log_file: Option<String>,
     /// Directory in which user data should be stored.
     pub data_dir: String,
-    /// Use a in-memory db instead of a db in the `data_dir`
-    pub use_in_memory_db: bool,
+    /// Use an ephemeral db instead of a db in the `data_dir`
+    pub use_ephemeral_db: bool,
 }
 
 impl InitConfig {
@@ -303,9 +299,9 @@ pub(crate) fn de_config_from_json(json: &str) -> Figment {
 /// Reads the DE configurations from json and sets defaults for missing fields (if possible).
 pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
     de_config_from_json(json)
-        .join(Serialized::default("kpe.token_size", 150))
         .join(Serialized::default("smbert.token_size", 150))
-        .join(Serialized::defaults(CoiSystemConfig::default()))
+        .join(Serialized::default("coi", CoiConfig::default()))
+        .join(Serialized::default("kps", KpsConfig::default()))
         .join(Serialized::default("core", CoreConfig::default()))
         .join(Serialized::default("endpoint", EndpointConfig::default()))
         .join(Serialized::default(
@@ -377,11 +373,14 @@ mod tests {
     #[test]
     fn test_de_config_from_json_default() -> Result<(), GenericError> {
         let de_config = de_config_from_json_with_defaults("{}");
-        assert_eq!(de_config.extract_inner::<usize>("kpe.token_size")?, 150);
         assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 150);
         assert_eq!(
-            de_config.extract::<CoiSystemConfig>()?,
-            CoiSystemConfig::default(),
+            de_config.extract_inner::<CoiConfig>("coi")?,
+            CoiConfig::default(),
+        );
+        assert_eq!(
+            de_config.extract_inner::<KpsConfig>("kps")?,
+            KpsConfig::default(),
         );
         assert_eq!(
             de_config.extract_inner::<CoreConfig>("core")?,
@@ -419,7 +418,7 @@ mod tests {
                 "coi": {
                     "threshold": 0.42
                 },
-                "kpe": {
+                "kps": {
                     "penalty": [0.99, 0.66, 0.33]
                 },
                 "smbert": {
@@ -438,13 +437,14 @@ mod tests {
                 }
             }"#,
         );
-        assert_eq!(de_config.extract_inner::<usize>("kpe.token_size")?, 150);
         assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 42);
         assert_eq!(
-            de_config.extract::<CoiSystemConfig>()?,
-            CoiSystemConfig::default()
-                .with_threshold(0.42)?
-                .with_penalty(&[0.99, 0.66, 0.33])?,
+            de_config.extract_inner::<CoiConfig>("coi")?,
+            CoiConfig::default().with_threshold(0.42)?,
+        );
+        assert_eq!(
+            de_config.extract_inner::<KpsConfig>("kps")?,
+            KpsConfig::default().with_penalty(&[0.99, 0.66, 0.33])?,
         );
         assert_eq!(
             de_config.extract_inner::<CoreConfig>("core")?,

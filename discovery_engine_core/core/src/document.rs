@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use chrono::NaiveDateTime;
+use chrono::{offset::Utc, DateTime};
 use derivative::Derivative;
 use derive_more::Display;
 use displaydoc::Display as DisplayDoc;
@@ -44,7 +44,9 @@ pub enum Error {
 }
 
 /// Unique identifier of the [`Document`].
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Serialize, Deserialize, Display)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Serialize, Deserialize, Display,
+)]
 #[repr(transparent)]
 #[cfg_attr(
     feature = "storage",
@@ -126,16 +128,14 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
 }
 
 impl AiDocument for Document {
-    fn id(&self) -> DocumentId {
-        self.id.into()
+    type Id = Id;
+
+    fn id(&self) -> &Self::Id {
+        &self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {
         &self.smbert_embedding
-    }
-
-    fn date_published(&self) -> NaiveDateTime {
-        self.resource.date_published
     }
 }
 
@@ -155,7 +155,7 @@ pub struct NewsResource {
     pub source_domain: String,
 
     /// Publishing date.
-    pub date_published: NaiveDateTime,
+    pub date_published: DateTime<Utc>,
 
     /// Image attached to the news.
     pub image: Option<Url>,
@@ -263,7 +263,7 @@ pub struct TimeSpent {
     pub reaction: UserReaction,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
 #[repr(u32)]
 pub enum ViewMode {
@@ -312,6 +312,7 @@ pub struct HistoricDocument {
 
 /// A source domain with an associated weight.
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Clone, PartialEq, Eq))]
 pub struct WeightedSource {
     /// Source domain.
     pub source: String,
@@ -350,23 +351,20 @@ impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
 }
 
 impl AiDocument for TrendingTopic {
-    fn id(&self) -> DocumentId {
-        self.id.into()
+    type Id = Id;
+
+    fn id(&self) -> &Self::Id {
+        &self.id
     }
 
     fn smbert_embedding(&self) -> &Embedding {
         &self.smbert_embedding
     }
-
-    fn date_published(&self) -> NaiveDateTime {
-        // return a default value as there is no `date_published` for trending topics
-        NaiveDateTime::MIN
-    }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use chrono::NaiveDate;
+    use chrono::TimeZone;
 
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
 
@@ -380,7 +378,7 @@ pub(crate) mod tests {
                 url: example_url(),
                 source_domain: "example.com".to_string(),
                 image: None,
-                date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+                date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
                 score: None,
                 rank: 0,
                 country: "GB".to_string(),
@@ -403,7 +401,7 @@ pub(crate) mod tests {
             topic: "news".to_string(),
             country: "GB".to_string(),
             language: "en".to_string(),
-            date_published: NaiveDate::from_ymd(2022, 1, 1).and_hms(9, 0, 0),
+            date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
             url: UrlWithDomain::new(Url::parse("https://example.com/news/").unwrap()).unwrap(),
             image: Some(Url::parse("https://example.com/news/image.jpg").unwrap()),
             embedding: None,

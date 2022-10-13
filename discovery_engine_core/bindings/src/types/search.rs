@@ -16,11 +16,8 @@
 
 use std::ptr::addr_of_mut;
 
-#[repr(u8)]
-pub enum SearchBy {
-    Query,
-    Topic,
-}
+// We can reuse the `SearchBy` variant enum from storage.
+use xayn_discovery_engine_core::storage2::SearchBy;
 
 pub struct Search {
     pub by: SearchBy,

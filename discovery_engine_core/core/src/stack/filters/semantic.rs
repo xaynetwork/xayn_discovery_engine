@@ -14,6 +14,7 @@
 
 use std::collections::BTreeMap;
 
+use chrono::{offset::Utc, DateTime};
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
@@ -327,12 +328,11 @@ where
 mod tests {
     use std::iter::repeat_with;
 
-    use chrono::NaiveDateTime;
+    use chrono::{TimeZone, Utc};
     use ndarray::aview1;
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
-    use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
     use crate::document::NewsResource;
 
@@ -527,7 +527,7 @@ mod tests {
             Document {
                 smbert_embedding,
                 resource: NewsResource {
-                    date_published: NaiveDateTime::from_timestamp(secs, 0),
+                    date_published: Utc.timestamp(secs, 0),
                     ..NewsResource::default()
                 },
                 ..Document::default()
@@ -551,8 +551,8 @@ mod tests {
             .unwrap()
             .with_token_size(52)
             .unwrap()
-            .with_accents(AccentChars::Cleanse)
-            .with_case(CaseChars::Lower)
+            .with_cleanse_accents(true)
+            .with_lower_case(true)
             .with_pooling::<AveragePooler>()
             .build()
             .unwrap();

@@ -112,7 +112,6 @@ class MockEngine implements Engine {
 
   @override
   Future<void> setSources(
-    List<SourceReacted> sources,
     Set<Source> excluded,
     Set<Source> trusted,
   ) async {
@@ -135,7 +134,6 @@ class MockEngine implements Engine {
 
   @override
   Future<void> addExcludedSource(
-    List<SourceReacted> sources,
     Source excluded,
   ) async {
     _incrementCount('addExcludedSource');
@@ -143,7 +141,6 @@ class MockEngine implements Engine {
 
   @override
   Future<void> removeExcludedSource(
-    List<SourceReacted> sources,
     Source excluded,
   ) async {
     _incrementCount('removeExcludedSource');
@@ -151,7 +148,6 @@ class MockEngine implements Engine {
 
   @override
   Future<void> addTrustedSource(
-    List<SourceReacted> sources,
     Source trusted,
   ) async {
     _incrementCount('addTrustedSource');
@@ -159,16 +155,13 @@ class MockEngine implements Engine {
 
   @override
   Future<void> removeTrustedSource(
-    List<SourceReacted> sources,
     Source trusted,
   ) async {
     _incrementCount('removeTrustedSource');
   }
 
   @override
-  Future<List<DocumentWithActiveData>> feedNextBatch(
-    List<SourceReacted> sources,
-  ) async {
+  Future<List<DocumentWithActiveData>> feedNextBatch() async {
     _incrementCount('feedNextBatch');
     return feedDocuments.take(2).toList(growable: false);
   }
@@ -303,6 +296,9 @@ class MockEngine implements Engine {
     _incrementCount('resetAi');
     return;
   }
+
+  @override
+  String? get lastDbOverrideError => null;
 }
 
 const mockTrendingTopic = TrendingTopic(

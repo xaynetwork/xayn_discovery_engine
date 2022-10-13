@@ -48,10 +48,6 @@ void main() {
     final setupData = NativeSetupData(
       smbertVocab: '',
       smbertModel: '',
-      kpeVocab: '',
-      kpeModel: '',
-      kpeCnn: '',
-      kpeClassifier: '',
       availableSources: '',
     );
     expect(
@@ -66,6 +62,7 @@ void main() {
           trustedSources: {},
           excludedSources: {},
         ),
+        null,
       ),
       allOf(
         throwsException,

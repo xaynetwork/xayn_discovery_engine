@@ -58,7 +58,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         SearchBy,
         ResetAiSucceeded;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
-    show MapEvent;
+    show EngineInitSucceeded, MapEvent;
 import 'package:xayn_discovery_engine/src/discovery_engine_manager.dart'
     show DiscoveryEngineManager;
 import 'package:xayn_discovery_engine/src/discovery_engine_worker.dart'
@@ -81,8 +81,9 @@ final kIsWeb = UniversalPlatform.isWeb;
 /// This class exposes Xayn Discovery Engine API to the clients.
 class DiscoveryEngine {
   final DiscoveryEngineManager _manager;
+  final String? lastDbOverrideError;
 
-  DiscoveryEngine._(this._manager);
+  DiscoveryEngine._(this._manager, this.lastDbOverrideError);
 
   /// Stream of [EngineEvent] coming back from a discovery engine worker.
   Stream<EngineEvent> get engineEvents => _manager.responses;
@@ -133,7 +134,7 @@ class DiscoveryEngine {
       final response = await manager.send(initEvent, timeout: null);
       await subscription?.cancel();
 
-      if (response is! ClientEventSucceeded) {
+      if (response is! EngineInitSucceeded) {
         await manager.dispose();
         throw EngineInitException(
           'Something went wrong when sending over the configuration',
@@ -141,7 +142,7 @@ class DiscoveryEngine {
         );
       }
 
-      return DiscoveryEngine._(manager);
+      return DiscoveryEngine._(manager, response.dbOverrideError);
     } catch (error, stackTrace) {
       const message =
           'Something went wrong during Discovery Engine initialization';

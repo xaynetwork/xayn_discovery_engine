@@ -12,50 +12,72 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::convert::Infallible;
+use std::{convert::Infallible, sync::Arc};
 use warp::{self, Filter, Rejection, Reply};
 
-use crate::{db::Db, handlers, models::UserId};
+use crate::{
+    handlers,
+    models::{Error, PersonalizedDocumentsQuery, UserId, COUNT_PARAM_RANGE},
+    state::AppState,
+};
 
-pub(crate) fn api_routes(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    get_ranked_documents(db.clone())
-        .or(post_user_interaction(db.clone()))
-        .or(delete_internal_state(db))
+pub fn api_routes(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    get_personalized_documents(state.clone()).or(patch_user_interactions(state))
 }
 
-// GET /user/:user_id/documents
-fn get_ranked_documents(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+// GET /users/:user_id/personalized_documents
+fn get_personalized_documents(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     user_path()
-        .and(warp::path("documents"))
+        .and(warp::path("personalized_documents"))
         .and(warp::get())
-        .and(with_db(db))
-        .and_then(handlers::handle_ranked_documents)
+        .and(with_count_param())
+        .and(with_state(state))
+        .and_then(handlers::handle_personalized_documents)
 }
 
-// POST /user/:user_id/interaction
-fn post_user_interaction(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+// PATCH /users/:user_id/interactions
+fn patch_user_interactions(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     user_path()
-        .and(warp::path("interaction"))
-        .and(warp::post())
+        .and(warp::path("interactions"))
+        .and(warp::patch())
         .and(warp::body::content_length_limit(1024))
         .and(warp::body::json())
-        .and(with_db(db))
-        .and_then(handlers::handle_user_interaction)
+        .and(with_state(state))
+        .and_then(handlers::handle_user_interactions)
 }
 
-// DELETE /internal-state
-fn delete_internal_state(db: Db) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::path("internal-state")
-        .and(warp::delete())
-        .and(with_db(db))
-        .and_then(handlers::handle_clean_state)
-}
-
-// PATH /user/:user_id
+// PATH /users/:user_id
 fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
-    warp::path("user").and(warp::path::param::<UserId>())
+    warp::path("users")
+        .and(warp::path::param::<String>())
+        .and_then(|user_id: String| async move {
+            urlencoding::decode(&user_id)
+                .map_err(Error::UserIdUtf8Conversion)
+                .and_then(UserId::new)
+                .map_err(warp::reject::custom)
+        })
 }
 
-fn with_db(db: Db) -> impl Filter<Extract = (Db,), Error = Infallible> + Clone {
-    warp::any().map(move || db.clone())
+/// Extract a "count" from query params and check if within bounds, or reject with InvalidCountParam error.
+fn with_count_param(
+) -> impl Filter<Extract = (PersonalizedDocumentsQuery,), Error = Rejection> + Copy {
+    warp::query().and_then(|query: PersonalizedDocumentsQuery| async {
+        match query.count {
+            Some(count) if COUNT_PARAM_RANGE.contains(&count) => Ok(query),
+            Some(count) => Err(warp::reject::custom(Error::InvalidCountParam(count))),
+            None => Ok(query),
+        }
+    })
+}
+
+fn with_state(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = (Arc<AppState>,), Error = Infallible> + Clone {
+    warp::any().map(move || state.clone())
 }

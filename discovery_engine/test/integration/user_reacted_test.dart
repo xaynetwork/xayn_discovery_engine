@@ -53,7 +53,7 @@ void main() {
     });
 
     test('change the user reaction of a document', () async {
-      data.useInMemoryDb = false;
+      data.useEphemeralDb = false;
       var engine = await initEngine(data, server.port);
 
       // fetch some documents
@@ -93,8 +93,7 @@ void main() {
       final stateAfterRequest =
           await loadEngineState(data.applicationDirectoryPath);
       expect(stateAfterRequest, isNotNull);
-      expect(stateBeforeRequest, isNot(equals(stateAfterRequest)));
-      // TODO[pmk] loadEngineState is too hive specific
+      expect(stateBeforeRequest, isNot(stateAfterRequest));
       // ignore: require_trailing_commas
     }, skip: cfgFeatureStorage);
 

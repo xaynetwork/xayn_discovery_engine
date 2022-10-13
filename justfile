@@ -95,7 +95,7 @@ dart-check: dart-build
 flutter-check: dart-build flutter-deps
     @{{just_executable()}} _dart-analyze "$FLUTTER_WORKSPACE"
 
-flutter-test: dart-build flutter-deps
+flutter-test: rust-build dart-build flutter-deps
     cd "$FLUTTER_WORKSPACE"; \
     flutter test
 
@@ -370,6 +370,12 @@ build-web-service:
     cd "$RUST_WORKSPACE"
     cargo build --release --bin web-api
 
+build-ingestion-service:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    cargo build --release --bin ingestion
+
 db-setup:
     #!/usr/bin/env bash
     set -eux -o pipefail
@@ -394,24 +400,33 @@ db-migrate +ARGS:
     export $(cat .env.db.dev | xargs)
     cargo sqlx migrate --source "core/src/storage/migrations" {{ARGS}}
 
-web-service-up: build-web-service
+web-ingestion-up: build-ingestion-service
     #!/usr/bin/env bash
     set -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
     rm -rf "$RUST_WORKSPACE/web-api/assets"
     mkdir -p "$RUST_WORKSPACE/web-api/assets"
-    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert-quantized.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
     ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
-    ln -s "../dummy_data.json" "$RUST_WORKSPACE/web-api/assets/data.json"
+    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+    sleep 2
+    cd "$RUST_WORKSPACE/web-api"
+    ./../target/release/ingestion
 
-    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+web-api-up: build-web-service
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     sleep 2
     cd "$RUST_WORKSPACE/web-api"
     ./../target/release/web-api
 
-web-service-down:
+web-down:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
 
 alias d := dart-test
 alias r := rust-test

@@ -23,8 +23,9 @@ use thiserror::Error;
 use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
 
 use crate::{
-    document::{self, HistoricDocument, UserReaction, ViewMode},
+    document::{self, HistoricDocument, UserReaction, ViewMode, WeightedSource},
     stack,
+    storage2::InitDbHint,
 };
 
 use self::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView};
@@ -60,9 +61,11 @@ impl From<MalformedBytesEmbedding> for Error {
 
 #[async_trait]
 pub(crate) trait Storage {
-    async fn init_database(&self) -> Result<(), Error>;
+    async fn clear_database(&self) -> Result<bool, Error>;
 
     async fn fetch_history(&self) -> Result<Vec<HistoricDocument>, Error>;
+
+    async fn fetch_weighted_sources(&self) -> Result<Vec<WeightedSource>, Error>;
 
     fn feed(&self) -> &(dyn FeedScope + Send + Sync);
 
@@ -74,6 +77,8 @@ pub(crate) trait Storage {
     fn state(&self) -> &(dyn StateScope + Send + Sync);
 
     fn source_preference(&self) -> &(dyn SourcePreferenceScope + Send + Sync);
+
+    fn source_reaction(&self) -> &(dyn SourceReactionScope + Send + Sync);
 }
 
 #[async_trait]
@@ -129,11 +134,13 @@ pub(crate) trait FeedbackScope {
         view_mode: ViewMode,
         view_time: Duration,
     ) -> Result<TimeSpentDocumentView, Error>;
+
+    async fn update_source_reaction(&self, source: &str, like: bool) -> Result<(), Error>;
 }
 
 #[async_trait]
 pub(crate) trait StateScope {
-    async fn store(&self, bytes: Vec<u8>) -> Result<(), Error>;
+    async fn store(&self, bytes: &[u8]) -> Result<(), Error>;
 
     async fn fetch(&self) -> Result<Option<Vec<u8>>, Error>;
 
@@ -151,10 +158,30 @@ pub(crate) trait SourcePreferenceScope {
     async fn fetch_excluded(&self) -> Result<HashSet<String>, Error>;
 }
 
+#[async_trait]
+pub(crate) trait SourceReactionScope {
+    /// Fetch the weight of a source.
+    ///
+    /// The weight defaults to 0 if no weight is stored.
+    async fn fetch_source_weight(&self, source: &str) -> Result<i32, Error>;
+
+    /// Updates the source weight.
+    ///
+    /// If no source weight was stored a new weight equals to `add_weight` will be stored.
+    ///
+    /// If the sign of the source weight stored differs from the sign of `add_weight` it
+    /// will be set to 0 no matter the amount changed.
+    ///
+    /// Currently negative weight is capped at -1.
+    async fn update_source_weight(&self, source: &str, add_weight: i32) -> Result<(), Error>;
+
+    async fn delete_source_reaction(&self, source: &str) -> Result<(), Error>;
+}
+
 pub mod models {
     use std::time::Duration;
 
-    use chrono::NaiveDateTime;
+    use chrono::{DateTime, Utc};
     use url::Url;
     use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_providers::Market;
@@ -235,9 +262,11 @@ pub mod models {
     impl ApiDocumentView {
         /// Gets the snippet or falls back to the title if the snippet is empty.
         pub(crate) fn snippet_or_title(&self) -> &str {
-            (!self.news_resource.snippet.is_empty())
-                .then(|| &self.news_resource.snippet)
-                .unwrap_or(&self.news_resource.title)
+            if self.news_resource.snippet.is_empty() {
+                &self.news_resource.title
+            } else {
+                &self.news_resource.snippet
+            }
         }
     }
 
@@ -272,10 +301,7 @@ pub mod models {
         pub(crate) image: Option<Url>,
 
         /// Publishing date.
-        // FIXME: it's NativeDateTime in the current codebase but we can't compare
-        //      NativeDateTimes across different markets, but we do! So this needs to be
-        //      at least a Utc DateTime.
-        pub(crate) date_published: NaiveDateTime,
+        pub(crate) date_published: DateTime<Utc>,
 
         /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
         pub(crate) source: String,
@@ -290,24 +316,8 @@ pub mod models {
         pub(crate) score: Option<f32>,
     }
 
-    #[derive(Debug, PartialEq, Eq)]
-    pub(crate) struct Search {
-        pub(crate) search_by: SearchBy,
-        pub(crate) search_term: String,
-        pub(crate) paging: Paging,
-    }
-
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, num_derive::FromPrimitive)]
-    pub(crate) enum SearchBy {
-        Query = 0,
-        Topic = 1,
-    }
-
-    #[derive(Debug, PartialEq, Eq)]
-    pub(crate) struct Paging {
-        pub(crate) size: u32,
-        pub(crate) next_page: u32,
-    }
+    //FIXME move type here once feature storage is removed
+    pub use crate::storage2::{Paging, Search, SearchBy};
 
     #[derive(Debug, PartialEq)]
     pub(crate) struct TimeSpentDocumentView {

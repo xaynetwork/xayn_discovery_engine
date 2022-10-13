@@ -55,10 +55,6 @@ class WebDataProvider extends DataProvider {
     return WebSetupData(
       smbertVocab: fetched[AssetType.smbertVocab]!,
       smbertModel: fetched[AssetType.smbertModel]!,
-      kpeVocab: fetched[AssetType.kpeVocab]!,
-      kpeModel: fetched[AssetType.kpeModel]!,
-      kpeCnn: fetched[AssetType.kpeCnn]!,
-      kpeClassifier: fetched[AssetType.kpeClassifier]!,
       availableSources: fetched[AssetType.availableSources]!,
     );
   }
@@ -70,23 +66,11 @@ class WebSetupData extends SetupData {
   @override
   final Uint8List smbertModel;
   @override
-  final Uint8List kpeVocab;
-  @override
-  final Uint8List kpeModel;
-  @override
-  final Uint8List kpeCnn;
-  @override
-  final Uint8List kpeClassifier;
-  @override
   final Uint8List availableSources;
 
   WebSetupData({
     required this.smbertVocab,
     required this.smbertModel,
-    required this.kpeVocab,
-    required this.kpeModel,
-    required this.kpeCnn,
-    required this.kpeClassifier,
     required this.availableSources,
   });
 

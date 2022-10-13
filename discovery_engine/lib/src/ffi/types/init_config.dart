@@ -45,16 +45,12 @@ class InitConfigFfi with EquatableMixin {
   final List<String> excludedSources;
   final String smbertVocab;
   final String smbertModel;
-  final String kpeVocab;
-  final String kpeModel;
-  final String kpeCnn;
-  final String kpeClassifier;
   final int maxDocsPerFeedBatch;
   final int maxDocsPerSearchBatch;
   final String? deConfig;
   final String? logFile;
   final String dataDir;
-  final bool useInMemoryDb;
+  final bool useEphemeralDb;
 
   @override
   List<Object?> get props => [
@@ -67,16 +63,12 @@ class InitConfigFfi with EquatableMixin {
         excludedSources,
         smbertVocab,
         smbertModel,
-        kpeVocab,
-        kpeModel,
-        kpeCnn,
-        kpeClassifier,
         maxDocsPerFeedBatch,
         maxDocsPerSearchBatch,
         deConfig,
         logFile,
         dataDir,
-        useInMemoryDb,
+        useEphemeralDb,
       ];
 
   factory InitConfigFfi(
@@ -96,16 +88,12 @@ class InitConfigFfi with EquatableMixin {
         excludedSources: excludedSources.toStringList(),
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
-        kpeVocab: setupData.kpeVocab,
-        kpeModel: setupData.kpeModel,
-        kpeCnn: setupData.kpeCnn,
-        kpeClassifier: setupData.kpeClassifier,
         maxDocsPerFeedBatch: configuration.maxItemsPerFeedBatch,
         maxDocsPerSearchBatch: configuration.maxItemsPerSearchBatch,
         deConfig: deConfig,
         logFile: configuration.logFile,
         dataDir: configuration.applicationDirectoryPath,
-        useInMemoryDb: configuration.useInMemoryDb,
+        useEphemeralDb: configuration.useEphemeralDb,
       );
 
   InitConfigFfi.fromParts({
@@ -118,14 +106,10 @@ class InitConfigFfi with EquatableMixin {
     required this.excludedSources,
     required this.smbertVocab,
     required this.smbertModel,
-    required this.kpeVocab,
-    required this.kpeModel,
-    required this.kpeCnn,
-    required this.kpeClassifier,
     required this.maxDocsPerFeedBatch,
     required this.maxDocsPerSearchBatch,
     required this.dataDir,
-    required this.useInMemoryDb,
+    required this.useEphemeralDb,
     this.deConfig,
     this.logFile,
   });
@@ -150,10 +134,6 @@ class InitConfigFfi with EquatableMixin {
         .writeNative(ffi.init_config_place_of_excluded_sources(place));
     smbertVocab.writeNative(ffi.init_config_place_of_smbert_vocab(place));
     smbertModel.writeNative(ffi.init_config_place_of_smbert_model(place));
-    kpeVocab.writeNative(ffi.init_config_place_of_kpe_vocab(place));
-    kpeModel.writeNative(ffi.init_config_place_of_kpe_model(place));
-    kpeCnn.writeNative(ffi.init_config_place_of_kpe_cnn(place));
-    kpeClassifier.writeNative(ffi.init_config_place_of_kpe_classifier(place));
     maxDocsPerFeedBatch
         .writeNative(ffi.init_config_place_of_max_docs_per_feed_batch(place));
     maxDocsPerSearchBatch
@@ -163,7 +143,8 @@ class InitConfigFfi with EquatableMixin {
     dataDir.writeNative(
       ffi.init_config_place_of_data_dir(place),
     );
-    useInMemoryDb.writeNative(ffi.init_config_place_of_use_in_memory_db(place));
+    useEphemeralDb
+        .writeNative(ffi.init_config_place_of_use_ephemeral_db(place));
   }
 
   @visibleForTesting
@@ -190,13 +171,6 @@ class InitConfigFfi with EquatableMixin {
           StringFfi.readNative(ffi.init_config_place_of_smbert_vocab(config)),
       smbertModel:
           StringFfi.readNative(ffi.init_config_place_of_smbert_model(config)),
-      kpeVocab:
-          StringFfi.readNative(ffi.init_config_place_of_kpe_vocab(config)),
-      kpeModel:
-          StringFfi.readNative(ffi.init_config_place_of_kpe_model(config)),
-      kpeCnn: StringFfi.readNative(ffi.init_config_place_of_kpe_cnn(config)),
-      kpeClassifier:
-          StringFfi.readNative(ffi.init_config_place_of_kpe_classifier(config)),
       maxDocsPerFeedBatch: FfiUsizeFfi.readNative(
         ffi.init_config_place_of_max_docs_per_feed_batch(config),
       ),
@@ -212,8 +186,8 @@ class InitConfigFfi with EquatableMixin {
       dataDir: StringFfi.readNative(
         ffi.init_config_place_of_data_dir(config),
       ),
-      useInMemoryDb: BoolFfi.readNative(
-        ffi.init_config_place_of_use_in_memory_db(config),
+      useEphemeralDb: BoolFfi.readNative(
+        ffi.init_config_place_of_use_ephemeral_db(config),
       ),
     );
   }

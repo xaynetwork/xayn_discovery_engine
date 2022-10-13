@@ -70,7 +70,7 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
 
   MockDiscoveryEngineWorker(
     Object initialMessage, {
-    this.initResponse = const EngineEvent.clientEventSucceeded(),
+    this.initResponse = const EngineEvent.engineInitSucceeded(null),
     this.configurationChangedResponse =
         const EngineEvent.clientEventSucceeded(),
     this.restoreFeedRequestedResponse =
