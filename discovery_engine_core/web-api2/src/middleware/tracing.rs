@@ -47,7 +47,6 @@ where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error>,
     S::Future: 'static,
 {
-    //FIXME try to use tracing-actix-web and the request id of it instead
     let request_id = RequestId::generate();
     let span = info_span!(
         "request",
