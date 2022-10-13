@@ -51,7 +51,7 @@ pub(crate) async fn handle_personalized_documents(
 ) -> Result<Box<dyn Reply>, Infallible> {
     if let Err(err) = state.user.user_seen(&user_id).await {
         error!("Error updating user seen: {err}");
-        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR));
+        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR) as Box<dyn Reply>);
     }
 
     let user_interests = match state.user.fetch_interests(&user_id).await {
@@ -162,7 +162,7 @@ pub(crate) async fn handle_user_interactions(
 ) -> Result<Box<dyn Reply>, Infallible> {
     if let Err(err) = state.user.user_seen(&user_id).await {
         error!("Error updating user seen: {err}");
-        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR));
+        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR) as Box<dyn Reply>);
     }
 
     let ids = body
