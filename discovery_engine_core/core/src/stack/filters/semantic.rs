@@ -30,7 +30,7 @@ use super::source_weight;
 /// # Panics
 /// Panics if the indices `i` or `j` are out of bounds.
 #[inline]
-fn cosine_similarity(documents: &[Document], norms: &[f32], i: usize, j: usize) -> f32 {
+fn condensed_cosine_similarity(documents: &[Document], norms: &[f32], i: usize, j: usize) -> f32 {
     if norms[i] <= 0. || norms[j] <= 0. {
         return 1.0;
     }
@@ -50,7 +50,7 @@ fn cosine_similarity(documents: &[Document], norms: &[f32], i: usize, j: usize) 
 /// Panics if the indices `i` or `j` are out of bounds.
 #[inline]
 #[allow(clippy::cast_possible_truncation)] // distance is small enough
-fn date_distance(documents: &[Document], i: usize, j: usize) -> usize {
+fn condensed_date_distance(documents: &[Document], i: usize, j: usize) -> usize {
     (documents[i].resource.date_published - documents[j].resource.date_published)
         .num_days()
         .unsigned_abs() as usize
@@ -61,7 +61,12 @@ fn date_distance(documents: &[Document], i: usize, j: usize) -> usize {
 /// # Panics
 /// Panics if the index `distance` is out of bounds.
 #[inline]
-fn decay_factor(distance: usize, max_days: usize, exp_max_days: f32, threshold: f32) -> f32 {
+fn condensed_decay_factor(
+    distance: usize,
+    max_days: usize,
+    exp_max_days: f32,
+    threshold: f32,
+) -> f32 {
     if max_days <= distance {
         return threshold;
     }
@@ -195,13 +200,14 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
     let combined = triangular_indices(documents.len())
         .into_par_iter()
         .map(|(i, j)| {
-            let distance = date_distance(documents, i, j);
-            let decay = decay_factor(distance, config.max_days, exp_max_days, config.threshold);
+            let distance = condensed_date_distance(documents, i, j);
+            let decay =
+                condensed_decay_factor(distance, config.max_days, exp_max_days, config.threshold);
 
             if decay == 0. {
                 0.
             } else {
-                cosine_similarity(documents, &norms, i, j) * decay
+                condensed_cosine_similarity(documents, &norms, i, j) * decay
             }
         })
         .collect::<Vec<_>>();
@@ -344,7 +350,7 @@ mod tests {
             let norms = compute_norms(&documents);
             let condensed = triangular_indices(documents.len())
                 .into_iter()
-                .map(|(i, j)| cosine_similarity(&documents, &norms, i, j))
+                .map(|(i, j)| condensed_cosine_similarity(&documents, &norms, i, j))
                 .collect_vec();
             if n < 2 {
                 assert!(condensed.is_empty());
@@ -361,7 +367,7 @@ mod tests {
             let documents = repeat_with(Document::default).take(n).collect_vec();
             let condensed = triangular_indices(documents.len())
                 .into_iter()
-                .map(|(i, j)| date_distance(&documents, i, j))
+                .map(|(i, j)| condensed_date_distance(&documents, i, j))
                 .collect_vec();
             if n < 2 {
                 assert!(condensed.is_empty());
@@ -380,7 +386,7 @@ mod tests {
         let threshold = 0.5;
         for distance in 0..5 {
             for distance in 0..distance {
-                let factor = decay_factor(distance, max_days, exp_max_days, threshold);
+                let factor = condensed_decay_factor(distance, max_days, exp_max_days, threshold);
                 if distance < max_days {
                     assert!(factor > threshold);
                 } else {
