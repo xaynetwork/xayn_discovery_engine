@@ -14,7 +14,6 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{offset::Utc, DateTime};
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
