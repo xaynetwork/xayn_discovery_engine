@@ -30,18 +30,18 @@ use super::source_weight;
 /// # Panics
 /// Panics if the indices `i` or `j` are out of bounds.
 #[inline]
-fn condensed_cosine_similarity(documents: &[Document], norms: &[f32], i: usize, j: usize) -> f32 {
+fn condensed_cosine_similarity<'a, I>(embeddings: I, norms: &[f32], i: usize, j: usize) -> f32
+where
+    I: IntoIterator<Item = ArrayView1<'a, f32>>,
+    I::IntoIter: Clone,
+{
     if norms[i] <= 0. || norms[j] <= 0. {
         return 1.0;
     }
 
-    (documents[i]
-        .smbert_embedding
-        .view()
-        .dot(&documents[j].smbert_embedding.view())
-        / norms[i]
-        / norms[j])
-        .clamp(-1., 1.)
+    let embeddings = embeddings.into_iter().collect::<Vec<ArrayView1<'a, f32>>>();
+
+    (embeddings[i].dot(&embeddings[j]) / norms[i] / norms[j]).clamp(-1., 1.)
 }
 
 /// Computes the date distance (in days) of two documents' publication dates.
@@ -207,7 +207,12 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
             if decay == 0. {
                 0.
             } else {
-                condensed_cosine_similarity(documents, &norms, i, j) * decay
+                condensed_cosine_similarity(
+                    documents.iter().map(|it| it.smbert_embedding.view()),
+                    &norms,
+                    i,
+                    j,
+                ) * decay
             }
         })
         .collect::<Vec<_>>();
@@ -348,9 +353,10 @@ mod tests {
         for n in 0..5 {
             let documents = repeat_with(Document::default).take(n).collect_vec();
             let norms = compute_norms(&documents);
+            let embeddings = &documents.iter().map(|it| it.smbert_embedding.view());
             let condensed = triangular_indices(documents.len())
                 .into_iter()
-                .map(|(i, j)| condensed_cosine_similarity(&documents, &norms, i, j))
+                .map(|(i, j)| condensed_cosine_similarity(embeddings.clone(), &norms, i, j))
                 .collect_vec();
             if n < 2 {
                 assert!(condensed.is_empty());
