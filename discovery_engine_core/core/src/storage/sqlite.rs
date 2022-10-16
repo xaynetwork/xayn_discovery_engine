@@ -326,6 +326,40 @@ impl SqliteStorage {
         tx.commit().await?;
         Ok(sources)
     }
+
+    async fn update_source_weights(&self, reactions: &[WeightedSource]) -> Result<(), Error> {
+        if reactions.is_empty() {
+            return Ok(());
+        }
+
+        let mut tx = self.pool.begin().await?;
+
+        let now = Utc::now().naive_utc();
+
+        let mut count = 0;
+        QueryBuilder::new("INSERT INTO SourceReaction (source, weight, lastUpdated) ")
+            .push_values(reactions, |mut query, item| {
+                count += 1;
+                query
+                    .push_bind(&item.source)
+                    .push_bind(item.weight)
+                    .push_bind(now);
+            })
+            .push(
+                "ON CONFLICT DO UPDATE SET
+                    weight = weight + EXCLUDED.weight,
+                    lastUpdated = EXCLUDED.lastUpdated;",
+            )
+            .build()
+            // outside of migrations we always will call this with exactly one
+            // values tuple, there is no reason to not cache it in that case
+            .persistent(count == 1)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -661,7 +695,7 @@ impl StateScope for SqliteStorage {
 
         tx.commit().await?;
 
-        Ok(state.and_then(|state| (!state.state.is_empty()).then(|| state.state)))
+        Ok(state.and_then(|state| (!state.state.is_empty()).then_some(state.state)))
     }
 
     async fn clear(&self) -> Result<bool, Error> {
@@ -872,13 +906,17 @@ impl FeedbackScope for SqliteStorage {
     }
 
     async fn update_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
-        match self.fetch_source_reaction(source).await? {
-            None => self.create_source_reaction(source, liked).await,
-            Some(reaction) if reaction == liked => {
-                self.update_source_weight(source, liked.into()).await
+        let weight_diff = if liked { 1 } else { -1 };
+        match self.fetch_source_weight(source).await? {
+            0 => self.update_source_weight(source, weight_diff).await?,
+            weight if (weight > 0) == liked => {
+                self.update_source_weight(source, if liked { 1 } else { 0 })
+                    .await?;
             }
-            _ => self.delete_source_reaction(source).await,
+
+            _ => self.delete_source_reaction(source).await?,
         }
+        Ok(())
     }
 }
 
@@ -959,7 +997,7 @@ impl From<QueriedSourceReaction> for WeightedSource {
 
 #[async_trait]
 impl SourceReactionScope for SqliteStorage {
-    async fn fetch_source_reaction(&self, source: &str) -> Result<Option<bool>, Error> {
+    async fn fetch_source_weight(&self, source: &str) -> Result<i32, Error> {
         let mut tx = self.pool.begin().await?;
 
         let reaction = sqlx::query_as::<_, QueriedSourceReaction>(
@@ -973,43 +1011,15 @@ impl SourceReactionScope for SqliteStorage {
 
         tx.commit().await?;
 
-        Ok(reaction.map(|r| r.weight > 0))
+        Ok(reaction.map_or(0, |r| r.weight))
     }
 
-    async fn create_source_reaction(&self, source: &str, liked: bool) -> Result<(), Error> {
-        let weight = if liked { 1 } else { -1 };
-        let last_updated = Utc::now().naive_utc();
-
-        let mut tx = self.pool.begin().await?;
-
-        sqlx::query("INSERT INTO SourceReaction (source, weight, lastUpdated) VALUES (?, ?, ?);")
-            .bind(source)
-            .bind(weight)
-            .bind(last_updated)
-            .execute(&mut tx)
-            .await?;
-
-        tx.commit().await.map_err(Into::into)
-    }
-
-    async fn update_source_weight(&self, source: &str, add_weight: i32) -> Result<(), Error> {
-        let last_updated = Utc::now().naive_utc();
-
-        let mut tx = self.pool.begin().await?;
-
-        sqlx::query(
-            "UPDATE SourceReaction
-            SET lastUpdated = ?,
-                weight = weight + ?
-            WHERE source = ?",
-        )
-        .bind(last_updated)
-        .bind(add_weight)
-        .bind(source)
-        .execute(&mut tx)
-        .await?;
-
-        tx.commit().await.map_err(Into::into)
+    async fn update_source_weight(&self, source: &str, weight: i32) -> Result<(), Error> {
+        self.update_source_weights(&[WeightedSource {
+            source: source.into(),
+            weight,
+        }])
+        .await
     }
 
     async fn delete_source_reaction(&self, source: &str) -> Result<(), Error> {

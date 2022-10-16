@@ -14,14 +14,19 @@
 
 //! Run as `cargo bench --bench mbert --features onnxruntime`.
 
-use std::{io::Result, path::Path};
+use std::{
+    fs::File,
+    io::{BufReader, Result},
+    path::Path,
+};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ndarray::{s, Array1, Axis};
+use ndarray::s;
 use onnxruntime::{environment::Environment, GraphOptimizationLevel};
 
 use xayn_discovery_engine_bert::{
     kinds::SMBert,
+    tokenizer::Tokenizer,
     AveragePooler,
     Config,
     Embedding2,
@@ -29,15 +34,6 @@ use xayn_discovery_engine_bert::{
     NonePooler,
 };
 use xayn_discovery_engine_test_utils::smbert;
-use xayn_discovery_engine_tokenizer::{
-    AccentChars,
-    Builder as TokenizerBuilder,
-    CaseChars,
-    ChineseChars,
-    ControlChars,
-    Padding,
-    Truncation,
-};
 
 const TOKEN_SIZE: usize = 64;
 const SEQUENCE: &str = "This is a sequence.";
@@ -54,8 +50,8 @@ macro_rules! bench_tract {
         $(
             let pipeline = Config::<$kind, _>::from_files($vocab.unwrap(), $model.unwrap())
                 .unwrap()
-                .with_accents(AccentChars::Cleanse)
-                .with_case(CaseChars::Lower)
+                .with_cleanse_accents(true)
+                .with_lower_case(true)
                 .with_token_size(TOKEN_SIZE)
                 .unwrap()
                 .with_pooling::<$pooler>()
@@ -74,20 +70,13 @@ fn bench_onnx(
     vocab: Result<impl AsRef<Path>>,
     model: Result<impl AsRef<Path>>,
 ) {
-    let tokenizer = TokenizerBuilder::from_file(vocab.unwrap())
-        .unwrap()
-        .with_normalizer(
-            ControlChars::Cleanse,
-            ChineseChars::Keep,
-            AccentChars::Cleanse,
-            CaseChars::Lower,
-        )
-        .with_model("[UNK]", "##", 100)
-        .with_post_tokenizer("[CLS]", "[SEP]")
-        .with_truncation(Truncation::fixed(TOKEN_SIZE, 0))
-        .with_padding(Padding::fixed(TOKEN_SIZE, "[PAD]"))
-        .build()
-        .unwrap();
+    let tokenizer = Tokenizer::new(
+        BufReader::new(File::open(vocab.unwrap()).unwrap()),
+        true,
+        true,
+        TOKEN_SIZE,
+    )
+    .unwrap();
     let environment = Environment::builder().build().unwrap();
     let mut session = environment
         .new_session_builder()
@@ -99,13 +88,8 @@ fn bench_onnx(
 
     manager.bench_function(name, |bencher| {
         bencher.iter(|| {
-            let encoding = tokenizer.encode(black_box(SEQUENCE));
-            let (token_ids, type_ids, _, _, _, _, attention_mask, _) = encoding.into();
-            let inputs = vec![
-                Array1::<i64>::from(token_ids).insert_axis(Axis(0)),
-                Array1::<i64>::from(attention_mask).insert_axis(Axis(0)),
-                Array1::<i64>::from(type_ids).insert_axis(Axis(0)),
-            ];
+            let encoding = tokenizer.encode(black_box(SEQUENCE)).unwrap();
+            let inputs = encoding.into();
             let outputs = session.run(inputs).unwrap();
 
             black_box(Embedding2::from(outputs[0].slice(s![0, .., ..]).to_owned()));

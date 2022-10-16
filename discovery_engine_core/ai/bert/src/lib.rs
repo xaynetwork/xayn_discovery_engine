@@ -40,7 +40,7 @@ mod config;
 mod model;
 mod pipeline;
 mod pooler;
-mod tokenizer;
+pub mod tokenizer;
 
 pub use crate::{
     config::{Config, ConfigError},
@@ -72,5 +72,4 @@ pub type QAMBertConfig<'a, P> = Config<'a, kinds::QAMBert, P>;
 pub use crate::{
     model::{BertModel, ModelError},
     pooler::{Embedding, PoolerError},
-    tokenizer::TokenizerError,
 };

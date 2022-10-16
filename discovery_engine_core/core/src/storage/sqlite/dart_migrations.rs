@@ -58,6 +58,8 @@ pub(super) async fn store_migration_data(
         .set_excluded(&data.excluded_sources.iter().map_into().collect())
         .await?;
 
+    storage.update_source_weights(&data.reacted_sources).await?;
+
     if let Some(search) = &data.search {
         storage.search().store_new_search(search, &[]).await?;
     }
@@ -231,7 +233,7 @@ mod tests {
     use tracing::warn;
 
     use crate::{
-        document::{self, UserReaction},
+        document::{self, UserReaction, WeightedSource},
         storage::models::{Paging, Search, SearchBy},
     };
 
@@ -301,6 +303,20 @@ mod tests {
             engine_state: Some(vec![1, 2, 3, 4, 8, 7, 0]),
             trusted_sources: vec!["foo.example".into(), "bar.invalid".into()],
             excluded_sources: vec!["dodo.local".into()],
+            reacted_sources: vec![
+                WeightedSource {
+                    source: "source1".into(),
+                    weight: 1,
+                },
+                WeightedSource {
+                    source: "source2".into(),
+                    weight: 2,
+                },
+                WeightedSource {
+                    source: "bad source".into(),
+                    weight: -1,
+                },
+            ],
             search: Some(Search {
                 search_by: SearchBy::Query,
                 search_term: "foo bar".into(),
@@ -391,6 +407,34 @@ mod tests {
             excluded_sources,
             data.excluded_sources.into_iter().collect()
         );
+
+        let weight = storage
+            .source_reaction()
+            .fetch_source_weight("source1")
+            .await
+            .unwrap();
+        assert_eq!(weight, 1);
+
+        let weight = storage
+            .source_reaction()
+            .fetch_source_weight("source2")
+            .await
+            .unwrap();
+        assert_eq!(weight, 2);
+
+        let weight = storage
+            .source_reaction()
+            .fetch_source_weight("bad source")
+            .await
+            .unwrap();
+        assert_eq!(weight, -1);
+
+        let weight = storage
+            .source_reaction()
+            .fetch_source_weight("unknown")
+            .await
+            .unwrap();
+        assert_eq!(weight, 0);
 
         let history = storage.fetch_history().await.unwrap();
         assert_eq!(

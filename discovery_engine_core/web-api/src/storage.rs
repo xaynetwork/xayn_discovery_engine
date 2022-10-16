@@ -33,7 +33,7 @@ use xayn_discovery_engine_ai::{
     UserInterests,
 };
 
-use crate::models::{DocumentId, UserId, UserReaction};
+use crate::models::{DocumentId, UserId, UserInteractionType};
 
 #[derive(Debug, Clone)]
 pub struct UserState {
@@ -52,26 +52,44 @@ impl UserState {
         Ok(())
     }
 
-    pub(crate) async fn fetch_interests(&self, id: &UserId) -> Result<UserInterests, GenericError> {
+    pub(crate) async fn user_seen(&self, id: &UserId) -> Result<(), GenericError> {
+        sqlx::query(
+            "INSERT INTO users(user_id, last_seen)
+            VALUES ($1, Now())
+            ON CONFLICT (user_id)
+            DO UPDATE SET last_seen = EXCLUDED.last_seen;",
+        )
+        .bind(id.as_ref())
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn fetch_interests(
+        &self,
+        user_id: &UserId,
+    ) -> Result<UserInterests, GenericError> {
         let mut tx = self.pool.begin().await?;
 
         let cois = sqlx::query_as::<_, QueriedCoi>(
-            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view 
-            FROM center_of_interest 
+            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
+            FROM center_of_interest
             WHERE user_id = $1",
         )
-        .bind(id.as_ref())
+        .bind(user_id.as_ref())
         .fetch_all(&mut tx)
         .await?;
 
         tx.commit().await?;
 
-        let (positive, negative): (Vec<_>, Vec<_>) =
-            cois.into_iter().partition(|coi| coi.is_positive);
+        let (positive, negative) = cois
+            .into_iter()
+            .partition::<Vec<_>, _>(|coi| coi.is_positive);
 
         // fine as we convert it to i32 when we store it in the database
         #[allow(clippy::cast_sign_loss)]
-        let positive: Vec<_> = positive
+        let positive = positive
             .into_iter()
             .map(|coi| PositiveCoi {
                 id: coi.coi_id.into(),
@@ -82,16 +100,16 @@ impl UserState {
                     last_view: coi.last_view.into(),
                 },
             })
-            .collect();
+            .collect_vec();
 
-        let negative: Vec<_> = negative
+        let negative = negative
             .into_iter()
             .map(|coi| NegativeCoi {
                 id: coi.coi_id.into(),
                 point: Embedding::from(Array::from_vec(coi.embedding)),
                 last_view: coi.last_view.into(),
             })
-            .collect();
+            .collect_vec();
 
         Ok(UserInterests { positive, negative })
     }
@@ -107,13 +125,21 @@ impl UserState {
     {
         let mut tx = self.pool.begin().await?;
 
+        sqlx::query("INSERT INTO coi_update_lock (user_id) VALUES ($1) ON CONFLICT DO NOTHING;")
+            .bind(user_id.as_ref())
+            .execute(&mut tx)
+            .await?;
+        sqlx::query("SELECT FROM coi_update_lock WHERE user_id = $1 FOR UPDATE;")
+            .bind(user_id.as_ref())
+            .execute(&mut tx)
+            .await?;
+
         // fine as we convert it to i32 when we store it in the database
         #[allow(clippy::cast_sign_loss)]
         let mut positive_cois: Vec<_> = sqlx::query_as::<_, QueriedCoi>(
-            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view 
-            FROM center_of_interest 
-            WHERE user_id = $1 AND is_positive 
-            FOR UPDATE;",
+            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
+            FROM center_of_interest
+            WHERE user_id = $1 AND is_positive;",
         )
         .bind(user_id.as_ref())
         .fetch_all(&mut tx)
@@ -137,12 +163,12 @@ impl UserState {
         // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
         #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
         sqlx::query(
-            "INSERT INTO center_of_interest (coi_id, user_id, is_positive, embedding, view_count, view_time_ms, last_view) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7) 
-            ON CONFLICT (coi_id) DO UPDATE SET 
-                embedding = EXCLUDED.embedding, 
-                view_count = EXCLUDED.view_count, 
-                view_time_ms = EXCLUDED.view_time_ms, 
+            "INSERT INTO center_of_interest (coi_id, user_id, is_positive, embedding, view_count, view_time_ms, last_view)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (coi_id) DO UPDATE SET
+                embedding = EXCLUDED.embedding,
+                view_count = EXCLUDED.view_count,
+                view_time_ms = EXCLUDED.view_time_ms,
                 last_view = EXCLUDED.last_view;",
         )
         .bind(updated_coi.id.as_ref())
@@ -164,7 +190,7 @@ impl UserState {
         .bind(doc_id.as_ref())
         .bind(user_id.as_ref())
         .bind(timestamp)
-        .bind(UserReaction::Positive as i16)
+        .bind(UserInteractionType::Positive as i16)
         .execute(&mut tx)
         .await?;
 

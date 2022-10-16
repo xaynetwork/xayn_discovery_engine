@@ -61,13 +61,13 @@ class DartMigrationData {
     HiveSourceReactedRepository sourceReactedRepository,
     HiveSourcePreferenceRepository sourcePreferenceRepository,
   ) async {
-    if (engineStateRepository.box.isEmpty &&
-        documentRepository.box.isEmpty &&
-        activeSearchRepository.box.isEmpty &&
-        activeDocumentDataRepository.box.isEmpty &&
+    if (engineStateRepository.isEmpty &&
+        documentRepository.isEmpty &&
+        activeSearchRepository.isEmpty &&
+        activeDocumentDataRepository.isEmpty &&
         //FIXME even with cfgFeatureStorage we still set this values to hive
         // sourcePreferenceRepository.box.isEmpty &&
-        sourceReactedRepository.box.isEmpty) {
+        sourceReactedRepository.isEmpty) {
       return null;
     }
 
@@ -85,11 +85,10 @@ class DartMigrationData {
       cleanup: () async {
         await engineStateRepository.clear();
         await sourcePreferenceRepository.clear();
-        await documentRepository.box.clear();
+        await documentRepository.clear();
         await activeSearchRepository.clear();
-        await activeDocumentDataRepository.box.clear();
-        //TODO[pmk] uncomment section once migration part was added
-        // await sourceReactedRepository.box.clear();
+        await activeDocumentDataRepository.clear();
+        await sourceReactedRepository.clear();
       },
     );
   }

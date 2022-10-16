@@ -28,4 +28,7 @@ abstract class SourcePreferenceRepository {
   Future<void> remove(Source source);
 
   Future<void> clear();
+
+  /// Indicates if the repository is semantically empty.
+  bool get isEmpty;
 }

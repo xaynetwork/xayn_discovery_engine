@@ -45,7 +45,7 @@ jobs:
       - build-flutter-example
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v4
+      image: xaynetci/yellow:v5
     timeout-minutes: 5
     if: ${{ always() }}
     steps:

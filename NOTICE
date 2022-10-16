@@ -6,7 +6,3 @@ Xayn AG (https://www.xayn.com/).
 
 Except as otherwise noted (below and/or in individual files), this project is
 licensed under the GNU Affero General Public License v3.0 only <LICENSE>.
-
-- discovery_engine_core/ai/tokenizer
-  This crate is a fork of https://github.com/huggingface/tokenizers and is licensed
-  under the Apache License, Version 2.0 <discovery_engine_core/ai/tokenizer/LICENSE>.

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Personalization API
-  version: 1.0.0-rc1
+  version: 1.0.0-rc2
   description: |-
     # Overview
     The personalization system is divided into two parts: one to manage documents and one to manage users.
@@ -128,19 +128,206 @@ paths:
               schema:
                 $ref: '#/components/schemas/IngestionError'
 
+  /documents/{document_id}/properties:
+    get:
+      tags:
+        - documents
+      summary: Get all document properties
+      description: Gets all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPropertiesResponse'
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+    put:
+      tags:
+        - documents
+      summary: Set all document properties
+      description: Sets or replaces all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentPropertiesRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+    delete:
+      tags:
+        - documents
+      summary: Delete all document properties
+      description: Deletes all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+
+  /documents/{document_id}/properties/{property_id}:
+    get:
+      tags:
+        - documents
+      summary: Get a document property
+      description: Gets the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPropertyResponse'
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id or property id not found
+    put:
+      tags:
+        - documents
+      summary: Set a document property
+      description: Sets or replaces the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentPropertyRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id not found
+    delete:
+      tags:
+        - documents
+      summary: Delete a document property
+      description: Deletes the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id or property id not found
+
 components:
   schemas:
     DocumentId:
       description: A document id can be any non-empty UTF-8 string that does not contain the null byte.
       type: string
       example: "document id"
-    DocumentProperties:
-      description: Arbitrary properties that can be attached to a document.
+    DocumentPropertyId:
+      description: A document property id can be any non-empty UTF-8 string that does not contain the null byte.
+      type: string
+      example: "document property id"
+    DocumentProperty:
+      description: Arbitrary property that can be attached to a document.
+      example: "News title"
+    DocumentPropertyRequest:
       type: object
+      required: [property]
+      properties:
+        property:
+          $ref: '#/components/schemas/DocumentProperty'
+    DocumentPropertyResponse:
+      type: object
+      required: [property]
+      properties:
+        property:
+          $ref: '#/components/schemas/DocumentProperty'
+    DocumentProperties:
+      description: Arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/DocumentProperty'
       example:
         title: "News title"
         image_url: "http://example.com/news_image.jpg"
         link: "http://example.com/this_news"
+    DocumentPropertiesRequest:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
+    DocumentPropertiesResponse:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
     UserId:
       description: A user id can be any non-empty UTF-8 string that does not contain the null byte.
       type: string
@@ -149,7 +336,7 @@ components:
       type: object
       properties:
         request_id:
-          description: Request ID optionally generated from the service. It can be comunicated to xayn to help debugging.
+          description: Request ID optionally generated from the service. It can be communicated to xayn to help debugging.
           type: string
     PersonalizedDocumentData:
       type: object
@@ -177,6 +364,7 @@ components:
           properties:
             kind:
               type: string
+              enum: [not_enough_interactions]
     UserInteractionType:
       type: string
       enum: [positive]

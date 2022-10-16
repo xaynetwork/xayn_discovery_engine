@@ -18,27 +18,27 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use clap::Parser;
 use gen_dart::generate;
 use parse_genesis::AsyncFunctionSignature;
-use structopt::StructOpt;
 
 mod gen_dart;
 mod parse_genesis;
 #[cfg(test)]
 mod test_utils;
 
-#[derive(Debug, StructOpt)]
-#[structopt(about = "Generate dart code for async-bindgen")]
+/// Generate dart code for async-bindgen
+#[derive(Debug, Parser)]
 struct Cli {
-    #[structopt(long)]
+    #[clap(long)]
     genesis: PathBuf,
 
-    #[structopt(long)]
+    #[clap(long)]
     ffi_class: String,
 }
 
 fn main() {
-    let cli = Cli::from_args();
+    let cli = Cli::parse();
     let genesis_ext = path_with_all_extensions_replaced(&cli.genesis, "ext.dart");
     let rel_path = Path::new(".").join(cli.genesis.file_name().unwrap());
     let file = fs::read_to_string(&cli.genesis).expect("failed to read genesis file");

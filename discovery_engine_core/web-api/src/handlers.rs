@@ -12,30 +12,33 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use futures::future::join_all;
+use std::{collections::HashMap, convert::Infallible, sync::Arc, time::Duration};
+
+use futures::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
-use std::{sync::Arc, time::Duration};
 use tracing::{debug, error, instrument};
-use warp::{hyper::StatusCode, reject::Reject, Rejection};
+use warp::{http::StatusCode, Reply};
 
 use xayn_discovery_engine_ai::{
     compute_coi_relevances,
     nan_safe_f32_cmp,
     system_time_now,
     utils::rank,
-    CoiContextError,
-    GenericError,
     PositiveCoi,
 };
 
 use crate::{
     elastic::KnnSearchParams,
     models::{
-        Error,
-        InteractionRequestBody,
+        PersonalizedDocumentsError,
+        PersonalizedDocumentsErrorKind,
         PersonalizedDocumentsQuery,
         PersonalizedDocumentsResponse,
         UserId,
+        UserInteractionError,
+        UserInteractionErrorKind,
+        UserInteractionRequestBody,
+        UserInteractionType,
     },
     state::AppState,
 };
@@ -45,15 +48,23 @@ pub(crate) async fn handle_personalized_documents(
     user_id: UserId,
     query: PersonalizedDocumentsQuery,
     state: Arc<AppState>,
-) -> Result<impl warp::Reply, Rejection> {
-    let user_interests = state.user.fetch_interests(&user_id).await.map_err(|err| {
-        error!("Error fetching interests: {err}");
-        handle_user_state_op_error(err)
-    })?;
+) -> Result<Box<dyn Reply>, Infallible> {
+    if let Err(err) = state.user.user_seen(&user_id).await {
+        error!("Error updating user seen: {err}");
+        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR) as Box<dyn Reply>);
+    }
 
-    if user_interests.positive.is_empty() {
-        error!("No positive user interests");
-        return Err(warp::reject::custom(NoCenterOfInterestsError));
+    let user_interests = match state.user.fetch_interests(&user_id).await {
+        Ok(user_interests) => user_interests,
+        Err(error) => {
+            error!("Error fetching interests: {error}");
+            return Ok(Box::new(StatusCode::BAD_REQUEST) as Box<dyn Reply>);
+        }
+    };
+
+    if user_interests.is_empty() {
+        error!("No user interests");
+        return Ok(Box::new(StatusCode::NOT_FOUND));
     }
 
     let cois = &user_interests.positive;
@@ -67,18 +78,17 @@ pub(crate) async fn handle_personalized_documents(
 
     let max_cois = state.max_cois_for_knn.min(user_interests.positive.len());
     let cois = &cois[0..max_cois];
-    let weights_sum: f32 = cois.iter().map(|(_, w)| w).sum();
+    let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
 
-    let excluded = &state
-        .user
-        .fetch_interacted_document_ids(&user_id)
-        .await
-        .map_err(|err| {
-            error!("Error fetching interacted document ids: {err}");
-            handle_user_state_op_error(err)
-        })?;
+    let excluded = match state.user.fetch_interacted_document_ids(&user_id).await {
+        Ok(excluded) => excluded,
+        Err(error) => {
+            error!("Error fetching interacted document ids: {error}");
+            return Ok(Box::new(StatusCode::BAD_REQUEST));
+        }
+    };
     let documents_count = query.count.unwrap_or(state.default_documents_count);
-    let document_futures = cois
+    let mut document_futures = cois
         .iter()
         .map(|(coi, weight)| async {
             // weights_sum can't be zero, because coi weights will always return some weights that are > 0
@@ -104,13 +114,13 @@ pub(crate) async fn handle_personalized_documents(
                 })
                 .await
         })
-        .collect_vec();
+        .collect::<FuturesUnordered<_>>();
 
     let mut all_documents = Vec::new();
     let mut errors = Vec::new();
 
-    for results in join_all(document_futures).await {
-        match results {
+    while let Some(result) = document_futures.next().await {
+        match result {
             Ok(documents) => all_documents.extend(documents),
             Err(err) => {
                 error!("Error fetching document: {err}");
@@ -120,59 +130,92 @@ pub(crate) async fn handle_personalized_documents(
     }
 
     if all_documents.is_empty() && !errors.is_empty() {
-        return Err(warp::reject::custom(ElasticOpError));
+        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR));
     }
 
-    let scores = state
-        .coi
-        .score(&all_documents, &user_interests)
-        // TODO TO-3339: Return 500 with the correct kind if this fail
-        .map_err(|err| {
-            error!("Error scoring documents: {err}");
-            handle_ranking_error(err)
-        })?;
-    rank(&mut all_documents, &scores);
+    match state.coi.score(&all_documents, &user_interests) {
+        Ok(scores) => rank(&mut all_documents, &scores),
+        Err(error) => {
+            error!("Error scoring documents: {error}");
+            return Ok(Box::new(
+                PersonalizedDocumentsError::new(
+                    PersonalizedDocumentsErrorKind::NotEnoughInteractions,
+                )
+                .to_reply(StatusCode::UNPROCESSABLE_ENTITY),
+            ));
+        }
+    }
 
     let max_docs = documents_count.min(all_documents.len());
     let documents = &all_documents[0..max_docs];
-    let response = PersonalizedDocumentsResponse {
-        documents: documents.to_vec(),
-    };
 
-    Ok(warp::reply::json(&response))
+    Ok(Box::new(
+        PersonalizedDocumentsResponse::new(documents).to_reply(),
+    ))
 }
 
 #[instrument(skip(state))]
 pub(crate) async fn handle_user_interactions(
     user_id: UserId,
-    body: InteractionRequestBody,
+    body: UserInteractionRequestBody,
     state: Arc<AppState>,
-) -> Result<impl warp::Reply, Rejection> {
-    let documents = state
-        .elastic
-        .get_documents_by_ids(&[body.document_id])
-        .await
-        .map_err(handle_elastic_error)?;
-
-    if let Some(document) = documents.first() {
-        state
-            .user
-            .update_positive_cois(&document.id, &user_id, |positive_cois| {
-                state
-                    .coi
-                    .log_positive_user_reaction(positive_cois, &document.embedding)
-            })
-            .await
-            .map_err(|err| {
-                error!("Error updating positive user interests: {err}");
-                handle_user_state_op_error(err)
-            })?;
-
-        Ok(StatusCode::OK)
-    } else {
-        debug!("Document not found");
-        Ok(StatusCode::NOT_FOUND)
+) -> Result<Box<dyn Reply>, Infallible> {
+    if let Err(err) = state.user.user_seen(&user_id).await {
+        error!("Error updating user seen: {err}");
+        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR) as Box<dyn Reply>);
     }
+
+    let ids = body
+        .documents
+        .iter()
+        .map(|document| &document.document_id)
+        .collect_vec();
+    let embeddings = match state.elastic.get_documents_by_ids(&ids).await {
+        Ok(documents) => documents
+            .into_iter()
+            .map(|document| (document.id, document.embedding))
+            .collect::<HashMap<_, _>>(),
+        Err(error) => {
+            error!("Error fetching documents: {error}");
+            return Ok(Box::new(
+                UserInteractionError::new(UserInteractionErrorKind::InvalidDocumentId)
+                    .to_reply(StatusCode::BAD_REQUEST),
+            ) as Box<dyn Reply>);
+        }
+    };
+
+    if embeddings.len() < ids.iter().unique().count() {
+        debug!("Document not found");
+        return Ok(Box::new(
+            UserInteractionError::new(UserInteractionErrorKind::InvalidDocumentId)
+                .to_reply(StatusCode::BAD_REQUEST),
+        ));
+    }
+
+    for document in body.documents {
+        match document.interaction_type {
+            UserInteractionType::Positive => {
+                if let Err(error) = state
+                    .user
+                    .update_positive_cois(&document.document_id, &user_id, |positive_cois| {
+                        state.coi.log_positive_user_reaction(
+                            positive_cois,
+                            &embeddings[&document.document_id],
+                        )
+                    })
+                    .await
+                {
+                    error!("Error updating positive user interests: {error}");
+                    return Ok(Box::new(
+                        UserInteractionError::new(UserInteractionErrorKind::InvalidUserId)
+                            .to_reply(StatusCode::BAD_REQUEST),
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(Box::new(StatusCode::NO_CONTENT))
 }
 
 /// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each centers' embedding.
@@ -199,31 +242,3 @@ fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
         })
         .collect()
 }
-
-fn handle_user_state_op_error(_: GenericError) -> Rejection {
-    warp::reject::custom(UserStateOpError)
-}
-
-fn handle_elastic_error(_: Error) -> Rejection {
-    warp::reject::custom(ElasticOpError)
-}
-
-fn handle_ranking_error(_: CoiContextError) -> Rejection {
-    warp::reject::custom(RankingError)
-}
-
-#[derive(Debug)]
-struct UserStateOpError;
-impl Reject for UserStateOpError {}
-
-#[derive(Debug)]
-struct ElasticOpError;
-impl Reject for ElasticOpError {}
-
-#[derive(Debug)]
-struct NoCenterOfInterestsError;
-impl Reject for NoCenterOfInterestsError {}
-
-#[derive(Debug)]
-struct RankingError;
-impl Reject for RankingError {}

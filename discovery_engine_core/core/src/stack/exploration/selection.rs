@@ -121,7 +121,7 @@ where
         let to_remove = doc_similarities
             .row(chosen_doc)
             .indexed_iter()
-            .filter_map(|(idx, doc_sim)| (*doc_sim >= threshold).then(|| idx))
+            .filter_map(|(idx, doc_sim)| (*doc_sim >= threshold).then_some(idx))
             .collect();
         candidates = &candidates - &to_remove;
 
@@ -170,7 +170,7 @@ fn retain_documents_by_indices(
     documents
         .into_iter()
         .enumerate()
-        .filter_map(|(idx, doc)| selected.contains(&idx).then(|| doc))
+        .filter_map(|(idx, doc)| selected.contains(&idx).then_some(doc))
         .collect()
 }
 

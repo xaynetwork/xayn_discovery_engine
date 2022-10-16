@@ -49,4 +49,10 @@ abstract class DocumentRepository {
 
   /// Remove documents by ids from the repository.
   Future<void> removeByIds(Set<DocumentId> ids);
+
+  /// Clears the repository.
+  Future<void> clear();
+
+  /// Indicates if the repository is semantically empty.
+  bool get isEmpty;
 }

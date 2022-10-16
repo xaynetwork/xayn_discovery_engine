@@ -41,4 +41,10 @@ abstract class SourceReactedRepository {
 
   /// Remove [SourceReacted] from the repository.
   Future<void> remove(Source source);
+
+  /// Clears the repository.
+  Future<void> clear();
+
+  /// Indicates if the repository is semantically empty.
+  bool get isEmpty;
 }

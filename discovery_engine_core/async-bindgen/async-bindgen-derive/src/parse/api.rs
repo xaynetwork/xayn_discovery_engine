@@ -69,7 +69,7 @@ impl Api {
 fn parse_impl_block(impl_block: TokenStream) -> Result<(Ident, Vec<FunctionInfo>), Error> {
     let ast = syn::parse2::<ItemImpl>(impl_block)?;
     let name = if let Type::Path(path) = &*ast.self_ty {
-        (path.qself.is_none()).then(|| path)
+        (path.qself.is_none()).then_some(path)
     } else {
         None
     };

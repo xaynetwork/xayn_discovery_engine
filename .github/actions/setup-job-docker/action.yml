@@ -24,13 +24,13 @@ runs:
       uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
 
     - name: Setup cmake
-      uses: jwlawson/actions-setup-cmake@884cf5c591490f86b788d68b6f585f26235578d6 # v1.12
+      uses: jwlawson/actions-setup-cmake@48fb828056dab1f20e7f97159f2711efb1742ba1 # v1.12.1
 
-    - uses: Swatinem/rust-cache@cb2cf0cc7c5198d3364b9630e2c3d457f160790c # v1.4.0
+    - uses: Swatinem/rust-cache@6720f05bc48b77f96918929a9019fb2203ff71f8 # v2.0.0
       if: inputs.rust != 'false'
       with:
         key: ${{ inputs.cache-key }}
-        working-directory: ${{ env.RUST_WORKSPACE }}
+        workspaces: ${{ env.RUST_WORKSPACE }} -> target
 
     - name: Configure cargo
       shell: bash

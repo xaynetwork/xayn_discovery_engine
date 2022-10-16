@@ -21,7 +21,7 @@ use chrono::{DateTime, Utc};
 use xayn_discovery_engine_ai::Embedding;
 
 use crate::{
-    document::{self, NewsResource, UserReaction},
+    document::{self, NewsResource, UserReaction, WeightedSource},
     stack,
 };
 
@@ -42,6 +42,7 @@ pub struct DartMigrationData {
     pub engine_state: Option<Vec<u8>>,
     pub trusted_sources: Vec<String>,
     pub excluded_sources: Vec<String>,
+    pub reacted_sources: Vec<WeightedSource>,
     pub documents: Vec<MigrationDocument>,
     pub search: Option<Search>,
 }

@@ -1,22 +1,23 @@
 [package]
 name = "xayn-discovery-engine-bindings"
-version = "0.1.0"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 license = "AGPL-3.0-only"
-edition = "2021"
 
 [dependencies]
 async-bindgen = { path = "../async-bindgen/async-bindgen" }
-cfg-if = "1.0.0"
-chrono = { version = "0.4.22", default-features = false }
-derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "from"] }
-itertools = "0.10.3"
-ndarray = "0.15.6"
-num-traits = "0.2.15"
-tokio = { version = "1.20.1", features = ["sync"] }
-tracing = "0.1.36"
-tracing-subscriber = { version = "0.3.15", features = ["json"] }
-url = "2.2.2"
-uuid = "1.1.2"
+cfg-if = { workspace = true }
+chrono = { workspace = true }
+derive_more = { workspace = true }
+itertools = { workspace = true }
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["json"] }
+url = { workspace = true }
+uuid = { workspace = true }
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-core = { path = "../core" }
 xayn-discovery-engine-providers = { path = "../providers" }
@@ -24,12 +25,9 @@ xayn-discovery-engine-providers = { path = "../providers" }
 [target.'cfg(target_os = "android")'.dependencies]
 tracing-android = "0.2.0"
 
-[dev-dependencies]
-uuid = { version = "1.1.2", features = ["v4"] }
-
 [build-dependencies]
 cbindgen = "=0.24.3"
-heck = "0.4.0"
+heck = { workspace = true }
 
 [features]
 storage = ["xayn-discovery-engine-core/storage"]

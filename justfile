@@ -403,11 +403,12 @@ db-migrate +ARGS:
 web-ingestion-up: build-ingestion-service
     #!/usr/bin/env bash
     set -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
     rm -rf "$RUST_WORKSPACE/web-api/assets"
     mkdir -p "$RUST_WORKSPACE/web-api/assets"
     ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
     ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
-    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     sleep 2
     cd "$RUST_WORKSPACE/web-api"
     ./../target/release/ingestion
@@ -415,7 +416,8 @@ web-ingestion-up: build-ingestion-service
 web-api-up: build-web-service
     #!/usr/bin/env bash
     set -eux -o pipefail
-    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     sleep 2
     cd "$RUST_WORKSPACE/web-api"
     ./../target/release/web-api
@@ -423,7 +425,11 @@ web-api-up: build-web-service
 web-down:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
+
+print-just-env:
+    export
 
 alias d := dart-test
 alias r := rust-test
