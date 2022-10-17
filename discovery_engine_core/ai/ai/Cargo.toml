@@ -10,7 +10,6 @@ chrono = { version = "0.4.21", default-features = false }
 derivative = "2.2.0"
 derive_more = { version = "0.99.17", default-features = false, features = ["display", "from"] }
 displaydoc = "0.2.3"
-itertools = "0.10.3"
 ndarray = "0.15.6"
 rayon = "1.5.3"
 serde = { version = "1.0.144", features = ["derive", "rc"] }

@@ -31,6 +31,7 @@ use lindera::{
         UserDictionaryConfig as JapaneseUserDictionaryConfig,
     },
 };
+use derive_more::*;
 use ndarray::Array2;
 use tokenizers::{
     decoders::wordpiece::WordPiece as WordPieceDecoder,
@@ -89,14 +90,11 @@ impl Tokenizer {
     pub(crate) fn new(
         // `BufRead` instead of `AsRef<Path>` is needed for wasm
         vocab: impl BufRead,
-<<<<<<< HEAD
         accents: AccentChars,
         case: CaseChars,
-=======
         #[cfg(feature = "japanese")] japanese: Option<PathBuf>,
         cleanse_accents: bool,
         lower_case: bool,
->>>>>>> c6244f81 (japanese tokenizer)
         token_size: usize,
     ) -> Result<Self, TokenizerError> {
         let tokenizer = Builder::new(vocab)?
@@ -107,9 +105,6 @@ impl Tokenizer {
             .with_padding(Padding::fixed(token_size, "[PAD]"))
             .build()?;
 
-<<<<<<< HEAD
-        Ok(Tokenizer { tokenizer })
-=======
         let bert = TokenizerBuilder::new()
             .with_model(model)
             .with_normalizer(Some(normalizer))
@@ -139,17 +134,11 @@ impl Tokenizer {
             #[cfg(feature = "japanese")]
             japanese,
         })
->>>>>>> c6244f81 (japanese tokenizer)
     }
 
     /// Encodes the sequence.
     ///
     /// The encoding is in correct shape for the model.
-<<<<<<< HEAD
-    pub(crate) fn encode(&self, sequence: impl AsRef<str>) -> Encoding {
-        let encoding = self.tokenizer.encode(sequence);
-        let (token_ids, type_ids, _, _, _, _, attention_mask, _) = encoding.into();
-=======
     pub fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, TokenizerError> {
         let sequence = sequence.as_ref();
         #[cfg(feature = "japanese")]
@@ -165,7 +154,6 @@ impl Tokenizer {
         let encoding = self.bert.encode(sequence, true)?;
         let array_from =
             |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
->>>>>>> c6244f81 (japanese tokenizer)
 
         let token_ids = Array1::from(token_ids).insert_axis(Axis(0)).into();
         let attention_mask = Array1::from(attention_mask).insert_axis(Axis(0)).into();
@@ -250,11 +238,6 @@ mod tests {
 
     fn tokenizer(token_size: usize) -> Tokenizer {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
-<<<<<<< HEAD
-        let accents = AccentChars::Cleanse;
-        let case = CaseChars::Lower;
-        Tokenizer::new(vocab, accents, case, token_size).unwrap()
-=======
         let cleanse_accents = true;
         let lower_case = true;
         Tokenizer::new(
@@ -266,7 +249,6 @@ mod tests {
             token_size,
         )
         .unwrap()
->>>>>>> c6244f81 (japanese tokenizer)
     }
 
     #[test]

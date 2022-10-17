@@ -5,13 +5,15 @@ license = "AGPL-3.0-only"
 edition = "2021"
 
 [dependencies]
+derive_more = "*"
 displaydoc = "0.2.3"
 float-cmp = "0.9.0"
 ndarray = { version = "0.15.6", features = ["serde"] }
 serde = { version = "1.0.144", features = ["derive"] }
 thiserror = "1.0.32"
 tract-onnx = "0.17.3"
-xayn-discovery-engine-tokenizer = { path = "../tokenizer" }
+itertools = { version = "0.10", optional = true }
+tokenizers = { version = "0.13.0", default-features = false, features = ["onig"] }
 lindera = { version = "0.17.0", features = ["ipadic"], optional = true }
 
 # dev-dependencies which don't work for aarch targets
@@ -26,17 +28,3 @@ xayn-discovery-engine-test-utils = { path = "../test-utils" }
 [features]
 japanese = ["dep:itertools", "dep:lindera"]
 
-[[example]]
-name = "mbert"
-test = false
-
-[[example]]
-name = "validate"
-test = false
-required-features = ["onnxruntime"]
-
-[[bench]]
-name = "mbert"
-harness = false
-test = false
-required-features = ["onnxruntime"]

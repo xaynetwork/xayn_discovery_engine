@@ -11,11 +11,11 @@ members = [
 
 [patch.crates-io.xayn-dart-api-dl]
 git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
-branch = "main"
+rev = "63f02b0e5b54684f20d1910a0588ce727da2f1c5"
 
 [patch.crates-io.xayn-dart-api-dl-sys]
 git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
-branch = "main"
+rev = "63f02b0e5b54684f20d1910a0588ce727da2f1c5"
 
 [profile.dev.package.tract-core]
 opt-level = 3
