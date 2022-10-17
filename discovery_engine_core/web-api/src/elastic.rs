@@ -23,7 +23,14 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use xayn_discovery_engine_ai::Embedding;
 
-use crate::models::{DocumentId, DocumentProperties, Error, PersonalizedDocumentData};
+use crate::models::{
+    DocumentId,
+    DocumentProperties,
+    DocumentProperty,
+    DocumentPropertyId,
+    Error,
+    PersonalizedDocumentData,
+};
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -152,6 +159,20 @@ impl ElasticState {
         Ok(())
     }
 
+    pub(crate) async fn get_document_property(
+        &self,
+        doc_id: &DocumentId,
+        prop_id: &DocumentPropertyId,
+    ) -> Result<Option<DocumentProperty>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
+        self.query_elastic_search::<DocumentPropertyResponse>(
+            &format!("_source/{doc_id}?_source_includes=properties.{prop_id}"),
+            None,
+        )
+        .await
+        .map(|mut response| response.0.remove(prop_id))
+    }
+
     async fn query_elastic_search<T>(&self, route: &str, body: Option<Value>) -> Result<T, Error>
     where
         T: DeserializeOwned,
@@ -238,6 +259,9 @@ struct DocumentPropertiesResponse {
     #[serde(default)]
     properties: DocumentProperties,
 }
+
+#[derive(Clone, Debug, Deserialize)]
+struct DocumentPropertyResponse(DocumentProperties);
 
 pub(crate) mod serde_embedding_as_vec {
     use ndarray::Array;

@@ -33,6 +33,8 @@ use crate::{
         DocumentId,
         DocumentPropertiesRequestBody,
         DocumentPropertiesResponse,
+        DocumentPropertyId,
+        DocumentPropertyResponse,
         Error,
         PersonalizedDocumentsError,
         PersonalizedDocumentsErrorKind,
@@ -299,6 +301,25 @@ pub(crate) async fn handle_delete_document_properties(
         Err(error) => {
             error!("Error fetching document properties: {error}");
             Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_get_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    state: Arc<AppState>,
+) -> Result<Box<dyn Reply>, Infallible> {
+    match state.elastic.get_document_property(&doc_id, &prop_id).await {
+        Ok(Some(property)) => Ok(Box::new(DocumentPropertyResponse::new(property).to_reply()) as _),
+        Ok(None) => Ok(Box::new(StatusCode::NOT_FOUND) as _),
+        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
+            Ok(Box::new(StatusCode::NOT_FOUND) as _)
+        }
+        Err(error) => {
+            error!("Error fetching document property: {error}");
+            Ok(Box::new(StatusCode::BAD_REQUEST) as _)
         }
     }
 }
