@@ -1770,12 +1770,13 @@ pub(crate) mod tests {
     async fn init_engine<'a, I, F>(
         stack_ops: I,
         update_after_reset: bool,
-    ) -> MappedMutexGuard<'a, Engine>
+    ) -> Mutex<(MockServer, Engine)>
     where
         I: IntoIterator<Item = F> + Send,
         <I as IntoIterator>::IntoIter: Send,
         F: FnOnce(&EndpointConfig, &Providers) -> BoxedOps,
     {
+        println!("before from_config");
         let init_engine = async move {
             // We need a mock server from which the initialized stacks can fetch articles
             let server = MockServer::start().await;
@@ -1822,14 +1823,22 @@ pub(crate) mod tests {
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
+            println!("before from_config");
             let engine = Engine::from_config(config, None, &[], &[]).await.unwrap();
+            println!("after from_config");
 
             Mutex::new((server, engine))
         };
+        /*
         let mut engine = MutexGuard::map(
             ENGINE.get_or_init(init_engine).await.lock().await,
             |engine| &mut engine.1,
         );
+        */
+        let data = init_engine.await;
+        {
+        let lock = &mut data.lock().await;
+        let engine = &mut lock.1;
 
         // reset the stacks and states
         #[cfg(feature = "storage")]
@@ -1864,7 +1873,10 @@ pub(crate) mod tests {
                 .unwrap();
         }
 
-        engine
+//            drop(lock);
+        }
+
+        data
     }
 
     fn new_mock_stack_ops() -> MockOps {
@@ -1882,7 +1894,7 @@ pub(crate) mod tests {
     async fn test_cross_stack_deduplication() {
         // We assume that, if de-duplication works between two stacks, it'll work between
         // any number of stacks. So we just create two.
-        let engine = &mut *init_engine(
+        let engine = init_engine(
             [
                 |config: &EndpointConfig, providers: &Providers| {
                     Box::new(BreakingNews::new(config, providers.headlines.clone())) as _
@@ -1897,6 +1909,8 @@ pub(crate) mod tests {
             false,
         )
         .await;
+        let mut lock = engine.lock().await;
+        let engine = &mut  lock.1;
 
         // Stacks should be empty before we start fetching anything
         let mut stacks = engine.stacks.write().await;
@@ -1954,7 +1968,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn test_update_stack_no_error_when_no_stack_is_ready() {
-        let engine = &mut *init_engine(
+        let engine = init_engine(
             [|_: &'_ _, _: &'_ _| {
                 let mut mock_ops = new_mock_stack_ops();
                 mock_ops
@@ -1965,6 +1979,9 @@ pub(crate) mod tests {
             false,
         )
         .await;
+
+        let mut lock = engine.lock().await;
+        let engine = &mut lock.1;
 
         update_stacks(
             &mut *engine.stacks.write().await,
@@ -1985,7 +2002,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn test_update_stack_no_error_when_one_stack_is_successful() {
-        let engine = &mut *init_engine(
+        let engine = &mut init_engine(
             [
                 |_: &'_ _, _: &'_ _| {
                     let mut mock_ops_ok = new_mock_stack_ops();
@@ -2005,6 +2022,8 @@ pub(crate) mod tests {
             false,
         )
         .await;
+        let mut lock = engine.lock().await;
+        let engine = &mut lock.1;
 
         update_stacks(
             &mut *engine.stacks.write().await,
@@ -2025,7 +2044,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn test_update_stack_should_error_when_all_stacks_fail() {
-        let engine = &mut *init_engine(
+        let engine = &mut init_engine(
             [|_: &'_ _, _: &'_ _| {
                 let mut mock_ops_failed = new_mock_stack_ops();
                 mock_ops_failed.expect_new_items().returning(|_, _, _, _| {
@@ -2036,6 +2055,8 @@ pub(crate) mod tests {
             false,
         )
         .await;
+        let mut lock = engine.lock().await;
+        let engine = &mut lock.1;
 
         let result = update_stacks(
             &mut *engine.stacks.write().await,
@@ -2066,7 +2087,8 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn test_basic_engine_integration() {
-        let engine = &mut *init_engine(
+        println!("before");
+        let lock = init_engine(
             [
                 |config: &EndpointConfig, providers: &Providers| {
                     Box::new(BreakingNews::new(config, providers.headlines.clone())) as _
@@ -2087,6 +2109,10 @@ pub(crate) mod tests {
             true,
         )
         .await;
+        let mut lock = lock.lock().await;
+        let engine = &mut lock.1;
+
+        println!("after");
 
         // Finally, we instruct the engine to fetch some articles and check whether or not
         // the expected articles from the mock show up in the results.

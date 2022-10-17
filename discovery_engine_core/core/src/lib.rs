@@ -14,7 +14,7 @@
 
 //! Xayn Discovery Engine core.
 
-#![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
+#![forbid(unsafe_op_in_unsafe_fn)]
 #![deny(
     clippy::future_not_send,
     clippy::pedantic,
