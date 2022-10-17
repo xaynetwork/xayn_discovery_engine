@@ -342,7 +342,29 @@ pub(crate) async fn handle_put_document_property(
             Ok(StatusCode::NOT_FOUND)
         }
         Err(error) => {
-            error!("Error fetching document properties: {error}");
+            error!("Error fetching document property: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_delete_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    state: Arc<AppState>,
+) -> Result<StatusCode, Infallible> {
+    match state
+        .elastic
+        .delete_document_property(&doc_id, &prop_id)
+        .await
+    {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
+            Ok(StatusCode::NOT_FOUND)
+        }
+        Err(error) => {
+            error!("Error fetching document property: {error}");
             Ok(StatusCode::BAD_REQUEST)
         }
     }

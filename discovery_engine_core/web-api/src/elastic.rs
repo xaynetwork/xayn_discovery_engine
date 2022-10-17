@@ -196,6 +196,27 @@ impl ElasticState {
         Ok(())
     }
 
+    pub(crate) async fn delete_document_property(
+        &self,
+        doc_id: &DocumentId,
+        prop_id: &DocumentPropertyId,
+    ) -> Result<(), Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties.remove(params.prop_id)",
+                "params": {
+                    "prop_id": prop_id
+                }
+            },
+            "_source": false
+        }));
+        self.query_elastic_search::<GenericResponse>(&format!("_update/{doc_id}"), body)
+            .await?;
+
+        Ok(())
+    }
+
     async fn query_elastic_search<T>(&self, route: &str, body: Option<Value>) -> Result<T, Error>
     where
         T: DeserializeOwned,
