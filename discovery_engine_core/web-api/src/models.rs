@@ -145,6 +145,11 @@ impl DocumentPropertiesResponse {
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct DocumentPropertyRequestBody {
+    pub(crate) property: DocumentProperty,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct DocumentPropertyResponse {
     property: DocumentProperty,

@@ -36,7 +36,8 @@ pub fn api_routes(
         .or(get_document_properties(state.clone()))
         .or(put_document_properties(state.clone()))
         .or(delete_document_properties(state.clone()))
-        .or(get_document_property(state))
+        .or(get_document_property(state.clone()))
+        .or(put_document_property(state))
 }
 
 // GET /users/:user_id/personalized_documents
@@ -116,6 +117,18 @@ fn get_document_property(
         .and(document_property_path())
         .and(with_state(state))
         .and_then(handlers::handle_get_document_property)
+}
+
+// PUT /documents/:document_id/properties/:property_id
+fn put_document_property(
+    state: Arc<AppState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::put()
+        .and(document_property_path())
+        .and(warp::body::content_length_limit(1024))
+        .and(warp::body::json())
+        .and(with_state(state))
+        .and_then(handlers::handle_put_document_property)
 }
 
 // PATH /documents/:document_id/properties

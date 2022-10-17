@@ -34,6 +34,7 @@ use crate::{
         DocumentPropertiesRequestBody,
         DocumentPropertiesResponse,
         DocumentPropertyId,
+        DocumentPropertyRequestBody,
         DocumentPropertyResponse,
         Error,
         PersonalizedDocumentsError,
@@ -320,6 +321,29 @@ pub(crate) async fn handle_get_document_property(
         Err(error) => {
             error!("Error fetching document property: {error}");
             Ok(Box::new(StatusCode::BAD_REQUEST) as _)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_put_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    body: DocumentPropertyRequestBody,
+    state: Arc<AppState>,
+) -> Result<StatusCode, Infallible> {
+    match state
+        .elastic
+        .put_document_property(&doc_id, &prop_id, &body.property)
+        .await
+    {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
+            Ok(StatusCode::NOT_FOUND)
+        }
+        Err(error) => {
+            error!("Error fetching document properties: {error}");
+            Ok(StatusCode::BAD_REQUEST)
         }
     }
 }

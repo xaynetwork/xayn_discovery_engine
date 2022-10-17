@@ -173,6 +173,29 @@ impl ElasticState {
         .map(|mut response| response.0.remove(prop_id))
     }
 
+    pub(crate) async fn put_document_property(
+        &self,
+        doc_id: &DocumentId,
+        prop_id: &DocumentPropertyId,
+        property: &DocumentProperty,
+    ) -> Result<(), Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties.put(params.prop_id, params.property)",
+                "params": {
+                    "prop_id": prop_id,
+                    "property": property
+                }
+            },
+            "_source": false
+        }));
+        self.query_elastic_search::<GenericResponse>(&format!("_update/{doc_id}"), body)
+            .await?;
+
+        Ok(())
+    }
+
     async fn query_elastic_search<T>(&self, route: &str, body: Option<Value>) -> Result<T, Error>
     where
         T: DeserializeOwned,
