@@ -1829,8 +1829,8 @@ pub(crate) mod tests {
                 // This triggers the trusted sources stack to also fetch articles
                 trusted_sources: vec!["example.com".into()],
                 excluded_sources: vec![],
-                smbert_vocab: format!("{asset_base}/smbert_v0001/vocab.txt"),
-                smbert_model: format!("{asset_base}/smbert_v0001/smbert-mocked.onnx"),
+                smbert_vocab: format!("{asset_base}/smbert_v0002/vocab.txt"),
+                smbert_model: format!("{asset_base}/smbert_v0002/smbert-mocked.onnx"),
                 max_docs_per_feed_batch: FeedConfig::default()
                     .max_docs_per_batch
                     .try_into()
