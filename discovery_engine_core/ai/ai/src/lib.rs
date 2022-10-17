@@ -39,7 +39,7 @@ mod utils;
 
 pub use crate::{
     coi::{
-        config::{Config as CoiSystemConfig, Error as CoiSystemConfigError},
+        config::{CoiConfig, Config as CoiSystemConfig, Error as CoiSystemConfigError},
         key_phrase::{KeyPhrase, KeyPhrases},
         point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
         state::State as CoiSystemState,

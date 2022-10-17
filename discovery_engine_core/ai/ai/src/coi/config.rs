@@ -26,7 +26,7 @@ use crate::{
 
 /// The configuration of the cois.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-struct CoiConfig {
+pub struct CoiConfig {
     shift_factor: f32,
     threshold: f32,
     min_positive_cois: usize,

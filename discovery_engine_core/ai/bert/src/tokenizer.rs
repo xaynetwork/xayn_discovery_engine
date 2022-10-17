@@ -17,7 +17,6 @@ use std::io::BufRead;
 use std::path::PathBuf;
 
 use derive_more::{Deref, From};
-<<<<<<< HEAD
 #[cfg(feature = "japanese")]
 use itertools::Itertools;
 #[cfg(feature = "japanese")]
@@ -32,9 +31,6 @@ use lindera::{
         UserDictionaryConfig as JapaneseUserDictionaryConfig,
     },
 };
-use derive_more::*;
-=======
->>>>>>> 640b9e25 (TO-2996 use upstream tokenizer (#625))
 use ndarray::Array2;
 use tokenizers::{
     decoders::wordpiece::WordPiece as WordPieceDecoder,
@@ -114,8 +110,6 @@ impl Tokenizer {
     /// tokens as well.
     pub fn new(
         vocab: impl BufRead,
-        accents: AccentChars,
-        case: CaseChars,
         #[cfg(feature = "japanese")] japanese: Option<PathBuf>,
         cleanse_accents: bool,
         lower_case: bool,

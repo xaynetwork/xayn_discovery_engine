@@ -279,21 +279,6 @@ impl Engine {
         let provider_config = config.to_provider_config(endpoint_config.timeout);
 
         // build the systems
-<<<<<<< HEAD
-        let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
-            .map_err(|err| Error::Ranker(err.into()))?
-            .with_token_size(
-                de_config
-                    .extract_inner("smbert.token_size")
-                    .map_err(|err| Error::Ranker(err.into()))?,
-            )
-            .map_err(|err| Error::Ranker(err.into()))?
-            .with_cleanse_accents(true)
-            .with_lower_case(true)
-            .with_pooling::<AveragePooler>()
-            .build()
-            .map_err(GenericError::from)?;
-=======
         let smbert = SMBertConfig::from_files(
             &config.smbert_vocab,
             #[cfg(feature = "japanese")]
@@ -312,7 +297,7 @@ impl Engine {
         .with_pooling::<AveragePooler>()
         .build()
         .map_err(GenericError::from)?;
->>>>>>> c6244f81 (japanese tokenizer)
+
         let coi = de_config
             .extract::<CoiSystemConfig>()
             .map_err(|err| Error::Ranker(err.into()))?
@@ -330,8 +315,8 @@ impl Engine {
                 .map_err(|err| Error::Ranker(err.into()))?,
         )
         .map_err(|err| Error::Ranker(err.into()))?
-        .with_accents(AccentChars::Cleanse)
-        .with_case(CaseChars::Keep)
+        .with_cleanse_accents(true)
+        .with_lower_case(true)
         .build()
         .map_err(GenericError::from)?;
         let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
@@ -1751,13 +1736,17 @@ pub(crate) mod tests {
     use std::mem::size_of;
 
     use async_once_cell::OnceCell;
+    use chrono::{offset::Utc, TimeZone};
+    use ndarray::Array;
     use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
+    use url::Url;
     use wiremock::{
         matchers::{method, path},
         Mock,
         MockServer,
         ResponseTemplate,
     };
+    use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
 
     use crate::{document::tests::mock_generic_article, stack::ops::MockOps};
 
@@ -2117,6 +2106,8 @@ pub(crate) mod tests {
 
     #[test]
     fn test_documentify_articles() {
+        use xayn_discovery_engine_test_utils::smbert::{model, vocab};
+
         let smbert = SMBertConfig::from_files(
             vocab().unwrap(),
             #[cfg(feature = "japanese")]
@@ -2136,16 +2127,16 @@ pub(crate) mod tests {
             snippet: String::default(),
             url: example_url(),
             image: None,
-            date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
+            date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0).naive_utc(),
             score: None,
             rank: Rank::default(),
             country: "US".to_string(),
             language: "en".to_string(),
             topic: "news".to_string(),
-            embedding: Some(embedding_1.clone()),
+            // embedding: Some(embedding_1.clone()),
         };
         let article_2 = GenericArticle {
-            embedding: Some(embedding_2.clone()),
+            // embedding: Some(embedding_2.clone()),
             ..article_1.clone()
         };
 
@@ -2155,28 +2146,5 @@ pub(crate) mod tests {
 
         assert_eq!(documents[0].smbert_embedding, expected_1);
         assert_ne!(documents[1].smbert_embedding, expected_2);
-    }
-
-    #[test]
-    fn test_rank_documents_default() {
-        let mut a = Document::default();
-        a.resource.date_published = Utc.ymd(2022, 1, 1).and_hms(1, 0, 0);
-
-        let mut b = Document::default();
-        b.resource.date_published = Utc.ymd(2020, 1, 1).and_hms(1, 0, 0);
-
-        let mut c = Document::default();
-        c.resource.date_published = Utc.ymd(2021, 1, 1).and_hms(1, 0, 0);
-
-        let mut documents = vec![a, b, c];
-
-        let coi = CoiConfig::default().build();
-        let user_interests = UserInterests::default();
-
-        rank_documents(&coi, &user_interests, &mut documents);
-
-        assert_eq!(documents[0].resource.date_published.year(), 2022);
-        assert_eq!(documents[1].resource.date_published.year(), 2021);
-        assert_eq!(documents[2].resource.date_published.year(), 2020);
     }
 }

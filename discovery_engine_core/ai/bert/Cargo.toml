@@ -8,14 +8,13 @@ edition = "2021"
 derive_more = "*"
 displaydoc = "0.2.3"
 float-cmp = "0.9.0"
+itertools = { version = "0.10", optional = true }
+lindera = { version = "0.17.0", features = ["ipadic"], optional = true }
 ndarray = { version = "0.15.6", features = ["serde"] }
 serde = { version = "1.0.144", features = ["derive"] }
 thiserror = "1.0.32"
 tokenizers = { version = "0.13.0", default-features = false, features = ["onig"] }
 tract-onnx = "0.17.3"
-itertools = { version = "0.10", optional = true }
-tokenizers = { version = "0.13.0", default-features = false, features = ["onig"] }
-lindera = { version = "0.17.0", features = ["ipadic"], optional = true }
 
 # dev-dependencies which don't work for aarch targets
 onnxruntime = { version = "0.0.13", optional = true }
@@ -27,5 +26,6 @@ indicatif = "0.17.0"
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
 
 [features]
+default = ["japanese"]
 japanese = ["dep:itertools", "dep:lindera"]
 

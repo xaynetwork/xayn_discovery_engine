@@ -17,7 +17,6 @@ use std::{collections::HashMap, fs::File, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use xayn_discovery_engine_ai::{CoiSystem, CoiSystemConfig, CoiSystemState};
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
-use xayn_discovery_engine_tokenizer::{AccentChars, CaseChars};
 
 use crate::models::{Article, Document, UserId};
 
@@ -56,9 +55,10 @@ pub(crate) struct InitConfig {
 }
 
 pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Error>> {
-    let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)?
-        .with_accents(AccentChars::Cleanse)
-        .with_case(CaseChars::Lower)
+    let none: Option<PathBuf> = None;
+    let smbert = SMBertConfig::from_files(&config.smbert_vocab, none, &config.smbert_model)?
+        .with_cleanse_accents(true)
+        .with_lower_case(true)
         .with_pooling::<AveragePooler>()
         .with_token_size(64)?
         .build()?;

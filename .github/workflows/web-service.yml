@@ -50,8 +50,8 @@ jobs:
           cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/target/release/web-api ./web-service/web-api
           cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/.env ./web-service/.env
           cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/Dockerfile ./web-service/Dockerfile
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/smbert-quantized.onnx ./web-service/assets/model.onnx
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0001/vocab.txt ./web-service/assets/vocab.txt
+          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0002/smbert-japanese.onnx ./web-service/assets/model.onnx
+          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0002/vocab-japanese.txt ./web-service/assets/vocab.txt
           curl "${{ github.event.inputs.data_json_url }}" > ./web-service/assets/data.json
           tar -cvf web-service.tar ./web-service
 

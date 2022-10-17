@@ -48,5 +48,6 @@ wiremock = "0.5.14"
 xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
 
 [features]
+default = ["japanese"]
 japanese = ["xayn-discovery-engine-ai/japanese", "xayn-discovery-engine-bert/japanese"]
 storage = ["dep:sqlx"]

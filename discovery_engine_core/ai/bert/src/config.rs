@@ -144,7 +144,6 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
 
     /// Creates a `BertModel` pipeline from a configuration.
     pub fn build(self) -> Result<Pipeline<K, P>, PipelineError> {
-
         let tokenizer = Tokenizer::new(
             self.vocab,
             #[cfg(feature = "japanese")]
