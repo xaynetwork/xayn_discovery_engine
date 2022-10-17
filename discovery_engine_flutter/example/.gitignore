@@ -55,5 +55,8 @@ app.*.map.json
 !/assets/smbert_v0001
 !/assets/smbert_v0001/.gitkeep
 !/assets/smbert_v0001/smbert-mocked.onnx
+!/assets/smbert_v0002
+!/assets/smbert_v0002/.gitkeep
+!/assets/smbert_v0002/smbert-mocked.onnx
 !/assets/sources_v0000
 !/assets/sources_v0000/.gitkeep

@@ -395,9 +395,13 @@ web-service-up: build-web-service
     set -eux -o pipefail
     rm -rf "$RUST_WORKSPACE/web-api/assets"
     mkdir -p "$RUST_WORKSPACE/web-api/assets"
-    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert-quantized.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
-    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
     ln -s "../dummy_data.json" "$RUST_WORKSPACE/web-api/assets/data.json"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0002/smbert.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0002/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
+    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+    sleep 2
+    cd "$RUST_WORKSPACE/web-api"
+    ./../target/release/ingestion
 
     docker-compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     cd "$RUST_WORKSPACE/web-api"

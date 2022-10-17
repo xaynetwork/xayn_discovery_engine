@@ -1812,8 +1812,8 @@ pub(crate) mod tests {
                 // This triggers the trusted sources stack to also fetch articles
                 trusted_sources: vec!["example.com".into()],
                 excluded_sources: vec![],
-                smbert_vocab: format!("{asset_base}/smbert_v0001/vocab.txt"),
-                smbert_model: format!("{asset_base}/smbert_v0001/smbert-mocked.onnx"),
+                smbert_vocab: format!("{asset_base}/smbert_v0002/vocab.txt"),
+                smbert_model: format!("{asset_base}/smbert_v0002/smbert-mocked.onnx"),
                 kpe_vocab: format!("{asset_base}/kpe_v0001/vocab.txt"),
                 kpe_model: format!("{asset_base}/kpe_v0001/bert-mocked.onnx"),
                 kpe_cnn: format!("{asset_base}/kpe_v0001/cnn.binparams"),
