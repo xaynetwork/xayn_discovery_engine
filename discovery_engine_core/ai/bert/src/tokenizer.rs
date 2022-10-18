@@ -12,23 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::io::BufRead;
-#[cfg(feature = "japanese")]
-use std::{borrow::Cow, path::PathBuf};
+use std::{borrow::Cow, io::BufRead, path::PathBuf};
 
 use derive_more::{Deref, From};
-#[cfg(feature = "japanese")]
 use itertools::Itertools;
-#[cfg(feature = "japanese")]
 use lindera::{
     mode::Mode as JapaneseMode,
     tokenizer::{
         DictionaryConfig as JapaneseDictionaryConfig,
-        DictionaryKind as JapaneseDictionaryKind,
-        DictionarySourceType as JapaneseDictionarySourceType,
         Tokenizer as JapanesePreTokenizer,
         TokenizerConfig as JapanesePreTokenizerConfig,
-        UserDictionaryConfig as JapaneseUserDictionaryConfig,
     },
 };
 use ndarray::Array2;
@@ -51,6 +44,7 @@ use tract_onnx::prelude::{tvec, TVec, Tensor};
 
 /// A pre-configured Bert tokenizer.
 pub struct Tokenizer {
+    japanese: Option<JapanesePreTokenizer>,
     bert: TokenizerImpl<
         WordPieceModel,
         BertNormalizer,
@@ -58,8 +52,6 @@ pub struct Tokenizer {
         BertProcessing,
         WordPieceDecoder,
     >,
-    #[cfg(feature = "japanese")]
-    japanese: Option<JapanesePreTokenizer>,
 }
 
 /// The attention mask of the encoded sequence.
@@ -105,16 +97,31 @@ impl From<Encoding> for Vec<Array2<i64>> {
 impl Tokenizer {
     /// Creates a tokenizer from a vocabulary.
     ///
+    /// If a japanese mecab is given, a japanese pre-tokenizer is created as well.
+    ///
     /// Can be set to cleanse accents and to lowercase the sequences. Requires the maximum number of
     /// tokens per tokenized sequence, which applies to padding and truncation and includes special
     /// tokens as well.
     pub fn new(
         vocab: impl BufRead,
-        #[cfg(feature = "japanese")] japanese: Option<Option<PathBuf>>,
+        japanese: Option<PathBuf>,
         cleanse_accents: bool,
         lower_case: bool,
         token_size: usize,
     ) -> Result<Self, TokenizerError> {
+        let japanese = japanese
+            .map(|mecab| {
+                JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
+                    dictionary: JapaneseDictionaryConfig {
+                        kind: None,
+                        path: Some(mecab),
+                    },
+                    user_dictionary: None,
+                    mode: JapaneseMode::Normal,
+                })
+            })
+            .transpose()?;
+
         let vocab = vocab
             .lines()
             .enumerate()
@@ -163,48 +170,24 @@ impl Tokenizer {
             .with_decoder(Some(decoder))
             .build()?;
 
-        #[cfg(feature = "japanese")]
-        let japanese = japanese
-            .map(|vocab| {
-                JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
-                    dictionary: JapaneseDictionaryConfig {
-                        kind: JapaneseDictionaryKind::IPADIC,
-                        path: None,
-                    },
-                    user_dictionary: vocab.map(|path| JapaneseUserDictionaryConfig {
-                        kind: JapaneseDictionaryKind::IPADIC,
-                        source_type: JapaneseDictionarySourceType::Csv,
-                        path,
-                    }),
-                    mode: JapaneseMode::Normal,
-                })
-            })
-            .transpose()?;
-
-        Ok(Tokenizer {
-            bert,
-            #[cfg(feature = "japanese")]
-            japanese,
-        })
+        Ok(Tokenizer { japanese, bert })
     }
 
     /// Encodes the sequence.
     ///
     /// The encoding is in correct shape for the model.
     pub fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, TokenizerError> {
-        let sequence = sequence.as_ref();
-        #[cfg(feature = "japanese")]
         #[allow(unstable_name_collisions)]
         let sequence = if let Some(japanese) = &self.japanese {
             japanese
-                .tokenize(sequence)?
+                .tokenize(sequence.as_ref())?
                 .into_iter()
                 .map(|token| token.text)
                 .intersperse(" ")
                 .collect::<String>()
                 .into()
         } else {
-            Cow::Borrowed(sequence)
+            Cow::Borrowed(sequence.as_ref())
         };
 
         let encoding = self.bert.encode(sequence, true)?;
@@ -232,15 +215,7 @@ mod tests {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
         let cleanse_accents = true;
         let lower_case = true;
-        Tokenizer::new(
-            vocab,
-            #[cfg(feature = "japanese")]
-            None,
-            cleanse_accents,
-            lower_case,
-            token_size,
-        )
-        .unwrap()
+        Tokenizer::new(vocab, None, cleanse_accents, lower_case, token_size).unwrap()
     }
 
     #[test]

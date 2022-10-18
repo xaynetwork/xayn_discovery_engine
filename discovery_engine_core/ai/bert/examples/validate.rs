@@ -148,7 +148,6 @@ impl Pipeline {
             ModelKind::OnnxMBert => {
                 let tokenizer = Tokenizer::new(
                     BufReader::new(File::open(model.vocab.as_path()).unwrap()),
-                    #[cfg(feature = "japanese")]
                     None,
                     tokenizer.cleanse_accents,
                     tokenizer.lower_case,

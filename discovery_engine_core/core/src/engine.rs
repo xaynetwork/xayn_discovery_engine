@@ -292,15 +292,17 @@ impl Engine {
             .map_err(|err| Error::Ranker(err.into()))?;
         let provider_config =
             config.to_provider_config(endpoint_config.timeout, endpoint_config.retry);
-        let japanese = de_config.extract_inner::<&str>("smbert.japanese").ok();
 
         // build the systems
         let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
+            .map(|smbert| {
+                if let Ok(mecab) = de_config.extract_inner::<&str>("smbert.japanese") {
+                    smbert.with_japanese(mecab)
+                } else {
+                    smbert
+                }
+            })
             .map_err(|err| Error::Ranker(err.into()))?
-            .with_japanese(
-                japanese.is_some(),
-                japanese.and_then(|japanese| (!japanese.is_empty()).then_some(japanese)),
-            )
             .with_token_size(
                 de_config
                     .extract_inner("smbert.token_size")

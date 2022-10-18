@@ -43,9 +43,7 @@ pub enum ConfigError {
 pub struct Config<'a, K, P> {
     model_kind: PhantomData<K>,
     vocab: Box<dyn BufRead + Send + 'a>,
-    // TODO: flatten the options once the internal vocab has been extracted
-    #[allow(clippy::option_option)]
-    japanese: Option<Option<PathBuf>>,
+    japanese: Option<PathBuf>,
     model: Box<dyn Read + Send + 'a>,
     cleanse_accents: bool,
     lower_case: bool,
@@ -130,18 +128,12 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
         }
     }
 
-    /// Enables the japanese pre-tokenizer and optionally sets a custom vocabulary.
+    /// Enables the japanese pre-tokenizer.
     ///
-    /// Has no effects without the "japanese" feature flag. Defaults to disabled. If enabled, the
-    /// vocabulary defaults to `IpaDic`. Note that this doesn't affect the vocabulary used for the
-    /// Bert tokenizer, but only for the japanese pre-tokenizer.
-    pub fn with_japanese(
-        mut self,
-        enable: bool,
-        pre_tokenizer_vocab: Option<impl AsRef<Path>>,
-    ) -> Self {
-        self.japanese =
-            enable.then(|| pre_tokenizer_vocab.map(|vocab| vocab.as_ref().to_path_buf()));
+    /// Defaults to disabled. Note, that this doesn't affect the vocabulary used for the Bert
+    /// tokenizer, but only for the japanese pre-tokenizer.
+    pub fn with_japanese(mut self, mecab: impl AsRef<Path>) -> Self {
+        self.japanese = mecab.as_ref().to_path_buf().into();
         self
     }
 
@@ -149,7 +141,6 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
     pub fn build(self) -> Result<Pipeline<K, P>, PipelineError> {
         let tokenizer = Tokenizer::new(
             self.vocab,
-            #[cfg(feature = "japanese")]
             self.japanese,
             self.cleanse_accents,
             self.lower_case,

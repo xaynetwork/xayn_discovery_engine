@@ -72,7 +72,6 @@ fn bench_onnx(
 ) {
     let tokenizer = Tokenizer::new(
         BufReader::new(File::open(vocab.unwrap()).unwrap()),
-        #[cfg(feature = "japanese")]
         None,
         true,
         true,

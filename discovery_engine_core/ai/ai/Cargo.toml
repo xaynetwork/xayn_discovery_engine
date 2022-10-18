@@ -24,6 +24,3 @@ xayn-discovery-engine-providers = { path = "../../providers" }
 [dev-dependencies]
 serde_json = { workspace = true }
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
-
-[features]
-japanese = ["xayn-discovery-engine-bert/japanese"]
