@@ -275,7 +275,10 @@ async fn handle_add_data(
         .body(bytes)
         .send()
         .await
-        .map_err(|err| warp::reject::custom(Error::Elastic(err)))?
+        .map_err(|err| {
+            error!("Sending request to elastic failed {:#?}", err);
+            warp::reject::custom(Error::Elastic(err))
+        })?
         .error_for_status()
         .map_err(|err| warp::reject::custom(Error::Receiving(err)))?
         .json::<HashMap<String, serde_json::Value>>()
