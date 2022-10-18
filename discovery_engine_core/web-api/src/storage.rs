@@ -227,11 +227,11 @@ struct QueriedCoi {
 
 #[derive(FromRow)]
 struct QueriedInteractedDocumentId {
-    doc_id: String,
+    doc_id: DocumentId,
 }
 
 impl From<QueriedInteractedDocumentId> for DocumentId {
     fn from(document: QueriedInteractedDocumentId) -> Self {
-        Self(document.doc_id)
+        document.doc_id
     }
 }
