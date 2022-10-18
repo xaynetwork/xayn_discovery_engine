@@ -30,6 +30,10 @@ use xayn_discovery_engine_ai::{
 use crate::{
     elastic::KnnSearchParams,
     models::{
+        DocumentId,
+        DocumentPropertiesRequestBody,
+        DocumentPropertiesResponse,
+        Error,
         PersonalizedDocumentsError,
         PersonalizedDocumentsErrorKind,
         PersonalizedDocumentsQuery,
@@ -241,4 +245,60 @@ fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
             }
         })
         .collect()
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_get_document_properties(
+    doc_id: DocumentId,
+    state: Arc<AppState>,
+) -> Result<Box<dyn Reply>, Infallible> {
+    match state.elastic.get_document_properties(&doc_id).await {
+        Ok(properties) => Ok(Box::new(DocumentPropertiesResponse::new(properties).to_reply()) as _),
+        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
+            Ok(Box::new(StatusCode::NOT_FOUND) as _)
+        }
+        Err(error) => {
+            error!("Error fetching document properties: {error}");
+            Ok(Box::new(StatusCode::BAD_REQUEST) as _)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_put_document_properties(
+    doc_id: DocumentId,
+    body: DocumentPropertiesRequestBody,
+    state: Arc<AppState>,
+) -> Result<StatusCode, Infallible> {
+    match state
+        .elastic
+        .put_document_properties(&doc_id, &body.properties)
+        .await
+    {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
+            Ok(StatusCode::NOT_FOUND)
+        }
+        Err(error) => {
+            error!("Error fetching document properties: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_delete_document_properties(
+    doc_id: DocumentId,
+    state: Arc<AppState>,
+) -> Result<StatusCode, Infallible> {
+    match state.elastic.delete_document_properties(&doc_id).await {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
+            Ok(StatusCode::NOT_FOUND)
+        }
+        Err(error) => {
+            error!("Error fetching document properties: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
 }
