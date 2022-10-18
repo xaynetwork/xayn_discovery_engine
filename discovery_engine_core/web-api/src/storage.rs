@@ -19,18 +19,11 @@ use itertools::Itertools;
 use ndarray::Array;
 use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
-    FromRow,
-    Pool,
-    Postgres,
+    FromRow, Pool, Postgres,
 };
 use uuid::Uuid;
 use xayn_discovery_engine_ai::{
-    CoiStats,
-    Embedding,
-    GenericError,
-    NegativeCoi,
-    PositiveCoi,
-    UserInterests,
+    CoiStats, Embedding, GenericError, NegativeCoi, PositiveCoi, UserInterests,
 };
 
 use crate::models::{DocumentId, UserId, UserInteractionType};

@@ -15,6 +15,7 @@
 //! Ingestion service that uses Xayn Discovery Engine.
 
 use bytes::{BufMut, Bytes, BytesMut};
+use displaydoc::Display as DisplayDoc;
 use envconfig::Envconfig;
 use itertools::Itertools;
 use reqwest::{
@@ -22,7 +23,9 @@ use reqwest::{
     Client,
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
+use serde_json::json;
 use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::Arc};
+use thiserror::Error;
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -77,22 +80,23 @@ struct IngestedDocument {
 
 #[derive(Debug, Clone, Serialize)]
 struct IngestionError {
-    #[serde(flatten)]
-    base: BaseError,
     /// List of Document Indices which were not successfully processed
-    documents: Vec<DocumentId>,
+    documents: Vec<ErroredDocumentId>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct ErroredDocumentId {
+    id: DocumentId,
 }
 
 impl IngestionError {
-    pub(crate) fn new(request_id: Option<String>, errored_ids: Vec<DocumentId>) -> Self {
+    pub(crate) fn new(errored_ids: Vec<DocumentId>) -> Self {
         Self {
-            base: BaseError { request_id },
-            documents: errored_ids,
+            documents: errored_ids
+                .into_iter()
+                .map(|id| ErroredDocumentId { id })
+                .collect_vec(),
         }
-    }
-
-    pub(crate) fn to_reply(&self, status: StatusCode) -> impl Reply {
-        reply::with_status(reply::json(self), status)
     }
 }
 
@@ -214,10 +218,10 @@ async fn handle_add_data(
     model: Model,
     config: Config,
     client: Client,
-) -> Result<impl warp::Reply, Rejection> {
+) -> Result<impl Reply, Rejection> {
     if body.documents.len() > config.max_documents_length {
         error!("{} documents exceeds maximum number", body.documents.len());
-        return Ok(Box::new(StatusCode::BAD_REQUEST));
+        return Err(warp::reject::custom(Error::TooManyDocuments));
     }
 
     let start = Instant::now();
@@ -251,16 +255,10 @@ async fn handle_add_data(
         embeddings_duration
     );
 
-    if !errored_ids.is_empty() {
-        return Err(warp::reject::custom(EmbeddingsCalculationError(
-            errored_ids,
-        )));
-    }
-
     debug!("Serializing documents to ndjson");
     let bytes = serialize_to_ndjson(&documents).map_err(|e| {
         error!("Error serializing documents to ndjson: {e}");
-        warp::reject::custom(SerializeNdJsonError)
+        warp::reject::custom(Error::SerializeNdJson(e))
     })?;
 
     let url = format!(
@@ -277,24 +275,24 @@ async fn handle_add_data(
         .body(bytes)
         .send()
         .await
-        .map_err(handle_elastic_error)?
+        .map_err(|err| warp::reject::custom(Error::Elastic(err)))?
         .error_for_status()
-        .map_err(handle_elastic_error)?
+        .map_err(|err| warp::reject::custom(Error::Receiving(err)))?
         .json::<HashMap<String, serde_json::Value>>()
         .await
         .map_err(|err| {
             error!("ReceivingOpError {:#?}", err);
-            warp::reject::custom(ReceivingOpError)
+            warp::reject::custom(Error::Elastic(err))
         })?;
 
     if !errored_ids.is_empty() {
-        let ingestion_error = IngestionError::new(Option::None, errored_ids);
-        return Ok(Box::new(
-            ingestion_error.to_reply(StatusCode::INTERNAL_SERVER_ERROR),
-        ));
+        // TODO: change name of error variant to take into account the elastic error indices
+        return Err(warp::reject::custom(Error::EmbeddingsCalculation(
+            errored_ids,
+        )));
     }
 
-    Ok(Box::new(StatusCode::NO_CONTENT))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 fn with_config(config: Config) -> impl Filter<Extract = (Config,), Error = Infallible> + Clone {
@@ -337,78 +335,47 @@ fn serialize_to_ndjson(
     Ok(bytes.freeze())
 }
 
-#[derive(Debug)]
-struct TooManyDocumentsError;
-impl Reject for TooManyDocumentsError {}
+#[derive(Error, Debug, DisplayDoc)]
+enum Error {
+    /// Too many documents send to ingestion system
+    TooManyDocuments,
 
-#[derive(Debug)]
-struct EmbeddingsCalculationError(Vec<DocumentId>);
-impl Reject for EmbeddingsCalculationError {}
+    /// Embeddings could not be calculated
+    EmbeddingsCalculation(Vec<DocumentId>),
 
-#[derive(Debug)]
-struct SerializeNdJsonError;
-impl Reject for SerializeNdJsonError {}
+    /// Serialization error
+    SerializeNdJson(GenericError),
 
-#[derive(Debug)]
-struct ElasticOpError;
-impl Reject for ElasticOpError {}
+    /// Upload to elastic did not succeed
+    Elastic(#[source] reqwest::Error),
 
-#[derive(Debug)]
-struct ReceivingOpError;
-impl Reject for ReceivingOpError {}
-
-fn handle_elastic_error(err: reqwest::Error) -> Rejection {
-    error!("ElasticOpError {:#?}", err);
-    warp::reject::custom(ElasticOpError)
+    /// Deserialization of response from elastic instance did not succeed
+    Receiving(#[source] reqwest::Error),
 }
 
-/// An API error serializable to JSON.
-#[derive(Serialize)]
-struct ErrorMessage {
-    code: u16,
-    message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    errored_ids: Option<Vec<DocumentId>>,
-}
+impl Reject for Error {}
 
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
-    let code;
-    let message;
-    let mut errored_ids = None;
+    let (json, code) = match err.find() {
+        Some(Error::TooManyDocuments) => {
+            let json = reply::json(&json!({}));
+            (json, StatusCode::BAD_REQUEST)
+        }
+        Some(Error::EmbeddingsCalculation(ids)) => {
+            let ingestion_error = IngestionError::new(ids.to_vec());
+            let json = reply::json(&json!(ingestion_error));
+            (json, StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Some(_) => {
+            let ingestion_error = IngestionError::new(Vec::new());
+            let json = reply::json(&json!(ingestion_error));
+            (json, StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        None => {
+            let json = reply::json(&json!({}));
+            (json, StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    };
 
-    if err.is_not_found() {
-        code = StatusCode::NOT_FOUND;
-        message = "NOT_FOUND";
-    } else if err
-        .find::<warp::filters::body::BodyDeserializeError>()
-        .is_some()
-    {
-        code = StatusCode::BAD_REQUEST;
-        message = "REQUEST_BODY_DESERIALIZATION_ERROR";
-    } else if let Some(ElasticOpError) = err.find() {
-        code = StatusCode::BAD_REQUEST;
-        message = "ELASTIC_ERROR";
-    } else if let Some(ReceivingOpError) = err.find() {
-        code = StatusCode::BAD_REQUEST;
-        message = "RECEIVING_OPERATION_ERROR";
-    } else if let Some(SerializeNdJsonError) = err.find() {
-        code = StatusCode::BAD_REQUEST;
-        message = "NDJSON_SERIALIZATION_ERROR";
-    } else if let Some(EmbeddingsCalculationError(ids)) = err.find() {
-        code = StatusCode::UNPROCESSABLE_ENTITY;
-        message = "UNPROCESSABLE_DOCUMENTS";
-        errored_ids = Some(ids.to_vec());
-    } else {
-        error!("unhandled rejection: {:?}", err);
-        code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = "UNHANDLED_REJECTION";
-    }
-
-    let json = warp::reply::json(&ErrorMessage {
-        code: code.as_u16(),
-        message: message.into(),
-        errored_ids,
-    });
-
-    Ok(warp::reply::with_status(json, code))
+    Ok(reply::with_status(json, code))
 }

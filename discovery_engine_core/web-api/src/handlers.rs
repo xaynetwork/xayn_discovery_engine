@@ -20,25 +20,15 @@ use tracing::{debug, error, instrument};
 use warp::{http::StatusCode, Reply};
 
 use xayn_discovery_engine_ai::{
-    compute_coi_relevances,
-    nan_safe_f32_cmp,
-    system_time_now,
-    utils::rank,
-    PositiveCoi,
+    compute_coi_relevances, nan_safe_f32_cmp, system_time_now, utils::rank, PositiveCoi,
 };
 
 use crate::{
     elastic::KnnSearchParams,
     models::{
-        PersonalizedDocumentsError,
-        PersonalizedDocumentsErrorKind,
-        PersonalizedDocumentsQuery,
-        PersonalizedDocumentsResponse,
-        UserId,
-        UserInteractionError,
-        UserInteractionErrorKind,
-        UserInteractionRequestBody,
-        UserInteractionType,
+        PersonalizedDocumentsError, PersonalizedDocumentsErrorKind, PersonalizedDocumentsQuery,
+        PersonalizedDocumentsResponse, UserId, UserInteractionError, UserInteractionErrorKind,
+        UserInteractionRequestBody, UserInteractionType,
     },
     state::AppState,
 };

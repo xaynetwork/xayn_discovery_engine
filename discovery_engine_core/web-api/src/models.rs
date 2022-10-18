@@ -51,7 +51,7 @@ impl Reject for Error {}
 
 /// A unique identifier of a document.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
-pub(crate) struct DocumentId(pub(crate) String);
+pub struct DocumentId(pub String);
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]
