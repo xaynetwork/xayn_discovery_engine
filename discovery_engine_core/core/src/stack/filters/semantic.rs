@@ -174,7 +174,7 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 }
 
 /// Calculates the normalized distances.
-fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
+pub fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
     let cosine_similarity = condensed_cosine_similarity(
         documents
             .iter()
@@ -190,7 +190,7 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
 }
 
 /// Configurations for semantic filtering.
-pub(crate) struct SemanticFilterConfig {
+pub struct SemanticFilterConfig {
     /// Maximum days threshold after which documents fully decay (must be non-negative).
     pub(crate) max_days: f32,
     /// Threshold to scale the time decay factor.
