@@ -352,7 +352,7 @@ enum Error {
     /// Serialization error
     SerializeNdJson(GenericError),
 
-    /// Upload to elastic did not succeed
+    /// Elastic search ingestion error: {0}.
     Elastic(#[source] reqwest::Error),
 
     /// Deserialization of response from elastic instance did not succeed
