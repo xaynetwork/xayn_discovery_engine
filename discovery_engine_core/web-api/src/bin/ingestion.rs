@@ -355,7 +355,7 @@ enum Error {
     /// Elastic search ingestion error: {0}.
     Elastic(#[source] reqwest::Error),
 
-    /// Deserialization of response from elastic instance did not succeed
+    /// Error receiving response: {0}.
     Receiving(#[source] reqwest::Error),
 }
 
