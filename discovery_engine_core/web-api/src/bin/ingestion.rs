@@ -23,7 +23,6 @@ use reqwest::{
     Client,
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
-use serde_json::json;
 use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::time::Instant;
@@ -97,6 +96,9 @@ impl IngestionError {
                 .map(|id| ErroredDocumentId { id })
                 .collect_vec(),
         }
+    }
+    pub(crate) fn to_reply(&self) -> impl Reply {
+        reply::with_status(reply::json(self), StatusCode::INTERNAL_SERVER_ERROR)
     }
 }
 
@@ -346,7 +348,7 @@ enum Error {
     /// Too many documents send to ingestion system.
     TooManyDocuments,
 
-    /// Embeddings could not be calculated: {0}.
+    /// Embeddings could not be calculated.
     EmbeddingsCalculation(Vec<DocumentId>),
 
     /// Serialization error
@@ -361,27 +363,17 @@ enum Error {
 
 impl Reject for Error {}
 
-async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
-    let (json, code) = match err.find() {
-        Some(Error::TooManyDocuments) => {
-            let json = reply::json(&json!({}));
-            (json, StatusCode::BAD_REQUEST)
-        }
+async fn handle_rejection(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
+    if let Some(err) = err.find::<warp::filters::body::BodyDeserializeError>() {
+        error!("BodyDeserializeError: {:?}", err);
+        return Ok(Box::new(StatusCode::BAD_REQUEST));
+    }
+    match err.find() {
+        Some(Error::TooManyDocuments) => Ok(Box::new(StatusCode::BAD_REQUEST)),
         Some(Error::EmbeddingsCalculation(ids)) => {
-            let ingestion_error = IngestionError::new(ids.to_vec());
-            let json = reply::json(&json!(ingestion_error));
-            (json, StatusCode::INTERNAL_SERVER_ERROR)
+            Ok(Box::new(IngestionError::new(ids.to_vec()).to_reply()))
         }
-        Some(_) => {
-            let ingestion_error = IngestionError::new(Vec::new());
-            let json = reply::json(&json!(ingestion_error));
-            (json, StatusCode::INTERNAL_SERVER_ERROR)
-        }
-        None => {
-            let json = reply::json(&json!({}));
-            (json, StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    };
-
-    Ok(reply::with_status(json, code))
+        Some(_) => Ok(Box::new(IngestionError::new(Vec::new()).to_reply())),
+        None => Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR)),
+    }
 }
