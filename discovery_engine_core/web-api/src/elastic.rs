@@ -18,6 +18,7 @@ use itertools::Itertools;
 use reqwest::{
     header::{HeaderValue, CONTENT_TYPE},
     Client,
+    StatusCode,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -51,6 +52,19 @@ pub(crate) struct KnnSearchParams {
     pub(crate) size: usize,
     pub(crate) k_neighbors: usize,
     pub(crate) num_candidates: usize,
+}
+
+trait ElasticResultExt<T> {
+    fn or_not_found(self, res: Result<T, Error>) -> Result<T, Error>;
+}
+
+impl<T> ElasticResultExt<T> for Result<T, Error> {
+    fn or_not_found(self, res: Result<T, Error>) -> Result<T, Error> {
+        self.or_else(|error| match error {
+            Error::Elastic(error) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => res,
+            _ => Err(error),
+        })
+    }
 }
 
 #[allow(dead_code)]
@@ -110,21 +124,22 @@ impl ElasticState {
     pub(crate) async fn get_document_properties(
         &self,
         id: &DocumentId,
-    ) -> Result<DocumentProperties, Error> {
+    ) -> Result<Option<DocumentProperties>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
         self.query_elastic_search::<DocumentPropertiesResponse>(
             &format!("_source/{id}?_source_includes=properties"),
             None,
         )
         .await
-        .map(|response| response.properties)
+        .map(|response| Some(response.properties))
+        .or_not_found(Ok(None))
     }
 
     pub(crate) async fn put_document_properties(
         &self,
         id: &DocumentId,
         properties: &DocumentProperties,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let body = Some(json!({
             "script": {
@@ -135,13 +150,14 @@ impl ElasticState {
             },
             "_source": false
         }));
-        self.query_elastic_search::<GenericResponse>(&format!("_update/{id}"), body)
-            .await?;
 
-        Ok(())
+        self.query_elastic_search::<GenericResponse>(&format!("_update/{id}"), body)
+            .await
+            .and(Ok(true))
+            .or_not_found(Ok(false))
     }
 
-    pub(crate) async fn delete_document_properties(&self, id: &DocumentId) -> Result<(), Error> {
+    pub(crate) async fn delete_document_properties(&self, id: &DocumentId) -> Result<bool, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         // don't delete the field, but put an empty map instead, similar to the ingestion service
         let body = Some(json!({
@@ -153,10 +169,11 @@ impl ElasticState {
             },
             "_source": false
         }));
-        self.query_elastic_search::<GenericResponse>(&format!("_update/{id}"), body)
-            .await?;
 
-        Ok(())
+        self.query_elastic_search::<GenericResponse>(&format!("_update/{id}"), body)
+            .await
+            .and(Ok(true))
+            .or_not_found(Ok(false))
     }
 
     pub(crate) async fn get_document_property(
@@ -171,6 +188,7 @@ impl ElasticState {
         )
         .await
         .map(|mut response| response.0.remove(prop_id))
+        .or_not_found(Ok(None))
     }
 
     pub(crate) async fn put_document_property(
@@ -178,7 +196,7 @@ impl ElasticState {
         doc_id: &DocumentId,
         prop_id: &DocumentPropertyId,
         property: &DocumentProperty,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let body = Some(json!({
             "script": {
@@ -190,17 +208,18 @@ impl ElasticState {
             },
             "_source": false
         }));
-        self.query_elastic_search::<GenericResponse>(&format!("_update/{doc_id}"), body)
-            .await?;
 
-        Ok(())
+        self.query_elastic_search::<GenericResponse>(&format!("_update/{doc_id}"), body)
+            .await
+            .and(Ok(true))
+            .or_not_found(Ok(false))
     }
 
     pub(crate) async fn delete_document_property(
         &self,
         doc_id: &DocumentId,
         prop_id: &DocumentPropertyId,
-    ) -> Result<(), Error> {
+    ) -> Result<bool, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let body = Some(json!({
             "script": {
@@ -211,10 +230,11 @@ impl ElasticState {
             },
             "_source": false
         }));
-        self.query_elastic_search::<GenericResponse>(&format!("_update/{doc_id}"), body)
-            .await?;
 
-        Ok(())
+        self.query_elastic_search::<GenericResponse>(&format!("_update/{doc_id}"), body)
+            .await
+            .and(Ok(true))
+            .or_not_found(Ok(false))
     }
 
     async fn query_elastic_search<T>(&self, route: &str, body: Option<Value>) -> Result<T, Error>
