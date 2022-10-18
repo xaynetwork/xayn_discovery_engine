@@ -346,7 +346,7 @@ enum Error {
     /// Too many documents send to ingestion system.
     TooManyDocuments,
 
-    /// Embeddings could not be calculated
+    /// Embeddings could not be calculated: {0}.
     EmbeddingsCalculation(Vec<DocumentId>),
 
     /// Serialization error
