@@ -24,14 +24,14 @@ use warp::{
     reply::{self, Reply},
 };
 
-use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
+use xayn_discovery_engine_ai::{Document as AiDocument, Embedding, GenericError};
 
 /// The range of the count parameter.
 pub(crate) const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
-pub(crate) enum Error {
+pub enum Error {
     /// [`UserId`] can't be empty.
     UserIdEmpty,
 
@@ -67,6 +67,16 @@ pub(crate) enum Error {
 
     /// Error receiving response: {0}
     Receiving(#[source] reqwest::Error),
+
+    /** Too many documents send to ingestion system: {0}. The maximum number is specified via
+    `MAX_DOCUMENTS_LENGTH` env var. */
+    TooManyDocuments(usize),
+
+    /// Embeddings could not be calculated.
+    EmbeddingsCalculation(Vec<DocumentId>),
+
+    /// Couldn't serialize documents to NDJSON: {0}.
+    SerializeNdJson(#[source] GenericError),
 }
 
 impl Reject for Error {}
@@ -95,7 +105,7 @@ impl From<DocumentId> for String {
 }
 
 impl DocumentId {
-    pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
+    pub fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
         if id.is_empty() {
@@ -112,7 +122,7 @@ impl DocumentId {
 pub struct DocumentPropertyId(String);
 
 impl DocumentPropertyId {
-    pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
+    pub fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
         if id.is_empty() {
@@ -130,46 +140,6 @@ pub struct DocumentProperty(serde_json::Value);
 
 /// Arbitrary properties that can be attached to a document.
 pub type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DocumentPropertiesRequestBody {
-    pub(crate) properties: DocumentProperties,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub(crate) struct DocumentPropertiesResponse {
-    properties: DocumentProperties,
-}
-
-impl DocumentPropertiesResponse {
-    pub(crate) fn new(properties: DocumentProperties) -> Self {
-        Self { properties }
-    }
-
-    pub(crate) fn to_reply(&self) -> impl Reply {
-        reply::json(self)
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DocumentPropertyRequestBody {
-    pub(crate) property: DocumentProperty,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct DocumentPropertyResponse {
-    property: DocumentProperty,
-}
-
-impl DocumentPropertyResponse {
-    pub(crate) fn new(property: DocumentProperty) -> Self {
-        Self { property }
-    }
-
-    pub(crate) fn to_reply(&self) -> impl Reply {
-        reply::json(self)
-    }
-}
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]

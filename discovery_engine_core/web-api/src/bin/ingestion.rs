@@ -14,22 +14,34 @@
 
 //! Ingestion service that uses Xayn Discovery Engine.
 
+use std::{convert::Infallible, env, path::PathBuf, sync::Arc};
+
 use bytes::{BufMut, Bytes, BytesMut};
-use displaydoc::Display as DisplayDoc;
 use envconfig::Envconfig;
 use itertools::Itertools;
-use reqwest::{
-    header::{HeaderValue, CONTENT_TYPE},
-    Client,
-};
 use serde::{de, Deserialize, Deserializer, Serialize};
-use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::Arc};
-use thiserror::Error;
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use tracing_subscriber::fmt::format::FmtSpan;
-use warp::{self, hyper::StatusCode, reject::Reject, reply, Filter, Rejection, Reply};
-use web_api::{DocumentId, DocumentProperties, ElasticDocumentData};
+use warp::{
+    self,
+    hyper::StatusCode,
+    reply::{self, Reply},
+    Filter,
+    Rejection,
+};
+
+use web_api::{
+    DocumentId,
+    DocumentProperties,
+    DocumentProperty,
+    DocumentPropertyId,
+    ElasticConfig,
+    ElasticDocumentData,
+    ElasticState,
+    Error,
+    GenericResponse,
+};
 use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 
@@ -158,6 +170,46 @@ where
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct DocumentPropertiesRequestBody {
+    pub(crate) properties: DocumentProperties,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct DocumentPropertiesResponse {
+    properties: DocumentProperties,
+}
+
+impl DocumentPropertiesResponse {
+    fn new(properties: DocumentProperties) -> Self {
+        Self { properties }
+    }
+
+    fn to_reply(&self) -> impl Reply {
+        reply::json(self)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct DocumentPropertyRequestBody {
+    property: DocumentProperty,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DocumentPropertyResponse {
+    property: DocumentProperty,
+}
+
+impl DocumentPropertyResponse {
+    fn new(property: DocumentProperty) -> Self {
+        Self { property }
+    }
+
+    fn to_reply(&self) -> impl Reply {
+        reply::json(self)
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), GenericError> {
     let filter = env::var("RUST_LOG").unwrap_or_else(|_| "tracing=info,warp=debug".to_owned());
@@ -166,11 +218,22 @@ async fn main() -> Result<(), GenericError> {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
-    let config = Config::init_from_env()?;
-    let client = Client::new();
+    let config = Arc::new(Config::init_from_env()?);
+    let client = Arc::new(ElasticState::new(ElasticConfig {
+        url: config.elastic_url.clone(),
+        index_name: config.elastic_index_name.clone(),
+        user: config.elastic_user.clone(),
+        password: config.elastic_password.clone(),
+    }));
     let model = init_model(&config)?;
 
-    let routes = post_documents(config, model, client)
+    let routes = post_documents(config.clone(), model, client.clone())
+        .or(get_document_properties(client.clone()))
+        .or(put_document_properties(config.clone(), client.clone()))
+        .or(delete_document_properties(client.clone()))
+        .or(get_document_property(client.clone()))
+        .or(put_document_property(config, client.clone()))
+        .or(delete_document_property(client))
         .recover(handle_rejection)
         .with(warp::trace::request());
 
@@ -201,12 +264,12 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
 
 // POST /documents
 fn post_documents(
-    config: Config,
+    config: Arc<Config>,
     model: Model,
-    client: Client,
+    client: Arc<ElasticState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::path("documents")
-        .and(warp::post())
+    warp::post()
+        .and(warp::path("documents"))
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
         .and(with_model(model))
@@ -215,17 +278,110 @@ fn post_documents(
         .and_then(handle_add_data)
 }
 
+// PATH /documents/:document_id/properties
+fn document_properties_path() -> impl Filter<Extract = (DocumentId,), Error = Rejection> + Clone {
+    let document_id_param = warp::path::param().and_then(|document_id: String| async move {
+        urlencoding::decode(&document_id)
+            .map_err(Error::DocumentIdUtf8Conversion)
+            .and_then(DocumentId::new)
+            .map_err(warp::reject::custom)
+    });
+
+    warp::path("documents")
+        .and(document_id_param)
+        .and(warp::path("properties"))
+}
+
+// PATH /documents/:document_id/properties/:property_id
+fn document_property_path(
+) -> impl Filter<Extract = (DocumentId, DocumentPropertyId), Error = Rejection> + Clone {
+    let property_id_param = warp::path::param().and_then(|property_id: String| async move {
+        urlencoding::decode(&property_id)
+            .map_err(Error::DocumentPropertyIdUtf8Conversion)
+            .and_then(DocumentPropertyId::new)
+            .map_err(warp::reject::custom)
+    });
+
+    document_properties_path().and(property_id_param)
+}
+
+// GET /documents/:document_id/properties
+fn get_document_properties(
+    client: Arc<ElasticState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::get()
+        .and(document_properties_path())
+        .and(with_client(client))
+        .and_then(handle_get_document_properties)
+}
+
+// PUT /documents/:document_id/properties
+fn put_document_properties(
+    config: Arc<Config>,
+    client: Arc<ElasticState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::put()
+        .and(document_properties_path())
+        .and(warp::body::content_length_limit(config.max_body_size))
+        .and(warp::body::json())
+        .and(with_client(client))
+        .and_then(handle_put_document_properties)
+}
+
+// DELETE /documents/:document_id/properties
+fn delete_document_properties(
+    client: Arc<ElasticState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::delete()
+        .and(document_properties_path())
+        .and(with_client(client))
+        .and_then(handle_delete_document_properties)
+}
+
+// GET /documents/:document_id/properties/:property_id
+fn get_document_property(
+    client: Arc<ElasticState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::get()
+        .and(document_property_path())
+        .and(with_client(client))
+        .and_then(handle_get_document_property)
+}
+
+// PUT /documents/:document_id/properties/:property_id
+fn put_document_property(
+    config: Arc<Config>,
+    client: Arc<ElasticState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::put()
+        .and(document_property_path())
+        .and(warp::body::content_length_limit(config.max_body_size))
+        .and(warp::body::json())
+        .and(with_client(client))
+        .and_then(handle_put_document_property)
+}
+
+// DELETE /documents/:document_id/properties/:property_id
+fn delete_document_property(
+    client: Arc<ElasticState>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::delete()
+        .and(document_property_path())
+        .and(with_client(client))
+        .and_then(handle_delete_document_property)
+}
+
 #[instrument(skip(model, config, client))]
 async fn handle_add_data(
     body: IngestionRequest,
     model: Model,
-    config: Config,
-    client: Client,
+    config: Arc<Config>,
+    client: Arc<ElasticState>,
 ) -> Result<impl Reply, Rejection> {
     if body.documents.len() > config.max_documents_length {
         error!("{} documents exceeds maximum number", body.documents.len());
         return Err(warp::reject::custom(Error::TooManyDocuments(
-            body.documents.len() as i32,
+            body.documents.len(),
         )));
     }
 
@@ -266,35 +422,10 @@ async fn handle_add_data(
         warp::reject::custom(Error::SerializeNdJson(e))
     })?;
 
-    let url = format!(
-        "{}/{}/_bulk?refresh",
-        config.elastic_url, config.elastic_index_name
-    );
-
-    info!("Requesting '{}'", url);
-
-    let _ = client
-        .post(url)
-        .basic_auth(&config.elastic_user, Some(&config.elastic_password))
-        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
-        .body(bytes)
-        .send()
-        .await
-        .map_err(|err| {
-            error!("Sending request to elastic failed {:#?}", err);
-            warp::reject::custom(Error::Elastic(err))
-        })?
-        .error_for_status()
-        .map_err(|err| {
-            error!("Sending request to elastic failed {:#?}", err);
-            warp::reject::custom(Error::Elastic(err))
-        })?
-        .json::<HashMap<String, serde_json::Value>>()
-        .await
-        .map_err(|err| {
-            error!("ReceivingOpError {:#?}", err);
-            warp::reject::custom(Error::Receiving(err))
-        })?;
+    info!("Requesting url");
+    client
+        .query_elastic_search::<_, GenericResponse>("_bulk?refresh", Some(bytes))
+        .await?;
 
     if !errored_ids.is_empty() {
         // TODO: change name of error variant to take into account the elastic error indices
@@ -306,7 +437,112 @@ async fn handle_add_data(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn with_config(config: Config) -> impl Filter<Extract = (Config,), Error = Infallible> + Clone {
+#[instrument(skip(client))]
+pub(crate) async fn handle_get_document_properties(
+    doc_id: DocumentId,
+    client: Arc<ElasticState>,
+) -> Result<Box<dyn Reply>, Infallible> {
+    match client.get_document_properties(&doc_id).await {
+        Ok(Some(properties)) => {
+            Ok(Box::new(DocumentPropertiesResponse::new(properties).to_reply()) as _)
+        }
+        Ok(None) => Ok(Box::new(StatusCode::NOT_FOUND) as _),
+        Err(error) => {
+            error!("Error fetching document properties: {error}");
+            Ok(Box::new(StatusCode::BAD_REQUEST) as _)
+        }
+    }
+}
+
+#[instrument(skip(client))]
+pub(crate) async fn handle_put_document_properties(
+    doc_id: DocumentId,
+    body: DocumentPropertiesRequestBody,
+    client: Arc<ElasticState>,
+) -> Result<StatusCode, Infallible> {
+    match client
+        .put_document_properties(&doc_id, &body.properties)
+        .await
+    {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Ok(StatusCode::NOT_FOUND),
+        Err(error) => {
+            error!("Error fetching document properties: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[instrument(skip(client))]
+pub(crate) async fn handle_delete_document_properties(
+    doc_id: DocumentId,
+    client: Arc<ElasticState>,
+) -> Result<StatusCode, Infallible> {
+    match client.delete_document_properties(&doc_id).await {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Ok(StatusCode::NOT_FOUND),
+        Err(error) => {
+            error!("Error fetching document properties: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[instrument(skip(client))]
+pub(crate) async fn handle_get_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    client: Arc<ElasticState>,
+) -> Result<Box<dyn Reply>, Infallible> {
+    match client.get_document_property(&doc_id, &prop_id).await {
+        Ok(Some(property)) => Ok(Box::new(DocumentPropertyResponse::new(property).to_reply()) as _),
+        Ok(None) => Ok(Box::new(StatusCode::NOT_FOUND) as _),
+        Err(error) => {
+            error!("Error fetching document property: {error}");
+            Ok(Box::new(StatusCode::BAD_REQUEST) as _)
+        }
+    }
+}
+
+#[instrument(skip(client))]
+pub(crate) async fn handle_put_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    body: DocumentPropertyRequestBody,
+    client: Arc<ElasticState>,
+) -> Result<StatusCode, Infallible> {
+    match client
+        .put_document_property(&doc_id, &prop_id, &body.property)
+        .await
+    {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Ok(StatusCode::NOT_FOUND),
+        Err(error) => {
+            error!("Error fetching document property: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[instrument(skip(client))]
+pub(crate) async fn handle_delete_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    client: Arc<ElasticState>,
+) -> Result<StatusCode, Infallible> {
+    match client.delete_document_property(&doc_id, &prop_id).await {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Ok(StatusCode::NOT_FOUND),
+        Err(error) => {
+            error!("Error fetching document property: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+fn with_config(
+    config: Arc<Config>,
+) -> impl Filter<Extract = (Arc<Config>,), Error = Infallible> + Clone {
     warp::any().map(move || config.clone())
 }
 
@@ -314,8 +550,10 @@ fn with_model(model: Model) -> impl Filter<Extract = (Model,), Error = Infallibl
     warp::any().map(move || model.clone())
 }
 
-fn with_client(client: Client) -> impl Filter<Extract = (Client,), Error = Infallible> + Clone {
-    warp::any().map(move || client.clone())
+fn with_client(
+    elastic: Arc<ElasticState>,
+) -> impl Filter<Extract = (Arc<ElasticState>,), Error = Infallible> + Clone {
+    warp::any().map(move || elastic.clone())
 }
 
 fn serialize_to_ndjson(
@@ -345,26 +583,6 @@ fn serialize_to_ndjson(
 
     Ok(bytes.freeze())
 }
-
-#[derive(Error, Debug, DisplayDoc)]
-enum Error {
-    /// Too many documents send to ingestion system: {0}. The maximum number is specified via `MAX_DOCUMENTS_LENGTH` env var.
-    TooManyDocuments(i32),
-
-    /// Embeddings could not be calculated.
-    EmbeddingsCalculation(Vec<DocumentId>),
-
-    /// Couldn't serialize documents to NDJSON: {0}.
-    SerializeNdJson(GenericError),
-
-    /// Elastic search ingestion error: {0}.
-    Elastic(#[source] reqwest::Error),
-
-    /// Error receiving response: {0}.
-    Receiving(#[source] reqwest::Error),
-}
-
-impl Reject for Error {}
 
 async fn handle_rejection(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
     if let Some(err) = err.find::<warp::filters::body::BodyDeserializeError>() {
