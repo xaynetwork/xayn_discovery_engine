@@ -68,7 +68,10 @@ pub(crate) async fn handle_personalized_documents(
 
     if user_interests.is_empty() {
         error!("No user interests");
-        return Ok(Box::new(StatusCode::NOT_FOUND));
+        return Ok(Box::new(
+            PersonalizedDocumentsError::new(PersonalizedDocumentsErrorKind::NotEnoughInteractions)
+                .to_reply(StatusCode::UNPROCESSABLE_ENTITY),
+        ));
     }
 
     let cois = &user_interests.positive;
