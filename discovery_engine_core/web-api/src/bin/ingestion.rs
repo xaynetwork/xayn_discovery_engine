@@ -288,7 +288,7 @@ async fn handle_add_data(
         .await
         .map_err(|err| {
             error!("ReceivingOpError {:#?}", err);
-            warp::reject::custom(Error::Elastic(err))
+            warp::reject::custom(Error::Receiving(err))
         })?;
 
     if !errored_ids.is_empty() {
