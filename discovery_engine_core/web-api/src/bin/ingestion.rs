@@ -50,7 +50,6 @@ pub(crate) struct Config {
     #[envconfig(from = "SMBERT_VOCAB", default = "assets/vocab.txt")]
     pub(crate) smbert_vocab: PathBuf,
 
-    #[cfg(feature = "japanese")]
     #[envconfig(from = "JAPANESE_VOCAB")]
     pub(crate) japanese_vocab: Option<PathBuf>,
 
@@ -190,17 +189,19 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
     let path = env::current_dir()?;
     let vocab_path = path.join(&config.smbert_vocab);
     let model_path = path.join(&config.smbert_model);
-    let smbert = SMBertConfig::from_files(
-        &vocab_path,
-        #[cfg(feature = "japanese")]
-        config.japanese_vocab.as_deref(),
-        &model_path,
-    )?
-    .with_cleanse_accents(true)
-    .with_lower_case(true)
-    .with_pooling::<AveragePooler>()
-    .with_token_size(64)?
-    .build()?;
+    let smbert = SMBertConfig::from_files(&vocab_path, &model_path)?
+        .with_japanese(
+            config.japanese_vocab.is_some(),
+            config
+                .japanese_vocab
+                .as_deref()
+                .and_then(|japanese| (!japanese.as_os_str().is_empty()).then_some(japanese)),
+        )
+        .with_cleanse_accents(true)
+        .with_lower_case(true)
+        .with_pooling::<AveragePooler>()
+        .with_token_size(64)?
+        .build()?;
 
     let load_duration = start.elapsed().as_secs();
     info!("SMBert model loaded successfully in {} sec", load_duration);

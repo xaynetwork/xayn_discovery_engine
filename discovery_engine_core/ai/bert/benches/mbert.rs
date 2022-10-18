@@ -48,7 +48,7 @@ macro_rules! bench_tract {
     ) => {
         let mut group = $manager.benchmark_group(format!("{} {}", $group, TOKEN_SIZE));
         $(
-            let pipeline = Config::<$kind, _>::from_files($vocab.unwrap(), #[cfg(feature = "japanese")] None::<&str>, $model.unwrap())
+            let pipeline = Config::<$kind, _>::from_files($vocab.unwrap(), $model.unwrap())
                 .unwrap()
                 .with_cleanse_accents(true)
                 .with_lower_case(true)

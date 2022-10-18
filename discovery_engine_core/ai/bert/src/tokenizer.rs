@@ -14,7 +14,7 @@
 
 use std::io::BufRead;
 #[cfg(feature = "japanese")]
-use std::path::PathBuf;
+use std::{borrow::Cow, path::PathBuf};
 
 use derive_more::{Deref, From};
 #[cfg(feature = "japanese")]
@@ -59,7 +59,7 @@ pub struct Tokenizer {
         WordPieceDecoder,
     >,
     #[cfg(feature = "japanese")]
-    japanese: JapanesePreTokenizer,
+    japanese: Option<JapanesePreTokenizer>,
 }
 
 /// The attention mask of the encoded sequence.
@@ -110,7 +110,7 @@ impl Tokenizer {
     /// tokens as well.
     pub fn new(
         vocab: impl BufRead,
-        #[cfg(feature = "japanese")] japanese: Option<PathBuf>,
+        #[cfg(feature = "japanese")] japanese: Option<Option<PathBuf>>,
         cleanse_accents: bool,
         lower_case: bool,
         token_size: usize,
@@ -164,18 +164,22 @@ impl Tokenizer {
             .build()?;
 
         #[cfg(feature = "japanese")]
-        let japanese = JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
-            dictionary: JapaneseDictionaryConfig {
-                kind: JapaneseDictionaryKind::IPADIC,
-                path: None,
-            },
-            user_dictionary: japanese.map(|path| JapaneseUserDictionaryConfig {
-                kind: JapaneseDictionaryKind::IPADIC,
-                source_type: JapaneseDictionarySourceType::Csv,
-                path,
-            }),
-            mode: JapaneseMode::Normal,
-        })?;
+        let japanese = japanese
+            .map(|vocab| {
+                JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
+                    dictionary: JapaneseDictionaryConfig {
+                        kind: JapaneseDictionaryKind::IPADIC,
+                        path: None,
+                    },
+                    user_dictionary: vocab.map(|path| JapaneseUserDictionaryConfig {
+                        kind: JapaneseDictionaryKind::IPADIC,
+                        source_type: JapaneseDictionarySourceType::Csv,
+                        path,
+                    }),
+                    mode: JapaneseMode::Normal,
+                })
+            })
+            .transpose()?;
 
         Ok(Tokenizer {
             bert,
@@ -191,13 +195,17 @@ impl Tokenizer {
         let sequence = sequence.as_ref();
         #[cfg(feature = "japanese")]
         #[allow(unstable_name_collisions)]
-        let sequence = self
-            .japanese
-            .tokenize(sequence)?
-            .into_iter()
-            .map(|token| token.text)
-            .intersperse(" ")
-            .collect::<String>();
+        let sequence = if let Some(japanese) = &self.japanese {
+            japanese
+                .tokenize(sequence)?
+                .into_iter()
+                .map(|token| token.text)
+                .intersperse(" ")
+                .collect::<String>()
+                .into()
+        } else {
+            Cow::Borrowed(sequence)
+        };
 
         let encoding = self.bert.encode(sequence, true)?;
         let array_from =

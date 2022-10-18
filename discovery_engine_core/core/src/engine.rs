@@ -292,26 +292,26 @@ impl Engine {
             .map_err(|err| Error::Ranker(err.into()))?;
         let provider_config =
             config.to_provider_config(endpoint_config.timeout, endpoint_config.retry);
+        let japanese = de_config.extract_inner::<&str>("smbert.japanese").ok();
 
         // build the systems
-        let smbert = SMBertConfig::from_files(
-            &config.smbert_vocab,
-            #[cfg(feature = "japanese")]
-            de_config.extract_inner::<&str>("smbert.japanese").ok(),
-            &config.smbert_model,
-        )
-        .map_err(|err| Error::Ranker(err.into()))?
-        .with_token_size(
-            de_config
-                .extract_inner("smbert.token_size")
-                .map_err(|err| Error::Ranker(err.into()))?,
-        )
-        .map_err(|err| Error::Ranker(err.into()))?
-        .with_cleanse_accents(true)
-        .with_lower_case(true)
-        .with_pooling::<AveragePooler>()
-        .build()
-        .map_err(GenericError::from)?;
+        let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_japanese(
+                japanese.is_some(),
+                japanese.and_then(|japanese| (!japanese.is_empty()).then_some(japanese)),
+            )
+            .with_token_size(
+                de_config
+                    .extract_inner("smbert.token_size")
+                    .map_err(|err| Error::Ranker(err.into()))?,
+            )
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_cleanse_accents(true)
+            .with_lower_case(true)
+            .with_pooling::<AveragePooler>()
+            .build()
+            .map_err(GenericError::from)?;
         let coi = de_config
             .extract_inner::<CoiConfig>("coi")
             .map_err(|err| Error::Ranker(err.into()))?
@@ -2242,16 +2242,11 @@ pub(crate) mod tests {
 
     #[test]
     fn test_documentify_articles() {
-        let smbert = SMBertConfig::from_files(
-            vocab().unwrap(),
-            #[cfg(feature = "japanese")]
-            None::<&str>,
-            model().unwrap(),
-        )
-        .unwrap()
-        .with_pooling::<AveragePooler>()
-        .build()
-        .unwrap();
+        let smbert = SMBertConfig::from_files(vocab().unwrap(), model().unwrap())
+            .unwrap()
+            .with_pooling::<AveragePooler>()
+            .build()
+            .unwrap();
         let stack_id = StackId::new_random();
         let size = SMBert::embedding_size();
         let embedding_1 = vec![1.; size];

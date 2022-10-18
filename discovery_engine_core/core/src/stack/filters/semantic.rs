@@ -520,20 +520,15 @@ mod tests {
             assert_approx_eq!(f32, distances, expected);
         }
 
-        let smbert = SMBertConfig::from_files(
-            smbert::vocab().unwrap(),
-            #[cfg(feature = "japanese")]
-            None::<&str>,
-            smbert::model().unwrap(),
-        )
-        .unwrap()
-        .with_token_size(52)
-        .unwrap()
-        .with_cleanse_accents(true)
-        .with_lower_case(true)
-        .with_pooling::<AveragePooler>()
-        .build()
-        .unwrap();
+        let smbert = SMBertConfig::from_files(smbert::vocab().unwrap(), smbert::model().unwrap())
+            .unwrap()
+            .with_token_size(52)
+            .unwrap()
+            .with_cleanse_accents(true)
+            .with_lower_case(true)
+            .with_pooling::<AveragePooler>()
+            .build()
+            .unwrap();
 
         let titles_en = [
             ("How To Start A New Life With Less Than $100", 0),

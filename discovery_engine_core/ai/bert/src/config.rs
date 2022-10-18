@@ -12,13 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#[cfg(feature = "japanese")]
-use std::path::PathBuf;
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
     marker::PhantomData,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use displaydoc::Display;
@@ -45,8 +43,9 @@ pub enum ConfigError {
 pub struct Config<'a, K, P> {
     model_kind: PhantomData<K>,
     vocab: Box<dyn BufRead + Send + 'a>,
-    #[cfg(feature = "japanese")]
-    japanese: Option<PathBuf>,
+    // TODO: flatten the options once the internal vocab has been extracted
+    #[allow(clippy::option_option)]
+    japanese: Option<Option<PathBuf>>,
     model: Box<dyn Read + Send + 'a>,
     cleanse_accents: bool,
     lower_case: bool,
@@ -58,14 +57,12 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
     /// Creates a `BertModel` configuration from readables.
     pub fn from_readers(
         vocab: Box<dyn BufRead + Send + 'a>,
-        #[cfg(feature = "japanese")] japanese: Option<PathBuf>,
         model: Box<dyn Read + Send + 'a>,
     ) -> Self {
         Config {
             model_kind: PhantomData,
             vocab,
-            #[cfg(feature = "japanese")]
-            japanese,
+            japanese: None,
             model,
             cleanse_accents: true,
             lower_case: true,
@@ -77,19 +74,11 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
     /// Creates a `BertModel` configuration from files.
     pub fn from_files(
         vocab: impl AsRef<Path>,
-        #[cfg(feature = "japanese")] japanese: Option<impl AsRef<Path>>,
         model: impl AsRef<Path>,
     ) -> Result<Self, ConfigError> {
         let vocab = Box::new(BufReader::new(File::open(vocab)?));
-        #[cfg(feature = "japanese")]
-        let japanese = japanese.map(|japanese| japanese.as_ref().into());
         let model = Box::new(BufReader::new(File::open(model)?));
-        Ok(Self::from_readers(
-            vocab,
-            #[cfg(feature = "japanese")]
-            japanese,
-            model,
-        ))
+        Ok(Self::from_readers(vocab, model))
     }
 }
 
@@ -131,7 +120,6 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
     pub fn with_pooling<NP>(self) -> Config<'a, K, NP> {
         Config {
             vocab: self.vocab,
-            #[cfg(feature = "japanese")]
             japanese: self.japanese,
             model: self.model,
             model_kind: self.model_kind,
@@ -140,6 +128,21 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
             token_size: self.token_size,
             pooler: PhantomData,
         }
+    }
+
+    /// Enables the japanese pre-tokenizer and optionally sets a custom vocabulary.
+    ///
+    /// Has no effects without the "japanese" feature flag. Defaults to disabled. If enabled, the
+    /// vocabulary defaults to `IpaDic`. Note that this doesn't affect the vocabulary used for the
+    /// Bert tokenizer, but only for the japanese pre-tokenizer.
+    pub fn with_japanese(
+        mut self,
+        enable: bool,
+        pre_tokenizer_vocab: Option<impl AsRef<Path>>,
+    ) -> Self {
+        self.japanese =
+            enable.then(|| pre_tokenizer_vocab.map(|vocab| vocab.as_ref().to_path_buf()));
+        self
     }
 
     /// Creates a `BertModel` pipeline from a configuration.
