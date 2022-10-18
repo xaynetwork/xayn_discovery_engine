@@ -343,7 +343,7 @@ fn serialize_to_ndjson(
 
 #[derive(Error, Debug, DisplayDoc)]
 enum Error {
-    /// Too many documents send to ingestion system
+    /// Too many documents send to ingestion system.
     TooManyDocuments,
 
     /// Embeddings could not be calculated
