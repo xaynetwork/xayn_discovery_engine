@@ -33,7 +33,9 @@ use crate::{
         DocumentId,
         DocumentPropertiesRequestBody,
         DocumentPropertiesResponse,
-        Error,
+        DocumentPropertyId,
+        DocumentPropertyRequestBody,
+        DocumentPropertyResponse,
         PersonalizedDocumentsError,
         PersonalizedDocumentsErrorKind,
         PersonalizedDocumentsQuery,
@@ -253,10 +255,10 @@ pub(crate) async fn handle_get_document_properties(
     state: Arc<AppState>,
 ) -> Result<Box<dyn Reply>, Infallible> {
     match state.elastic.get_document_properties(&doc_id).await {
-        Ok(properties) => Ok(Box::new(DocumentPropertiesResponse::new(properties).to_reply()) as _),
-        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
-            Ok(Box::new(StatusCode::NOT_FOUND) as _)
+        Ok(Some(properties)) => {
+            Ok(Box::new(DocumentPropertiesResponse::new(properties).to_reply()) as _)
         }
+        Ok(None) => Ok(Box::new(StatusCode::NOT_FOUND) as _),
         Err(error) => {
             error!("Error fetching document properties: {error}");
             Ok(Box::new(StatusCode::BAD_REQUEST) as _)
@@ -275,10 +277,8 @@ pub(crate) async fn handle_put_document_properties(
         .put_document_properties(&doc_id, &body.properties)
         .await
     {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
-            Ok(StatusCode::NOT_FOUND)
-        }
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Ok(StatusCode::NOT_FOUND),
         Err(error) => {
             error!("Error fetching document properties: {error}");
             Ok(StatusCode::BAD_REQUEST)
@@ -292,12 +292,67 @@ pub(crate) async fn handle_delete_document_properties(
     state: Arc<AppState>,
 ) -> Result<StatusCode, Infallible> {
     match state.elastic.delete_document_properties(&doc_id).await {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(Error::Elastic(error)) if matches!(error.status(), Some(StatusCode::NOT_FOUND)) => {
-            Ok(StatusCode::NOT_FOUND)
-        }
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Ok(StatusCode::NOT_FOUND),
         Err(error) => {
             error!("Error fetching document properties: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_get_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    state: Arc<AppState>,
+) -> Result<Box<dyn Reply>, Infallible> {
+    match state.elastic.get_document_property(&doc_id, &prop_id).await {
+        Ok(Some(property)) => Ok(Box::new(DocumentPropertyResponse::new(property).to_reply()) as _),
+        Ok(None) => Ok(Box::new(StatusCode::NOT_FOUND) as _),
+        Err(error) => {
+            error!("Error fetching document property: {error}");
+            Ok(Box::new(StatusCode::BAD_REQUEST) as _)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_put_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    body: DocumentPropertyRequestBody,
+    state: Arc<AppState>,
+) -> Result<StatusCode, Infallible> {
+    match state
+        .elastic
+        .put_document_property(&doc_id, &prop_id, &body.property)
+        .await
+    {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Ok(StatusCode::NOT_FOUND),
+        Err(error) => {
+            error!("Error fetching document property: {error}");
+            Ok(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn handle_delete_document_property(
+    doc_id: DocumentId,
+    prop_id: DocumentPropertyId,
+    state: Arc<AppState>,
+) -> Result<StatusCode, Infallible> {
+    match state
+        .elastic
+        .delete_document_property(&doc_id, &prop_id)
+        .await
+    {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Ok(StatusCode::NOT_FOUND),
+        Err(error) => {
+            error!("Error fetching document property: {error}");
             Ok(StatusCode::BAD_REQUEST)
         }
     }

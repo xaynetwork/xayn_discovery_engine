@@ -50,6 +50,15 @@ pub(crate) enum Error {
     /// Failed to decode [`DocumentId] from path param: {0}.
     DocumentIdUtf8Conversion(#[source] FromUtf8Error),
 
+    /// [`DocumentPropertyId`] can't be empty.
+    DocumentPropertyIdEmpty,
+
+    /// [`DocumentPropertyId`] can't contain NUL character.
+    DocumentPropertyIdContainsNul,
+
+    /// Failed to decode [`DocumentPropertyId] from path param: {0}.
+    DocumentPropertyIdUtf8Conversion(#[source] FromUtf8Error),
+
     /// Invalid value for count parameter: {0}. It must be in [`COUNT_PARAM_RANGE`].
     InvalidCountParam(usize),
 
@@ -96,6 +105,20 @@ impl DocumentId {
 #[derive(Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct DocumentPropertyId(String);
 
+impl DocumentPropertyId {
+    pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
+        let id = id.into();
+
+        if id.is_empty() {
+            Err(Error::DocumentPropertyIdEmpty)
+        } else if id.contains('\u{0000}') {
+            Err(Error::DocumentPropertyIdContainsNul)
+        } else {
+            Ok(Self(id))
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DocumentProperty(serde_json::Value);
 
@@ -115,6 +138,26 @@ pub(crate) struct DocumentPropertiesResponse {
 impl DocumentPropertiesResponse {
     pub(crate) fn new(properties: DocumentProperties) -> Self {
         Self { properties }
+    }
+
+    pub(crate) fn to_reply(&self) -> impl Reply {
+        reply::json(self)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct DocumentPropertyRequestBody {
+    pub(crate) property: DocumentProperty,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct DocumentPropertyResponse {
+    property: DocumentProperty,
+}
+
+impl DocumentPropertyResponse {
+    pub(crate) fn new(property: DocumentProperty) -> Self {
+        Self { property }
     }
 
     pub(crate) fn to_reply(&self) -> impl Reply {
