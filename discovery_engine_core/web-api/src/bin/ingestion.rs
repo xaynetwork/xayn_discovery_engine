@@ -97,6 +97,7 @@ impl IngestionError {
                 .collect_vec(),
         }
     }
+
     pub(crate) fn to_reply(&self) -> impl Reply {
         reply::with_status(reply::json(self), StatusCode::INTERNAL_SERVER_ERROR)
     }
