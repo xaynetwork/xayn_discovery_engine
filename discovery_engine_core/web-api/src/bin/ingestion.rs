@@ -328,7 +328,7 @@ fn serialize_to_ndjson(
         document_data: &ElasticDocumentData,
         bytes: &mut BytesMut,
     ) -> Result<(), GenericError> {
-        let bulk_op_instruction = BulkOpInstruction::new(document_id.0);
+        let bulk_op_instruction = BulkOpInstruction::new(String::from(document_id));
         let bulk_op_instruction = serde_json::to_vec(&bulk_op_instruction)?;
         let documents_bytes = serde_json::to_vec(document_data)?;
 
