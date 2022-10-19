@@ -223,7 +223,9 @@ async fn handle_add_data(
 ) -> Result<impl Reply, Rejection> {
     if body.documents.len() > config.max_documents_length {
         error!("{} documents exceeds maximum number", body.documents.len());
-        return Err(warp::reject::custom(Error::TooManyDocuments));
+        return Err(warp::reject::custom(Error::TooManyDocuments(
+            body.documents.len() as i32,
+        )));
     }
 
     let start = Instant::now();
@@ -346,7 +348,7 @@ fn serialize_to_ndjson(
 #[derive(Error, Debug, DisplayDoc)]
 enum Error {
     /// Too many documents send to ingestion system.
-    TooManyDocuments,
+    TooManyDocuments(i32),
 
     /// Embeddings could not be calculated.
     EmbeddingsCalculation(Vec<DocumentId>),
@@ -369,7 +371,7 @@ async fn handle_rejection(err: Rejection) -> Result<Box<dyn Reply>, Infallible> 
         return Ok(Box::new(StatusCode::BAD_REQUEST));
     }
     match err.find() {
-        Some(Error::TooManyDocuments) => Ok(Box::new(StatusCode::BAD_REQUEST)),
+        Some(Error::TooManyDocuments(_)) => Ok(Box::new(StatusCode::BAD_REQUEST)),
         Some(Error::EmbeddingsCalculation(ids)) => {
             Ok(Box::new(IngestionError::new(ids.to_vec()).to_reply()))
         }
