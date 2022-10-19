@@ -130,11 +130,11 @@ paths:
     delete:
       tags:
         - documents
-      summary: Deletes all listed documents.
+      summary: Delete all listed documents.
       description: |-
-        Deletes all documents listed in the request body. The endpoint is
-        idempotent. I.e. If the list contains one or multiple non-existing
-        document it does not produce  an error.
+        Delete all documents listed in the request body. The endpoint is
+        idempotent. I.e. if the list contains one or multiple non-existing
+        documents, no error is produced.
       requestBody:
         content:
           application/json:
@@ -150,7 +150,7 @@ paths:
     delete:
       tags:
         - documents
-      summary: Deletes the document from the system.
+      summary: Delete the document from the system.
       description: |-
         Permanently deletes the document from the system. The endpoint is
         idempotent. Deleting a non-existing document does not produce an error.
