@@ -82,7 +82,7 @@ impl Config for CommonConfig {
 /// When creating the config type instance, only environment variables with the
 /// `XAYN_WEB_API_` prefix will be considered and the prefix is stripped.
 ///
-/// Env variables are splitted at `__`. I.e. `XAYN_WEB_API_FOO__BAR=12` will be treated like
+/// Env variables are split at `__`. I.e. `XAYN_WEB_API_FOO__BAR=12` will be treated like
 /// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config. The `__` is needed, otherwise
 /// there would be no way to have fields like `bind_to` in the config.
 pub fn load_config<C, U>(config_file: Option<&Path>, update_with: U) -> Result<C, figment::Error>
