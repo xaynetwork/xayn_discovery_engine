@@ -139,11 +139,13 @@ async fn main() -> Result<(), GenericError> {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
-    let config = Config::init_from_env()?;
+    let config = Arc::new(Config::init_from_env()?);
     let client = Client::new();
     let model = init_model(&config)?;
 
-    let routes = post_documents(config, model, client)
+    let routes = route_post_documents(config.clone(), model, client.clone())
+        .or(route_delete_document(config.clone(), client.clone()))
+        .or(route_delete_documents(config, client))
         .recover(handle_rejection)
         .with(warp::trace::request());
 
@@ -172,9 +174,98 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
     Ok(Arc::new(smbert))
 }
 
+// DELETE /documents/:document_id
+fn route_delete_document(
+    config: Arc<Config>,
+    client: Client,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::delete()
+        .and(warp::path!("documents" / String))
+        .and(with_config(config))
+        .and(with_client(client))
+        .and_then(handle_delete_document)
+}
+
+async fn handle_delete_document(
+    id: String,
+    config: Arc<Config>,
+    client: Client,
+) -> Result<impl warp::Reply, Rejection> {
+    delete_document(&id, &config, &client).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn delete_document(id: &str, config: &Config, client: &Client) -> Result<(), Rejection> {
+    //TODO: We currently don't have postgres access in the ingestion endpoint so we can't delete
+    //       from postgres.
+    let url = format!(
+        "{}/{}/_doc/{}",
+        config.elastic_url,
+        config.elastic_index_name,
+        urlencoding::encode(id.as_ref())
+    );
+
+    let response = client
+        .delete(url)
+        .basic_auth(&config.elastic_user, Some(&config.elastic_password))
+        .send()
+        .await
+        .map_err(|err| {
+            error!("Connecting to elastic failed: {}", err);
+            warp::reject::custom(ElasticSearchFailed)
+        })?;
+
+    if response.status() == StatusCode::NOT_FOUND {
+        return Ok(());
+    }
+
+    response.error_for_status().map_err(|error| {
+        error!("Elastic returned unexpected status code: {}", error);
+        warp::reject::custom(ElasticSearchFailed)
+    })?;
+
+    Ok(())
+}
+
+#[derive(Debug)]
+struct ElasticSearchFailed;
+
+impl Reject for ElasticSearchFailed {}
+
+// DELETE /documents/
+fn route_delete_documents(
+    config: Arc<Config>,
+    client: Client,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::delete()
+        .and(warp::path!("documents"))
+        .and(warp::body::content_length_limit(config.max_body_size))
+        .and(warp::body::json())
+        .and(with_config(config))
+        .and(with_client(client))
+        .and_then(handle_delete_documents)
+}
+
+async fn handle_delete_documents(
+    documents: BatchDeleteRequest,
+    config: Arc<Config>,
+    client: Client,
+) -> Result<impl warp::Reply, Rejection> {
+    //FIXME use bulk API when we use elastic search lib
+    for id in documents.documents {
+        delete_document(&id, &config, &client).await?;
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+struct BatchDeleteRequest {
+    documents: Vec<String>,
+}
+
 // POST /documents
-fn post_documents(
-    config: Config,
+fn route_post_documents(
+    config: Arc<Config>,
     model: Model,
     client: Client,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -192,7 +283,7 @@ fn post_documents(
 async fn handle_add_data(
     body: IngestionRequest,
     model: Model,
-    config: Config,
+    config: Arc<Config>,
     client: Client,
 ) -> Result<impl warp::Reply, Rejection> {
     if body.documents.len() > config.max_documents_length {
@@ -270,7 +361,9 @@ async fn handle_add_data(
     Ok(StatusCode::OK)
 }
 
-fn with_config(config: Config) -> impl Filter<Extract = (Config,), Error = Infallible> + Clone {
+fn with_config(
+    config: Arc<Config>,
+) -> impl Filter<Extract = (Arc<Config>,), Error = Infallible> + Clone {
     warp::any().map(move || config.clone())
 }
 
@@ -371,6 +464,9 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         code = StatusCode::UNPROCESSABLE_ENTITY;
         message = "UNPROCESSABLE_DOCUMENTS";
         errored_ids = Some(ids.to_vec());
+    } else if let Some(ElasticSearchFailed) = err.find() {
+        code = StatusCode::INTERNAL_SERVER_ERROR;
+        message = "INTERNAL_SERVICE_FAILED";
     } else {
         error!("unhandled rejection: {:?}", err);
         code = StatusCode::INTERNAL_SERVER_ERROR;
