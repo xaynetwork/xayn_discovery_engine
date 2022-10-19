@@ -15,6 +15,7 @@
 //! Ingestion service that uses Xayn Discovery Engine.
 
 use bytes::{BufMut, Bytes, BytesMut};
+use displaydoc::Display as DisplayDoc;
 use envconfig::Envconfig;
 use itertools::Itertools;
 use reqwest::{
@@ -23,11 +24,12 @@ use reqwest::{
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, convert::Infallible, env, path::PathBuf, sync::Arc};
+use thiserror::Error;
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use tracing_subscriber::fmt::format::FmtSpan;
-use warp::{self, hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
-use web_api::{DocumentProperties, ElasticDocumentData};
+use warp::{self, hyper::StatusCode, reject::Reject, reply, Filter, Rejection, Reply};
+use web_api::{DocumentId, DocumentProperties, ElasticDocumentData};
 use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
 
@@ -65,8 +67,7 @@ type Model = Arc<SMBert>;
 #[derive(Debug, Clone, Deserialize)]
 struct IngestedDocument {
     /// Unique identifier of the document.
-    #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
-    id: String,
+    id: DocumentId,
 
     /// Snippet used to calculate embeddings for a document.
     #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
@@ -74,6 +75,32 @@ struct IngestedDocument {
 
     /// Contents of the document properties.
     properties: DocumentProperties,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct IngestionError {
+    /// List of Document Indices which were not successfully processed
+    documents: Vec<ErroredDocumentId>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct ErroredDocumentId {
+    id: DocumentId,
+}
+
+impl IngestionError {
+    pub(crate) fn new(errored_ids: Vec<DocumentId>) -> Self {
+        Self {
+            documents: errored_ids
+                .into_iter()
+                .map(|id| ErroredDocumentId { id })
+                .collect_vec(),
+        }
+    }
+
+    pub(crate) fn to_reply(&self) -> impl Reply {
+        reply::with_status(reply::json(self), StatusCode::INTERNAL_SERVER_ERROR)
+    }
 }
 
 /// Represents an instruction for bulk insert of data into Elastic Search service.
@@ -194,10 +221,12 @@ async fn handle_add_data(
     model: Model,
     config: Config,
     client: Client,
-) -> Result<impl warp::Reply, Rejection> {
+) -> Result<impl Reply, Rejection> {
     if body.documents.len() > config.max_documents_length {
         error!("{} documents exceeds maximum number", body.documents.len());
-        return Err(warp::reject::custom(TooManyDocumentsError));
+        return Err(warp::reject::custom(Error::TooManyDocuments(
+            body.documents.len() as i32,
+        )));
     }
 
     let start = Instant::now();
@@ -231,16 +260,10 @@ async fn handle_add_data(
         embeddings_duration
     );
 
-    if !errored_ids.is_empty() {
-        return Err(warp::reject::custom(EmbeddingsCalculationError(
-            errored_ids,
-        )));
-    }
-
     debug!("Serializing documents to ndjson");
     let bytes = serialize_to_ndjson(&documents).map_err(|e| {
         error!("Error serializing documents to ndjson: {e}");
-        warp::reject::custom(SerializeNdJsonError)
+        warp::reject::custom(Error::SerializeNdJson(e))
     })?;
 
     let url = format!(
@@ -257,17 +280,30 @@ async fn handle_add_data(
         .body(bytes)
         .send()
         .await
-        .map_err(handle_elastic_error)?
+        .map_err(|err| {
+            error!("Sending request to elastic failed {:#?}", err);
+            warp::reject::custom(Error::Elastic(err))
+        })?
         .error_for_status()
-        .map_err(handle_elastic_error)?
+        .map_err(|err| {
+            error!("Sending request to elastic failed {:#?}", err);
+            warp::reject::custom(Error::Elastic(err))
+        })?
         .json::<HashMap<String, serde_json::Value>>()
         .await
         .map_err(|err| {
             error!("ReceivingOpError {:#?}", err);
-            warp::reject::custom(ReceivingOpError)
+            warp::reject::custom(Error::Receiving(err))
         })?;
 
-    Ok(StatusCode::OK)
+    if !errored_ids.is_empty() {
+        // TODO: change name of error variant to take into account the elastic error indices
+        return Err(warp::reject::custom(Error::EmbeddingsCalculation(
+            errored_ids,
+        )));
+    }
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 fn with_config(config: Config) -> impl Filter<Extract = (Config,), Error = Infallible> + Clone {
@@ -283,16 +319,16 @@ fn with_client(client: Client) -> impl Filter<Extract = (Client,), Error = Infal
 }
 
 fn serialize_to_ndjson(
-    documents: &Vec<(String, ElasticDocumentData)>,
+    documents: &Vec<(DocumentId, ElasticDocumentData)>,
 ) -> Result<Bytes, GenericError> {
     let mut bytes = BytesMut::new();
 
     fn write_record(
-        document_id: String,
+        document_id: DocumentId,
         document_data: &ElasticDocumentData,
         bytes: &mut BytesMut,
     ) -> Result<(), GenericError> {
-        let bulk_op_instruction = BulkOpInstruction::new(document_id);
+        let bulk_op_instruction = BulkOpInstruction::new(String::from(document_id));
         let bulk_op_instruction = serde_json::to_vec(&bulk_op_instruction)?;
         let documents_bytes = serde_json::to_vec(document_data)?;
 
@@ -310,78 +346,37 @@ fn serialize_to_ndjson(
     Ok(bytes.freeze())
 }
 
-#[derive(Debug)]
-struct TooManyDocumentsError;
-impl Reject for TooManyDocumentsError {}
+#[derive(Error, Debug, DisplayDoc)]
+enum Error {
+    /// Too many documents send to ingestion system: {0}. The maximum number is specified via `MAX_DOCUMENTS_LENGTH` env var.
+    TooManyDocuments(i32),
 
-#[derive(Debug)]
-struct EmbeddingsCalculationError(Vec<String>);
-impl Reject for EmbeddingsCalculationError {}
+    /// Embeddings could not be calculated.
+    EmbeddingsCalculation(Vec<DocumentId>),
 
-#[derive(Debug)]
-struct SerializeNdJsonError;
-impl Reject for SerializeNdJsonError {}
+    /// Couldn't serialize documents to NDJSON: {0}.
+    SerializeNdJson(GenericError),
 
-#[derive(Debug)]
-struct ElasticOpError;
-impl Reject for ElasticOpError {}
+    /// Elastic search ingestion error: {0}.
+    Elastic(#[source] reqwest::Error),
 
-#[derive(Debug)]
-struct ReceivingOpError;
-impl Reject for ReceivingOpError {}
-
-fn handle_elastic_error(err: reqwest::Error) -> Rejection {
-    error!("ElasticOpError {:#?}", err);
-    warp::reject::custom(ElasticOpError)
+    /// Error receiving response: {0}.
+    Receiving(#[source] reqwest::Error),
 }
 
-/// An API error serializable to JSON.
-#[derive(Serialize)]
-struct ErrorMessage {
-    code: u16,
-    message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    errored_ids: Option<Vec<String>>,
-}
+impl Reject for Error {}
 
-async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
-    let code;
-    let message;
-    let mut errored_ids = None;
-
-    if err.is_not_found() {
-        code = StatusCode::NOT_FOUND;
-        message = "NOT_FOUND";
-    } else if err
-        .find::<warp::filters::body::BodyDeserializeError>()
-        .is_some()
-    {
-        code = StatusCode::BAD_REQUEST;
-        message = "REQUEST_BODY_DESERIALIZATION_ERROR";
-    } else if let Some(ElasticOpError) = err.find() {
-        code = StatusCode::BAD_REQUEST;
-        message = "ELASTIC_ERROR";
-    } else if let Some(ReceivingOpError) = err.find() {
-        code = StatusCode::BAD_REQUEST;
-        message = "RECEIVING_OPERATION_ERROR";
-    } else if let Some(SerializeNdJsonError) = err.find() {
-        code = StatusCode::BAD_REQUEST;
-        message = "NDJSON_SERIALIZATION_ERROR";
-    } else if let Some(EmbeddingsCalculationError(ids)) = err.find() {
-        code = StatusCode::UNPROCESSABLE_ENTITY;
-        message = "UNPROCESSABLE_DOCUMENTS";
-        errored_ids = Some(ids.to_vec());
-    } else {
-        error!("unhandled rejection: {:?}", err);
-        code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = "UNHANDLED_REJECTION";
+async fn handle_rejection(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
+    if let Some(err) = err.find::<warp::filters::body::BodyDeserializeError>() {
+        error!("BodyDeserializeError: {:?}", err);
+        return Ok(Box::new(StatusCode::BAD_REQUEST));
     }
-
-    let json = warp::reply::json(&ErrorMessage {
-        code: code.as_u16(),
-        message: message.into(),
-        errored_ids,
-    });
-
-    Ok(warp::reply::with_status(json, code))
+    match err.find() {
+        Some(Error::TooManyDocuments(_)) => Ok(Box::new(StatusCode::BAD_REQUEST)),
+        Some(Error::EmbeddingsCalculation(ids)) => {
+            Ok(Box::new(IngestionError::new(ids.to_vec()).to_reply()))
+        }
+        Some(_) => Ok(Box::new(IngestionError::new(Vec::new()).to_reply())),
+        None => Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR)),
+    }
 }

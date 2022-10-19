@@ -88,6 +88,12 @@ impl Reject for Error {}
 #[sqlx(transparent)]
 pub struct DocumentId(String);
 
+impl From<DocumentId> for String {
+    fn from(item: DocumentId) -> Self {
+        item.0
+    }
+}
+
 impl DocumentId {
     pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
