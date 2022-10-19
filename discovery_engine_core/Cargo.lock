@@ -4166,7 +4166,7 @@ dependencies = [
  "futures-util",
  "mime",
  "once_cell",
- "pin-project-lite",
+ "pin-project",
  "serde",
  "serde_json",
  "thiserror",

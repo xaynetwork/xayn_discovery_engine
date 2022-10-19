@@ -83,7 +83,7 @@ pub trait ApplicationError: std::error::Error + Send + Sync + 'static {
 }
 
 /// Derives [`ApplicationError`] for given type using given http status code.
-macro_rules! derive_application_error {
+macro_rules! impl_application_error {
     ($name:ident => $code:ident) => {
         impl ApplicationError for $name {
             fn status_code(&self) -> StatusCode {
@@ -111,9 +111,9 @@ pub(crate) struct Unimplemented {
     pub(crate) functionality: &'static str,
 }
 
-derive_application_error!(Unimplemented => INTERNAL_SERVER_ERROR);
+impl_application_error!(Unimplemented => INTERNAL_SERVER_ERROR);
 
-/// Allows to argument errors with an request id by wrapping the endpoint handler.
+/// Allows to augment errors with a request id by wrapping the endpoint handler.
 ///
 /// # Explanation/Why
 ///
@@ -155,14 +155,14 @@ where
     fn error_with_request_id(self) -> HandlerWithIdInjection<Self, Args> {
         HandlerWithIdInjection {
             inner: self,
-            _args: PhantomData,
+            args: PhantomData,
         }
     }
 }
 
 pub(crate) struct HandlerWithIdInjection<H, Args> {
     inner: H,
-    _args: PhantomData<Args>,
+    args: PhantomData<Args>,
 }
 
 impl<H, Args> Clone for HandlerWithIdInjection<H, Args>
@@ -172,7 +172,7 @@ where
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
-            _args: PhantomData,
+            args: PhantomData,
         }
     }
 }
@@ -181,7 +181,6 @@ impl<H, Args, B> Handler<<Args as WithRequestIdHint>::ExtendedArgs>
     for HandlerWithIdInjection<H, Args>
 where
     H: Handler<Args, Output = Result<B, Error>>,
-    HandlerWithIdInjectionFut<H::Future>: Future<Output = Result<B, Error>>,
     Args: WithRequestIdHint,
 {
     type Output = H::Output;
@@ -197,12 +196,11 @@ where
     }
 }
 
-pin_project! {
-    pub(crate) struct HandlerWithIdInjectionFut<F> {
-        #[pin]
-        inner: F,
-        request_id: RequestId
-    }
+#[pin_project]
+pub(crate) struct HandlerWithIdInjectionFut<F> {
+    #[pin]
+    inner: F,
+    request_id: RequestId,
 }
 
 impl<F, B> Future for HandlerWithIdInjectionFut<F>

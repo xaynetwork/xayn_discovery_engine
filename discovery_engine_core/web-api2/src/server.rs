@@ -43,7 +43,7 @@ pub trait Application {
     fn configure(config: &mut ServiceConfig);
 }
 
-/// Server for running the web-api.
+/// Cli arguments for the web-api server.
 #[derive(Parser, Debug, Serialize)]
 #[command(author, version, about)]
 struct CliArgs {

@@ -34,7 +34,7 @@ impl RequestId {
         Self(Uuid::new_v4())
     }
 
-    pub(crate) fn missing() -> Self {
+    pub(crate) const fn missing() -> Self {
         Self(Uuid::nil())
     }
 }
@@ -62,5 +62,5 @@ where
     service
         .call(request)
         .instrument(span.clone())
-        .inspect(move |_| trace!(parent: &span, "request processed"))
+        .inspect(|_| trace!(parent: span, "request processed"))
 }
