@@ -21,8 +21,7 @@ use actix_web::{
     HttpMessage,
 };
 
-use tracing::{trace, Instrument};
-use tracing_actix_web::root_span_macro::private::tracing::info_span;
+use tracing::{info_span, trace, Instrument};
 use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, derive_more::Display, Serialize)]

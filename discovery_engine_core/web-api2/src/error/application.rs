@@ -29,7 +29,7 @@ use actix_web::{
 };
 use derive_more::{Deref, Display};
 use futures_util::Future;
-use pin_project_lite::pin_project;
+use pin_project::pin_project;
 use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;

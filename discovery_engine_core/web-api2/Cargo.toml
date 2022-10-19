@@ -9,17 +9,17 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 actix-web = "4.2.1"
-clap = { workspace=true }
+clap = { workspace = true }
 derive_more = { workspace = true, features = ["display", "deref"] }
 figment = { version = "0.10.7", features = ["toml"] }
-futures-util = { workspace=true }
+futures-util = { workspace = true }
 mime = "0.3.16"
-once_cell = { workspace=true }
-pin-project = { workspace=true }
+once_cell = { workspace = true }
+pin-project = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 uuid = { workspace = true }

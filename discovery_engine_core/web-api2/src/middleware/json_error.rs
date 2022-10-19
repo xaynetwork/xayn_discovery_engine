@@ -11,7 +11,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-use std::{cmp::Ordering, fmt::Debug, future::Future};
+use std::{fmt::Debug, future::Future};
 
 use actix_web::{
     body::{BoxBody, MessageBody},
