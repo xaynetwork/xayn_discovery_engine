@@ -202,7 +202,7 @@ async fn delete_document(id: &str, config: &Config, client: &Client) -> Result<(
         "{}/{}/_doc/{}",
         config.elastic_url,
         config.elastic_index_name,
-        urlencoding::encode(id.as_ref())
+        urlencoding::encode(id)
     );
 
     let response = client
