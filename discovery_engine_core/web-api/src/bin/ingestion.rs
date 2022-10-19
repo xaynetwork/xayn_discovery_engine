@@ -354,7 +354,7 @@ enum Error {
     /// Embeddings could not be calculated.
     EmbeddingsCalculation(Vec<DocumentId>),
 
-    /// Serialization error
+    /// Couldn't serialize documents to NDJSON: {0}.
     SerializeNdJson(GenericError),
 
     /// Elastic search ingestion error: {0}.
