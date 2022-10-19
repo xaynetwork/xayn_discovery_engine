@@ -76,15 +76,9 @@ fn is_wrapable_error<B>(response: &HttpResponse<B>) -> bool {
             .headers()
             .get(CONTENT_TYPE)
             .map_or(true, |content_type| {
-                let mime_bytes = mime::TEXT_PLAIN.as_ref().as_bytes();
-                let bytes = content_type.as_bytes();
-                match bytes.len().cmp(&mime_bytes.len()) {
-                    Ordering::Less => false,
-                    Ordering::Equal => bytes == mime_bytes,
-                    Ordering::Greater => {
-                        bytes.starts_with(mime_bytes) && bytes[mime_bytes.len()] == b';'
-                    }
-                }
+                let mime = mime::TEXT_PLAIN.as_ref().as_bytes();
+                let bytes = content_type.as_ref();
+                bytes == mime || (bytes.starts_with(mime) && bytes.get(mime.len()) == Some(&b';'))
             })
 }
 
