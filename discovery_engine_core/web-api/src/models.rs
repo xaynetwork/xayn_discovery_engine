@@ -27,7 +27,7 @@ use warp::{
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding, GenericError};
 
 /// The range of the count parameter.
-pub(crate) const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
+pub const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
@@ -261,7 +261,7 @@ impl UserInteractionError {
 
 /// Unique identifier for the user.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
-pub(crate) struct UserId(String);
+pub struct UserId(String);
 
 impl UserId {
     pub(crate) fn new(id: impl AsRef<str>) -> Result<Self, Error> {
