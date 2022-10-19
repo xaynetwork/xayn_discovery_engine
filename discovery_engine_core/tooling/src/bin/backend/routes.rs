@@ -12,108 +12,124 @@ use crate::{
     elastic::{self, Hit},
     errors::BackendError,
     newscatcher,
+    AppState,
     Config,
     PaginationParams,
-    Search,
     SearchParams,
 };
 
 #[get("/search")]
 pub(crate) async fn search_get(
     config: Data<Config>,
+    app_state: Data<AppState>,
     client: Data<Client>,
     search_params: Query<SearchParams>,
-    page_params: Query<PaginationParams>,
 ) -> Result<impl Responder, BackendError> {
-    handle_search(&config, &client, &search_params, &page_params).await
+    handle_search(&config, &app_state, &client, &search_params).await
 }
 
 #[post("/search")]
 pub(crate) async fn search_post(
     config: Data<Config>,
+    app_state: Data<AppState>,
     client: Data<Client>,
-    search: Json<Search>,
+    search: Json<SearchParams>,
 ) -> Result<impl Responder, BackendError> {
-    handle_search(&config, &client, &search.query, &search.pagination).await
+    handle_search(&config, &app_state, &client, &search).await
 }
 
 #[get("/popular")]
 pub(crate) async fn popular_get(
     config: Data<Config>,
+    app_state: Data<AppState>,
     client: Data<Client>,
     page_params: Query<PaginationParams>,
 ) -> Result<impl Responder, BackendError> {
-    handle_popular(&config, &client, &page_params).await
+    handle_popular(&config, &app_state, &client, &page_params).await
 }
 
 #[post("/popular")]
 pub(crate) async fn popular_post(
     config: Data<Config>,
+    app_state: Data<AppState>,
     client: Data<Client>,
     page_params: Json<PaginationParams>,
 ) -> Result<impl Responder, BackendError> {
-    handle_popular(&config, &client, &page_params).await
+    handle_popular(&config, &app_state, &client, &page_params).await
 }
 
 async fn handle_search(
     config: &Config,
+    app_state: &Data<AppState>,
     client: &Client,
     search_params: &SearchParams,
-    page_params: &PaginationParams,
 ) -> Result<impl Responder, BackendError> {
-    let response = fetch_search_results(config, client, search_params, page_params).await?;
-    Ok(Json(newscatcher::Response::from((response, page_params))))
+    let response = fetch_search_results(config, app_state, client, search_params).await?;
+    Ok(Json(newscatcher::Response::from(response)))
 }
 
 async fn handle_popular(
     config: &Config,
+    app_state: &Data<AppState>,
     client: &Client,
     params: &PaginationParams,
 ) -> Result<impl Responder, BackendError> {
-    let response = fetch_popular_results(config, client, params).await?;
-    Ok(Json(newscatcher::Response::from((response, params))))
+    let response = fetch_popular_results(config, app_state, client, params).await?;
+    Ok(Json(newscatcher::Response::from(response)))
 }
 
 async fn fetch_search_results(
     config: &Config,
+    app_state: &Data<AppState>,
     client: &Client,
     search_params: &SearchParams,
-    page_params: &PaginationParams,
 ) -> Result<elastic::Response<elastic::Article>, BackendError> {
-    let from = (page_params.page() - 1) * page_params.page_size();
+    let history = app_state.history.read().await.clone();
+
     let body = json!({
-        "from": from,
-        "size": page_params.page_size(),
         "query": {
-            "query_string": {
-                "query": search_params.query,
-                "fields": ["excerpt", "title"]
+            "bool": {
+                "filter": [
+                    {
+                        "more_like_this": {
+                            "fields": ["Title", "Abstract"],
+                            "like": search_params.query,
+                            "min_term_freq": 1,
+                            "max_query_terms": 12,
+                        }
+                    },
+                    {"ids": {"values": history}},
+                ]
             }
         }
     });
+
     query_elastic_search(config, client, body).await
 }
 
 async fn fetch_popular_results(
     config: &Config,
+    app_state: &Data<AppState>,
     client: &Client,
-    params: &PaginationParams,
+    _params: &PaginationParams,
 ) -> Result<elastic::Response<elastic::Article>, BackendError> {
-    let from = (params.page() - 1) * params.page_size();
+    let from_index = app_state.from_index.read().await.clone();
+
     let body = json!({
-        "from": from,
-        "size": params.page_size(),
+        "size": 200,
         "query": {
             "match_all":{}
         },
+        "search_after": from_index, // TODO should be conditional
         "sort": [
             {
-                "published_date": {
-                    "order": "desc"
+                "date_published": {
+                    "order": "asc"
                 }
             }
         ]
     });
+
     query_elastic_search(config, client, body).await
 }
 
@@ -163,8 +179,10 @@ impl From<Hit<elastic::Article>> for newscatcher::Article {
     }
 }
 
-impl From<(elastic::Response<elastic::Article>, &PaginationParams)> for newscatcher::Response {
-    fn from((response, params): (elastic::Response<elastic::Article>, &PaginationParams)) -> Self {
+//impl From<(elastic::Response<elastic::Article>, &PaginationParams)> for newscatcher::Response {
+impl From<elastic::Response<elastic::Article>> for newscatcher::Response {
+    //fn from((response, params): (elastic::Response<elastic::Article>, &PaginationParams)) -> Self {
+    fn from(response: elastic::Response<elastic::Article>) -> Self {
         let total_pages = if response.hits.hits.is_empty() {
             0
         } else {
@@ -174,7 +192,8 @@ impl From<(elastic::Response<elastic::Article>, &PaginationParams)> for newscatc
             // }
             // total_pages
             let total = response.hits.total.value;
-            let pg_size = params.page_size;
+            // let pg_size = params.page_size;
+            let pg_size = 200; // TEMP FIXME
             match (total / pg_size, total % pg_size) {
                 (pages, 0) => pages,
                 (pages, _) => pages + 1,

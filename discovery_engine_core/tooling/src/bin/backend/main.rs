@@ -8,6 +8,7 @@ use envconfig::Envconfig;
 use log::info;
 use reqwest::Client;
 use serde::Deserialize;
+use tokio::sync::RwLock;
 
 use crate::routes::{popular_get, popular_post, search_get, search_post};
 
@@ -15,14 +16,25 @@ use crate::routes::{popular_get, popular_post, search_get, search_post};
 pub struct Config {
     #[envconfig(from = "MIND_ENDPOINT")]
     pub mind_endpoint: String,
+    // TODO total_number could go here
 }
 
+struct AppState {
+    #[allow(dead_code)]
+    index: RwLock<usize>,
+    #[allow(dead_code)]
+    from_index: RwLock<String>,
+    history: RwLock<Vec<String>>,
+}
+
+// NOTE may be all that's needed
 #[derive(Deserialize, Debug)]
 struct SearchParams {
     #[serde(rename(deserialize = "q"))]
     query: String,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct Search {
     #[serde(flatten)]
@@ -39,6 +51,7 @@ struct Search {
     // to_rank: usize,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct PaginationParams {
     #[serde(default = "default_page")]
@@ -47,22 +60,25 @@ struct PaginationParams {
     page_size: usize,
 }
 
+#[allow(dead_code)]
 impl PaginationParams {
     pub fn page_size(&self) -> usize {
-        self.page_size.clamp(1, 100)
+        self.page_size.clamp(1, 200)
     }
 
     pub fn page(&self) -> usize {
-        self.page.clamp(1, 100)
+        self.page.clamp(1, 200)
     }
 }
 
+#[allow(dead_code)]
 fn default_page() -> usize {
     1
 }
 
+#[allow(dead_code)]
 fn default_page_size() -> usize {
-    100
+    200
 }
 
 #[actix_web::main]
@@ -70,6 +86,12 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let config = Config::init_from_env().expect("Could not read config from environment");
+
+    let app_state = web::Data::new(AppState {
+        index: RwLock::new(0),
+        from_index: RwLock::new(String::new()),
+        history: RwLock::new(Vec::new()),
+    });
 
     let addr = "0.0.0.0";
     let port = 8080;
@@ -79,6 +101,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default())
             .app_data(web::Data::new(config.clone()))
+            .app_data(app_state.clone())
             .app_data(web::Data::new(Client::new()))
             .service(search_get)
             .service(search_post)
