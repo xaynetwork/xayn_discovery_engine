@@ -65,26 +65,26 @@ impl Config for CommonConfig {
 /// 5. options passed through `update_with`
 ///
 /// Config values loaded from higher priority sources override such from lower
-/// priority sources. E.g. values current process environment overrides values
+/// priority sources. E.g. values defined in `update_with` override values
 /// from any other source.
 ///
-/// `.env` is included to avoid confusion of env variables missing when calling
+/// `.env` is included to avoid confusion with env variables missing when calling
 /// cargo directly instead of indirectly through `just`.
 ///
-/// `.env.local` is a semi-standard way to add temporary local overrides you
+/// `.env.local` is a semi-standard way to add temporary local overrides that you
 /// don't want to commit.
 ///
 /// # Env and .env
 ///
-/// Environment variables from `.env` and `.env.local` will be loaded in the process
+/// Environment variables from `.env` and `.env.local` will be loaded into the process
 /// environment if they don't already exist there (keeping priority as described above).
 ///
-/// For creating the config type instance only environment variables with the
+/// When creating the config type instance, only environment variables with the
 /// `XAYN_WEB_API_` prefix will be considered and the prefix is stripped.
 ///
-/// Env variables are split by `__`. I.e. `XAYN_WEB_API_FOO__BAR=12` will be treated like
-/// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config. The `__` is needed as
-/// else there wouldn't be a way to have fields like `bind_to` in the config.
+/// Env variables are splitted at `__`. I.e. `XAYN_WEB_API_FOO__BAR=12` will be treated like
+/// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config. The `__` is needed, otherwise
+/// there would be no way to have fields like `bind_to` in the config.
 pub fn load_config<C, U>(config_file: Option<&Path>, update_with: U) -> Result<C, figment::Error>
 where
     C: DeserializeOwned,
