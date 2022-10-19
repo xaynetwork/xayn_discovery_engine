@@ -82,7 +82,7 @@ pub trait ApplicationError: std::error::Error + Send + Sync + 'static {
     }
 }
 
-/// Derives [`ApplicationError`] for given type using given http status code.
+/// Implements [`ApplicationError`] for given type using given http status code.
 macro_rules! impl_application_error {
     ($name:ident => $code:ident) => {
         impl ApplicationError for $name {
@@ -114,35 +114,6 @@ pub(crate) struct Unimplemented {
 impl_application_error!(Unimplemented => INTERNAL_SERVER_ERROR);
 
 /// Allows to augment errors with a request id by wrapping the endpoint handler.
-///
-/// # Explanation/Why
-///
-/// This is a bit complex as it can only work when wrapping the endpoint handler
-/// functions, it can't work with a middle ware nor can it work by wrapping a
-/// `Service` the reason for this is that when endpoint handler functions are
-/// called the result will **immediately convert `Err(error)` to an `Ok(error_response)`**
-/// and we need to inject the request id before that conversion happens.
-///
-/// ## Comparison to other frameworks:
-/// - warp, same problem but way worse as a lot of pub-traits are not pub-exposed
-/// - axum, handles this nicely by a combination of allowing wrapping (layering) of
-///   middleware around `Handlers` which is basically what this helper does but more
-///   generic.
-///
-/// ## Drawbacks (compared ot axum)
-///
-/// - around 100 lines of future/handing wrapping and type hint magic
-/// - only works with `RequestId`, axum can extract any data (we could
-///   probably make this work, but it's not worth the effort)
-/// - can't use `#[get(..)]` and similar
-///
-/// ## Alternatives
-///
-/// - wrap the handles with a (proc)macro (benefit compatible with `#[get(...)]`)
-/// - use axum (but it's eco system is less mature and it will change over time)
-/// - only include the request id in a custom header (trivial to do)
-/// - land a PR in actix which add an additional `ResponseError::error_response_with_context`
-///   method with an auto-forwarding default implementation which can access middleware data
 pub(crate) trait WithRequestIdExt<Args>: Sized {
     fn error_with_request_id(self) -> HandlerWithIdInjection<Self, Args>;
 }
