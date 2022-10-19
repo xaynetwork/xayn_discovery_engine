@@ -1,25 +1,25 @@
 [package]
 name = "web-api2"
-version = "0.1.0"
-authors = ["Xayn AG"]
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 description = "Wep Api server for the document personalization service."
-edition = "2021"
+license = "AGPL-3.0-only"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 actix-web = "4.2.1"
-clap = { version = "4.0.9", features = ["derive"] }
-derive_more = { version = "0.99.17", features = ["display", "deref"] }
+clap = { workspace=true }
+derive_more = { workspace = true, features = ["display", "deref"] }
 figment = { version = "0.10.7", features = ["toml"] }
-futures-util = "0.3.24"
+futures-util = { workspace=true }
 mime = "0.3.16"
-once_cell = "1.15.0"
-pin-project = "1.0.12"
-serde = { version = "1.0.145", features = ["derive"] }
-serde_json = "1.0.85"
-thiserror = "1.0.37"
-tokio = { version = "1.21.2", features = ["rt"] }
-tracing = "0.1.36"
-tracing-actix-web = "0.6.1"
-tracing-subscriber = { version = "0.3.15", features = ["json"] }
-uuid = { version = "1.1.2", features = ["v4", "serde"] }
+once_cell = { workspace=true }
+pin-project = { workspace=true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true }
