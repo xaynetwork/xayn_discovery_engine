@@ -14,7 +14,7 @@
 
 use web_api2::{run, Personalization};
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     run::<Personalization>(None).await
 }

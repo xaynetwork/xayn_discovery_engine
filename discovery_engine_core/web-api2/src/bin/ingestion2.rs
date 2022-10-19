@@ -14,7 +14,7 @@
 
 use web_api2::{run, Ingestion};
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     run::<Ingestion>(None).await
 }
