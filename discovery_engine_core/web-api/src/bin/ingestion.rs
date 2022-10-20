@@ -456,7 +456,6 @@ async fn handle_post_documents(
     if failed_documents.is_empty() {
         Ok(Box::new(StatusCode::NO_CONTENT))
     } else {
-        // TODO: change name of error variant to take into account the elastic error indices
         Ok(Box::new(IngestionError::new(failed_documents).to_reply()))
     }
 }
