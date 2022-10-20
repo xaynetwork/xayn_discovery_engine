@@ -15,8 +15,8 @@ displaydoc = { workspace = true }
 env_logger = "0.9.1"
 envconfig = "0.10.0"
 envconfig_derive = "0.10.0"
-log = "0.4.17"
 indicatif = { workspace = true }
+log = "0.4.17"
 rand = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
