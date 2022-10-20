@@ -12,10 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    path::Path,
-};
+use std::{net::SocketAddr, path::PathBuf};
 
 use clap::Parser;
 use serde::Serialize;
@@ -33,10 +30,6 @@ use crate::{
     tracing::init_tracing,
 };
 
-pub(crate) fn default_bind_address() -> SocketAddr {
-    SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080).into()
-}
-
 pub trait Application {
     type Config: Config;
     type AppState: TryFrom<Self::Config> + Send + Sync + 'static;
@@ -52,7 +45,18 @@ struct CliArgs {
     /// This setting is prioritized over settings through
     /// the config and environment.
     #[arg(short, long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bind_to: Option<SocketAddr>,
+
+    /// File to log to additionally to logging to stdout.
+    #[arg(short, long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    log_file: Option<PathBuf>,
+
+    /// Use given configuration file.
+    #[arg(short, long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    config: Option<PathBuf>,
 }
 
 pub type SetupError = Box<dyn std::error::Error + 'static>;
@@ -60,14 +64,15 @@ pub type SetupError = Box<dyn std::error::Error + 'static>;
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
-pub async fn run<A: Application>(config_file: Option<&Path>) -> Result<(), SetupError>
+pub async fn run<A: Application>() -> Result<(), SetupError>
 where
     A: Application,
     <A::AppState as TryFrom<A::Config>>::Error: std::error::Error,
 {
     async {
-        let cli_args = CliArgs::parse();
-        let config = load_config::<A::Config, _>(config_file, cli_args)?;
+        let mut cli_args = CliArgs::parse();
+        let config_file = cli_args.config.take();
+        let config = load_config::<A::Config, _>(config_file.as_deref(), cli_args)?;
         let addr = config.bind_address();
         init_tracing(config.log_file());
         let app_state = web::Data::new(A::AppState::try_from(config)?);

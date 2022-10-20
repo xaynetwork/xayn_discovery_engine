@@ -11,8 +11,6 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 
-use std::net::SocketAddr;
-
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
     Responder,
@@ -20,9 +18,9 @@ use actix_web::{
 use serde::Deserialize;
 
 use crate::{
-    config::Config,
+    config::{CommonConfig, Config},
     error::application::{Unimplemented, WithRequestIdExt},
-    server::{default_bind_address, Application},
+    server::Application,
     Error,
 };
 
@@ -49,13 +47,17 @@ impl Application for Personalization {
 
 #[derive(Deserialize, Debug)]
 pub struct PersonalizationConfig {
-    #[serde(default = "default_bind_address")]
-    bind_to: SocketAddr,
+    #[serde(flatten)]
+    common_config: CommonConfig,
 }
 
 impl Config for PersonalizationConfig {
     fn bind_address(&self) -> std::net::SocketAddr {
-        self.bind_to
+        self.common_config.bind_address()
+    }
+
+    fn log_file(&self) -> Option<&std::path::Path> {
+        self.common_config.log_file()
     }
 }
 
