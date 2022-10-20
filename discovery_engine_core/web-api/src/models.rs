@@ -27,11 +27,11 @@ use warp::{
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
 /// The range of the count parameter.
-pub(crate) const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
+pub const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
-pub(crate) enum Error {
+pub enum Error {
     /// [`UserId`] can't be empty.
     UserIdEmpty,
 
@@ -95,7 +95,7 @@ impl From<DocumentId> for String {
 }
 
 impl DocumentId {
-    pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
+    pub fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
         if id.is_empty() {
@@ -112,7 +112,7 @@ impl DocumentId {
 pub struct DocumentPropertyId(String);
 
 impl DocumentPropertyId {
-    pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
+    pub fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
         if id.is_empty() {
@@ -130,46 +130,6 @@ pub struct DocumentProperty(serde_json::Value);
 
 /// Arbitrary properties that can be attached to a document.
 pub type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DocumentPropertiesRequestBody {
-    pub(crate) properties: DocumentProperties,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub(crate) struct DocumentPropertiesResponse {
-    properties: DocumentProperties,
-}
-
-impl DocumentPropertiesResponse {
-    pub(crate) fn new(properties: DocumentProperties) -> Self {
-        Self { properties }
-    }
-
-    pub(crate) fn to_reply(&self) -> impl Reply {
-        reply::json(self)
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DocumentPropertyRequestBody {
-    pub(crate) property: DocumentProperty,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct DocumentPropertyResponse {
-    property: DocumentProperty,
-}
-
-impl DocumentPropertyResponse {
-    pub(crate) fn new(property: DocumentProperty) -> Self {
-        Self { property }
-    }
-
-    pub(crate) fn to_reply(&self) -> impl Reply {
-        reply::json(self)
-    }
-}
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]
@@ -291,7 +251,7 @@ impl UserInteractionError {
 
 /// Unique identifier for the user.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
-pub(crate) struct UserId(String);
+pub struct UserId(String);
 
 impl UserId {
     pub(crate) fn new(id: impl AsRef<str>) -> Result<Self, Error> {

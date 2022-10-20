@@ -17,28 +17,14 @@ use warp::{self, Filter, Rejection, Reply};
 
 use crate::{
     handlers,
-    models::{
-        DocumentId,
-        DocumentPropertyId,
-        Error,
-        PersonalizedDocumentsQuery,
-        UserId,
-        COUNT_PARAM_RANGE,
-    },
+    models::{Error, PersonalizedDocumentsQuery, UserId, COUNT_PARAM_RANGE},
     state::AppState,
 };
 
 pub fn api_routes(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    get_personalized_documents(state.clone())
-        .or(patch_user_interactions(state.clone()))
-        .or(get_document_properties(state.clone()))
-        .or(put_document_properties(state.clone()))
-        .or(delete_document_properties(state.clone()))
-        .or(get_document_property(state.clone()))
-        .or(put_document_property(state.clone()))
-        .or(delete_document_property(state))
+    get_personalized_documents(state.clone()).or(patch_user_interactions(state))
 }
 
 // GET /users/:user_id/personalized_documents
@@ -76,97 +62,6 @@ fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
     });
 
     warp::path("users").and(user_id_param)
-}
-
-// GET /documents/:document_id/properties
-fn get_document_properties(
-    state: Arc<AppState>,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::get()
-        .and(document_properties_path())
-        .and(with_state(state))
-        .and_then(handlers::handle_get_document_properties)
-}
-
-// PUT /documents/:document_id/properties
-fn put_document_properties(
-    state: Arc<AppState>,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::put()
-        .and(document_properties_path())
-        .and(warp::body::content_length_limit(1024))
-        .and(warp::body::json())
-        .and(with_state(state))
-        .and_then(handlers::handle_put_document_properties)
-}
-
-// DELETE /documents/:document_id/properties
-fn delete_document_properties(
-    state: Arc<AppState>,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::delete()
-        .and(document_properties_path())
-        .and(with_state(state))
-        .and_then(handlers::handle_delete_document_properties)
-}
-
-// GET /documents/:document_id/properties/:property_id
-fn get_document_property(
-    state: Arc<AppState>,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::get()
-        .and(document_property_path())
-        .and(with_state(state))
-        .and_then(handlers::handle_get_document_property)
-}
-
-// PUT /documents/:document_id/properties/:property_id
-fn put_document_property(
-    state: Arc<AppState>,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::put()
-        .and(document_property_path())
-        .and(warp::body::content_length_limit(1024))
-        .and(warp::body::json())
-        .and(with_state(state))
-        .and_then(handlers::handle_put_document_property)
-}
-
-// DELETE /documents/:document_id/properties/:property_id
-fn delete_document_property(
-    state: Arc<AppState>,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::delete()
-        .and(document_property_path())
-        .and(with_state(state))
-        .and_then(handlers::handle_delete_document_property)
-}
-
-// PATH /documents/:document_id/properties
-fn document_properties_path() -> impl Filter<Extract = (DocumentId,), Error = Rejection> + Clone {
-    let document_id_param = warp::path::param().and_then(|document_id: String| async move {
-        urlencoding::decode(&document_id)
-            .map_err(Error::DocumentIdUtf8Conversion)
-            .and_then(DocumentId::new)
-            .map_err(warp::reject::custom)
-    });
-
-    warp::path("documents")
-        .and(document_id_param)
-        .and(warp::path("properties"))
-}
-
-// PATH /documents/:document_id/properties/:property_id
-fn document_property_path(
-) -> impl Filter<Extract = (DocumentId, DocumentPropertyId), Error = Rejection> + Clone {
-    let property_id_param = warp::path::param().and_then(|property_id: String| async move {
-        urlencoding::decode(&property_id)
-            .map_err(Error::DocumentPropertyIdUtf8Conversion)
-            .and_then(DocumentPropertyId::new)
-            .map_err(warp::reject::custom)
-    });
-
-    document_properties_path().and(property_id_param)
 }
 
 /// Extract a "count" from query params and check if within bounds, or reject with InvalidCountParam error.

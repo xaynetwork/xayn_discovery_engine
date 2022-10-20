@@ -20,8 +20,16 @@ mod state;
 mod storage;
 
 pub use crate::{
-    elastic::{Config as ElasticConfig, ElasticDocumentData},
-    models::{DocumentId, DocumentProperties},
+    elastic::{Config as ElasticConfig, ElasticDocumentData, ElasticState, GenericResponse},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        Error,
+        UserId,
+        COUNT_PARAM_RANGE,
+    },
     routes::api_routes,
     state::{AppState, InitConfig},
     storage::UserState,

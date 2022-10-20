@@ -41,7 +41,7 @@ pub struct Config {
     pub password: String,
 }
 
-pub(crate) struct ElasticState {
+pub struct ElasticState {
     config: Config,
     client: Client,
 }
@@ -67,9 +67,8 @@ impl<T> ElasticResultExt<T> for Result<T, Error> {
     }
 }
 
-#[allow(dead_code)]
 impl ElasticState {
-    pub(crate) fn new(config: Config) -> Self {
+    pub fn new(config: Config) -> Self {
         let client = Client::new();
         Self { config, client }
     }
@@ -98,7 +97,7 @@ impl ElasticState {
             }
         }));
 
-        self.query_elastic_search::<SearchResponse<_>>("_search", body)
+        self.query_elastic_search::<_, SearchResponse<_>>("_search", body)
             .await
             .map(Into::into)
     }
@@ -116,17 +115,17 @@ impl ElasticState {
             }
         }));
 
-        self.query_elastic_search::<SearchResponse<_>>("_search", body)
+        self.query_elastic_search::<_, SearchResponse<_>>("_search", body)
             .await
             .map(Into::into)
     }
 
-    pub(crate) async fn get_document_properties(
+    pub async fn get_document_properties(
         &self,
         id: &DocumentId,
     ) -> Result<Option<DocumentProperties>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
-        self.query_elastic_search::<DocumentPropertiesResponse>(
+        self.query_elastic_search::<Value, DocumentPropertiesResponse>(
             &format!("_source/{id}?_source_includes=properties"),
             None,
         )
@@ -135,7 +134,7 @@ impl ElasticState {
         .or_not_found(Ok(None))
     }
 
-    pub(crate) async fn put_document_properties(
+    pub async fn put_document_properties(
         &self,
         id: &DocumentId,
         properties: &DocumentProperties,
@@ -151,13 +150,13 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<GenericResponse>(&format!("_update/{id}"), body)
+        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{id}"), body)
             .await
             .and(Ok(true))
             .or_not_found(Ok(false))
     }
 
-    pub(crate) async fn delete_document_properties(&self, id: &DocumentId) -> Result<bool, Error> {
+    pub async fn delete_document_properties(&self, id: &DocumentId) -> Result<bool, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         // don't delete the field, but put an empty map instead, similar to the ingestion service
         let body = Some(json!({
@@ -170,19 +169,19 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<GenericResponse>(&format!("_update/{id}"), body)
+        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{id}"), body)
             .await
             .and(Ok(true))
             .or_not_found(Ok(false))
     }
 
-    pub(crate) async fn get_document_property(
+    pub async fn get_document_property(
         &self,
         doc_id: &DocumentId,
         prop_id: &DocumentPropertyId,
     ) -> Result<Option<DocumentProperty>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
-        self.query_elastic_search::<DocumentPropertyResponse>(
+        self.query_elastic_search::<Value, DocumentPropertyResponse>(
             &format!("_source/{doc_id}?_source_includes=properties.{prop_id}"),
             None,
         )
@@ -191,7 +190,7 @@ impl ElasticState {
         .or_not_found(Ok(None))
     }
 
-    pub(crate) async fn put_document_property(
+    pub async fn put_document_property(
         &self,
         doc_id: &DocumentId,
         prop_id: &DocumentPropertyId,
@@ -209,13 +208,13 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<GenericResponse>(&format!("_update/{doc_id}"), body)
+        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{doc_id}"), body)
             .await
             .and(Ok(true))
             .or_not_found(Ok(false))
     }
 
-    pub(crate) async fn delete_document_property(
+    pub async fn delete_document_property(
         &self,
         doc_id: &DocumentId,
         prop_id: &DocumentPropertyId,
@@ -231,14 +230,15 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<GenericResponse>(&format!("_update/{doc_id}"), body)
+        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{doc_id}"), body)
             .await
             .and(Ok(true))
             .or_not_found(Ok(false))
     }
 
-    async fn query_elastic_search<T>(&self, route: &str, body: Option<Value>) -> Result<T, Error>
+    pub async fn query_elastic_search<B, T>(&self, route: &str, body: Option<B>) -> Result<T, Error>
     where
+        B: Serialize,
         T: DeserializeOwned,
     {
         let url = format!("{}/{}/{}", self.config.url, self.config.index_name, route);
@@ -288,7 +288,7 @@ impl From<SearchResponse<ElasticDocumentData>> for Vec<PersonalizedDocumentData>
     }
 }
 
-type GenericResponse = HashMap<String, serde_json::Value>;
+pub type GenericResponse = HashMap<String, serde_json::Value>;
 
 #[derive(Clone, Debug, Deserialize)]
 struct SearchResponse<T> {
