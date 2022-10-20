@@ -262,9 +262,9 @@ impl Engine {
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
     #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
+    #[cfg_attr(feature = "storage", allow(unused_variables))]
     pub async fn from_config(
         config: InitConfig,
-        // TODO: remove this after db migration, make sure we can still reset the state
         state: Option<&[u8]>,
         history: &[HistoricDocument],
         sources: &[WeightedSource],
@@ -274,10 +274,6 @@ impl Engine {
     ) -> Result<(Self, InitDbHint), Error> {
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
-        let endpoint_config = de_config
-            .extract_inner::<EndpointConfig>("endpoint")
-            .map_err(|err| Error::Ranker(err.into()))?
-            .with_init_config(&config);
         let core_config = de_config
             .extract_inner("core")
             .map_err(|err| Error::Ranker(err.into()))?;
@@ -290,10 +286,7 @@ impl Engine {
         let exploration_config = de_config
             .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
-        let provider_config =
-            config.to_provider_config(endpoint_config.timeout, endpoint_config.retry);
 
-        // build the systems
         let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
             .map(|smbert| {
                 if let Ok(mecab) = de_config.extract_inner::<&str>("smbert.japanese") {
@@ -322,9 +315,7 @@ impl Engine {
             .extract_inner::<KpsConfig>("kps")
             .map_err(|err| Error::Ranker(err.into()))?
             .build();
-        let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
 
-        // initialize the states
         #[cfg(feature = "storage")]
         let (storage, init_db_hint) = {
             let db_file_path = (!config.use_ephemeral_db).then(|| {
@@ -338,6 +329,34 @@ impl Engine {
             })
             .await?
         };
+
+        let endpoint_config = de_config
+            .extract_inner::<EndpointConfig>("endpoint")
+            .map_err(|err| Error::Ranker(err.into()))?
+            .with_markets(config.markets.clone())
+            .with_sources(
+                {
+                    cfg_if! {
+                        if #[cfg(feature = "storage")] {
+                            storage.source_preference().fetch_trusted().await?
+                        } else {
+                            config.trusted_sources.iter().cloned().collect()
+                        }
+                    }
+                },
+                {
+                    cfg_if! {
+                        if #[cfg(feature = "storage")] {
+                            storage.source_preference().fetch_excluded().await?
+                        } else {
+                            config.excluded_sources.iter().cloned().collect()
+                        }
+                    }
+                },
+            );
+        let provider_config =
+            config.to_provider_config(endpoint_config.timeout, endpoint_config.retry);
+        let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(
                 &endpoint_config,
@@ -352,6 +371,7 @@ impl Engine {
                 providers.similar_news.clone(),
             )) as BoxedOps,
         ];
+
         let stack_config = stack_ops
             .iter()
             .try_fold(HashMap::new(), |mut configs, ops| {
@@ -365,19 +385,14 @@ impl Engine {
                     .map_err(|err| Error::Ranker(err.into()))
             })?;
         #[cfg(feature = "storage")]
-        let (mut stack_data, user_interests, key_phrases) = if state.is_some() {
-            storage
-                .state()
-                .fetch()
-                .await?
-                .as_deref()
-                .map(Engine::deserialize)
-                .transpose()?
-        } else {
-            storage.state().clear().await?;
-            None
-        }
-        .unwrap_or_default();
+        let (mut stack_data, user_interests, key_phrases) = storage
+            .state()
+            .fetch()
+            .await?
+            .as_deref()
+            .map(Engine::deserialize)
+            .transpose()?
+            .unwrap_or_default();
         #[cfg(not(feature = "storage"))]
         let (mut stack_data, user_interests, key_phrases) = state
             .map(Engine::deserialize)
@@ -391,6 +406,11 @@ impl Engine {
                 stack_data.entry(id).or_default().beta = beta;
             }
         }
+
+        #[cfg(feature = "storage")]
+        let history = &storage.fetch_history().await?;
+        #[cfg(feature = "storage")]
+        let sources = &storage.fetch_weighted_sources().await?;
 
         let this = Self::new(
             endpoint_config,
@@ -460,6 +480,7 @@ impl Engine {
     /// Updates the markets configuration.
     ///
     /// Also resets and updates all stacks.
+    #[cfg_attr(feature = "storage", allow(unused_variables))]
     pub async fn set_markets(
         &mut self,
         history: &[HistoricDocument],
@@ -474,6 +495,15 @@ impl Engine {
 
         self.clear_stack_data().await;
 
+        #[cfg(feature = "storage")]
+        {
+            let history = self.storage.fetch_history().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
+            return self
+                .update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
+                .await;
+        }
+        #[cfg(not(feature = "storage"))]
         self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
     }
