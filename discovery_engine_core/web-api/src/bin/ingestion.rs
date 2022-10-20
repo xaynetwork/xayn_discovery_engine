@@ -86,16 +86,24 @@ struct IngestedDocument {
     properties: DocumentProperties,
 }
 
+#[derive(Clone, Debug, Serialize)]
+struct FailedIngestionDocument {
+    id: DocumentId,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct IngestionError {
     /// List of Document Indices which were not successfully processed
-    documents: Vec<DocumentId>,
+    documents: Vec<FailedIngestionDocument>,
 }
 
 impl IngestionError {
     pub(crate) fn new(failed_documents: Vec<DocumentId>) -> Self {
         Self {
-            documents: failed_documents,
+            documents: failed_documents
+                .into_iter()
+                .map(|id| FailedIngestionDocument { id })
+                .collect(),
         }
     }
 
