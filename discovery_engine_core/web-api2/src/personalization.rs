@@ -32,8 +32,7 @@ impl Application for Personalization {
     type AppState = PersonalizationConfig;
 
     fn configure(config: &mut ServiceConfig) {
-        let healthcheck =
-            web::resource("/health").route(web::get().to(get_healthcheck.error_with_request_id()));
+        let healthcheck = web::resource("/health").route(web::get().to(HttpResponse::Ok));
         let scope = web::scope("/users/{user_id}")
             .service(
                 web::resource("interactions")
@@ -70,10 +69,6 @@ type UserId = String;
 //FIXME use actual body
 #[derive(Deserialize, Debug)]
 struct UpdateInteractions {}
-
-async fn get_healthcheck() -> Result<impl Responder, Error> {
-    Ok(HttpResponse::Ok().finish())
-}
 
 async fn update_interactions(
     config: Data<PersonalizationConfig>,
