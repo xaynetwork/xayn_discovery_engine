@@ -24,7 +24,7 @@ use warp::{
     reply::{self, Reply},
 };
 
-use xayn_discovery_engine_ai::{Document as AiDocument, Embedding, GenericError};
+use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
 /// The range of the count parameter.
 pub const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
@@ -67,16 +67,6 @@ pub enum Error {
 
     /// Error receiving response: {0}
     Receiving(#[source] reqwest::Error),
-
-    /** Too many documents send to ingestion system: {0}. The maximum number is specified via
-    `MAX_DOCUMENTS_LENGTH` env var. */
-    TooManyDocuments(usize),
-
-    /// Embeddings could not be calculated.
-    EmbeddingsCalculation(Vec<DocumentId>),
-
-    /// Couldn't serialize documents to NDJSON: {0}.
-    SerializeNdJson(#[source] GenericError),
 }
 
 impl Reject for Error {}

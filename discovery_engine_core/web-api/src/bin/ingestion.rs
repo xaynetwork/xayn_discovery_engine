@@ -72,9 +72,6 @@ pub(crate) struct Config {
     pub(crate) max_documents_length: usize,
 }
 
-/// Represents the `SMBert` model used for calculating embedding from snippets.
-type Model = Arc<SMBert>;
-
 /// Represents a document sent for ingestion.
 #[derive(Debug, Clone, Deserialize)]
 struct IngestedDocument {
@@ -92,21 +89,13 @@ struct IngestedDocument {
 #[derive(Debug, Clone, Serialize)]
 struct IngestionError {
     /// List of Document Indices which were not successfully processed
-    documents: Vec<ErroredDocumentId>,
-}
-
-#[derive(Serialize, Debug, Clone)]
-pub struct ErroredDocumentId {
-    id: DocumentId,
+    documents: Vec<DocumentId>,
 }
 
 impl IngestionError {
-    pub(crate) fn new(errored_ids: Vec<DocumentId>) -> Self {
+    pub(crate) fn new(failed_documents: Vec<DocumentId>) -> Self {
         Self {
-            documents: errored_ids
-                .into_iter()
-                .map(|id| ErroredDocumentId { id })
-                .collect_vec(),
+            documents: failed_documents,
         }
     }
 
@@ -137,7 +126,7 @@ struct IndexInfo {
 
 /// Represents body of a POST documents request.
 #[derive(Debug, Clone, Deserialize)]
-struct IngestionRequest {
+struct IngestionRequestBody {
     #[serde(deserialize_with = "deserialize_article_vec_not_empty")]
     documents: Vec<IngestedDocument>,
 }
@@ -219,13 +208,13 @@ async fn main() -> Result<(), GenericError> {
         .init();
 
     let config = Arc::new(Config::init_from_env()?);
+    let model = Arc::new(init_model(&config)?);
     let client = Arc::new(ElasticState::new(ElasticConfig {
         url: config.elastic_url.clone(),
         index_name: config.elastic_index_name.clone(),
         user: config.elastic_user.clone(),
         password: config.elastic_password.clone(),
     }));
-    let model = init_model(&config)?;
 
     let routes = post_documents(config.clone(), model, client.clone())
         .or(get_document_properties(client.clone()))
@@ -234,7 +223,6 @@ async fn main() -> Result<(), GenericError> {
         .or(get_document_property(client.clone()))
         .or(put_document_property(config, client.clone()))
         .or(delete_document_property(client))
-        .recover(handle_rejection)
         .with(warp::trace::request());
 
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
@@ -242,7 +230,7 @@ async fn main() -> Result<(), GenericError> {
     Ok(())
 }
 
-fn init_model(config: &Config) -> Result<Model, GenericError> {
+fn init_model(config: &Config) -> Result<SMBert, GenericError> {
     info!("SMBert model loading...");
     let start = Instant::now();
 
@@ -259,13 +247,13 @@ fn init_model(config: &Config) -> Result<Model, GenericError> {
     let load_duration = start.elapsed().as_secs();
     info!("SMBert model loaded successfully in {} sec", load_duration);
 
-    Ok(Arc::new(smbert))
+    Ok(smbert)
 }
 
 // POST /documents
 fn post_documents(
     config: Arc<Config>,
-    model: Model,
+    model: Arc<SMBert>,
     client: Arc<ElasticState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::post()
@@ -275,7 +263,15 @@ fn post_documents(
         .and(with_model(model))
         .and(with_config(config))
         .and(with_client(client))
-        .and_then(handle_add_data)
+        .and_then(handle_post_documents)
+        .recover(|rejection: Rejection| async {
+            if let Some(error) = rejection.find::<warp::filters::body::BodyDeserializeError>() {
+                error!("BodyDeserializeError: {:?}", error);
+                Ok(StatusCode::BAD_REQUEST)
+            } else {
+                Err(rejection)
+            }
+        })
 }
 
 // PATH /documents/:document_id/properties
@@ -372,22 +368,20 @@ fn delete_document_property(
 }
 
 #[instrument(skip(model, config, client))]
-async fn handle_add_data(
-    body: IngestionRequest,
-    model: Model,
+async fn handle_post_documents(
+    body: IngestionRequestBody,
+    model: Arc<SMBert>,
     config: Arc<Config>,
     client: Arc<ElasticState>,
-) -> Result<impl Reply, Rejection> {
+) -> Result<Box<dyn Reply>, Infallible> {
     if body.documents.len() > config.max_documents_length {
         error!("{} documents exceeds maximum number", body.documents.len());
-        return Err(warp::reject::custom(Error::TooManyDocuments(
-            body.documents.len(),
-        )));
+        return Ok(Box::new(StatusCode::BAD_REQUEST) as Box<dyn Reply>);
     }
 
     let start = Instant::now();
 
-    let (documents, errored_ids): (Vec<_>, Vec<_>) = body
+    let (documents, failed_documents) = body
         .documents
         .into_iter()
         .map(|document| match model.run(&document.snippet) {
@@ -407,34 +401,56 @@ async fn handle_add_data(
                 Err(document.id)
             }
         })
-        .partition_result();
+        .partition_result::<Vec<_>, Vec<_>, _, _>();
 
-    let embeddings_duration = start.elapsed().as_secs();
     info!(
         "{} embeddings calculated in {} sec",
         documents.len(),
-        embeddings_duration
+        start.elapsed().as_secs(),
     );
 
     debug!("Serializing documents to ndjson");
-    let bytes = serialize_to_ndjson(&documents).map_err(|e| {
-        error!("Error serializing documents to ndjson: {e}");
-        warp::reject::custom(Error::SerializeNdJson(e))
-    })?;
+    let bytes = match serialize_to_ndjson(&documents) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            error!("Error serializing documents to ndjson: {error}");
+            return Ok(Box::new(
+                IngestionError::new(
+                    documents
+                        .into_iter()
+                        .map(|(id, _)| id)
+                        .chain(failed_documents)
+                        .collect_vec(),
+                )
+                .to_reply(),
+            ));
+        }
+    };
 
     info!("Requesting url");
-    client
+    if let Err(error) = client
         .query_elastic_search::<_, GenericResponse>("_bulk?refresh", Some(bytes))
-        .await?;
-
-    if !errored_ids.is_empty() {
-        // TODO: change name of error variant to take into account the elastic error indices
-        return Err(warp::reject::custom(Error::EmbeddingsCalculation(
-            errored_ids,
-        )));
+        .await
+    {
+        error!("Error storing documents: {error}");
+        return Ok(Box::new(
+            IngestionError::new(
+                documents
+                    .into_iter()
+                    .map(|(id, _)| id)
+                    .chain(failed_documents)
+                    .collect_vec(),
+            )
+            .to_reply(),
+        ));
     }
 
-    Ok(StatusCode::NO_CONTENT)
+    if failed_documents.is_empty() {
+        Ok(Box::new(StatusCode::NO_CONTENT))
+    } else {
+        // TODO: change name of error variant to take into account the elastic error indices
+        Ok(Box::new(IngestionError::new(failed_documents).to_reply()))
+    }
 }
 
 #[instrument(skip(client))]
@@ -546,7 +562,9 @@ fn with_config(
     warp::any().map(move || config.clone())
 }
 
-fn with_model(model: Model) -> impl Filter<Extract = (Model,), Error = Infallible> + Clone {
+fn with_model(
+    model: Arc<SMBert>,
+) -> impl Filter<Extract = (Arc<SMBert>,), Error = Infallible> + Clone {
     warp::any().map(move || model.clone())
 }
 
@@ -582,19 +600,4 @@ fn serialize_to_ndjson(
     }
 
     Ok(bytes.freeze())
-}
-
-async fn handle_rejection(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
-    if let Some(err) = err.find::<warp::filters::body::BodyDeserializeError>() {
-        error!("BodyDeserializeError: {:?}", err);
-        return Ok(Box::new(StatusCode::BAD_REQUEST));
-    }
-    match err.find() {
-        Some(Error::TooManyDocuments(_)) => Ok(Box::new(StatusCode::BAD_REQUEST)),
-        Some(Error::EmbeddingsCalculation(ids)) => {
-            Ok(Box::new(IngestionError::new(ids.to_vec()).to_reply()))
-        }
-        Some(_) => Ok(Box::new(IngestionError::new(Vec::new()).to_reply())),
-        None => Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR)),
-    }
 }
