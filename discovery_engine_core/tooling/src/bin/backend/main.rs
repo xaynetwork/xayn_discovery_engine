@@ -5,6 +5,7 @@ mod routes;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use envconfig::Envconfig;
+use errors::BackendError;
 use log::info;
 use reqwest::Client;
 use serde::Deserialize;
@@ -16,7 +17,6 @@ use crate::routes::{popular_get, popular_post, search_get, search_post};
 pub struct Config {
     #[envconfig(from = "MIND_ENDPOINT")]
     pub mind_endpoint: String,
-    // TODO total_number could go here
 }
 
 struct AppState {
@@ -25,9 +25,10 @@ struct AppState {
     #[allow(dead_code)]
     from_index: RwLock<String>,
     history: RwLock<Vec<String>>,
+    page_size: usize,
+    total: usize,
 }
 
-// NOTE may be all that's needed
 #[derive(Deserialize, Debug)]
 struct SearchParams {
     #[serde(rename(deserialize = "q"))]
@@ -81,16 +82,40 @@ fn default_page_size() -> usize {
     200
 }
 
+async fn query_count(
+    config: &Config,
+    client: &Client,
+) -> Result<elastic::CountResponse, BackendError> {
+    let url = format!("{}/_count", config.mind_endpoint);
+
+    let res = client
+        .post(url)
+        .send()
+        .await
+        .map_err(BackendError::Elastic)?
+        .error_for_status()
+        .map_err(BackendError::Elastic)?;
+
+    res.json().await.map_err(BackendError::Receiving)
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let config = Config::init_from_env().expect("Could not read config from environment");
+    let client = Client::new();
+
+    let response = query_count(&config, &client)
+        .await
+        .expect("Could not query count from elastic search");
 
     let app_state = web::Data::new(AppState {
         index: RwLock::new(0),
         from_index: RwLock::new(String::new()),
         history: RwLock::new(Vec::new()),
+        page_size: 200,
+        total: response.count,
     });
 
     let addr = "0.0.0.0";
@@ -102,7 +127,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .app_data(web::Data::new(config.clone()))
             .app_data(app_state.clone())
-            .app_data(web::Data::new(Client::new()))
+            .app_data(web::Data::new(client.clone()))
             .service(search_get)
             .service(search_post)
             .service(popular_get)

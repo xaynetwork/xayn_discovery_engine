@@ -5,9 +5,10 @@ use thiserror::Error;
 pub(crate) enum BackendError {
     /// Elastic search error: {0}
     Elastic(#[source] reqwest::Error),
-
     /// Error receiving response: {0}
     Receiving(#[source] reqwest::Error),
+    /// Error searching news with no history
+    NoHistory,
 }
 
 impl actix_web::error::ResponseError for BackendError {}
