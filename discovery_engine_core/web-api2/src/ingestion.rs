@@ -34,6 +34,7 @@ impl Application for Ingestion {
     fn configure(config: &mut ServiceConfig) {
         let resource = web::resource("/documents")
             .route(web::post().to(new_documents.error_with_request_id()));
+
         config.service(resource);
     }
 }

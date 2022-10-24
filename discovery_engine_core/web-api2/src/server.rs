@@ -21,6 +21,7 @@ use tracing::error;
 use actix_web::{
     web::{self, ServiceConfig},
     App,
+    HttpResponse,
     HttpServer,
 };
 
@@ -80,6 +81,7 @@ where
         HttpServer::new(move || {
             App::new()
                 .app_data(app_state.clone())
+                .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
                 .configure(A::configure)
                 .wrap_fn(wrap_non_json_errors)
                 .wrap_fn(tracing_log_request)
