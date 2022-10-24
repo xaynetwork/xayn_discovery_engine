@@ -13,7 +13,6 @@
 
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
-    HttpResponse,
     Responder,
 };
 use serde::Deserialize;
@@ -32,7 +31,6 @@ impl Application for Personalization {
     type AppState = PersonalizationConfig;
 
     fn configure(config: &mut ServiceConfig) {
-        let healthcheck = web::resource("/health").route(web::get().to(HttpResponse::Ok));
         let scope = web::scope("/users/{user_id}")
             .service(
                 web::resource("interactions")
@@ -43,7 +41,7 @@ impl Application for Personalization {
                     .route(web::get().to(personalized_documents.error_with_request_id())),
             );
 
-        config.service(healthcheck).service(scope);
+        config.service(scope);
     }
 }
 

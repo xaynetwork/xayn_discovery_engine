@@ -14,7 +14,6 @@
 
 use actix_web::{
     web::{self, Data, Json, ServiceConfig},
-    HttpResponse,
     Responder,
 };
 use serde::Deserialize;
@@ -33,11 +32,10 @@ impl Application for Ingestion {
     type AppState = IngestionConfig;
 
     fn configure(config: &mut ServiceConfig) {
-        let healthcheck = web::resource("/health").route(web::get().to(HttpResponse::Ok));
         let resource = web::resource("/documents")
             .route(web::post().to(new_documents.error_with_request_id()));
 
-        config.service(healthcheck).service(resource);
+        config.service(resource);
     }
 }
 
