@@ -91,26 +91,6 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> setExcludedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> excluded,
-  ) async {
-    _incrementCount('setExcludedSources');
-    excludedSources = excluded;
-  }
-
-  @override
-  Future<void> setTrustedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> trusted,
-  ) async {
-    _incrementCount('setTrustedSources');
-    trustedSources = trusted;
-  }
-
-  @override
   Future<void> setSources(Set<Source> trusted, Set<Source> excluded) async {
     _incrementCount('setSources');
     trustedSources = trusted;

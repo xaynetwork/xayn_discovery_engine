@@ -1069,34 +1069,6 @@ impl Engine {
         self.exploration_stack.prune_by_excluded_sources(sources);
     }
 
-    /// Sets a new list of trusted sources.
-    pub async fn set_trusted_sources(
-        &mut self,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-        trusted: Vec<String>,
-    ) -> Result<(), Error> {
-        *self.endpoint_config.trusted_sources.write().await = trusted;
-        self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
-            .await
-    }
-
-    /// Sets a new list of excluded sources.
-    pub async fn set_excluded_sources(
-        &mut self,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-        excluded: Vec<String>,
-    ) -> Result<(), Error> {
-        let exclusion_set = excluded.iter().cloned().collect::<HashSet<_>>();
-        *self.endpoint_config.excluded_sources.write().await = excluded;
-
-        self.filter_excluded_sources_for_all_stacks(&exclusion_set)
-            .await;
-        self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
-            .await
-    }
-
     /// Sets new trusted and excluded sources.
     pub async fn set_sources(
         &mut self,

@@ -163,38 +163,6 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> setExcludedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> excluded,
-  ) async {
-    final result = await asyncFfi.setExcludedSources(
-      _engine.ref,
-      history.allocNative().move(),
-      sources.allocVec().move(),
-      excluded.toStringList().allocNative().move(),
-    );
-
-    return resultVoidStringFfiAdapter.consumeNative(result);
-  }
-
-  @override
-  Future<void> setTrustedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> trusted,
-  ) async {
-    final result = await asyncFfi.setTrustedSources(
-      _engine.ref,
-      history.allocNative().move(),
-      sources.allocVec().move(),
-      trusted.toStringList().allocNative().move(),
-    );
-
-    return resultVoidStringFfiAdapter.consumeNative(result);
-  }
-
-  @override
   Future<void> setSources(Set<Source> trusted, Set<Source> excluded) async {
     final result = await asyncFfi.setSources(
       _engine.ref,

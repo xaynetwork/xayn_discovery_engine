@@ -61,20 +61,6 @@ abstract class Engine {
     FeedMarkets markets,
   );
 
-  /// Changes the currently excluded sources.
-  Future<void> setExcludedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> excluded,
-  );
-
-  /// Changes the trusted sources.
-  Future<void> setTrustedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> trusted,
-  );
-
   /// Sets new trusted and excluded sources.
   Future<void> setSources(Set<Source> trusted, Set<Source> excluded);
 

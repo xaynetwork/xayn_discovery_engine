@@ -337,42 +337,6 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Sets the trusted sources and updates the stacks based on that.
-    pub async fn set_trusted_sources(
-        engine: &SharedEngine,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
-        trusted: Box<Vec<String>>,
-    ) -> Box<Result<(), String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .set_trusted_sources(&history, &sources, *trusted)
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
-    /// Sets the excluded sources and updates the stacks based on that.
-    pub async fn set_excluded_sources(
-        engine: &SharedEngine,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
-        excluded: Box<Vec<String>>,
-    ) -> Box<Result<(), String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .set_excluded_sources(&history, &sources, *excluded)
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
     /// Sets new trusted and excluded sources.
     pub async fn set_sources(
         engine: &SharedEngine,

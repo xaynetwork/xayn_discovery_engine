@@ -155,18 +155,7 @@ impl TestEngine {
         ) in personas_bar.wrap_iter(personas.into_iter())
         {
             self.engine
-                .set_trusted_sources(
-                    &[/* TODO: db migration */],
-                    &[/* TODO: db migration */],
-                    trusted_sources,
-                )
-                .await?;
-            self.engine
-                .set_excluded_sources(
-                    &[/* TODO: db migration */],
-                    &[/* TODO: db migration */],
-                    excluded_sources,
-                )
+                .set_sources(trusted_sources, excluded_sources)
                 .await?;
 
             let mut documents = Vec::with_capacity(runs * iterations);
