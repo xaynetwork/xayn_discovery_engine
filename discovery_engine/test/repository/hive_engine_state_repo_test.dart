@@ -17,8 +17,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventHandler;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
     show HiveEngineStateRepository;
 
@@ -27,13 +26,13 @@ Future<void> main() async {
     late HiveEngineStateRepository repo;
 
     setUpAll(() async {
-      EventHandler.registerHiveAdapters();
+      registerHiveAdapters();
     });
 
     setUp(() async {
       final dir =
           Directory.systemTemp.createTempSync('HiveEngineStateRepository');
-      await EventHandler.initDatabase(dir.path);
+      await initDatabase(dir.path);
       repo = HiveEngineStateRepository();
     });
 

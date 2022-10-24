@@ -37,7 +37,7 @@ pub enum InitDbHint {
     DbOverwrittenDueToErrors(crate::storage::Error),
 }
 
-#[cfg_attr(test, derive(Clone))]
+#[derive(Clone, Debug)]
 pub struct DartMigrationData {
     pub engine_state: Option<Vec<u8>>,
     pub trusted_sources: Vec<String>,
@@ -74,7 +74,7 @@ pub struct Paging {
 }
 
 /// Represents a result from a query.
-#[cfg_attr(test, derive(Clone))]
+#[derive(Clone, Debug)]
 pub struct MigrationDocument {
     /// Unique identifier of the document.
     pub id: document::Id,

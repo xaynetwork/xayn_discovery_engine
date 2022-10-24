@@ -15,10 +15,9 @@
 import 'dart:io' show Directory;
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
     show HiveActiveSearchRepository;
 
@@ -34,13 +33,13 @@ Future<void> main() async {
     );
 
     setUpAll(() async {
-      EventHandler.registerHiveAdapters();
+      registerHiveAdapters();
     });
 
     setUp(() async {
       final dir =
           Directory.systemTemp.createTempSync('HiveActiveSearchRepository');
-      await EventHandler.initDatabase(dir.path);
+      await initDatabase(dir.path);
       repo = HiveActiveSearchRepository();
     });
 

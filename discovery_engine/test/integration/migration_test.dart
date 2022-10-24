@@ -26,17 +26,16 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         RestoreActiveSearchSucceeded,
         RestoreFeedSucceeded,
         Source,
-        StackId,
-        cfgFeatureStorage;
+        StackId;
 import 'package:xayn_discovery_engine/src/api/models/document.dart'
     show DocumentApiConversion;
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart';
@@ -76,8 +75,8 @@ class HiveInjection {
   }
 
   static Future<HiveInjection> open(String dataDir) async {
-    EventHandler.registerHiveAdapters();
-    await EventHandler.initDatabase(dataDir);
+    registerHiveAdapters();
+    await initDatabase(dataDir);
     return HiveInjection._(
       HiveEngineStateRepository(),
       HiveDocumentRepository(),
@@ -202,8 +201,8 @@ void main() {
       data = await setupTestEngineData(useEphemeralDb: false);
       server = await LocalNewsApiServer.start();
 
-      EventHandler.registerHiveAdapters();
-      await EventHandler.initDatabase(data.applicationDirectoryPath);
+      registerHiveAdapters();
+      await initDatabase(data.applicationDirectoryPath);
     });
 
     tearDown(() async {
@@ -356,7 +355,5 @@ void main() {
         expect(repos.sourcePreferenceRepository.isEmpty, isTrue);
       });
     });
-
-    // ignore: require_trailing_commas
-  }, skip: !cfgFeatureStorage);
+  });
 }

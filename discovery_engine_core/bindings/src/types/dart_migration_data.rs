@@ -60,17 +60,17 @@ pub unsafe extern "C" fn dart_migration_data_place_of_excluded_sources(
     unsafe { addr_of_mut!((*place).excluded_sources) }
 }
 
-/// Returns a pointer to the `search` field of a [`DartMigrationData`].
+/// Returns a pointer to the `reacted_sources` field of a [`DartMigrationData`].
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`DartMigrationData`] memory object,
-/// which might be uninitialized.
+/// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn dart_migration_data_place_of_search(
+pub unsafe extern "C" fn dart_migration_data_place_of_reacted_sources(
     place: *mut DartMigrationData,
-) -> *mut Option<MigrationSearch> {
-    unsafe { addr_of_mut!((*place).search) }
+) -> *mut Vec<WeightedSource> {
+    unsafe { addr_of_mut!((*place).reacted_sources) }
 }
 
 /// Returns a pointer to the `documents` field of a [`DartMigrationData`].
@@ -86,17 +86,50 @@ pub unsafe extern "C" fn dart_migration_data_place_of_documents(
     unsafe { addr_of_mut!((*place).documents) }
 }
 
-/// Returns a pointer to the `reacted_sources` field of a [`DartMigrationData`].
+/// Returns a pointer to the `search` field of a [`DartMigrationData`].
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`DartMigrationData`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn dart_migration_data_place_of_reacted_sources(
+pub unsafe extern "C" fn dart_migration_data_place_of_search(
     place: *mut DartMigrationData,
-) -> *mut Vec<WeightedSource> {
-    unsafe { addr_of_mut!((*place).reacted_sources) }
+) -> *mut Option<MigrationSearch> {
+    unsafe { addr_of_mut!((*place).search) }
+}
+
+/// Initializes an [`Option<DartMigrationData>`] field at given place to `Some(data)` value.
+///
+/// The boxed data is moved into this function.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`Option<DartMigrationData>`] memory object,
+/// which might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_option_dart_migration_data_some_at(
+    place: *mut Option<DartMigrationData>,
+    data: Box<DartMigrationData>,
+) {
+    unsafe {
+        place.write(Some(*data));
+    }
+}
+
+/// Initializes a [`Option<DartMigrationData>`] field at given place to `None`.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`Option<DartMigrationData>`] memory object,
+/// which might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_option_dart_migration_data_none_at(
+    place: *mut Option<DartMigrationData>,
+) {
+    unsafe {
+        place.write(None);
+    }
 }
 
 /// Alloc an uninitialized `Box<DartMigrationData>`, mainly used for testing.

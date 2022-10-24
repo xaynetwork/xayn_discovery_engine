@@ -12,7 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show nullptr;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
@@ -38,7 +37,6 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustSharedEngine;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
-import 'package:xayn_discovery_engine/src/ffi/types/dart_migration_data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
@@ -69,7 +67,6 @@ import 'package:xayn_discovery_engine/src/ffi/types/uuid_vec.dart'
     show DocumentIdSetFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
-import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 
 /// A handle to the discovery engine.
 class DiscoveryEngineFfi implements Engine {
@@ -82,7 +79,6 @@ class DiscoveryEngineFfi implements Engine {
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(
     EngineInitializer initializer,
-    DartMigrationData? dartMigrationData,
   ) async {
     final setupData = initializer.setupData;
     if (setupData is! NativeSetupData) {
@@ -97,8 +93,8 @@ class DiscoveryEngineFfi implements Engine {
         initializer.config,
         setupData,
         deConfig: initializer.deConfig,
+        dartMigrationData: initializer.dartMigrationData,
       ).allocNative().move(),
-      dartMigrationData?.allocNative().move() ?? nullptr,
     );
     final boxedInitResult =
         resultInitializationResultStringFfiAdapter.moveNative(result);

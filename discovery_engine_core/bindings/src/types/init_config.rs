@@ -16,7 +16,7 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::InitConfig;
+use xayn_discovery_engine_core::{storage2::DartMigrationData, InitConfig};
 use xayn_discovery_engine_providers::Market;
 
 use super::primitives::FfiUsize;
@@ -141,6 +141,19 @@ pub unsafe extern "C" fn init_config_place_of_de_config(
     unsafe { addr_of_mut!((*place).de_config) }
 }
 
+/// Returns a pointer to the `log_file` field of a configuration.
+///
+/// # Safety
+///
+/// The pointer must point to a valid [`InitConfig`] memory object,
+/// it might be uninitialized.
+#[no_mangle]
+pub unsafe extern "C" fn init_config_place_of_log_file(
+    place: *mut InitConfig,
+) -> *mut Option<String> {
+    unsafe { addr_of_mut!((*place).log_file) }
+}
+
 /// Returns a pointer to the `data_dir` field of a configuration.
 ///
 /// # Safety
@@ -163,17 +176,17 @@ pub unsafe extern "C" fn init_config_place_of_use_ephemeral_db(place: *mut InitC
     unsafe { addr_of_mut!((*place).use_ephemeral_db).cast() }
 }
 
-/// Returns a pointer to the `log_file` field of a configuration.
+/// Returns a pointer to the `dart_migration_data` field of a configuration.
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
 /// it might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn init_config_place_of_log_file(
+pub unsafe extern "C" fn init_config_place_of_dart_migration_data(
     place: *mut InitConfig,
-) -> *mut Option<String> {
-    unsafe { addr_of_mut!((*place).log_file) }
+) -> *mut Option<DartMigrationData> {
+    unsafe { addr_of_mut!((*place).dart_migration_data) }
 }
 
 /// Alloc an uninitialized `Box<InitConfig>`, mainly used for testing.

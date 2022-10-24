@@ -52,8 +52,12 @@ void main() {
     );
     expect(
       DiscoveryEngineFfi.initialize(
-        EngineInitializer(config: config, setupData: setupData, deConfig: null),
-        null,
+        EngineInitializer(
+          config: config,
+          setupData: setupData,
+          deConfig: null,
+          dartMigrationData: null,
+        ),
       ),
       allOf(
         throwsException,

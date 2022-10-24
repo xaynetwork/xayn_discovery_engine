@@ -16,9 +16,9 @@ import 'dart:io';
 
 import 'package:hive/hive.dart';
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_reacted_repo.dart';
 
 Future<void> main() async {
@@ -33,12 +33,12 @@ Future<void> main() async {
     ];
 
     setUpAll(() async {
-      EventHandler.registerHiveAdapters();
+      registerHiveAdapters();
     });
 
     setUp(() async {
       final dir = Directory.systemTemp.createTempSync('hive-test');
-      await EventHandler.initDatabase(dir.path);
+      await initDatabase(dir.path);
       repo = HiveSourceReactedRepository();
     });
 

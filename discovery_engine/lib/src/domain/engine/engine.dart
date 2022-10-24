@@ -37,6 +37,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 
 /// Interface to Discovery Engine core.
 abstract class Engine {
@@ -133,12 +134,15 @@ class EngineInitializer with EquatableMixin {
   /// An opaque encoded configuration for the DE.
   final String? deConfig;
 
+  final DartMigrationData? dartMigrationData;
+
   EngineInitializer({
     required this.config,
     required this.setupData,
     required this.deConfig,
+    required this.dartMigrationData,
   });
 
   @override
-  List<Object?> get props => [config, setupData, deConfig];
+  List<Object?> get props => [config, setupData, deConfig, dartMigrationData];
 }

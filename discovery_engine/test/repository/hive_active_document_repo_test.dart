@@ -17,8 +17,6 @@ import 'dart:typed_data' show Float32List;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -27,6 +25,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 
@@ -42,13 +41,13 @@ Future<void> main() async {
     final id2 = DocumentId();
 
     setUpAll(() async {
-      EventHandler.registerHiveAdapters();
+      registerHiveAdapters();
     });
 
     setUp(() async {
       final dir =
           Directory.systemTemp.createTempSync('ActiveDocumentDataRepository');
-      await EventHandler.initDatabase(dir.path);
+      await initDatabase(dir.path);
       repo = HiveActiveDocumentDataRepository();
     });
 

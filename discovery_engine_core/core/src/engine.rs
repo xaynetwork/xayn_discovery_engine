@@ -53,6 +53,7 @@ use xayn_discovery_engine_providers::{
     HeadlinesQuery,
     Market,
     NewsQuery,
+    ProviderConfig,
     Providers,
     RankLimit,
     SimilarNewsQuery,
@@ -106,7 +107,7 @@ use crate::{
         TrustedNews,
     },
     storage::{self, sqlite::SqliteStorage, BoxedStorage},
-    storage2::{DartMigrationData, InitDbHint},
+    storage2::InitDbHint,
     utils::MiscErrorExt,
 };
 
@@ -254,10 +255,7 @@ impl Engine {
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
     #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
-    pub async fn from_config(
-        config: InitConfig,
-        dart_migration_data: Option<DartMigrationData>,
-    ) -> Result<(Self, InitDbHint), Error> {
+    pub async fn from_config(config: InitConfig) -> Result<(Self, InitDbHint), Error> {
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
         let core_config = de_config
@@ -309,7 +307,7 @@ impl Engine {
                         .unwrap(/*can't fail as we only join rust strings*/)
         });
         let (storage, init_db_hint) =
-            SqliteStorage::init_storage_system(db_file_path, dart_migration_data, &|s| {
+            SqliteStorage::init_storage_system(db_file_path, config.dart_migration_data, &|s| {
                 smbert.run(s).log_error().ok()
             })
             .await?;
@@ -322,8 +320,14 @@ impl Engine {
                 storage.source_preference().fetch_trusted().await?,
                 storage.source_preference().fetch_excluded().await?,
             );
-        let provider_config =
-            config.to_provider_config(endpoint_config.timeout, endpoint_config.retry);
+        let provider_config = ProviderConfig {
+            api_base_url: config.api_base_url,
+            api_key: config.api_key,
+            news_provider_path: config.news_provider_path,
+            headlines_provider_path: config.headlines_provider_path,
+            timeout: endpoint_config.timeout,
+            retry: endpoint_config.retry,
+        };
         let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(
@@ -1549,11 +1553,12 @@ pub(crate) mod tests {
                 log_file: None,
                 data_dir: "tmp_test_data_dir".into(),
                 use_ephemeral_db: true,
+                dart_migration_data: None,
             };
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
-            let engine = Engine::from_config(config, None).await.unwrap().0;
+            let engine = Engine::from_config(config).await.unwrap().0;
 
             Mutex::new((server, engine))
         };

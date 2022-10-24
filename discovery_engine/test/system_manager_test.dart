@@ -31,7 +31,7 @@ Future<void> main() async {
     final engine = MockEngine();
 
     setUp(() {
-      mgr = SystemManager(engine, () async {});
+      mgr = SystemManager(engine);
     });
 
     tearDown(() {

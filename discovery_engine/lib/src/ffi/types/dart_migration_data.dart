@@ -68,6 +68,18 @@ extension DartMigrationDataFfi on DartMigrationData {
   }
 }
 
+extension OptionDartMigrationDataFfi on DartMigrationData? {
+  void writeNative(Pointer<RustOptionDartMigrationData> place) {
+    final self = this;
+    if (self == null) {
+      ffi.init_option_dart_migration_data_none_at(place);
+    } else {
+      final data = self.allocNative();
+      ffi.init_option_dart_migration_data_some_at(place, data.move());
+    }
+  }
+}
+
 class MigrationDocument {
   final Document document;
   final ActiveDocumentData? activeData;

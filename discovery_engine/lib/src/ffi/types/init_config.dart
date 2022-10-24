@@ -24,6 +24,7 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustInitConfig;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
+import 'package:xayn_discovery_engine/src/ffi/types/dart_migration_data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
@@ -32,6 +33,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show OptionStringFfi, StringFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 
 class InitConfigFfi with EquatableMixin {
   final String apiKey;
@@ -47,6 +49,7 @@ class InitConfigFfi with EquatableMixin {
   final String? logFile;
   final String dataDir;
   final bool useEphemeralDb;
+  final DartMigrationData? dartMigrationData;
 
   @override
   List<Object?> get props => [
@@ -63,12 +66,14 @@ class InitConfigFfi with EquatableMixin {
         logFile,
         dataDir,
         useEphemeralDb,
+        dartMigrationData,
       ];
 
   factory InitConfigFfi(
     Configuration configuration,
     NativeSetupData setupData, {
     String? deConfig,
+    DartMigrationData? dartMigrationData,
   }) =>
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
@@ -84,6 +89,7 @@ class InitConfigFfi with EquatableMixin {
         logFile: configuration.logFile,
         dataDir: configuration.applicationDirectoryPath,
         useEphemeralDb: configuration.useEphemeralDb,
+        dartMigrationData: dartMigrationData,
       );
 
   InitConfigFfi.fromParts({
@@ -100,6 +106,7 @@ class InitConfigFfi with EquatableMixin {
     required this.useEphemeralDb,
     this.deConfig,
     this.logFile,
+    this.dartMigrationData,
   });
 
   /// Allocates a `Box<RustInitConfig>` initialized based on this instance.
@@ -130,6 +137,8 @@ class InitConfigFfi with EquatableMixin {
     );
     useEphemeralDb
         .writeNative(ffi.init_config_place_of_use_ephemeral_db(place));
+    dartMigrationData
+        .writeNative(ffi.init_config_place_of_dart_migration_data(place));
   }
 
   @visibleForTesting
@@ -168,6 +177,7 @@ class InitConfigFfi with EquatableMixin {
       useEphemeralDb: BoolFfi.readNative(
         ffi.init_config_place_of_use_ephemeral_db(config),
       ),
+      // dartMigrationData is omitted
     );
   }
 }

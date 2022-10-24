@@ -51,7 +51,6 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
 
     use xayn_discovery_engine_core::{
         document::{Document, TimeSpent, TrendingTopic, UserReacted},
-        storage2::DartMigrationData,
         InitConfig,
     };
     use xayn_discovery_engine_providers::Market;
@@ -60,14 +59,11 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
-    pub async fn initialize(
-        config: Box<InitConfig>,
-        dart_migration_data: Option<Box<DartMigrationData>>,
-    ) -> Box<Result<InitializationResult, String>> {
+    pub async fn initialize(config: Box<InitConfig>) -> Box<Result<InitializationResult, String>> {
         tracing::init_tracing(config.log_file.as_deref().map(Path::new));
 
         Box::new(
-            Engine::from_config(*config, dart_migration_data.map(|d| *d))
+            Engine::from_config(*config)
                 .await
                 .map(|(engine, init_db_hint)| InitializationResult::new(engine, init_db_hint))
                 .map_err(|error| error.to_string()),

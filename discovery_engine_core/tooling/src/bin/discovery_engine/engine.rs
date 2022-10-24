@@ -51,8 +51,9 @@ impl TestEngine {
             log_file: None,
             data_dir: String::new(),
             use_ephemeral_db: true,
+            dart_migration_data: None,
         };
-        let engine = Engine::from_config(config, None).await?.0;
+        let engine = Engine::from_config(config).await?.0;
 
         spinner.finish_with_message("initialized engine");
 

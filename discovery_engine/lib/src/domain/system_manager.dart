@@ -26,9 +26,8 @@ import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
 /// Business logic concerning the management of the engine system.
 class SystemManager {
   final Engine _engine;
-  final Future<void> Function() _clearAiState;
 
-  SystemManager(this._engine, this._clearAiState);
+  SystemManager(this._engine);
 
   /// Handle the given system client event.
   ///
@@ -71,7 +70,6 @@ class SystemManager {
   }
 
   Future<EngineEvent> resetAi() async {
-    await _clearAiState();
     await _engine.resetAi();
     return const EngineEvent.resetAiSucceeded();
   }
