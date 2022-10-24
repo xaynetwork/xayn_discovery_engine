@@ -27,7 +27,7 @@ use crate::{
 pub struct Ingestion;
 
 impl Application for Ingestion {
-    type ConfigExtension = ();
+    type ConfigExtension = ConfigExtension;
 
     fn configure(config: &mut ServiceConfig) {
         let resource = web::resource("/documents")
@@ -37,6 +37,31 @@ impl Application for Ingestion {
 }
 
 type Config = server::Config<<Ingestion as Application>::ConfigExtension>;
+
+#[derive(Debug, Default, Deserialize)]
+pub struct ConfigExtension {
+    #[allow(dead_code)]
+    pub(crate) ingestion: IngestionConfig,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IngestionConfig {
+    #[allow(dead_code)]
+    #[serde(default = "default_max_document_batch_size")]
+    pub(crate) max_document_batch_size: u64,
+}
+
+impl Default for IngestionConfig {
+    fn default() -> Self {
+        Self {
+            max_document_batch_size: default_max_document_batch_size(),
+        }
+    }
+}
+
+fn default_max_document_batch_size() -> u64 {
+    100
+}
 
 //FIXME use actual body
 #[derive(Deserialize)]

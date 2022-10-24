@@ -56,7 +56,7 @@ where
         let config_file = cli_args.config.take();
         let config =
             load_config::<Config<A::ConfigExtension>, _>(config_file.as_deref(), cli_args)?;
-        let addr = config.net.bind_to.clone();
+        let addr = config.net.bind_to;
         init_tracing(config.as_ref());
 
         let app_state = AppState::create(config).await?;
