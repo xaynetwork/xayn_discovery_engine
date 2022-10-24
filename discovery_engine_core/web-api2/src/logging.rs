@@ -14,8 +14,9 @@
 
 //! Setup tracing on different platforms.
 
-use std::{fs::OpenOptions, path::Path, sync::Once};
+use std::{fs::OpenOptions, path::PathBuf, sync::Once};
 
+use serde::Deserialize;
 use tracing::Level;
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
@@ -23,16 +24,21 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 
+#[derive(Deserialize, Default, Debug)]
+pub struct Config {
+    pub(crate) file: Option<PathBuf>,
+}
+
 static INIT_TRACING: Once = Once::new();
 
-pub(crate) fn init_tracing(log_file: Option<&Path>) {
+pub(crate) fn init_tracing(log_config: &Config) {
     INIT_TRACING.call_once(|| {
-        init_tracing_once(log_file);
+        init_tracing_once(log_config);
         init_panic_logging();
     });
 }
 
-fn init_tracing_once(log_file: Option<&Path>) {
+fn init_tracing_once(log_config: &Config) {
     let subscriber = tracing_subscriber::registry();
 
     let stdout_log = tracing_subscriber::fmt::layer();
@@ -42,7 +48,9 @@ fn init_tracing_once(log_file: Option<&Path>) {
         .with_default(LevelFilter::TRACE)
         .with_target("sqlx::query", Level::WARN);
 
-    let file_log = log_file
+    let file_log = log_config
+        .file
+        .as_deref()
         .map(|log_file| {
             OpenOptions::new()
                 .write(true)

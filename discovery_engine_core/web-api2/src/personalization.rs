@@ -18,17 +18,15 @@ use actix_web::{
 use serde::Deserialize;
 
 use crate::{
-    config::{CommonConfig, Config},
     error::application::{Unimplemented, WithRequestIdExt},
-    server::Application,
+    server::{self, Application},
     Error,
 };
 
 pub struct Personalization;
 
 impl Application for Personalization {
-    type Config = PersonalizationConfig;
-    type AppState = PersonalizationConfig;
+    type ConfigExtension = ();
 
     fn configure(config: &mut ServiceConfig) {
         let scope = web::scope("/users/{user_id}")
@@ -45,21 +43,7 @@ impl Application for Personalization {
     }
 }
 
-#[derive(Deserialize, Debug)]
-pub struct PersonalizationConfig {
-    #[serde(flatten)]
-    common_config: CommonConfig,
-}
-
-impl Config for PersonalizationConfig {
-    fn bind_address(&self) -> std::net::SocketAddr {
-        self.common_config.bind_address()
-    }
-
-    fn log_file(&self) -> Option<&std::path::Path> {
-        self.common_config.log_file()
-    }
-}
+type Config = server::Config<<Personalization as Application>::ConfigExtension>;
 
 //FIXME use actual UserId
 type UserId = String;
@@ -69,7 +53,7 @@ type UserId = String;
 struct UpdateInteractions {}
 
 async fn update_interactions(
-    config: Data<PersonalizationConfig>,
+    config: Data<Config>,
     user_id: Path<UserId>,
     interactions: Json<UpdateInteractions>,
 ) -> Result<impl Responder, Error> {
@@ -83,7 +67,7 @@ async fn update_interactions(
 }
 
 async fn personalized_documents(
-    config: Data<PersonalizationConfig>,
+    config: Data<Config>,
     user_id: Path<UserId>,
 ) -> Result<impl Responder, Error> {
     dbg!((config, user_id));

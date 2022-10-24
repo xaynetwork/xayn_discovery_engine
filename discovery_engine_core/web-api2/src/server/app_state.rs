@@ -12,18 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod db;
-mod elastic;
-mod embedding;
-mod error;
-mod ingestion;
-mod load_config;
-mod logging;
-mod middleware;
-mod personalization;
-mod server;
+use sqlx::{Pool, Postgres};
 
-pub use error::application::Error;
-pub use ingestion::Ingestion;
-pub use personalization::Personalization;
-pub use server::run;
+use super::{Config, SetupError};
+
+pub struct AppState<E> {
+    pub(crate) config: Config<E>,
+    pub(crate) db: Pool<Postgres>,
+}
+
+impl<E> AppState<E> {
+    pub(super) async fn create(config: Config<E>) -> Result<Self, SetupError> {
+        let db = config.db.create_connection_pool().await?;
+        Ok(Self { config, db })
+    }
+}
