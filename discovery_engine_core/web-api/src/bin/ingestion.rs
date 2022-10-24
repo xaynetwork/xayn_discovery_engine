@@ -40,7 +40,6 @@ use web_api::{
     ElasticDocumentData,
     ElasticState,
     Error,
-    GenericResponse,
 };
 use xayn_discovery_engine_ai::GenericError;
 use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
@@ -137,6 +136,26 @@ struct IndexInfo {
 struct IngestionRequestBody {
     #[serde(deserialize_with = "deserialize_article_vec_not_empty")]
     documents: Vec<IngestedDocument>,
+}
+
+/// Represents body of Elastic bulk insert response.
+#[derive(Debug, Deserialize)]
+struct ElasticIngestionResponse {
+    errors: bool,
+    items: Vec<Hit>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Hit {
+    index: IngestionResult,
+}
+
+#[derive(Debug, Deserialize)]
+struct IngestionResult {
+    #[serde(rename(deserialize = "_id"))]
+    id: DocumentId,
+    status: usize,
+    error: Option<serde_json::Value>,
 }
 
 fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -435,23 +454,44 @@ async fn handle_post_documents(
         }
     };
 
-    info!("Requesting url");
-    if let Err(error) = client
-        .query_elastic_search::<_, GenericResponse>("_bulk?refresh", Some(bytes))
+    let response = match client
+        .query_elastic_search::<_, ElasticIngestionResponse>("_bulk?refresh", Some(bytes))
         .await
     {
-        error!("Error storing documents: {error}");
-        return Ok(Box::new(
-            IngestionError::new(
-                documents
-                    .into_iter()
-                    .map(|(id, _)| id)
-                    .chain(failed_documents)
-                    .collect_vec(),
-            )
-            .to_reply(),
-        ));
-    }
+        Ok(response) => response,
+        Err(error) => {
+            error!("Error storing documents: {error}");
+            return Ok(Box::new(
+                IngestionError::new(
+                    documents
+                        .into_iter()
+                        .map(|(id, _)| id)
+                        .chain(failed_documents)
+                        .collect_vec(),
+                )
+                .to_reply(),
+            ));
+        }
+    };
+
+    let failed_documents = if response.errors {
+        response
+            .items
+            .into_iter()
+            .filter_map(|hit| {
+                hit.index.error.map(|error| {
+                    error!(
+                        "Elastic failed to ingest document: {}; Responded with: {}, error: {:?}",
+                        hit.index.id, hit.index.status, error
+                    );
+                    hit.index.id
+                })
+            })
+            .chain(failed_documents)
+            .collect_vec()
+    } else {
+        failed_documents
+    };
 
     if failed_documents.is_empty() {
         Ok(Box::new(StatusCode::NO_CONTENT))
