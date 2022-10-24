@@ -40,7 +40,7 @@ pub(super) struct Args {
     pub(super) config: Option<PathBuf>,
 
     /// Print the config and exist instead of running the server
-    #[arg(short, long)]
+    #[arg(long)]
     #[serde(skip)]
     pub(super) print_config: bool,
 }
