@@ -20,7 +20,7 @@ pub struct CountResponse {
 }
 
 #[derive(Clone, Deserialize, Debug)]
-pub struct SearchResponse<T> {
+pub struct Response<T> {
     pub hits: Hits<T>,
 }
 
@@ -39,8 +39,9 @@ pub struct Hit<T> {
     pub sort: String,
 }
 
+/// An article in the MIND dataset.
 #[derive(Clone, Deserialize, Debug)]
-pub struct Article {
+pub struct MindArticle {
     #[serde(rename(deserialize = "Title"))]
     pub title: String,
     #[serde(rename(deserialize = "Abstract"))]

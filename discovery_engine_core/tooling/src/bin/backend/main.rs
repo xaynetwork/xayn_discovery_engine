@@ -34,9 +34,7 @@ pub struct Config {
 }
 
 struct AppState {
-    #[allow(dead_code)]
     index: RwLock<usize>,
-    #[allow(dead_code)]
     from_index: RwLock<String>,
     history: RwLock<Vec<String>>,
     page_size: usize,

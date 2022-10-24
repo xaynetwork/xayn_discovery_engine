@@ -18,15 +18,14 @@ use actix_web::{
     web::{Data, Json, Query},
     Responder,
 };
-use elastic::SearchResponse;
 use log::debug;
 use reqwest::Client;
 use serde_json::{json, Value};
 
 use crate::{
-    elastic::{self, Hit},
+    elastic::{Hit, MindArticle, Response},
     errors::BackendError,
-    newscatcher,
+    newscatcher::{Article as NewscatcherArticle, Response as NewscatcherResponse},
     AppState,
     Config,
     SearchParams,
@@ -77,11 +76,9 @@ async fn handle_search(
     search_params: &SearchParams,
 ) -> Result<impl Responder, BackendError> {
     let response = fetch_search_results(config, app_state, client, search_params).await?;
-    Ok(Json(newscatcher::Response::from((
-        response,
-        app_state.page_size,
-        app_state.total,
-    ))))
+    let converted = convert_response(response, app_state.page_size, app_state.total, false);
+
+    Ok(Json(converted))
 }
 
 async fn handle_popular(
@@ -92,7 +89,8 @@ async fn handle_popular(
     let response = fetch_popular_results(config, app_state, client).await?;
     let hits = response.hits.hits.as_slice();
     if hits.is_empty() {
-        return Ok(Json(newscatcher::Response::new(Vec::new(), 0)));
+        let empty = NewscatcherResponse::new(Vec::new(), 0);
+        return Ok(Json(empty));
     }
 
     let mut index = app_state.index.write().await;
@@ -110,12 +108,9 @@ async fn handle_popular(
     let mut history = app_state.history.write().await;
     history.append(&mut ids);
 
-    // TODO may need to reverse list
-    Ok(Json(newscatcher::Response::from((
-        response,
-        app_state.page_size,
-        app_state.total,
-    ))))
+    let converted = convert_response(response, app_state.page_size, app_state.total, true);
+
+    Ok(Json(converted))
 }
 
 async fn fetch_search_results(
@@ -123,7 +118,7 @@ async fn fetch_search_results(
     app_state: &Data<AppState>,
     client: &Client,
     search_params: &SearchParams,
-) -> Result<elastic::SearchResponse<elastic::Article>, BackendError> {
+) -> Result<Response<MindArticle>, BackendError> {
     let query_lower = search_params.query.to_lowercase();
     let history = app_state.history.read().await.clone();
     let index = app_state.index.read().await;
@@ -157,7 +152,7 @@ async fn fetch_popular_results(
     config: &Config,
     app_state: &Data<AppState>,
     client: &Client,
-) -> Result<elastic::SearchResponse<elastic::Article>, BackendError> {
+) -> Result<Response<MindArticle>, BackendError> {
     let from_index = app_state.from_index.read().await.clone();
 
     let body = json!({
@@ -165,7 +160,7 @@ async fn fetch_popular_results(
         "query": {
             "match_all":{}
         },
-        "search_after": from_index, // TODO omitted if empty
+        "search_after": from_index, // TODO omitted if index 0
         "sort": [
             {
                 "date_published": {
@@ -182,7 +177,7 @@ async fn query_elastic_search(
     config: &Config,
     client: &Client,
     body: Value,
-) -> Result<elastic::SearchResponse<elastic::Article>, BackendError> {
+) -> Result<Response<MindArticle>, BackendError> {
     debug!("Query: {:#?}", body);
 
     let url = format!("{}/_search", config.mind_endpoint);
@@ -201,12 +196,8 @@ async fn query_elastic_search(
     res.json().await.map_err(BackendError::Receiving)
 }
 
-fn convert(input: Vec<Hit<elastic::Article>>) -> Vec<newscatcher::Article> {
-    input.into_iter().map(Hit::into).collect()
-}
-
-impl From<Hit<elastic::Article>> for newscatcher::Article {
-    fn from(hit: Hit<elastic::Article>) -> Self {
+impl From<Hit<MindArticle>> for NewscatcherArticle {
+    fn from(hit: Hit<MindArticle>) -> Self {
         Self {
             title: hit.source.title,
             score: None,
@@ -224,20 +215,26 @@ impl From<Hit<elastic::Article>> for newscatcher::Article {
     }
 }
 
-impl From<(SearchResponse<elastic::Article>, usize, usize)> for newscatcher::Response {
-    fn from(
-        (response, page_size, total): (SearchResponse<elastic::Article>, usize, usize),
-    ) -> Self {
-        let total_pages = if response.hits.hits.is_empty() {
-            0
-        } else {
-            match (total / page_size, total % page_size) {
-                (pages, 0) => pages,
-                (pages, _) => pages + 1,
-            }
-        };
+fn convert_response(
+    response: Response<MindArticle>,
+    page_size: usize,
+    total: usize,
+    reverse: bool,
+) -> NewscatcherResponse {
+    let hits = response.hits.hits;
+    let total_pages = if hits.is_empty() {
+        0
+    } else {
+        match (total / page_size, total % page_size) {
+            (pages, 0) => pages,
+            (pages, _) => pages + 1,
+        }
+    };
 
-        let articles = convert(response.hits.hits);
-        Self::new(articles, total_pages)
-    }
+    let mut articles = hits.into_iter().map(Hit::into).collect::<Vec<_>>();
+    if reverse {
+        articles.reverse();
+    };
+
+    NewscatcherResponse::new(articles, total_pages)
 }
