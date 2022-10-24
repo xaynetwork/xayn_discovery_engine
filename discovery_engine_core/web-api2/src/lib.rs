@@ -22,6 +22,7 @@ mod logging;
 mod middleware;
 mod personalization;
 mod server;
+mod utils;
 
 pub use error::application::Error;
 pub use ingestion::Ingestion;

@@ -16,7 +16,7 @@ use actix_web::{
     web::{self, Data, Json, ServiceConfig},
     Responder,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     error::application::{Unimplemented, WithRequestIdExt},
@@ -39,13 +39,14 @@ impl Application for Ingestion {
 
 type Config = server::Config<<Ingestion as Application>::ConfigExtension>;
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ConfigExtension {
     #[allow(dead_code)]
+    #[serde(default)]
     pub(crate) ingestion: IngestionConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct IngestionConfig {
     #[allow(dead_code)]
     #[serde(default = "default_max_document_batch_size")]

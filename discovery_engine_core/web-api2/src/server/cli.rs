@@ -36,6 +36,11 @@ pub(super) struct Args {
 
     /// Use given configuration file.
     #[arg(short, long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub(super) config: Option<PathBuf>,
+
+    /// Print the config and exist instead of running the server
+    #[arg(short, long)]
+    #[serde(skip)]
+    pub(super) print_config: bool,
 }

@@ -1215,9 +1215,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e56602b469b2201400dec66a66aec5a9b8761ee97cd1b8c96ab2483fcc16cc9"
 dependencies = [
  "atomic",
+ "parking_lot 0.12.1",
  "pear",
  "serde",
  "serde_json",
+ "tempfile",
  "toml",
  "uncased",
  "version_check",
@@ -1727,6 +1729,12 @@ dependencies = [
  "number_prefix",
  "unicode-width",
 ]
+
+[[package]]
+name = "indoc"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adab1eaa3408fb7f0c777a73e7465fd5656136fc93b670eb6df3c88c2c1344e3"
 
 [[package]]
 name = "infer"

@@ -16,7 +16,7 @@
 
 use std::{fs::OpenOptions, path::PathBuf, sync::Once};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::Level;
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
@@ -24,7 +24,7 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
     pub(crate) file: Option<PathBuf>,
 }
