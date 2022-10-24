@@ -14,7 +14,7 @@
 
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
-use derive_more::AsRef;
+use derive_more::{AsRef, Deref};
 use serde::Deserialize;
 
 use crate::{db, elastic, logging};
@@ -50,7 +50,7 @@ impl Default for NetConfig {
 }
 
 /// Configuration combining all other configurations.
-#[derive(Deserialize, Debug, AsRef)]
+#[derive(Deserialize, Debug, Deref, AsRef)]
 pub struct Config<E> {
     #[as_ref]
     #[serde(default)]
@@ -68,6 +68,7 @@ pub struct Config<E> {
     #[serde(default)]
     pub(crate) db: db::Config,
 
+    #[deref]
     #[serde(flatten)]
     pub(crate) extension: E,
 }

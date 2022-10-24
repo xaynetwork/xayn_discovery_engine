@@ -17,7 +17,9 @@ use sqlx::{Pool, Postgres};
 use super::{Config, SetupError};
 
 pub struct AppState<E> {
+    #[allow(dead_code)]
     pub(crate) config: Config<E>,
+    #[allow(dead_code)]
     pub(crate) db: Pool<Postgres>,
 }
 
