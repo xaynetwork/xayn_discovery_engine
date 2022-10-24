@@ -14,9 +14,9 @@
 
 use std::path::PathBuf;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Embedding {
     #[allow(dead_code)]
     #[serde(default = "default_vocabulary")]

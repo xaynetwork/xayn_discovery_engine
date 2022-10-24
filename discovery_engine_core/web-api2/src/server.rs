@@ -17,7 +17,7 @@ mod cli;
 mod config;
 
 use clap::Parser;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
 use actix_web::{
@@ -38,7 +38,7 @@ pub use self::{
 };
 
 pub trait Application {
-    type ConfigExtension: DeserializeOwned + Send + Sync + 'static;
+    type ConfigExtension: DeserializeOwned + Serialize + Send + Sync + 'static;
     fn configure(config: &mut ServiceConfig);
 }
 
@@ -53,9 +53,16 @@ where
 {
     async {
         let mut cli_args = cli::Args::parse();
+        let print_config = cli_args.print_config;
         let config_file = cli_args.config.take();
         let config =
             load_config::<Config<A::ConfigExtension>, _>(config_file.as_deref(), cli_args)?;
+
+        if print_config {
+            println!("{}", serde_json::to_string_pretty(&config)?);
+            return Ok(());
+        }
+
         let addr = config.net.bind_to;
         init_tracing(config.as_ref());
 

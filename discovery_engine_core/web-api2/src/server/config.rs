@@ -15,12 +15,12 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use derive_more::{AsRef, Deref};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{db, elastic, logging};
 
 /// Configuration for roughly network/connection layer specific configurations.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NetConfig {
     /// Address to which the server should bind.
     #[serde(default = "default_bind_address")]
@@ -50,7 +50,7 @@ impl Default for NetConfig {
 }
 
 /// Configuration combining all other configurations.
-#[derive(Deserialize, Debug, Deref, AsRef)]
+#[derive(AsRef, Debug, Deref, Deserialize, Serialize)]
 pub struct Config<E> {
     #[as_ref]
     #[serde(default)]

@@ -13,9 +13,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use secrecy::Secret;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug)]
+use crate::utils::serialize_redacted;
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     #[allow(dead_code)]
     #[serde(default = "default_url")]
@@ -24,7 +26,7 @@ pub struct Config {
     #[serde(default = "default_user")]
     user: String,
     #[allow(dead_code)]
-    #[serde(default = "default_password")]
+    #[serde(default = "default_password", serialize_with = "serialize_redacted")]
     password: Secret<String>,
     #[allow(dead_code)]
     #[serde(default = "default_index_name")]

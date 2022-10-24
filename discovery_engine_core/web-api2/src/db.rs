@@ -13,10 +13,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use secrecy::{ExposeSecret, Secret};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{pool::PoolOptions, postgres::PgConnectOptions, Pool, Postgres};
 
-#[derive(Deserialize, Debug)]
+use crate::utils::serialize_redacted_opt;
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     /// The default base url.
     #[serde(default = "default_base_url")]
@@ -31,7 +33,7 @@ pub struct Config {
     user: Option<String>,
 
     /// Override password from base url.
-    #[serde(default)]
+    #[serde(default, serialize_with = "serialize_redacted_opt")]
     password: Option<Secret<String>>,
 
     /// Override db from base url.
