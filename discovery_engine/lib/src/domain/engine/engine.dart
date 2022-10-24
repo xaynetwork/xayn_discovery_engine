@@ -25,10 +25,8 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket, FeedMarkets;
+    show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -112,24 +110,14 @@ abstract class Engine {
   /// Gets the next batch of the current active search.
   Future<List<DocumentWithActiveData>> searchNextBatch();
 
-  /// Restores the current active search, ordered by their global rank (timestamp & local rank).
-  Future<List<DocumentWithActiveData>> restoreSearch();
+  /// Restores the documents which have been searched, i.e. the current active search.
+  Future<List<DocumentWithActiveData>> searched();
 
   /// Gets the current active search mode and term.
   Future<ActiveSearch> searchedBy();
 
   /// Closes the current active search.
   Future<void> closeSearch();
-
-  /// Performs a deep search by term and market.
-  ///
-  /// The documents are sorted in descending order wrt their cosine similarity towards the
-  /// original search term embedding.
-  Future<List<DocumentWithActiveData>> deepSearch(
-    String term,
-    FeedMarket market,
-    Embedding embedding,
-  );
 
   /// Returns the currently trending topics.
   Future<List<TrendingTopic>> trendingTopics();

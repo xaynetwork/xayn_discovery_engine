@@ -49,7 +49,6 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
 #[async_bindgen::api(
     use uuid::Uuid;
 
-    use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_core::{
         document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, WeightedSource},
         storage2::DartMigrationData,
@@ -263,14 +262,14 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Restores the current active search, ordered by their global rank (timestamp & local rank).
-    pub async fn restore_search(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
+    /// Restores the documents which have been searched, i.e. the current active search.
+    pub async fn searched(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .restore_search()
+                .searched()
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -298,27 +297,6 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .lock()
                 .await
                 .close_search()
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
-    /// Performs a deep search by term and market.
-    ///
-    /// The documents are sorted in descending order wrt their cosine similarity towards the
-    /// original search term embedding.
-    pub async fn deep_search(
-        engine: &SharedEngine,
-        term: Box<String>,
-        market: Box<Market>,
-        embedding: Box<Embedding>,
-    ) -> Box<Result<Vec<Document>, String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .deep_search(term.as_ref(), market.as_ref(), embedding.as_ref())
                 .await
                 .map_err(|error| error.to_string()),
         )

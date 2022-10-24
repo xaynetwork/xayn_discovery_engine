@@ -22,10 +22,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket, FeedMarkets;
+    show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
@@ -205,8 +203,8 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> restoreSearch() async {
-    _incrementCount('restoreSearch');
+  Future<List<DocumentWithActiveData>> searched() async {
+    _incrementCount('searched');
     return activeSearchDocuments.take(20).toList(growable: false);
   }
 
@@ -224,16 +222,6 @@ class MockEngine implements Engine {
   @override
   Future<void> closeSearch() async {
     _incrementCount('closeSearch');
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> deepSearch(
-    String term,
-    FeedMarket market,
-    Embedding embedding,
-  ) async {
-    _incrementCount('deepSearch');
-    return deepSearchDocuments;
   }
 
   @override

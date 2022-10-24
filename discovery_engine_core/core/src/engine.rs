@@ -709,7 +709,6 @@ impl Engine {
             return Err(Error::InvalidTerm);
         }
 
-        #[cfg(feature = "storage")]
         match self.storage.search().fetch().await {
             Ok(_) => return Err(storage::Error::OpenSearch.into()),
             Err(storage::Error::NoSearch) => { /* continue */ }
@@ -725,24 +724,20 @@ impl Engine {
             )
             .await?;
 
-        #[cfg(feature = "storage")]
-        {
-            #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
-            let search = storage::models::Search {
-                search_by: storage::models::SearchBy::Query,
-                search_term: query,
-                paging: storage::models::Paging {
-                    size: self.search_config.max_docs_per_batch as u32,
-                    next_page: page,
-                },
-            };
-            let documents = documents.iter().cloned().map_into().collect_vec();
-            self.storage
-                .search()
-                .store_new_search(&search, &documents)
-                .await?;
-            self.serialize().await?;
-        }
+        #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
+        let search = storage::models::Search {
+            search_by: storage::models::SearchBy::Query,
+            search_term: query,
+            paging: storage::models::Paging {
+                size: self.search_config.max_docs_per_batch as u32,
+                next_page: page,
+            },
+        };
+        self.storage
+            .search()
+            .store_new_search(&search, &documents.iter().cloned().map_into().collect_vec())
+            .await?;
+        self.serialize().await?;
 
         Ok(documents)
     }
@@ -753,7 +748,6 @@ impl Engine {
             return Err(Error::InvalidTerm);
         }
 
-        #[cfg(feature = "storage")]
         match self.storage.search().fetch().await {
             Ok(_) => return Err(storage::Error::OpenSearch.into()),
             Err(storage::Error::NoSearch) => { /* continue */ }
@@ -768,24 +762,20 @@ impl Engine {
             )
             .await?;
 
-        #[cfg(feature = "storage")]
-        {
-            #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
-            let search = storage::models::Search {
-                search_by: storage::models::SearchBy::Topic,
-                search_term: topic.into(),
-                paging: storage::models::Paging {
-                    size: self.search_config.max_docs_per_batch as u32,
-                    next_page: page,
-                },
-            };
-            let documents = documents.iter().cloned().map_into().collect_vec();
-            self.storage
-                .search()
-                .store_new_search(&search, &documents)
-                .await?;
-            self.serialize().await?;
-        }
+        #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
+        let search = storage::models::Search {
+            search_by: storage::models::SearchBy::Topic,
+            search_term: topic.into(),
+            paging: storage::models::Paging {
+                size: self.search_config.max_docs_per_batch as u32,
+                next_page: page,
+            },
+        };
+        self.storage
+            .search()
+            .store_new_search(&search, &documents.iter().cloned().map_into().collect_vec())
+            .await?;
+        self.serialize().await?;
 
         Ok(documents)
     }
@@ -794,116 +784,119 @@ impl Engine {
     ///
     /// The documents are sorted in descending order wrt their cosine similarity towards the
     /// original search term embedding.
-    #[cfg_attr(
-        not(feature = "storage"),
-        allow(unused_variables, clippy::unused_async)
-    )]
     pub async fn search_by_id(&self, id: document::Id) -> Result<Vec<Document>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let document = self.storage.search().get_document(id).await?;
+        let stored_document = self.storage.search().get_document(id).await?;
 
-            // TODO: merge `deep_search()` into this method after DB migration
-            self.deep_search(
-                document.snippet_or_title(),
-                &document.news_resource.market,
-                &document.embedding,
-            )
-            .await
+        if stored_document.snippet_or_title().is_empty() {
+            return Ok(Vec::new());
         }
 
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        let query = SimilarNewsQuery {
+            like: stored_document.snippet_or_title(),
+            market: &stored_document.news_resource.market,
+            page_size: self.core_config.deep_search_max,
+            page: 1,
+            rank_limit: RankLimit::Unlimited,
+            excluded_sources: &self.endpoint_config.excluded_sources.read().await.clone(),
+            max_age_days: None,
+        };
+
+        let articles = self
+            .providers
+            .similar_news
+            .query_similar_news(&query)
+            .await
+            .map_err(|error| Error::Client(error.into()))?;
+        let articles = MalformedFilter::apply(&[], &[], articles)?;
+        let (documents, errors) = documentify_articles(
+            StackId::nil(), // these documents are not associated with a stack
+            &self.smbert,
+            articles,
+        );
+
+        // only return an error if all articles failed
+        if documents.is_empty() && !errors.is_empty() {
+            return Err(Error::Errors(errors));
+        }
+
+        let mut documents = documents
+            .into_iter()
+            .filter_map(|document| {
+                let similarity = cosine_similarity(
+                    stored_document.embedding.view(),
+                    document.smbert_embedding.view(),
+                );
+                (similarity > self.core_config.deep_search_sim).then_some((similarity, document))
+            })
+            .collect_vec();
+        documents.sort_unstable_by(|(this, _), (other, _)| nan_safe_f32_cmp(this, other).reverse());
+        let documents = documents
+            .into_iter()
+            .map(|(_, document)| document)
+            .collect();
+
+        Ok(documents)
     }
 
     /// Gets the next batch of the current active search.
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn search_next_batch(&self) -> Result<Vec<Document>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let (search, _) = self.storage.search().fetch().await?;
-            let by = match search.search_by {
-                storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
-                    Filter::default().add_keyword(&search.search_term),
-                )),
-                storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
-            };
-            let page_number = search.paging.next_page + 1;
-            let documents = self
-                .active_search(by, page_number, search.paging.size as usize)
-                .await?;
+        let (search, _) = self.storage.search().fetch().await?;
+        let by = match search.search_by {
+            storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
+                Filter::default().add_keyword(&search.search_term),
+            )),
+            storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
+        };
+        let page_number = search.paging.next_page + 1;
+        let documents = self
+            .active_search(by, page_number, search.paging.size as usize)
+            .await?;
 
-            self.storage
-                .search()
-                .store_next_page(
-                    page_number,
-                    documents
-                        .iter()
-                        .cloned()
-                        .map_into()
-                        .collect_vec()
-                        .as_slice(),
-                )
-                .await?;
-            self.serialize().await?;
+        self.storage
+            .search()
+            .store_next_page(
+                page_number,
+                documents
+                    .iter()
+                    .cloned()
+                    .map_into()
+                    .collect_vec()
+                    .as_slice(),
+            )
+            .await?;
+        self.serialize().await?;
 
-            Ok(documents)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        Ok(documents)
     }
 
-    /// Restores the current active search, ordered by their global rank (timestamp & local rank).
-    // TODO: rename methods to `searched()` and adjust events & docs accordingly after DB migration
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
-    pub async fn restore_search(&self) -> Result<Vec<Document>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let (_, documents) = self.storage.search().fetch().await?;
-            let documents = documents.into_iter().map_into().collect();
+    /// Restores the documents which have been searched, i.e. the current active search.
+    pub async fn searched(&self) -> Result<Vec<Document>, Error> {
+        let (_, documents) = self.storage.search().fetch().await?;
+        let documents = documents.into_iter().map_into().collect();
 
-            Ok(documents)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        Ok(documents)
     }
 
     /// Gets the current active search mode and term.
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn searched_by(&self) -> Result<SearchBy<'_>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let (search, _) = self.storage.search().fetch().await?;
-            let search = match search.search_by {
-                storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
-                    Filter::default().add_keyword(&search.search_term),
-                )),
-                storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
-            };
+        let (search, _) = self.storage.search().fetch().await?;
+        let search = match search.search_by {
+            storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
+                Filter::default().add_keyword(&search.search_term),
+            )),
+            storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
+        };
 
-            Ok(search)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        Ok(search)
     }
 
     /// Closes the current active search.
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn close_search(&self) -> Result<(), Error> {
-        #[cfg(feature = "storage")]
-        {
-            if self.storage.search().clear().await? {
-                Ok(())
-            } else {
-                Err(Error::Storage(storage::Error::NoSearch))
-            }
+        if self.storage.search().clear().await? {
+            Ok(())
+        } else {
+            Err(Error::Storage(storage::Error::NoSearch))
         }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
     }
 
     async fn active_search(
@@ -969,65 +962,6 @@ impl Engine {
             documents.truncate(page_size);
             Ok(documents)
         }
-    }
-
-    /// Performs a deep search by term and market.
-    ///
-    /// The documents are sorted in descending order wrt their cosine similarity towards the
-    /// original search term embedding.
-    pub async fn deep_search(
-        &self,
-        term: &str,
-        market: &Market,
-        embedding: &Embedding,
-    ) -> Result<Vec<Document>, Error> {
-        if term.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let query = SimilarNewsQuery {
-            like: term,
-            market,
-            page_size: self.core_config.deep_search_max,
-            page: 1,
-            rank_limit: RankLimit::Unlimited,
-            excluded_sources: &self.endpoint_config.excluded_sources.read().await.clone(),
-            max_age_days: None,
-        };
-
-        let articles = self
-            .providers
-            .similar_news
-            .query_similar_news(&query)
-            .await
-            .map_err(|error| Error::Client(error.into()))?;
-        let articles = MalformedFilter::apply(&[], &[], articles)?;
-        let (documents, errors) = documentify_articles(
-            StackId::nil(), // these documents are not associated with a stack
-            &self.smbert,
-            articles,
-        );
-
-        // only return an error if all articles failed
-        if documents.is_empty() && !errors.is_empty() {
-            return Err(Error::Errors(errors));
-        }
-
-        let mut documents = documents
-            .into_iter()
-            .filter_map(|document| {
-                let similarity =
-                    cosine_similarity(embedding.view(), document.smbert_embedding.view());
-                (similarity > self.core_config.deep_search_sim).then_some((similarity, document))
-            })
-            .collect_vec();
-        documents.sort_unstable_by(|(this, _), (other, _)| nan_safe_f32_cmp(this, other).reverse());
-        let documents = documents
-            .into_iter()
-            .map(|(_, document)| document)
-            .collect();
-
-        Ok(documents)
     }
 
     /// Returns the current trending topics.

@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show SearchClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
@@ -29,36 +27,16 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     as domain show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
-import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
-    show ActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/active_search_repo.dart'
-    show ActiveSearchRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
-    show DocumentRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
-    show EngineStateRepository;
 
 typedef DocsByReaction = Map<UserReaction, List<Document>>;
 
 /// Business logic concerning the management of the active search.
 class SearchManager {
   final Engine _engine;
-  final ActiveSearchRepository _searchRepo;
-  final DocumentRepository _docRepo;
-  final ActiveDocumentDataRepository _activeRepo;
-  final EngineStateRepository _engineStateRepo;
 
-  SearchManager(
-    this._engine,
-    this._searchRepo,
-    this._docRepo,
-    this._activeRepo,
-    this._engineStateRepo,
-  );
+  SearchManager(this._engine);
 
   /// Handle the given search client event.
   ///
@@ -76,125 +54,54 @@ class SearchManager {
             throw UnimplementedError('handler not implemented for $event'),
       );
 
-  Future<List<api.Document>> _getActiveSearchDocuments(
-    domain.ActiveSearch search,
-  ) async {
-    final List<DocumentWithActiveData> searchDocs;
-
-    switch (search.searchBy) {
-      case SearchBy.query:
-        searchDocs = await _engine.searchByQuery(
-          search.searchTerm,
-          search.requestedPageNb,
-        );
-        break;
-      case SearchBy.topic:
-        searchDocs = await _engine.searchByTopic(
-          search.searchTerm,
-          search.requestedPageNb,
-        );
-        break;
-    }
-
-    await _engineStateRepo.save(await _engine.serialize());
-    await _docRepo.updateMany(searchDocs.map((e) => e.document));
-
-    for (final docWithData in searchDocs) {
-      final id = docWithData.document.documentId;
-      await _activeRepo.update(id, docWithData.data);
-    }
-
-    return searchDocs
-        .map((docWithData) => docWithData.document.toApiRepr())
-        .toList();
-  }
-
   /// Obtain the first batch of active search documents and persist to repositories.
-  Future<EngineEvent> activeSearchRequested(
-    SearchBy by,
-    String term,
-  ) async {
-    if (cfgFeatureStorage) {
-      final search = ActiveSearch(searchBy: by, searchTerm: term);
-      const page = 1;
-      final List<DocumentWithActiveData> docs;
-      try {
-        switch (search.searchBy) {
-          case SearchBy.query:
-            docs = await _engine.searchByQuery(search.searchTerm, page);
-            break;
-          case SearchBy.topic:
-            docs = await _engine.searchByTopic(search.searchTerm, page);
-            break;
-        }
-      } on Exception catch (e) {
-        if (e.toString().contains('Search request failed: open search')) {
-          return const EngineEvent.activeSearchRequestFailed(
-            SearchFailureReason.openActiveSearch,
-          );
-        }
-        rethrow;
+  Future<EngineEvent> activeSearchRequested(SearchBy by, String term) async {
+    final search = ActiveSearch(searchBy: by, searchTerm: term);
+    const page = 1;
+    final List<DocumentWithActiveData> docs;
+    try {
+      switch (search.searchBy) {
+        case SearchBy.query:
+          docs = await _engine.searchByQuery(search.searchTerm, page);
+          break;
+        case SearchBy.topic:
+          docs = await _engine.searchByTopic(search.searchTerm, page);
+          break;
       }
-
-      return EngineEvent.activeSearchRequestSucceeded(
-        search,
-        docs.map((doc) => doc.document.toApiRepr()).toList(),
-      );
+    } on Exception catch (e) {
+      if (e.toString().contains('Search request failed: open search')) {
+        return const EngineEvent.activeSearchRequestFailed(
+          SearchFailureReason.openActiveSearch,
+        );
+      }
+      rethrow;
     }
 
-    if (await _searchRepo.getCurrent() != null) {
-      const reason = SearchFailureReason.openActiveSearch;
-      return const EngineEvent.activeSearchRequestFailed(reason);
-    }
-
-    final search = domain.ActiveSearch(
-      searchBy: by,
-      searchTerm: term,
-      requestedPageNb: 1,
-      pageSize: -1, // unused
+    return EngineEvent.activeSearchRequestSucceeded(
+      search,
+      docs.map((doc) => doc.document.toApiRepr()).toList(),
     );
-    final docs = await _getActiveSearchDocuments(search);
-    await _searchRepo.save(search);
-    return EngineEvent.activeSearchRequestSucceeded(search.toApiRepr(), docs);
   }
 
   /// Obtain the next batch of active search documents and persist to repositories.
   Future<EngineEvent> nextActiveSearchBatchRequested() async {
-    if (cfgFeatureStorage) {
-      final domain.ActiveSearch search;
-      final List<DocumentWithActiveData> docs;
-      try {
-        search = await _engine.searchedBy();
-        docs = await _engine.searchNextBatch();
-      } on Exception catch (e) {
-        if (e.toString().contains('Search request failed: no search')) {
-          return const EngineEvent.nextActiveSearchBatchRequestFailed(
-            SearchFailureReason.noActiveSearch,
-          );
-        }
-        rethrow;
+    final domain.ActiveSearch search;
+    final List<DocumentWithActiveData> docs;
+    try {
+      search = await _engine.searchedBy();
+      docs = await _engine.searchNextBatch();
+    } on Exception catch (e) {
+      if (e.toString().contains('Search request failed: no search')) {
+        return const EngineEvent.nextActiveSearchBatchRequestFailed(
+          SearchFailureReason.noActiveSearch,
+        );
       }
-
-      return EngineEvent.nextActiveSearchBatchRequestSucceeded(
-        search.toApiRepr(),
-        docs.map((doc) => doc.document.toApiRepr()).toList(),
-      );
+      rethrow;
     }
 
-    final search = await _searchRepo.getCurrent();
-
-    if (search == null) {
-      const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.nextActiveSearchBatchRequestFailed(reason);
-    }
-
-    // lets update active search params
-    search.requestedPageNb += 1;
-    final docs = await _getActiveSearchDocuments(search);
-    await _searchRepo.save(search);
     return EngineEvent.nextActiveSearchBatchRequestSucceeded(
       search.toApiRepr(),
-      docs,
+      docs.map((doc) => doc.document.toApiRepr()).toList(),
     );
   }
 
@@ -202,88 +109,44 @@ class SearchManager {
   ///
   /// That is, documents are ordered by their timestamp, then local rank.
   Future<EngineEvent> restoreActiveSearchRequested() async {
-    if (cfgFeatureStorage) {
-      final domain.ActiveSearch search;
-      final List<DocumentWithActiveData> docs;
-      try {
-        search = await _engine.searchedBy();
-        docs = await _engine.restoreSearch();
-      } on Exception catch (e) {
-        if (e.toString().contains('Search request failed: no search')) {
-          return const EngineEvent.restoreActiveSearchFailed(
-            SearchFailureReason.noActiveSearch,
-          );
-        }
-        rethrow;
-      }
-
-      if (docs.isEmpty) {
+    final domain.ActiveSearch search;
+    final List<DocumentWithActiveData> docs;
+    try {
+      search = await _engine.searchedBy();
+      docs = await _engine.searched();
+    } on Exception catch (e) {
+      if (e.toString().contains('Search request failed: no search')) {
         return const EngineEvent.restoreActiveSearchFailed(
-          SearchFailureReason.noResultsAvailable,
+          SearchFailureReason.noActiveSearch,
         );
       }
+      rethrow;
+    }
 
-      return EngineEvent.restoreActiveSearchSucceeded(
-        search.toApiRepr(),
-        docs.map((doc) => doc.document.toApiRepr()).toList(),
+    if (docs.isEmpty) {
+      return const EngineEvent.restoreActiveSearchFailed(
+        SearchFailureReason.noResultsAvailable,
       );
     }
 
-    final search = await _searchRepo.getCurrent();
-
-    if (search == null) {
-      const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.restoreActiveSearchFailed(reason);
-    }
-
-    final allDocs = await _docRepo.fetchAll();
-    final searchDocs = allDocs
-        // we only want active search documents
-        .where((doc) => doc.isSearched && doc.isActive)
-        .toList();
-
-    if (searchDocs.isEmpty) {
-      const reason = SearchFailureReason.noResultsAvailable;
-      return const EngineEvent.restoreActiveSearchFailed(reason);
-    }
-
-    searchDocs.sort((doc1, doc2) {
-      // ignore: deprecated_member_use_from_same_package
-      final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
-      return timeOrd == 0
-          // ignore: deprecated_member_use_from_same_package
-          ? doc1.batchIndex.compareTo(doc2.batchIndex)
-          : timeOrd;
-    });
-
-    final docs = searchDocs.map((doc) => doc.toApiRepr()).toList();
-
-    return EngineEvent.restoreActiveSearchSucceeded(search.toApiRepr(), docs);
+    return EngineEvent.restoreActiveSearchSucceeded(
+      search.toApiRepr(),
+      docs.map((doc) => doc.document.toApiRepr()).toList(),
+    );
   }
 
   /// Return the active search term.
   Future<EngineEvent> activeSearchTermRequested() async {
-    if (cfgFeatureStorage) {
-      final domain.ActiveSearch search;
-      try {
-        search = await _engine.searchedBy();
-      } on Exception catch (e) {
-        if (e.toString().contains('Search request failed: no search')) {
-          return const EngineEvent.activeSearchTermRequestFailed(
-            SearchFailureReason.noActiveSearch,
-          );
-        }
-        rethrow;
+    final domain.ActiveSearch search;
+    try {
+      search = await _engine.searchedBy();
+    } on Exception catch (e) {
+      if (e.toString().contains('Search request failed: no search')) {
+        return const EngineEvent.activeSearchTermRequestFailed(
+          SearchFailureReason.noActiveSearch,
+        );
       }
-
-      return EngineEvent.activeSearchTermRequestSucceeded(search.searchTerm);
-    }
-
-    final search = await _searchRepo.getCurrent();
-
-    if (search == null) {
-      const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.activeSearchTermRequestFailed(reason);
+      rethrow;
     }
 
     return EngineEvent.activeSearchTermRequestSucceeded(search.searchTerm);
@@ -293,61 +156,19 @@ class SearchManager {
   ///
   /// These documents aren't persisted to repositories.
   Future<EngineEvent> deepSearchRequested(DocumentId id) async {
-    if (cfgFeatureStorage) {
-      final List<DocumentWithActiveData> docs;
-      try {
-        docs = await _engine.searchById(id);
-      } on Exception catch (e) {
-        final message = e.toString();
-        if (message.contains('Search request failed: no document')) {
-          throw ArgumentError('id $id does not identify an active document');
-        }
-        if (message.contains(
-              'The sequence must contain at least `KEY_PHRASE_SIZE` valid words',
-            ) ||
-            message
-                .contains('HTTP status client error (404 Not Found) for url')) {
-          return const EngineEvent.deepSearchRequestFailed(
-            SearchFailureReason.noResultsAvailable,
-          );
-        }
-        rethrow;
-      }
-
-      if (docs.isEmpty) {
-        return const EngineEvent.deepSearchRequestFailed(
-          SearchFailureReason.noResultsAvailable,
-        );
-      }
-
-      return EngineEvent.deepSearchRequestSucceeded(
-        docs.map((doc) => doc.document.toApiRepr()).toList(),
-      );
-    }
-
-    final doc = await _docRepo.fetchById(id);
-    final data = await _activeRepo.fetchById(id);
-    if (doc == null || !doc.isActive || data == null) {
-      throw ArgumentError('id $id does not identify an active document');
-    }
-    final term = doc.resource.snippet.isNotEmpty
-        ? doc.resource.snippet
-        : doc.resource.title;
-    final market = FeedMarket(
-      langCode: doc.resource.language,
-      countryCode: doc.resource.country,
-    );
-    final embedding = data.smbertEmbedding;
-
     final List<DocumentWithActiveData> docs;
     try {
-      docs = await _engine.deepSearch(term, market, embedding);
-    } catch (e) {
-      const fewWords =
-          'The sequence must contain at least `KEY_PHRASE_SIZE` valid words';
-      const notFound = 'HTTP status client error (404 Not Found) for url';
+      docs = await _engine.searchById(id);
+    } on Exception catch (e) {
       final message = e.toString();
-      if (message.contains(fewWords) || message.contains(notFound)) {
+      if (message.contains('Search request failed: no document')) {
+        throw ArgumentError('id $id does not identify an active document');
+      }
+      if (message.contains(
+            'The sequence must contain at least `KEY_PHRASE_SIZE` valid words',
+          ) ||
+          message
+              .contains('HTTP status client error (404 Not Found) for url')) {
         return const EngineEvent.deepSearchRequestFailed(
           SearchFailureReason.noResultsAvailable,
         );
@@ -380,61 +201,16 @@ class SearchManager {
 
   /// Clear the active search and deactivate interacted search documents.
   Future<EngineEvent> activeSearchClosed() async {
-    if (cfgFeatureStorage) {
-      try {
-        await _engine.closeSearch();
-      } on Exception catch (e) {
-        if (e.toString().contains('Search request failed: no search')) {
-          return const EngineEvent.activeSearchClosedFailed(
-            SearchFailureReason.noActiveSearch,
-          );
-        }
-        rethrow;
+    try {
+      await _engine.closeSearch();
+    } on Exception catch (e) {
+      if (e.toString().contains('Search request failed: no search')) {
+        return const EngineEvent.activeSearchClosedFailed(
+          SearchFailureReason.noActiveSearch,
+        );
       }
-
-      return const EngineEvent.activeSearchClosedSucceeded();
+      rethrow;
     }
-
-    if (await _searchRepo.getCurrent() == null) {
-      const reason = SearchFailureReason.noActiveSearch;
-      return const EngineEvent.activeSearchClosedFailed(reason);
-    }
-
-    await _searchRepo.clear();
-
-    final allDocs = await _docRepo.fetchAll();
-    final searchDocs = allDocs
-        // we only want search documents
-        .where((doc) => doc.isSearched && doc.isActive);
-
-    if (searchDocs.isEmpty) {
-      return const EngineEvent.activeSearchClosedSucceeded();
-    }
-
-    final ids = searchDocs.map((doc) => doc.documentId);
-    await _activeRepo.removeByIds(ids);
-
-    final docsByInteraction = searchDocs.fold<DocsByReaction>({}, (aggr, doc) {
-      return {
-        ...aggr,
-        doc.userReaction: [
-          ...aggr[doc.userReaction] ?? <Document>[],
-          doc,
-        ],
-      };
-    });
-
-    // we want to leave interacted docs as part of history
-    final interacted = [
-      ...docsByInteraction[UserReaction.positive] ?? <Document>[],
-      ...docsByInteraction[UserReaction.negative] ?? <Document>[],
-    ].map((doc) => doc..isActive = false);
-    await _docRepo.updateMany(interacted);
-
-    // we can remove non interacted docs from the database
-    final nonInteracted = docsByInteraction[UserReaction.neutral] ?? [];
-    final nonInteractedIds = nonInteracted.map((doc) => doc.documentId).toSet();
-    await _docRepo.removeByIds(nonInteractedIds);
 
     return const EngineEvent.activeSearchClosedSucceeded();
   }

@@ -22,10 +22,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket, FeedMarkets;
+    show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/history.dart'
     show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -50,10 +48,6 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
-    show EmbeddingFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
-    show FeedMarketFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/history.dart'
@@ -334,8 +328,8 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> restoreSearch() async {
-    final result = await asyncFfi.restoreSearch(_engine.ref);
+  Future<List<DocumentWithActiveData>> searched() async {
+    final result = await asyncFfi.searched(_engine.ref);
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
@@ -354,24 +348,6 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.closeSearch(_engine.ref);
 
     return resultVoidStringFfiAdapter.consumeNative(result);
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> deepSearch(
-    String term,
-    FeedMarket market,
-    Embedding embedding,
-  ) async {
-    final result = await asyncFfi.deepSearch(
-      _engine.ref,
-      term.allocNative().move(),
-      market.allocNative().move(),
-      embedding.allocNative().move(),
-    );
-
-    return resultVecDocumentStringFfiAdapter
-        .consumeNative(result)
-        .toDocumentListWithActiveData();
   }
 
   @override
