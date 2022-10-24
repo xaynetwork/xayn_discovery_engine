@@ -77,10 +77,6 @@ pub struct InitConfig {
     pub headlines_provider_path: String,
     /// List of markets to use.
     pub markets: Vec<Market>,
-    /// List of trusted sources to use.
-    pub trusted_sources: Vec<String>,
-    /// List of excluded sources to use.
-    pub excluded_sources: Vec<String>,
     /// S-mBert vocabulary path.
     pub smbert_vocab: String,
     /// S-mBert model path.

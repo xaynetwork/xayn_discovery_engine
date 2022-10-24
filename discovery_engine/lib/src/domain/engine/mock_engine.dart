@@ -24,13 +24,10 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarkets;
-import 'package:xayn_discovery_engine/src/domain/models/history.dart'
-    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
-import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -80,11 +77,7 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> setMarkets(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    FeedMarkets markets,
-  ) async {
+  Future<void> setMarkets(FeedMarkets markets) async {
     _incrementCount('setMarkets');
   }
 

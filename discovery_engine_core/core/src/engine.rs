@@ -12,17 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#[cfg(feature = "storage")]
-use std::path::PathBuf;
 use std::{
     borrow::Cow,
     cmp::Ordering,
     collections::{HashMap, HashSet},
     iter::once,
     mem::replace,
+    path::PathBuf,
 };
 
-use cfg_if::cfg_if;
 use displaydoc::Display;
 use futures::future::join_all;
 use itertools::{chain, Itertools};
@@ -107,11 +105,8 @@ use crate::{
         Stack,
         TrustedNews,
     },
-    storage2::{DartMigrationData, InitDbHint},
-};
-#[cfg(feature = "storage")]
-use crate::{
     storage::{self, sqlite::SqliteStorage, BoxedStorage},
+    storage2::{DartMigrationData, InitDbHint},
     utils::MiscErrorExt,
 };
 
@@ -154,7 +149,6 @@ pub enum Error {
     /// List of errors/warnings: {0:?}.
     Errors(Vec<Error>),
 
-    #[cfg(feature = "storage")]
     /// Storage error: {0}.
     Storage(#[from] storage::Error),
 
@@ -182,7 +176,6 @@ pub struct Engine {
     pub(crate) exploration_stack: Exploration,
     pub(crate) user_interests: UserInterests,
     pub(crate) key_phrases: KeyPhrases,
-    #[cfg(feature = "storage")]
     pub(crate) storage: BoxedStorage,
 }
 
@@ -208,7 +201,7 @@ impl Engine {
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
         stack_ops: Vec<BoxedOps>,
-        #[cfg(feature = "storage")] storage: BoxedStorage,
+        storage: BoxedStorage,
         providers: Providers,
     ) -> Result<Self, Error> {
         if stack_ops.is_empty() {
@@ -247,7 +240,6 @@ impl Engine {
             exploration_stack,
             user_interests,
             key_phrases,
-            #[cfg(feature = "storage")]
             storage,
         };
 
@@ -262,15 +254,9 @@ impl Engine {
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
     #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
-    #[cfg_attr(feature = "storage", allow(unused_variables))]
     pub async fn from_config(
         config: InitConfig,
-        state: Option<&[u8]>,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-        #[cfg_attr(not(feature = "storage"), allow(unused_variables))] dart_migration_data: Option<
-            DartMigrationData,
-        >,
+        dart_migration_data: Option<DartMigrationData>,
     ) -> Result<(Self, InitDbHint), Error> {
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
@@ -316,43 +302,25 @@ impl Engine {
             .map_err(|err| Error::Ranker(err.into()))?
             .build();
 
-        #[cfg(feature = "storage")]
-        let (storage, init_db_hint) = {
-            let db_file_path = (!config.use_ephemeral_db).then(|| {
-                PathBuf::from(&config.data_dir).join("db.sqlite")
+        let db_file_path = (!config.use_ephemeral_db).then(|| {
+            PathBuf::from(&config.data_dir).join("db.sqlite")
                         .into_os_string()
                         .into_string()
                         .unwrap(/*can't fail as we only join rust strings*/)
-            });
+        });
+        let (storage, init_db_hint) =
             SqliteStorage::init_storage_system(db_file_path, dart_migration_data, &|s| {
                 smbert.run(s).log_error().ok()
             })
-            .await?
-        };
+            .await?;
 
         let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?
             .with_markets(config.markets.clone())
             .with_sources(
-                {
-                    cfg_if! {
-                        if #[cfg(feature = "storage")] {
-                            storage.source_preference().fetch_trusted().await?
-                        } else {
-                            config.trusted_sources.iter().cloned().collect()
-                        }
-                    }
-                },
-                {
-                    cfg_if! {
-                        if #[cfg(feature = "storage")] {
-                            storage.source_preference().fetch_excluded().await?
-                        } else {
-                            config.excluded_sources.iter().cloned().collect()
-                        }
-                    }
-                },
+                storage.source_preference().fetch_trusted().await?,
+                storage.source_preference().fetch_excluded().await?,
             );
         let provider_config =
             config.to_provider_config(endpoint_config.timeout, endpoint_config.retry);
@@ -384,17 +352,11 @@ impl Engine {
                     })
                     .map_err(|err| Error::Ranker(err.into()))
             })?;
-        #[cfg(feature = "storage")]
         let (mut stack_data, user_interests, key_phrases) = storage
             .state()
             .fetch()
             .await?
             .as_deref()
-            .map(Engine::deserialize)
-            .transpose()?
-            .unwrap_or_default();
-        #[cfg(not(feature = "storage"))]
-        let (mut stack_data, user_interests, key_phrases) = state
             .map(Engine::deserialize)
             .transpose()?
             .unwrap_or_default();
@@ -407,9 +369,7 @@ impl Engine {
             }
         }
 
-        #[cfg(feature = "storage")]
         let history = &storage.fetch_history().await?;
-        #[cfg(feature = "storage")]
         let sources = &storage.fetch_weighted_sources().await?;
 
         let this = Self::new(
@@ -428,19 +388,12 @@ impl Engine {
             sources,
             stack_data,
             stack_ops,
-            #[cfg(feature = "storage")]
             storage,
             providers,
         )
         .await?;
 
-        cfg_if! {
-            if #[cfg(feature = "storage")] {
-                Ok((this, init_db_hint))
-            } else {
-                Ok((this, InitDbHint::NormalInit))
-            }
-        }
+        Ok((this, init_db_hint))
     }
 
     /// Configures the running engine.
@@ -480,13 +433,7 @@ impl Engine {
     /// Updates the markets configuration.
     ///
     /// Also resets and updates all stacks.
-    #[cfg_attr(feature = "storage", allow(unused_variables))]
-    pub async fn set_markets(
-        &mut self,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-        new_markets: Vec<Market>,
-    ) -> Result<(), Error> {
+    pub async fn set_markets(&mut self, new_markets: Vec<Market>) -> Result<(), Error> {
         let mut markets_guard = self.endpoint_config.markets.write().await;
         let mut old_markets = replace(&mut *markets_guard, new_markets);
         old_markets.retain(|market| !markets_guard.contains(market));
@@ -1181,7 +1128,6 @@ impl Engine {
         self.clear_stack_data().await;
         self.user_interests = UserInterests::default();
         self.key_phrases = KeyPhrases::default();
-        #[cfg(feature = "storage")]
         self.storage.clear_database().await?;
 
         self.request_after = 0;
@@ -1523,7 +1469,7 @@ pub enum SearchBy<'a> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::{mem::size_of, time::Duration};
+    use std::{mem::size_of, sync::Arc, time::Duration};
 
     use async_once_cell::OnceCell;
     use chrono::{Datelike, TimeZone, Utc};
@@ -1589,9 +1535,6 @@ pub(crate) mod tests {
                 news_provider_path: "newscatcher/news-endpoint-name".into(),
                 headlines_provider_path: "newscatcher/headlines-endpoint-name".into(),
                 markets: vec![Market::new("en", "US")],
-                // This triggers the trusted sources stack to also fetch articles
-                trusted_sources: vec!["example.com".into()],
-                excluded_sources: vec![],
                 smbert_vocab: format!("{asset_base}/smbert_v0002/vocab.txt"),
                 smbert_model: format!("{asset_base}/smbert_v0002/smbert-mocked.onnx"),
                 max_docs_per_feed_batch: FeedConfig::default()
@@ -1610,10 +1553,7 @@ pub(crate) mod tests {
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
-            let engine = Engine::from_config(config, None, &[], &[], None)
-                .await
-                .unwrap()
-                .0;
+            let engine = Engine::from_config(config, None).await.unwrap().0;
 
             Mutex::new((server, engine))
         };
@@ -1623,13 +1563,13 @@ pub(crate) mod tests {
         );
 
         // reset the stacks and states
-        #[cfg(feature = "storage")]
-        {
-            engine.storage = SqliteStorage::init_storage_system(None, None, &|_| None)
-                .await
-                .unwrap()
-                .0;
-        }
+        engine.storage = SqliteStorage::init_storage_system(None, None, &|_| None)
+            .await
+            .unwrap()
+            .0;
+        // This triggers the trusted sources stack to also fetch articles
+        engine.endpoint_config.trusted_sources = Arc::new(RwLock::new(vec!["example.com".into()]));
+        engine.endpoint_config.excluded_sources = Arc::new(RwLock::new(Vec::new()));
         engine.stacks = RwLock::new(
             stack_ops
                 .into_iter()
@@ -1747,7 +1687,6 @@ pub(crate) mod tests {
         assert_eq!(stacks.values().map(Stack::len).sum::<usize>(), 1);
     }
 
-    #[cfg(feature = "storage")]
     #[tokio::test]
     async fn test_serialized_state_is_updated() {
         let engine = &mut *init_engine(
@@ -1840,11 +1779,7 @@ pub(crate) mod tests {
         .await;
 
         engine
-            .set_markets(
-                &[],
-                &[],
-                vec![Market::new("de", "DE"), Market::new("it", "IT")],
-            )
+            .set_markets(vec![Market::new("de", "DE"), Market::new("it", "IT")])
             .await
             .unwrap();
 

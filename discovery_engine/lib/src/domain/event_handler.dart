@@ -17,8 +17,6 @@ import 'package:async/async.dart' show StreamGroup;
 import 'package:hive/hive.dart' show Hive;
 import 'package:meta/meta.dart' show visibleForTesting;
 
-import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
@@ -56,7 +54,6 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, UserReactionAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarketAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/history.dart';
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -223,68 +220,38 @@ class EventHandler {
     final activeSearchRepository = HiveActiveSearchRepository();
     final engineStateRepository = HiveEngineStateRepository();
     final sourceReactedRepository = HiveSourceReactedRepository();
+    final sourcePreferenceRepository = HiveSourcePreferenceRepository();
     Future<void> clearAiState() async {
       await documentRepository.box.clear();
       await activeDataRepository.box.clear();
       await activeSearchRepository.box.clear();
       await engineStateRepository.box.clear();
+      await sourceReactedRepository.box.clear();
+      await sourcePreferenceRepository.box.clear();
     }
 
-    final sourcePreferenceRepository = HiveSourcePreferenceRepository();
-
     final setupData = await _fetchAssets(config);
-    final engineState = cfgFeatureStorage
-        ? null // unused
-        : await engineStateRepository.load();
-    final history = cfgFeatureStorage
-        ? <HistoricDocument>[] // unused
-        : await documentRepository.fetchHistory();
-    final reactedSources = cfgFeatureStorage
-        ? <SourceReacted>[] // unused
-        : await sourceReactedRepository.fetchAll();
-    final trustedSources = cfgFeatureStorage
-        ? <Source>{} // unused
-        : await sourcePreferenceRepository.getTrusted();
-    final excludedSources = cfgFeatureStorage
-        ? <Source>{} // unused
-        : await sourcePreferenceRepository.getExcluded();
     final availableSources = config.isMocked()
         ? mockedAvailableSources
         : await setupData.getAvailableSources();
 
-    final dartMigrationData = cfgFeatureStorage
-        ? await DartMigrationData.fromRepositories(
-            engineStateRepository,
-            documentRepository,
-            activeSearchRepository,
-            activeDataRepository,
-            sourceReactedRepository,
-            sourcePreferenceRepository,
-          )
-        : null;
+    final dartMigrationData = await DartMigrationData.fromRepositories(
+      engineStateRepository,
+      documentRepository,
+      activeSearchRepository,
+      activeDataRepository,
+      sourceReactedRepository,
+      sourcePreferenceRepository,
+    );
 
-    final Engine engine;
-    try {
-      engine = await _initializeEngine(
-        EngineInitializer(
-          config: config,
-          setupData: setupData,
-          engineState: engineState,
-          history: history,
-          reactedSources: reactedSources,
-          deConfig: deConfig,
-          trustedSources: trustedSources,
-          excludedSources: excludedSources,
-        ),
-        dartMigrationData,
-      );
-    } catch (e) {
-      if ('$e'.contains('Unsupported serialized data.')) {
-        await engineStateRepository.clear();
-        throw InvalidEngineStateException('$e');
-      }
-      rethrow;
-    }
+    final engine = await _initializeEngine(
+      EngineInitializer(
+        config: config,
+        setupData: setupData,
+        deConfig: deConfig,
+      ),
+      dartMigrationData,
+    );
 
     await dartMigrationData?.cleanup();
 
@@ -292,12 +259,7 @@ class EventHandler {
     _documentManager = DocumentManager(engine, _changedDocumentsReporter);
     _feedManager = FeedManager(engine, availableSources);
     _searchManager = SearchManager(engine);
-    _systemManager = SystemManager(
-      engine,
-      documentRepository,
-      sourceReactedRepository,
-      clearAiState,
-    );
+    _systemManager = SystemManager(engine, clearAiState);
 
     _engine = engine;
 

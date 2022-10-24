@@ -42,9 +42,7 @@ impl TestEngine {
             api_base_url: "https://api-gw.xaynet.dev".into(),
             news_provider_path: "/newscatcher/v1/search-news".into(),
             headlines_provider_path: "/newscatcher/v1/latest-headlines".into(),
-            markets: vec![Market::new("de", "DE")], //Market::new("en", "US")],
-            trusted_sources: vec![],
-            excluded_sources: vec![],
+            markets: vec![Market::new("de", "DE"), Market::new("en", "US")],
             smbert_vocab: format!("{manifest}{assets}/smbert_v0002/vocab.txt"),
             smbert_model: format!("{manifest}{assets}/smbert_v0002/smbert-quantized.onnx"),
             max_docs_per_feed_batch: 1,
@@ -54,7 +52,7 @@ impl TestEngine {
             data_dir: String::new(),
             use_ephemeral_db: true,
         };
-        let engine = Engine::from_config(config, None, &[], &[], None).await?.0;
+        let engine = Engine::from_config(config, None).await?.0;
 
         spinner.finish_with_message("initialized engine");
 

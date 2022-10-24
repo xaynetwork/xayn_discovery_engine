@@ -44,14 +44,8 @@ impl Engine {
         bytes.push(STATE_VERSION);
         bincode::serialize_into(&mut bytes, state).map_err(Error::Serialization)?;
 
-        #[cfg(feature = "storage")]
-        {
-            self.storage.state().store(&bytes).await?;
-            Ok(Vec::new())
-        }
-
-        #[cfg(not(feature = "storage"))]
-        Ok(bytes)
+        self.storage.state().store(&bytes).await?;
+        Ok(Vec::new())
     }
 
     pub(crate) fn deserialize(

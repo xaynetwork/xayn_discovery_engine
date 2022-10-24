@@ -36,7 +36,6 @@ mod engine;
 mod mab;
 pub mod stack;
 mod state;
-#[cfg(feature = "storage")]
 pub mod storage;
 //FIXME merge with storage once the storage feature is gone
 pub mod storage2;

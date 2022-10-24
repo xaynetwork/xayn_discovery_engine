@@ -52,16 +52,7 @@ void main() {
     );
     expect(
       DiscoveryEngineFfi.initialize(
-        EngineInitializer(
-          config: config,
-          setupData: setupData,
-          engineState: null,
-          history: [],
-          reactedSources: [],
-          deConfig: null,
-          trustedSources: {},
-          excludedSources: {},
-        ),
+        EngineInitializer(config: config, setupData: setupData, deConfig: null),
         null,
       ),
       allOf(

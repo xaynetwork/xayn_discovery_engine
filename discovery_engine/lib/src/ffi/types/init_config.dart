@@ -20,8 +20,6 @@ import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarket;
-import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show Source, ToStringListExt;
 import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustInitConfig;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
@@ -31,7 +29,7 @@ import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
     show BoolFfi, FfiUsizeFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
-    show OptionStringFfi, StringFfi, StringListFfi;
+    show OptionStringFfi, StringFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 
@@ -41,8 +39,6 @@ class InitConfigFfi with EquatableMixin {
   final String newsProviderPath;
   final String headlinesProviderPath;
   final List<FeedMarket> feedMarkets;
-  final List<String> trustedSources;
-  final List<String> excludedSources;
   final String smbertVocab;
   final String smbertModel;
   final int maxDocsPerFeedBatch;
@@ -59,8 +55,6 @@ class InitConfigFfi with EquatableMixin {
         newsProviderPath,
         headlinesProviderPath,
         feedMarkets,
-        trustedSources,
-        excludedSources,
         smbertVocab,
         smbertModel,
         maxDocsPerFeedBatch,
@@ -73,9 +67,7 @@ class InitConfigFfi with EquatableMixin {
 
   factory InitConfigFfi(
     Configuration configuration,
-    NativeSetupData setupData,
-    Set<Source> trustedSources,
-    Set<Source> excludedSources, {
+    NativeSetupData setupData, {
     String? deConfig,
   }) =>
       InitConfigFfi.fromParts(
@@ -84,8 +76,6 @@ class InitConfigFfi with EquatableMixin {
         newsProviderPath: configuration.newsProviderPath,
         headlinesProviderPath: configuration.headlinesProviderPath,
         feedMarkets: configuration.feedMarkets.toList(),
-        trustedSources: trustedSources.toStringList(),
-        excludedSources: excludedSources.toStringList(),
         smbertVocab: setupData.smbertVocab,
         smbertModel: setupData.smbertModel,
         maxDocsPerFeedBatch: configuration.maxItemsPerFeedBatch,
@@ -102,8 +92,6 @@ class InitConfigFfi with EquatableMixin {
     required this.newsProviderPath,
     required this.headlinesProviderPath,
     required this.feedMarkets,
-    required this.trustedSources,
-    required this.excludedSources,
     required this.smbertVocab,
     required this.smbertModel,
     required this.maxDocsPerFeedBatch,
@@ -129,9 +117,6 @@ class InitConfigFfi with EquatableMixin {
     headlinesProviderPath
         .writeNative(ffi.init_config_place_of_headlines_provider_path(place));
     feedMarkets.writeVec(ffi.init_config_place_of_markets(place));
-    trustedSources.writeNative(ffi.init_config_place_of_trusted_sources(place));
-    excludedSources
-        .writeNative(ffi.init_config_place_of_excluded_sources(place));
     smbertVocab.writeNative(ffi.init_config_place_of_smbert_vocab(place));
     smbertModel.writeNative(ffi.init_config_place_of_smbert_model(place));
     maxDocsPerFeedBatch
@@ -161,12 +146,6 @@ class InitConfigFfi with EquatableMixin {
       ),
       feedMarkets:
           FeedMarketSliceFfi.readVec(ffi.init_config_place_of_markets(config)),
-      trustedSources: StringListFfi.readNative(
-        ffi.init_config_place_of_trusted_sources(config),
-      ),
-      excludedSources: StringListFfi.readNative(
-        ffi.init_config_place_of_excluded_sources(config),
-      ),
       smbertVocab:
           StringFfi.readNative(ffi.init_config_place_of_smbert_vocab(config)),
       smbertModel:

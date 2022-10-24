@@ -45,14 +45,22 @@ pub enum Error {
 
 /// Unique identifier of the [`Document`].
 #[derive(
-    Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Serialize, Deserialize, Display,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Clone,
+    Copy,
+    Hash,
+    Serialize,
+    Deserialize,
+    Display,
+    sqlx::Type,
+    sqlx::FromRow,
 )]
 #[repr(transparent)]
-#[cfg_attr(
-    feature = "storage",
-    derive(sqlx::Type, sqlx::FromRow),
-    sqlx(transparent)
-)]
+#[sqlx(transparent)]
 #[cfg_attr(test, derive(Default))]
 pub struct Id(Uuid);
 
@@ -255,8 +263,7 @@ pub struct TimeSpent {
     pub view_mode: ViewMode,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, num_derive::FromPrimitive)]
 #[repr(u32)]
 pub enum ViewMode {
     Story = 0,

@@ -50,7 +50,7 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
     use uuid::Uuid;
 
     use xayn_discovery_engine_core::{
-        document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, WeightedSource},
+        document::{Document, TimeSpent, TrendingTopic, UserReacted},
         storage2::DartMigrationData,
         InitConfig,
     };
@@ -60,27 +60,17 @@ pub extern "C" fn cfg_feature_storage() -> u8 {
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
-    #[allow(clippy::box_collection)]
     pub async fn initialize(
         config: Box<InitConfig>,
-        state: Option<Box<Vec<u8>>>,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
         dart_migration_data: Option<Box<DartMigrationData>>,
     ) -> Box<Result<InitializationResult, String>> {
         tracing::init_tracing(config.log_file.as_deref().map(Path::new));
 
         Box::new(
-            Engine::from_config(
-                *config,
-                state.as_deref().map(Vec::as_slice),
-                &history,
-                &sources,
-                dart_migration_data.map(|d| *d),
-            )
-            .await
-            .map(|(engine, init_db_hint)| InitializationResult::new(engine, init_db_hint))
-            .map_err(|error| error.to_string()),
+            Engine::from_config(*config, dart_migration_data.map(|d| *d))
+                .await
+                .map(|(engine, init_db_hint)| InitializationResult::new(engine, init_db_hint))
+                .map_err(|error| error.to_string()),
         )
     }
 
@@ -103,19 +93,16 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Sets the markets.
-    #[allow(clippy::box_collection)]
     pub async fn set_markets(
         engine: &SharedEngine,
         markets: Box<Vec<Market>>,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .set_markets(&history, &sources, *markets)
+                .set_markets(*markets)
                 .await
                 .map_err(|error| error.to_string()),
         )

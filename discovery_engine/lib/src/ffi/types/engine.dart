@@ -24,11 +24,8 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarkets;
-import 'package:xayn_discovery_engine/src/domain/models/history.dart'
-    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source, ToStringListExt;
-import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -50,12 +47,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/history.dart'
-    show HistoricDocumentVecFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
-    show Uint8ListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
     show
         resultDocumentStringFfiAdapter,
@@ -74,8 +67,6 @@ import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid_vec.dart'
     show DocumentIdSetFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/weighted_source_vec.dart'
-    show WeightedSourceListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
 import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
@@ -105,13 +96,8 @@ class DiscoveryEngineFfi implements Engine {
       InitConfigFfi(
         initializer.config,
         setupData,
-        initializer.trustedSources,
-        initializer.excludedSources,
         deConfig: initializer.deConfig,
       ).allocNative().move(),
-      initializer.engineState?.allocNative().move() ?? nullptr,
-      initializer.history.allocNative().move(),
-      initializer.reactedSources.allocVec().move(),
       dartMigrationData?.allocNative().move() ?? nullptr,
     );
     final boxedInitResult =
@@ -141,16 +127,10 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> setMarkets(
-    final List<HistoricDocument> history,
-    final List<SourceReacted> sources,
-    final FeedMarkets markets,
-  ) async {
+  Future<void> setMarkets(final FeedMarkets markets) async {
     final result = await asyncFfi.setMarkets(
       _engine.ref,
       markets.toList().allocVec().move(),
-      history.allocNative().move(),
-      sources.allocVec().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);

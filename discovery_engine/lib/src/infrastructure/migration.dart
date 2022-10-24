@@ -65,9 +65,8 @@ class DartMigrationData {
         documentRepository.isEmpty &&
         activeSearchRepository.isEmpty &&
         activeDocumentDataRepository.isEmpty &&
-        //FIXME even with cfgFeatureStorage we still set this values to hive
-        // sourcePreferenceRepository.box.isEmpty &&
-        sourceReactedRepository.isEmpty) {
+        sourceReactedRepository.box.isEmpty &&
+        sourcePreferenceRepository.isEmpty) {
       return null;
     }
 
@@ -84,11 +83,11 @@ class DartMigrationData {
       activeSearch: await activeSearchRepository.getCurrent(),
       cleanup: () async {
         await engineStateRepository.clear();
-        await sourcePreferenceRepository.clear();
         await documentRepository.clear();
         await activeSearchRepository.clear();
         await activeDocumentDataRepository.clear();
         await sourceReactedRepository.clear();
+        await sourcePreferenceRepository.clear();
       },
     );
   }

@@ -27,11 +27,8 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarkets;
-import 'package:xayn_discovery_engine/src/domain/models/history.dart'
-    show HistoricDocument;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
-import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -53,11 +50,7 @@ abstract class Engine {
   Future<void> configure(String deConfig);
 
   /// Changes the currently supported markets.
-  Future<void> setMarkets(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    FeedMarkets markets,
-  );
+  Future<void> setMarkets(FeedMarkets markets);
 
   /// Sets new trusted and excluded sources.
   Future<void> setSources(Set<Source> trusted, Set<Source> excluded);
@@ -137,44 +130,15 @@ class EngineInitializer with EquatableMixin {
   /// The data used to bootstrap it.
   final SetupData setupData;
 
-  /// The state to restore.
-  final Uint8List? engineState;
-
-  /// The history to use for filtering initial results.
-  final List<HistoricDocument> history;
-
-  // Information about previously reacted sources.
-  final List<SourceReacted> reactedSources; // TODO maybe Set<>
-
   /// An opaque encoded configuration for the DE.
   final String? deConfig;
-
-  /// A set of favourite sources.
-  final Set<Source> trustedSources;
-
-  /// A set of excluded sources.
-  final Set<Source> excludedSources;
 
   EngineInitializer({
     required this.config,
     required this.setupData,
-    required this.engineState,
-    required this.history,
-    required this.reactedSources,
     required this.deConfig,
-    required this.trustedSources,
-    required this.excludedSources,
   });
 
   @override
-  List<Object?> get props => [
-        config,
-        setupData,
-        engineState,
-        history,
-        reactedSources,
-        deConfig,
-        trustedSources,
-        excludedSources,
-      ];
+  List<Object?> get props => [config, setupData, deConfig];
 }
