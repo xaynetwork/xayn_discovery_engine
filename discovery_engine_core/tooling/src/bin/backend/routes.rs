@@ -76,6 +76,8 @@ async fn handle_search(
     search_params: &SearchParams,
 ) -> Result<impl Responder, BackendError> {
     let response = fetch_search_results(config, app_state, client, search_params).await?;
+
+    // order by oldest to newest
     let converted = convert_response(response, app_state.page_size, app_state.total, false);
 
     Ok(Json(converted))
@@ -108,6 +110,7 @@ async fn handle_popular(
     let mut history = app_state.history.write().await;
     history.append(&mut ids);
 
+    // order by newest to oldest
     let converted = convert_response(response, app_state.page_size, app_state.total, true);
 
     Ok(Json(converted))
@@ -153,14 +156,11 @@ async fn fetch_popular_results(
     app_state: &Data<AppState>,
     client: &Client,
 ) -> Result<Response<MindArticle>, BackendError> {
-    let from_index = app_state.from_index.read().await.clone();
-
-    let body = json!({
+    let mut body = json!({
         "size": app_state.page_size,
         "query": {
             "match_all":{}
         },
-        "search_after": from_index, // TODO omitted if index 0
         "sort": [
             {
                 "date_published": {
@@ -169,6 +169,15 @@ async fn fetch_popular_results(
             }
         ]
     });
+
+    // after the first search also include search_after
+    let index = app_state.index.read().await;
+    let from_index = app_state.from_index.read().await;
+    if *index > 0 || !from_index.is_empty() {
+        let map = body.as_object_mut().unwrap(/* body is Object */);
+        map.insert("search_after".to_string(), json!(from_index.clone()));
+        body = json!(map);
+    };
 
     query_elastic_search(config, client, body).await
 }
