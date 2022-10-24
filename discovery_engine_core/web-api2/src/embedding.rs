@@ -12,18 +12,33 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod db;
-mod elastic;
-mod embedding;
-mod error;
-mod ingestion;
-mod load_config;
-mod logging;
-mod middleware;
-mod personalization;
-mod server;
+use std::path::PathBuf;
 
-pub use error::application::Error;
-pub use ingestion::Ingestion;
-pub use personalization::Personalization;
-pub use server::run;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct Embedding {
+    #[allow(dead_code)]
+    #[serde(default = "default_vocabulary")]
+    vocabulary: PathBuf,
+    #[allow(dead_code)]
+    #[serde(default = "default_model")]
+    model: PathBuf,
+}
+
+fn default_vocabulary() -> PathBuf {
+    "assets/vocab.txt".into()
+}
+
+fn default_model() -> PathBuf {
+    "assets/model.onnx".into()
+}
+
+impl Default for Embedding {
+    fn default() -> Self {
+        Self {
+            vocabulary: default_vocabulary(),
+            model: default_model(),
+        }
+    }
+}

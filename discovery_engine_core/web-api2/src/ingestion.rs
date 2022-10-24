@@ -19,17 +19,15 @@ use actix_web::{
 use serde::Deserialize;
 
 use crate::{
-    config::{CommonConfig, Config},
     error::application::{Unimplemented, WithRequestIdExt},
-    server::Application,
+    server::{self, Application},
     Error,
 };
 
 pub struct Ingestion;
 
 impl Application for Ingestion {
-    type Config = IngestionConfig;
-    type AppState = IngestionConfig;
+    type ConfigExtension = ();
 
     fn configure(config: &mut ServiceConfig) {
         let resource = web::resource("/documents")
@@ -39,28 +37,14 @@ impl Application for Ingestion {
     }
 }
 
-#[derive(Deserialize)]
-pub struct IngestionConfig {
-    #[serde(flatten)]
-    common_config: CommonConfig,
-}
-
-impl Config for IngestionConfig {
-    fn bind_address(&self) -> std::net::SocketAddr {
-        self.common_config.bind_address()
-    }
-
-    fn log_file(&self) -> Option<&std::path::Path> {
-        self.common_config.log_file()
-    }
-}
+type Config = server::Config<<Ingestion as Application>::ConfigExtension>;
 
 //FIXME use actual body
 #[derive(Deserialize)]
 struct NewDocuments {}
 
 async fn new_documents(
-    _config: Data<IngestionConfig>,
+    _config: Data<Config>,
     _new_documents: Json<NewDocuments>,
 ) -> Result<impl Responder, Error> {
     if true {
