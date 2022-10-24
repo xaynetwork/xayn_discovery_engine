@@ -16,6 +16,7 @@ use std::{collections::HashMap, ops::RangeInclusive, string::FromUtf8Error};
 
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use warp::{
@@ -87,6 +88,13 @@ impl Reject for Error {}
 )]
 #[sqlx(transparent)]
 pub struct DocumentId(String);
+
+impl DocumentId {
+    pub fn is_id_valid(&self) -> bool {
+        let reg = Regex::new("^[a-zA-Z0-9_'-':@.]+$").unwrap();
+        reg.is_match(self.0.as_ref())
+    }
+}
 
 impl From<DocumentId> for String {
     fn from(item: DocumentId) -> Self {
