@@ -118,24 +118,14 @@ impl TestEngine {
 
         let mut cois = 0;
         while cois < self.engine.coi_config().min_positive_cois() {
-            if let Some(document) = self
-                .engine
-                .get_feed_documents(&[/* TODO: db migration */], &[/* TODO: db migration */])
-                .await?
-                .pop()
-            {
+            if let Some(document) = self.engine.feed_next_batch().await?.pop() {
                 self.like(document, like_topics, true).await?;
                 cois += 1;
             }
         }
         cois = 0;
         while cois < self.engine.coi_config().min_negative_cois() {
-            if let Some(document) = self
-                .engine
-                .get_feed_documents(&[/* TODO: db migration */], &[/* TODO: db migration */])
-                .await?
-                .pop()
-            {
+            if let Some(document) = self.engine.feed_next_batch().await?.pop() {
                 self.dislike(document, dislike_topics, true).await?;
                 cois += 1;
             }
@@ -190,15 +180,7 @@ impl TestEngine {
                 let iterations_bar =
                     multi_progress_bar(&multi_bar, self.progress, iterations, "iterations");
                 for _ in iterations_bar.wrap_iter(0..iterations) {
-                    if let Some(document) = self
-                        .engine
-                        .get_feed_documents(
-                            &[/* TODO: db migration */],
-                            &[/* TODO: db migration */],
-                        )
-                        .await?
-                        .pop()
-                    {
+                    if let Some(document) = self.engine.feed_next_batch().await?.pop() {
                         let document = self.like(document, &like_topics, false).await?;
                         let document = self.dislike(document, &dislike_topics, false).await?;
                         documents.push(document.into());

@@ -195,14 +195,11 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> setSources(
-    Set<Source> excluded,
-    Set<Source> trusted,
-  ) async {
+  Future<void> setSources(Set<Source> trusted, Set<Source> excluded) async {
     final result = await asyncFfi.setSources(
       _engine.ref,
-      excluded.toStringList().allocNative().move(),
       trusted.toStringList().allocNative().move(),
+      excluded.toStringList().allocNative().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
@@ -210,7 +207,7 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<Set<Source>> getExcludedSources() async {
-    final result = await asyncFfi.getExcludedSources(_engine.ref);
+    final result = await asyncFfi.excludedSources(_engine.ref);
 
     return resultVecStringStringFfiAdapter
         .consumeNative(result)
@@ -220,7 +217,7 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<Set<Source>> getTrustedSources() async {
-    final result = await asyncFfi.getTrustedSources(_engine.ref);
+    final result = await asyncFfi.trustedSources(_engine.ref);
 
     return resultVecStringStringFfiAdapter
         .consumeNative(result)
@@ -229,9 +226,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> addExcludedSource(
-    Source excluded,
-  ) async {
+  Future<void> addExcludedSource(Source excluded) async {
     final result = await asyncFfi.addExcludedSource(
       _engine.ref,
       excluded.toString().allocNative().move(),
@@ -241,9 +236,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> removeExcludedSource(
-    Source excluded,
-  ) async {
+  Future<void> removeExcludedSource(Source excluded) async {
     final result = await asyncFfi.removeExcludedSource(
       _engine.ref,
       excluded.toString().allocNative().move(),
@@ -253,9 +246,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> addTrustedSource(
-    Source trusted,
-  ) async {
+  Future<void> addTrustedSource(Source trusted) async {
     final result = await asyncFfi.addTrustedSource(
       _engine.ref,
       trusted.toString().allocNative().move(),
@@ -265,9 +256,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> removeTrustedSource(
-    Source trusted,
-  ) async {
+  Future<void> removeTrustedSource(Source trusted) async {
     final result = await asyncFfi.removeTrustedSource(
       _engine.ref,
       trusted.toString().allocNative().move(),
@@ -286,24 +275,8 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> getFeedDocuments(
-    final List<HistoricDocument> history,
-    final List<SourceReacted> sources,
-  ) async {
-    final result = await asyncFfi.getFeedDocuments(
-      _engine.ref,
-      history.allocNative().move(),
-      sources.allocVec().move(),
-    );
-
-    return resultVecDocumentStringFfiAdapter
-        .consumeNative(result)
-        .toDocumentListWithActiveData();
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> restoreFeed() async {
-    final result = await asyncFfi.restoreFeed(_engine.ref);
+  Future<List<DocumentWithActiveData>> fed() async {
+    final result = await asyncFfi.fed(_engine.ref);
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)

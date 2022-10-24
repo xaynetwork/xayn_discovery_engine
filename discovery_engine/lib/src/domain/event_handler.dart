@@ -290,15 +290,7 @@ class EventHandler {
 
     // init managers
     _documentManager = DocumentManager(engine, _changedDocumentsReporter);
-    _feedManager = FeedManager(
-      engine,
-      documentRepository,
-      activeDataRepository,
-      engineStateRepository,
-      sourceReactedRepository,
-      sourcePreferenceRepository,
-      availableSources,
-    );
+    _feedManager = FeedManager(engine, availableSources);
     _searchManager = SearchManager(
       engine,
       activeSearchRepository,

@@ -136,32 +136,14 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Gets feed documents.
-    #[allow(clippy::box_collection)]
-    pub async fn get_feed_documents(
-        engine: &SharedEngine,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
-    ) -> Box<Result<Vec<Document>, String>> {
+    /// Restores the documents which have been fed, i.e. the current feed.
+    pub async fn fed(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .get_feed_documents(&history, &sources)
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
-    /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
-    pub async fn restore_feed(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .restore_feed()
+                .fed()
                 .await
                 .map_err(|error| error.to_string()),
         )
@@ -391,25 +373,25 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Sets a new list of excluded and trusted sources.
+    /// Sets new trusted and excluded sources.
     pub async fn set_sources(
         engine: &SharedEngine,
-        excluded: Box<Vec<String>>,
         trusted: Box<Vec<String>>,
+        excluded: Box<Vec<String>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .set_sources(*excluded, *trusted)
+                .set_sources(*trusted, *excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )
     }
 
     /// Returns the trusted sources.
-    pub async fn get_trusted_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
+    pub async fn trusted_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
         Box::new(
             engine
                 .as_ref()
@@ -422,7 +404,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Returns the excluded sources.
-    pub async fn get_excluded_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
+    pub async fn excluded_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
         Box::new(
             engine
                 .as_ref()

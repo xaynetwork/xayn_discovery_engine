@@ -75,11 +75,8 @@ abstract class Engine {
     Set<Source> trusted,
   );
 
-  /// Changes the excluded and trusted sources.
-  Future<void> setSources(
-    Set<Source> excluded,
-    Set<Source> trusted,
-  );
+  /// Sets new trusted and excluded sources.
+  Future<void> setSources(Set<Source> trusted, Set<Source> excluded);
 
   /// Returns the excluded sources.
   Future<Set<Source>> getExcludedSources();
@@ -88,36 +85,22 @@ abstract class Engine {
   Future<Set<Source>> getTrustedSources();
 
   /// Adds an excluded source.
-  Future<void> addExcludedSource(
-    Source excluded,
-  );
+  Future<void> addExcludedSource(Source excluded);
 
   /// Removes an excluded source.
-  Future<void> removeExcludedSource(
-    Source excluded,
-  );
+  Future<void> removeExcludedSource(Source excluded);
 
   /// Adds a trusted source.
-  Future<void> addTrustedSource(
-    Source trusted,
-  );
+  Future<void> addTrustedSource(Source trusted);
 
   /// Removes a trusted source.
-  Future<void> removeTrustedSource(
-    Source trusted,
-  );
+  Future<void> removeTrustedSource(Source trusted);
 
   /// Gets the next batch of feed documents.
   Future<List<DocumentWithActiveData>> feedNextBatch();
 
-  /// Gets the next batch of feed documents.
-  Future<List<DocumentWithActiveData>> getFeedDocuments(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-  );
-
-  /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
-  Future<List<DocumentWithActiveData>> restoreFeed();
+  /// Restores the documents which have been fed, i.e. the current feed.
+  Future<List<DocumentWithActiveData>> fed();
 
   /// Deletes the feed documents.
   Future<void> deleteFeedDocuments(Set<DocumentId> ids);

@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show FeedClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
@@ -26,39 +24,15 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show DocumentWithActiveData;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show AvailableSources, Source;
-import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
-    show SourcePreference, PreferenceMode;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
-import 'package:xayn_discovery_engine/src/domain/repository/active_document_repo.dart'
-    show ActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
-    show DocumentRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/engine_state_repo.dart'
-    show EngineStateRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/source_preference_repo.dart'
-    show SourcePreferenceRepository;
-import 'package:xayn_discovery_engine/src/domain/repository/source_reacted_repo.dart';
 
 /// Business logic concerning the management of the feed.
 class FeedManager {
   final Engine _engine;
-  final DocumentRepository _docRepo;
-  final ActiveDocumentDataRepository _activeRepo;
-  final EngineStateRepository _engineStateRepo;
-  final SourceReactedRepository _sourceReactedRepo;
-  final SourcePreferenceRepository _sourcePreferenceRepository;
   final AvailableSources _availableSources;
 
-  FeedManager(
-    this._engine,
-    this._docRepo,
-    this._activeRepo,
-    this._engineStateRepo,
-    this._sourceReactedRepo,
-    this._sourcePreferenceRepository,
-    this._availableSources,
-  );
+  FeedManager(this._engine, this._availableSources);
 
   /// Handle the given feed client event.
   ///
@@ -84,139 +58,53 @@ class FeedManager {
   ///
   /// That is, documents are ordered by their timestamp, then local rank.
   Future<EngineEvent> restoreFeed() async {
-    if (cfgFeatureStorage) {
-      final List<DocumentWithActiveData> docs;
-      try {
-        docs = await _engine.restoreFeed();
-      } on Exception {
-        return const EngineEvent.restoreFeedFailed(FeedFailureReason.dbError);
-      }
-
-      return EngineEvent.restoreFeedSucceeded(
-        docs.map((doc) => doc.document.toApiRepr()).toList(),
-      );
+    final List<DocumentWithActiveData> docs;
+    try {
+      docs = await _engine.fed();
+    } on Exception {
+      return const EngineEvent.restoreFeedFailed(FeedFailureReason.dbError);
     }
 
-    return _docRepo.fetchAll().then(
-      (docs) {
-        final sortedActives = docs
-          ..retainWhere(
-            (doc) =>
-                // we only want active documents
-                doc.isActive &&
-                // we only want feed documents (isSearched == false)
-                doc.isSearched == false,
-          )
-          ..sort((doc1, doc2) {
-            // ignore: deprecated_member_use_from_same_package
-            final timeOrd = doc1.timestamp.compareTo(doc2.timestamp);
-            return timeOrd == 0
-                // ignore: deprecated_member_use_from_same_package
-                ? doc1.batchIndex.compareTo(doc2.batchIndex)
-                : timeOrd;
-          });
-
-        final feed = sortedActives.map((doc) => doc.toApiRepr()).toList();
-        return EngineEvent.restoreFeedSucceeded(feed);
-      },
+    return EngineEvent.restoreFeedSucceeded(
+      docs.map((doc) => doc.document.toApiRepr()).toList(),
     );
   }
 
   /// Obtain the next batch of feed documents and persist to repositories.
   Future<EngineEvent> nextFeedBatch() async {
-    if (cfgFeatureStorage) {
-      final List<DocumentWithActiveData> docs;
-      try {
-        docs = await _engine.feedNextBatch();
-      } on Exception catch (e) {
-        return EngineEvent.nextFeedBatchRequestFailed(
-          FeedFailureReason.stacksOpsError,
-          errors: '$e',
-        );
-      }
-
-      if (docs.isEmpty) {
-        return const EngineEvent.nextFeedBatchRequestFailed(
-          FeedFailureReason.noNewsForMarket,
-        );
-      }
-
-      return EngineEvent.nextFeedBatchRequestSucceeded(
-        docs.map((doc) => doc.document.toApiRepr()).toList(),
-      );
-    }
-
-    final history = await _docRepo.fetchHistory();
-    final sources = await _sourceReactedRepo.fetchAll();
-    final List<DocumentWithActiveData> feedDocs;
+    final List<DocumentWithActiveData> docs;
     try {
-      feedDocs = await _engine.getFeedDocuments(history, sources);
-    } catch (e) {
+      docs = await _engine.feedNextBatch();
+    } on Exception catch (e) {
       return EngineEvent.nextFeedBatchRequestFailed(
         FeedFailureReason.stacksOpsError,
         errors: '$e',
       );
     }
 
-    await _engineStateRepo.save(await _engine.serialize());
-
-    await _docRepo.updateMany(feedDocs.map((e) => e.document));
-    for (final docWithData in feedDocs) {
-      final id = docWithData.document.documentId;
-      await _activeRepo.update(id, docWithData.data);
+    if (docs.isEmpty) {
+      return const EngineEvent.nextFeedBatchRequestFailed(
+        FeedFailureReason.noNewsForMarket,
+      );
     }
 
-    final feed = feedDocs
-        .map((docWithData) => docWithData.document.toApiRepr())
-        .toList();
-
-    if (feed.isEmpty) {
-      const reason = FeedFailureReason.noNewsForMarket;
-      return const EngineEvent.nextFeedBatchRequestFailed(reason);
-    }
-    return EngineEvent.nextFeedBatchRequestSucceeded(feed);
+    return EngineEvent.nextFeedBatchRequestSucceeded(
+      docs.map((doc) => doc.document.toApiRepr()).toList(),
+    );
   }
 
   /// Deactivate the given documents.
   Future<EngineEvent> deactivateDocuments(Set<DocumentId> ids) async {
-    if (cfgFeatureStorage) {
-      try {
-        await _engine.deleteFeedDocuments(ids);
-      } on Exception catch (e) {
-        return EngineEvent.engineExceptionRaised(
-          EngineExceptionReason.genericError,
-          message: '$e',
-        );
-      }
-
-      return const EngineEvent.clientEventSucceeded();
+    try {
+      await _engine.deleteFeedDocuments(ids);
+    } on Exception catch (e) {
+      return EngineEvent.engineExceptionRaised(
+        EngineExceptionReason.genericError,
+        message: '$e',
+      );
     }
 
-    await _activeRepo.removeByIds(ids);
-
-    final docs = await _docRepo.fetchByIds(ids);
-    final inactives = docs.map((doc) => doc..isActive = false);
-    await _docRepo.updateMany(inactives);
-
     return const EngineEvent.clientEventSucceeded();
-  }
-
-  /// Updates the engine sources after a source is added. It's important to
-  /// note that, for additions of both excluded and trusted sources, always
-  /// need to update the engine's list of excluded _and_ trusted sources,
-  /// because adding a trusted source of the same name as an existing excluded
-  /// source will remove the latter, and vice versa.
-  ///
-  /// E.g. if example.com exists in the list of excluded sources, and we add
-  /// example.com to the list of trusted sources, it will be automatically
-  /// be removed from the list of excluded sources.
-  Future<void> _updateEngineSourcesOnAdd() async {
-    final history = await _docRepo.fetchHistory();
-    final sources = await _sourceReactedRepo.fetchAll();
-    final excludedSources = await _sourcePreferenceRepository.getExcluded();
-    final trustedSources = await _sourcePreferenceRepository.getTrusted();
-    await _engine.setExcludedSources(history, sources, excludedSources);
-    await _engine.setTrustedSources(history, sources, trustedSources);
   }
 
   /// Override current trusted and excluded sources with the new ones provided
@@ -230,40 +118,7 @@ class FeedManager {
       return EngineEvent.setSourcesRequestFailed(duplicates);
     }
 
-    if (cfgFeatureStorage) {
-      await _engine.setSources(
-        excludedSources,
-        trustedSources,
-      );
-
-      return EngineEvent.setSourcesRequestSucceeded(
-        trustedSources: trustedSources,
-        excludedSources: excludedSources,
-      );
-    }
-
-    final filters = {
-      ...trustedSources.map(SourcePreference.trusted),
-      ...excludedSources.map(SourcePreference.excluded),
-    };
-    final dbEntries = <String, SourcePreference>{
-      for (final filter in filters) filter.source.value: filter,
-    };
-
-    final currentTrusted = await _sourcePreferenceRepository.getTrusted();
-    final currentExcluded = await _sourcePreferenceRepository.getExcluded();
-    final history = await _docRepo.fetchHistory();
-    final sources = await _sourceReactedRepo.fetchAll();
-    await _sourcePreferenceRepository.clear();
-    await _sourcePreferenceRepository.saveAll(dbEntries);
-
-    if (!_setEquals(trustedSources, currentTrusted)) {
-      await _engine.setTrustedSources(history, sources, trustedSources);
-    }
-
-    if (!_setEquals(excludedSources, currentExcluded)) {
-      await _engine.setExcludedSources(history, sources, excludedSources);
-    }
+    await _engine.setSources(trustedSources, excludedSources);
 
     return EngineEvent.setSourcesRequestSucceeded(
       trustedSources: trustedSources,
@@ -271,97 +126,44 @@ class FeedManager {
     );
   }
 
-  // based on the flutter's setEquals
-  // https://api.flutter.dev/flutter/foundation/setEquals.html
-  bool _setEquals<T>(Set<T> a, Set<T> b) {
-    if (a.length != b.length) return false;
-    if (identical(a, b)) return true;
-    for (final T value in a) {
-      if (!b.contains(value)) return false;
-    }
-    return true;
-  }
-
   /// Adds an excluded source.
   Future<EngineEvent> addExcludedSource(Source source) async {
-    final pref = SourcePreference(source, PreferenceMode.excluded);
-    await _sourcePreferenceRepository.save(pref);
+    await _engine.addExcludedSource(source);
 
-    if (cfgFeatureStorage) {
-      await _engine.addExcludedSource(source);
-      return EngineEvent.addExcludedSourceRequestSucceeded(source);
-    }
-
-    await _updateEngineSourcesOnAdd();
     return EngineEvent.addExcludedSourceRequestSucceeded(source);
   }
 
   /// Removes an excluded source.
   Future<EngineEvent> removeExcludedSource(Source source) async {
-    await _sourcePreferenceRepository.remove(source);
+    await _engine.removeExcludedSource(source);
 
-    if (cfgFeatureStorage) {
-      await _engine.removeExcludedSource(source);
-      return EngineEvent.removeExcludedSourceRequestSucceeded(source);
-    }
-
-    final history = await _docRepo.fetchHistory();
-    final sources = await _sourceReactedRepo.fetchAll();
-    final excluded = await _sourcePreferenceRepository.getExcluded();
-    await _engine.setExcludedSources(history, sources, excluded);
     return EngineEvent.removeExcludedSourceRequestSucceeded(source);
   }
 
   /// Returns the excluded sources.
   Future<EngineEvent> getExcludedSourcesList() async {
-    final Set<Source> sources;
-    if (cfgFeatureStorage) {
-      sources = await _engine.getExcludedSources();
-    } else {
-      sources = await _sourcePreferenceRepository.getExcluded();
-    }
+    final sources = await _engine.getExcludedSources();
 
     return EngineEvent.excludedSourcesListRequestSucceeded(sources);
   }
 
   /// Adds a trusted source.
   Future<EngineEvent> addTrustedSource(Source source) async {
-    final pref = SourcePreference(source, PreferenceMode.trusted);
-    await _sourcePreferenceRepository.save(pref);
+    await _engine.addTrustedSource(source);
 
-    if (cfgFeatureStorage) {
-      await _engine.addTrustedSource(source);
-      return EngineEvent.addTrustedSourceRequestSucceeded(source);
-    }
-
-    await _updateEngineSourcesOnAdd();
     return EngineEvent.addTrustedSourceRequestSucceeded(source);
   }
 
   /// Removes a trusted source.
   Future<EngineEvent> removeTrustedSource(Source source) async {
-    await _sourcePreferenceRepository.remove(source);
+    await _engine.removeTrustedSource(source);
 
-    if (cfgFeatureStorage) {
-      await _engine.removeTrustedSource(source);
-      return EngineEvent.removeTrustedSourceRequestSucceeded(source);
-    }
-
-    final history = await _docRepo.fetchHistory();
-    final sources = await _sourceReactedRepo.fetchAll();
-    final trusted = await _sourcePreferenceRepository.getTrusted();
-    await _engine.setTrustedSources(history, sources, trusted);
     return EngineEvent.removeTrustedSourceRequestSucceeded(source);
   }
 
   /// Returns the trusted sources.
   Future<EngineEvent> getTrustedSourcesList() async {
-    final Set<Source> sources;
-    if (cfgFeatureStorage) {
-      sources = await _engine.getTrustedSources();
-    } else {
-      sources = await _sourcePreferenceRepository.getTrusted();
-    }
+    final sources = await _engine.getTrustedSources();
 
     return EngineEvent.trustedSourcesListRequestSucceeded(sources);
   }

@@ -111,13 +111,10 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> setSources(
-    Set<Source> excluded,
-    Set<Source> trusted,
-  ) async {
+  Future<void> setSources(Set<Source> trusted, Set<Source> excluded) async {
     _incrementCount('setSources');
-    excludedSources = excluded;
     trustedSources = trusted;
+    excludedSources = excluded;
   }
 
   @override
@@ -133,30 +130,22 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> addExcludedSource(
-    Source excluded,
-  ) async {
+  Future<void> addExcludedSource(Source excluded) async {
     _incrementCount('addExcludedSource');
   }
 
   @override
-  Future<void> removeExcludedSource(
-    Source excluded,
-  ) async {
+  Future<void> removeExcludedSource(Source excluded) async {
     _incrementCount('removeExcludedSource');
   }
 
   @override
-  Future<void> addTrustedSource(
-    Source trusted,
-  ) async {
+  Future<void> addTrustedSource(Source trusted) async {
     _incrementCount('addTrustedSource');
   }
 
   @override
-  Future<void> removeTrustedSource(
-    Source trusted,
-  ) async {
+  Future<void> removeTrustedSource(Source trusted) async {
     _incrementCount('removeTrustedSource');
   }
 
@@ -167,17 +156,8 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> getFeedDocuments(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-  ) async {
-    _incrementCount('getFeedDocuments');
-    return feedDocuments.take(2).toList(growable: false);
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> restoreFeed() async {
-    _incrementCount('restoreFeed');
+  Future<List<DocumentWithActiveData>> fed() async {
+    _incrementCount('fed');
     return feedDocuments.take(2).toList(growable: false);
   }
 
