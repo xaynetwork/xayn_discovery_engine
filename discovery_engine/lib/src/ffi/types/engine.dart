@@ -329,16 +329,11 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<Document> userReacted(
-    final List<HistoricDocument>? history,
-    final List<SourceReacted> sources,
     final UserReacted userReacted,
   ) async {
-    final boxedUserReacted = userReacted.allocNative();
     final result = await asyncFfi.userReacted(
       _engine.ref,
-      history?.allocNative().move() ?? nullptr,
-      sources.allocVec().move(),
-      boxedUserReacted.move(),
+      userReacted.allocNative().move(),
     );
 
     final doc = resultDocumentStringFfiAdapter.consumeNative(result);

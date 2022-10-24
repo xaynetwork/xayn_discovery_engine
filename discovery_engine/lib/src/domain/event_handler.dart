@@ -289,14 +289,7 @@ class EventHandler {
     await dartMigrationData?.cleanup();
 
     // init managers
-    _documentManager = DocumentManager(
-      engine,
-      documentRepository,
-      activeDataRepository,
-      engineStateRepository,
-      _changedDocumentsReporter,
-      sourceReactedRepository,
-    );
+    _documentManager = DocumentManager(engine, _changedDocumentsReporter);
     _feedManager = FeedManager(
       engine,
       documentRepository,

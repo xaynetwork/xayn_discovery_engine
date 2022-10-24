@@ -73,21 +73,17 @@ impl TestEngine {
         }) = topics.get(&document.resource.topic)
         {
             if certainly || thread_rng().gen_bool(*probability) {
-                let reacted = user_reacted(document, UserReaction::Positive);
                 document = self
                     .engine
-                    .user_reacted(
-                        Some(&[/* TODO: db migration */]),
-                        &[/* TODO: db migration */],
-                        reacted,
-                    )
+                    .user_reacted(UserReacted {
+                        id: document.id,
+                        reaction: UserReaction::Positive,
+                    })
                     .await?;
                 let time_spent = TimeSpent {
                     id: document.id,
-                    smbert_embedding: document.smbert_embedding.clone(),
                     view_time: *time_spent,
                     view_mode: ViewMode::Story,
-                    reaction: UserReaction::Positive,
                 };
                 self.engine.time_spent(time_spent).await?;
             }
@@ -104,10 +100,12 @@ impl TestEngine {
     ) -> Result<Document> {
         if let Some(Dislike { probability }) = topics.get(&document.resource.topic) {
             if certainly || thread_rng().gen_bool(*probability) {
-                let reacted = user_reacted(document, UserReaction::Negative);
                 document = self
                     .engine
-                    .user_reacted(None, &[/* TODO: db migration */], reacted)
+                    .user_reacted(UserReacted {
+                        id: document.id,
+                        reaction: UserReaction::Negative,
+                    })
                     .await?;
             }
         }
@@ -254,17 +252,5 @@ fn multi_progress_spinner(multi: &MultiProgress, progress: bool, msg: &'static s
         multi.add(spinner)
     } else {
         spinner
-    }
-}
-
-fn user_reacted(document: Document, reaction: UserReaction) -> UserReacted {
-    UserReacted {
-        id: document.id,
-        stack_id: document.stack_id,
-        title: document.resource.title,
-        snippet: document.resource.snippet,
-        smbert_embedding: document.smbert_embedding,
-        reaction,
-        market: Market::new(document.resource.language, document.resource.country),
     }
 }

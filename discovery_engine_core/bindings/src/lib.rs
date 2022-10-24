@@ -183,7 +183,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Processes time spent.
+    /// Processes the user's time spending on a document.
     pub async fn time_spent(
         engine: &SharedEngine,
         time_spent: Box<TimeSpent>,
@@ -199,14 +199,9 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Processes user reaction.
-    ///
-    /// The history and sources are required only for positive reactions.
-    #[allow(clippy::box_collection)]
+    /// Processes the user's reaction to a document.
     pub async fn user_reacted(
         engine: &SharedEngine,
-        history: Option<Box<Vec<HistoricDocument>>>,
-        sources: Box<Vec<WeightedSource>>,
         reacted: Box<UserReacted>,
     ) -> Box<Result<Document, String>> {
         Box::new(
@@ -214,7 +209,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .user_reacted(history.as_deref().map(Vec::as_slice), &sources, *reacted)
+                .user_reacted(*reacted)
                 .await
                 .map_err(|error| error.to_string()),
         )

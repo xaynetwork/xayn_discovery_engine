@@ -622,47 +622,20 @@ impl Engine {
         unimplemented!("requires 'storage' feature")
     }
 
-    /// Process the feedback about the user spending some time on a document.
+    /// Processes the user's time spending on a document.
     pub async fn time_spent(&mut self, time_spent: TimeSpent) -> Result<(), Error> {
-        cfg_if! {
-            if #[cfg(feature = "storage")] {
-                use storage::models::TimeSpentDocumentView;
-
-                let TimeSpent {
-                    id,
-                    view_time,
-                    view_mode,
-                    // dummy values when storage is enabled
-                    ..
-                } = time_spent;
-
-                let TimeSpentDocumentView {
-                    smbert_embedding,
-                    aggregated_view_time,
-                    last_reaction,
-                } = self
-                    .storage
-                    .feedback()
-                    .update_time_spent(id, view_mode, view_time)
-                    .await?;
-
-                let last_reaction = last_reaction.unwrap_or(UserReaction::Neutral);
-            } else {
-                let TimeSpent {
-                    id: _,
-                    view_time: aggregated_view_time,
-                    view_mode: _,
-                    smbert_embedding,
-                    reaction: last_reaction,
-                } = time_spent;
-            }
-        };
-
-        if let UserReaction::Positive | UserReaction::Neutral = last_reaction {
+        let time_spent = self
+            .storage
+            .feedback()
+            .update_time_spent(time_spent.id, time_spent.view_mode, time_spent.view_time)
+            .await?;
+        if let UserReaction::Positive | UserReaction::Neutral =
+            time_spent.last_reaction.unwrap_or(UserReaction::Neutral)
+        {
             CoiSystem::log_document_view_time(
                 &mut self.user_interests.positive,
-                &smbert_embedding,
-                aggregated_view_time,
+                &time_spent.smbert_embedding,
+                time_spent.aggregated_view_time,
             );
         }
 
@@ -673,79 +646,39 @@ impl Engine {
             &self.user_interests,
         );
 
-        #[cfg(feature = "storage")]
         self.serialize().await?;
 
         Ok(())
     }
 
-    /// Process the feedback about the user reacting to a document.
-    ///
-    /// The history and sources are required only for positive reactions.
+    /// Processes the user's reaction to a document.
     #[instrument(skip(self), level = "debug")]
-    pub async fn user_reacted(
-        &mut self,
-        history: Option<&[HistoricDocument]>,
-        sources: &[WeightedSource],
-        reacted: UserReacted,
-    ) -> Result<Document, Error> {
-        let reaction = reacted.reaction;
-        cfg_if! {
-            if #[cfg(feature="storage")] {
-                let feedback = self.storage.feedback();
-                let document: Document = feedback
-                    .update_user_reaction(reacted.id, reaction).await?
-                    .into();
+    pub async fn user_reacted(&mut self, reacted: UserReacted) -> Result<Document, Error> {
+        let feedback = self.storage.feedback();
+        let document: Document = feedback
+            .update_user_reaction(reacted.id, reacted.reaction)
+            .await?
+            .into();
 
-                let source = &document.resource.source_domain;
-                match reaction {
-                    UserReaction::Positive => feedback.update_source_reaction(source, true).await?,
-                    UserReaction::Negative => feedback.update_source_reaction(source, false).await?,
-                    UserReaction::Neutral => (),
-                }
-            } else {
-                use chrono::Utc;
-                use url::Url;
-
-                use crate::document::NewsResource;
-
-                let document = Document {
-                    id: reacted.id,
-                    stack_id: reacted.stack_id,
-                    smbert_embedding: reacted.smbert_embedding,
-                    reaction: None,
-                    resource: NewsResource {
-                        title: reacted.title,
-                        snippet: reacted.snippet,
-                        url: Url::parse("https://foobar.invalid").unwrap(),
-                        source_domain: "foobar.invalid".into(),
-                        date_published: Utc::now(),
-                        image: None,
-                        rank: 0,
-                        score: None,
-                        country: reacted.market.country_code,
-                        language: reacted.market.lang_code,
-                        topic: "invalid".into()
-                    }
-                };
-            }
+        let source = &document.resource.source_domain;
+        match reacted.reaction {
+            UserReaction::Positive => feedback.update_source_reaction(source, true).await?,
+            UserReaction::Negative => feedback.update_source_reaction(source, false).await?,
+            UserReaction::Neutral => (),
         }
 
-        let market = Market::new(&document.resource.language, &document.resource.country);
-
-        let mut stacks = self.stacks.write().await;
-
         // update relevance of stack if the reacted document belongs to one
+        let mut stacks = self.stacks.write().await;
         if !document.stack_id.is_nil() {
             if let Some(stack) = stacks.get_mut(&document.stack_id) {
                 stack.update_relevance(
-                    reaction,
+                    reacted.reaction,
                     self.core_config.max_reactions,
                     self.core_config.incr_reactions,
                 );
             } else if document.stack_id == Exploration::id() {
                 self.exploration_stack.update_relevance(
-                    reaction,
+                    reacted.reaction,
                     self.core_config.max_reactions,
                     self.core_config.incr_reactions,
                 );
@@ -754,7 +687,8 @@ impl Engine {
             }
         };
 
-        match reaction {
+        let market = Market::new(&document.resource.language, &document.resource.country);
+        match reacted.reaction {
             UserReaction::Positive => {
                 let smbert = &self.smbert;
                 self.kps.log_positive_user_reaction(
@@ -781,36 +715,29 @@ impl Engine {
             &self.coi,
             &self.user_interests,
         );
-        if let UserReaction::Positive = reaction {
-            #[cfg(feature = "storage")]
-            let history = &self.storage.fetch_history().await?.into();
-            #[cfg(feature = "storage")]
-            let sources = &self.storage.fetch_weighted_sources().await?;
-            if let Some(history) = history {
-                update_stacks(
-                    &mut stacks,
-                    &mut self.exploration_stack,
-                    &self.smbert,
-                    &self.coi,
-                    &self.kps,
-                    &self.user_interests,
-                    &mut self.key_phrases,
-                    history,
-                    sources,
-                    self.core_config.take_top,
-                    self.core_config.keep_top,
-                    usize::MAX,
-                    &[market.clone()],
-                )
-                .await?;
-                self.request_after = 0;
-            } else {
-                return Err(Error::StackOpFailed(stack::Error::NoHistory));
-            }
+        if let UserReaction::Positive = reacted.reaction {
+            let history = self.storage.fetch_history().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
+            update_stacks(
+                &mut stacks,
+                &mut self.exploration_stack,
+                &self.smbert,
+                &self.coi,
+                &self.kps,
+                &self.user_interests,
+                &mut self.key_phrases,
+                &history,
+                &sources,
+                self.core_config.take_top,
+                self.core_config.keep_top,
+                usize::MAX,
+                &[market],
+            )
+            .await?;
+            self.request_after = 0;
         }
         drop(stacks); // guard
 
-        #[cfg(feature = "storage")]
         self.serialize().await?;
 
         Ok(document)
@@ -1787,7 +1714,7 @@ pub enum SearchBy<'a> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::mem::size_of;
+    use std::{mem::size_of, time::Duration};
 
     use async_once_cell::OnceCell;
     use chrono::{Datelike, TimeZone, Utc};
@@ -2028,19 +1955,10 @@ pub(crate) mod tests {
         let state1 = engine.storage.state().fetch().await.unwrap();
 
         engine
-            .user_reacted(
-                None,
-                &[],
-                UserReacted {
-                    id: documents[0].id,
-                    stack_id: BreakingNews::id(),
-                    title: "unused".into(),
-                    snippet: "unused".into(),
-                    smbert_embedding: Embedding::default(),
-                    reaction: UserReaction::Positive,
-                    market: Market::new("de", "DE"),
-                },
-            )
+            .user_reacted(UserReacted {
+                id: documents[0].id,
+                reaction: UserReaction::Positive,
+            })
             .await
             .unwrap();
 
@@ -2051,10 +1969,8 @@ pub(crate) mod tests {
         engine
             .time_spent(TimeSpent {
                 id: documents[0].id,
-                smbert_embedding: Embedding::default(),
-                view_time: std::time::Duration::from_secs(1),
+                view_time: Duration::from_secs(1),
                 view_mode: document::ViewMode::Story,
-                reaction: UserReaction::Positive,
             })
             .await
             .unwrap();

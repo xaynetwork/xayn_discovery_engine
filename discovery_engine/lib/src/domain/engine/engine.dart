@@ -122,22 +122,11 @@ abstract class Engine {
   /// Deletes the feed documents.
   Future<void> deleteFeedDocuments(Set<DocumentId> ids);
 
-  /// Process the feedback about the user spending some time on a document.
+  /// Processes the user's time spending on a document.
   Future<void> timeSpent(TimeSpent timeSpent);
 
-  /// Process the user's reaction to a document.
-  ///
-  /// The history and sources are required only if the reaction is positive and
-  /// `cfgFeatureStorage` is disabled.
-  ///
-  /// The returned `Document` will only be consistent if `cfgFeatureStorage`
-  /// is enabled. The history, sources and most fields of `userReacted` can
-  /// be empty/dummy data if `cfgFeatureStorage` feature is enabled.
-  Future<Document> userReacted(
-    List<HistoricDocument>? history,
-    List<SourceReacted> sources,
-    UserReacted userReacted,
-  );
+  /// Processes the user's reaction to a document.
+  Future<Document> userReacted(UserReacted userReacted);
 
   /// Perform an active search by query.
   Future<List<DocumentWithActiveData>> searchByQuery(String query, int page);

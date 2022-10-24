@@ -18,8 +18,7 @@ use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
 
-use xayn_discovery_engine_core::document::{Embedding, UserReacted, UserReaction};
-use xayn_discovery_engine_providers::Market;
+use xayn_discovery_engine_core::document::{UserReacted, UserReaction};
 
 /// Returns a pointer to the `id` field of an [`UserReacted`].
 ///
@@ -30,52 +29,6 @@ use xayn_discovery_engine_providers::Market;
 #[no_mangle]
 pub unsafe extern "C" fn user_reacted_place_of_id(place: *mut UserReacted) -> *mut Uuid {
     unsafe { addr_of_mut!((*place).id) }.cast::<Uuid>()
-}
-
-/// Returns a pointer to the `stack_id` field of an [`UserReacted`].
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`UserReacted`] memory object, it
-/// might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn user_reacted_place_of_stack_id(place: *mut UserReacted) -> *mut Uuid {
-    unsafe { addr_of_mut!((*place).stack_id) }.cast::<Uuid>()
-}
-
-/// Returns a pointer to the `snippet` field of an [`UserReacted`].
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`UserReacted`] memory object, it
-/// might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn user_reacted_place_of_snippet(place: *mut UserReacted) -> *mut String {
-    unsafe { addr_of_mut!((*place).snippet) }
-}
-
-/// Returns a pointer to the `title` field of an [`UserReacted`].
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`UserReacted`] memory object, it
-/// might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn user_reacted_place_of_title(place: *mut UserReacted) -> *mut String {
-    unsafe { addr_of_mut!((*place).title) }
-}
-
-/// Returns a pointer to the `smbert_embedding` field of an [`UserReacted`].
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`UserReacted`] memory object, it
-/// might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn user_reacted_place_of_smbert_embedding(
-    place: *mut UserReacted,
-) -> *mut Embedding {
-    unsafe { addr_of_mut!((*place).smbert_embedding) }
 }
 
 /// Returns a pointer to the `reaction` field of an [`UserReacted`].
@@ -91,24 +44,13 @@ pub unsafe extern "C" fn user_reacted_place_of_reaction(
     unsafe { addr_of_mut!((*place).reaction) }
 }
 
-/// Returns a pointer to the `market` field of an [`UserReacted`].
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`UserReacted`] memory object, it
-/// might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn user_reacted_place_of_market(place: *mut UserReacted) -> *mut Market {
-    unsafe { addr_of_mut!((*place).market) }
-}
-
-/// Alloc an uninitialized `Box<UserReacted>`, mainly used for testing.
+/// Alloc an uninitialized `Box<UserReacted>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_user_reacted() -> *mut UserReacted {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<UserReacted>`, mainly used for testing.
+/// Drops a `Box<UserReacted>`.
 ///
 /// # Safety
 ///
@@ -122,16 +64,14 @@ pub unsafe extern "C" fn drop_user_reacted(reacted: *mut UserReacted) {
 mod tests {
     use std::alloc::Layout;
 
-    use uuid::Uuid;
+    use xayn_discovery_engine_core::document::Id;
 
-    use xayn_discovery_engine_core::{document, stack};
+    use super::*;
 
     #[test]
     fn test_ids_have_same_layout() {
         let uuid_layout = Layout::new::<Uuid>();
-        let document_id_layout = Layout::new::<document::Id>();
+        let document_id_layout = Layout::new::<Id>();
         assert_eq!(document_id_layout, uuid_layout);
-        let stack_id_layout = Layout::new::<stack::Id>();
-        assert_eq!(stack_id_layout, uuid_layout);
     }
 }

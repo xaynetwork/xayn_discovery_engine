@@ -192,11 +192,7 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<Document> userReacted(
-    List<HistoricDocument>? history,
-    List<SourceReacted> sources,
-    UserReacted userReacted,
-  ) async {
+  Future<Document> userReacted(UserReacted userReacted) async {
     _incrementCount('userReacted');
     return Document(
       batchIndex: 0,

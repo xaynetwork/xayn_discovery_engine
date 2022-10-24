@@ -27,7 +27,7 @@ use url::Url;
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId};
-use xayn_discovery_engine_providers::{GenericArticle, Market, TrendingTopic as BingTopic};
+use xayn_discovery_engine_providers::{GenericArticle, TrendingTopic as BingTopic};
 
 use crate::stack::Id as StackId;
 
@@ -248,19 +248,11 @@ pub struct TimeSpent {
     /// Id of the document.
     pub id: Id,
 
-    /// Precomputed S-mBert of the document.
-    ///
-    /// If `storage` is enabled this will be ignored and can be empty.
-    pub smbert_embedding: Embedding,
-
     /// Time spent on the documents in seconds.
     pub view_time: Duration,
 
     /// The way the document was viewed.
     pub view_mode: ViewMode,
-
-    /// Reaction.
-    pub reaction: UserReaction,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -278,23 +270,8 @@ pub struct UserReacted {
     /// Id of the document.
     pub id: Id,
 
-    /// Stack from which the document has been taken.
-    pub stack_id: StackId,
-
-    /// Text title of the document.
-    pub title: String,
-
-    /// Text snippet of the document.
-    pub snippet: String,
-
-    /// Precomputed S-mBert of the document.
-    pub smbert_embedding: Embedding,
-
     /// Reaction.
     pub reaction: UserReaction,
-
-    /// Market from which the document is.
-    pub market: Market,
 }
 
 /// Represents a [`Document`] in the document history.

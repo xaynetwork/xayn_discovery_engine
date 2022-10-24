@@ -71,9 +71,6 @@ pub enum Error {
     /// Failed to filter: {0}.
     Filter(#[source] GenericError),
 
-    /// Missing the document history to update a stack.
-    NoHistory,
-
     /// Failed to select new items: {0}.
     Selection(#[from] exploration::Error),
 }

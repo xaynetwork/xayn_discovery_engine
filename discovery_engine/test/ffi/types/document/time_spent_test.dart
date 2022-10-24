@@ -13,10 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -28,13 +24,11 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
 
 void main() {
-  test('reading written user reacted instance yields same result', () {
+  test('reading written time spent instance yields same result', () {
     final timeSpent = TimeSpent(
       id: DocumentId(),
-      smbertEmbedding: Embedding.fromList([.9, .1]),
       viewTime: const Duration(days: 2),
       viewMode: DocumentViewMode.story,
-      reaction: UserReaction.negative,
     );
     final place = ffi.alloc_uninitialized_time_spent();
     timeSpent.writeNative(place);
