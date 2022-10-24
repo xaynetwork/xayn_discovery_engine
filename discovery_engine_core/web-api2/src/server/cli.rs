@@ -16,9 +16,10 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use clap::Parser;
 use serde::Serialize;
+use serde_json::{json, Map, Value};
 
 /// Cli arguments for the web-api server.
-#[derive(Parser, Debug, Serialize)]
+#[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub(super) struct Args {
     /// Host and port to which the server should bind.
@@ -26,21 +27,31 @@ pub(super) struct Args {
     /// This setting is prioritized over settings through
     /// the config and environment.
     #[arg(short, long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) bind_to: Option<SocketAddr>,
 
     /// File to log to additionally to logging to stdout.
     #[arg(short, long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) log_file: Option<PathBuf>,
 
     /// Use given configuration file.
     #[arg(short, long)]
-    #[serde(skip)]
     pub(super) config: Option<PathBuf>,
 
     /// Print the config and exist instead of running the server
     #[arg(long)]
-    #[serde(skip)]
     pub(super) print_config: bool,
+}
+
+impl Args {
+    pub(super) fn to_config_overrides(&self) -> impl Serialize {
+        let mut map = Map::new();
+        if let Some(bind_to) = &self.bind_to {
+            map.insert(String::from("net"), json!({ "bind_to": bind_to }));
+        }
+        if let Some(log_file) = &self.log_file {
+            map.insert(String::from("logging"), json!({ "file": log_file }));
+        }
+
+        Value::Object(map)
+    }
 }
