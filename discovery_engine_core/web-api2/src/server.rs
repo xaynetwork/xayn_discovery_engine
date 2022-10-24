@@ -53,12 +53,13 @@ where
 {
     async {
         let mut cli_args = cli::Args::parse();
-        let print_config = cli_args.print_config;
         let config_file = cli_args.config.take();
-        let config =
-            load_config::<Config<A::ConfigExtension>, _>(config_file.as_deref(), cli_args)?;
+        let config = load_config::<Config<A::ConfigExtension>, _>(
+            config_file.as_deref(),
+            cli_args.to_config_overrides(),
+        )?;
 
-        if print_config {
+        if cli_args.print_config {
             println!("{}", serde_json::to_string_pretty(&config)?);
             return Ok(());
         }

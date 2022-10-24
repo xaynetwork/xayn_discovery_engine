@@ -65,7 +65,7 @@ where
     load_dotenv(".env")?;
 
     Figment::new()
-        .join(Serialized::globals(update_with))
+        .join(Serialized::defaults(update_with))
         .join(Env::prefixed("XAYN_WEB_API__").split("__"))
         .join(Toml::file(
             config_file.unwrap_or_else(|| Path::new("config.toml")),
