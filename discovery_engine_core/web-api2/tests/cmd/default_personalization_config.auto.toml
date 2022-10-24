@@ -1,0 +1,29 @@
+bin.name = "personalization2"
+args = ["--print-config"]
+status.code = 0
+stderr = ""
+stdout = """
+{
+  "logging": {
+    "file": null
+  },
+  "net": {
+    "bind_to": "127.0.0.1:8080",
+    "max_body_size": 524288
+  },
+  "elastic": {
+    "url": "http://localhost:9200",
+    "user": "elastic",
+    "password": "[REDACTED]",
+    "index_name": "test_index"
+  },
+  "db": {
+    "base_url": "postgres://user:pw@localhost:5432/xayn",
+    "port": null,
+    "user": null,
+    "password": null,
+    "db": null,
+    "application_name": null
+  }
+}
+"""
