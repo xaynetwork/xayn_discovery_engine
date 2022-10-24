@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, ops::RangeInclusive, string::FromUtf8Error};
+use std::{borrow::Cow, collections::HashMap, ops::RangeInclusive, string::FromUtf8Error};
 
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
@@ -106,9 +106,13 @@ impl DocumentId {
             Ok(Self(id))
         }
     }
+
+    pub fn encode(&self) -> Cow<str> {
+        urlencoding::encode(self.as_ref())
+    }
 }
 
-#[derive(Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash, AsRef)]
 pub struct DocumentPropertyId(String);
 
 impl DocumentPropertyId {
@@ -122,6 +126,10 @@ impl DocumentPropertyId {
         } else {
             Ok(Self(id))
         }
+    }
+
+    pub fn encode(&self) -> Cow<str> {
+        urlencoding::encode(self.as_ref())
     }
 }
 
