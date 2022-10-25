@@ -15,9 +15,9 @@ dotenvy = "0.15.5"
 envconfig = "0.10.0"
 futures = { workspace = true }
 itertools = { workspace = true }
+lazy_static = "1.4.0"
 ndarray = { workspace = true }
 regex = "1"
-lazy_static = "1.4.0"
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
