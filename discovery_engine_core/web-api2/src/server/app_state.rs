@@ -36,8 +36,6 @@ impl<CE, AE> AppState<CE, AE> {
     ) -> Result<Self, SetupError> {
         let db = config.db.create_connection_pool().await?;
         let extension = create_extension(&config)?;
-        // let embedder = Embedder::load(config.as_ref())?;
-        // let coi = config.extension.personalization.coi.build();
         Ok(Self {
             config,
             db,
