@@ -12,18 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use actix_web::{
-    web::{self, Data, Json, ServiceConfig},
-    Responder,
-};
+mod routes;
+
+use actix_web::web::ServiceConfig;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     embedding::{self, Embedder},
-    error::application::{Unimplemented, WithRequestIdExt},
     server::{self, Application},
-    Error,
 };
 
 pub struct Ingestion;
@@ -33,10 +30,7 @@ impl Application for Ingestion {
     type ConfigExtension = ConfigExtension;
 
     fn configure_service(config: &mut ServiceConfig) {
-        let resource = web::resource("/documents")
-            .route(web::post().to(new_documents.error_with_request_id()));
-
-        config.service(resource);
+        routes::configure_service(config);
     }
 
     fn create_app_state_extension(
@@ -87,20 +81,4 @@ pub struct AppStateExtension {
     #[allow(dead_code)]
     #[as_ref]
     pub(crate) embedder: Embedder,
-}
-
-//FIXME use actual body
-#[derive(Deserialize)]
-struct NewDocuments {}
-
-async fn new_documents(
-    _config: Data<Config>,
-    _new_documents: Json<NewDocuments>,
-) -> Result<impl Responder, Error> {
-    if true {
-        Err(Unimplemented {
-            functionality: "endpoint /documents",
-        })?;
-    }
-    Ok("text body response")
 }
