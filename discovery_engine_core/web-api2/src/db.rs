@@ -16,7 +16,7 @@ use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use sqlx::{pool::PoolOptions, postgres::PgConnectOptions, Pool, Postgres};
 
-use crate::utils::serialize_redacted;
+use crate::{models::DocumentId, utils::serialize_redacted, Error};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -125,4 +125,10 @@ impl Config {
 pub(crate) struct Database {
     #[allow(dead_code)]
     pool: Pool<Postgres>,
+}
+
+impl Database {
+    pub(crate) fn delete_documents(&self, documents: &[DocumentId]) -> Result<(), Error> {
+        let tx = self.pool.begin()?;
+    }
 }
