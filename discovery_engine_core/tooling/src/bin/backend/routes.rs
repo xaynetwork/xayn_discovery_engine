@@ -159,7 +159,7 @@ async fn fetch_popular_results(
     let mut body = json!({
         "size": app_state.page_size,
         "query": {
-            "match_all":{}
+            "match_all": {}
         },
         "sort": [
             {

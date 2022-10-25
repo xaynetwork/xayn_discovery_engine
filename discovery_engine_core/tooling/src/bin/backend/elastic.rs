@@ -27,7 +27,6 @@ pub struct Response<T> {
 #[derive(Clone, Deserialize, Debug)]
 pub struct Hits<T> {
     pub hits: Vec<Hit<T>>,
-    // pub total: Total,
 }
 
 #[derive(Clone, Deserialize, Debug)]
@@ -51,10 +50,4 @@ pub struct MindArticle {
     #[serde(rename(deserialize = "Category"))]
     pub category: String,
     pub date_published: String,
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Deserialize, Debug)]
-pub struct Total {
-    pub value: usize,
 }

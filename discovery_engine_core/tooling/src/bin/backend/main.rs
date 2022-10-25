@@ -47,53 +47,6 @@ struct SearchParams {
     query: String,
 }
 
-#[allow(dead_code)]
-#[derive(Deserialize, Debug)]
-struct Search {
-    #[serde(flatten)]
-    query: SearchParams,
-
-    #[serde(flatten)]
-    pagination: PaginationParams,
-    // These parameters may be sent by our client, but we will currently
-    // ignore these for these, for the POC at least.
-    // sort_by: String,
-    // lang: String,
-    // countries: String,
-    // not_sources: String,
-    // to_rank: usize,
-}
-
-#[allow(dead_code)]
-#[derive(Deserialize, Debug)]
-struct PaginationParams {
-    #[serde(default = "default_page")]
-    page: usize,
-    #[serde(default = "default_page_size")]
-    page_size: usize,
-}
-
-#[allow(dead_code)]
-impl PaginationParams {
-    pub fn page_size(&self) -> usize {
-        self.page_size.clamp(1, 200)
-    }
-
-    pub fn page(&self) -> usize {
-        self.page.clamp(1, 200)
-    }
-}
-
-#[allow(dead_code)]
-fn default_page() -> usize {
-    1
-}
-
-#[allow(dead_code)]
-fn default_page_size() -> usize {
-    200
-}
-
 async fn query_count(
     config: &Config,
     client: &Client,
@@ -132,7 +85,7 @@ async fn main() -> std::io::Result<()> {
 
     let addr = "0.0.0.0";
     let port = 8080;
-    info!("Starting server on {}:{}", addr, port);
+    info!("Starting server on {addr}:{port}");
 
     HttpServer::new(move || {
         App::new()
