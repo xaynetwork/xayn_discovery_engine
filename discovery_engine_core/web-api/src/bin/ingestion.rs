@@ -61,6 +61,9 @@ pub(crate) struct Config {
     #[envconfig(from = "SMBERT_VOCAB", default = "assets/vocab.txt")]
     pub(crate) smbert_vocab: PathBuf,
 
+    #[envconfig(from = "JAPANESE_MECAB")]
+    pub(crate) japanese_mecab: Option<PathBuf>,
+
     #[envconfig(from = "SMBERT_MODEL", default = "assets/model.onnx")]
     pub(crate) smbert_model: PathBuf,
 
@@ -264,7 +267,14 @@ fn init_model(config: &Config) -> Result<SMBert, GenericError> {
     let path = env::current_dir()?;
     let vocab_path = path.join(&config.smbert_vocab);
     let model_path = path.join(&config.smbert_model);
-    let smbert = SMBertConfig::from_files(&vocab_path, &model_path)?
+    let smbert = SMBertConfig::from_files(&vocab_path, &model_path)
+        .map(|smbert| {
+            if let Some(mecab) = &config.japanese_mecab {
+                smbert.with_japanese(mecab)
+            } else {
+                smbert
+            }
+        })?
         .with_cleanse_accents(true)
         .with_lower_case(true)
         .with_pooling::<AveragePooler>()

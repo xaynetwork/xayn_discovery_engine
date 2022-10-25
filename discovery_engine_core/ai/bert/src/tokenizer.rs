@@ -12,9 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::io::BufRead;
+use std::{borrow::Cow, io::BufRead, path::PathBuf};
 
 use derive_more::{Deref, From};
+use itertools::Itertools;
+use lindera::{
+    mode::Mode as JapaneseMode,
+    tokenizer::{
+        DictionaryConfig as JapaneseDictionaryConfig,
+        Tokenizer as JapanesePreTokenizer,
+        TokenizerConfig as JapanesePreTokenizerConfig,
+    },
+};
 use ndarray::Array2;
 use tokenizers::{
     decoders::wordpiece::WordPiece as WordPieceDecoder,
@@ -34,16 +43,16 @@ use tokenizers::{
 use tract_onnx::prelude::{tvec, TVec, Tensor};
 
 /// A pre-configured Bert tokenizer.
-#[derive(Debug)]
-pub struct Tokenizer(
-    TokenizerImpl<
+pub struct Tokenizer {
+    japanese: Option<JapanesePreTokenizer>,
+    bert: TokenizerImpl<
         WordPieceModel,
         BertNormalizer,
         BertPreTokenizer,
         BertProcessing,
         WordPieceDecoder,
     >,
-);
+}
 
 /// The attention mask of the encoded sequence.
 ///
@@ -88,15 +97,31 @@ impl From<Encoding> for Vec<Array2<i64>> {
 impl Tokenizer {
     /// Creates a tokenizer from a vocabulary.
     ///
+    /// If a japanese mecab is given, a japanese pre-tokenizer is created as well.
+    ///
     /// Can be set to cleanse accents and to lowercase the sequences. Requires the maximum number of
     /// tokens per tokenized sequence, which applies to padding and truncation and includes special
     /// tokens as well.
     pub fn new(
         vocab: impl BufRead,
+        japanese: Option<PathBuf>,
         cleanse_accents: bool,
         lower_case: bool,
         token_size: usize,
     ) -> Result<Self, TokenizerError> {
+        let japanese = japanese
+            .map(|mecab| {
+                JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
+                    dictionary: JapaneseDictionaryConfig {
+                        kind: None,
+                        path: Some(mecab),
+                    },
+                    user_dictionary: None,
+                    mode: JapaneseMode::Normal,
+                })
+            })
+            .transpose()?;
+
         let vocab = vocab
             .lines()
             .enumerate()
@@ -135,7 +160,7 @@ impl Tokenizer {
         };
         let decoder = WordPieceDecoder::new("##".into(), true);
 
-        TokenizerBuilder::new()
+        let bert = TokenizerBuilder::new()
             .with_model(model)
             .with_normalizer(Some(normalizer))
             .with_pre_tokenizer(Some(BertPreTokenizer))
@@ -143,15 +168,29 @@ impl Tokenizer {
             .with_padding(Some(padding))
             .with_truncation(Some(truncation))
             .with_decoder(Some(decoder))
-            .build()
-            .map(Tokenizer)
+            .build()?;
+
+        Ok(Tokenizer { japanese, bert })
     }
 
     /// Encodes the sequence.
     ///
     /// The encoding is in correct shape for the model.
     pub fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, TokenizerError> {
-        let encoding = self.0.encode(sequence.as_ref(), true)?;
+        #[allow(unstable_name_collisions)]
+        let sequence = if let Some(japanese) = &self.japanese {
+            japanese
+                .tokenize(sequence.as_ref())?
+                .into_iter()
+                .map(|token| token.text)
+                .intersperse(" ")
+                .collect::<String>()
+                .into()
+        } else {
+            Cow::Borrowed(sequence.as_ref())
+        };
+
+        let encoding = self.bert.encode(sequence, true)?;
         let array_from =
             |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
 
@@ -176,7 +215,7 @@ mod tests {
         let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
         let cleanse_accents = true;
         let lower_case = true;
-        Tokenizer::new(vocab, cleanse_accents, lower_case, token_size).unwrap()
+        Tokenizer::new(vocab, None, cleanse_accents, lower_case, token_size).unwrap()
     }
 
     #[test]

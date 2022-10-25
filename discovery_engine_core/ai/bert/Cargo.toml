@@ -9,6 +9,8 @@ license = "AGPL-3.0-only"
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 float-cmp = { workspace = true }
+itertools = { workspace = true }
+lindera = { git = "https://github.com/lindera-morphology/lindera", rev = "316fcdeafa3f1f0253f29d6a9bf17c702668ec6d" }
 ndarray = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 thiserror = { workspace = true }

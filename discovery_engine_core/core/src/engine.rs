@@ -295,6 +295,13 @@ impl Engine {
 
         // build the systems
         let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
+            .map(|smbert| {
+                if let Ok(mecab) = de_config.extract_inner::<&str>("smbert.japanese") {
+                    smbert.with_japanese(mecab)
+                } else {
+                    smbert
+                }
+            })
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(
                 de_config
@@ -1824,8 +1831,8 @@ pub(crate) mod tests {
                 // This triggers the trusted sources stack to also fetch articles
                 trusted_sources: vec!["example.com".into()],
                 excluded_sources: vec![],
-                smbert_vocab: format!("{asset_base}/smbert_v0001/vocab.txt"),
-                smbert_model: format!("{asset_base}/smbert_v0001/smbert-mocked.onnx"),
+                smbert_vocab: format!("{asset_base}/smbert_v0002/vocab.txt"),
+                smbert_model: format!("{asset_base}/smbert_v0002/smbert-mocked.onnx"),
                 max_docs_per_feed_batch: FeedConfig::default()
                     .max_docs_per_batch
                     .try_into()
