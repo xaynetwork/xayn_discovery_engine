@@ -123,5 +123,6 @@ impl Config {
 }
 
 pub(crate) struct Database {
+    #[allow(dead_code)]
     pool: Pool<Postgres>,
 }
