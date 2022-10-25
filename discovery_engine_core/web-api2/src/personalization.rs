@@ -15,9 +15,10 @@ use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
     Responder,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
+    embedding,
     error::application::{Unimplemented, WithRequestIdExt},
     server::{self, Application},
     Error,
@@ -26,7 +27,7 @@ use crate::{
 pub struct Personalization;
 
 impl Application for Personalization {
-    type ConfigExtension = ();
+    type ConfigExtension = ConfigExtension;
 
     fn configure(config: &mut ServiceConfig) {
         let scope = web::scope("/users/{user_id}")
@@ -44,6 +45,13 @@ impl Application for Personalization {
 }
 
 type Config = server::Config<<Personalization as Application>::ConfigExtension>;
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct ConfigExtension {
+    #[allow(dead_code)]
+    #[serde(default)]
+    pub(crate) embedding: embedding::Config,
+}
 
 //FIXME use actual UserId
 type UserId = String;
