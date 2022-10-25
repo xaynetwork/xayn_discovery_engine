@@ -83,6 +83,9 @@ async fn main() -> std::io::Result<()> {
         total: response.count,
     });
 
+    let app_config = web::Data::new(config);
+    let app_client = web::Data::new(client);
+
     let addr = "0.0.0.0";
     let port = 8080;
     info!("Starting server on {addr}:{port}");
@@ -90,9 +93,9 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-            .app_data(web::Data::new(config.clone()))
+            .app_data(app_config.clone())
             .app_data(app_state.clone())
-            .app_data(web::Data::new(client.clone()))
+            .app_data(app_client.clone())
             .service(search_get)
             .service(search_post)
             .service(popular_get)
