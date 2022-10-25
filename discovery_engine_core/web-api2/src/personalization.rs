@@ -16,6 +16,7 @@ use actix_web::{
     Responder,
 };
 use serde::{Deserialize, Serialize};
+use xayn_discovery_engine_ai::CoiConfig;
 
 use crate::{
     error::application::{Unimplemented, WithRequestIdExt},
@@ -46,7 +47,11 @@ impl Application for Personalization {
 type Config = server::Config<<Personalization as Application>::ConfigExtension>;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct ConfigExtension {}
+pub struct ConfigExtension {
+    #[allow(dead_code)]
+    #[serde(default)]
+    pub(crate) coi: CoiConfig,
+}
 
 //FIXME use actual UserId
 type UserId = String;
