@@ -30,10 +30,8 @@ pub enum InitDbHint {
     /// Hint to use if nothing special happened during init.
     NormalInit,
     /// A new db was created; There was no db beforehand.
-    #[cfg(feature = "storage")]
     NewDbCreated,
     /// There was a db but it could not be opened so it was deleted and a new one created.
-    #[cfg(feature = "storage")]
     DbOverwrittenDueToErrors(crate::storage::Error),
 }
 
@@ -47,27 +45,21 @@ pub struct DartMigrationData {
     pub search: Option<Search>,
 }
 
-#[cfg_attr(feature = "storage", derive(Debug, PartialEq, Eq))]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Search {
     pub search_by: SearchBy,
     pub search_term: String,
     pub paging: Paging,
 }
 
-#[cfg_attr(
-    feature = "storage",
-    derive(Debug, PartialEq, Eq, num_derive::FromPrimitive)
-)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, num_derive::FromPrimitive)]
 #[repr(u8)]
 pub enum SearchBy {
     Query = 0,
     Topic = 1,
 }
 
-#[cfg_attr(feature = "storage", derive(Debug, PartialEq, Eq))]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Paging {
     pub size: u32,
     pub next_page: u32,

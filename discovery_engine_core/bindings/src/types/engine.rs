@@ -14,7 +14,6 @@
 
 //! FFI functions for handling engine instances.
 
-use cfg_if::cfg_if;
 use std::ptr::addr_of_mut;
 
 use derive_more::{AsRef, From};
@@ -35,19 +34,12 @@ impl InitializationResult {
     #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn new(engine: Engine, init_db_hint: InitDbHint) -> InitializationResult {
         let shared_engine = tokio::sync::Mutex::new(engine).into();
-        cfg_if! {
-            if #[cfg(feature = "storage")] {
-                // for now we will only expose the override error converted to an string
-                let db_override_error = if let InitDbHint::DbOverwrittenDueToErrors(error) = init_db_hint {
-                    Some(error.to_string())
-                } else {
-                    None
-                };
-            } else {
-                let _ = init_db_hint;
-                let db_override_error = None;
-            }
-        }
+        // for now we will only expose the override error converted to an string
+        let db_override_error = if let InitDbHint::DbOverwrittenDueToErrors(error) = init_db_hint {
+            Some(error.to_string())
+        } else {
+            None
+        };
 
         InitializationResult {
             shared_engine,

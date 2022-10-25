@@ -14,9 +14,8 @@
 
 //! FFI functions for handling slices and vectors of documents.
 
-use xayn_discovery_engine_core::document::Document;
-
 use crate::types::{
+    document::Document,
     primitives::FfiUsize,
     slice::{alloc_uninitialized_slice, boxed_slice_from_raw_parts, next_element},
     vec::{get_vec_buffer, get_vec_len},

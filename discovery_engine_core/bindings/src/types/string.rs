@@ -69,13 +69,13 @@ pub unsafe extern "C" fn get_string_buffer(string: *mut String) -> *mut u8 {
     unsafe { &mut *string }.as_mut_ptr()
 }
 
-/// Alloc an uninitialized `Box<String>`, mainly used for testing.
+/// Alloc an uninitialized `Box<String>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_string() -> *mut String {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<String>`, mainly used for testing.
+/// Drops a `Box<String>`.
 ///
 /// # Safety
 ///
@@ -136,13 +136,13 @@ pub unsafe extern "C" fn get_option_string_some(
     unsafe { get_option_some(opt_string) }
 }
 
-/// Alloc an uninitialized `Box<Option<String>>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Option<String>>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_option_string() -> *mut Option<String> {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Option<String>>`, mainly used for testing.
+/// Drops a `Box<Option<String>>`.
 ///
 /// # Safety
 ///

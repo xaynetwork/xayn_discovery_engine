@@ -18,19 +18,9 @@ import 'dart:io' show Directory;
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show
-        ClientEventSucceeded,
-        DocumentId,
-        DocumentsUpdated,
-        EngineEvent,
-        EngineExceptionRaised,
-        EngineExceptionReason,
-        NextFeedBatchRequestSucceeded,
-        UserReaction,
-        cfgFeatureStorage;
+    show DocumentId, EngineExceptionRaised, EngineExceptionReason, UserReaction;
 
 import '../logging.dart' show setupLogging;
-import 'utils/db.dart' show loadEngineState;
 import 'utils/helpers.dart'
     show TestEngineData, initEngine, setupTestEngineData;
 import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
@@ -51,51 +41,6 @@ void main() {
       await server.close();
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
-
-    test('change the user reaction of a document', () async {
-      data.useEphemeralDb = false;
-      var engine = await initEngine(data, server.port);
-
-      // fetch some documents
-      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
-
-      // cache engine state before the request of the change user reaction
-      await engine.dispose();
-      final stateBeforeRequest =
-          await loadEngineState(data.applicationDirectoryPath);
-      expect(stateBeforeRequest, isNotNull);
-
-      // change the user reaction of the first document
-      engine = await initEngine(data, server.port);
-      final doc =
-          (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items.first;
-      expect(
-        await engine.changeUserReaction(
-          documentId: doc.documentId,
-          userReaction: UserReaction.positive,
-        ),
-        isA<ClientEventSucceeded>(),
-      );
-
-      // check that the `DocumentsUpdated` event has been emitted
-      final docUpdatedReaction =
-          doc.copyWith(userReaction: UserReaction.positive);
-      await expectLater(
-        engine.engineEvents,
-        emitsInOrder(<EngineEvent>[
-          DocumentsUpdated([docUpdatedReaction]),
-        ]),
-      );
-
-      // check that the engine state has changed
-      await engine.dispose();
-      final stateAfterRequest =
-          await loadEngineState(data.applicationDirectoryPath);
-      expect(stateAfterRequest, isNotNull);
-      expect(stateBeforeRequest, isNot(stateAfterRequest));
-      // ignore: require_trailing_commas
-    }, skip: cfgFeatureStorage);
 
     test(
         'if a document id is invalid, the engine should throw an'

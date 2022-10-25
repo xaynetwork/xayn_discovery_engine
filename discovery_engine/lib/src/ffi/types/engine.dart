@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -55,7 +53,6 @@ import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
         resultVecDocumentStringFfiAdapter,
         resultVecStringStringFfiAdapter,
         resultVecTrendingTopicStringFfiAdapter,
-        resultVecU8StringFfiAdapter,
         resultVoidStringFfiAdapter;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show OptionStringFfi, StringFfi, StringListFfi;
@@ -113,13 +110,6 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<void> configure(String deConfig) async {
     await asyncFfi.configure(_engine.ref, deConfig.allocNative().move());
-  }
-
-  @override
-  Future<Uint8List> serialize() async {
-    final result = await asyncFfi.serialize(_engine.ref);
-
-    return resultVecU8StringFfiAdapter.consumeNative(result);
   }
 
   @override

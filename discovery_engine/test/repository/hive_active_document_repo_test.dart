@@ -13,14 +13,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io' show Directory;
-import 'dart:typed_data' show Float32List;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -36,7 +33,7 @@ Future<void> main() async {
 
   group('ActiveDocumentDataRepository', () {
     late HiveActiveDocumentDataRepository repo;
-    final data = ActiveDocumentData(Embedding(Float32List(0)));
+    final data = ActiveDocumentData();
     final id1 = DocumentId();
     final id2 = DocumentId();
 
@@ -81,18 +78,6 @@ Future<void> main() async {
     group('nonempty box', () {
       setUp(() async {
         await repo.update(id1, data);
-      });
-
-      test('existing smbert embedding', () async {
-        final emb = await repo.smbertEmbeddingById(id1);
-        expect(emb, equals(data.smbertEmbedding));
-      });
-
-      test('smbert embedding of updated existing', () async {
-        final embUpdated = Embedding.fromList([9.25]);
-        await repo.update(id1, ActiveDocumentData(embUpdated));
-        expect(repo.box, hasLength(1));
-        expect(await repo.smbertEmbeddingById(id1), equals(embUpdated));
       });
 
       test('fetch present then absent', () async {

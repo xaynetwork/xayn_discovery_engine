@@ -26,8 +26,7 @@ const STATE_VERSION: u8 = 2;
 
 impl Engine {
     /// Serializes the state of the engine.
-    // TODO: remove the ffi for this method and reduce its visibility after DB migration
-    pub async fn serialize(&self) -> Result<Vec<u8>, Error> {
+    pub(crate) async fn serialize(&self) -> Result<(), Error> {
         let stacks = self.stacks.read().await;
         let mut stacks_data = stacks
             .iter()
@@ -43,9 +42,9 @@ impl Engine {
         let mut bytes = Vec::with_capacity(size as usize);
         bytes.push(STATE_VERSION);
         bincode::serialize_into(&mut bytes, state).map_err(Error::Serialization)?;
-
         self.storage.state().store(&bytes).await?;
-        Ok(Vec::new())
+
+        Ok(())
     }
 
     pub(crate) fn deserialize(

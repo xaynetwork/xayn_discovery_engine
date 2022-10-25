@@ -12,8 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:typed_data' show Float32List;
+
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:hive/hive.dart';
+
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -38,12 +41,17 @@ class DocumentWithActiveData with EquatableMixin {
 /// Additional data pertaining to active documents.
 @HiveType(typeId: activeDocumentDataTypeId)
 class ActiveDocumentData with EquatableMixin {
+  @Deprecated('only used in migration')
   @HiveField(0)
   final Embedding smbertEmbedding;
   @HiveField(1)
   final Map<DocumentViewMode, Duration> viewTime;
 
-  ActiveDocumentData(this.smbertEmbedding) : viewTime = {};
+  ActiveDocumentData()
+      :
+        // ignore: deprecated_member_use_from_same_package
+        smbertEmbedding = Embedding(Float32List(0)),
+        viewTime = {};
 
   /// Returns sum of [Duration] from all the registered [DocumentViewMode] times.
   Duration get sumDuration =>
@@ -59,5 +67,9 @@ class ActiveDocumentData with EquatableMixin {
       viewTime[mode] ?? Duration.zero;
 
   @override
-  List<Object?> get props => [smbertEmbedding, viewTime];
+  List<Object?> get props => [
+        // ignore: deprecated_member_use_from_same_package
+        smbertEmbedding,
+        viewTime,
+      ];
 }

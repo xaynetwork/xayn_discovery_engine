@@ -124,13 +124,13 @@ pub unsafe extern "C" fn get_option_url_some(opt_url: *const Option<Url>) -> *co
     unsafe { get_option_some(opt_url) }
 }
 
-/// Alloc an uninitialized `Box<Url>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Url>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_url() -> *mut Url {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Url>`, mainly used for testing.
+/// Drops a `Box<Url>`.
 ///
 /// # Safety
 ///
@@ -140,13 +140,13 @@ pub unsafe extern "C" fn drop_url(url: *mut Url) {
     unsafe { super::boxed::drop(url) }
 }
 
-/// Alloc an uninitialized `Box<Option<Url>>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Option<Url>>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_option_url() -> *mut Option<Url> {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Option<Url>>`, mainly used for testing.
+/// Drops a `Box<Option<Url>>`.
 ///
 /// # Safety
 ///

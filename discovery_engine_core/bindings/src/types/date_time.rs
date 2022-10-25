@@ -71,13 +71,13 @@ pub unsafe extern "C" fn get_date_time_utc_micros_since_epoch(
     seconds * MICROS_PER_SECOND + i64::from(sub_micros)
 }
 
-/// Alloc an uninitialized `Box<DateTimeUtc>`, mainly used for testing.
+/// Alloc an uninitialized `Box<DateTimeUtc>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_date_time_utc() -> *mut DateTimeUtc {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<DateTimeUtc>`, mainly used for testing.
+/// Drops a `Box<DateTimeUtc>`.
 ///
 /// # Safety
 ///

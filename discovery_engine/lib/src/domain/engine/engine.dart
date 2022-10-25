@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/assets/data_provider.dart'
     show SetupData;
@@ -43,9 +41,6 @@ import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 abstract class Engine {
   /// Returns the intermediate error which caused a db reset when initializing the engine.
   String? get lastDbOverrideError;
-
-  /// Serializes the state of the [Engine].
-  Future<Uint8List> serialize();
 
   /// Configures the running engine.
   Future<void> configure(String deConfig);

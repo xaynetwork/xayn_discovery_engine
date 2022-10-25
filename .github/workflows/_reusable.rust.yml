@@ -33,11 +33,8 @@ jobs:
         with:
           rust: true
 
-      - name: rust check without storage
-        run: XAYN_DE_FEATURES="" just rust-check
-
-      - name: rust check with storage
-        run: XAYN_DE_FEATURES=storage just rust-check
+      - name: rust check
+        run: just rust-check
 
   cargo-test:
     runs-on: hetzner-pm
@@ -55,11 +52,8 @@ jobs:
       - name: Download test assets
         run: just download-assets
 
-      - name: Run tests without storage
-        run: XAYN_DE_FEATURES="" just rust-test
-
-      - name: Run tests with storage
-        run: XAYN_DE_FEATURES=storage just rust-test
+      - name: Run tests
+        run: just rust-test
 
   cargo-doc:
     runs-on: hetzner-pm

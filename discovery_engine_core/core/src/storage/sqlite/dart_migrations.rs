@@ -32,7 +32,7 @@ use crate::{
 
 use super::SqliteStorage;
 
-/// Add the data from the  dart->rust/sqltie migration to the prepared database.
+/// Add the data from the  dart->rust/sqlite migration to the prepared database.
 pub(super) async fn store_migration_data(
     storage: &mut SqliteStorage,
     data: &mut DartMigrationData,

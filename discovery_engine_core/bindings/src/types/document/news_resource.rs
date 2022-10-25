@@ -148,18 +148,18 @@ pub unsafe extern "C" fn news_resource_place_of_topic(place: *mut NewsResource) 
     unsafe { addr_of_mut!((*place).topic) }
 }
 
-/// Alloc an uninitialized `Box<NewsResource>`, mainly used for testing.
+/// Alloc an uninitialized `Box<NewsResource>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_news_resource() -> *mut NewsResource {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<NewsResource>`, mainly used for testing.
+/// Drops a `Box<NewsResource>`.
 ///
 /// # Safety
 ///
-/// The pointer must represent a valid `Box<Document>` instance.
+/// The pointer must represent a valid `Box<NewsResource>` instance.
 #[no_mangle]
-pub unsafe extern "C" fn drop_news_resource(document: *mut NewsResource) {
-    unsafe { crate::types::boxed::drop(document) };
+pub unsafe extern "C" fn drop_news_resource(news_resource: *mut NewsResource) {
+    unsafe { crate::types::boxed::drop(news_resource) };
 }

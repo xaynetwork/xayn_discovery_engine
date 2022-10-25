@@ -29,8 +29,5 @@ tracing-android = "0.2.0"
 cbindgen = "=0.24.3"
 heck = { workspace = true }
 
-[features]
-storage = ["xayn-discovery-engine-core/storage"]
-
 [lib]
 crate-type = ["cdylib", "staticlib"]

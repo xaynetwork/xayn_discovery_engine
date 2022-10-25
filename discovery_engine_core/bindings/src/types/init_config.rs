@@ -189,13 +189,13 @@ pub unsafe extern "C" fn init_config_place_of_dart_migration_data(
     unsafe { addr_of_mut!((*place).dart_migration_data) }
 }
 
-/// Alloc an uninitialized `Box<InitConfig>`, mainly used for testing.
+/// Alloc an uninitialized `Box<InitConfig>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_init_config() -> *mut InitConfig {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<InitConfig>`, mainly used for testing.
+/// Drops a `Box<InitConfig>`.
 ///
 /// # Safety
 ///

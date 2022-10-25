@@ -45,6 +45,7 @@ include = ["xayn-discovery-engine-core", "xayn-discovery-engine-providers"]
 "Option_Duration" = "RustOptionDuration"
 "Option_DateTimeUtc" = "RustOptionDateTimeUtc"
 "Result_Document__String" = "RustResultDocumentString"
+"Result_InitializationResult__String" = "RustResultInitializationResultString"
 "Result_Search__String" = "RustResultSearchString"
 "Result_SharedEngine__String" = "RustResultSharedEngineString"
 "Result_String" = "RustResultVoidString"

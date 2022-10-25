@@ -107,13 +107,13 @@ pub unsafe extern "C" fn get_embedding_buffer_len(embedding: *mut Embedding) -> 
     FfiUsize::from_usize_lossy(len)
 }
 
-/// Alloc an uninitialized `Box<Embedding>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Embedding>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_embedding() -> *mut Embedding {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Embedding>`, mainly used for testing.
+/// Drops a `Box<Embedding>`.
 ///
 /// # Safety
 ///

@@ -18,5 +18,5 @@
 //! proc-macro generated code on stable.
 
 #[rustfmt::skip]
-#[allow(clippy::box_collection, unsafe_code)]
+#[allow(unsafe_code)]
 pub mod xayn_discovery_engine_async_ffi;

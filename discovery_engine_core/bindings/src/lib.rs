@@ -40,22 +40,21 @@ use std::path::Path;
 use itertools::Itertools;
 use xayn_discovery_engine_core::Engine;
 
-#[allow(unsafe_code)]
-#[no_mangle]
-pub extern "C" fn cfg_feature_storage() -> u8 {
-    u8::from(cfg!(feature = "storage"))
-}
-
 #[async_bindgen::api(
     use uuid::Uuid;
 
     use xayn_discovery_engine_core::{
-        document::{Document, TimeSpent, TrendingTopic, UserReacted},
+        document::{TimeSpent, UserReacted},
         InitConfig,
     };
     use xayn_discovery_engine_providers::Market;
 
-    use crate::types::{engine::{SharedEngine, InitializationResult}, search::Search};
+    use crate::types::{
+        document::Document,
+        engine::{InitializationResult, SharedEngine},
+        search::Search,
+        trending_topic::TrendingTopic,
+    };
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
@@ -75,19 +74,6 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine.as_ref().lock().await.configure(&de_config);
     }
 
-    /// Serializes the engine.
-    pub async fn serialize(engine: &SharedEngine) -> Box<Result<Vec<u8>, String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .serialize()
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
     /// Sets the markets.
     pub async fn set_markets(
         engine: &SharedEngine,
@@ -105,7 +91,6 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Gets the next batch of feed documents.
-    #[allow(clippy::box_collection)]
     pub async fn feed_next_batch(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
@@ -114,6 +99,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .feed_next_batch()
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -127,6 +113,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .fed()
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -175,6 +162,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .user_reacted(*reacted)
                 .await
+                .map(Into::into)
                 .map_err(|error| error.to_string()),
         )
     }
@@ -192,6 +180,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_by_query(query.as_ref(), page)
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -209,6 +198,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_by_topic(topic.as_ref(), page)
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -228,6 +218,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_by_id((*id).into())
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -241,6 +232,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_next_batch()
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -254,6 +246,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .searched()
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -294,6 +287,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .trending_topics()
                 .await
+                .map(|trending_topics| trending_topics.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -410,7 +404,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         drop(engine.as_ref().as_ref().lock().await);
     }
 
-    /// Reset the AI state of this engine
+    /// Reset the AI state of this engine.
     pub async fn reset_ai(engine: &SharedEngine) -> Box<Result<(), String>> {
         Box::new(
             engine

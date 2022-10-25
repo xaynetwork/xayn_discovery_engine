@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io' show Directory;
-import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
@@ -32,7 +31,6 @@ import 'package:xayn_discovery_engine/src/api/models/document.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
@@ -261,21 +259,17 @@ void main() {
           (repos) async {
         //FIXME test engine state migration by having a known valid engine state blob
         await repos.documentRepository.updateMany(docs);
-        final data0 =
-            ActiveDocumentData(Embedding(Float32List.fromList([2, 25, 2, 3])));
+        final data0 = ActiveDocumentData();
         data0.viewTime[DocumentViewMode.web] = const Duration(minutes: 2);
         await repos.activeDocumentDataRepository.update(
           docs[0].documentId,
           data0,
         );
 
-        await repos.activeDocumentDataRepository.update(
-          docs[1].documentId,
-          ActiveDocumentData(Embedding(Float32List.fromList([22, 25, 32, 33]))),
-        );
+        await repos.activeDocumentDataRepository
+            .update(docs[1].documentId, ActiveDocumentData());
 
-        final data2 =
-            ActiveDocumentData(Embedding(Float32List.fromList([12, 15, 2, 3])));
+        final data2 = ActiveDocumentData();
         data2.viewTime[DocumentViewMode.reader] = const Duration(minutes: 22);
         await repos.activeDocumentDataRepository.update(
           docs[2].documentId,

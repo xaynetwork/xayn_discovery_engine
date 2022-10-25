@@ -18,7 +18,28 @@ use std::ptr::addr_of_mut;
 
 use uuid::Uuid;
 
-use xayn_discovery_engine_core::document::{Document, Embedding, NewsResource, UserReaction};
+use xayn_discovery_engine_core::{
+    document::{Id, NewsResource, UserReaction},
+    stack::Id as StackId,
+};
+
+pub struct Document {
+    id: Id,
+    stack_id: StackId,
+    reaction: Option<UserReaction>,
+    resource: NewsResource,
+}
+
+impl From<xayn_discovery_engine_core::document::Document> for Document {
+    fn from(document: xayn_discovery_engine_core::document::Document) -> Self {
+        Self {
+            id: document.id,
+            stack_id: document.stack_id,
+            reaction: document.reaction,
+            resource: document.resource,
+        }
+    }
+}
 
 /// Returns a pointer to the `id` field of a document.
 ///
@@ -40,19 +61,6 @@ pub unsafe extern "C" fn document_place_of_id(place: *mut Document) -> *mut Uuid
 #[no_mangle]
 pub unsafe extern "C" fn document_place_of_stack_id(place: *mut Document) -> *mut Uuid {
     unsafe { addr_of_mut!((*place).stack_id) }.cast::<Uuid>()
-}
-
-/// Returns a pointer to the `smbert_embedding` field of a document.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn document_place_of_smbert_embedding(
-    place: *mut Document,
-) -> *mut Embedding {
-    unsafe { addr_of_mut!((*place).smbert_embedding) }
 }
 
 /// Returns a pointer to the `reaction` field of a document.
@@ -79,13 +87,13 @@ pub unsafe extern "C" fn document_place_of_resource(place: *mut Document) -> *mu
     unsafe { addr_of_mut!((*place).resource) }
 }
 
-/// Alloc an uninitialized `Box<Document>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Document>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_document() -> *mut Document {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Document>`, mainly used for testing.
+/// Drops a `Box<Document>`.
 ///
 /// # Safety
 ///

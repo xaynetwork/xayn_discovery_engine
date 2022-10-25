@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -68,12 +66,6 @@ class MockEngine implements Engine {
   @override
   Future<void> configure(String deConfig) async {
     _incrementCount('configure');
-  }
-
-  @override
-  Future<Uint8List> serialize() async {
-    _incrementCount('serialize');
-    return Uint8List(0);
   }
 
   @override

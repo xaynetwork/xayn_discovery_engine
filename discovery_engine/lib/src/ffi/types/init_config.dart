@@ -177,7 +177,7 @@ class InitConfigFfi with EquatableMixin {
       useEphemeralDb: BoolFfi.readNative(
         ffi.init_config_place_of_use_ephemeral_db(config),
       ),
-      // dartMigrationData is omitted
+      // dartMigrationData is omitted, must be null in tests
     );
   }
 }

@@ -24,12 +24,9 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         DocumentViewMode,
         EngineExceptionRaised,
         EngineExceptionReason,
-        NextFeedBatchRequestSucceeded,
-        UserReaction,
-        cfgFeatureStorage;
+        NextFeedBatchRequestSucceeded;
 
 import '../logging.dart' show setupLogging;
-import 'utils/db.dart' show loadEngineState;
 import 'utils/helpers.dart'
     show TestEngineData, initEngine, setupTestEngineData;
 import 'utils/local_newsapi_server.dart' show LocalNewsApiServer;
@@ -50,59 +47,6 @@ void main() {
       await server.close();
       await Directory(data.applicationDirectoryPath).delete(recursive: true);
     });
-
-    test('log the view time of a document', () async {
-      data.useEphemeralDb = false;
-      var engine = await initEngine(data, server.port);
-
-      // fetch some documents
-      final nextFeedBatchResponse = await engine.requestNextFeedBatch();
-      expect(nextFeedBatchResponse, isA<NextFeedBatchRequestSucceeded>());
-
-      // like a document in order to create a coi
-      final doc =
-          (nextFeedBatchResponse as NextFeedBatchRequestSucceeded).items.first;
-      expect(
-        await engine.changeUserReaction(
-          documentId: doc.documentId,
-          userReaction: UserReaction.positive,
-        ),
-        isA<ClientEventSucceeded>(),
-      );
-
-      // cache engine state before the request of the document view time
-      await engine.dispose();
-      final stateBeforeRequest =
-          await loadEngineState(data.applicationDirectoryPath);
-      expect(stateBeforeRequest, isNotNull);
-
-      engine = await initEngine(data, server.port);
-      // check that the `ClientEventSucceeded` event will be emitted
-      expect(
-        engine.engineEvents,
-        emitsInOrder(<Matcher>[
-          isA<ClientEventSucceeded>(),
-        ]),
-      );
-
-      // log the view time of the first document (adds the time to the coi)
-      expect(
-        await engine.logDocumentTime(
-          documentId: doc.documentId,
-          mode: DocumentViewMode.story,
-          seconds: 10,
-        ),
-        isA<ClientEventSucceeded>(),
-      );
-
-      // check that the engine state has changed
-      await engine.dispose();
-      final stateAfterRequest =
-          await loadEngineState(data.applicationDirectoryPath);
-      expect(stateAfterRequest, isNotNull);
-      expect(stateBeforeRequest, isNot(stateAfterRequest));
-      // ignore: require_trailing_commas
-    }, skip: cfgFeatureStorage);
 
     test(
         'if a document id is invalid, the engine should throw an'

@@ -90,6 +90,7 @@ class MigrationDocument {
     document.documentId.writeNative(ffi.migration_document_place_of_id(place));
     document.stackId
         .writeNative(ffi.migration_document_place_of_stack_id(place));
+    // ignore: deprecated_member_use_from_same_package
     (activeData?.smbertEmbedding)
         .writeNative(ffi.migration_document_place_of_smbert_embedding(place));
     document.userReaction
