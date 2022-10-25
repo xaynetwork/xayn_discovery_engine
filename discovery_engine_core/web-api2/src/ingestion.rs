@@ -82,8 +82,10 @@ fn default_max_document_batch_size() -> u64 {
     100
 }
 
+#[derive(AsRef)]
 pub struct AppStateExtension {
     #[allow(dead_code)]
+    #[as_ref]
     pub(crate) embedder: Embedder,
 }
 
