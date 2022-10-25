@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Embedding {
+pub struct Config {
     #[allow(dead_code)]
     #[serde(default = "default_vocabulary")]
     vocabulary: PathBuf,
@@ -34,7 +34,7 @@ fn default_model() -> PathBuf {
     "assets/model.onnx".into()
 }
 
-impl Default for Embedding {
+impl Default for Config {
     fn default() -> Self {
         Self {
             vocabulary: default_vocabulary(),
