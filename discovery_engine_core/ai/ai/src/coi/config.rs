@@ -28,12 +28,37 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[must_use]
 pub struct Config {
+    #[serde(default = "default_shift_factor")]
     shift_factor: f32,
+    #[serde(default = "default_threshold")]
     threshold: f32,
+    #[serde(default = "default_min_positive_cois")]
     min_positive_cois: usize,
+    #[serde(default = "default_min_negative_cois")]
     min_negative_cois: usize,
+    #[serde(default = "default_horizon")]
     #[serde(with = "serde_duration_as_days")]
     horizon: Duration,
+}
+
+fn default_shift_factor() -> f32 {
+    0.1
+}
+
+fn default_threshold() -> f32 {
+    0.67
+}
+
+fn default_min_positive_cois() -> usize {
+    2
+}
+
+fn default_min_negative_cois() -> usize {
+    0
+}
+
+fn default_horizon() -> Duration {
+    Duration::from_secs(SECONDS_PER_DAY_U64 * 30)
 }
 
 // the f32 fields are never NaN by construction
@@ -42,11 +67,11 @@ impl Eq for Config {}
 impl Default for Config {
     fn default() -> Self {
         Self {
-            shift_factor: 0.1,
-            threshold: 0.67,
-            min_positive_cois: 2,
-            min_negative_cois: 0,
-            horizon: Duration::from_secs(SECONDS_PER_DAY_U64 * 30),
+            shift_factor: default_shift_factor(),
+            threshold: default_threshold(),
+            min_positive_cois: default_min_positive_cois(),
+            min_negative_cois: default_min_negative_cois(),
+            horizon: default_horizon(),
         }
     }
 }
