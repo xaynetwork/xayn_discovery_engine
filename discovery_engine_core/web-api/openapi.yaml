@@ -324,9 +324,11 @@ paths:
 components:
   schemas:
     DocumentId:
-      description: A document id can be any non-empty UTF-8 string that does not contain the null byte.
+      description: |-
+        A document id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
       type: string
-      example: "document id"
+      example: "document_id"
     DocumentPropertyId:
       description: A document property id can be any non-empty UTF-8 string that does not contain the null byte.
       type: string
