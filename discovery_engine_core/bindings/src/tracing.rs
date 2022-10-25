@@ -43,12 +43,8 @@ fn init_tracing_once(log_file: Option<&Path>) {
         .with_default(LevelFilter::TRACE)
         .with_target("sqlx::query", Level::WARN);
 
-    cfg_if::cfg_if! {
-        if #[cfg(target_os = "android")] {
-            let layer = tracing_android::layer("xayn_discovery_engine").ok();
-            let subscriber = subscriber.with(layer);
-        }
-    };
+    #[cfg(target_os = "android")]
+    let subscriber = subscriber.with(tracing_android::layer("xayn_discovery_engine").ok());
 
     let file_log = log_file
         .map(|log_file| {

@@ -4695,7 +4695,6 @@ version = "0.1.0"
 dependencies = [
  "async-bindgen",
  "cbindgen",
- "cfg-if",
  "chrono",
  "derive_more",
  "heck",
@@ -4720,7 +4719,6 @@ dependencies = [
  "async-once-cell",
  "async-trait",
  "bincode",
- "cfg-if",
  "chrono",
  "derivative",
  "derive_more",
