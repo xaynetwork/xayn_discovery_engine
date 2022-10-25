@@ -19,7 +19,7 @@ use std::ptr::addr_of_mut;
 use derive_more::{AsRef, From};
 use tokio::sync::Mutex;
 
-use xayn_discovery_engine_core::{Engine, InitDbHint};
+use xayn_discovery_engine_core::{storage::InitDbHint, Engine};
 
 /// A shared discovery engine with a lock.
 #[derive(AsRef, From)]
@@ -31,7 +31,6 @@ pub struct InitializationResult {
 }
 
 impl InitializationResult {
-    #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn new(engine: Engine, init_db_hint: InitDbHint) -> InitializationResult {
         let shared_engine = tokio::sync::Mutex::new(engine).into();
         // for now we will only expose the override error converted to an string

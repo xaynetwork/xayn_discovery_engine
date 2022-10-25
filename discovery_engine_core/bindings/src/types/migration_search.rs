@@ -19,7 +19,7 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::storage2::{Search, SearchBy};
+use xayn_discovery_engine_core::storage::models::{Search, SearchBy};
 
 //cbindgen:ignore
 pub type MigrationSearch = Search;

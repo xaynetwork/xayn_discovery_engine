@@ -20,8 +20,7 @@ use std::{
 
 use crate::{
     stack,
-    storage::{utils::SqlxPushTupleExt, Error, InitDbHint},
-    storage2::DartMigrationData,
+    storage::{utils::SqlxPushTupleExt, DartMigrationData, Error, InitDbHint},
     utils::{remove_file_if_exists, CompoundError, MiscErrorExt},
 };
 use sqlx::{

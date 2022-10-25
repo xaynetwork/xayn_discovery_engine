@@ -30,7 +30,7 @@ use crate::{
         exploration::Stack as Exploration,
         ops::{breaking::BreakingNews, personalized::PersonalizedNews, trusted::TrustedNews},
     },
-    storage2::DartMigrationData,
+    storage::DartMigrationData,
 };
 
 impl Engine {

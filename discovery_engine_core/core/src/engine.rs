@@ -106,8 +106,7 @@ use crate::{
         Stack,
         TrustedNews,
     },
-    storage::{self, sqlite::SqliteStorage, BoxedStorage},
-    storage2::InitDbHint,
+    storage::{self, sqlite::SqliteStorage, BoxedStorage, InitDbHint},
     utils::MiscErrorExt,
 };
 

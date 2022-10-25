@@ -16,7 +16,7 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::{storage2::DartMigrationData, InitConfig};
+use xayn_discovery_engine_core::{storage::DartMigrationData, InitConfig};
 use xayn_discovery_engine_providers::Market;
 
 use super::primitives::FfiUsize;

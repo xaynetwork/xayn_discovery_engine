@@ -24,10 +24,11 @@ use crate::{
     stack,
     storage::{
         models::{NewDocument, NewsResource, NewscatcherData},
+        DartMigrationData,
         Error,
+        MigrationDocument,
         Storage,
     },
-    storage2::{DartMigrationData, MigrationDocument},
 };
 
 use super::SqliteStorage;

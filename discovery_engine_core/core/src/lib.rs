@@ -37,12 +37,9 @@ mod mab;
 pub mod stack;
 mod state;
 pub mod storage;
-//FIXME merge with storage once the storage feature is gone
-pub mod storage2;
 mod utils;
 
 pub use crate::{
     config::{CoreConfig, EndpointConfig, ExplorationConfig, FeedConfig, InitConfig, SearchConfig},
     engine::{Engine, Error, SearchBy},
-    storage2::{DartMigrationData, InitDbHint},
 };

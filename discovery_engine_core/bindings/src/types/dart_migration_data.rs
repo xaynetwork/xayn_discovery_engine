@@ -16,7 +16,7 @@ use std::ptr::addr_of_mut;
 
 use xayn_discovery_engine_core::{
     document::WeightedSource,
-    storage2::{DartMigrationData, MigrationDocument},
+    storage::{DartMigrationData, MigrationDocument},
 };
 
 use super::migration_search::MigrationSearch;

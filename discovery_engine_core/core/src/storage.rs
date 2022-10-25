@@ -12,26 +12,27 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+pub mod models;
+pub mod sqlite;
+mod utils;
+
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
 };
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use displaydoc::Display;
 use thiserror::Error;
 use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
 
 use crate::{
-    document::{self, HistoricDocument, UserReaction, ViewMode, WeightedSource},
+    document::{self, HistoricDocument, NewsResource, UserReaction, ViewMode, WeightedSource},
     stack,
-    storage2::InitDbHint,
+    storage::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView},
 };
-
-use self::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView};
-
-pub mod sqlite;
-mod utils;
+use xayn_discovery_engine_ai::Embedding;
 
 pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
 
@@ -57,6 +58,62 @@ impl From<MalformedBytesEmbedding> for Error {
     fn from(err: MalformedBytesEmbedding) -> Self {
         Error::Database(Box::new(err))
     }
+}
+
+/// Hint about what was done during db init.
+pub enum InitDbHint {
+    /// Hint to use if nothing special happened during init.
+    NormalInit,
+    /// A new db was created; There was no db beforehand.
+    NewDbCreated,
+    /// There was a db but it could not be opened so it was deleted and a new one created.
+    DbOverwrittenDueToErrors(Error),
+}
+
+#[derive(Clone, Debug)]
+pub struct DartMigrationData {
+    pub engine_state: Option<Vec<u8>>,
+    pub trusted_sources: Vec<String>,
+    pub excluded_sources: Vec<String>,
+    pub reacted_sources: Vec<WeightedSource>,
+    pub documents: Vec<MigrationDocument>,
+    pub search: Option<Search>,
+}
+
+/// Represents a result from a query.
+#[derive(Clone, Debug)]
+pub struct MigrationDocument {
+    /// Unique identifier of the document.
+    pub id: document::Id,
+
+    /// Stack from which the document has been taken.
+    /// [`stack::Id::nil()`] is used for documents which are not from a stack
+    pub stack_id: stack::Id,
+
+    /// Embedding from smbert.
+    pub smbert_embedding: Option<Embedding>,
+
+    /// Reaction.
+    pub reaction: UserReaction,
+
+    /// Resource this document refers to.
+    pub resource: NewsResource,
+
+    // If true the document is part of the search OR feed
+    pub is_active: bool,
+
+    // If true the document is/was part of the search
+    pub is_searched: bool,
+
+    // The index of the batch in which it was returned from the engine.
+    pub batch_index: u32,
+
+    // The time at which it was returned from the engine.
+    pub timestamp: DateTime<Utc>,
+
+    pub story_view_time: Option<Duration>,
+    pub web_view_time: Option<Duration>,
+    pub reader_view_time: Option<Duration>,
 }
 
 #[async_trait]
@@ -176,153 +233,4 @@ pub(crate) trait SourceReactionScope {
     async fn update_source_weight(&self, source: &str, add_weight: i32) -> Result<(), Error>;
 
     async fn delete_source_reaction(&self, source: &str) -> Result<(), Error>;
-}
-
-pub mod models {
-    use std::time::Duration;
-
-    use chrono::{DateTime, Utc};
-    use url::Url;
-    use xayn_discovery_engine_ai::Embedding;
-    use xayn_discovery_engine_providers::Market;
-
-    use crate::{
-        document::{self, UserReaction},
-        stack,
-    };
-
-    #[derive(Debug)]
-    pub(crate) struct NewDocument {
-        pub(crate) id: document::Id,
-        pub(crate) news_resource: NewsResource,
-        pub(crate) newscatcher_data: NewscatcherData,
-        pub(crate) embedding: Embedding,
-    }
-
-    impl From<document::Document> for NewDocument {
-        fn from(doc: document::Document) -> Self {
-            let (news_resource, newscatcher_data) = doc.resource.into();
-            Self {
-                id: doc.id,
-                news_resource,
-                newscatcher_data,
-                embedding: doc.smbert_embedding,
-            }
-        }
-    }
-
-    impl From<document::NewsResource> for (NewsResource, NewscatcherData) {
-        fn from(resource: document::NewsResource) -> Self {
-            let news_resource = NewsResource {
-                title: resource.title,
-                snippet: resource.snippet,
-                topic: resource.topic,
-                url: resource.url,
-                image: resource.image,
-                date_published: resource.date_published,
-                source: resource.source_domain,
-                market: Market::new(resource.language, resource.country),
-            };
-            let newscatcher_data = NewscatcherData {
-                domain_rank: resource.rank,
-                score: resource.score,
-            };
-            (news_resource, newscatcher_data)
-        }
-    }
-
-    impl From<(NewsResource, NewscatcherData)> for document::NewsResource {
-        fn from((news_resource, newscatcher_data): (NewsResource, NewscatcherData)) -> Self {
-            Self {
-                title: news_resource.title,
-                snippet: news_resource.snippet,
-                url: news_resource.url,
-                source_domain: news_resource.source,
-                date_published: news_resource.date_published,
-                image: news_resource.image,
-                rank: newscatcher_data.domain_rank,
-                score: newscatcher_data.score,
-                country: news_resource.market.country_code,
-                language: news_resource.market.lang_code,
-                topic: news_resource.topic,
-            }
-        }
-    }
-
-    #[derive(Debug)]
-    pub(crate) struct ApiDocumentView {
-        pub(crate) document_id: document::Id,
-        pub(crate) news_resource: NewsResource,
-        pub(crate) newscatcher_data: NewscatcherData,
-        pub(crate) user_reaction: Option<UserReaction>,
-        pub(crate) embedding: Embedding,
-        pub(crate) stack_id: Option<stack::Id>,
-    }
-
-    impl ApiDocumentView {
-        /// Gets the snippet or falls back to the title if the snippet is empty.
-        pub(crate) fn snippet_or_title(&self) -> &str {
-            if self.news_resource.snippet.is_empty() {
-                &self.news_resource.title
-            } else {
-                &self.news_resource.snippet
-            }
-        }
-    }
-
-    impl From<ApiDocumentView> for document::Document {
-        fn from(view: ApiDocumentView) -> Self {
-            document::Document {
-                id: view.document_id,
-                stack_id: view.stack_id.unwrap_or_default(),
-                smbert_embedding: view.embedding,
-                reaction: view.user_reaction,
-                resource: (view.news_resource, view.newscatcher_data).into(),
-            }
-        }
-    }
-
-    /// Represents a news that is delivered by an external content API.
-    #[derive(Debug, PartialEq, Eq)]
-    pub(crate) struct NewsResource {
-        /// Title of the resource.
-        pub(crate) title: String,
-
-        /// Snippet of the resource.
-        pub(crate) snippet: String,
-
-        /// Main topic of the publisher.
-        pub(crate) topic: String,
-
-        /// Url to reach the resource.
-        pub(crate) url: Url,
-
-        /// Image attached to the news.
-        pub(crate) image: Option<Url>,
-
-        /// Publishing date.
-        pub(crate) date_published: DateTime<Utc>,
-
-        /// The domain of the article's source, e.g. `example.com`. Not a valid URL.
-        pub(crate) source: String,
-
-        /// The market of news.
-        pub(crate) market: Market,
-    }
-
-    #[derive(Debug, PartialEq)]
-    pub(crate) struct NewscatcherData {
-        pub(crate) domain_rank: u64,
-        pub(crate) score: Option<f32>,
-    }
-
-    //FIXME move type here once feature storage is removed
-    pub use crate::storage2::{Paging, Search, SearchBy};
-
-    #[derive(Debug, PartialEq)]
-    pub(crate) struct TimeSpentDocumentView {
-        pub(crate) smbert_embedding: Embedding,
-        pub(crate) last_reaction: Option<UserReaction>,
-        pub(crate) aggregated_view_time: Duration,
-    }
 }

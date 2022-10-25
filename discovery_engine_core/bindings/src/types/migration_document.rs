@@ -18,7 +18,7 @@ use uuid::Uuid;
 use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_core::{
     document::{NewsResource, UserReaction},
-    storage2::MigrationDocument,
+    storage::MigrationDocument,
 };
 
 use super::{
