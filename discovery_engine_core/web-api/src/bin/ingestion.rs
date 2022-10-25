@@ -14,7 +14,7 @@
 
 //! Ingestion service that uses Xayn Discovery Engine.
 
-use std::{convert::Infallible, env, path::PathBuf, sync::Arc};
+use std::{convert::Infallible, env, net::IpAddr, path::PathBuf, sync::Arc};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use envconfig::Envconfig;
@@ -58,6 +58,12 @@ pub(crate) struct Config {
 
     #[envconfig(from = "ELASTIC_INDEX_NAME", default = "test_index")]
     pub(crate) elastic_index_name: String,
+
+    #[envconfig(from = "PORT", default = "3030")]
+    pub(crate) port: u16,
+
+    #[envconfig(from = "IP_ADDR", default = "0.0.0.0")]
+    pub(crate) ip_addr: IpAddr,
 
     #[envconfig(from = "SMBERT_VOCAB", default = "assets/vocab.txt")]
     pub(crate) smbert_vocab: PathBuf,
@@ -253,11 +259,11 @@ async fn main() -> Result<(), GenericError> {
         .or(put_document_properties(config.clone(), client.clone()))
         .or(delete_document_properties(client.clone()))
         .or(get_document_property(client.clone()))
-        .or(put_document_property(config, client.clone()))
+        .or(put_document_property(config.clone(), client.clone()))
         .or(delete_document_property(client))
         .with(warp::trace::request());
 
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run((config.ip_addr, config.port)).await;
 
     Ok(())
 }
