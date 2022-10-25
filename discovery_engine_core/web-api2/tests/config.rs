@@ -20,7 +20,7 @@ use std::{
 };
 use trycmd::TestCases;
 
-fn env_guard(
+fn with_env_guard(
     env: impl IntoIterator<Item = (impl AsRef<OsStr>, impl AsRef<OsStr>)>,
     test: impl Fn(),
 ) {
@@ -48,14 +48,14 @@ fn no_env() -> HashMap<OsString, OsString> {
 
 #[test]
 fn test_loading_configs() {
-    env_guard(no_env(), || {
+    with_env_guard(no_env(), || {
         TestCases::new().case("tests/cmd/*.auto.toml");
     });
 }
 
 #[test]
 fn test_loading_config_with_env_overrides() {
-    env_guard(
+    with_env_guard(
         [
             ("XAYN_WEB_API__DB__PORT", "3532"),
             ("XAYN_WEB_API__NET__MAX_BODY_SIZE", "4422"),
@@ -68,7 +68,7 @@ fn test_loading_config_with_env_overrides() {
 
 #[test]
 fn test_loading_config_with_mixed_overrides() {
-    env_guard([("XAYN_WEB_API__NET__BIND_TO", "127.10.10.9:4343")], || {
+    with_env_guard([("XAYN_WEB_API__NET__BIND_TO", "127.10.10.9:4343")], || {
         TestCases::new().case("tests/cmd/mixed_overrides.toml");
     });
 }
