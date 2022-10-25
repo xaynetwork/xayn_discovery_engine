@@ -14,6 +14,8 @@
 
 use sqlx::{Pool, Postgres};
 
+use crate::embedding::Embedder;
+
 use super::{Config, SetupError};
 
 pub struct AppState<E> {
@@ -21,11 +23,18 @@ pub struct AppState<E> {
     pub(crate) config: Config<E>,
     #[allow(dead_code)]
     pub(crate) db: Pool<Postgres>,
+    #[allow(dead_code)]
+    pub(crate) embedder: Embedder,
 }
 
 impl<E> AppState<E> {
     pub(super) async fn create(config: Config<E>) -> Result<Self, SetupError> {
         let db = config.db.create_connection_pool().await?;
-        Ok(Self { config, db })
+        let embedder = Embedder::load(config.as_ref())?;
+        Ok(Self {
+            config,
+            db,
+            embedder,
+        })
     }
 }

@@ -4614,6 +4614,8 @@ dependencies = [
  "trycmd",
  "url",
  "uuid",
+ "xayn-discovery-engine-ai",
+ "xayn-discovery-engine-bert",
 ]
 
 [[package]]
