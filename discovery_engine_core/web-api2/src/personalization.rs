@@ -18,7 +18,6 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    embedding,
     error::application::{Unimplemented, WithRequestIdExt},
     server::{self, Application},
     Error,
@@ -47,11 +46,7 @@ impl Application for Personalization {
 type Config = server::Config<<Personalization as Application>::ConfigExtension>;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct ConfigExtension {
-    #[allow(dead_code)]
-    #[serde(default)]
-    pub(crate) embedding: embedding::Config,
-}
+pub struct ConfigExtension {}
 
 //FIXME use actual UserId
 type UserId = String;

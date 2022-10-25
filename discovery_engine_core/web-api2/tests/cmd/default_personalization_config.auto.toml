@@ -24,10 +24,6 @@ stdout = """
     "password": null,
     "db": null,
     "application_name": null
-  },
-  "embedding": {
-    "vocabulary": "assets/vocab.txt",
-    "model": "assets/model.onnx"
   }
 }
 """

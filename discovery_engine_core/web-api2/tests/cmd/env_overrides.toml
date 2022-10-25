@@ -27,6 +27,10 @@ stdout = """
   },
   "ingestion": {
     "max_document_batch_size": 999999
+  },
+  "embedding": {
+    "vocabulary": "assets/vocab.txt",
+    "model": "assets/model.onnx"
   }
 }
 """

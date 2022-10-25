@@ -19,6 +19,7 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    embedding,
     error::application::{Unimplemented, WithRequestIdExt},
     server::{self, Application},
     Error,
@@ -44,6 +45,9 @@ pub struct ConfigExtension {
     #[allow(dead_code)]
     #[serde(default)]
     pub(crate) ingestion: IngestionConfig,
+    #[allow(dead_code)]
+    #[serde(default)]
+    pub(crate) embedding: embedding::Config,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
