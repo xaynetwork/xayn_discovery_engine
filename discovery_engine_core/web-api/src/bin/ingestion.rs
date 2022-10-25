@@ -494,7 +494,7 @@ async fn handle_post_documents(
         }
     };
 
-    let failed_documents = if response.errors {
+    let invalid_ids = if response.errors {
         response
             .items
             .into_iter()
@@ -507,10 +507,10 @@ async fn handle_post_documents(
                     hit.index.id
                 })
             })
-            .chain(failed_documents)
+            .chain(invalid_ids)
             .collect_vec()
     } else {
-        failed_documents
+        invalid_ids
     };
 
     if invalid_ids.is_empty() {

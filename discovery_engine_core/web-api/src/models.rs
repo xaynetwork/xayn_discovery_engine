@@ -19,7 +19,6 @@ use displaydoc::Display as DisplayDoc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use urlencoding::encode;
 use warp::{
     http::StatusCode,
     reject::Reject,
@@ -90,17 +89,6 @@ impl Reject for Error {}
 #[sqlx(transparent)]
 pub struct DocumentId(String);
 
-impl DocumentId {
-    pub fn is_id_valid(&self) -> bool {
-        lazy_static! {
-            static ref RE: Regex = Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap();
-        }
-        let is_valid_pattern = RE.is_match(self.0.as_ref());
-        let is_url_encoded = encode(self.0.as_ref()) == self.0.as_ref();
-        is_valid_pattern && is_url_encoded
-    }
-}
-
 impl From<DocumentId> for String {
     fn from(item: DocumentId) -> Self {
         item.0
@@ -122,6 +110,15 @@ impl DocumentId {
 
     pub fn encode(&self) -> Cow<str> {
         urlencoding::encode(self.as_ref())
+    }
+
+    pub fn is_id_valid(&self) -> bool {
+        lazy_static! {
+            static ref RE: Regex = Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap();
+        }
+        let is_valid_pattern = RE.is_match(self.0.as_ref());
+        let is_url_encoded = self.encode() == self.0;
+        is_valid_pattern && is_url_encoded
     }
 }
 
