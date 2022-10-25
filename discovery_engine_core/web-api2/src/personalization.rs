@@ -15,8 +15,9 @@ use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
     Responder,
 };
+use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
-use xayn_discovery_engine_ai::CoiConfig;
+use xayn_discovery_engine_ai::{CoiConfig, CoiSystem};
 
 use crate::{
     error::application::{Unimplemented, WithRequestIdExt},
@@ -28,8 +29,9 @@ pub struct Personalization;
 
 impl Application for Personalization {
     type ConfigExtension = ConfigExtension;
+    type AppStateExtension = AppStateExtension;
 
-    fn configure(config: &mut ServiceConfig) {
+    fn configure_service(config: &mut ServiceConfig) {
         let scope = web::scope("/users/{user_id}")
             .service(
                 web::resource("interactions")
@@ -42,15 +44,31 @@ impl Application for Personalization {
 
         config.service(scope);
     }
+
+    fn create_app_state_extension(
+        config: &server::Config<Self::ConfigExtension>,
+    ) -> Result<Self::AppStateExtension, server::SetupError> {
+        Ok(AppStateExtension {
+            coi: config.extension.coi.clone().build(),
+        })
+    }
 }
 
 type Config = server::Config<<Personalization as Application>::ConfigExtension>;
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 pub struct ConfigExtension {
     #[allow(dead_code)]
+    #[as_ref]
     #[serde(default)]
     pub(crate) coi: CoiConfig,
+}
+
+#[derive(AsRef)]
+pub struct AppStateExtension {
+    #[as_ref]
+    #[allow(dead_code)]
+    pub(crate) coi: CoiSystem,
 }
 
 //FIXME use actual UserId

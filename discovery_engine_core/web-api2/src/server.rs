@@ -40,7 +40,21 @@ pub use self::{
 
 pub trait Application {
     type ConfigExtension: DeserializeOwned + Serialize + Send + Sync + 'static;
-    fn configure(config: &mut ServiceConfig);
+    type AppStateExtension: Send + Sync + 'static;
+
+    /// Configures the actix service(s) used by this application.
+    ///
+    /// This should mainly be used to mount the right routs and
+    /// application specific middleware.
+    fn configure_service(config: &mut ServiceConfig);
+
+    /// Create a application specific extension to app state.
+    //Design Note: We could handle this by adding `TyFrom<&Config<..>>` bounds
+    //             to `AppStateExtension` but using this helper method is simpler
+    //             and it is also easier to add async if needed (using #[async-trait]).
+    fn create_app_state_extension(
+        config: &Config<Self::ConfigExtension>,
+    ) -> Result<Self::AppStateExtension, SetupError>;
 }
 
 pub type SetupError = Box<dyn std::error::Error + 'static>;
@@ -69,7 +83,7 @@ where
         init_tracing(config.as_ref());
 
         let json_config = JsonConfig::default().limit(config.net.max_body_size);
-        let app_state = AppState::create(config).await?;
+        let app_state = AppState::create(config, A::create_app_state_extension).await?;
         let app_state = web::Data::new(app_state);
 
         HttpServer::new(move || {
@@ -77,7 +91,7 @@ where
                 .app_data(app_state.clone())
                 .app_data(json_config.clone())
                 .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
-                .configure(A::configure)
+                .configure(A::configure_service)
                 .wrap_fn(wrap_non_json_errors)
                 .wrap_fn(tracing_log_request)
         })
