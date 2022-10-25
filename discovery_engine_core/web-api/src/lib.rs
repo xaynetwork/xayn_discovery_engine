@@ -30,7 +30,7 @@ pub use crate::{
         UserId,
         COUNT_PARAM_RANGE,
     },
-    routes::api_routes,
+    routes::{api_routes, get_health},
     state::{AppState, InitConfig},
     storage::UserState,
 };

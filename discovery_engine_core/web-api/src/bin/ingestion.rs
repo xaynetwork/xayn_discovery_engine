@@ -32,6 +32,7 @@ use warp::{
 };
 
 use web_api::{
+    get_health,
     DocumentId,
     DocumentProperties,
     DocumentProperty,
@@ -246,7 +247,8 @@ async fn main() -> Result<(), GenericError> {
         password: config.elastic_password.clone(),
     }));
 
-    let routes = post_documents(config.clone(), model, client.clone())
+    let routes = get_health()
+        .or(post_documents(config.clone(), model, client.clone()))
         .or(get_document_properties(client.clone()))
         .or(put_document_properties(config.clone(), client.clone()))
         .or(delete_document_properties(client.clone()))
