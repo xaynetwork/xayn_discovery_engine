@@ -496,13 +496,9 @@ impl Engine {
         self.clear_stack_data().await;
 
         #[cfg(feature = "storage")]
-        {
-            let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_weighted_sources().await?;
-            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
-                .await
-        }
-        #[cfg(not(feature = "storage"))]
+        let history = &self.storage.fetch_history().await?;
+        #[cfg(feature = "storage")]
+        let sources = &self.storage.fetch_weighted_sources().await?;
         self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
     }
