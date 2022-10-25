@@ -148,6 +148,7 @@ impl Pipeline {
             ModelKind::OnnxMBert => {
                 let tokenizer = Tokenizer::new(
                     BufReader::new(File::open(model.vocab.as_path()).unwrap()),
+                    None,
                     tokenizer.cleanse_accents,
                     tokenizer.lower_case,
                     tokenizer.token_size,

@@ -16,6 +16,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:async/async.dart' show StreamGroup;
 import 'package:hive/hive.dart' show Hive;
 import 'package:meta/meta.dart' show visibleForTesting;
+
 import 'package:xayn_discovery_engine/discovery_engine.dart'
     show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/api.dart'
@@ -55,6 +56,7 @@ import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, DocumentAdapter, UserReactionAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarketAdapter;
+import 'package:xayn_discovery_engine/src/domain/models/history.dart';
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -231,11 +233,21 @@ class EventHandler {
     final sourcePreferenceRepository = HiveSourcePreferenceRepository();
 
     final setupData = await _fetchAssets(config);
-    final engineState = await engineStateRepository.load();
-    final history = await documentRepository.fetchHistory();
-    final reactedSources = await sourceReactedRepository.fetchAll();
-    final trustedSources = await sourcePreferenceRepository.getTrusted();
-    final excludedSources = await sourcePreferenceRepository.getExcluded();
+    final engineState = cfgFeatureStorage
+        ? null // unused
+        : await engineStateRepository.load();
+    final history = cfgFeatureStorage
+        ? <HistoricDocument>[] // unused
+        : await documentRepository.fetchHistory();
+    final reactedSources = cfgFeatureStorage
+        ? <SourceReacted>[] // unused
+        : await sourceReactedRepository.fetchAll();
+    final trustedSources = cfgFeatureStorage
+        ? <Source>{} // unused
+        : await sourcePreferenceRepository.getTrusted();
+    final excludedSources = cfgFeatureStorage
+        ? <Source>{} // unused
+        : await sourcePreferenceRepository.getExcluded();
     final availableSources = config.isMocked()
         ? mockedAvailableSources
         : await setupData.getAvailableSources();

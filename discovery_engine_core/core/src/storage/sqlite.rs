@@ -983,7 +983,6 @@ impl SourcePreferenceScope for SqliteStorage {
 
 #[derive(FromRow)]
 struct QueriedSourceReaction {
-    #[allow(dead_code)]
     source: String,
     weight: i32,
 }

@@ -126,7 +126,7 @@ impl ElasticState {
     ) -> Result<Option<DocumentProperties>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
         self.query_elastic_search::<Value, DocumentPropertiesResponse>(
-            &format!("_source/{id}?_source_includes=properties"),
+            &format!("_source/{}?_source_includes=properties", id.encode()),
             None,
         )
         .await
@@ -150,7 +150,7 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{id}"), body)
+        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{}", id.encode()), body)
             .await
             .and(Ok(true))
             .or_not_found(Ok(false))
@@ -169,7 +169,7 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{id}"), body)
+        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{}", id.encode()), body)
             .await
             .and(Ok(true))
             .or_not_found(Ok(false))
@@ -182,7 +182,11 @@ impl ElasticState {
     ) -> Result<Option<DocumentProperty>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
         self.query_elastic_search::<Value, DocumentPropertyResponse>(
-            &format!("_source/{doc_id}?_source_includes=properties.{prop_id}"),
+            &format!(
+                "_source/{}?_source_includes=properties.{}",
+                doc_id.encode(),
+                prop_id.encode()
+            ),
             None,
         )
         .await
@@ -208,10 +212,13 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{doc_id}"), body)
-            .await
-            .and(Ok(true))
-            .or_not_found(Ok(false))
+        self.query_elastic_search::<_, GenericResponse>(
+            &format!("_update/{}", doc_id.encode()),
+            body,
+        )
+        .await
+        .and(Ok(true))
+        .or_not_found(Ok(false))
     }
 
     pub async fn delete_document_property(
@@ -230,10 +237,13 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{doc_id}"), body)
-            .await
-            .and(Ok(true))
-            .or_not_found(Ok(false))
+        self.query_elastic_search::<_, GenericResponse>(
+            &format!("_update/{}", doc_id.encode()),
+            body,
+        )
+        .await
+        .and(Ok(true))
+        .or_not_found(Ok(false))
     }
 
     pub async fn query_elastic_search<B, T>(&self, route: &str, body: Option<B>) -> Result<T, Error>
