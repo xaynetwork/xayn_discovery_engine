@@ -19,6 +19,7 @@ use displaydoc::Display as DisplayDoc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use urlencoding::encode;
 use warp::{
     http::StatusCode,
     reject::Reject,
@@ -91,8 +92,12 @@ pub struct DocumentId(String);
 
 impl DocumentId {
     pub fn is_id_valid(&self) -> bool {
-        let reg = Regex::new("^[a-zA-Z0-9_'-':@.]+$").unwrap();
-        reg.is_match(self.0.as_ref())
+        lazy_static! {
+            static ref RE: Regex = Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap();
+        }
+        let is_valid_pattern = RE.is_match(self.0.as_ref());
+        let is_url_encoded = encode(self.0.as_ref()) == self.0.as_ref();
+        is_valid_pattern && is_url_encoded
     }
 }
 

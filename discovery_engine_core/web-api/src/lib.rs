@@ -19,6 +19,9 @@ mod routes;
 mod state;
 mod storage;
 
+#[macro_use]
+extern crate lazy_static;
+
 pub use crate::{
     elastic::{Config as ElasticConfig, ElasticDocumentData, ElasticState, GenericResponse},
     models::{

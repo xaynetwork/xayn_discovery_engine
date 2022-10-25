@@ -4081,6 +4081,7 @@ dependencies = [
  "envconfig",
  "futures",
  "itertools 0.10.5",
+ "lazy_static",
  "ndarray",
  "regex",
  "reqwest",

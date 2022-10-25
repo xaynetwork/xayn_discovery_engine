@@ -17,6 +17,7 @@ futures = { workspace = true }
 itertools = { workspace = true }
 ndarray = { workspace = true }
 regex = "1"
+lazy_static = "1.4.0"
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
