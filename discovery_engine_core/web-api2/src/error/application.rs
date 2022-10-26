@@ -92,7 +92,7 @@ pub trait ApplicationError: std::error::Error + Send + Sync + 'static {
     }
 }
 
-/// Implements [`ApplicationError`] for given type using given http status code.
+/// Implements `ApplicationError` for given type using given http status code.
 #[macro_export]
 macro_rules! impl_application_error {
     ($name:ident => $code:ident) => {
