@@ -17,7 +17,7 @@ use displaydoc::Display;
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::{impl_application_error, models::DocumentId};
+use crate::{impl_application_error, models::DocumentId, Error};
 
 use super::application::ApplicationError;
 
@@ -97,5 +97,35 @@ impl ApplicationError for InternalError {
 
     fn encode_details(&self) -> serde_json::Value {
         serde_json::Value::Null
+    }
+}
+
+impl From<sqlx::Error> for Error {
+    fn from(error: sqlx::Error) -> Self {
+        InternalError::from_std(error).into()
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Self {
+        InternalError::from_std(error).into()
+    }
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(error: anyhow::Error) -> Self {
+        InternalError::from_anyhow(error).into()
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Self {
+        InternalError::from_std(error).into()
+    }
+}
+
+impl From<tokio::task::JoinError> for Error {
+    fn from(error: tokio::task::JoinError) -> Self {
+        InternalError::from_std(error).into()
     }
 }
