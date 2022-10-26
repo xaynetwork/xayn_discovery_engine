@@ -27,7 +27,7 @@ tags:
   - name: users
     description: Interaction of the user and personalized document.
   - name: documents
-    description: Managment of the documents in the system.
+    description: Management of the documents in the system.
 
 paths:
   /users/{user_id}/personalized_documents:
@@ -166,7 +166,7 @@ paths:
           description: successful operation
         '400':
           description: invalid request
-          
+
   /documents/{document_id}/properties:
     get:
       tags:
