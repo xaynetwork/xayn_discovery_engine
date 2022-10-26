@@ -14,7 +14,7 @@
 
 use derive_more::{AsRef, Deref};
 
-use crate::db::Database;
+use crate::{db::Database, elastic::ElasticSearchClient};
 
 use super::{Config, SetupError};
 
@@ -26,6 +26,9 @@ pub struct AppState<CE, AE> {
     #[allow(dead_code)]
     #[as_ref]
     pub(crate) db: Database,
+    #[allow(dead_code)]
+    #[as_ref]
+    pub(crate) elastic: ElasticSearchClient,
     #[deref]
     pub(crate) extension: AE,
 }
@@ -36,10 +39,12 @@ impl<CE, AE> AppState<CE, AE> {
         create_extension: impl FnOnce(&Config<CE>) -> Result<AE, SetupError>,
     ) -> Result<Self, SetupError> {
         let db = config.db.setup_database().await?;
+        let elastic = ElasticSearchClient::new(config.elastic.clone());
         let extension = create_extension(&config)?;
         Ok(Self {
             config,
             db,
+            elastic,
             extension,
         })
     }
