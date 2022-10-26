@@ -47,15 +47,21 @@ pub struct Error {
     request_id: RequestId,
 }
 
+impl Error {
+    pub fn new(error: impl ApplicationError) -> Self {
+        Self {
+            error: Box::new(error),
+            request_id: RequestId::missing(),
+        }
+    }
+}
+
 impl<T> From<T> for Error
 where
     T: ApplicationError,
 {
     fn from(error: T) -> Self {
-        Self {
-            error: Box::new(error),
-            request_id: RequestId::missing(),
-        }
+        Self::new(error)
     }
 }
 
@@ -65,6 +71,10 @@ impl ResponseError for Error {
     }
 
     fn error_response(&self) -> HttpResponse<BoxBody> {
+        // We log the error before rendering it as we likely will
+        // not include all information in the response which we
+        // might want to have in the logs.
+        error!(error=%self.error);
         JsonErrorResponseBuilder::render(
             self.error.kind(),
             self.request_id,
@@ -83,22 +93,23 @@ pub trait ApplicationError: std::error::Error + Send + Sync + 'static {
 }
 
 /// Implements [`ApplicationError`] for given type using given http status code.
+#[macro_export]
 macro_rules! impl_application_error {
     ($name:ident => $code:ident) => {
-        impl ApplicationError for $name {
-            fn status_code(&self) -> StatusCode {
-                StatusCode::$code
+        impl $crate::error::application::ApplicationError for $name {
+            fn status_code(&self) -> ::actix_web::http::StatusCode {
+                ::actix_web::http::StatusCode::$code
             }
 
             fn kind(&self) -> &str {
                 stringify!($name)
             }
 
-            fn encode_details(&self) -> Value {
-                serde_json::to_value(self)
+            fn encode_details(&self) -> serde_json::Value {
+                ::serde_json::to_value(self)
                     .unwrap_or_else(|err| {
                         error!(%err, "serializing error details failed");
-                        Value::Null
+                        serde_json::Value::Null
                     })
             }
         }

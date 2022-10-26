@@ -9,8 +9,10 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 actix-web = { version = "4.2.1", default-features = false }
+anyhow = { workspace = true }
 clap = { workspace = true }
 derive_more = { workspace = true, features = ["display", "deref"] }
+displaydoc = { workspace = true }
 dotenvy = "0.15.5"
 figment = { version = "0.10.7", features = ["toml", "env"] }
 futures-util = { workspace = true }
