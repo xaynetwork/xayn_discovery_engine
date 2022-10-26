@@ -376,6 +376,12 @@ build-ingestion-service:
     cd "$RUST_WORKSPACE"
     cargo build --release --bin ingestion
 
+build-backend-service:
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd "$RUST_WORKSPACE"
+    cargo build --release --bin backend
+
 db-setup:
     #!/usr/bin/env bash
     set -eux -o pipefail
