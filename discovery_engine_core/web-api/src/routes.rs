@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{convert::Infallible, sync::Arc};
-use warp::{self, Filter, Rejection, Reply};
+use warp::{http::StatusCode, Filter, Rejection, Reply};
 
 use crate::{
     handlers,
@@ -24,7 +24,14 @@ use crate::{
 pub fn api_routes(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    get_personalized_documents(state.clone()).or(patch_user_interactions(state))
+    get_health()
+        .or(get_personalized_documents(state.clone()))
+        .or(patch_user_interactions(state))
+}
+
+// GET /health
+pub fn get_health() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::get().and(warp::path("health")).map(|| StatusCode::OK)
 }
 
 // GET /users/:user_id/personalized_documents
