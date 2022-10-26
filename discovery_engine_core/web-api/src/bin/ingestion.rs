@@ -473,7 +473,7 @@ async fn handle_post_documents(
     };
 
     let response = match client
-        .query_elastic_search::<_, ElasticIngestionResponse>("_bulk?refresh", Some(bytes))
+        .query_elastic_search_raw::<Bytes, ElasticIngestionResponse>("_bulk?refresh", Some(bytes))
         .await
     {
         Ok(response) => response,

@@ -14,9 +14,11 @@
 
 use std::collections::HashMap;
 
+use bytes::Bytes;
 use itertools::Itertools;
 use reqwest::{
     header::{HeaderValue, CONTENT_TYPE},
+    Body,
     Client,
     StatusCode,
 };
@@ -251,13 +253,34 @@ impl ElasticState {
         B: Serialize,
         T: DeserializeOwned,
     {
+        let body: Option<Bytes> = if let Some(json) = body {
+            match serde_json::to_vec(&json) {
+                Ok(body) => Some(body.into()),
+                Err(err) => return Err(Error::JsonSerialization(err)),
+            }
+        } else {
+            None
+        };
+
+        self.query_elastic_search_raw(route, body).await
+    }
+
+    pub async fn query_elastic_search_raw<B, T>(
+        &self,
+        route: &str,
+        body: Option<B>,
+    ) -> Result<T, Error>
+    where
+        B: Into<Body>,
+        T: DeserializeOwned,
+    {
         let url = format!("{}/{}/{}", self.config.url, self.config.index_name, route);
 
         if let Some(body) = body {
             self.client
                 .post(url)
                 .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
-                .json(&body)
+                .body(body)
         } else {
             self.client.get(url)
         }
