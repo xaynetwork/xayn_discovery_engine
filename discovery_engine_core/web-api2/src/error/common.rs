@@ -12,9 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use actix_web::http::StatusCode;
 use displaydoc::Display;
 use serde::Serialize;
+use serde_json::Value;
 use thiserror::Error;
 
 use crate::{impl_application_error, models::DocumentId, Error};
@@ -56,6 +59,13 @@ impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST);
 #[derive(Debug, Error, Display, Serialize)]
 pub struct NotEnoughInteractions;
 impl_application_error!(NotEnoughInteractions => NOT_FOUND);
+
+/// Failed to delete some documents
+#[derive(Debug, Error, Display, Serialize)]
+pub struct FailedToDeleteSomeDocuments {
+    pub errors: HashMap<DocumentId, Value>,
+}
+impl_application_error!(FailedToDeleteSomeDocuments => INTERNAL_SERVER_ERROR);
 
 /// The ingestion of some documents failed.
 #[derive(Debug, Error, Display, Serialize)]

@@ -39,7 +39,7 @@ impl<CE, AE> AppState<CE, AE> {
         create_extension: impl FnOnce(&Config<CE>) -> Result<AE, SetupError>,
     ) -> Result<Self, SetupError> {
         let db = config.db.setup_database().await?;
-        let elastic = ElasticSearchClient::new(config.elastic.clone());
+        let elastic = ElasticSearchClient::new(config.elastic.clone())?;
         let extension = create_extension(&config)?;
         Ok(Self {
             config,

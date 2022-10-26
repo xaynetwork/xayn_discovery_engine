@@ -80,33 +80,6 @@ struct BatchDeleteRequest {
 
 async fn do_delete_documents(state: &AppState, documents: Vec<DocumentId>) -> Result<(), Error> {
     state.db.delete_documents(&documents).await?;
-    state.elastic.delete_documents(documents).await?;
+    state.elastic.delete_documents(&documents).await?;
     Ok(())
-    // //TODO: We currently don't have postgres access in the ingestion endpoint so we can't delete
-    // //       from postgres.
-    // let url = format!(
-    //     "{}/{}/_doc/{}",
-    //     config.elastic_url,
-    //     config.elastic_index_name,
-    //     urlencoding::encode(id)
-    // );
-
-    // let response = client
-    //     .delete(url)
-    //     .basic_auth(&config.elastic_user, Some(&config.elastic_password))
-    //     .send()
-    //     .await
-    //     .map_err(|err| {
-    //         error!("Connecting to elastic failed: {}", err);
-    //         warp::reject::custom(ElasticSearchFailed)
-    //     })?;
-
-    // if response.status() == StatusCode::NOT_FOUND {
-    //     return Ok(());
-    // }
-
-    // response.error_for_status().map_err(|error| {
-    //     error!("Elastic returned unexpected status code: {}", error);
-    //     warp::reject::custom(ElasticSearchFailed)
-    // })?;
 }
