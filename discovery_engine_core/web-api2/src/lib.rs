@@ -12,25 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod elastic;
-mod handlers;
-mod models;
-mod routes;
-mod state;
-mod storage;
+mod config;
+mod error;
+mod ingestion;
+mod middleware;
+mod personalization;
+mod server;
+mod tracing;
 
-pub use crate::{
-    elastic::{Config as ElasticConfig, ElasticDocumentData, ElasticState, GenericResponse},
-    models::{
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        Error,
-        UserId,
-        COUNT_PARAM_RANGE,
-    },
-    routes::api_routes,
-    state::{AppState, InitConfig},
-    storage::UserState,
-};
+pub use error::application::Error;
+pub use ingestion::Ingestion;
+pub use personalization::Personalization;
+pub use server::run;

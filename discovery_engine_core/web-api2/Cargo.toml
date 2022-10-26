@@ -1,0 +1,26 @@
+[package]
+name = "web-api2"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+description = "Wep Api server for the document personalization service."
+license = "AGPL-3.0-only"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = { version = "4.2.1", default-features = false }
+clap = { workspace = true }
+derive_more = { workspace = true, features = ["display", "deref"] }
+dotenvy = "0.15.5"
+figment = { version = "0.10.7", features = ["toml", "env"] }
+futures-util = { workspace = true }
+mime = "0.3.16"
+once_cell = { workspace = true }
+pin-project = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+uuid = { workspace = true }

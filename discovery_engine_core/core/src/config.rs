@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use figment::{
     providers::{Format, Json, Serialized},
@@ -165,10 +165,18 @@ impl Default for EndpointConfig {
 }
 
 impl EndpointConfig {
-    pub(crate) fn with_init_config(mut self, config: &InitConfig) -> Self {
-        self.markets = Arc::new(RwLock::new(config.markets.clone()));
-        self.trusted_sources = Arc::new(RwLock::new(config.trusted_sources.clone()));
-        self.excluded_sources = Arc::new(RwLock::new(config.excluded_sources.clone()));
+    pub(crate) fn with_markets(mut self, markets: Vec<Market>) -> Self {
+        self.markets = Arc::new(RwLock::new(markets));
+        self
+    }
+
+    pub(crate) fn with_sources(
+        mut self,
+        trusted: HashSet<String>,
+        excluded: HashSet<String>,
+    ) -> Self {
+        self.trusted_sources = Arc::new(RwLock::new(trusted.into_iter().collect()));
+        self.excluded_sources = Arc::new(RwLock::new(excluded.into_iter().collect()));
         self
     }
 }

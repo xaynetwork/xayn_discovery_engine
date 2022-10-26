@@ -72,6 +72,7 @@ fn bench_onnx(
 ) {
     let tokenizer = Tokenizer::new(
         BufReader::new(File::open(vocab.unwrap()).unwrap()),
+        None,
         true,
         true,
         TOKEN_SIZE,

@@ -14,6 +14,8 @@
 
 import 'dart:convert' show jsonEncode;
 
+import 'package:xayn_discovery_engine/discovery_engine.dart'
+    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/events/client_events.dart'
     show SystemClientEvent;
 import 'package:xayn_discovery_engine/src/api/events/engine_events.dart'
@@ -22,6 +24,9 @@ import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
     show FeedMarkets;
+import 'package:xayn_discovery_engine/src/domain/models/history.dart';
+import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart'
+    show SourceReacted;
 import 'package:xayn_discovery_engine/src/domain/repository/document_repo.dart'
     show DocumentRepository;
 import 'package:xayn_discovery_engine/src/domain/repository/source_reacted_repo.dart';
@@ -58,8 +63,12 @@ class SystemManager {
     int? maxItemsPerSearchBatch,
   ) async {
     if (feedMarkets != null) {
-      final history = await _docRepo.fetchHistory();
-      final sources = await _sourceReactedRepo.fetchAll();
+      final history = cfgFeatureStorage
+          ? <HistoricDocument>[] // unused
+          : await _docRepo.fetchHistory();
+      final sources = cfgFeatureStorage
+          ? <SourceReacted>[] // unused
+          : await _sourceReactedRepo.fetchAll();
       try {
         await _engine.setMarkets(history, sources, feedMarkets);
       } catch (e, st) {

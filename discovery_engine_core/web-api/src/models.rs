@@ -12,22 +12,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, ops::RangeInclusive, string::FromUtf8Error};
+use std::{borrow::Cow, collections::HashMap, ops::RangeInclusive, string::FromUtf8Error};
 
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use warp::{http::StatusCode, reject::Reject, reply, Reply};
+use warp::{
+    http::StatusCode,
+    reject::Reject,
+    reply::{self, Reply},
+};
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
 /// The range of the count parameter.
-pub(crate) const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
+pub const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
 
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
-pub(crate) enum Error {
+pub enum Error {
     /// [`UserId`] can't be empty.
     UserIdEmpty,
 
@@ -35,7 +39,25 @@ pub(crate) enum Error {
     UserIdContainsNul,
 
     /// Failed to decode [`UserId] from path param: {0}.
-    UserIdUtf8Conversion(#[from] FromUtf8Error),
+    UserIdUtf8Conversion(#[source] FromUtf8Error),
+
+    /// [`DocumentId`] can't be empty.
+    DocumentIdEmpty,
+
+    /// [`DocumentId`] can't contain NUL character.
+    DocumentIdContainsNul,
+
+    /// Failed to decode [`DocumentId] from path param: {0}.
+    DocumentIdUtf8Conversion(#[source] FromUtf8Error),
+
+    /// [`DocumentPropertyId`] can't be empty.
+    DocumentPropertyIdEmpty,
+
+    /// [`DocumentPropertyId`] can't contain NUL character.
+    DocumentPropertyIdContainsNul,
+
+    /// Failed to decode [`DocumentPropertyId] from path param: {0}.
+    DocumentPropertyIdUtf8Conversion(#[source] FromUtf8Error),
 
     /// Invalid value for count parameter: {0}. It must be in [`COUNT_PARAM_RANGE`].
     InvalidCountParam(usize),
@@ -50,8 +72,72 @@ pub(crate) enum Error {
 impl Reject for Error {}
 
 /// A unique identifier of a document.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
-pub(crate) struct DocumentId(pub(crate) String);
+#[derive(
+    AsRef,
+    Clone,
+    Debug,
+    Display,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    sqlx::Type,
+    sqlx::FromRow,
+)]
+#[sqlx(transparent)]
+pub struct DocumentId(String);
+
+impl From<DocumentId> for String {
+    fn from(item: DocumentId) -> Self {
+        item.0
+    }
+}
+
+impl DocumentId {
+    pub fn new(id: impl Into<String>) -> Result<Self, Error> {
+        let id = id.into();
+
+        if id.is_empty() {
+            Err(Error::DocumentIdEmpty)
+        } else if id.contains('\u{0000}') {
+            Err(Error::DocumentIdContainsNul)
+        } else {
+            Ok(Self(id))
+        }
+    }
+
+    pub fn encode(&self) -> Cow<str> {
+        urlencoding::encode(self.as_ref())
+    }
+}
+
+#[derive(Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash, AsRef)]
+pub struct DocumentPropertyId(String);
+
+impl DocumentPropertyId {
+    pub fn new(id: impl Into<String>) -> Result<Self, Error> {
+        let id = id.into();
+
+        if id.is_empty() {
+            Err(Error::DocumentPropertyIdEmpty)
+        } else if id.contains('\u{0000}') {
+            Err(Error::DocumentPropertyIdContainsNul)
+        } else {
+            Ok(Self(id))
+        }
+    }
+
+    pub fn encode(&self) -> Cow<str> {
+        urlencoding::encode(self.as_ref())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct DocumentProperty(serde_json::Value);
+
+/// Arbitrary properties that can be attached to a document.
+pub type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]
@@ -81,9 +167,6 @@ impl AiDocument for PersonalizedDocumentData {
         &self.embedding
     }
 }
-
-/// Arbitrary properties that can be attached to a document.
-pub type DocumentProperties = HashMap<String, serde_json::Value>;
 
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
@@ -176,7 +259,7 @@ impl UserInteractionError {
 
 /// Unique identifier for the user.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
-pub(crate) struct UserId(String);
+pub struct UserId(String);
 
 impl UserId {
     pub(crate) fn new(id: impl AsRef<str>) -> Result<Self, Error> {

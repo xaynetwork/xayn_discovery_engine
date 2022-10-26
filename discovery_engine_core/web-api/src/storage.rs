@@ -52,6 +52,20 @@ impl UserState {
         Ok(())
     }
 
+    pub(crate) async fn user_seen(&self, id: &UserId) -> Result<(), GenericError> {
+        sqlx::query(
+            "INSERT INTO users(user_id, last_seen)
+            VALUES ($1, Now())
+            ON CONFLICT (user_id)
+            DO UPDATE SET last_seen = EXCLUDED.last_seen;",
+        )
+        .bind(id.as_ref())
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     pub(crate) async fn fetch_interests(
         &self,
         user_id: &UserId,
@@ -59,8 +73,8 @@ impl UserState {
         let mut tx = self.pool.begin().await?;
 
         let cois = sqlx::query_as::<_, QueriedCoi>(
-            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view 
-            FROM center_of_interest 
+            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
+            FROM center_of_interest
             WHERE user_id = $1",
         )
         .bind(user_id.as_ref())
@@ -123,8 +137,8 @@ impl UserState {
         // fine as we convert it to i32 when we store it in the database
         #[allow(clippy::cast_sign_loss)]
         let mut positive_cois: Vec<_> = sqlx::query_as::<_, QueriedCoi>(
-            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view 
-            FROM center_of_interest 
+            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
+            FROM center_of_interest
             WHERE user_id = $1 AND is_positive;",
         )
         .bind(user_id.as_ref())
@@ -149,12 +163,12 @@ impl UserState {
         // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
         #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
         sqlx::query(
-            "INSERT INTO center_of_interest (coi_id, user_id, is_positive, embedding, view_count, view_time_ms, last_view) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7) 
-            ON CONFLICT (coi_id) DO UPDATE SET 
-                embedding = EXCLUDED.embedding, 
-                view_count = EXCLUDED.view_count, 
-                view_time_ms = EXCLUDED.view_time_ms, 
+            "INSERT INTO center_of_interest (coi_id, user_id, is_positive, embedding, view_count, view_time_ms, last_view)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (coi_id) DO UPDATE SET
+                embedding = EXCLUDED.embedding,
+                view_count = EXCLUDED.view_count,
+                view_time_ms = EXCLUDED.view_time_ms,
                 last_view = EXCLUDED.last_view;",
         )
         .bind(updated_coi.id.as_ref())
@@ -220,11 +234,11 @@ struct QueriedCoi {
 
 #[derive(FromRow)]
 struct QueriedInteractedDocumentId {
-    doc_id: String,
+    doc_id: DocumentId,
 }
 
 impl From<QueriedInteractedDocumentId> for DocumentId {
     fn from(document: QueriedInteractedDocumentId) -> Self {
-        Self(document.doc_id)
+        document.doc_id
     }
 }

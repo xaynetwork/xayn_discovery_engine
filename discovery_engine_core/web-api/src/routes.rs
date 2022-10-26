@@ -31,9 +31,9 @@ pub fn api_routes(
 fn get_personalized_documents(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    user_path()
+    warp::get()
+        .and(user_path())
         .and(warp::path("personalized_documents"))
-        .and(warp::get())
         .and(with_count_param())
         .and(with_state(state))
         .and_then(handlers::handle_personalized_documents)
@@ -43,9 +43,9 @@ fn get_personalized_documents(
 fn patch_user_interactions(
     state: Arc<AppState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    user_path()
+    warp::patch()
+        .and(user_path())
         .and(warp::path("interactions"))
-        .and(warp::patch())
         .and(warp::body::content_length_limit(1024))
         .and(warp::body::json())
         .and(with_state(state))
@@ -54,14 +54,14 @@ fn patch_user_interactions(
 
 // PATH /users/:user_id
 fn user_path() -> impl Filter<Extract = (UserId,), Error = Rejection> + Clone {
-    warp::path("users")
-        .and(warp::path::param::<String>())
-        .and_then(|user_id: String| async move {
-            urlencoding::decode(&user_id)
-                .map_err(Error::UserIdUtf8Conversion)
-                .and_then(UserId::new)
-                .map_err(warp::reject::custom)
-        })
+    let user_id_param = warp::path::param().and_then(|user_id: String| async move {
+        urlencoding::decode(&user_id)
+            .map_err(Error::UserIdUtf8Conversion)
+            .and_then(UserId::new)
+            .map_err(warp::reject::custom)
+    });
+
+    warp::path("users").and(user_id_param)
 }
 
 /// Extract a "count" from query params and check if within bounds, or reject with InvalidCountParam error.

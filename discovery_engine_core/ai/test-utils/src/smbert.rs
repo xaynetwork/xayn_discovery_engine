@@ -16,11 +16,16 @@
 
 use std::{io::Result, path::PathBuf};
 
-use crate::asset::resolve_asset;
+use crate::asset::{resolve_asset, resolve_path, DATA_DIR};
 
 /// Resolves the path to the `SMBert` vocabulary.
 pub fn vocab() -> Result<PathBuf> {
     resolve_asset("smbertVocab")
+}
+
+/// Resolves the path to the japanese mecab.
+pub fn mecab() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "smbert_v0002", "mecab-japanese"])
 }
 
 /// Resolves the path to the `SMBert` model.
@@ -35,6 +40,11 @@ mod tests {
     #[test]
     fn test_vocab() {
         assert!(vocab().is_ok());
+    }
+
+    #[test]
+    fn test_mecab() {
+        assert!(mecab().is_ok());
     }
 
     #[test]

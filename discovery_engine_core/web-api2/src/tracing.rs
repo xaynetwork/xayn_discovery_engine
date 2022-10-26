@@ -33,22 +33,14 @@ pub(crate) fn init_tracing(log_file: Option<&Path>) {
 }
 
 fn init_tracing_once(log_file: Option<&Path>) {
-    let stdout_log = tracing_subscriber::fmt::layer();
-
     let subscriber = tracing_subscriber::registry();
 
-    //FIXME fix log capturing for dart integration tests instead of filtering out sqlx info logs
+    let stdout_log = tracing_subscriber::fmt::layer();
+
     let sqlx_query_no_info = Targets::new()
         // trace => do not affect filtering of any other targets
         .with_default(LevelFilter::TRACE)
         .with_target("sqlx::query", Level::WARN);
-
-    cfg_if::cfg_if! {
-        if #[cfg(target_os = "android")] {
-            let layer = tracing_android::layer("xayn_discovery_engine").ok();
-            let subscriber = subscriber.with(layer);
-        }
-    };
 
     let file_log = log_file
         .map(|log_file| {
@@ -65,17 +57,12 @@ fn init_tracing_once(log_file: Option<&Path>) {
         })
         .ok();
 
-    let level = if log_file.is_some() {
-        LevelFilter::DEBUG
-    } else {
-        LevelFilter::INFO
-    };
-
     subscriber
         .with(stdout_log)
         .with(sqlx_query_no_info)
         .with(file_log)
-        .with(level)
+        //FIXME[ET-3444] use env to determine logging level
+        .with(LevelFilter::DEBUG)
         .init();
 }
 

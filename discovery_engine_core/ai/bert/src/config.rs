@@ -16,7 +16,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
     marker::PhantomData,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use displaydoc::Display;
@@ -43,6 +43,7 @@ pub enum ConfigError {
 pub struct Config<'a, K, P> {
     model_kind: PhantomData<K>,
     vocab: Box<dyn BufRead + Send + 'a>,
+    japanese: Option<PathBuf>,
     model: Box<dyn Read + Send + 'a>,
     cleanse_accents: bool,
     lower_case: bool,
@@ -59,6 +60,7 @@ impl<'a, K: BertModel> Config<'a, K, NonePooler> {
         Config {
             model_kind: PhantomData,
             vocab,
+            japanese: None,
             model,
             cleanse_accents: true,
             lower_case: true,
@@ -116,6 +118,7 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
     pub fn with_pooling<NP>(self) -> Config<'a, K, NP> {
         Config {
             vocab: self.vocab,
+            japanese: self.japanese,
             model: self.model,
             model_kind: self.model_kind,
             cleanse_accents: self.cleanse_accents,
@@ -125,10 +128,20 @@ impl<'a, K: BertModel, P> Config<'a, K, P> {
         }
     }
 
+    /// Enables the japanese pre-tokenizer.
+    ///
+    /// Defaults to disabled. Note, that this doesn't affect the vocabulary used for the Bert
+    /// tokenizer, but only for the japanese pre-tokenizer.
+    pub fn with_japanese(mut self, mecab: impl AsRef<Path>) -> Self {
+        self.japanese = mecab.as_ref().to_path_buf().into();
+        self
+    }
+
     /// Creates a `BertModel` pipeline from a configuration.
     pub fn build(self) -> Result<Pipeline<K, P>, PipelineError> {
         let tokenizer = Tokenizer::new(
             self.vocab,
+            self.japanese,
             self.cleanse_accents,
             self.lower_case,
             self.token_size,

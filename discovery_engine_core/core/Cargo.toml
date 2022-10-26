@@ -50,5 +50,4 @@ wiremock = { workspace = true }
 xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
 
 [features]
-default = []
 storage = ["sqlx"]

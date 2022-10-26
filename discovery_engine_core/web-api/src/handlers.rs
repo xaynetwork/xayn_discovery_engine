@@ -49,6 +49,11 @@ pub(crate) async fn handle_personalized_documents(
     query: PersonalizedDocumentsQuery,
     state: Arc<AppState>,
 ) -> Result<Box<dyn Reply>, Infallible> {
+    if let Err(err) = state.user.user_seen(&user_id).await {
+        error!("Error updating user seen: {err}");
+        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR) as Box<dyn Reply>);
+    }
+
     let user_interests = match state.user.fetch_interests(&user_id).await {
         Ok(user_interests) => user_interests,
         Err(error) => {
@@ -59,7 +64,10 @@ pub(crate) async fn handle_personalized_documents(
 
     if user_interests.is_empty() {
         error!("No user interests");
-        return Ok(Box::new(StatusCode::NOT_FOUND));
+        return Ok(Box::new(
+            PersonalizedDocumentsError::new(PersonalizedDocumentsErrorKind::NotEnoughInteractions)
+                .to_reply(StatusCode::UNPROCESSABLE_ENTITY),
+        ));
     }
 
     let cois = &user_interests.positive;
@@ -155,6 +163,11 @@ pub(crate) async fn handle_user_interactions(
     body: UserInteractionRequestBody,
     state: Arc<AppState>,
 ) -> Result<Box<dyn Reply>, Infallible> {
+    if let Err(err) = state.user.user_seen(&user_id).await {
+        error!("Error updating user seen: {err}");
+        return Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR) as Box<dyn Reply>);
+    }
+
     let ids = body
         .documents
         .iter()

@@ -406,8 +406,8 @@ web-ingestion-up: build-ingestion-service
     compose="$(command -v podman-compose || command -v docker-compose)"
     rm -rf "$RUST_WORKSPACE/web-api/assets"
     mkdir -p "$RUST_WORKSPACE/web-api/assets"
-    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/smbert.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
-    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0001/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0002/smbert.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0002/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
     $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     sleep 2
     cd "$RUST_WORKSPACE/web-api"
@@ -427,6 +427,9 @@ web-down:
     set -eux -o pipefail
     compose="$(command -v podman-compose || command -v docker-compose)"
     $compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
+
+print-just-env:
+    export
 
 alias d := dart-test
 alias r := rust-test

@@ -12,25 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod elastic;
-mod handlers;
-mod models;
-mod routes;
-mod state;
-mod storage;
+use web_api2::{run, Ingestion};
 
-pub use crate::{
-    elastic::{Config as ElasticConfig, ElasticDocumentData, ElasticState, GenericResponse},
-    models::{
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        Error,
-        UserId,
-        COUNT_PARAM_RANGE,
-    },
-    routes::api_routes,
-    state::{AppState, InitConfig},
-    storage::UserState,
-};
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+    run::<Ingestion>().await
+}

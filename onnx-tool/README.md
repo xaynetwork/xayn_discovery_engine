@@ -22,5 +22,5 @@ $ pip install -r requirements.txt
 # generate smbert model and put it in the flutter example assets dir
 $ python src/mock_onnx_tool.py \
   --type smbert \
-  --output ../discovery_engine_flutter/example/assets/smbert_v0001
+  --output ../discovery_engine_flutter/example/assets/smbert_v0002
 ```

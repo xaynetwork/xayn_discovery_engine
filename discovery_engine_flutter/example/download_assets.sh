@@ -38,5 +38,5 @@ download()
   fi
 }
 
-download smbert v0001
+download smbert v0002
 download sources v0000
