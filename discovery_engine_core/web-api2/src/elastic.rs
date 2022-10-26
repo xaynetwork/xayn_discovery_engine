@@ -12,13 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use displaydoc::Display;
-use reqwest::header::{HeaderValue, CONTENT_TYPE};
+use reqwest::{
+    header::{HeaderValue, CONTENT_TYPE},
+    StatusCode,
+};
 use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use thiserror::Error;
 
-use crate::{impl_application_error, utils::serialize_redacted};
+use crate::{error::common::InternalError, utils::serialize_redacted, Error};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
@@ -78,37 +79,47 @@ impl ElasticSearchClient {
         }
     }
 
-    pub async fn query_elastic_search<B, T>(
+    #[allow(dead_code)]
+    async fn query_elastic_search<B, T>(
         &self,
         route: &str,
         body: Option<B>,
-    ) -> Result<Option<T>, ElasticSearchError>
+    ) -> Result<Option<T>, Error>
     where
         B: Serialize,
         T: DeserializeOwned,
     {
         let url = format!("{}/{}/{}", self.config.url, self.config.index_name, route);
 
-        if let Some(body) = body {
+        let request_builder = if let Some(body) = body {
             self.client
                 .post(url)
                 .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
                 .json(&body)
         } else {
             self.client.get(url)
+        };
+
+        let response = request_builder
+            .basic_auth(
+                &self.config.user,
+                Some(self.config.password.expose_secret()),
+            )
+            .send()
+            .await
+            .map_err(InternalError::from_std)?;
+
+        if response.status() == StatusCode::NOT_FOUND {
+            Ok(None)
+        } else {
+            let value = response
+                .error_for_status()
+                .map_err(InternalError::from_std)?
+                .json()
+                .await
+                .map_err(InternalError::from_std)?;
+
+            Ok(Some(value))
         }
-        .basic_auth(
-            &self.config.user,
-            Some(self.config.password.expose_secret()),
-        )
-        .send()
-        .await
-        .map_err(InternalSeriveError)?
-        .error_for_status()
-        //TODO handle 404
-        .map_err(InternalSeriveError)?
-        .json()
-        .await
-        .map_err(InternalSeriveError)
     }
 }
