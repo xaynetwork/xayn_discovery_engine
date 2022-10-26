@@ -18,8 +18,9 @@ use reqwest::{
 };
 use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::Value;
 
-use crate::{error::common::InternalError, utils::serialize_redacted, Error};
+use crate::{error::common::InternalError, models::DocumentId, utils::serialize_redacted, Error};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
@@ -77,6 +78,17 @@ impl ElasticSearchClient {
             config,
             client: reqwest::Client::new(),
         }
+    }
+
+    pub(crate) fn delete_documents(&self, documents: &[DocumentId]) -> Result<(), Error> {}
+
+    async fn bulk_request(&self, requests: impl IntoIterator<Item = Value>) -> Result<TODO, Error> {
+        let mut body = Vec::new();
+        for request in requests {
+            serde_json::to_writer(&mut body, &request)?;
+        }
+
+        //POST to /{index}/_bulk  content type: application/x-ndjson
     }
 
     #[allow(dead_code)]

@@ -14,7 +14,7 @@
 
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
-use sqlx::{pool::PoolOptions, postgres::PgConnectOptions, Pool, Postgres};
+use sqlx::{pool::PoolOptions, postgres::PgConnectOptions, Pool, Postgres, QueryBuilder};
 
 use crate::{models::DocumentId, utils::serialize_redacted, Error};
 
@@ -128,7 +128,15 @@ pub(crate) struct Database {
 }
 
 impl Database {
-    pub(crate) fn delete_documents(&self, documents: &[DocumentId]) -> Result<(), Error> {
-        let tx = self.pool.begin()?;
+    pub(crate) async fn delete_documents(&self, documents: &[DocumentId]) -> Result<(), Error> {
+        QueryBuilder::new("DELETE FROM interaction WHERE doc_id in")
+            .push_tuples(documents, |mut query, id| {
+                query.push(id);
+            })
+            .build()
+            .persistent(false)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 }
