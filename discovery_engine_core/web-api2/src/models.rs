@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, str::FromStr};
 
 use derive_more::{AsRef, Display};
 use serde::{Deserialize, Serialize};
@@ -38,12 +38,6 @@ use crate::error::common::{InvalidDocumentId, InvalidPropertyId, InvalidUserId};
 #[sqlx(transparent)]
 pub struct DocumentId(String);
 
-impl From<DocumentId> for String {
-    fn from(item: DocumentId) -> Self {
-        item.0
-    }
-}
-
 impl DocumentId {
     pub fn new(id: impl Into<String>) -> Result<Self, InvalidDocumentId> {
         let id = id.into();
@@ -57,6 +51,20 @@ impl DocumentId {
 
     pub fn encode(&self) -> Cow<str> {
         urlencoding::encode(self.as_ref())
+    }
+}
+
+impl FromStr for DocumentId {
+    type Err = InvalidDocumentId;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::new(s)
+    }
+}
+
+impl From<DocumentId> for String {
+    fn from(item: DocumentId) -> Self {
+        item.0
     }
 }
 
@@ -78,6 +86,14 @@ impl DocumentPropertyId {
     #[allow(dead_code)]
     pub fn encode(&self) -> Cow<str> {
         urlencoding::encode(self.as_ref())
+    }
+}
+
+impl FromStr for DocumentPropertyId {
+    type Err = InvalidPropertyId;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::new(s)
     }
 }
 
@@ -160,5 +176,13 @@ impl UserId {
         } else {
             Ok(Self(id.to_string()))
         }
+    }
+}
+
+impl FromStr for UserId {
+    type Err = InvalidUserId;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::new(s)
     }
 }
