@@ -18,7 +18,7 @@ use serde::Serialize;
 use thiserror::Error;
 use tracing::error;
 
-use crate::impl_application_error;
+use crate::{impl_application_error, models::DocumentId};
 
 use super::application::ApplicationError;
 
@@ -60,8 +60,7 @@ pub struct IngestingDocumentsFailed {
 
 #[derive(Serialize, Debug)]
 struct MappedDocumentId {
-    //TODO use DocumentId once it's moved to web-api2
-    id: String,
+    id: DocumentId,
 }
 
 impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);

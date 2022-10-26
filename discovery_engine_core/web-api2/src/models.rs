@@ -48,9 +48,7 @@ impl DocumentId {
     pub fn new(id: impl Into<String>) -> Result<Self, InvalidDocumentId> {
         let id = id.into();
 
-        if id.is_empty() {
-            Err(InvalidDocumentId)
-        } else if id.contains('\u{0000}') {
+        if id.is_empty() || id.contains('\u{0000}') {
             Err(InvalidDocumentId)
         } else {
             Ok(Self(id))
@@ -66,18 +64,18 @@ impl DocumentId {
 pub struct DocumentPropertyId(String);
 
 impl DocumentPropertyId {
+    #[allow(dead_code)]
     pub fn new(id: impl Into<String>) -> Result<Self, InvalidPropertyId> {
         let id = id.into();
 
-        if id.is_empty() {
-            Err(InvalidPropertyId)
-        } else if id.contains('\u{0000}') {
+        if id.is_empty() || id.contains('\u{0000}') {
             Err(InvalidPropertyId)
         } else {
             Ok(Self(id))
         }
     }
 
+    #[allow(dead_code)]
     pub fn encode(&self) -> Cow<str> {
         urlencoding::encode(self.as_ref())
     }
@@ -121,6 +119,7 @@ impl AiDocument for PersonalizedDocumentData {
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct PersonalizedDocumentsQuery {
+    #[allow(dead_code)]
     pub(crate) count: Option<usize>,
 }
 
@@ -132,8 +131,10 @@ pub(crate) enum UserInteractionType {
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct UserInteractionData {
+    #[allow(dead_code)]
     #[serde(rename = "id")]
     pub(crate) document_id: DocumentId,
+    #[allow(dead_code)]
     #[serde(rename = "type")]
     pub(crate) interaction_type: UserInteractionType,
 }
@@ -141,6 +142,7 @@ pub(crate) struct UserInteractionData {
 /// Represents user interaction request body.
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct UserInteractionRequestBody {
+    #[allow(dead_code)]
     pub(crate) documents: Vec<UserInteractionData>,
 }
 
@@ -149,12 +151,11 @@ pub(crate) struct UserInteractionRequestBody {
 pub struct UserId(String);
 
 impl UserId {
+    #[allow(dead_code)]
     pub(crate) fn new(id: impl AsRef<str>) -> Result<Self, InvalidUserId> {
         let id = id.as_ref();
 
-        if id.is_empty() {
-            Err(InvalidUserId)
-        } else if id.contains('\u{0000}') {
+        if id.is_empty() || id.contains('\u{0000}') {
             Err(InvalidUserId)
         } else {
             Ok(Self(id.to_string()))
