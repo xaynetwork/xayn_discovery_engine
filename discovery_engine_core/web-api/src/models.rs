@@ -16,8 +16,9 @@ use std::{borrow::Cow, collections::HashMap, ops::RangeInclusive, string::FromUt
 
 use derive_more::{AsRef, Display};
 use displaydoc::Display as DisplayDoc;
+use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{de::Unexpected, Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 use warp::{
     http::StatusCode,
@@ -74,17 +75,7 @@ impl Reject for Error {}
 
 /// A unique identifier of a document.
 #[derive(
-    AsRef,
-    Clone,
-    Debug,
-    Display,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    sqlx::Type,
-    sqlx::FromRow,
+    AsRef, Clone, Debug, Display, PartialEq, Eq, Hash, Serialize, sqlx::Type, sqlx::FromRow,
 )]
 #[sqlx(transparent)]
 pub struct DocumentId(String);
@@ -93,6 +84,14 @@ impl From<DocumentId> for String {
     fn from(item: DocumentId) -> Self {
         item.0
     }
+}
+
+fn is_id_valid(id: &String) -> bool {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap());
+
+    let is_valid_pattern = RE.is_match(id);
+    let is_url_encoded = id == urlencoding::encode(id.as_str()).as_ref();
+    is_valid_pattern && is_url_encoded
 }
 
 impl DocumentId {
@@ -111,18 +110,26 @@ impl DocumentId {
     pub fn encode(&self) -> Cow<str> {
         urlencoding::encode(self.as_ref())
     }
+}
 
-    pub fn is_id_valid(&self) -> bool {
-        lazy_static! {
-            static ref RE: Regex = Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap();
+impl<'de> Deserialize<'de> for DocumentId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = String::deserialize(deserializer)?;
+        if is_id_valid(&inner) {
+            Ok(Self(inner))
+        } else {
+            Err(<D::Error as serde::de::Error>::invalid_value(
+                Unexpected::Str(inner.as_ref()),
+                &"Id must match regex '^[a-zA-Z0-9_-:@.]+$' ",
+            ))
         }
-        let is_valid_pattern = RE.is_match(self.0.as_ref());
-        let is_url_encoded = self.encode() == self.0;
-        is_valid_pattern && is_url_encoded
     }
 }
 
-#[derive(Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash, AsRef)]
+#[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, Hash, AsRef)]
 pub struct DocumentPropertyId(String);
 
 impl DocumentPropertyId {
@@ -140,6 +147,23 @@ impl DocumentPropertyId {
 
     pub fn encode(&self) -> Cow<str> {
         urlencoding::encode(self.as_ref())
+    }
+}
+
+impl<'de> Deserialize<'de> for DocumentPropertyId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = String::deserialize(deserializer)?;
+        if is_id_valid(&inner) {
+            Ok(Self(inner))
+        } else {
+            Err(<D::Error as serde::de::Error>::invalid_value(
+                Unexpected::Str(inner.as_ref()),
+                &"Id must match regex '^[a-zA-Z0-9_-:@.]+$' ",
+            ))
+        }
     }
 }
 
@@ -268,7 +292,7 @@ impl UserInteractionError {
 }
 
 /// Unique identifier for the user.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Display, AsRef)]
 pub struct UserId(String);
 
 impl UserId {
@@ -281,6 +305,23 @@ impl UserId {
             Err(Error::UserIdContainsNul)
         } else {
             Ok(Self(id.to_string()))
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for UserId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = String::deserialize(deserializer)?;
+        if is_id_valid(&inner) {
+            Ok(Self(inner))
+        } else {
+            Err(<D::Error as serde::de::Error>::invalid_value(
+                Unexpected::Str(inner.as_ref()),
+                &"Id must match regex '^[a-zA-Z0-9_-:@.]+$' ",
+            ))
         }
     }
 }

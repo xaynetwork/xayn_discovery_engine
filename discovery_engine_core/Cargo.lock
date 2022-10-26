@@ -4334,6 +4334,7 @@ dependencies = [
  "itertools 0.10.5",
  "lazy_static",
  "ndarray",
+ "once_cell",
  "regex",
  "reqwest",
  "serde",

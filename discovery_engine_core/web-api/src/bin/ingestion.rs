@@ -418,16 +418,8 @@ async fn handle_post_documents(
 
     let start = Instant::now();
 
-    let (valid_ids_docs, mut invalid_ids) = body
+    let (documents, failed_documents) = body
         .documents
-        .into_iter()
-        .map(|document| match document.id.is_id_valid() {
-            true => Ok(document),
-            false => Err(document.id),
-        })
-        .partition_result::<Vec<IngestedDocument>, Vec<DocumentId>, _, _>();
-
-    let (documents, failed_documents) = valid_ids_docs
         .into_iter()
         .map(|document| match model.run(&document.snippet) {
             Ok(embedding) => Ok((
@@ -448,8 +440,6 @@ async fn handle_post_documents(
         })
         .partition_result::<Vec<_>, Vec<_>, _, _>();
 
-    invalid_ids.extend(failed_documents.into_iter());
-
     info!(
         "{} embeddings calculated in {} sec",
         documents.len(),
@@ -466,7 +456,7 @@ async fn handle_post_documents(
                     documents
                         .into_iter()
                         .map(|(id, _)| id)
-                        .chain(invalid_ids)
+                        .chain(failed_documents)
                         .collect_vec(),
                 )
                 .to_reply(),
@@ -486,7 +476,7 @@ async fn handle_post_documents(
                     documents
                         .into_iter()
                         .map(|(id, _)| id)
-                        .chain(invalid_ids)
+                        .chain(failed_documents)
                         .collect_vec(),
                 )
                 .to_reply(),
@@ -494,7 +484,7 @@ async fn handle_post_documents(
         }
     };
 
-    let invalid_ids = if response.errors {
+    let failed_documents = if response.errors {
         response
             .items
             .into_iter()
@@ -507,16 +497,16 @@ async fn handle_post_documents(
                     hit.index.id
                 })
             })
-            .chain(invalid_ids)
+            .chain(failed_documents)
             .collect_vec()
     } else {
-        invalid_ids
+        failed_documents
     };
 
-    if invalid_ids.is_empty() {
+    if failed_documents.is_empty() {
         Ok(Box::new(StatusCode::NO_CONTENT))
     } else {
-        Ok(Box::new(IngestionError::new(invalid_ids).to_reply()))
+        Ok(Box::new(IngestionError::new(failed_documents).to_reply()))
     }
 }
 
