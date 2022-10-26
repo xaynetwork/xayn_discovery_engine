@@ -21,6 +21,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
 use actix_web::{
+    middleware,
     web::{self, JsonConfig, ServiceConfig},
     App,
     HttpResponse,
@@ -94,6 +95,7 @@ where
                 .configure(A::configure_service)
                 .wrap_fn(wrap_non_json_errors)
                 .wrap_fn(tracing_log_request)
+                .wrap(middleware::Compress::default())
         })
         .bind(addr)?
         .run()
