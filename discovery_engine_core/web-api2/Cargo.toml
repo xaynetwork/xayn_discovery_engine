@@ -11,7 +11,7 @@ license = "AGPL-3.0-only"
 actix-web = { version = "4.2.1", default-features = false }
 anyhow = { workspace = true }
 clap = { workspace = true }
-derive_more = { workspace = true, features = ["display", "deref"] }
+derive_more = { workspace = true, features = ["display", "deref", "as_ref"] }
 displaydoc = { workspace = true }
 dotenvy = "0.15.5"
 figment = { workspace = true, features = ["env", "toml"] }
@@ -28,6 +28,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 url = { workspace = true }
+urlencoding = "2.1.2"
 uuid = { workspace = true }
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-bert = { path = "../ai/bert" }

@@ -20,6 +20,7 @@ mod ingestion;
 mod load_config;
 mod logging;
 mod middleware;
+mod models;
 mod personalization;
 mod server;
 mod utils;

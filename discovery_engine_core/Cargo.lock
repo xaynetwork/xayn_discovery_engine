@@ -4615,6 +4615,7 @@ dependencies = [
  "tracing-subscriber",
  "trycmd",
  "url",
+ "urlencoding",
  "uuid",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-bert",
