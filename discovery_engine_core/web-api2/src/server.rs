@@ -21,7 +21,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
 use actix_web::{
-    web::{self, ServiceConfig},
+    web::{self, JsonConfig, ServiceConfig},
     App,
     HttpResponse,
     HttpServer,
@@ -68,12 +68,14 @@ where
         let addr = config.net.bind_to;
         init_tracing(config.as_ref());
 
+        let json_config = JsonConfig::default().limit(config.net.max_body_size);
         let app_state = AppState::create(config).await?;
         let app_state = web::Data::new(app_state);
 
         HttpServer::new(move || {
             App::new()
                 .app_data(app_state.clone())
+                .app_data(json_config.clone())
                 .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
                 .configure(A::configure)
                 .wrap_fn(wrap_non_json_errors)
