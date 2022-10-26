@@ -100,32 +100,26 @@ impl ApplicationError for InternalError {
     }
 }
 
-impl From<sqlx::Error> for Error {
-    fn from(error: sqlx::Error) -> Self {
-        InternalError::from_std(error).into()
-    }
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Self {
-        InternalError::from_std(error).into()
-    }
-}
-
 impl From<anyhow::Error> for Error {
     fn from(error: anyhow::Error) -> Self {
         InternalError::from_anyhow(error).into()
     }
 }
 
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        InternalError::from_std(error).into()
-    }
+macro_rules! impl_from_std_error {
+    ($($error:ty,)*) => {$(
+        impl From<$error> for Error {
+            fn from(error: $error) -> Self {
+                InternalError::from_std(error).into()
+            }
+        }
+    )*};
 }
 
-impl From<tokio::task::JoinError> for Error {
-    fn from(error: tokio::task::JoinError) -> Self {
-        InternalError::from_std(error).into()
-    }
-}
+impl_from_std_error!(
+    sqlx::Error,
+    reqwest::Error,
+    std::io::Error,
+    tokio::task::JoinError,
+    serde_json::Error,
+);
