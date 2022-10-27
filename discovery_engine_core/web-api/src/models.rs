@@ -67,6 +67,9 @@ pub enum Error {
 
     /// Error receiving response: {0}
     Receiving(#[source] reqwest::Error),
+
+    /// Json serialization error: {0}.
+    JsonSerialization(#[source] serde_json::Error),
 }
 
 impl Reject for Error {}
