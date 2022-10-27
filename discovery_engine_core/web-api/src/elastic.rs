@@ -252,7 +252,7 @@ impl ElasticState {
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
-            HeaderValue::from_static("application/x+ndjson"),
+            HeaderValue::from_static("application/x-ndjson"),
         );
 
         self.query_bytes::<_, ElasticBulkOpResponse>("_bulk?refresh", Some(bytes), headers)
