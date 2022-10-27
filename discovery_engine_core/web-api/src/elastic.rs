@@ -14,15 +14,17 @@
 
 use std::collections::HashMap;
 
+use bytes::{BufMut, Bytes, BytesMut};
 use itertools::Itertools;
 use reqwest::{
-    header::{HeaderValue, CONTENT_TYPE},
+    header::{HeaderMap, HeaderValue, CONTENT_TYPE},
     Body,
     Client,
     StatusCode,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
+use tracing::debug;
 use xayn_discovery_engine_ai::Embedding;
 
 use crate::models::{
@@ -98,7 +100,7 @@ impl ElasticState {
             }
         }));
 
-        self.query_elastic_search::<_, SearchResponse<_>>("_search", body)
+        self.query_json::<_, SearchResponse<_>>("_search", body)
             .await
             .map(Into::into)
     }
@@ -116,7 +118,7 @@ impl ElasticState {
             }
         }));
 
-        self.query_elastic_search::<_, SearchResponse<_>>("_search", body)
+        self.query_json::<_, SearchResponse<_>>("_search", body)
             .await
             .map(Into::into)
     }
@@ -126,7 +128,7 @@ impl ElasticState {
         id: &DocumentId,
     ) -> Result<Option<DocumentProperties>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
-        self.query_elastic_search::<Value, DocumentPropertiesResponse>(
+        self.query_json::<Value, DocumentPropertiesResponse>(
             &format!("_source/{}?_source_includes=properties", id.encode()),
             None,
         )
@@ -151,7 +153,7 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{}", id.encode()), body)
+        self.query_json::<_, GenericResponse>(&format!("_update/{}", id.encode()), body)
             .await
             .and(Ok(true))
             .or_not_found(Ok(false))
@@ -170,7 +172,7 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<_, GenericResponse>(&format!("_update/{}", id.encode()), body)
+        self.query_json::<_, GenericResponse>(&format!("_update/{}", id.encode()), body)
             .await
             .and(Ok(true))
             .or_not_found(Ok(false))
@@ -182,7 +184,7 @@ impl ElasticState {
         prop_id: &DocumentPropertyId,
     ) -> Result<Option<DocumentProperty>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
-        self.query_elastic_search::<Value, DocumentPropertyResponse>(
+        self.query_json::<Value, DocumentPropertyResponse>(
             &format!(
                 "_source/{}?_source_includes=properties.{}",
                 doc_id.encode(),
@@ -213,13 +215,10 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<_, GenericResponse>(
-            &format!("_update/{}", doc_id.encode()),
-            body,
-        )
-        .await
-        .and(Ok(true))
-        .or_not_found(Ok(false))
+        self.query_json::<_, GenericResponse>(&format!("_update/{}", doc_id.encode()), body)
+            .await
+            .and(Ok(true))
+            .or_not_found(Ok(false))
     }
 
     pub async fn delete_document_property(
@@ -238,16 +237,29 @@ impl ElasticState {
             "_source": false
         }));
 
-        self.query_elastic_search::<_, GenericResponse>(
-            &format!("_update/{}", doc_id.encode()),
-            body,
-        )
-        .await
-        .and(Ok(true))
-        .or_not_found(Ok(false))
+        self.query_json::<_, GenericResponse>(&format!("_update/{}", doc_id.encode()), body)
+            .await
+            .and(Ok(true))
+            .or_not_found(Ok(false))
     }
 
-    pub async fn query_elastic_search<B, T>(&self, route: &str, body: Option<B>) -> Result<T, Error>
+    pub async fn bulk_insert_documents(
+        &self,
+        documents: &Vec<(DocumentId, ElasticDocumentData)>,
+    ) -> Result<ElasticBulkOpResponse, Error> {
+        let bytes = serialize_to_ndjson(documents)?;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/x+ndjson"),
+        );
+
+        self.query_bytes::<_, ElasticBulkOpResponse>("_bulk?refresh", Some(bytes), headers)
+            .await
+    }
+
+    async fn query_json<B, T>(&self, route: &str, body: Option<B>) -> Result<T, Error>
     where
         B: Serialize,
         T: DeserializeOwned,
@@ -257,13 +269,17 @@ impl ElasticState {
             .transpose()
             .map_err(Error::JsonSerialization)?;
 
-        self.query_elastic_search_raw(route, body).await
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+        self.query_bytes(route, body, headers).await
     }
 
-    pub async fn query_elastic_search_raw<B, T>(
+    async fn query_bytes<B, T>(
         &self,
         route: &str,
         body: Option<B>,
+        headers: HeaderMap<HeaderValue>,
     ) -> Result<T, Error>
     where
         B: Into<Body>,
@@ -272,10 +288,7 @@ impl ElasticState {
         let url = format!("{}/{}/{}", self.config.url, self.config.index_name, route);
 
         if let Some(body) = body {
-            self.client
-                .post(url)
-                .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
-                .body(body)
+            self.client.post(url).headers(headers).body(body)
         } else {
             self.client.get(url)
         }
@@ -289,6 +302,76 @@ impl ElasticState {
         .await
         .map_err(Error::Receiving)
     }
+}
+
+fn serialize_to_ndjson(documents: &Vec<(DocumentId, ElasticDocumentData)>) -> Result<Bytes, Error> {
+    debug!("Serializing documents to ndjson");
+
+    let mut bytes = BytesMut::new();
+
+    fn write_record(
+        document_id: DocumentId,
+        document_data: &ElasticDocumentData,
+        bytes: &mut BytesMut,
+    ) -> Result<(), Error> {
+        let bulk_op_instruction = BulkOpInstruction::new(String::from(document_id));
+        let bulk_op_instruction =
+            serde_json::to_vec(&bulk_op_instruction).map_err(Error::JsonSerialization)?;
+        let documents_bytes =
+            serde_json::to_vec(document_data).map_err(Error::JsonSerialization)?;
+
+        bytes.put_slice(&bulk_op_instruction);
+        bytes.put_u8(b'\n');
+        bytes.put_slice(&documents_bytes);
+        bytes.put_u8(b'\n');
+        Ok(())
+    }
+
+    for (doc_id, doc_data) in documents {
+        write_record(doc_id.clone(), doc_data, &mut bytes)?;
+    }
+
+    Ok(bytes.freeze())
+}
+
+/// Represents an instruction for bulk insert of data into Elastic Search service.
+#[derive(Debug, Serialize)]
+struct BulkOpInstruction {
+    index: IndexInfo,
+}
+
+impl BulkOpInstruction {
+    fn new(id: String) -> Self {
+        Self {
+            index: IndexInfo { id },
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct IndexInfo {
+    #[serde(rename(serialize = "_id"))]
+    id: String,
+}
+
+/// Represents body of Elastic bulk insert response.
+#[derive(Debug, Deserialize)]
+pub struct ElasticBulkOpResponse {
+    pub errors: bool,
+    pub items: Vec<BulkOpHit>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BulkOpHit {
+    pub index: BulkOpResult,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BulkOpResult {
+    #[serde(rename(deserialize = "_id"))]
+    pub id: DocumentId,
+    pub status: usize,
+    pub error: Option<serde_json::Value>,
 }
 
 /// Represents a document with calculated embeddings that is stored in Elastic Search.
