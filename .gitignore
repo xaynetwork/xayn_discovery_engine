@@ -8,3 +8,10 @@
 
 cargo-installs/
 headlines_download/
+
+# discovery_engine_api_tests
+discovery_engine_api_tests/venv/
+discovery_engine_api_tests/__pycache__/
+discovery_engine_api_tests/tests/.pytest_cache/
+discovery_engine_api_tests/tests/logs/
+discovery_engine_api_tests/tests/reports/
