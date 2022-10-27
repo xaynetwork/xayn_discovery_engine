@@ -86,10 +86,10 @@ impl DocumentId {
     pub fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
-        if !is_valid_id(&id) {
-            Err(Error::InvalidDocumentId { invalid_id: id })
-        } else {
+        if is_valid_id(&id) {
             Ok(Self(id))
+        } else {
+            Err(Error::InvalidDocumentId { invalid_id: id })
         }
     }
 
