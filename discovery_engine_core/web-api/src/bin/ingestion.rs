@@ -262,6 +262,7 @@ fn post_documents(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::post()
         .and(warp::path("documents"))
+        .and(warp::path::end())
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
         .and(with_model(model))
@@ -311,6 +312,7 @@ fn get_document_properties(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::get()
         .and(document_properties_path())
+        .and(warp::path::end())
         .and(with_client(client))
         .and_then(handle_get_document_properties)
 }
@@ -322,6 +324,7 @@ fn put_document_properties(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::put()
         .and(document_properties_path())
+        .and(warp::path::end())
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
         .and(with_client(client))
@@ -334,6 +337,7 @@ fn delete_document_properties(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::delete()
         .and(document_properties_path())
+        .and(warp::path::end())
         .and(with_client(client))
         .and_then(handle_delete_document_properties)
 }
@@ -344,6 +348,7 @@ fn get_document_property(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::get()
         .and(document_property_path())
+        .and(warp::path::end())
         .and(with_client(client))
         .and_then(handle_get_document_property)
 }
@@ -355,6 +360,7 @@ fn put_document_property(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::put()
         .and(document_property_path())
+        .and(warp::path::end())
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
         .and(with_client(client))
@@ -367,6 +373,7 @@ fn delete_document_property(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::delete()
         .and(document_property_path())
+        .and(warp::path::end())
         .and(with_client(client))
         .and_then(handle_delete_document_property)
 }
