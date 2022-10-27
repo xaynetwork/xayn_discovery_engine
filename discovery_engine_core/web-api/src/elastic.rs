@@ -14,7 +14,6 @@
 
 use std::collections::HashMap;
 
-use bytes::Bytes;
 use itertools::Itertools;
 use reqwest::{
     header::{HeaderValue, CONTENT_TYPE},
@@ -253,14 +252,10 @@ impl ElasticState {
         B: Serialize,
         T: DeserializeOwned,
     {
-        let body: Option<Bytes> = if let Some(json) = body {
-            match serde_json::to_vec(&json) {
-                Ok(body) => Some(body.into()),
-                Err(err) => return Err(Error::JsonSerialization(err)),
-            }
-        } else {
-            None
-        };
+        let body = body
+            .map(|json| serde_json::to_vec(&json))
+            .transpose()
+            .map_err(Error::JsonSerialization)?;
 
         self.query_elastic_search_raw(route, body).await
     }
