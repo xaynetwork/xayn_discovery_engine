@@ -34,35 +34,26 @@ pub const COUNT_PARAM_RANGE: RangeInclusive<usize> = 1..=100;
 /// Web API errors.
 #[derive(Error, Debug, DisplayDoc)]
 pub enum Error {
-    /// [`UserId`] can't be empty.
-    UserIdEmpty,
-
-    /// [`UserId`] can't contain NUL character.
-    UserIdContainsNul,
+    /// Invalid user id. It does not match regex `^[a-zA-Z0-9_\-:@.]+$`.
+    InvalidUserId { invalid_id: String },
 
     /// Failed to decode [`UserId] from path param: {0}.
     UserIdUtf8Conversion(#[source] FromUtf8Error),
 
-    /// [`DocumentId`] can't be empty.
-    DocumentIdEmpty,
-
-    /// [`DocumentId`] can't contain NUL character.
-    DocumentIdContainsNul,
-
     /// Failed to decode [`DocumentId] from path param: {0}.
     DocumentIdUtf8Conversion(#[source] FromUtf8Error),
 
-    /// [`DocumentPropertyId`] can't be empty.
-    DocumentPropertyIdEmpty,
-
-    /// [`DocumentPropertyId`] can't contain NUL character.
-    DocumentPropertyIdContainsNul,
+    /// Invalid property id. It does not match regex `^[a-zA-Z0-9_\-:@.]+$`.
+    InvalidDocumentPropertyId { invalid_id: String },
 
     /// Failed to decode [`DocumentPropertyId] from path param: {0}.
     DocumentPropertyIdUtf8Conversion(#[source] FromUtf8Error),
 
     /// Invalid value for count parameter: {0}. It must be in [`COUNT_PARAM_RANGE`].
     InvalidCountParam(usize),
+
+    /// Invalid document id. It does not match regex `^[a-zA-Z0-9_\-:@.]+$`.
+    InvalidDocumentId { invalid_id: String },
 
     /// Elastic search error: {0}
     Elastic(#[source] reqwest::Error),
@@ -86,22 +77,17 @@ impl From<DocumentId> for String {
     }
 }
 
-fn is_id_valid(id: &String) -> bool {
+fn is_valid_id(id: &str) -> bool {
     static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap());
-
-    let is_valid_pattern = RE.is_match(id);
-    let is_url_encoded = id == urlencoding::encode(id.as_str()).as_ref();
-    is_valid_pattern && is_url_encoded
+    RE.is_match(id)
 }
 
 impl DocumentId {
     pub fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
-        if id.is_empty() {
-            Err(Error::DocumentIdEmpty)
-        } else if id.contains('\u{0000}') {
-            Err(Error::DocumentIdContainsNul)
+        if !is_valid_id(&id) {
+            Err(Error::InvalidDocumentId { invalid_id: id })
         } else {
             Ok(Self(id))
         }
@@ -118,14 +104,16 @@ impl<'de> Deserialize<'de> for DocumentId {
         D: Deserializer<'de>,
     {
         let inner = String::deserialize(deserializer)?;
-        if is_id_valid(&inner) {
-            Ok(Self(inner))
-        } else {
-            Err(<D::Error as serde::de::Error>::invalid_value(
-                Unexpected::Str(inner.as_ref()),
-                &"Id must match regex '^[a-zA-Z0-9_-:@.]+$' ",
-            ))
-        }
+        DocumentId::new(inner).map_err(|err| {
+            if let Error::InvalidDocumentId { invalid_id } = err {
+                <D::Error as serde::de::Error>::invalid_value(
+                    Unexpected::Str(&invalid_id),
+                    &"It does not match regex `^[a-zA-Z0-9_-:@.]+$`.",
+                )
+            } else {
+                unreachable!();
+            }
+        })
     }
 }
 
@@ -136,10 +124,8 @@ impl DocumentPropertyId {
     pub fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
-        if id.is_empty() {
-            Err(Error::DocumentPropertyIdEmpty)
-        } else if id.contains('\u{0000}') {
-            Err(Error::DocumentPropertyIdContainsNul)
+        if !is_valid_id(&id) {
+            Err(Error::InvalidDocumentPropertyId { invalid_id: id })
         } else {
             Ok(Self(id))
         }
@@ -156,14 +142,16 @@ impl<'de> Deserialize<'de> for DocumentPropertyId {
         D: Deserializer<'de>,
     {
         let inner = String::deserialize(deserializer)?;
-        if is_id_valid(&inner) {
-            Ok(Self(inner))
-        } else {
-            Err(<D::Error as serde::de::Error>::invalid_value(
-                Unexpected::Str(inner.as_ref()),
-                &"Id must match regex '^[a-zA-Z0-9_-:@.]+$' ",
-            ))
-        }
+        DocumentPropertyId::new(inner).map_err(|err| {
+            if let Error::InvalidDocumentPropertyId { invalid_id } = err {
+                <D::Error as serde::de::Error>::invalid_value(
+                    Unexpected::Str(&invalid_id),
+                    &"It does not match regex `^[a-zA-Z0-9_-:@.]+$`.",
+                )
+            } else {
+                unreachable!();
+            }
+        })
     }
 }
 
@@ -296,15 +284,13 @@ impl UserInteractionError {
 pub struct UserId(String);
 
 impl UserId {
-    pub(crate) fn new(id: impl AsRef<str>) -> Result<Self, Error> {
-        let id = id.as_ref();
+    pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
+        let id = id.into();
 
-        if id.is_empty() {
-            Err(Error::UserIdEmpty)
-        } else if id.contains('\u{0000}') {
-            Err(Error::UserIdContainsNul)
+        if !is_valid_id(&id) {
+            Err(Error::InvalidUserId { invalid_id: id })
         } else {
-            Ok(Self(id.to_string()))
+            Ok(Self(id))
         }
     }
 }
@@ -315,13 +301,15 @@ impl<'de> Deserialize<'de> for UserId {
         D: Deserializer<'de>,
     {
         let inner = String::deserialize(deserializer)?;
-        if is_id_valid(&inner) {
-            Ok(Self(inner))
-        } else {
-            Err(<D::Error as serde::de::Error>::invalid_value(
-                Unexpected::Str(inner.as_ref()),
-                &"Id must match regex '^[a-zA-Z0-9_-:@.]+$' ",
-            ))
-        }
+        UserId::new(inner).map_err(|err| {
+            if let Error::InvalidUserId { invalid_id } = err {
+                <D::Error as serde::de::Error>::invalid_value(
+                    Unexpected::Str(&invalid_id),
+                    &"It does not match regex `^[a-zA-Z0-9_-:@.]+$`.",
+                )
+            } else {
+                unreachable!();
+            }
+        })
     }
 }
