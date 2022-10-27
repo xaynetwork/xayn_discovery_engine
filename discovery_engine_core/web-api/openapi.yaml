@@ -334,7 +334,7 @@ components:
         A document property id can be any non-empty UTF-8 string that does not contain the null byte.
         It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
       type: string
-      example: "document property id"
+      example: "document_property_id"
     DocumentProperty:
       description: Arbitrary property that can be attached to a document.
       example: "News title"
