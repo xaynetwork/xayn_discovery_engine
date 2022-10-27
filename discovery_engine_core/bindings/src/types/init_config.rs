@@ -26,7 +26,7 @@ use super::primitives::FfiUsize;
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_api_key(place: *mut InitConfig) -> *mut String {
     unsafe { addr_of_mut!((*place).api_key) }
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn init_config_place_of_api_key(place: *mut InitConfig) ->
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_api_base_url(place: *mut InitConfig) -> *mut String {
     unsafe { addr_of_mut!((*place).api_base_url) }
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn init_config_place_of_api_base_url(place: *mut InitConfi
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_news_provider_path(
     place: *mut InitConfig,
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn init_config_place_of_news_provider_path(
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_headlines_provider_path(
     place: *mut InitConfig,
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn init_config_place_of_headlines_provider_path(
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_markets(place: *mut InitConfig) -> *mut Vec<Market> {
     unsafe { addr_of_mut!((*place).markets) }
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn init_config_place_of_markets(place: *mut InitConfig) ->
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_smbert_vocab(place: *mut InitConfig) -> *mut String {
     unsafe { addr_of_mut!((*place).smbert_vocab) }
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn init_config_place_of_smbert_vocab(place: *mut InitConfi
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_smbert_model(place: *mut InitConfig) -> *mut String {
     unsafe { addr_of_mut!((*place).smbert_model) }
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn init_config_place_of_smbert_model(place: *mut InitConfi
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_max_docs_per_feed_batch(
     place: *mut InitConfig,
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn init_config_place_of_max_docs_per_feed_batch(
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_max_docs_per_search_batch(
     place: *mut InitConfig,
@@ -133,7 +133,7 @@ pub unsafe extern "C" fn init_config_place_of_max_docs_per_search_batch(
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_de_config(
     place: *mut InitConfig,
@@ -146,7 +146,7 @@ pub unsafe extern "C" fn init_config_place_of_de_config(
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_log_file(
     place: *mut InitConfig,
@@ -159,7 +159,7 @@ pub unsafe extern "C" fn init_config_place_of_log_file(
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_data_dir(place: *mut InitConfig) -> *mut String {
     unsafe { addr_of_mut!((*place).data_dir) }
@@ -170,7 +170,7 @@ pub unsafe extern "C" fn init_config_place_of_data_dir(place: *mut InitConfig) -
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_use_ephemeral_db(place: *mut InitConfig) -> *mut u8 {
     unsafe { addr_of_mut!((*place).use_ephemeral_db).cast() }
@@ -181,7 +181,7 @@ pub unsafe extern "C" fn init_config_place_of_use_ephemeral_db(place: *mut InitC
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_config_place_of_dart_migration_data(
     place: *mut InitConfig,

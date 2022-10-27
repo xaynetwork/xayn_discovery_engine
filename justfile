@@ -27,8 +27,8 @@ default:
     @{{just_executable()}} --list
 
 # Gets/updates dart deps
-_dart-deps $WORKSPACE:
-    cd "$WORKSPACE" && dart pub get
+_dart-deps workspace:
+    cd {{workspace}} && dart pub get
 
 dart-deps:
     @{{just_executable()}} _dart-deps "$DART_WORKSPACE"
@@ -62,8 +62,8 @@ rust-deps:
 # Get/Update/Fetch/Install all dependencies
 deps: flutter-deps dart-deps rust-deps
 
-_dart-fmt $WORKSPACE:
-    cd "$WORKSPACE"; \
+_dart-fmt workspace:
+    cd {{workspace}}; \
     dart format {{ if env_var_or_default("CI", "false") == "true" { "--output=none --set-exit-if-changed" } else { "" } }} .
 
 # Formats dart (checks only on CI)
@@ -83,8 +83,8 @@ rust-fmt:
 # Formats all code (checks only on CI)
 fmt: rust-fmt dart-fmt
 
-_dart-analyze $WORKSPACE:
-    cd "$WORKSPACE"; \
+_dart-analyze workspace:
+    cd {{workspace}}; \
     dart analyze --fatal-infos
 
 # Checks dart code, fails on info on CI
@@ -110,13 +110,13 @@ flutter-test: rust-build dart-build flutter-deps
 # replaced by a better workaround.
 _codegen-order-workaround:
     cd "$RUST_WORKSPACE"; \
-    cargo check --features "${XAYN_DE_FEATURES:-}" --quiet 2>/dev/null || :
+    cargo check --quiet 2>/dev/null || :
 
 # Checks rust code, fails on warnings on CI
 rust-check: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
-    cargo clippy --all-targets --features "${XAYN_DE_FEATURES:-}" --locked; \
-    cargo check --features "${XAYN_DE_FEATURES:-}" -p xayn-discovery-engine-bindings
+    cargo clippy --all-targets --locked; \
+    cargo check -p xayn-discovery-engine-bindings
 
 # Checks rust and dart code, fails if there are any issues on CI
 check: rust-check dart-check flutter-check
@@ -149,7 +149,7 @@ check-doc: dart-check-doc rust-check-doc
 
 _run-cbindgen: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
-    cargo check --features "${XAYN_DE_FEATURES:-}"
+    cargo check
 
 _run-ffigen:
     cd "$DART_WORKSPACE"; \
@@ -171,7 +171,7 @@ dart-build: _run-cbindgen _run-ffigen _run-async-bindgen _run-build-runner
 # Builds rust
 rust-build: _codegen-order-workaround
     cd "$RUST_WORKSPACE"; \
-    cargo build --features "${XAYN_DE_FEATURES:-}" --locked
+    cargo build --locked
 
 # Builds dart and rust
 build: rust-build dart-build
@@ -186,8 +186,8 @@ rust-test: _codegen-order-workaround download-assets
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$RUST_WORKSPACE";
-    cargo test --features "${XAYN_DE_FEATURES:-}" --lib --bins --tests --quiet --locked
-    cargo test --features "${XAYN_DE_FEATURES:-}" --doc --quiet --locked
+    cargo test --lib --bins --tests --quiet --locked
+    cargo test --doc --quiet --locked
 
 # Tests dart and rust
 test: rust-test dart-test flutter-test
@@ -246,7 +246,6 @@ _compile-android target:
         -p $ANDROID_PLATFORM_VERSION \
         -o "{{justfile_directory()}}/$FLUTTER_WORKSPACE/android/src/main/jniLibs" \
         build \
-        --features "${XAYN_DE_FEATURES:-}" \
         --release \
         -p xayn-discovery-engine-bindings \
         --locked
@@ -270,7 +269,7 @@ compile-android-ci target prod_flag="\"\"": _codegen-order-workaround
 # Compiles the bindings for the given iOS target
 _compile-ios target:
     cd "$RUST_WORKSPACE"; \
-    cargo build --features "${XAYN_DE_FEATURES:-}" --target {{target}} -p xayn-discovery-engine-bindings --release --locked
+    cargo build --target {{target}} -p xayn-discovery-engine-bindings --release --locked
 
 # Compiles the bindings for iphoneos (aarch64) and iphonesimulator (x86_64)
 # and copies the binaries to the flutter project
@@ -307,10 +306,10 @@ download-assets:
 check-android-so:
     {{justfile_directory()}}/.github/scripts/check_android_so.sh "$FLUTTER_WORKSPACE"/android/src/main/jniLibs/
 
-_override-dart-deps $WORKSPACE $VERSION:
+_override-dart-deps workspace version:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$WORKSPACE"
+    cd {{workspace}}
 
     SED_CMD="sed"
     # Default macOS doesn't support `sed -i`
@@ -322,10 +321,10 @@ _override-dart-deps $WORKSPACE $VERSION:
     # Dependency overrides are not allowed in published dart packages
     # This will add changes to your repo which should never be committed.
     $SED_CMD -i "s/dependency_overrides/HACK_hide_dependency_overrides/g" ./pubspec.yaml
-    $SED_CMD -i "s/0.1.0+replace.with.version/${VERSION}/g" ./pubspec.yaml
+    $SED_CMD -i "s/0.1.0+replace.with.version/{{version}}/g" ./pubspec.yaml
 
-_call-dart-publish $WORKSPACE:
-    cd "$WORKSPACE"; \
+_call-dart-publish workspace:
+    cd {{workspace}}; \
     dart pub publish --force
 
 # This should only be run by the CI
@@ -355,10 +354,10 @@ _ci-dart-publish:
 
     {{just_executable()}} _ci-dart-publish-with-version "${VERSION}"
 
-_ci-dart-publish-with-version $VERSION:
-    {{just_executable()}} _override-dart-deps "${DART_UTILS_WORKSPACE}" "${VERSION}"
-    {{just_executable()}} _override-dart-deps "${DART_WORKSPACE}" "${VERSION}"
-    {{just_executable()}} _override-dart-deps "${FLUTTER_WORKSPACE}" "${VERSION}"
+_ci-dart-publish-with-version version:
+    {{just_executable()}} _override-dart-deps "${DART_UTILS_WORKSPACE}" {{version}}
+    {{just_executable()}} _override-dart-deps "${DART_WORKSPACE}" {{version}}
+    {{just_executable()}} _override-dart-deps "${FLUTTER_WORKSPACE}" {{version}}
 
     {{just_executable()}} _call-dart-publish "${DART_UTILS_WORKSPACE}"
     {{just_executable()}} _call-dart-publish "${FLUTTER_WORKSPACE}"

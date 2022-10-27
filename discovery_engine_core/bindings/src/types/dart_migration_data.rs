@@ -26,7 +26,7 @@ use super::migration_search::MigrationSearch;
 /// # Safety
 ///
 /// The pointer must point to a valid [`DartMigrationData`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn dart_migration_data_place_of_engine_state(
     place: *mut DartMigrationData,
@@ -39,7 +39,7 @@ pub unsafe extern "C" fn dart_migration_data_place_of_engine_state(
 /// # Safety
 ///
 /// The pointer must point to a valid [`DartMigrationData`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn dart_migration_data_place_of_trusted_sources(
     place: *mut DartMigrationData,
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn dart_migration_data_place_of_trusted_sources(
 /// # Safety
 ///
 /// The pointer must point to a valid [`DartMigrationData`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn dart_migration_data_place_of_excluded_sources(
     place: *mut DartMigrationData,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn dart_migration_data_place_of_excluded_sources(
 /// # Safety
 ///
 /// The pointer must point to a valid [`DartMigrationData`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn dart_migration_data_place_of_reacted_sources(
     place: *mut DartMigrationData,

@@ -43,10 +43,10 @@ jobs:
         run: |
           ARTIFACT_DIR_BASE=${{ github.job }}
           if ${{ inputs.production }}; then
-            XAYN_DE_FEATURES="" just compile-android-ci "${{ matrix.target }}" --prod
+            just compile-android-ci "${{ matrix.target }}" --prod
             ARTIFACT_DIR_BASE="${ARTIFACT_DIR_BASE}-production"
           else
-            XAYN_DE_FEATURES="" just compile-android-ci "${{ matrix.target }}"
+            just compile-android-ci "${{ matrix.target }}"
           fi
           echo "::set-output name=artifact-dir-base::$ARTIFACT_DIR_BASE"
 

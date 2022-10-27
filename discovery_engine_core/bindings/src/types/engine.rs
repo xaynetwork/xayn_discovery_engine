@@ -52,7 +52,7 @@ impl InitializationResult {
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitializationResult`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn initialization_result_place_of_db_override_error(
     init_result: *mut InitializationResult,

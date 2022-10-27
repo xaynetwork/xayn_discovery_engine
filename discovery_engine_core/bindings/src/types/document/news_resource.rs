@@ -24,7 +24,7 @@ use crate::types::date_time::DateTimeUtc;
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_title(place: *mut NewsResource) -> *mut String {
     unsafe { addr_of_mut!((*place).title) }
@@ -35,7 +35,7 @@ pub unsafe extern "C" fn news_resource_place_of_title(place: *mut NewsResource) 
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_snippet(place: *mut NewsResource) -> *mut String {
     unsafe { addr_of_mut!((*place).snippet) }
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn news_resource_place_of_snippet(place: *mut NewsResource
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_url(place: *mut NewsResource) -> *mut Url {
     unsafe { addr_of_mut!((*place).url) }
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn news_resource_place_of_url(place: *mut NewsResource) ->
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_source_domain(
     place: *mut NewsResource,
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn news_resource_place_of_source_domain(
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_date_published(
     place: *mut NewsResource,
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn news_resource_place_of_date_published(
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_image(
     place: *mut NewsResource,
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn news_resource_place_of_image(
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_rank(place: *mut NewsResource) -> *mut u64 {
     unsafe { addr_of_mut!((*place).rank) }
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn news_resource_place_of_rank(place: *mut NewsResource) -
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_score(
     place: *mut NewsResource,
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn news_resource_place_of_score(
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_country(place: *mut NewsResource) -> *mut String {
     unsafe { addr_of_mut!((*place).country) }
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn news_resource_place_of_country(place: *mut NewsResource
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_language(place: *mut NewsResource) -> *mut String {
     unsafe { addr_of_mut!((*place).language) }
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn news_resource_place_of_language(place: *mut NewsResourc
 /// # Safety
 ///
 /// The pointer must point to a valid [`NewsResource`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn news_resource_place_of_topic(place: *mut NewsResource) -> *mut String {
     unsafe { addr_of_mut!((*place).topic) }

@@ -115,7 +115,7 @@ impl From<ApiDocumentView> for document::Document {
     }
 }
 
-/// Represents a news that is delivered by an external content API.
+/// Represents news that is delivered by an external content API.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct NewsResource {
     /// Title of the resource.

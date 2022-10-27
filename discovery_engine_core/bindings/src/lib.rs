@@ -134,7 +134,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Processes the user's time spending on a document.
+    /// Processes the user's time on a document.
     pub async fn time_spent(
         engine: &SharedEngine,
         time_spent: Box<TimeSpent>,

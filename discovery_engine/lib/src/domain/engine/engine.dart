@@ -78,7 +78,7 @@ abstract class Engine {
   /// Deletes the feed documents.
   Future<void> deleteFeedDocuments(Set<DocumentId> ids);
 
-  /// Processes the user's time spending on a document.
+  /// Processes the user's time on a document.
   Future<void> timeSpent(TimeSpent timeSpent);
 
   /// Processes the user's reaction to a document.

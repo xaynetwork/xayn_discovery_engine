@@ -45,7 +45,7 @@ pub unsafe extern "C" fn migration_document_place_of_id(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_stack_id(
     place: *mut MigrationDocument,
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn migration_document_place_of_stack_id(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_smbert_embedding(
     place: *mut MigrationDocument,
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn migration_document_place_of_smbert_embedding(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_reaction(
     place: *mut MigrationDocument,
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn migration_document_place_of_reaction(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_resource(
     place: *mut MigrationDocument,
@@ -99,7 +99,7 @@ pub unsafe extern "C" fn migration_document_place_of_resource(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_migration_document_is_active_at(
     place: *mut MigrationDocument,
@@ -115,7 +115,7 @@ pub unsafe extern "C" fn init_migration_document_is_active_at(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn init_migration_document_is_searched_at(
     place: *mut MigrationDocument,
@@ -129,7 +129,7 @@ pub unsafe extern "C" fn init_migration_document_is_searched_at(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_batch_index(
     place: *mut MigrationDocument,
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn migration_document_place_of_batch_index(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_timestamp(
     place: *mut MigrationDocument,
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn migration_document_place_of_timestamp(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_web_view_time(
     place: *mut MigrationDocument,
@@ -168,7 +168,7 @@ pub unsafe extern "C" fn migration_document_place_of_web_view_time(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_reader_view_time(
     place: *mut MigrationDocument,
@@ -181,7 +181,7 @@ pub unsafe extern "C" fn migration_document_place_of_reader_view_time(
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn migration_document_place_of_story_view_time(
     place: *mut MigrationDocument,

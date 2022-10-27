@@ -46,7 +46,7 @@ impl From<xayn_discovery_engine_core::document::Document> for Document {
 /// # Safety
 ///
 /// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn document_place_of_id(place: *mut Document) -> *mut Uuid {
     unsafe { addr_of_mut!((*place).id) }.cast::<Uuid>()
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn document_place_of_id(place: *mut Document) -> *mut Uuid
 /// # Safety
 ///
 /// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn document_place_of_stack_id(place: *mut Document) -> *mut Uuid {
     unsafe { addr_of_mut!((*place).stack_id) }.cast::<Uuid>()
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn document_place_of_stack_id(place: *mut Document) -> *mu
 /// # Safety
 ///
 /// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn document_place_of_reaction(
     place: *mut Document,
@@ -81,7 +81,7 @@ pub unsafe extern "C" fn document_place_of_reaction(
 /// # Safety
 ///
 /// The pointer must point to a valid [`Document`] memory object,
-/// it might be uninitialized.
+/// which might be uninitialized.
 #[no_mangle]
 pub unsafe extern "C" fn document_place_of_resource(place: *mut Document) -> *mut NewsResource {
     unsafe { addr_of_mut!((*place).resource) }

@@ -529,7 +529,7 @@ impl Engine {
         Ok(())
     }
 
-    /// Processes the user's time spending on a document.
+    /// Processes the user's time on a document.
     pub async fn time_spent(&mut self, time_spent: TimeSpent) -> Result<(), Error> {
         let time_spent = self
             .storage

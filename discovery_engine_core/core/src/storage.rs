@@ -87,7 +87,7 @@ pub struct MigrationDocument {
     pub id: document::Id,
 
     /// Stack from which the document has been taken.
-    /// [`stack::Id::nil()`] is used for documents which are not from a stack
+    /// [`stack::Id::nil()`] is used for documents which are not from a stack.
     pub stack_id: stack::Id,
 
     /// Embedding from smbert.
@@ -99,10 +99,10 @@ pub struct MigrationDocument {
     /// Resource this document refers to.
     pub resource: NewsResource,
 
-    // If true the document is part of the search OR feed
+    // If true the document is part of the search OR feed.
     pub is_active: bool,
 
-    // If true the document is/was part of the search
+    // If true the document is/was part of the search.
     pub is_searched: bool,
 
     // The index of the batch in which it was returned from the engine.
