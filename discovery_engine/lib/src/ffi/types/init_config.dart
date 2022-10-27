@@ -24,9 +24,9 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustInitConfig;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
-import 'package:xayn_discovery_engine/src/ffi/types/dart_migration_data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
+import 'package:xayn_discovery_engine/src/ffi/types/migration/data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
     show BoolFfi, FfiUsizeFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'

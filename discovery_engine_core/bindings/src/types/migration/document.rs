@@ -21,7 +21,7 @@ use xayn_discovery_engine_core::{
     storage::MigrationDocument,
 };
 
-use super::{
+use crate::types::{
     date_time::DateTimeUtc,
     primitives::FfiUsize,
     slice::{alloc_uninitialized_slice, boxed_slice_from_raw_parts, next_element},

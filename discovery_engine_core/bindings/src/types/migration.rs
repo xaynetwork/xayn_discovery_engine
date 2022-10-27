@@ -12,34 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Modules containing FFI glue for various types.
+//! FFI functions for handling types for migration.
 
-#![allow(unsafe_code)]
+mod data;
+mod document;
+mod search;
 
-mod boxed;
-pub mod date_time;
-pub mod document;
-pub mod duration;
-pub mod embedding;
-pub mod engine;
-pub mod history;
-pub mod history_vec;
-pub mod init_config;
-pub mod market;
-pub mod market_vec;
-pub mod migration;
-pub mod option;
-pub mod primitives;
-pub mod result;
-pub mod search;
-pub mod slice;
-pub mod string;
-pub mod string_vec;
-pub mod trending_topic;
-pub mod trending_topic_vec;
-pub mod url;
-pub mod uuid;
-pub mod uuid_vec;
-pub mod vec;
-pub mod weighted_source;
-pub mod weighted_source_vec;
+pub use self::{data::*, document::*, search::*};

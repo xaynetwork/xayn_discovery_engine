@@ -19,7 +19,7 @@ use xayn_discovery_engine_core::{
     storage::{DartMigrationData, MigrationDocument},
 };
 
-use super::migration_search::MigrationSearch;
+use super::search::MigrationSearch;
 
 /// Returns a pointer to the `engine_state` field of a [`DartMigrationData`].
 ///
