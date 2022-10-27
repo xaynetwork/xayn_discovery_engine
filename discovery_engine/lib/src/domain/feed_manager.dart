@@ -60,7 +60,7 @@ class FeedManager {
   Future<EngineEvent> restoreFeed() async {
     final List<DocumentWithActiveData> docs;
     try {
-      docs = await _engine.fed();
+      docs = await _engine.restoreFeed();
     } on Exception {
       return const EngineEvent.restoreFeedFailed(FeedFailureReason.dbError);
     }

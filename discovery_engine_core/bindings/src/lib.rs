@@ -105,13 +105,13 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Restores the documents which have been fed, i.e. the current feed.
-    pub async fn fed(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
+    pub async fn restore_feed(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .fed()
+                .restore_feed()
                 .await
                 .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
@@ -238,13 +238,13 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Restores the documents which have been searched, i.e. the current active search.
-    pub async fn searched(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
+    pub async fn restore_search(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .searched()
+                .restore_search()
                 .await
                 .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),

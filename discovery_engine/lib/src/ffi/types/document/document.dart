@@ -19,6 +19,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart';
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -72,10 +73,12 @@ class DocumentFfi with EquatableMixin {
         documentId: id,
         stackId: stackId,
         resource: resource,
+        // ignore: deprecated_member_use_from_same_package
         batchIndex: 0, // unused
         isSearched: isSearched,
         userReaction: reaction ?? UserReaction.neutral,
       );
 
-  ActiveDocumentData toActiveDocumentData() => ActiveDocumentData();
+  ActiveDocumentData toActiveDocumentData() =>
+      ActiveDocumentData(Embedding.fromList([]));
 }

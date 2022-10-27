@@ -513,7 +513,7 @@ impl Engine {
     }
 
     /// Restores the documents which have been fed, i.e. the current feed.
-    pub async fn fed(&self) -> Result<Vec<Document>, Error> {
+    pub async fn restore_feed(&self) -> Result<Vec<Document>, Error> {
         self.storage
             .feed()
             .fetch()
@@ -818,7 +818,7 @@ impl Engine {
     }
 
     /// Restores the documents which have been searched, i.e. the current active search.
-    pub async fn searched(&self) -> Result<Vec<Document>, Error> {
+    pub async fn restore_search(&self) -> Result<Vec<Document>, Error> {
         let (_, documents) = self.storage.search().fetch().await?;
         let documents = documents.into_iter().map_into().collect();
 

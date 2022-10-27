@@ -18,6 +18,8 @@ import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
+    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -33,7 +35,7 @@ Future<void> main() async {
 
   group('ActiveDocumentDataRepository', () {
     late HiveActiveDocumentDataRepository repo;
-    final data = ActiveDocumentData();
+    final data = ActiveDocumentData(Embedding.fromList([]));
     final id1 = DocumentId();
     final id2 = DocumentId();
 
@@ -78,6 +80,24 @@ Future<void> main() async {
     group('nonempty box', () {
       setUp(() async {
         await repo.update(id1, data);
+      });
+
+      test('existing smbert embedding', () async {
+        final emb = await repo.smbertEmbeddingById(id1);
+        expect(
+          emb,
+          equals(
+            // ignore: deprecated_member_use_from_same_package
+            data.smbertEmbedding,
+          ),
+        );
+      });
+
+      test('smbert embedding of updated existing', () async {
+        final embUpdated = Embedding.fromList([9.25]);
+        await repo.update(id1, ActiveDocumentData(embUpdated));
+        expect(repo.box, hasLength(1));
+        expect(await repo.smbertEmbeddingById(id1), equals(embUpdated));
       });
 
       test('fetch present then absent', () async {

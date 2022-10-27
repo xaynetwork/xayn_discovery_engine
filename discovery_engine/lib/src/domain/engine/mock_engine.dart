@@ -119,8 +119,8 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> fed() async {
-    _incrementCount('fed');
+  Future<List<DocumentWithActiveData>> restoreFeed() async {
+    _incrementCount('restoreFeed');
     return feedDocuments.take(2).toList(growable: false);
   }
 
@@ -138,6 +138,7 @@ class MockEngine implements Engine {
   Future<Document> userReacted(UserReacted userReacted) async {
     _incrementCount('userReacted');
     return Document(
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 0,
       documentId: DocumentId(),
       resource: NewsResource(
@@ -188,8 +189,8 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> searched() async {
-    _incrementCount('searched');
+  Future<List<DocumentWithActiveData>> restoreSearch() async {
+    _incrementCount('restoreSearch');
     return activeSearchDocuments.take(20).toList(growable: false);
   }
 

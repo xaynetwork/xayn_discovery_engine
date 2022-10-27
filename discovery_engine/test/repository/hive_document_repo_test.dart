@@ -36,12 +36,14 @@ Future<void> main() async {
     final doc1 = Document(
       documentId: DocumentId(),
       stackId: stackId,
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 0,
       resource: mockNewsResource,
     );
     final doc2 = Document(
       documentId: DocumentId(),
       stackId: stackId,
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 1,
       resource: mockNewsResource,
     );
@@ -153,6 +155,7 @@ Future<void> main() async {
         final doc3 = Document(
           documentId: DocumentId(),
           stackId: stackId,
+          // ignore: deprecated_member_use_from_same_package
           batchIndex: 2,
           resource: mockNewsResource,
         );

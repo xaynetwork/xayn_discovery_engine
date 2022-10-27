@@ -159,7 +159,7 @@ class EventHandler {
     final availableSources = config.isMocked()
         ? mockedAvailableSources
         : await setupData.getAvailableSources();
-    final dartMigrationData = await DartMigrationData.fromRepositories(
+    final dartMigrationData = await DartMigrationData.fromDirectoryPath(
       config.applicationDirectoryPath,
     );
 

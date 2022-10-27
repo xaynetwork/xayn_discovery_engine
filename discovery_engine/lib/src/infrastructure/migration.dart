@@ -63,7 +63,7 @@ class DartMigrationData {
   });
 
   /// If migrations is necessary extracts the data for it from the repos.
-  static Future<DartMigrationData?> fromRepositories(
+  static Future<DartMigrationData?> fromDirectoryPath(
     String applicationDirectoryPath,
   ) async {
     registerHiveAdapters();

@@ -203,8 +203,8 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> fed() async {
-    final result = await asyncFfi.fed(_engine.ref);
+  Future<List<DocumentWithActiveData>> restoreFeed() async {
+    final result = await asyncFfi.restoreFeed(_engine.ref);
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
@@ -294,8 +294,8 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<List<DocumentWithActiveData>> searched() async {
-    final result = await asyncFfi.searched(_engine.ref);
+  Future<List<DocumentWithActiveData>> restoreSearch() async {
+    final result = await asyncFfi.restoreSearch(_engine.ref);
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)

@@ -73,7 +73,7 @@ abstract class Engine {
   Future<List<DocumentWithActiveData>> feedNextBatch();
 
   /// Restores the documents which have been fed, i.e. the current feed.
-  Future<List<DocumentWithActiveData>> fed();
+  Future<List<DocumentWithActiveData>> restoreFeed();
 
   /// Deletes the feed documents.
   Future<void> deleteFeedDocuments(Set<DocumentId> ids);
@@ -100,7 +100,7 @@ abstract class Engine {
   Future<List<DocumentWithActiveData>> searchNextBatch();
 
   /// Restores the documents which have been searched, i.e. the current active search.
-  Future<List<DocumentWithActiveData>> searched();
+  Future<List<DocumentWithActiveData>> restoreSearch();
 
   /// Gets the current active search mode and term.
   Future<ActiveSearch> searchedBy();
