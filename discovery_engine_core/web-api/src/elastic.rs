@@ -184,7 +184,7 @@ impl ElasticState {
         prop_id: &DocumentPropertyId,
     ) -> Result<Option<DocumentProperty>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
-        self.query_json::<Value, DocumentPropertyResponse>(
+        self.query_json::<Value, DocumentPropertiesResponse>(
             &format!(
                 "_source/{}?_source_includes=properties.{}",
                 doc_id.encode(),
@@ -193,7 +193,7 @@ impl ElasticState {
             None,
         )
         .await
-        .map(|mut response| response.0.remove(prop_id))
+        .map(|mut response| response.properties.remove(prop_id))
         .or_not_found(Ok(None))
     }
 
@@ -434,9 +434,6 @@ struct DocumentPropertiesResponse {
     #[serde(default)]
     properties: DocumentProperties,
 }
-
-#[derive(Clone, Debug, Deserialize)]
-struct DocumentPropertyResponse(DocumentProperties);
 
 pub(crate) mod serde_embedding_as_vec {
     use ndarray::Array;
