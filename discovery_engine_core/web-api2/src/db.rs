@@ -129,6 +129,10 @@ pub(crate) struct Database {
 
 impl Database {
     pub(crate) async fn delete_documents(&self, documents: &[DocumentId]) -> Result<(), Error> {
+        if documents.is_empty() {
+            return Ok(());
+        }
+
         QueryBuilder::new("DELETE FROM interaction WHERE doc_id in")
             .push_tuples(documents, |mut query, id| {
                 query.push(id);

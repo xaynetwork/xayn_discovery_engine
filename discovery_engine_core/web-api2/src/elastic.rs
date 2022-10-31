@@ -97,6 +97,10 @@ impl ElasticSearchClient {
     }
 
     pub(crate) async fn delete_documents(&self, documents: &[DocumentId]) -> Result<(), Error> {
+        if documents.is_empty() {
+            return Ok(());
+        }
+
         let response = self
             .bulk_request(
                 documents
