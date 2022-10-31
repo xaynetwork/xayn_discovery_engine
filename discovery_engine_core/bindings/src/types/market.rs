@@ -40,13 +40,13 @@ pub unsafe extern "C" fn market_place_of_country_code(place: *mut Market) -> *mu
     unsafe { addr_of_mut!((*place).country_code) }
 }
 
-/// Alloc an uninitialized `Box<Market>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Market>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_market() -> *mut Market {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Market>`, mainly used for testing.
+/// Drops a `Box<Market>`.
 ///
 /// # Safety
 ///

@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
-
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -22,17 +20,12 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket, FeedMarkets;
-import 'package:xayn_discovery_engine/src/domain/models/history.dart'
-    show HistoricDocument;
+    show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
-import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -76,48 +69,15 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<Uint8List> serialize() async {
-    _incrementCount('serialize');
-    return Uint8List(0);
-  }
-
-  @override
-  Future<void> setMarkets(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    FeedMarkets markets,
-  ) async {
+  Future<void> setMarkets(FeedMarkets markets) async {
     _incrementCount('setMarkets');
   }
 
   @override
-  Future<void> setExcludedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> excluded,
-  ) async {
-    _incrementCount('setExcludedSources');
-    excludedSources = excluded;
-  }
-
-  @override
-  Future<void> setTrustedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> trusted,
-  ) async {
-    _incrementCount('setTrustedSources');
-    trustedSources = trusted;
-  }
-
-  @override
-  Future<void> setSources(
-    Set<Source> excluded,
-    Set<Source> trusted,
-  ) async {
+  Future<void> setSources(Set<Source> trusted, Set<Source> excluded) async {
     _incrementCount('setSources');
-    excludedSources = excluded;
     trustedSources = trusted;
+    excludedSources = excluded;
   }
 
   @override
@@ -133,45 +93,28 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<void> addExcludedSource(
-    Source excluded,
-  ) async {
+  Future<void> addExcludedSource(Source excluded) async {
     _incrementCount('addExcludedSource');
   }
 
   @override
-  Future<void> removeExcludedSource(
-    Source excluded,
-  ) async {
+  Future<void> removeExcludedSource(Source excluded) async {
     _incrementCount('removeExcludedSource');
   }
 
   @override
-  Future<void> addTrustedSource(
-    Source trusted,
-  ) async {
+  Future<void> addTrustedSource(Source trusted) async {
     _incrementCount('addTrustedSource');
   }
 
   @override
-  Future<void> removeTrustedSource(
-    Source trusted,
-  ) async {
+  Future<void> removeTrustedSource(Source trusted) async {
     _incrementCount('removeTrustedSource');
   }
 
   @override
   Future<List<DocumentWithActiveData>> feedNextBatch() async {
     _incrementCount('feedNextBatch');
-    return feedDocuments.take(2).toList(growable: false);
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> getFeedDocuments(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-  ) async {
-    _incrementCount('getFeedDocuments');
     return feedDocuments.take(2).toList(growable: false);
   }
 
@@ -192,13 +135,10 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<Document> userReacted(
-    List<HistoricDocument>? history,
-    List<SourceReacted> sources,
-    UserReacted userReacted,
-  ) async {
+  Future<Document> userReacted(UserReacted userReacted) async {
     _incrementCount('userReacted');
     return Document(
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 0,
       documentId: DocumentId(),
       resource: NewsResource(
@@ -268,16 +208,6 @@ class MockEngine implements Engine {
   @override
   Future<void> closeSearch() async {
     _incrementCount('closeSearch');
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> deepSearch(
-    String term,
-    FeedMarket market,
-    Embedding embedding,
-  ) async {
-    _incrementCount('deepSearch');
-    return deepSearchDocuments;
   }
 
   @override

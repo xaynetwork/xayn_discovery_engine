@@ -7,7 +7,6 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 async-bindgen = { path = "../async-bindgen/async-bindgen" }
-cfg-if = { workspace = true }
 chrono = { workspace = true }
 derive_more = { workspace = true }
 itertools = { workspace = true }
@@ -28,9 +27,6 @@ tracing-android = "0.2.0"
 [build-dependencies]
 cbindgen = "=0.24.3"
 heck = { workspace = true }
-
-[features]
-storage = ["xayn-discovery-engine-core/storage"]
 
 [lib]
 crate-type = ["cdylib", "staticlib"]

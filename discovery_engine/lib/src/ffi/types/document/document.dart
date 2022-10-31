@@ -19,8 +19,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart';
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
@@ -32,36 +31,29 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/news_resource.dart'
     show NewsResourceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
     show OptionUserReactionFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
-    show EmbeddingFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi, StackIdFfi;
 
 class DocumentFfi with EquatableMixin {
   final DocumentId id;
   final StackId stackId;
-  final Embedding smbertEmbedding;
   final NewsResource resource;
   final UserReaction? reaction;
 
   DocumentFfi({
     required this.id,
     required this.stackId,
-    required this.smbertEmbedding,
     required this.resource,
     this.reaction,
   });
 
   @override
-  List<Object?> get props => [id, stackId, smbertEmbedding, resource, reaction];
+  List<Object?> get props => [id, stackId, resource, reaction];
 
   factory DocumentFfi.readNative(final Pointer<RustDocument> place) {
     return DocumentFfi(
       id: DocumentIdFfi.readNative(ffi.document_place_of_id(place)),
       stackId: StackIdFfi.readNative(ffi.document_place_of_stack_id(place)),
-      smbertEmbedding: EmbeddingFfi.readNative(
-        ffi.document_place_of_smbert_embedding(place),
-      ),
       resource:
           NewsResourceFfi.readNative(ffi.document_place_of_resource(place)),
       reaction: OptionUserReactionFfi.readNative(
@@ -73,25 +65,20 @@ class DocumentFfi with EquatableMixin {
   void writeNative(final Pointer<RustDocument> place) {
     id.writeNative(ffi.document_place_of_id(place));
     stackId.writeNative(ffi.document_place_of_stack_id(place));
-    smbertEmbedding.writeNative(ffi.document_place_of_smbert_embedding(place));
     resource.writeNative(ffi.document_place_of_resource(place));
     reaction.writeNative(ffi.document_place_of_reaction(place));
   }
 
-  Document toDocument({
-    @Deprecated('only meaningful `cfgFeatureStorage` disabled')
-        int batchIndex = 0,
-    bool isSearched = false,
-  }) =>
-      Document(
+  Document toDocument({bool isSearched = false}) => Document(
         documentId: id,
         stackId: stackId,
         resource: resource,
-        batchIndex: batchIndex,
+        // ignore: deprecated_member_use_from_same_package
+        batchIndex: 0, // unused
         isSearched: isSearched,
         userReaction: reaction ?? UserReaction.neutral,
       );
 
   ActiveDocumentData toActiveDocumentData() =>
-      ActiveDocumentData(smbertEmbedding);
+      ActiveDocumentData(Embedding.fromList([]));
 }

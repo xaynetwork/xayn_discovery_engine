@@ -19,7 +19,7 @@
 
 use std::ptr::addr_of_mut;
 
-use xayn_discovery_engine_core::storage2::{Search, SearchBy};
+use xayn_discovery_engine_core::storage::models::{Search, SearchBy};
 
 //cbindgen:ignore
 pub type MigrationSearch = Search;
@@ -107,13 +107,13 @@ pub unsafe extern "C" fn migration_search_place_of_next_page(
     unsafe { addr_of_mut!((*place).paging.next_page) }
 }
 
-/// Alloc an uninitialized `Box<MigrationSearch>`, mainly used for testing.
+/// Alloc an uninitialized `Box<MigrationSearch>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_migration_search() -> *mut MigrationSearch {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<MigrationSearch>`, mainly used for testing.
+/// Drops a `Box<MigrationSearch>`.
 ///
 /// # Safety
 ///

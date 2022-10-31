@@ -13,10 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
@@ -25,25 +21,15 @@ import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
 /// TimeSpent event with metadata as passed to the engine.
 class TimeSpent with EquatableMixin {
   final DocumentId id;
-  final UserReaction reaction;
   final Duration viewTime;
   final DocumentViewMode viewMode;
-  final Embedding smbertEmbedding;
 
   const TimeSpent({
     required this.id,
-    required this.reaction,
     required this.viewTime,
     required this.viewMode,
-    required this.smbertEmbedding,
   });
 
   @override
-  List<Object?> get props => [
-        id,
-        reaction,
-        viewTime,
-        viewMode,
-        smbertEmbedding,
-      ];
+  List<Object?> get props => [id, viewTime, viewMode];
 }

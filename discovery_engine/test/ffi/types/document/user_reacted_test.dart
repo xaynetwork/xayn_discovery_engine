@@ -15,12 +15,8 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, StackId;
+    show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
     show UserReacted;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
@@ -28,15 +24,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
 
 void main() {
   test('reading written user reacted instance yields same result', () {
-    final document = UserReacted(
-      id: DocumentId(),
-      stackId: StackId(),
-      title: 'title',
-      snippet: 'Cloning brought back the dodo.',
-      smbertEmbedding: Embedding.fromList([.9, .1]),
-      reaction: UserReaction.negative,
-      market: const FeedMarket(langCode: 'de', countryCode: 'DE'),
-    );
+    final document =
+        UserReacted(id: DocumentId(), reaction: UserReaction.negative);
     final boxed = document.allocNative();
     final res = UserReactedFfi.readNative(boxed.ref);
     boxed.free();

@@ -14,6 +14,7 @@
 
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:hive/hive.dart';
+
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -38,12 +39,14 @@ class DocumentWithActiveData with EquatableMixin {
 /// Additional data pertaining to active documents.
 @HiveType(typeId: activeDocumentDataTypeId)
 class ActiveDocumentData with EquatableMixin {
+  @Deprecated('only used in migration')
   @HiveField(0)
   final Embedding smbertEmbedding;
   @HiveField(1)
   final Map<DocumentViewMode, Duration> viewTime;
 
-  ActiveDocumentData(this.smbertEmbedding) : viewTime = {};
+  ActiveDocumentData(@Deprecated('only used in migration') this.smbertEmbedding)
+      : viewTime = {};
 
   /// Returns sum of [Duration] from all the registered [DocumentViewMode] times.
   Duration get sumDuration =>
@@ -59,5 +62,9 @@ class ActiveDocumentData with EquatableMixin {
       viewTime[mode] ?? Duration.zero;
 
   @override
-  List<Object?> get props => [smbertEmbedding, viewTime];
+  List<Object?> get props => [
+        // ignore: deprecated_member_use_from_same_package
+        smbertEmbedding,
+        viewTime,
+      ];
 }

@@ -15,8 +15,6 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -30,7 +28,6 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart'
 DocumentFfi arbitraryDocumentFfi({UserReaction? reaction}) => DocumentFfi(
       id: DocumentId(),
       stackId: StackId(),
-      smbertEmbedding: Embedding.fromList([0.9, 0.1]),
       reaction: reaction,
       resource: NewsResource(
         title: 'fun',
@@ -68,26 +65,20 @@ void main() {
 
   test('conversion to Document works', () {
     final ffiDocument = arbitraryDocumentFfi();
-    // ignore: deprecated_member_use_from_same_package
-    final document = ffiDocument.toDocument(batchIndex: 12);
+    final document = ffiDocument.toDocument();
     expect(document.documentId, equals(ffiDocument.id));
     expect(document.stackId, equals(ffiDocument.stackId));
     expect(document.resource, equals(ffiDocument.resource));
-    // ignore: deprecated_member_use_from_same_package
-    expect(document.batchIndex, equals(12));
     expect(document.userReaction, equals(UserReaction.neutral));
     expect(document.isActive, isTrue);
   });
 
   test('conversion to Document works with reaction', () {
     final ffiDocument = arbitraryDocumentFfi(reaction: UserReaction.positive);
-    // ignore: deprecated_member_use_from_same_package
-    final document = ffiDocument.toDocument(batchIndex: 12);
+    final document = ffiDocument.toDocument();
     expect(document.documentId, equals(ffiDocument.id));
     expect(document.stackId, equals(ffiDocument.stackId));
     expect(document.resource, equals(ffiDocument.resource));
-    // ignore: deprecated_member_use_from_same_package
-    expect(document.batchIndex, equals(12));
     expect(document.userReaction, equals(UserReaction.positive));
     expect(document.isActive, isTrue);
   });
@@ -95,10 +86,6 @@ void main() {
   test('conversion to ActiveDocumentData works', () {
     final ffiDocument = arbitraryDocumentFfi();
     final data = ffiDocument.toActiveDocumentData();
-    expect(
-      data.smbertEmbedding,
-      equals(ffiDocument.smbertEmbedding),
-    );
     expect(data.viewTime, isEmpty);
   });
 }

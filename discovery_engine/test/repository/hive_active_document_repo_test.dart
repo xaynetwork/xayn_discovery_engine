@@ -13,12 +13,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io' show Directory;
-import 'dart:typed_data' show Float32List;
 
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
     show ActiveDocumentData;
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
@@ -27,6 +24,7 @@ import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId;
 import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
     show DocumentViewMode;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
     show HiveActiveDocumentDataRepository;
 
@@ -37,18 +35,18 @@ Future<void> main() async {
 
   group('ActiveDocumentDataRepository', () {
     late HiveActiveDocumentDataRepository repo;
-    final data = ActiveDocumentData(Embedding(Float32List(0)));
+    final data = ActiveDocumentData(Embedding.fromList([]));
     final id1 = DocumentId();
     final id2 = DocumentId();
 
     setUpAll(() async {
-      EventHandler.registerHiveAdapters();
+      registerHiveAdapters();
     });
 
     setUp(() async {
       final dir =
           Directory.systemTemp.createTempSync('ActiveDocumentDataRepository');
-      await EventHandler.initDatabase(dir.path);
+      await initDatabase(dir.path);
       repo = HiveActiveDocumentDataRepository();
     });
 
@@ -86,7 +84,13 @@ Future<void> main() async {
 
       test('existing smbert embedding', () async {
         final emb = await repo.smbertEmbeddingById(id1);
-        expect(emb, equals(data.smbertEmbedding));
+        expect(
+          emb,
+          equals(
+            // ignore: deprecated_member_use_from_same_package
+            data.smbertEmbedding,
+          ),
+        );
       });
 
       test('smbert embedding of updated existing', () async {

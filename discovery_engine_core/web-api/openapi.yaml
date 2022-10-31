@@ -27,7 +27,7 @@ tags:
   - name: users
     description: Interaction of the user and personalized document.
   - name: documents
-    description: Managment of the documents in the system.
+    description: Management of the documents in the system.
 
 paths:
   /users/{user_id}/personalized_documents:
@@ -166,7 +166,7 @@ paths:
           description: successful operation
         '400':
           description: invalid request
-          
+
   /documents/{document_id}/properties:
     get:
       tags:
@@ -324,13 +324,17 @@ paths:
 components:
   schemas:
     DocumentId:
-      description: A document id can be any non-empty UTF-8 string that does not contain the null byte.
+      description: |-
+        A document id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
       type: string
-      example: "document id"
+      example: "document_id"
     DocumentPropertyId:
-      description: A document property id can be any non-empty UTF-8 string that does not contain the null byte.
+      description: |-
+        A document property id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
       type: string
-      example: "document property id"
+      example: "document_property_id"
     DocumentProperty:
       description: Arbitrary property that can be attached to a document.
       example: "News title"
@@ -368,9 +372,11 @@ components:
         properties:
           $ref: '#/components/schemas/DocumentProperties'
     UserId:
-      description: A user id can be any non-empty UTF-8 string that does not contain the null byte.
+      description: |-
+        A user id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
       type: string
-      example: "user id"
+      example: "user_id"
     BaseError:
       type: object
       properties:

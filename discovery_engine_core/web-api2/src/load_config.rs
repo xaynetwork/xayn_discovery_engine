@@ -12,45 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
 use figment::{
     providers::{Env, Format, Serialized, Toml},
     Figment,
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-pub trait Config: DeserializeOwned + Send + Sync + 'static {
-    fn bind_address(&self) -> SocketAddr;
-    fn log_file(&self) -> Option<&Path> {
-        None
-    }
-}
-
-#[derive(Deserialize, Debug)]
-pub struct CommonConfig {
-    #[serde(default = "default_bind_address")]
-    bind_to: SocketAddr,
-
-    #[serde(default)]
-    log_file: Option<PathBuf>,
-}
-
-fn default_bind_address() -> SocketAddr {
-    SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080).into()
-}
-
-impl Config for CommonConfig {
-    fn bind_address(&self) -> SocketAddr {
-        self.bind_to
-    }
-    fn log_file(&self) -> Option<&Path> {
-        self.log_file.as_deref()
-    }
-}
+use serde::{de::DeserializeOwned, Serialize};
 
 /// Load the configuration into given type.
 ///
@@ -96,14 +64,16 @@ where
     load_dotenv(".env.local")?;
     load_dotenv(".env")?;
 
-    Figment::new()
-        .join(Serialized::globals(update_with))
-        .join(Env::prefixed("XAYN_WEB_API_").split("__"))
-        .join(Toml::file(
-            config_file.unwrap_or_else(|| Path::new("config.toml")),
-        ))
-        .extract()
-        .map_err(Into::into)
+    let mut figment = Figment::new()
+        .join(Serialized::defaults(update_with))
+        .join(Env::prefixed("XAYN_WEB_API__").split("__"));
+
+    let file = config_file.unwrap_or_else(|| Path::new("config.toml"));
+    if file.exists() {
+        figment = figment.join(Toml::file(file));
+    }
+
+    figment.extract().map_err(Into::into)
 }
 
 fn load_dotenv(file_name: &str) -> Result<(), figment::Error> {

@@ -40,48 +40,32 @@ use std::path::Path;
 use itertools::Itertools;
 use xayn_discovery_engine_core::Engine;
 
-#[allow(unsafe_code)]
-#[no_mangle]
-pub extern "C" fn cfg_feature_storage() -> u8 {
-    u8::from(cfg!(feature = "storage"))
-}
-
 #[async_bindgen::api(
     use uuid::Uuid;
 
-    use xayn_discovery_engine_ai::Embedding;
     use xayn_discovery_engine_core::{
-        document::{Document, HistoricDocument, TimeSpent, TrendingTopic, UserReacted, WeightedSource},
-        storage2::DartMigrationData,
+        document::{TimeSpent, UserReacted},
         InitConfig,
     };
     use xayn_discovery_engine_providers::Market;
 
-    use crate::types::{engine::{SharedEngine, InitializationResult}, search::Search};
+    use crate::types::{
+        document::Document,
+        engine::{InitializationResult, SharedEngine},
+        search::Search,
+        trending_topic::TrendingTopic,
+    };
 )]
 impl XaynDiscoveryEngineAsyncFfi {
     /// Initializes the engine.
-    #[allow(clippy::box_collection)]
-    pub async fn initialize(
-        config: Box<InitConfig>,
-        state: Option<Box<Vec<u8>>>,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
-        dart_migration_data: Option<Box<DartMigrationData>>,
-    ) -> Box<Result<InitializationResult, String>> {
+    pub async fn initialize(config: Box<InitConfig>) -> Box<Result<InitializationResult, String>> {
         tracing::init_tracing(config.log_file.as_deref().map(Path::new));
 
         Box::new(
-            Engine::from_config(
-                *config,
-                state.as_deref().map(Vec::as_slice),
-                &history,
-                &sources,
-                dart_migration_data.map(|d| *d),
-            )
-            .await
-            .map(|(engine, init_db_hint)| InitializationResult::new(engine, init_db_hint))
-            .map_err(|error| error.to_string()),
+            Engine::from_config(*config)
+                .await
+                .map(|(engine, init_db_hint)| InitializationResult::new(engine, init_db_hint))
+                .map_err(|error| error.to_string()),
         )
     }
 
@@ -90,40 +74,23 @@ impl XaynDiscoveryEngineAsyncFfi {
         engine.as_ref().lock().await.configure(&de_config);
     }
 
-    /// Serializes the engine.
-    pub async fn serialize(engine: &SharedEngine) -> Box<Result<Vec<u8>, String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .serialize()
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
     /// Sets the markets.
-    #[allow(clippy::box_collection)]
     pub async fn set_markets(
         engine: &SharedEngine,
         markets: Box<Vec<Market>>,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .set_markets(&history, &sources, *markets)
+                .set_markets(*markets)
                 .await
                 .map_err(|error| error.to_string()),
         )
     }
 
     /// Gets the next batch of feed documents.
-    #[allow(clippy::box_collection)]
     pub async fn feed_next_batch(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
@@ -132,29 +99,12 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .feed_next_batch()
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
 
-    /// Gets feed documents.
-    #[allow(clippy::box_collection)]
-    pub async fn get_feed_documents(
-        engine: &SharedEngine,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
-    ) -> Box<Result<Vec<Document>, String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .get_feed_documents(&history, &sources)
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
-    /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
+    /// Restores the documents which have been fed, i.e. the current feed.
     pub async fn restore_feed(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
@@ -163,6 +113,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .restore_feed()
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -183,7 +134,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Processes time spent.
+    /// Processes the user's time on a document.
     pub async fn time_spent(
         engine: &SharedEngine,
         time_spent: Box<TimeSpent>,
@@ -199,14 +150,9 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Processes user reaction.
-    ///
-    /// The history and sources are required only for positive reactions.
-    #[allow(clippy::box_collection)]
+    /// Processes the user's reaction to a document.
     pub async fn user_reacted(
         engine: &SharedEngine,
-        history: Option<Box<Vec<HistoricDocument>>>,
-        sources: Box<Vec<WeightedSource>>,
         reacted: Box<UserReacted>,
     ) -> Box<Result<Document, String>> {
         Box::new(
@@ -214,8 +160,9 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .as_ref()
                 .lock()
                 .await
-                .user_reacted(history.as_deref().map(Vec::as_slice), &sources, *reacted)
+                .user_reacted(*reacted)
                 .await
+                .map(Into::into)
                 .map_err(|error| error.to_string()),
         )
     }
@@ -233,6 +180,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_by_query(query.as_ref(), page)
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -250,6 +198,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_by_topic(topic.as_ref(), page)
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -269,6 +218,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_by_id((*id).into())
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -282,11 +232,12 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .search_next_batch()
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
 
-    /// Restores the current active search, ordered by their global rank (timestamp & local rank).
+    /// Restores the documents which have been searched, i.e. the current active search.
     pub async fn restore_search(engine: &SharedEngine) -> Box<Result<Vec<Document>, String>> {
         Box::new(
             engine
@@ -295,6 +246,7 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .restore_search()
                 .await
+                .map(|documents| documents.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
@@ -326,27 +278,6 @@ impl XaynDiscoveryEngineAsyncFfi {
         )
     }
 
-    /// Performs a deep search by term and market.
-    ///
-    /// The documents are sorted in descending order wrt their cosine similarity towards the
-    /// original search term embedding.
-    pub async fn deep_search(
-        engine: &SharedEngine,
-        term: Box<String>,
-        market: Box<Market>,
-        embedding: Box<Embedding>,
-    ) -> Box<Result<Vec<Document>, String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .deep_search(term.as_ref(), market.as_ref(), embedding.as_ref())
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
     /// Returns the current trending topics.
     pub async fn trending_topics(engine: &SharedEngine) -> Box<Result<Vec<TrendingTopic>, String>> {
         Box::new(
@@ -356,65 +287,30 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .trending_topics()
                 .await
+                .map(|trending_topics| trending_topics.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }
 
-    /// Sets the trusted sources and updates the stacks based on that.
-    pub async fn set_trusted_sources(
-        engine: &SharedEngine,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
-        trusted: Box<Vec<String>>,
-    ) -> Box<Result<(), String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .set_trusted_sources(&history, &sources, *trusted)
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
-    /// Sets the excluded sources and updates the stacks based on that.
-    pub async fn set_excluded_sources(
-        engine: &SharedEngine,
-        history: Box<Vec<HistoricDocument>>,
-        sources: Box<Vec<WeightedSource>>,
-        excluded: Box<Vec<String>>,
-    ) -> Box<Result<(), String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .set_excluded_sources(&history, &sources, *excluded)
-                .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
-    /// Sets a new list of excluded and trusted sources.
+    /// Sets new trusted and excluded sources.
     pub async fn set_sources(
         engine: &SharedEngine,
-        excluded: Box<Vec<String>>,
         trusted: Box<Vec<String>>,
+        excluded: Box<Vec<String>>,
     ) -> Box<Result<(), String>> {
         Box::new(
             engine
                 .as_ref()
                 .lock()
                 .await
-                .set_sources(*excluded, *trusted)
+                .set_sources(*trusted, *excluded)
                 .await
                 .map_err(|error| error.to_string()),
         )
     }
 
     /// Returns the trusted sources.
-    pub async fn get_trusted_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
+    pub async fn trusted_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
         Box::new(
             engine
                 .as_ref()
@@ -427,7 +323,7 @@ impl XaynDiscoveryEngineAsyncFfi {
     }
 
     /// Returns the excluded sources.
-    pub async fn get_excluded_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
+    pub async fn excluded_sources(engine: &SharedEngine) -> Box<Result<Vec<String>, String>> {
         Box::new(
             engine
                 .as_ref()
@@ -508,7 +404,7 @@ impl XaynDiscoveryEngineAsyncFfi {
         drop(engine.as_ref().as_ref().lock().await);
     }
 
-    /// Reset the AI state of this engine
+    /// Reset the AI state of this engine.
     pub async fn reset_ai(engine: &SharedEngine) -> Box<Result<(), String>> {
         Box::new(
             engine

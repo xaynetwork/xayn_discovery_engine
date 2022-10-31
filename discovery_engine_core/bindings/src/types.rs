@@ -17,7 +17,6 @@
 #![allow(unsafe_code)]
 
 mod boxed;
-pub mod dart_migration_data;
 pub mod date_time;
 pub mod document;
 pub mod duration;
@@ -28,8 +27,7 @@ pub mod history_vec;
 pub mod init_config;
 pub mod market;
 pub mod market_vec;
-pub mod migration_document;
-pub mod migration_search;
+pub mod migration;
 pub mod option;
 pub mod primitives;
 pub mod result;

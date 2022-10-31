@@ -18,7 +18,7 @@ use std::{ptr::addr_of_mut, time::Duration};
 
 use uuid::Uuid;
 
-use xayn_discovery_engine_core::document::{Embedding, TimeSpent, UserReaction, ViewMode};
+use xayn_discovery_engine_core::document::{TimeSpent, ViewMode};
 
 /// Returns a pointer to the `id` field of a [`TimeSpent`] memory object.
 ///
@@ -29,19 +29,6 @@ use xayn_discovery_engine_core::document::{Embedding, TimeSpent, UserReaction, V
 #[no_mangle]
 pub unsafe extern "C" fn time_spent_place_of_id(place: *mut TimeSpent) -> *mut Uuid {
     unsafe { addr_of_mut!((*place).id) }.cast::<Uuid>()
-}
-
-/// Returns a pointer to the `smbert_embedding` field of a [`TimeSpent`] memory object.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`TimeSpent`] memory object, it
-/// might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn time_spent_place_of_smbert_embedding(
-    place: *mut TimeSpent,
-) -> *mut Embedding {
-    unsafe { addr_of_mut!((*place).smbert_embedding) }
 }
 
 /// Returns a pointer to the `view_time` field of a [`TimeSpent`] memory object.
@@ -66,24 +53,13 @@ pub unsafe extern "C" fn time_spent_place_of_view_mode(place: *mut TimeSpent) ->
     unsafe { addr_of_mut!((*place).view_mode) }
 }
 
-/// Returns a pointer to the `reaction` field of a [`TimeSpent`] memory object.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`TimeSpent`] memory object, it
-/// might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn time_spent_place_of_reaction(place: *mut TimeSpent) -> *mut UserReaction {
-    unsafe { addr_of_mut!((*place).reaction) }
-}
-
-/// Alloc an uninitialized `Box<TimeSpent>`, mainly used for testing.
+/// Alloc an uninitialized `Box<TimeSpent>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_time_spent() -> *mut TimeSpent {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<TimeSpent>`, mainly used for testing.
+/// Drops a `Box<TimeSpent>`.
 ///
 /// # Safety
 ///

@@ -63,13 +63,13 @@ pub unsafe extern "C" fn get_uuid_bytes(uuid: *mut Uuid) -> *const u8 {
     uuid.as_bytes().as_ptr()
 }
 
-/// Alloc an uninitialized `Box<Uuid>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Uuid>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_uuid() -> *mut Uuid {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Uuid>`, mainly used for testing.
+/// Drops a `Box<Uuid>`.
 ///
 /// # Safety
 ///

@@ -27,7 +27,7 @@ use url::Url;
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId};
-use xayn_discovery_engine_providers::{GenericArticle, Market, TrendingTopic as BingTopic};
+use xayn_discovery_engine_providers::{GenericArticle, TrendingTopic as BingTopic};
 
 use crate::stack::Id as StackId;
 
@@ -45,14 +45,22 @@ pub enum Error {
 
 /// Unique identifier of the [`Document`].
 #[derive(
-    Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Serialize, Deserialize, Display,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Clone,
+    Copy,
+    Hash,
+    Serialize,
+    Deserialize,
+    Display,
+    sqlx::Type,
+    sqlx::FromRow,
 )]
 #[repr(transparent)]
-#[cfg_attr(
-    feature = "storage",
-    derive(sqlx::Type, sqlx::FromRow),
-    sqlx(transparent)
-)]
+#[sqlx(transparent)]
 #[cfg_attr(test, derive(Default))]
 pub struct Id(Uuid);
 
@@ -248,23 +256,14 @@ pub struct TimeSpent {
     /// Id of the document.
     pub id: Id,
 
-    /// Precomputed S-mBert of the document.
-    ///
-    /// If `storage` is enabled this will be ignored and can be empty.
-    pub smbert_embedding: Embedding,
-
     /// Time spent on the documents in seconds.
     pub view_time: Duration,
 
     /// The way the document was viewed.
     pub view_mode: ViewMode,
-
-    /// Reaction.
-    pub reaction: UserReaction,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "storage", derive(num_derive::FromPrimitive))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, num_derive::FromPrimitive)]
 #[repr(u32)]
 pub enum ViewMode {
     Story = 0,
@@ -278,23 +277,8 @@ pub struct UserReacted {
     /// Id of the document.
     pub id: Id,
 
-    /// Stack from which the document has been taken.
-    pub stack_id: StackId,
-
-    /// Text title of the document.
-    pub title: String,
-
-    /// Text snippet of the document.
-    pub snippet: String,
-
-    /// Precomputed S-mBert of the document.
-    pub smbert_embedding: Embedding,
-
     /// Reaction.
     pub reaction: UserReaction,
-
-    /// Market from which the document is.
-    pub market: Market,
 }
 
 /// Represents a [`Document`] in the document history.
@@ -311,8 +295,8 @@ pub struct HistoricDocument {
 }
 
 /// A source domain with an associated weight.
-#[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Clone, PartialEq, Eq))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct WeightedSource {
     /// Source domain.
     pub source: String,

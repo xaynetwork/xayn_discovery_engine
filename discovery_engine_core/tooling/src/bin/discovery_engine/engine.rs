@@ -42,9 +42,7 @@ impl TestEngine {
             api_base_url: "https://api-gw.xaynet.dev".into(),
             news_provider_path: "/newscatcher/v1/search-news".into(),
             headlines_provider_path: "/newscatcher/v1/latest-headlines".into(),
-            markets: vec![Market::new("de", "DE")], //Market::new("en", "US")],
-            trusted_sources: vec![],
-            excluded_sources: vec![],
+            markets: vec![Market::new("de", "DE"), Market::new("en", "US")],
             smbert_vocab: format!("{manifest}{assets}/smbert_v0002/vocab.txt"),
             smbert_model: format!("{manifest}{assets}/smbert_v0002/smbert-quantized.onnx"),
             max_docs_per_feed_batch: 1,
@@ -53,8 +51,9 @@ impl TestEngine {
             log_file: None,
             data_dir: String::new(),
             use_ephemeral_db: true,
+            dart_migration_data: None,
         };
-        let engine = Engine::from_config(config, None, &[], &[], None).await?.0;
+        let engine = Engine::from_config(config).await?.0;
 
         spinner.finish_with_message("initialized engine");
 
@@ -73,21 +72,17 @@ impl TestEngine {
         }) = topics.get(&document.resource.topic)
         {
             if certainly || thread_rng().gen_bool(*probability) {
-                let reacted = user_reacted(document, UserReaction::Positive);
                 document = self
                     .engine
-                    .user_reacted(
-                        Some(&[/* TODO: db migration */]),
-                        &[/* TODO: db migration */],
-                        reacted,
-                    )
+                    .user_reacted(UserReacted {
+                        id: document.id,
+                        reaction: UserReaction::Positive,
+                    })
                     .await?;
                 let time_spent = TimeSpent {
                     id: document.id,
-                    smbert_embedding: document.smbert_embedding.clone(),
                     view_time: *time_spent,
                     view_mode: ViewMode::Story,
-                    reaction: UserReaction::Positive,
                 };
                 self.engine.time_spent(time_spent).await?;
             }
@@ -104,10 +99,12 @@ impl TestEngine {
     ) -> Result<Document> {
         if let Some(Dislike { probability }) = topics.get(&document.resource.topic) {
             if certainly || thread_rng().gen_bool(*probability) {
-                let reacted = user_reacted(document, UserReaction::Negative);
                 document = self
                     .engine
-                    .user_reacted(None, &[/* TODO: db migration */], reacted)
+                    .user_reacted(UserReacted {
+                        id: document.id,
+                        reaction: UserReaction::Negative,
+                    })
                     .await?;
             }
         }
@@ -120,24 +117,14 @@ impl TestEngine {
 
         let mut cois = 0;
         while cois < self.engine.coi_config().min_positive_cois() {
-            if let Some(document) = self
-                .engine
-                .get_feed_documents(&[/* TODO: db migration */], &[/* TODO: db migration */])
-                .await?
-                .pop()
-            {
+            if let Some(document) = self.engine.feed_next_batch().await?.pop() {
                 self.like(document, like_topics, true).await?;
                 cois += 1;
             }
         }
         cois = 0;
         while cois < self.engine.coi_config().min_negative_cois() {
-            if let Some(document) = self
-                .engine
-                .get_feed_documents(&[/* TODO: db migration */], &[/* TODO: db migration */])
-                .await?
-                .pop()
-            {
+            if let Some(document) = self.engine.feed_next_batch().await?.pop() {
                 self.dislike(document, dislike_topics, true).await?;
                 cois += 1;
             }
@@ -167,18 +154,7 @@ impl TestEngine {
         ) in personas_bar.wrap_iter(personas.into_iter())
         {
             self.engine
-                .set_trusted_sources(
-                    &[/* TODO: db migration */],
-                    &[/* TODO: db migration */],
-                    trusted_sources,
-                )
-                .await?;
-            self.engine
-                .set_excluded_sources(
-                    &[/* TODO: db migration */],
-                    &[/* TODO: db migration */],
-                    excluded_sources,
-                )
+                .set_sources(trusted_sources, excluded_sources)
                 .await?;
 
             let mut documents = Vec::with_capacity(runs * iterations);
@@ -192,15 +168,7 @@ impl TestEngine {
                 let iterations_bar =
                     multi_progress_bar(&multi_bar, self.progress, iterations, "iterations");
                 for _ in iterations_bar.wrap_iter(0..iterations) {
-                    if let Some(document) = self
-                        .engine
-                        .get_feed_documents(
-                            &[/* TODO: db migration */],
-                            &[/* TODO: db migration */],
-                        )
-                        .await?
-                        .pop()
-                    {
+                    if let Some(document) = self.engine.feed_next_batch().await?.pop() {
                         let document = self.like(document, &like_topics, false).await?;
                         let document = self.dislike(document, &dislike_topics, false).await?;
                         documents.push(document.into());
@@ -254,17 +222,5 @@ fn multi_progress_spinner(multi: &MultiProgress, progress: bool, msg: &'static s
         multi.add(spinner)
     } else {
         spinner
-    }
-}
-
-fn user_reacted(document: Document, reaction: UserReaction) -> UserReacted {
-    UserReacted {
-        id: document.id,
-        stack_id: document.stack_id,
-        title: document.resource.title,
-        snippet: document.resource.snippet,
-        smbert_embedding: document.smbert_embedding,
-        reaction,
-        market: Market::new(document.resource.language, document.resource.country),
     }
 }

@@ -41,6 +41,7 @@ use crate::{
         },
         utils::SqlxPushTupleExt,
         BoxedStorage,
+        DartMigrationData,
         Error,
         FeedScope,
         FeedbackScope,
@@ -51,7 +52,6 @@ use crate::{
         StateScope,
         Storage,
     },
-    storage2::DartMigrationData,
 };
 
 use self::utils::SqlxSqliteResultExt;

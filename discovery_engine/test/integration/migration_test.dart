@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import 'dart:io' show Directory;
-import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
@@ -26,17 +25,16 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         RestoreActiveSearchSucceeded,
         RestoreFeedSucceeded,
         Source,
-        StackId,
-        cfgFeatureStorage;
+        StackId;
 import 'package:xayn_discovery_engine/src/api/models/document.dart'
     show DocumentApiConversion;
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart';
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
 import 'package:xayn_discovery_engine/src/domain/models/embedding.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart';
 import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart';
@@ -76,8 +74,8 @@ class HiveInjection {
   }
 
   static Future<HiveInjection> open(String dataDir) async {
-    EventHandler.registerHiveAdapters();
-    await EventHandler.initDatabase(dataDir);
+    registerHiveAdapters();
+    await initDatabase(dataDir);
     return HiveInjection._(
       HiveEngineStateRepository(),
       HiveDocumentRepository(),
@@ -110,6 +108,7 @@ void main() {
     Document(
       documentId: DocumentId(),
       stackId: StackId.fromString('311dc7eb-5fc7-4aa4-8232-e119f7e80e76'),
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 1,
       userReaction: UserReaction.positive,
       isActive: true,
@@ -131,6 +130,7 @@ void main() {
     Document(
       documentId: DocumentId(),
       stackId: StackId.nil(),
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 2,
       userReaction: UserReaction.neutral,
       isActive: true,
@@ -152,6 +152,7 @@ void main() {
     Document(
       documentId: DocumentId(),
       stackId: StackId.fromString('311dc7eb-5fc7-4aa4-8232-e119f7e80e76'),
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 3,
       userReaction: UserReaction.negative,
       isActive: false,
@@ -173,6 +174,7 @@ void main() {
     Document(
       documentId: DocumentId(),
       stackId: StackId.nil(),
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 4,
       userReaction: UserReaction.positive,
       isActive: false,
@@ -202,8 +204,8 @@ void main() {
       data = await setupTestEngineData(useEphemeralDb: false);
       server = await LocalNewsApiServer.start();
 
-      EventHandler.registerHiveAdapters();
-      await EventHandler.initDatabase(data.applicationDirectoryPath);
+      registerHiveAdapters();
+      await initDatabase(data.applicationDirectoryPath);
     });
 
     tearDown(() async {
@@ -262,8 +264,7 @@ void main() {
           (repos) async {
         //FIXME test engine state migration by having a known valid engine state blob
         await repos.documentRepository.updateMany(docs);
-        final data0 =
-            ActiveDocumentData(Embedding(Float32List.fromList([2, 25, 2, 3])));
+        final data0 = ActiveDocumentData(Embedding.fromList([2, 25, 2, 3]));
         data0.viewTime[DocumentViewMode.web] = const Duration(minutes: 2);
         await repos.activeDocumentDataRepository.update(
           docs[0].documentId,
@@ -272,11 +273,10 @@ void main() {
 
         await repos.activeDocumentDataRepository.update(
           docs[1].documentId,
-          ActiveDocumentData(Embedding(Float32List.fromList([22, 25, 32, 33]))),
+          ActiveDocumentData(Embedding.fromList([22, 25, 32, 33])),
         );
 
-        final data2 =
-            ActiveDocumentData(Embedding(Float32List.fromList([12, 15, 2, 3])));
+        final data2 = ActiveDocumentData(Embedding.fromList([12, 15, 2, 3]));
         data2.viewTime[DocumentViewMode.reader] = const Duration(minutes: 22);
         await repos.activeDocumentDataRepository.update(
           docs[2].documentId,
@@ -356,7 +356,5 @@ void main() {
         expect(repos.sourcePreferenceRepository.isEmpty, isTrue);
       });
     });
-
-    // ignore: require_trailing_commas
-  }, skip: !cfgFeatureStorage);
+  });
 }

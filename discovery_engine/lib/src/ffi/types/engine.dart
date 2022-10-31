@@ -12,9 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:ffi' show nullptr;
-import 'dart:typed_data' show Uint8List;
-
 import 'package:xayn_discovery_engine/src/domain/engine/engine.dart'
     show Engine, EngineInitializer;
 import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
@@ -22,15 +19,10 @@ import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
 import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart';
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket, FeedMarkets;
-import 'package:xayn_discovery_engine/src/domain/models/history.dart'
-    show HistoricDocument;
+    show FeedMarkets;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source, ToStringListExt;
-import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
 import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
@@ -43,25 +35,16 @@ import 'package:xayn_discovery_engine/src/ffi/genesis.ffigen.dart'
     show RustSharedEngine;
 import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show asyncFfi, ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
-import 'package:xayn_discovery_engine/src/ffi/types/dart_migration_data.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/time_spent.dart'
     show TimeSpentFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reacted.dart'
     show UserReactedFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
-    show EmbeddingFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
-    show FeedMarketFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/feed_market_vec.dart'
     show FeedMarketSliceFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/history.dart'
-    show HistoricDocumentVecFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/init_config.dart'
     show InitConfigFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
-    show Uint8ListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
     show
         resultDocumentStringFfiAdapter,
@@ -70,7 +53,6 @@ import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
         resultVecDocumentStringFfiAdapter,
         resultVecStringStringFfiAdapter,
         resultVecTrendingTopicStringFfiAdapter,
-        resultVecU8StringFfiAdapter,
         resultVoidStringFfiAdapter;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show OptionStringFfi, StringFfi, StringListFfi;
@@ -80,11 +62,8 @@ import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid_vec.dart'
     show DocumentIdSetFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/weighted_source_vec.dart'
-    show WeightedSourceListFfi;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/native/data_provider.dart'
     show NativeSetupData;
-import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 
 /// A handle to the discovery engine.
 class DiscoveryEngineFfi implements Engine {
@@ -97,7 +76,6 @@ class DiscoveryEngineFfi implements Engine {
   /// Initializes the engine.
   static Future<DiscoveryEngineFfi> initialize(
     EngineInitializer initializer,
-    DartMigrationData? dartMigrationData,
   ) async {
     final setupData = initializer.setupData;
     if (setupData is! NativeSetupData) {
@@ -111,14 +89,9 @@ class DiscoveryEngineFfi implements Engine {
       InitConfigFfi(
         initializer.config,
         setupData,
-        initializer.trustedSources,
-        initializer.excludedSources,
         deConfig: initializer.deConfig,
+        dartMigrationData: initializer.dartMigrationData,
       ).allocNative().move(),
-      initializer.engineState?.allocNative().move() ?? nullptr,
-      initializer.history.allocNative().move(),
-      initializer.reactedSources.allocVec().move(),
-      dartMigrationData?.allocNative().move() ?? nullptr,
     );
     final boxedInitResult =
         resultInitializationResultStringFfiAdapter.moveNative(result);
@@ -140,69 +113,21 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<Uint8List> serialize() async {
-    final result = await asyncFfi.serialize(_engine.ref);
-
-    return resultVecU8StringFfiAdapter.consumeNative(result);
-  }
-
-  @override
-  Future<void> setMarkets(
-    final List<HistoricDocument> history,
-    final List<SourceReacted> sources,
-    final FeedMarkets markets,
-  ) async {
+  Future<void> setMarkets(final FeedMarkets markets) async {
     final result = await asyncFfi.setMarkets(
       _engine.ref,
       markets.toList().allocVec().move(),
-      history.allocNative().move(),
-      sources.allocVec().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
   }
 
   @override
-  Future<void> setExcludedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> excluded,
-  ) async {
-    final result = await asyncFfi.setExcludedSources(
-      _engine.ref,
-      history.allocNative().move(),
-      sources.allocVec().move(),
-      excluded.toStringList().allocNative().move(),
-    );
-
-    return resultVoidStringFfiAdapter.consumeNative(result);
-  }
-
-  @override
-  Future<void> setTrustedSources(
-    List<HistoricDocument> history,
-    List<SourceReacted> sources,
-    Set<Source> trusted,
-  ) async {
-    final result = await asyncFfi.setTrustedSources(
-      _engine.ref,
-      history.allocNative().move(),
-      sources.allocVec().move(),
-      trusted.toStringList().allocNative().move(),
-    );
-
-    return resultVoidStringFfiAdapter.consumeNative(result);
-  }
-
-  @override
-  Future<void> setSources(
-    Set<Source> excluded,
-    Set<Source> trusted,
-  ) async {
+  Future<void> setSources(Set<Source> trusted, Set<Source> excluded) async {
     final result = await asyncFfi.setSources(
       _engine.ref,
-      excluded.toStringList().allocNative().move(),
       trusted.toStringList().allocNative().move(),
+      excluded.toStringList().allocNative().move(),
     );
 
     return resultVoidStringFfiAdapter.consumeNative(result);
@@ -210,7 +135,7 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<Set<Source>> getExcludedSources() async {
-    final result = await asyncFfi.getExcludedSources(_engine.ref);
+    final result = await asyncFfi.excludedSources(_engine.ref);
 
     return resultVecStringStringFfiAdapter
         .consumeNative(result)
@@ -220,7 +145,7 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<Set<Source>> getTrustedSources() async {
-    final result = await asyncFfi.getTrustedSources(_engine.ref);
+    final result = await asyncFfi.trustedSources(_engine.ref);
 
     return resultVecStringStringFfiAdapter
         .consumeNative(result)
@@ -229,9 +154,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> addExcludedSource(
-    Source excluded,
-  ) async {
+  Future<void> addExcludedSource(Source excluded) async {
     final result = await asyncFfi.addExcludedSource(
       _engine.ref,
       excluded.toString().allocNative().move(),
@@ -241,9 +164,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> removeExcludedSource(
-    Source excluded,
-  ) async {
+  Future<void> removeExcludedSource(Source excluded) async {
     final result = await asyncFfi.removeExcludedSource(
       _engine.ref,
       excluded.toString().allocNative().move(),
@@ -253,9 +174,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> addTrustedSource(
-    Source trusted,
-  ) async {
+  Future<void> addTrustedSource(Source trusted) async {
     final result = await asyncFfi.addTrustedSource(
       _engine.ref,
       trusted.toString().allocNative().move(),
@@ -265,9 +184,7 @@ class DiscoveryEngineFfi implements Engine {
   }
 
   @override
-  Future<void> removeTrustedSource(
-    Source trusted,
-  ) async {
+  Future<void> removeTrustedSource(Source trusted) async {
     final result = await asyncFfi.removeTrustedSource(
       _engine.ref,
       trusted.toString().allocNative().move(),
@@ -279,22 +196,6 @@ class DiscoveryEngineFfi implements Engine {
   @override
   Future<List<DocumentWithActiveData>> feedNextBatch() async {
     final result = await asyncFfi.feedNextBatch(_engine.ref);
-
-    return resultVecDocumentStringFfiAdapter
-        .consumeNative(result)
-        .toDocumentListWithActiveData();
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> getFeedDocuments(
-    final List<HistoricDocument> history,
-    final List<SourceReacted> sources,
-  ) async {
-    final result = await asyncFfi.getFeedDocuments(
-      _engine.ref,
-      history.allocNative().move(),
-      sources.allocVec().move(),
-    );
 
     return resultVecDocumentStringFfiAdapter
         .consumeNative(result)
@@ -329,16 +230,11 @@ class DiscoveryEngineFfi implements Engine {
 
   @override
   Future<Document> userReacted(
-    final List<HistoricDocument>? history,
-    final List<SourceReacted> sources,
     final UserReacted userReacted,
   ) async {
-    final boxedUserReacted = userReacted.allocNative();
     final result = await asyncFfi.userReacted(
       _engine.ref,
-      history?.allocNative().move() ?? nullptr,
-      sources.allocVec().move(),
-      boxedUserReacted.move(),
+      userReacted.allocNative().move(),
     );
 
     final doc = resultDocumentStringFfiAdapter.consumeNative(result);
@@ -418,24 +314,6 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.closeSearch(_engine.ref);
 
     return resultVoidStringFfiAdapter.consumeNative(result);
-  }
-
-  @override
-  Future<List<DocumentWithActiveData>> deepSearch(
-    String term,
-    FeedMarket market,
-    Embedding embedding,
-  ) async {
-    final result = await asyncFfi.deepSearch(
-      _engine.ref,
-      term.allocNative().move(),
-      market.allocNative().move(),
-      embedding.allocNative().move(),
-    );
-
-    return resultVecDocumentStringFfiAdapter
-        .consumeNative(result)
-        .toDocumentListWithActiveData();
   }
 
   @override

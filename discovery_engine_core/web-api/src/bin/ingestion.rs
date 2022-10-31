@@ -16,12 +16,11 @@
 
 use std::{convert::Infallible, env, net::IpAddr, path::PathBuf, sync::Arc};
 
-use bytes::{BufMut, Bytes, BytesMut};
 use envconfig::Envconfig;
 use itertools::Itertools;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
-use tracing::{debug, error, info, instrument};
+use tracing::{error, info, instrument};
 use tracing_subscriber::fmt::format::FmtSpan;
 use warp::{
     self,
@@ -121,51 +120,11 @@ impl IngestionError {
     }
 }
 
-/// Represents an instruction for bulk insert of data into Elastic Search service.
-#[derive(Debug, Serialize)]
-struct BulkOpInstruction {
-    index: IndexInfo,
-}
-
-impl BulkOpInstruction {
-    fn new(id: String) -> Self {
-        Self {
-            index: IndexInfo { id },
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-struct IndexInfo {
-    #[serde(rename(serialize = "_id"))]
-    id: String,
-}
-
 /// Represents body of a POST documents request.
 #[derive(Debug, Clone, Deserialize)]
 struct IngestionRequestBody {
     #[serde(deserialize_with = "deserialize_article_vec_not_empty")]
     documents: Vec<IngestedDocument>,
-}
-
-/// Represents body of Elastic bulk insert response.
-#[derive(Debug, Deserialize)]
-struct ElasticIngestionResponse {
-    errors: bool,
-    items: Vec<Hit>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Hit {
-    index: IngestionResult,
-}
-
-#[derive(Debug, Deserialize)]
-struct IngestionResult {
-    #[serde(rename(deserialize = "_id"))]
-    id: DocumentId,
-    status: usize,
-    error: Option<serde_json::Value>,
 }
 
 fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -303,6 +262,7 @@ fn post_documents(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::post()
         .and(warp::path("documents"))
+        .and(warp::path::end())
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
         .and(with_model(model))
@@ -352,6 +312,7 @@ fn get_document_properties(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::get()
         .and(document_properties_path())
+        .and(warp::path::end())
         .and(with_client(client))
         .and_then(handle_get_document_properties)
 }
@@ -363,6 +324,7 @@ fn put_document_properties(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::put()
         .and(document_properties_path())
+        .and(warp::path::end())
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
         .and(with_client(client))
@@ -375,6 +337,7 @@ fn delete_document_properties(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::delete()
         .and(document_properties_path())
+        .and(warp::path::end())
         .and(with_client(client))
         .and_then(handle_delete_document_properties)
 }
@@ -385,6 +348,7 @@ fn get_document_property(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::get()
         .and(document_property_path())
+        .and(warp::path::end())
         .and(with_client(client))
         .and_then(handle_get_document_property)
 }
@@ -396,6 +360,7 @@ fn put_document_property(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::put()
         .and(document_property_path())
+        .and(warp::path::end())
         .and(warp::body::content_length_limit(config.max_body_size))
         .and(warp::body::json())
         .and(with_client(client))
@@ -408,6 +373,7 @@ fn delete_document_property(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::delete()
         .and(document_property_path())
+        .and(warp::path::end())
         .and(with_client(client))
         .and_then(handle_delete_document_property)
 }
@@ -454,28 +420,7 @@ async fn handle_post_documents(
         start.elapsed().as_secs(),
     );
 
-    debug!("Serializing documents to ndjson");
-    let bytes = match serialize_to_ndjson(&documents) {
-        Ok(bytes) => bytes,
-        Err(error) => {
-            error!("Error serializing documents to ndjson: {error}");
-            return Ok(Box::new(
-                IngestionError::new(
-                    documents
-                        .into_iter()
-                        .map(|(id, _)| id)
-                        .chain(failed_documents)
-                        .collect_vec(),
-                )
-                .to_reply(),
-            ));
-        }
-    };
-
-    let response = match client
-        .query_elastic_search::<_, ElasticIngestionResponse>("_bulk?refresh", Some(bytes))
-        .await
-    {
+    let response = match client.bulk_insert_documents(&documents).await {
         Ok(response) => response,
         Err(error) => {
             error!("Error storing documents: {error}");
@@ -637,32 +582,4 @@ fn with_client(
     elastic: Arc<ElasticState>,
 ) -> impl Filter<Extract = (Arc<ElasticState>,), Error = Infallible> + Clone {
     warp::any().map(move || elastic.clone())
-}
-
-fn serialize_to_ndjson(
-    documents: &Vec<(DocumentId, ElasticDocumentData)>,
-) -> Result<Bytes, GenericError> {
-    let mut bytes = BytesMut::new();
-
-    fn write_record(
-        document_id: DocumentId,
-        document_data: &ElasticDocumentData,
-        bytes: &mut BytesMut,
-    ) -> Result<(), GenericError> {
-        let bulk_op_instruction = BulkOpInstruction::new(String::from(document_id));
-        let bulk_op_instruction = serde_json::to_vec(&bulk_op_instruction)?;
-        let documents_bytes = serde_json::to_vec(document_data)?;
-
-        bytes.put_slice(&bulk_op_instruction);
-        bytes.put_u8(b'\n');
-        bytes.put_slice(&documents_bytes);
-        bytes.put_u8(b'\n');
-        Ok(())
-    }
-
-    for (doc_id, doc_data) in documents {
-        write_record(doc_id.clone(), doc_data, &mut bytes)?;
-    }
-
-    Ok(bytes.freeze())
 }

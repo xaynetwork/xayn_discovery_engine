@@ -17,32 +17,21 @@
 use std::ptr::addr_of_mut;
 
 use url::Url;
-use uuid::Uuid;
 
-use xayn_discovery_engine_core::document::{Embedding, TrendingTopic};
-
-/// Returns a pointer to the `id` field of a trending topic.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`TrendingTopic`] memory object,
-/// which might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn trending_topic_place_of_id(place: *mut TrendingTopic) -> *mut Uuid {
-    unsafe { addr_of_mut!((*place).id) }.cast::<Uuid>()
+pub struct TrendingTopic {
+    name: String,
+    query: String,
+    image: Option<Url>,
 }
 
-/// Returns a pointer to the `smbert_embedding` field of a trending topic.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`TrendingTopic`] memory object,
-/// which might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn trending_topic_place_of_smbert_embedding(
-    place: *mut TrendingTopic,
-) -> *mut Embedding {
-    unsafe { addr_of_mut!((*place).smbert_embedding) }
+impl From<xayn_discovery_engine_core::document::TrendingTopic> for TrendingTopic {
+    fn from(trending_topic: xayn_discovery_engine_core::document::TrendingTopic) -> Self {
+        Self {
+            name: trending_topic.name,
+            query: trending_topic.query,
+            image: trending_topic.image,
+        }
+    }
 }
 
 /// Returns a pointer to the `name` field of a trending topic.
@@ -80,13 +69,13 @@ pub unsafe extern "C" fn trending_topic_place_of_image(
     unsafe { addr_of_mut!((*place).image) }
 }
 
-/// Alloc an uninitialized `Box<TrendingTopic>`, mainly used for testing.
+/// Alloc an uninitialized `Box<TrendingTopic>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_trending_topic() -> *mut TrendingTopic {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<TrendingTopic>`, mainly used for testing.
+/// Drops a `Box<TrendingTopic>`.
 ///
 /// # Safety
 ///

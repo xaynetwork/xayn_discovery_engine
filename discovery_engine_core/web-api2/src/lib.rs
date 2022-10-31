@@ -12,13 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod config;
+mod db;
+mod elastic;
+mod embedding;
 mod error;
 mod ingestion;
+mod load_config;
+mod logging;
 mod middleware;
 mod personalization;
 mod server;
-mod tracing;
+mod utils;
 
 pub use error::application::Error;
 pub use ingestion::Ingestion;

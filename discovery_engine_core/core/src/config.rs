@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use xayn_discovery_engine_ai::{CoiConfig, KpsConfig};
-use xayn_discovery_engine_providers::{Market, ProviderConfig};
+use xayn_discovery_engine_providers::Market;
 
 use crate::{
     engine::Engine,
@@ -30,6 +30,7 @@ use crate::{
         exploration::Stack as Exploration,
         ops::{breaking::BreakingNews, personalized::PersonalizedNews, trusted::TrustedNews},
     },
+    storage::DartMigrationData,
 };
 
 impl Engine {
@@ -77,10 +78,6 @@ pub struct InitConfig {
     pub headlines_provider_path: String,
     /// List of markets to use.
     pub markets: Vec<Market>,
-    /// List of trusted sources to use.
-    pub trusted_sources: Vec<String>,
-    /// List of excluded sources to use.
-    pub excluded_sources: Vec<String>,
     /// S-mBert vocabulary path.
     pub smbert_vocab: String,
     /// S-mBert model path.
@@ -97,19 +94,8 @@ pub struct InitConfig {
     pub data_dir: String,
     /// Use an ephemeral db instead of a db in the `data_dir`
     pub use_ephemeral_db: bool,
-}
-
-impl InitConfig {
-    pub(crate) fn to_provider_config(&self, timeout: Duration, retry: usize) -> ProviderConfig {
-        ProviderConfig {
-            api_base_url: self.api_base_url.clone(),
-            api_key: self.api_key.clone(),
-            news_provider_path: self.news_provider_path.clone(),
-            headlines_provider_path: self.headlines_provider_path.clone(),
-            timeout,
-            retry,
-        }
-    }
+    /// Data from the Dart Hive DB.
+    pub dart_migration_data: Option<DartMigrationData>,
 }
 
 /// Discovery Engine endpoint settings.

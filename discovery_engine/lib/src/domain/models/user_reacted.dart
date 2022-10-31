@@ -15,39 +15,16 @@
 import 'package:equatable/equatable.dart' show EquatableMixin;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarket;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId, StackId;
+    show DocumentId;
 
 /// UserReacted event with meta data as passed to the engine.
 class UserReacted with EquatableMixin {
   final DocumentId id;
-  final StackId stackId;
-  final String title;
-  final String snippet;
-  final Embedding smbertEmbedding;
   final UserReaction reaction;
-  final FeedMarket market;
 
-  UserReacted({
-    required this.id,
-    required this.stackId,
-    required this.title,
-    required this.snippet,
-    required this.smbertEmbedding,
-    required this.reaction,
-    required this.market,
-  });
+  UserReacted({required this.id, required this.reaction});
 
   @override
-  List<Object?> get props => [
-        id,
-        stackId,
-        snippet,
-        smbertEmbedding,
-        reaction,
-      ];
+  List<Object?> get props => [id, reaction];
 }

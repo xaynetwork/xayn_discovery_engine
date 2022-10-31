@@ -65,7 +65,7 @@ jobs:
 
       - name: Generate Files
         shell: bash
-        run: XAYN_DE_FEATURES="" just dart-build
+        run: just dart-build
 
       - name: Release packages
         shell: bash

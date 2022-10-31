@@ -42,10 +42,10 @@ class Document {
   @HiveField(5)
   bool isActive;
 
-  @Deprecated('only meaningful `cfgFeatureStorage` disabled')
+  @Deprecated('unused')
   @HiveField(4)
   final int batchIndex;
-  @Deprecated('only meaningful `cfgFeatureStorage` disabled')
+  @Deprecated('unused')
   @HiveField(6)
   DateTime timestamp;
 
@@ -65,12 +65,10 @@ class Document {
   Document({
     required this.stackId,
     required this.resource,
-    // ignore: deprecated_consistency
-    required this.batchIndex,
+    @Deprecated('unused') required this.batchIndex,
     required this.documentId,
     this.userReaction = UserReaction.neutral,
     this.isActive = true,
-    // ignore: deprecated_consistency
     this.isSearched = false,
     // ignore: deprecated_member_use_from_same_package
   }) : timestamp = DateTime.now().toUtc();

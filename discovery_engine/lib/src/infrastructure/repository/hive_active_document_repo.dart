@@ -34,8 +34,10 @@ class HiveActiveDocumentDataRepository implements ActiveDocumentDataRepository {
       box.get(id.toString());
 
   @override
-  Future<Embedding?> smbertEmbeddingById(DocumentId id) async =>
-      box.get(id.toString())?.smbertEmbedding;
+  Future<Embedding?> smbertEmbeddingById(DocumentId id) async {
+    // ignore: deprecated_member_use_from_same_package
+    return box.get(id.toString())?.smbertEmbedding;
+  }
 
   @override
   Future<void> update(DocumentId id, ActiveDocumentData data) =>
