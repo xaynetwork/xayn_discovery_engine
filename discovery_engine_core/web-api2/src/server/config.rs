@@ -33,7 +33,7 @@ pub struct NetConfig {
 }
 
 fn default_bind_address() -> SocketAddr {
-    SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080).into()
+    SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 4252).into()
 }
 
 fn default_max_body_size() -> u64 {
