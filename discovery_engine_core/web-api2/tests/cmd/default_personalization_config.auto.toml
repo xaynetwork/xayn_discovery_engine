@@ -8,7 +8,7 @@ stdout = """
     "file": null
   },
   "net": {
-    "bind_to": "127.0.0.1:8080",
+    "bind_to": "127.0.0.1:4252",
     "max_body_size": 524288
   },
   "elastic": {
