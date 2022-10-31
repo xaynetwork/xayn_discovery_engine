@@ -62,7 +62,7 @@ class DartMigrationData {
     required this.activeSearch,
   });
 
-  /// If migrations is necessary extracts the data for it from the repos.
+  /// If migration is necessary, extracts the data for it from the repos.
   static Future<DartMigrationData?> fromDirectoryPath(
     String applicationDirectoryPath,
   ) async {
