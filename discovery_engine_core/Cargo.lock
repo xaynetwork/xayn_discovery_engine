@@ -4571,6 +4571,8 @@ dependencies = [
  "futures",
  "itertools 0.10.5",
  "ndarray",
+ "once_cell",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
