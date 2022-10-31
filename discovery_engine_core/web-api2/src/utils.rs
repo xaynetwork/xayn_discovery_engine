@@ -10,21 +10,17 @@
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod db;
-mod elastic;
-mod embedding;
-mod error;
-mod ingestion;
-mod load_config;
-mod logging;
-mod middleware;
-mod personalization;
-mod server;
-mod utils;
+use secrecy::Secret;
+use serde::Serializer;
 
-pub use error::application::Error;
-pub use ingestion::Ingestion;
-pub use personalization::Personalization;
-pub use server::run;
+/// Serialize a `Secret<String>` as `"[REDACTED]"`.
+pub(crate) fn serialize_redacted<S>(
+    _secret: &Secret<String>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str("[REDACTED]")
+}

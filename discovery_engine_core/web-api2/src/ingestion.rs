@@ -16,20 +16,19 @@ use actix_web::{
     web::{self, Data, Json, ServiceConfig},
     Responder,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{CommonConfig, Config},
+    embedding,
     error::application::{Unimplemented, WithRequestIdExt},
-    server::Application,
+    server::{self, Application},
     Error,
 };
 
 pub struct Ingestion;
 
 impl Application for Ingestion {
-    type Config = IngestionConfig;
-    type AppState = IngestionConfig;
+    type ConfigExtension = ConfigExtension;
 
     fn configure(config: &mut ServiceConfig) {
         let resource = web::resource("/documents")
@@ -39,20 +38,35 @@ impl Application for Ingestion {
     }
 }
 
-#[derive(Deserialize)]
-pub struct IngestionConfig {
-    #[serde(flatten)]
-    common_config: CommonConfig,
+type Config = server::Config<<Ingestion as Application>::ConfigExtension>;
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct ConfigExtension {
+    #[allow(dead_code)]
+    #[serde(default)]
+    pub(crate) ingestion: IngestionConfig,
+    #[allow(dead_code)]
+    #[serde(default)]
+    pub(crate) embedding: embedding::Config,
 }
 
-impl Config for IngestionConfig {
-    fn bind_address(&self) -> std::net::SocketAddr {
-        self.common_config.bind_address()
-    }
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IngestionConfig {
+    #[allow(dead_code)]
+    #[serde(default = "default_max_document_batch_size")]
+    pub(crate) max_document_batch_size: u64,
+}
 
-    fn log_file(&self) -> Option<&std::path::Path> {
-        self.common_config.log_file()
+impl Default for IngestionConfig {
+    fn default() -> Self {
+        Self {
+            max_document_batch_size: default_max_document_batch_size(),
+        }
     }
+}
+
+fn default_max_document_batch_size() -> u64 {
+    100
 }
 
 //FIXME use actual body
@@ -60,7 +74,7 @@ impl Config for IngestionConfig {
 struct NewDocuments {}
 
 async fn new_documents(
-    _config: Data<IngestionConfig>,
+    _config: Data<Config>,
     _new_documents: Json<NewDocuments>,
 ) -> Result<impl Responder, Error> {
     if true {
