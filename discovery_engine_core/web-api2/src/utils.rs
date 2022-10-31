@@ -24,18 +24,3 @@ where
 {
     serializer.serialize_str("[REDACTED]")
 }
-
-/// Serialize a `Option<Secret<String>>` as `Some("[REDACTED]")` or `None`.
-pub(crate) fn serialize_redacted_opt<S>(
-    secret: &Option<Secret<String>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    if secret.is_some() {
-        serializer.serialize_some("[REDACTED]")
-    } else {
-        serializer.serialize_none()
-    }
-}

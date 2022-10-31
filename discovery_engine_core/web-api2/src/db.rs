@@ -16,11 +16,14 @@ use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use sqlx::{pool::PoolOptions, postgres::PgConnectOptions, Pool, Postgres};
 
-use crate::utils::serialize_redacted_opt;
+use crate::utils::serialize_redacted;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     /// The default base url.
+    ///
+    /// Passwords in the URL will be ignored, do not set the
+    /// db password with the db url.
     #[serde(default = "default_base_url")]
     base_url: String,
 
@@ -32,9 +35,9 @@ pub struct Config {
     #[serde(default)]
     user: Option<String>,
 
-    /// Override password from base url.
-    #[serde(default, serialize_with = "serialize_redacted_opt")]
-    password: Option<Secret<String>>,
+    /// Sets the password.
+    #[serde(default = "default_password", serialize_with = "serialize_redacted")]
+    password: Secret<String>,
 
     /// Override db from base url.
     #[serde(default)]
@@ -52,12 +55,16 @@ impl Default for Config {
         Self {
             base_url: default_base_url(),
             user: None,
-            password: None,
+            password: default_password(),
             db: None,
             port: None,
             application_name: default_application_name(),
         }
     }
+}
+
+fn default_password() -> Secret<String> {
+    String::from("pw").into()
 }
 
 fn default_base_url() -> String {
@@ -84,16 +91,15 @@ impl Config {
             application_name,
         } = &self;
 
-        let mut options: PgConnectOptions = base_url.parse()?;
+        let mut options = base_url
+            .parse::<PgConnectOptions>()?
+            .password(password.expose_secret());
 
         if let Some(user) = user {
             options = options.username(user);
         }
         if let Some(port) = port {
             options = options.port(*port);
-        }
-        if let Some(password) = password {
-            options = options.password(password.expose_secret())
         }
         if let Some(db) = db {
             options = options.database(db);

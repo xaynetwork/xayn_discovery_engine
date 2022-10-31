@@ -21,7 +21,7 @@ stdout = """
     "base_url": "postgres://user:pw@localhost:5432/xayn",
     "port": null,
     "user": null,
-    "password": null,
+    "password": "[REDACTED]",
     "db": null,
     "application_name": null
   }
