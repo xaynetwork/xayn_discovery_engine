@@ -124,10 +124,10 @@ impl DocumentPropertyId {
     pub fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
-        if !is_valid_id(&id) {
-            Err(Error::InvalidDocumentPropertyId { invalid_id: id })
-        } else {
+        if is_valid_id(&id) {
             Ok(Self(id))
+        } else {
+            Err(Error::InvalidDocumentPropertyId { invalid_id: id })
         }
     }
 
@@ -287,10 +287,10 @@ impl UserId {
     pub(crate) fn new(id: impl Into<String>) -> Result<Self, Error> {
         let id = id.into();
 
-        if !is_valid_id(&id) {
-            Err(Error::InvalidUserId { invalid_id: id })
-        } else {
+        if is_valid_id(&id) {
             Ok(Self(id))
+        } else {
+            Err(Error::InvalidUserId { invalid_id: id })
         }
     }
 }
