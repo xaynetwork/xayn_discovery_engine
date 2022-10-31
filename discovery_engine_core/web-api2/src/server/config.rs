@@ -29,14 +29,14 @@ pub struct NetConfig {
     /// Max body size limit which should be applied to all endpoints
     #[allow(dead_code)]
     #[serde(default = "default_max_body_size")]
-    pub(crate) max_body_size: u64,
+    pub(crate) max_body_size: usize,
 }
 
 fn default_bind_address() -> SocketAddr {
     SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 4252).into()
 }
 
-fn default_max_body_size() -> u64 {
+fn default_max_body_size() -> usize {
     524288
 }
 
