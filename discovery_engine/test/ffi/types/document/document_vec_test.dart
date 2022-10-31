@@ -15,8 +15,6 @@
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -33,7 +31,6 @@ List<DocumentFfi> arbitraryDocumentFfi() => [
       DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
-        smbertEmbedding: Embedding.fromList([.9, .1]),
         resource: NewsResource(
           title: 'fun',
           snippet: 'fun is fun',
@@ -51,7 +48,6 @@ List<DocumentFfi> arbitraryDocumentFfi() => [
       DocumentFfi(
         id: DocumentId(),
         stackId: StackId(),
-        smbertEmbedding: Embedding.fromList([9, 1]),
         resource: NewsResource(
           title: 'bun',
           snippet: 'foo bar',
@@ -87,20 +83,12 @@ void main() {
     expect(documents[0].document.resource, equals(ffiDocuments[0].resource));
     expect(documents[0].document.userReaction, equals(UserReaction.neutral));
     expect(documents[0].document.isActive, isTrue);
-    expect(
-      documents[0].data.smbertEmbedding,
-      ffiDocuments[0].smbertEmbedding,
-    );
 
     expect(documents[1].document.documentId, equals(ffiDocuments[1].id));
     expect(documents[1].document.stackId, equals(ffiDocuments[1].stackId));
     expect(documents[1].document.resource, equals(ffiDocuments[1].resource));
     expect(documents[1].document.userReaction, equals(UserReaction.neutral));
     expect(documents[1].document.isActive, isTrue);
-    expect(
-      documents[1].data.smbertEmbedding,
-      ffiDocuments[1].smbertEmbedding,
-    );
 
     expect(documents.length, equals(2));
   });

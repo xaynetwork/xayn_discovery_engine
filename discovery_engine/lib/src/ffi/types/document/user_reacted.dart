@@ -22,28 +22,16 @@ import 'package:xayn_discovery_engine/src/ffi/load_lib.dart' show ffi;
 import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/user_reaction.dart'
     show UserReactionFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/embedding.dart'
-    show EmbeddingFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/feed_market.dart'
-    show FeedMarketFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/string.dart' show StringFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
-    show DocumentIdFfi, StackIdFfi;
+    show DocumentIdFfi;
 
 extension UserReactedFfi on UserReacted {
   static UserReacted readNative(final Pointer<RustUserReacted> place) {
     return UserReacted(
       id: DocumentIdFfi.readNative(ffi.user_reacted_place_of_id(place)),
-      stackId: StackIdFfi.readNative(ffi.user_reacted_place_of_stack_id(place)),
-      title: StringFfi.readNative(ffi.user_reacted_place_of_title(place)),
-      snippet: StringFfi.readNative(ffi.user_reacted_place_of_snippet(place)),
-      smbertEmbedding: EmbeddingFfi.readNative(
-        ffi.user_reacted_place_of_smbert_embedding(place),
-      ),
       reaction: UserReactionFfi.readNative(
         ffi.user_reacted_place_of_reaction(place),
       ),
-      market: FeedMarketFfi.readNative(ffi.user_reacted_place_of_market(place)),
     );
   }
 
@@ -55,12 +43,6 @@ extension UserReactedFfi on UserReacted {
 
   void writeNative(final Pointer<RustUserReacted> place) {
     id.writeNative(ffi.user_reacted_place_of_id(place));
-    stackId.writeNative(ffi.user_reacted_place_of_stack_id(place));
-    title.writeNative(ffi.user_reacted_place_of_title(place));
-    snippet.writeNative(ffi.user_reacted_place_of_snippet(place));
-    smbertEmbedding
-        .writeNative(ffi.user_reacted_place_of_smbert_embedding(place));
     reaction.writeNative(ffi.user_reacted_place_of_reaction(place));
-    market.writeNative(ffi.user_reacted_place_of_market(place));
   }
 }

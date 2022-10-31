@@ -8,7 +8,6 @@ license = "AGPL-3.0-only"
 [dependencies]
 async-trait = { workspace = true }
 bincode = { workspace = true }
-cfg-if = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 derivative = { workspace = true }
 derive_more = { workspace = true }
@@ -25,6 +24,7 @@ rand_distr = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }
 serde_repr = "0.1.9"
+sqlx = { workspace = true, features = ["sqlite"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "macros", "sync"] }
 tracing = { workspace = true }
@@ -33,9 +33,6 @@ uuid = { workspace = true }
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-bert = { path = "../ai/bert" }
 xayn-discovery-engine-providers = { path = "../providers" }
-
-# feature storage
-sqlx = { workspace = true, features = ["sqlite"], optional = true }
 
 [dev-dependencies]
 async-once-cell = "0.4.2"
@@ -47,6 +44,3 @@ tempfile = "3.3.0"
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 wiremock = { workspace = true }
 xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
-
-[features]
-storage = ["sqlx"]

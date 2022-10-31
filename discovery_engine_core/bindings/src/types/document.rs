@@ -22,9 +22,11 @@ mod time_spent;
 mod user_reacted;
 mod user_reaction;
 
-pub use document::*;
-pub use document_vec::*;
-pub use news_resource::*;
-pub use time_spent::*;
-pub use user_reacted::*;
-pub use user_reaction::*;
+pub use self::{
+    document::*,
+    document_vec::*,
+    news_resource::*,
+    time_spent::*,
+    user_reacted::*,
+    user_reaction::*,
+};

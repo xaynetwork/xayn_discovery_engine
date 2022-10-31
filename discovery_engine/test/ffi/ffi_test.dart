@@ -55,14 +55,9 @@ void main() {
         EngineInitializer(
           config: config,
           setupData: setupData,
-          engineState: null,
-          history: [],
-          reactedSources: [],
           deConfig: null,
-          trustedSources: {},
-          excludedSources: {},
+          dartMigrationData: null,
         ),
-        null,
       ),
       allOf(
         throwsException,

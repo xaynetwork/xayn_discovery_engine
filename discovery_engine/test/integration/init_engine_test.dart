@@ -16,7 +16,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show DiscoveryEngine, cfgFeatureStorage;
+    show DiscoveryEngine;
 
 import '../logging.dart' show setupLogging;
 import 'utils/helpers.dart'
@@ -59,12 +59,7 @@ void main() {
       await File('${data.applicationDirectoryPath}/db.sqlite')
           .writeAsBytes([11, 11, 11, 11, 11, 11, 11, 11], flush: true);
       final engine = await initEngine(data, server.port);
-
-      if (cfgFeatureStorage) {
-        expect(engine.lastDbOverrideError, isNotNull);
-      } else {
-        expect(engine.lastDbOverrideError, isNull);
-      }
+      expect(engine.lastDbOverrideError, isNotNull);
     });
   });
 }

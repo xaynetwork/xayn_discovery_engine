@@ -65,13 +65,13 @@ pub unsafe extern "C" fn get_option_user_reaction_some(
     }
 }
 
-/// Alloc an uninitialized `Box<UserReaction>`, mainly used for testing.
+/// Alloc an uninitialized `Box<UserReaction>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_user_reaction() -> *mut UserReaction {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<UserReaction>`, mainly used for testing.
+/// Drops a `Box<UserReaction>`.
 ///
 /// # Safety
 ///

@@ -15,12 +15,11 @@
 import 'dart:io' show Directory;
 import 'package:hive/hive.dart' show Hive;
 import 'package:test/test.dart';
-import 'package:xayn_discovery_engine/src/domain/event_handler.dart'
-    show EventHandler;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document, UserReaction;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
+import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
     show HiveDocumentRepository;
 
@@ -37,23 +36,25 @@ Future<void> main() async {
     final doc1 = Document(
       documentId: DocumentId(),
       stackId: stackId,
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 0,
       resource: mockNewsResource,
     );
     final doc2 = Document(
       documentId: DocumentId(),
       stackId: stackId,
+      // ignore: deprecated_member_use_from_same_package
       batchIndex: 1,
       resource: mockNewsResource,
     );
 
     setUpAll(() async {
-      EventHandler.registerHiveAdapters();
+      registerHiveAdapters();
     });
 
     setUp(() async {
       final dir = Directory.systemTemp.createTempSync('HiveDocumentRepository');
-      await EventHandler.initDatabase(dir.path);
+      await initDatabase(dir.path);
       repo = HiveDocumentRepository();
     });
 
@@ -154,6 +155,7 @@ Future<void> main() async {
         final doc3 = Document(
           documentId: DocumentId(),
           stackId: stackId,
+          // ignore: deprecated_member_use_from_same_package
           batchIndex: 2,
           resource: mockNewsResource,
         );

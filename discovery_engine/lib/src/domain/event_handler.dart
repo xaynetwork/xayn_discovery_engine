@@ -12,13 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'dart:typed_data' show Uint8List;
 import 'package:async/async.dart' show StreamGroup;
-import 'package:hive/hive.dart' show Hive;
-import 'package:meta/meta.dart' show visibleForTesting;
 
-import 'package:xayn_discovery_engine/discovery_engine.dart'
-    show cfgFeatureStorage;
 import 'package:xayn_discovery_engine/src/api/api.dart'
     show
         ClientEvent,
@@ -30,12 +25,7 @@ import 'package:xayn_discovery_engine/src/api/api.dart'
         SearchClientEvent,
         SystemClientEvent;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
-    show
-        AssetFetcherException,
-        AssetReporter,
-        SetupData,
-        kAssetsPath,
-        kDatabasePath;
+    show AssetFetcherException, AssetReporter, SetupData, kAssetsPath;
 import 'package:xayn_discovery_engine/src/domain/changed_documents_reporter.dart'
     show ChangedDocumentsReporter;
 import 'package:xayn_discovery_engine/src/domain/document_manager.dart'
@@ -46,26 +36,10 @@ import 'package:xayn_discovery_engine/src/domain/engine/mock_engine.dart'
     show MockEngine;
 import 'package:xayn_discovery_engine/src/domain/feed_manager.dart'
     show FeedManager;
-import 'package:xayn_discovery_engine/src/domain/models/active_data.dart'
-    show ActiveDocumentData, ActiveDocumentDataAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
-    show ActiveSearch, ActiveSearchAdapter, SearchByAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/configuration.dart'
     show Configuration;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show Document, DocumentAdapter, UserReactionAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/feed_market.dart'
-    show FeedMarketAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/history.dart';
-import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
-    show NewsResourceAdapter;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
-    show mockedAvailableSources, Source;
-import 'package:xayn_discovery_engine/src/domain/models/source_preference.dart'
-    show SourcePreference, SourcePreferenceAdapter, PreferenceModeAdapter;
-import 'package:xayn_discovery_engine/src/domain/models/source_reacted.dart';
-import 'package:xayn_discovery_engine/src/domain/models/view_mode.dart'
-    show DocumentViewModeAdapter;
+    show mockedAvailableSources;
 import 'package:xayn_discovery_engine/src/domain/search_manager.dart'
     show SearchManager;
 import 'package:xayn_discovery_engine/src/domain/system_manager.dart'
@@ -76,38 +50,7 @@ import 'package:xayn_discovery_engine/src/infrastructure/assets/assets.dart'
     show createDataProvider;
 import 'package:xayn_discovery_engine/src/infrastructure/assets/http_asset_fetcher.dart'
     show HttpAssetFetcher;
-import 'package:xayn_discovery_engine/src/infrastructure/box_name.dart'
-    show
-        activeDocumentDataBox,
-        documentBox,
-        engineStateBox,
-        excludedSourcesBox,
-        trustedSourcesBox,
-        searchBox,
-        sourcePreferenceBox,
-        sourceReactedBox;
 import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_document_repo.dart'
-    show HiveActiveDocumentDataRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_active_search_repo.dart'
-    show HiveActiveSearchRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_document_repo.dart'
-    show HiveDocumentRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_engine_state_repo.dart'
-    show HiveEngineStateRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_preference_repo.dart'
-    show HiveSourcePreferenceRepository;
-import 'package:xayn_discovery_engine/src/infrastructure/repository/hive_source_reacted_repo.dart';
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_duration_adapter.dart'
-    show DurationAdapter;
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_embedding_adapter.dart'
-    show EmbeddingAdapter;
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_source_adapter.dart'
-    show SetSourceAdapter, SourceAdapter;
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_unique_id_adapter.dart'
-    show DocumentIdAdapter, StackIdAdapter;
-import 'package:xayn_discovery_engine/src/infrastructure/type_adapters/hive_uri_adapter.dart'
-    show UriAdapter;
 import 'package:xayn_discovery_engine/src/logger.dart' show logger;
 
 class EventHandler {
@@ -135,7 +78,6 @@ class EventHandler {
     _engine = null;
     await engine?.dispose();
     await _changedDocumentsReporter.close();
-    await Hive.close();
   }
 
   /// Decides what to do with incoming [ClientEvent] by passing it
@@ -213,125 +155,31 @@ class EventHandler {
     Configuration config, {
     String? deConfig,
   }) async {
-    // init hive
-    registerHiveAdapters();
-    await initDatabase(config.applicationDirectoryPath);
-
-    // create repositories
-    final documentRepository = HiveDocumentRepository();
-    final activeDataRepository = HiveActiveDocumentDataRepository();
-    final activeSearchRepository = HiveActiveSearchRepository();
-    final engineStateRepository = HiveEngineStateRepository();
-    final sourceReactedRepository = HiveSourceReactedRepository();
-    Future<void> clearAiState() async {
-      await documentRepository.box.clear();
-      await activeDataRepository.box.clear();
-      await activeSearchRepository.box.clear();
-      await engineStateRepository.box.clear();
-    }
-
-    final sourcePreferenceRepository = HiveSourcePreferenceRepository();
-
     final setupData = await _fetchAssets(config);
-    final engineState = cfgFeatureStorage
-        ? null // unused
-        : await engineStateRepository.load();
-    final history = cfgFeatureStorage
-        ? <HistoricDocument>[] // unused
-        : await documentRepository.fetchHistory();
-    final reactedSources = cfgFeatureStorage
-        ? <SourceReacted>[] // unused
-        : await sourceReactedRepository.fetchAll();
-    final trustedSources = cfgFeatureStorage
-        ? <Source>{} // unused
-        : await sourcePreferenceRepository.getTrusted();
-    final excludedSources = cfgFeatureStorage
-        ? <Source>{} // unused
-        : await sourcePreferenceRepository.getExcluded();
     final availableSources = config.isMocked()
         ? mockedAvailableSources
         : await setupData.getAvailableSources();
-
-    final dartMigrationData = cfgFeatureStorage
-        ? await DartMigrationData.fromRepositories(
-            engineStateRepository,
-            documentRepository,
-            activeSearchRepository,
-            activeDataRepository,
-            sourceReactedRepository,
-            sourcePreferenceRepository,
-          )
-        : null;
-
-    final Engine engine;
-    try {
-      engine = await _initializeEngine(
-        EngineInitializer(
-          config: config,
-          setupData: setupData,
-          engineState: engineState,
-          history: history,
-          reactedSources: reactedSources,
-          deConfig: deConfig,
-          trustedSources: trustedSources,
-          excludedSources: excludedSources,
-        ),
-        dartMigrationData,
-      );
-    } catch (e) {
-      if ('$e'.contains('Unsupported serialized data.')) {
-        await engineStateRepository.clear();
-        throw InvalidEngineStateException('$e');
-      }
-      rethrow;
-    }
-
-    await dartMigrationData?.cleanup();
-
-    // init managers
-    _documentManager = DocumentManager(
-      engine,
-      documentRepository,
-      activeDataRepository,
-      engineStateRepository,
-      _changedDocumentsReporter,
-      sourceReactedRepository,
-    );
-    _feedManager = FeedManager(
-      engine,
-      documentRepository,
-      activeDataRepository,
-      engineStateRepository,
-      sourceReactedRepository,
-      sourcePreferenceRepository,
-      availableSources,
-    );
-    _searchManager = SearchManager(
-      engine,
-      activeSearchRepository,
-      documentRepository,
-      activeDataRepository,
-      engineStateRepository,
-    );
-    _systemManager = SystemManager(
-      engine,
-      documentRepository,
-      sourceReactedRepository,
-      clearAiState,
+    final dartMigrationData = await DartMigrationData.fromDirectoryPath(
+      config.applicationDirectoryPath,
     );
 
-    _engine = engine;
+    final initializer = EngineInitializer(
+      config: config,
+      setupData: setupData,
+      deConfig: deConfig,
+      dartMigrationData: dartMigrationData,
+    );
+    _engine = config.isMocked()
+        ? MockEngine(initializer)
+        : await DiscoveryEngineFfi.initialize(initializer);
 
-    return EngineEvent.engineInitSucceeded(engine.lastDbOverrideError);
+    _documentManager = DocumentManager(_engine!, _changedDocumentsReporter);
+    _feedManager = FeedManager(_engine!, availableSources);
+    _searchManager = SearchManager(_engine!);
+    _systemManager = SystemManager(_engine!);
+
+    return EngineEvent.engineInitSucceeded(_engine!.lastDbOverrideError);
   }
-
-  Future<Engine> _initializeEngine(
-    EngineInitializer initializer,
-    DartMigrationData? migrationData,
-  ) async =>
-      initializer.config.isMocked()
-          ? MockEngine(initializer)
-          : await DiscoveryEngineFfi.initialize(initializer, migrationData);
 
   Future<SetupData> _fetchAssets(Configuration config) async {
     final appDir = config.applicationDirectoryPath;
@@ -343,73 +191,6 @@ class EventHandler {
       storageDirPath,
     );
     return dataProvider.getSetupData(config.manifest);
-  }
-
-  static bool _hiveRegistered = false;
-
-  @visibleForTesting
-  static void registerHiveAdapters() {
-    if (_hiveRegistered) return;
-    _hiveRegistered = true;
-    Hive.registerAdapter(DocumentAdapter());
-    Hive.registerAdapter(UserReactionAdapter());
-    Hive.registerAdapter(DocumentViewModeAdapter());
-    Hive.registerAdapter(ActiveDocumentDataAdapter());
-    Hive.registerAdapter(NewsResourceAdapter());
-    Hive.registerAdapter(DocumentIdAdapter());
-    Hive.registerAdapter(StackIdAdapter());
-    Hive.registerAdapter(DurationAdapter());
-    Hive.registerAdapter(UriAdapter());
-    Hive.registerAdapter(EmbeddingAdapter());
-    Hive.registerAdapter(FeedMarketAdapter());
-    Hive.registerAdapter(SearchByAdapter());
-    Hive.registerAdapter(ActiveSearchAdapter());
-    Hive.registerAdapter(SourceAdapter());
-    Hive.registerAdapter(SetSourceAdapter());
-    Hive.registerAdapter(SourcePreferenceAdapter());
-    Hive.registerAdapter(PreferenceModeAdapter());
-    Hive.registerAdapter(SourceReactedAdapter());
-  }
-
-  @visibleForTesting
-  static Future<void> initDatabase(String appDir) async {
-    Hive.init('$appDir/$kDatabasePath');
-
-    // open boxes
-    await Future.wait([
-      _openDbBox<Document>(documentBox),
-      _openDbBox<ActiveDocumentData>(activeDocumentDataBox),
-
-      /// See TY-2799
-      /// Hive usually compacts our boxes automatically. However, with the default
-      /// strategy, compaction is triggered after 60 deleted entries. This leads
-      /// to the problem that our engine state is constantly growing because we
-      /// are only overwriting it and not deleting it. Therefore we call it with
-      /// `compact: true`.
-      _openDbBox<Uint8List>(engineStateBox, compact: true),
-      _openDbBox<ActiveSearch>(searchBox),
-      _openDbBox<Set<Source>>(trustedSourcesBox),
-      _openDbBox<Set<Source>>(excludedSourcesBox),
-      _openDbBox<SourcePreference>(sourcePreferenceBox),
-      _openDbBox<SourceReacted>(sourceReactedBox),
-    ]);
-  }
-
-  /// Tries to open a box persisted on disk. In case of failure opens it in memory.
-  /// If `compact` is set to `true`, compaction of the box will be triggered
-  /// after opening.
-  static Future<void> _openDbBox<T>(String name, {bool compact = false}) async {
-    try {
-      final box = await Hive.openBox<T>(name);
-
-      if (compact) {
-        await box.compact();
-      }
-    } catch (e) {
-      /// Some browsers (e.g. Firefox) are not allowing the use of IndexedDB
-      /// in `Private Mode`, so we need to use Hive in-memory instead
-      await Hive.openBox<T>(name, bytes: Uint8List(0));
-    }
   }
 }
 

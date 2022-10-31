@@ -30,8 +30,7 @@ import 'package:xayn_discovery_engine/src/domain/models/active_search.dart'
     show ActiveSearch, SearchBy;
 import 'package:xayn_discovery_engine/src/domain/models/document.dart'
     show Document;
-import 'package:xayn_discovery_engine/src/domain/models/embedding.dart'
-    show Embedding;
+import 'package:xayn_discovery_engine/src/domain/models/embedding.dart';
 import 'package:xayn_discovery_engine/src/domain/models/news_resource.dart'
     show NewsResource;
 import 'package:xayn_discovery_engine/src/domain/models/source.dart'
@@ -215,21 +214,23 @@ List<DocumentWithActiveData> mockDocuments(
         Document(
           documentId: DocumentId(),
           stackId: stackId,
+          // ignore: deprecated_member_use_from_same_package
           batchIndex: 0,
           resource: mockNewsResource,
           isSearched: isSearched,
         ),
-        ActiveDocumentData(Embedding.fromList([1, 3])),
+        ActiveDocumentData(Embedding.fromList([])),
       ),
       DocumentWithActiveData(
         Document(
           documentId: DocumentId(),
           stackId: stackId,
+          // ignore: deprecated_member_use_from_same_package
           batchIndex: 1,
           resource: mockNewsResource,
           isSearched: isSearched,
         ),
-        ActiveDocumentData(Embedding.fromList([0])),
+        ActiveDocumentData(Embedding.fromList([])),
       ),
     ];
 

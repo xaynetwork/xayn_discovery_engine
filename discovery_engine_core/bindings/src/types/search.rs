@@ -16,8 +16,7 @@
 
 use std::ptr::addr_of_mut;
 
-// We can reuse the `SearchBy` variant enum from storage.
-use xayn_discovery_engine_core::storage2::SearchBy;
+use xayn_discovery_engine_core::storage::models::SearchBy;
 
 pub struct Search {
     pub by: SearchBy,
@@ -39,13 +38,13 @@ impl From<xayn_discovery_engine_core::SearchBy<'_>> for Search {
     }
 }
 
-/// Alloc an uninitialized `Box<SearchBy>`, mainly used for testing.
+/// Alloc an uninitialized `Box<SearchBy>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_search_by() -> *mut SearchBy {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<SearchBy>`, mainly used for testing.
+/// Drops a `Box<SearchBy>`.
 ///
 /// # Safety
 ///
@@ -77,13 +76,13 @@ pub unsafe extern "C" fn search_place_of_term(place: *mut Search) -> *mut String
     unsafe { addr_of_mut!((*place).term) }
 }
 
-/// Alloc an uninitialized `Box<Search>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Search>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_search() -> *mut Search {
     crate::types::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Search>`, mainly used for testing.
+/// Drops a `Box<Search>`.
 ///
 /// # Safety
 ///

@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2022 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,19 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:equatable/equatable.dart' show EquatableMixin;
-import 'package:xayn_discovery_engine/src/domain/models/document.dart'
-    show UserReaction;
-import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
-    show DocumentId;
+//! FFI functions for handling types for migration.
 
-/// UserReacted event with meta data as passed to the engine.
-class UserReacted with EquatableMixin {
-  final DocumentId id;
-  final UserReaction reaction;
+mod data;
+mod document;
+mod search;
 
-  UserReacted({required this.id, required this.reaction});
-
-  @override
-  List<Object?> get props => [id, reaction];
-}
+pub use self::{data::*, document::*, search::*};

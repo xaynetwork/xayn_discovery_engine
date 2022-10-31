@@ -24,15 +24,16 @@ use crate::{
     stack,
     storage::{
         models::{NewDocument, NewsResource, NewscatcherData},
+        DartMigrationData,
         Error,
+        MigrationDocument,
         Storage,
     },
-    storage2::{DartMigrationData, MigrationDocument},
 };
 
 use super::SqliteStorage;
 
-/// Add the data from the  dart->rust/sqltie migration to the prepared database.
+/// Add the data from the  dart -> rust/sqlite migration to the prepared database.
 pub(super) async fn store_migration_data(
     storage: &mut SqliteStorage,
     data: &mut DartMigrationData,

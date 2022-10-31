@@ -16,9 +16,13 @@
 
 use std::ptr;
 
-use xayn_discovery_engine_core::document::{Document, TrendingTopic};
-
-use super::{boxed, engine::InitializationResult, search::Search};
+use super::{
+    boxed,
+    document::Document,
+    engine::InitializationResult,
+    search::Search,
+    trending_topic::TrendingTopic,
+};
 
 /// Returns a pointer to the `Result::Ok` success value or a nullptr.
 ///

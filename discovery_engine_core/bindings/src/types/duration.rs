@@ -105,13 +105,13 @@ pub extern "C" fn get_option_duration_nanos(duration: &Option<Duration>) -> u32 
     duration.as_ref().map_or(0, Duration::subsec_nanos)
 }
 
-/// Alloc an uninitialized `Box<Duration>`, mainly used for testing.
+/// Alloc an uninitialized `Box<Duration>`.
 #[no_mangle]
 pub extern "C" fn alloc_uninitialized_duration() -> *mut Duration {
     super::boxed::alloc_uninitialized()
 }
 
-/// Drops a `Box<Duration>`, mainly used for testing.
+/// Drops a `Box<Duration>`.
 ///
 /// # Safety
 ///

@@ -21,8 +21,6 @@ import 'package:xayn_discovery_engine/src/ffi/types/box.dart' show Boxed;
 import 'package:xayn_discovery_engine/src/ffi/types/document/document.dart';
 import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
     show DocumentSliceFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/primitives.dart'
-    show Uint8ListFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/search.dart' show SearchFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show StringFfi, StringListFfi;
@@ -175,15 +173,6 @@ final resultVoidStringFfiAdapter = ConsumeResultFfiAdapter(
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
   freeResult: ffi.drop_result_void_string,
-);
-
-final resultVecU8StringFfiAdapter = ConsumeResultFfiAdapter(
-  getOk: ffi.get_result_vec_u8_string_ok,
-  getErr: ffi.get_result_vec_u8_string_err,
-  readNativeOk: Uint8ListFfi.readNative,
-  readNativeErr: StringFfi.readNative,
-  throwErr: _throwStringErr,
-  freeResult: ffi.drop_result_vec_u8_string,
 );
 
 final resultDocumentStringFfiAdapter = ConsumeResultFfiAdapter(

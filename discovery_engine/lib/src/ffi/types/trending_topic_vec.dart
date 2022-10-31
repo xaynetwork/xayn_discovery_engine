@@ -67,5 +67,5 @@ extension TrendingTopicSliceFfi on List<TrendingTopicFfi> {
   }
 
   List<TrendingTopic> toTrendingTopicList() =>
-      asMap().entries.map((e) => e.value.toTrendingTopic()).toList();
+      map((topic) => topic.toTrendingTopic()).toList();
 }

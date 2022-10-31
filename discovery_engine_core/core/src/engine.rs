@@ -12,17 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#[cfg(feature = "storage")]
-use std::path::PathBuf;
 use std::{
     borrow::Cow,
     cmp::Ordering,
     collections::{HashMap, HashSet},
     iter::once,
     mem::replace,
+    path::PathBuf,
 };
 
-use cfg_if::cfg_if;
 use displaydoc::Display;
 use futures::future::join_all;
 use itertools::{chain, Itertools};
@@ -55,6 +53,7 @@ use xayn_discovery_engine_providers::{
     HeadlinesQuery,
     Market,
     NewsQuery,
+    ProviderConfig,
     Providers,
     RankLimit,
     SimilarNewsQuery,
@@ -107,11 +106,7 @@ use crate::{
         Stack,
         TrustedNews,
     },
-    storage2::{DartMigrationData, InitDbHint},
-};
-#[cfg(feature = "storage")]
-use crate::{
-    storage::{self, sqlite::SqliteStorage, BoxedStorage},
+    storage::{self, sqlite::SqliteStorage, BoxedStorage, InitDbHint},
     utils::MiscErrorExt,
 };
 
@@ -154,7 +149,6 @@ pub enum Error {
     /// List of errors/warnings: {0:?}.
     Errors(Vec<Error>),
 
-    #[cfg(feature = "storage")]
     /// Storage error: {0}.
     Storage(#[from] storage::Error),
 
@@ -182,7 +176,6 @@ pub struct Engine {
     pub(crate) exploration_stack: Exploration,
     pub(crate) user_interests: UserInterests,
     pub(crate) key_phrases: KeyPhrases,
-    #[cfg(feature = "storage")]
     pub(crate) storage: BoxedStorage,
 }
 
@@ -208,7 +201,7 @@ impl Engine {
         sources: &[WeightedSource],
         mut stack_data: HashMap<StackId, StackData>,
         stack_ops: Vec<BoxedOps>,
-        #[cfg(feature = "storage")] storage: BoxedStorage,
+        storage: BoxedStorage,
         providers: Providers,
     ) -> Result<Self, Error> {
         if stack_ops.is_empty() {
@@ -247,7 +240,6 @@ impl Engine {
             exploration_stack,
             user_interests,
             key_phrases,
-            #[cfg(feature = "storage")]
             storage,
         };
 
@@ -262,16 +254,7 @@ impl Engine {
 
     /// Creates a discovery [`Engine`] from a configuration and optional state.
     #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
-    #[cfg_attr(feature = "storage", allow(unused_variables))]
-    pub async fn from_config(
-        config: InitConfig,
-        state: Option<&[u8]>,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-        #[cfg_attr(not(feature = "storage"), allow(unused_variables))] dart_migration_data: Option<
-            DartMigrationData,
-        >,
-    ) -> Result<(Self, InitDbHint), Error> {
+    pub async fn from_config(config: InitConfig) -> Result<(Self, InitDbHint), Error> {
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
         let core_config = de_config
@@ -316,46 +299,34 @@ impl Engine {
             .map_err(|err| Error::Ranker(err.into()))?
             .build();
 
-        #[cfg(feature = "storage")]
-        let (storage, init_db_hint) = {
-            let db_file_path = (!config.use_ephemeral_db).then(|| {
-                PathBuf::from(&config.data_dir).join("db.sqlite")
+        let db_file_path = (!config.use_ephemeral_db).then(|| {
+            PathBuf::from(&config.data_dir).join("db.sqlite")
                         .into_os_string()
                         .into_string()
                         .unwrap(/*can't fail as we only join rust strings*/)
-            });
-            SqliteStorage::init_storage_system(db_file_path, dart_migration_data, &|s| {
+        });
+        let (storage, init_db_hint) =
+            SqliteStorage::init_storage_system(db_file_path, config.dart_migration_data, &|s| {
                 smbert.run(s).log_error().ok()
             })
-            .await?
-        };
+            .await?;
 
         let endpoint_config = de_config
             .extract_inner::<EndpointConfig>("endpoint")
             .map_err(|err| Error::Ranker(err.into()))?
             .with_markets(config.markets.clone())
             .with_sources(
-                {
-                    cfg_if! {
-                        if #[cfg(feature = "storage")] {
-                            storage.source_preference().fetch_trusted().await?
-                        } else {
-                            config.trusted_sources.iter().cloned().collect()
-                        }
-                    }
-                },
-                {
-                    cfg_if! {
-                        if #[cfg(feature = "storage")] {
-                            storage.source_preference().fetch_excluded().await?
-                        } else {
-                            config.excluded_sources.iter().cloned().collect()
-                        }
-                    }
-                },
+                storage.source_preference().fetch_trusted().await?,
+                storage.source_preference().fetch_excluded().await?,
             );
-        let provider_config =
-            config.to_provider_config(endpoint_config.timeout, endpoint_config.retry);
+        let provider_config = ProviderConfig {
+            api_base_url: config.api_base_url,
+            api_key: config.api_key,
+            news_provider_path: config.news_provider_path,
+            headlines_provider_path: config.headlines_provider_path,
+            timeout: endpoint_config.timeout,
+            retry: endpoint_config.retry,
+        };
         let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(
@@ -384,17 +355,11 @@ impl Engine {
                     })
                     .map_err(|err| Error::Ranker(err.into()))
             })?;
-        #[cfg(feature = "storage")]
         let (mut stack_data, user_interests, key_phrases) = storage
             .state()
             .fetch()
             .await?
             .as_deref()
-            .map(Engine::deserialize)
-            .transpose()?
-            .unwrap_or_default();
-        #[cfg(not(feature = "storage"))]
-        let (mut stack_data, user_interests, key_phrases) = state
             .map(Engine::deserialize)
             .transpose()?
             .unwrap_or_default();
@@ -407,9 +372,7 @@ impl Engine {
             }
         }
 
-        #[cfg(feature = "storage")]
         let history = &storage.fetch_history().await?;
-        #[cfg(feature = "storage")]
         let sources = &storage.fetch_weighted_sources().await?;
 
         let this = Self::new(
@@ -428,19 +391,12 @@ impl Engine {
             sources,
             stack_data,
             stack_ops,
-            #[cfg(feature = "storage")]
             storage,
             providers,
         )
         .await?;
 
-        cfg_if! {
-            if #[cfg(feature = "storage")] {
-                Ok((this, init_db_hint))
-            } else {
-                Ok((this, InitDbHint::NormalInit))
-            }
-        }
+        Ok((this, init_db_hint))
     }
 
     /// Configures the running engine.
@@ -480,13 +436,7 @@ impl Engine {
     /// Updates the markets configuration.
     ///
     /// Also resets and updates all stacks.
-    #[cfg_attr(feature = "storage", allow(unused_variables))]
-    pub async fn set_markets(
-        &mut self,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-        new_markets: Vec<Market>,
-    ) -> Result<(), Error> {
+    pub async fn set_markets(&mut self, new_markets: Vec<Market>) -> Result<(), Error> {
         let mut markets_guard = self.endpoint_config.markets.write().await;
         let mut old_markets = replace(&mut *markets_guard, new_markets);
         old_markets.retain(|market| !markets_guard.contains(market));
@@ -495,15 +445,13 @@ impl Engine {
 
         self.clear_stack_data().await;
 
-        #[cfg(feature = "storage")]
         let history = &self.storage.fetch_history().await?;
-        #[cfg(feature = "storage")]
         let sources = &self.storage.fetch_weighted_sources().await?;
         self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
             .await
     }
 
-    /// Clears the data of all stacks
+    /// Clears the data of all stacks.
     async fn clear_stack_data(&mut self) {
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
@@ -515,37 +463,16 @@ impl Engine {
 
     /// Gets the next batch of feed documents.
     #[instrument(skip(self))]
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn feed_next_batch(&mut self) -> Result<Vec<Document>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_weighted_sources().await?;
-
-            // TODO: merge `get_feed_documents()` into this method after DB migration
-            self.get_feed_documents(&history, &sources).await
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
-    }
-
-    /// Gets the next batch of feed documents.
-    #[instrument(skip(self, history))]
-    pub async fn get_feed_documents(
-        &mut self,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-    ) -> Result<Vec<Document>, Error> {
+        let history = self.storage.fetch_history().await?;
+        let sources = self.storage.fetch_weighted_sources().await?;
         let request_new = if self.request_after < self.core_config.request_after {
             self.core_config.request_new
         } else {
             usize::MAX
         };
-
-        self.update_stacks_for_all_markets(history, sources, request_new)
+        self.update_stacks_for_all_markets(&history, &sources, request_new)
             .await?;
-
         self.request_after = (self.request_after + 1) % self.core_config.request_after;
 
         let mut stacks = self.stacks.write().await;
@@ -573,96 +500,49 @@ impl Engine {
             );
         }
 
-        #[cfg(feature = "storage")]
-        {
-            let stack_ids = documents.iter().map(|doc| (doc.id, doc.stack_id)).collect();
-            let documents = documents.iter().cloned().map_into().collect_vec();
-            self.storage
-                .feed()
-                .store_documents(&documents, &stack_ids)
-                .await?;
-            self.serialize().await?;
-        }
+        self.storage
+            .feed()
+            .store_documents(
+                &documents.iter().cloned().map_into().collect_vec(),
+                &documents.iter().map(|doc| (doc.id, doc.stack_id)).collect(),
+            )
+            .await?;
+        self.serialize().await?;
 
         Ok(documents)
     }
 
-    /// Restores the feed documents, ordered by their global rank (timestamp & local rank).
-    // TODO: rename methods to `fed()` and adjust events & docs accordingly after DB migration
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
+    /// Restores the documents which have been fed, i.e. the current feed.
     pub async fn restore_feed(&self) -> Result<Vec<Document>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            self.storage
-                .feed()
-                .fetch()
-                .await
-                .map(|documents| documents.into_iter().map_into().collect())
-                .map_err(Into::into)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        self.storage
+            .feed()
+            .fetch()
+            .await
+            .map(|documents| documents.into_iter().map_into().collect())
+            .map_err(Into::into)
     }
 
     /// Deletes the feed documents.
-    #[cfg_attr(
-        not(feature = "storage"),
-        allow(unused_variables, clippy::unused_async)
-    )]
     pub async fn delete_feed_documents(&self, ids: &[document::Id]) -> Result<(), Error> {
-        #[cfg(feature = "storage")]
-        {
-            self.storage.feed().delete_documents(ids).await?;
+        self.storage.feed().delete_documents(ids).await?;
 
-            Ok(())
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        Ok(())
     }
 
-    /// Process the feedback about the user spending some time on a document.
+    /// Processes the user's time on a document.
     pub async fn time_spent(&mut self, time_spent: TimeSpent) -> Result<(), Error> {
-        cfg_if! {
-            if #[cfg(feature = "storage")] {
-                use storage::models::TimeSpentDocumentView;
-
-                let TimeSpent {
-                    id,
-                    view_time,
-                    view_mode,
-                    // dummy values when storage is enabled
-                    ..
-                } = time_spent;
-
-                let TimeSpentDocumentView {
-                    smbert_embedding,
-                    aggregated_view_time,
-                    last_reaction,
-                } = self
-                    .storage
-                    .feedback()
-                    .update_time_spent(id, view_mode, view_time)
-                    .await?;
-
-                let last_reaction = last_reaction.unwrap_or(UserReaction::Neutral);
-            } else {
-                let TimeSpent {
-                    id: _,
-                    view_time: aggregated_view_time,
-                    view_mode: _,
-                    smbert_embedding,
-                    reaction: last_reaction,
-                } = time_spent;
-            }
-        };
-
-        if let UserReaction::Positive | UserReaction::Neutral = last_reaction {
+        let time_spent = self
+            .storage
+            .feedback()
+            .update_time_spent(time_spent.id, time_spent.view_mode, time_spent.view_time)
+            .await?;
+        if let UserReaction::Positive | UserReaction::Neutral =
+            time_spent.last_reaction.unwrap_or(UserReaction::Neutral)
+        {
             CoiSystem::log_document_view_time(
                 &mut self.user_interests.positive,
-                &smbert_embedding,
-                aggregated_view_time,
+                &time_spent.smbert_embedding,
+                time_spent.aggregated_view_time,
             );
         }
 
@@ -673,79 +553,39 @@ impl Engine {
             &self.user_interests,
         );
 
-        #[cfg(feature = "storage")]
         self.serialize().await?;
 
         Ok(())
     }
 
-    /// Process the feedback about the user reacting to a document.
-    ///
-    /// The history and sources are required only for positive reactions.
+    /// Processes the user's reaction to a document.
     #[instrument(skip(self), level = "debug")]
-    pub async fn user_reacted(
-        &mut self,
-        history: Option<&[HistoricDocument]>,
-        sources: &[WeightedSource],
-        reacted: UserReacted,
-    ) -> Result<Document, Error> {
-        let reaction = reacted.reaction;
-        cfg_if! {
-            if #[cfg(feature="storage")] {
-                let feedback = self.storage.feedback();
-                let document: Document = feedback
-                    .update_user_reaction(reacted.id, reaction).await?
-                    .into();
+    pub async fn user_reacted(&mut self, reacted: UserReacted) -> Result<Document, Error> {
+        let feedback = self.storage.feedback();
+        let document: Document = feedback
+            .update_user_reaction(reacted.id, reacted.reaction)
+            .await?
+            .into();
 
-                let source = &document.resource.source_domain;
-                match reaction {
-                    UserReaction::Positive => feedback.update_source_reaction(source, true).await?,
-                    UserReaction::Negative => feedback.update_source_reaction(source, false).await?,
-                    UserReaction::Neutral => (),
-                }
-            } else {
-                use chrono::Utc;
-                use url::Url;
-
-                use crate::document::NewsResource;
-
-                let document = Document {
-                    id: reacted.id,
-                    stack_id: reacted.stack_id,
-                    smbert_embedding: reacted.smbert_embedding,
-                    reaction: None,
-                    resource: NewsResource {
-                        title: reacted.title,
-                        snippet: reacted.snippet,
-                        url: Url::parse("https://foobar.invalid").unwrap(),
-                        source_domain: "foobar.invalid".into(),
-                        date_published: Utc::now(),
-                        image: None,
-                        rank: 0,
-                        score: None,
-                        country: reacted.market.country_code,
-                        language: reacted.market.lang_code,
-                        topic: "invalid".into()
-                    }
-                };
-            }
+        let source = &document.resource.source_domain;
+        match reacted.reaction {
+            UserReaction::Positive => feedback.update_source_reaction(source, true).await?,
+            UserReaction::Negative => feedback.update_source_reaction(source, false).await?,
+            UserReaction::Neutral => (),
         }
 
-        let market = Market::new(&document.resource.language, &document.resource.country);
-
-        let mut stacks = self.stacks.write().await;
-
         // update relevance of stack if the reacted document belongs to one
+        let mut stacks = self.stacks.write().await;
         if !document.stack_id.is_nil() {
             if let Some(stack) = stacks.get_mut(&document.stack_id) {
                 stack.update_relevance(
-                    reaction,
+                    reacted.reaction,
                     self.core_config.max_reactions,
                     self.core_config.incr_reactions,
                 );
             } else if document.stack_id == Exploration::id() {
                 self.exploration_stack.update_relevance(
-                    reaction,
+                    reacted.reaction,
                     self.core_config.max_reactions,
                     self.core_config.incr_reactions,
                 );
@@ -754,7 +594,8 @@ impl Engine {
             }
         };
 
-        match reaction {
+        let market = Market::new(&document.resource.language, &document.resource.country);
+        match reacted.reaction {
             UserReaction::Positive => {
                 let smbert = &self.smbert;
                 self.kps.log_positive_user_reaction(
@@ -781,36 +622,29 @@ impl Engine {
             &self.coi,
             &self.user_interests,
         );
-        if let UserReaction::Positive = reaction {
-            #[cfg(feature = "storage")]
-            let history = &self.storage.fetch_history().await?.into();
-            #[cfg(feature = "storage")]
-            let sources = &self.storage.fetch_weighted_sources().await?;
-            if let Some(history) = history {
-                update_stacks(
-                    &mut stacks,
-                    &mut self.exploration_stack,
-                    &self.smbert,
-                    &self.coi,
-                    &self.kps,
-                    &self.user_interests,
-                    &mut self.key_phrases,
-                    history,
-                    sources,
-                    self.core_config.take_top,
-                    self.core_config.keep_top,
-                    usize::MAX,
-                    &[market.clone()],
-                )
-                .await?;
-                self.request_after = 0;
-            } else {
-                return Err(Error::StackOpFailed(stack::Error::NoHistory));
-            }
+        if let UserReaction::Positive = reacted.reaction {
+            let history = self.storage.fetch_history().await?;
+            let sources = self.storage.fetch_weighted_sources().await?;
+            update_stacks(
+                &mut stacks,
+                &mut self.exploration_stack,
+                &self.smbert,
+                &self.coi,
+                &self.kps,
+                &self.user_interests,
+                &mut self.key_phrases,
+                &history,
+                &sources,
+                self.core_config.take_top,
+                self.core_config.keep_top,
+                usize::MAX,
+                &[market],
+            )
+            .await?;
+            self.request_after = 0;
         }
         drop(stacks); // guard
 
-        #[cfg(feature = "storage")]
         self.serialize().await?;
 
         Ok(document)
@@ -823,7 +657,6 @@ impl Engine {
             return Err(Error::InvalidTerm);
         }
 
-        #[cfg(feature = "storage")]
         match self.storage.search().fetch().await {
             Ok(_) => return Err(storage::Error::OpenSearch.into()),
             Err(storage::Error::NoSearch) => { /* continue */ }
@@ -839,24 +672,20 @@ impl Engine {
             )
             .await?;
 
-        #[cfg(feature = "storage")]
-        {
-            #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
-            let search = storage::models::Search {
-                search_by: storage::models::SearchBy::Query,
-                search_term: query,
-                paging: storage::models::Paging {
-                    size: self.search_config.max_docs_per_batch as u32,
-                    next_page: page,
-                },
-            };
-            let documents = documents.iter().cloned().map_into().collect_vec();
-            self.storage
-                .search()
-                .store_new_search(&search, &documents)
-                .await?;
-            self.serialize().await?;
-        }
+        #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
+        let search = storage::models::Search {
+            search_by: storage::models::SearchBy::Query,
+            search_term: query,
+            paging: storage::models::Paging {
+                size: self.search_config.max_docs_per_batch as u32,
+                next_page: page,
+            },
+        };
+        self.storage
+            .search()
+            .store_new_search(&search, &documents.iter().cloned().map_into().collect_vec())
+            .await?;
+        self.serialize().await?;
 
         Ok(documents)
     }
@@ -867,7 +696,6 @@ impl Engine {
             return Err(Error::InvalidTerm);
         }
 
-        #[cfg(feature = "storage")]
         match self.storage.search().fetch().await {
             Ok(_) => return Err(storage::Error::OpenSearch.into()),
             Err(storage::Error::NoSearch) => { /* continue */ }
@@ -882,24 +710,20 @@ impl Engine {
             )
             .await?;
 
-        #[cfg(feature = "storage")]
-        {
-            #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
-            let search = storage::models::Search {
-                search_by: storage::models::SearchBy::Topic,
-                search_term: topic.into(),
-                paging: storage::models::Paging {
-                    size: self.search_config.max_docs_per_batch as u32,
-                    next_page: page,
-                },
-            };
-            let documents = documents.iter().cloned().map_into().collect_vec();
-            self.storage
-                .search()
-                .store_new_search(&search, &documents)
-                .await?;
-            self.serialize().await?;
-        }
+        #[allow(clippy::cast_possible_truncation)] // originally u32 in InitConfig
+        let search = storage::models::Search {
+            search_by: storage::models::SearchBy::Topic,
+            search_term: topic.into(),
+            paging: storage::models::Paging {
+                size: self.search_config.max_docs_per_batch as u32,
+                next_page: page,
+            },
+        };
+        self.storage
+            .search()
+            .store_new_search(&search, &documents.iter().cloned().map_into().collect_vec())
+            .await?;
+        self.serialize().await?;
 
         Ok(documents)
     }
@@ -908,116 +732,119 @@ impl Engine {
     ///
     /// The documents are sorted in descending order wrt their cosine similarity towards the
     /// original search term embedding.
-    #[cfg_attr(
-        not(feature = "storage"),
-        allow(unused_variables, clippy::unused_async)
-    )]
     pub async fn search_by_id(&self, id: document::Id) -> Result<Vec<Document>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let document = self.storage.search().get_document(id).await?;
+        let stored_document = self.storage.search().get_document(id).await?;
 
-            // TODO: merge `deep_search()` into this method after DB migration
-            self.deep_search(
-                document.snippet_or_title(),
-                &document.news_resource.market,
-                &document.embedding,
-            )
-            .await
+        if stored_document.snippet_or_title().is_empty() {
+            return Ok(Vec::new());
         }
 
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        let query = SimilarNewsQuery {
+            like: stored_document.snippet_or_title(),
+            market: &stored_document.news_resource.market,
+            page_size: self.core_config.deep_search_max,
+            page: 1,
+            rank_limit: RankLimit::Unlimited,
+            excluded_sources: &self.endpoint_config.excluded_sources.read().await.clone(),
+            max_age_days: None,
+        };
+
+        let articles = self
+            .providers
+            .similar_news
+            .query_similar_news(&query)
+            .await
+            .map_err(|error| Error::Client(error.into()))?;
+        let articles = MalformedFilter::apply(&[], &[], articles)?;
+        let (documents, errors) = documentify_articles(
+            StackId::nil(), // these documents are not associated with a stack
+            &self.smbert,
+            articles,
+        );
+
+        // only return an error if all articles failed
+        if documents.is_empty() && !errors.is_empty() {
+            return Err(Error::Errors(errors));
+        }
+
+        let mut documents = documents
+            .into_iter()
+            .filter_map(|document| {
+                let similarity = cosine_similarity(
+                    stored_document.embedding.view(),
+                    document.smbert_embedding.view(),
+                );
+                (similarity > self.core_config.deep_search_sim).then_some((similarity, document))
+            })
+            .collect_vec();
+        documents.sort_unstable_by(|(this, _), (other, _)| nan_safe_f32_cmp(this, other).reverse());
+        let documents = documents
+            .into_iter()
+            .map(|(_, document)| document)
+            .collect();
+
+        Ok(documents)
     }
 
     /// Gets the next batch of the current active search.
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn search_next_batch(&self) -> Result<Vec<Document>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let (search, _) = self.storage.search().fetch().await?;
-            let by = match search.search_by {
-                storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
-                    Filter::default().add_keyword(&search.search_term),
-                )),
-                storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
-            };
-            let page_number = search.paging.next_page + 1;
-            let documents = self
-                .active_search(by, page_number, search.paging.size as usize)
-                .await?;
+        let (search, _) = self.storage.search().fetch().await?;
+        let by = match search.search_by {
+            storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
+                Filter::default().add_keyword(&search.search_term),
+            )),
+            storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
+        };
+        let page_number = search.paging.next_page + 1;
+        let documents = self
+            .active_search(by, page_number, search.paging.size as usize)
+            .await?;
 
-            self.storage
-                .search()
-                .store_next_page(
-                    page_number,
-                    documents
-                        .iter()
-                        .cloned()
-                        .map_into()
-                        .collect_vec()
-                        .as_slice(),
-                )
-                .await?;
-            self.serialize().await?;
+        self.storage
+            .search()
+            .store_next_page(
+                page_number,
+                documents
+                    .iter()
+                    .cloned()
+                    .map_into()
+                    .collect_vec()
+                    .as_slice(),
+            )
+            .await?;
+        self.serialize().await?;
 
-            Ok(documents)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        Ok(documents)
     }
 
-    /// Restores the current active search, ordered by their global rank (timestamp & local rank).
-    // TODO: rename methods to `searched()` and adjust events & docs accordingly after DB migration
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
+    /// Restores the documents which have been searched, i.e. the current active search.
     pub async fn restore_search(&self) -> Result<Vec<Document>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let (_, documents) = self.storage.search().fetch().await?;
-            let documents = documents.into_iter().map_into().collect();
+        let (_, documents) = self.storage.search().fetch().await?;
+        let documents = documents.into_iter().map_into().collect();
 
-            Ok(documents)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        Ok(documents)
     }
 
     /// Gets the current active search mode and term.
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn searched_by(&self) -> Result<SearchBy<'_>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            let (search, _) = self.storage.search().fetch().await?;
-            let search = match search.search_by {
-                storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
-                    Filter::default().add_keyword(&search.search_term),
-                )),
-                storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
-            };
+        let (search, _) = self.storage.search().fetch().await?;
+        let search = match search.search_by {
+            storage::models::SearchBy::Query => SearchBy::Query(Cow::Owned(
+                Filter::default().add_keyword(&search.search_term),
+            )),
+            storage::models::SearchBy::Topic => SearchBy::Topic(search.search_term.into()),
+        };
 
-            Ok(search)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        Ok(search)
     }
 
     /// Closes the current active search.
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
     pub async fn close_search(&self) -> Result<(), Error> {
-        #[cfg(feature = "storage")]
-        {
-            if self.storage.search().clear().await? {
-                Ok(())
-            } else {
-                Err(Error::Storage(storage::Error::NoSearch))
-            }
+        if self.storage.search().clear().await? {
+            Ok(())
+        } else {
+            Err(Error::Storage(storage::Error::NoSearch))
         }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
     }
 
     async fn active_search(
@@ -1085,65 +912,6 @@ impl Engine {
         }
     }
 
-    /// Performs a deep search by term and market.
-    ///
-    /// The documents are sorted in descending order wrt their cosine similarity towards the
-    /// original search term embedding.
-    pub async fn deep_search(
-        &self,
-        term: &str,
-        market: &Market,
-        embedding: &Embedding,
-    ) -> Result<Vec<Document>, Error> {
-        if term.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let query = SimilarNewsQuery {
-            like: term,
-            market,
-            page_size: self.core_config.deep_search_max,
-            page: 1,
-            rank_limit: RankLimit::Unlimited,
-            excluded_sources: &self.endpoint_config.excluded_sources.read().await.clone(),
-            max_age_days: None,
-        };
-
-        let articles = self
-            .providers
-            .similar_news
-            .query_similar_news(&query)
-            .await
-            .map_err(|error| Error::Client(error.into()))?;
-        let articles = MalformedFilter::apply(&[], &[], articles)?;
-        let (documents, errors) = documentify_articles(
-            StackId::nil(), // these documents are not associated with a stack
-            &self.smbert,
-            articles,
-        );
-
-        // only return an error if all articles failed
-        if documents.is_empty() && !errors.is_empty() {
-            return Err(Error::Errors(errors));
-        }
-
-        let mut documents = documents
-            .into_iter()
-            .filter_map(|document| {
-                let similarity =
-                    cosine_similarity(embedding.view(), document.smbert_embedding.view());
-                (similarity > self.core_config.deep_search_sim).then_some((similarity, document))
-            })
-            .collect_vec();
-        documents.sort_unstable_by(|(this, _), (other, _)| nan_safe_f32_cmp(this, other).reverse());
-        let documents = documents
-            .into_iter()
-            .map(|(_, document)| document)
-            .collect();
-
-        Ok(documents)
-    }
-
     /// Returns the current trending topics.
     pub async fn trending_topics(&mut self) -> Result<Vec<TrendingTopic>, Error> {
         let mut errors = Vec::new();
@@ -1183,261 +951,177 @@ impl Engine {
         self.exploration_stack.prune_by_excluded_sources(sources);
     }
 
-    /// Sets a new list of trusted sources.
-    pub async fn set_trusted_sources(
-        &mut self,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-        trusted: Vec<String>,
-    ) -> Result<(), Error> {
-        *self.endpoint_config.trusted_sources.write().await = trusted;
-        self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
-            .await
-    }
-
-    /// Sets a new list of excluded sources.
-    pub async fn set_excluded_sources(
-        &mut self,
-        history: &[HistoricDocument],
-        sources: &[WeightedSource],
-        excluded: Vec<String>,
-    ) -> Result<(), Error> {
-        let exclusion_set = excluded.iter().cloned().collect::<HashSet<_>>();
-        *self.endpoint_config.excluded_sources.write().await = excluded;
-
-        self.filter_excluded_sources_for_all_stacks(&exclusion_set)
-            .await;
-        self.update_stacks_for_all_markets(history, sources, self.core_config.request_new)
-            .await
-    }
-
-    /// Sets a new list of excluded and trusted sources.
-    #[cfg_attr(
-        not(feature = "storage"),
-        allow(unused_variables, clippy::unused_async)
-    )]
+    /// Sets new trusted and excluded sources.
     pub async fn set_sources(
         &mut self,
-        excluded: Vec<String>,
         trusted: Vec<String>,
+        excluded: Vec<String>,
     ) -> Result<(), Error> {
-        #[cfg(feature = "storage")]
-        {
-            let trusted_set = trusted.iter().cloned().collect::<HashSet<_>>();
-            let current_trusted = self.storage.source_preference().fetch_trusted().await?;
-            let trusted_changed = trusted_set != current_trusted;
+        let trusted_set = trusted.iter().cloned().collect::<HashSet<_>>();
+        let current_trusted = self.storage.source_preference().fetch_trusted().await?;
+        let trusted_changed = trusted_set != current_trusted;
 
-            let excluded_set = excluded.iter().cloned().collect::<HashSet<_>>();
-            let current_excluded = self.storage.source_preference().fetch_excluded().await?;
-            let excluded_changed = excluded_set != current_excluded;
+        let excluded_set = excluded.iter().cloned().collect::<HashSet<_>>();
+        let current_excluded = self.storage.source_preference().fetch_excluded().await?;
+        let excluded_changed = excluded_set != current_excluded;
 
-            if !trusted_changed && !excluded_changed {
-                return Ok(());
-            }
-
-            if trusted_changed {
-                self.storage
-                    .source_preference()
-                    .set_trusted(&trusted_set)
-                    .await?;
-                *self.endpoint_config.trusted_sources.write().await = trusted;
-            }
-
-            if excluded_changed {
-                self.storage
-                    .source_preference()
-                    .set_excluded(&excluded_set)
-                    .await?;
-                *self.endpoint_config.excluded_sources.write().await = excluded;
-                self.filter_excluded_sources_for_all_stacks(&excluded_set)
-                    .await;
-            }
-
-            let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_weighted_sources().await?;
-            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
-                .await
+        if !trusted_changed && !excluded_changed {
+            return Ok(());
         }
 
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
-    }
-
-    /// Returns the trusted sources.
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
-    pub async fn trusted_sources(&mut self) -> Result<Vec<String>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            self.storage
-                .source_preference()
-                .fetch_trusted()
-                .await
-                .map(|set| set.into_iter().collect())
-                .map_err(Into::into)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
-    }
-
-    /// Returns the excluded sources.
-    #[cfg_attr(not(feature = "storage"), allow(clippy::unused_async))]
-    pub async fn excluded_sources(&mut self) -> Result<Vec<String>, Error> {
-        #[cfg(feature = "storage")]
-        {
-            self.storage
-                .source_preference()
-                .fetch_excluded()
-                .await
-                .map(|set| set.into_iter().collect())
-                .map_err(Into::into)
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
-    }
-
-    /// Adds a trusted source.
-    #[cfg_attr(
-        not(feature = "storage"),
-        allow(unused_variables, clippy::unused_async)
-    )]
-    pub async fn add_trusted_source(&mut self, new_trusted: String) -> Result<(), Error> {
-        #[cfg(feature = "storage")]
-        {
-            let mut trusted = self.storage.source_preference().fetch_trusted().await?;
-            if !trusted.insert(new_trusted) {
-                return Ok(());
-            }
-
-            let old_excluded = self.storage.source_preference().fetch_excluded().await?;
-            self.storage
-                .source_preference()
-                .set_trusted(&trusted)
-                .await?;
-
-            if trusted.intersection(&old_excluded).next().is_some() {
-                // update the endpoint configuration's excluded sources,
-                // as the new_trusted source was previously an excluded source
-                let updated_excluded: HashSet<String> =
-                    old_excluded.difference(&trusted).cloned().collect();
-                *self.endpoint_config.excluded_sources.write().await =
-                    updated_excluded.iter().cloned().collect();
-                self.filter_excluded_sources_for_all_stacks(&updated_excluded)
-                    .await;
-            }
-
-            *self.endpoint_config.trusted_sources.write().await = trusted.iter().cloned().collect();
-            let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_weighted_sources().await?;
-            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
-                .await
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
-    }
-
-    /// Removes a trusted source.
-    #[cfg_attr(
-        not(feature = "storage"),
-        allow(unused_variables, clippy::unused_async)
-    )]
-    pub async fn remove_trusted_source(&mut self, trusted: String) -> Result<(), Error> {
-        #[cfg(feature = "storage")]
-        {
-            let mut trusted_set = self.storage.source_preference().fetch_trusted().await?;
-            if !trusted_set.remove(&trusted) {
-                return Ok(());
-            }
-
+        if trusted_changed {
             self.storage
                 .source_preference()
                 .set_trusted(&trusted_set)
                 .await?;
-
-            *self.endpoint_config.trusted_sources.write().await =
-                trusted_set.iter().cloned().collect();
-
-            let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_weighted_sources().await?;
-            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
-                .await
+            *self.endpoint_config.trusted_sources.write().await = trusted;
         }
 
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
-    }
-
-    /// Adds an excluded source.
-    #[cfg_attr(
-        not(feature = "storage"),
-        allow(unused_variables, clippy::unused_async)
-    )]
-    pub async fn add_excluded_source(&mut self, new_excluded: String) -> Result<(), Error> {
-        #[cfg(feature = "storage")]
-        {
-            let mut excluded = self.storage.source_preference().fetch_excluded().await?;
-            if !excluded.insert(new_excluded) {
-                return Ok(());
-            }
-
-            let old_trusted = self.storage.source_preference().fetch_trusted().await?;
-            self.storage
-                .source_preference()
-                .set_excluded(&excluded)
-                .await?;
-
-            if excluded.intersection(&old_trusted).next().is_some() {
-                // update the endpoint configuration's trusted sources,
-                // as the new_excluded source contains was previously a trusted source
-                let updated_trusted = old_trusted.difference(&excluded).cloned().collect();
-                *self.endpoint_config.trusted_sources.write().await = updated_trusted;
-            }
-
-            *self.endpoint_config.excluded_sources.write().await =
-                excluded.iter().cloned().collect();
-            self.filter_excluded_sources_for_all_stacks(&excluded).await;
-
-            let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_weighted_sources().await?;
-            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
-                .await
-        }
-
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
-    }
-
-    /// Removes an excluded source.
-    #[cfg_attr(
-        not(feature = "storage"),
-        allow(unused_variables, clippy::unused_async)
-    )]
-    pub async fn remove_excluded_source(&mut self, excluded: String) -> Result<(), Error> {
-        #[cfg(feature = "storage")]
-        {
-            let mut excluded_set = self.storage.source_preference().fetch_excluded().await?;
-            if !excluded_set.remove(&excluded) {
-                return Ok(());
-            }
-
+        if excluded_changed {
             self.storage
                 .source_preference()
                 .set_excluded(&excluded_set)
                 .await?;
-
-            *self.endpoint_config.excluded_sources.write().await =
-                excluded_set.iter().cloned().collect();
-
-            let history = self.storage.fetch_history().await?;
-            let sources = self.storage.fetch_weighted_sources().await?;
-            self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
-                .await
+            *self.endpoint_config.excluded_sources.write().await = excluded;
+            self.filter_excluded_sources_for_all_stacks(&excluded_set)
+                .await;
         }
 
-        #[cfg(not(feature = "storage"))]
-        unimplemented!("requires 'storage' feature")
+        let history = self.storage.fetch_history().await?;
+        let sources = self.storage.fetch_weighted_sources().await?;
+        self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Returns the trusted sources.
+    pub async fn trusted_sources(&mut self) -> Result<Vec<String>, Error> {
+        self.storage
+            .source_preference()
+            .fetch_trusted()
+            .await
+            .map(|set| set.into_iter().collect())
+            .map_err(Into::into)
+    }
+
+    /// Returns the excluded sources.
+    pub async fn excluded_sources(&mut self) -> Result<Vec<String>, Error> {
+        self.storage
+            .source_preference()
+            .fetch_excluded()
+            .await
+            .map(|set| set.into_iter().collect())
+            .map_err(Into::into)
+    }
+
+    /// Adds a trusted source.
+    pub async fn add_trusted_source(&mut self, new_trusted: String) -> Result<(), Error> {
+        let mut trusted = self.storage.source_preference().fetch_trusted().await?;
+        if !trusted.insert(new_trusted) {
+            return Ok(());
+        }
+
+        let old_excluded = self.storage.source_preference().fetch_excluded().await?;
+        self.storage
+            .source_preference()
+            .set_trusted(&trusted)
+            .await?;
+
+        if trusted.intersection(&old_excluded).next().is_some() {
+            // update the endpoint configuration's excluded sources,
+            // as the new_trusted source was previously an excluded source
+            let updated_excluded: HashSet<String> =
+                old_excluded.difference(&trusted).cloned().collect();
+            *self.endpoint_config.excluded_sources.write().await =
+                updated_excluded.iter().cloned().collect();
+            self.filter_excluded_sources_for_all_stacks(&updated_excluded)
+                .await;
+        }
+
+        *self.endpoint_config.trusted_sources.write().await = trusted.iter().cloned().collect();
+        let history = self.storage.fetch_history().await?;
+        let sources = self.storage.fetch_weighted_sources().await?;
+        self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Removes a trusted source.
+    pub async fn remove_trusted_source(&mut self, trusted: String) -> Result<(), Error> {
+        let mut trusted_set = self.storage.source_preference().fetch_trusted().await?;
+        if !trusted_set.remove(&trusted) {
+            return Ok(());
+        }
+
+        self.storage
+            .source_preference()
+            .set_trusted(&trusted_set)
+            .await?;
+
+        *self.endpoint_config.trusted_sources.write().await = trusted_set.iter().cloned().collect();
+
+        let history = self.storage.fetch_history().await?;
+        let sources = self.storage.fetch_weighted_sources().await?;
+        self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Adds an excluded source.
+    pub async fn add_excluded_source(&mut self, new_excluded: String) -> Result<(), Error> {
+        let mut excluded = self.storage.source_preference().fetch_excluded().await?;
+        if !excluded.insert(new_excluded) {
+            return Ok(());
+        }
+
+        let old_trusted = self.storage.source_preference().fetch_trusted().await?;
+        self.storage
+            .source_preference()
+            .set_excluded(&excluded)
+            .await?;
+
+        if excluded.intersection(&old_trusted).next().is_some() {
+            // update the endpoint configuration's trusted sources,
+            // as the new_excluded source contains was previously a trusted source
+            let updated_trusted = old_trusted.difference(&excluded).cloned().collect();
+            *self.endpoint_config.trusted_sources.write().await = updated_trusted;
+        }
+
+        *self.endpoint_config.excluded_sources.write().await = excluded.iter().cloned().collect();
+        self.filter_excluded_sources_for_all_stacks(&excluded).await;
+
+        let history = self.storage.fetch_history().await?;
+        let sources = self.storage.fetch_weighted_sources().await?;
+        self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Removes an excluded source.
+    pub async fn remove_excluded_source(&mut self, excluded: String) -> Result<(), Error> {
+        let mut excluded_set = self.storage.source_preference().fetch_excluded().await?;
+        if !excluded_set.remove(&excluded) {
+            return Ok(());
+        }
+
+        self.storage
+            .source_preference()
+            .set_excluded(&excluded_set)
+            .await?;
+
+        *self.endpoint_config.excluded_sources.write().await =
+            excluded_set.iter().cloned().collect();
+
+        let history = self.storage.fetch_history().await?;
+        let sources = self.storage.fetch_weighted_sources().await?;
+        self.update_stacks_for_all_markets(&history, &sources, self.core_config.request_new)
+            .await?;
+
+        Ok(())
     }
 
     /// Resets the AI state.
@@ -1445,7 +1129,6 @@ impl Engine {
         self.clear_stack_data().await;
         self.user_interests = UserInterests::default();
         self.key_phrases = KeyPhrases::default();
-        #[cfg(feature = "storage")]
         self.storage.clear_database().await?;
 
         self.request_after = 0;
@@ -1787,7 +1470,7 @@ pub enum SearchBy<'a> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::mem::size_of;
+    use std::{mem::size_of, sync::Arc, time::Duration};
 
     use async_once_cell::OnceCell;
     use chrono::{Datelike, TimeZone, Utc};
@@ -1853,9 +1536,6 @@ pub(crate) mod tests {
                 news_provider_path: "newscatcher/news-endpoint-name".into(),
                 headlines_provider_path: "newscatcher/headlines-endpoint-name".into(),
                 markets: vec![Market::new("en", "US")],
-                // This triggers the trusted sources stack to also fetch articles
-                trusted_sources: vec!["example.com".into()],
-                excluded_sources: vec![],
                 smbert_vocab: format!("{asset_base}/smbert_v0002/vocab.txt"),
                 smbert_model: format!("{asset_base}/smbert_v0002/smbert-mocked.onnx"),
                 max_docs_per_feed_batch: FeedConfig::default()
@@ -1870,14 +1550,12 @@ pub(crate) mod tests {
                 log_file: None,
                 data_dir: "tmp_test_data_dir".into(),
                 use_ephemeral_db: true,
+                dart_migration_data: None,
             };
 
             // Now we can initialize the engine with no previous history or state. This should
             // be the same as when it's initialized for the first time after the app is downloaded.
-            let engine = Engine::from_config(config, None, &[], &[], None)
-                .await
-                .unwrap()
-                .0;
+            let engine = Engine::from_config(config).await.unwrap().0;
 
             Mutex::new((server, engine))
         };
@@ -1887,13 +1565,13 @@ pub(crate) mod tests {
         );
 
         // reset the stacks and states
-        #[cfg(feature = "storage")]
-        {
-            engine.storage = SqliteStorage::init_storage_system(None, None, &|_| None)
-                .await
-                .unwrap()
-                .0;
-        }
+        engine.storage = SqliteStorage::init_storage_system(None, None, &|_| None)
+            .await
+            .unwrap()
+            .0;
+        // This triggers the trusted sources stack to also fetch articles
+        engine.endpoint_config.trusted_sources = Arc::new(RwLock::new(vec!["example.com".into()]));
+        engine.endpoint_config.excluded_sources = Arc::new(RwLock::new(Vec::new()));
         engine.stacks = RwLock::new(
             stack_ops
                 .into_iter()
@@ -2011,7 +1689,6 @@ pub(crate) mod tests {
         assert_eq!(stacks.values().map(Stack::len).sum::<usize>(), 1);
     }
 
-    #[cfg(feature = "storage")]
     #[tokio::test]
     async fn test_serialized_state_is_updated() {
         let engine = &mut *init_engine(
@@ -2028,19 +1705,10 @@ pub(crate) mod tests {
         let state1 = engine.storage.state().fetch().await.unwrap();
 
         engine
-            .user_reacted(
-                None,
-                &[],
-                UserReacted {
-                    id: documents[0].id,
-                    stack_id: BreakingNews::id(),
-                    title: "unused".into(),
-                    snippet: "unused".into(),
-                    smbert_embedding: Embedding::default(),
-                    reaction: UserReaction::Positive,
-                    market: Market::new("de", "DE"),
-                },
-            )
+            .user_reacted(UserReacted {
+                id: documents[0].id,
+                reaction: UserReaction::Positive,
+            })
             .await
             .unwrap();
 
@@ -2051,10 +1719,8 @@ pub(crate) mod tests {
         engine
             .time_spent(TimeSpent {
                 id: documents[0].id,
-                smbert_embedding: Embedding::default(),
-                view_time: std::time::Duration::from_secs(1),
+                view_time: Duration::from_secs(1),
                 view_mode: document::ViewMode::Story,
-                reaction: UserReaction::Positive,
             })
             .await
             .unwrap();
@@ -2115,11 +1781,7 @@ pub(crate) mod tests {
         .await;
 
         engine
-            .set_markets(
-                &[],
-                &[],
-                vec![Market::new("de", "DE"), Market::new("it", "IT")],
-            )
+            .set_markets(vec![Market::new("de", "DE"), Market::new("it", "IT")])
             .await
             .unwrap();
 
@@ -2253,7 +1915,7 @@ pub(crate) mod tests {
 
         // Finally, we instruct the engine to fetch some articles and check whether or not
         // the expected articles from the mock show up in the results.
-        let res = engine.get_feed_documents(&[], &[]).await.unwrap();
+        let res = engine.feed_next_batch().await.unwrap();
 
         assert_eq!(1, res.len());
         assert_eq!(
