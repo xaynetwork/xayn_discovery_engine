@@ -64,14 +64,16 @@ where
     load_dotenv(".env.local")?;
     load_dotenv(".env")?;
 
-    Figment::new()
+    let mut figment = Figment::new()
         .join(Serialized::defaults(update_with))
-        .join(Env::prefixed("XAYN_WEB_API__").split("__"))
-        .join(Toml::file(
-            config_file.unwrap_or_else(|| Path::new("config.toml")),
-        ))
-        .extract()
-        .map_err(Into::into)
+        .join(Env::prefixed("XAYN_WEB_API__").split("__"));
+
+    let file = config_file.unwrap_or_else(|| Path::new("config.toml"));
+    if file.exists() {
+        figment = figment.join(Toml::file(file));
+    }
+
+    figment.extract().map_err(Into::into)
 }
 
 fn load_dotenv(file_name: &str) -> Result<(), figment::Error> {
