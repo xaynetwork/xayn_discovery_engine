@@ -135,7 +135,7 @@ impl Database {
 
         QueryBuilder::new("DELETE FROM interaction WHERE doc_id in")
             .push_tuples(documents, |mut query, id| {
-                query.push(id);
+                query.push_bind(id);
             })
             .build()
             .persistent(false)
