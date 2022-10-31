@@ -142,6 +142,7 @@ impl ElasticSearchClient {
         let mut body = Vec::new();
         for request in requests {
             serde_json::to_writer(&mut body, &request)?;
+            body.push(b'\n');
         }
 
         let response: BulkResponse = self
