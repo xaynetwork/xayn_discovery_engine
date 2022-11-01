@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
-use crate::error::common::{InvalidDocumentId, InvalidPropertyId, InvalidUserId};
+use crate::error::common::{InvalidDocumentId, InvalidDocumentPropertyId, InvalidUserId};
 
 /// A unique identifier of a document.
 #[derive(
@@ -73,11 +73,11 @@ pub struct DocumentPropertyId(String);
 
 impl DocumentPropertyId {
     #[allow(dead_code)]
-    pub fn new(id: impl Into<String>) -> Result<Self, InvalidPropertyId> {
+    pub fn new(id: impl Into<String>) -> Result<Self, InvalidDocumentPropertyId> {
         let id = id.into();
 
         if id.is_empty() || id.contains('\u{0000}') {
-            Err(InvalidPropertyId)
+            Err(InvalidDocumentPropertyId)
         } else {
             Ok(Self(id))
         }
@@ -90,7 +90,7 @@ impl DocumentPropertyId {
 }
 
 impl FromStr for DocumentPropertyId {
-    type Err = InvalidPropertyId;
+    type Err = InvalidDocumentPropertyId;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::new(s)

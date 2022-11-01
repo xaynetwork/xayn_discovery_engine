@@ -44,8 +44,8 @@ impl_application_error!(InvalidDocumentId => BAD_REQUEST);
 
 /// Malformed document property id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidPropertyId;
-impl_application_error!(InvalidPropertyId => BAD_REQUEST);
+pub struct InvalidDocumentPropertyId;
+impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST);
 
 /// Not enough interactions.
 #[derive(Debug, Error, Display, Serialize)]
