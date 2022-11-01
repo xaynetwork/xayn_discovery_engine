@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::borrow::Cow;
+
 use actix_web::http::StatusCode;
 use derive_more::From;
 use displaydoc::Display;
@@ -72,6 +74,21 @@ pub struct IngestingDocumentsFailed {
 }
 impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);
 
+/// Custom error for 400 Bad Request status code.
+#[derive(Debug, Error, Display, Serialize, From)]
+pub struct BadRequest {
+    pub(crate) message: Cow<'static, str>,
+}
+impl_application_error!(BadRequest => BAD_REQUEST);
+
+impl From<&'static str> for BadRequest {
+    fn from(message: &'static str) -> Self {
+        Self {
+            message: Cow::Borrowed(message),
+        }
+    }
+}
+
 #[derive(Serialize, Debug, From)]
 pub(crate) struct DocumentIdAsObject {
     pub(crate) id: DocumentId,
@@ -82,6 +99,10 @@ pub(crate) struct DocumentIdAsObject {
 pub struct InternalError(anyhow::Error);
 
 impl InternalError {
+    pub fn from_message(msg: &'static str) -> Self {
+        Self::from_anyhow(anyhow::Error::msg(msg))
+    }
+
     pub fn from_std(error: impl std::error::Error + Send + Sync + 'static) -> Self {
         Self(anyhow::Error::new(error))
     }

@@ -16,6 +16,7 @@ displaydoc = { workspace = true }
 dotenvy = "0.15.5"
 figment = { workspace = true, features = ["env", "toml"] }
 futures-util = { workspace = true }
+itertools = { workspace = true }
 mime = "0.3.16"
 once_cell = { workspace = true }
 pin-project = { workspace = true }

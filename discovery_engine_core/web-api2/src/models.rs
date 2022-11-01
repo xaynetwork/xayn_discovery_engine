@@ -18,7 +18,6 @@ use derive_more::{AsRef, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
 use crate::error::common::{InvalidDocumentId, InvalidDocumentPropertyId, InvalidUserId};
@@ -99,7 +98,7 @@ pub type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct PersonalizedDocumentData {
+pub(crate) struct PersonalizedDocument {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
 
@@ -114,7 +113,7 @@ pub(crate) struct PersonalizedDocumentData {
     pub(crate) properties: DocumentProperties,
 }
 
-impl AiDocument for PersonalizedDocumentData {
+impl AiDocument for PersonalizedDocument {
     type Id = DocumentId;
 
     fn id(&self) -> &Self::Id {
@@ -126,48 +125,8 @@ impl AiDocument for PersonalizedDocumentData {
     }
 }
 
-/// Represents personalized documents query params.
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct PersonalizedDocumentsQuery {
-    #[allow(dead_code)]
-    pub(crate) count: Option<usize>,
-}
-
-/// Represents response from personalized documents endpoint.
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct PersonalizedDocumentsResponse {
-    /// A list of documents personalized for a specific user.
-    pub(crate) documents: Vec<PersonalizedDocumentData>,
-}
-
-impl PersonalizedDocumentsResponse {
-    #[allow(dead_code)]
-    pub(crate) fn new(documents: impl Into<Vec<PersonalizedDocumentData>>) -> Self {
-        Self {
-            documents: documents.into(),
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub(crate) enum UserInteractionType {
     #[serde(rename = "positive")]
     Positive = 1,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-pub(crate) struct UserInteractionData {
-    #[allow(dead_code)]
-    #[serde(rename = "id")]
-    pub(crate) document_id: DocumentId,
-    #[allow(dead_code)]
-    #[serde(rename = "type")]
-    pub(crate) interaction_type: UserInteractionType,
-}
-
-/// Represents user interaction request body.
-#[derive(Clone, Debug, Deserialize)]
-pub(crate) struct UserInteractionRequestBody {
-    #[allow(dead_code)]
-    pub(crate) documents: Vec<UserInteractionData>,
 }

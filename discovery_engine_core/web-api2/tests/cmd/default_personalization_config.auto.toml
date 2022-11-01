@@ -32,6 +32,11 @@ stdout = """
     "min_positive_cois": 2,
     "min_negative_cois": 0,
     "horizon": 30
+  },
+  "personalization": {
+    "max_number_documents": 100,
+    "default_number_documents": 100,
+    "max_cois_for_knn": 10
   }
 }
 """
