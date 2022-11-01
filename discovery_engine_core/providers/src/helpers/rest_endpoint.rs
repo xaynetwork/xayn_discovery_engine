@@ -12,15 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use once_cell::sync::OnceCell;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
-use url::Url;
 
-use crate::Error;
+use crate::{config::Config, error::Error};
 
 /// Preferably all endpoints should share the same [`Client`] instance.
 static SHARED_CLIENT: OnceCell<Arc<Client>> = OnceCell::new();
@@ -28,16 +27,12 @@ static SHARED_CLIENT: OnceCell<Arc<Client>> = OnceCell::new();
 /// A simple abstraction over a single endpoint.
 pub struct RestEndpoint {
     client: Arc<Client>,
-    url: Url,
-    auth_token: String,
-    timeout: Duration,
-    retry: usize,
-    get_as_post: bool,
+    pub(crate) config: Config,
 }
 
 impl RestEndpoint {
     /// Create a `RestEndpoint` instance with a default timeout.
-    pub fn new(url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
+    pub fn new(config: Config) -> Self {
         let client = SHARED_CLIENT
             .get_or_init(|| {
                 // Note: If we need to use a ClientBuilder we should pass the `Arc<Client>` as
@@ -46,31 +41,7 @@ impl RestEndpoint {
             })
             .clone();
 
-        Self {
-            client,
-            url,
-            auth_token,
-            timeout,
-            retry,
-            get_as_post: false,
-        }
-    }
-
-    /// Configures if we should use POST for GET requests.
-    ///
-    /// This is sometimes needed when the server
-    /// puts limits on the length of the query.
-    ///
-    /// It's semantically still a GET request.
-    #[must_use = "dropped changed client"]
-    pub fn with_get_as_post(mut self, get_as_post: bool) -> Self {
-        self.get_as_post = get_as_post;
-        self
-    }
-
-    /// Return a reference to the Url of the endpoint.
-    pub fn url(&self) -> &Url {
-        &self.url
+        Self { client, config }
     }
 
     pub async fn get_request<F, D>(&self, setup_query_params: F) -> Result<D, Error>
@@ -79,8 +50,8 @@ impl RestEndpoint {
         D: DeserializeOwned + Send,
     {
         let request_builder = || {
-            let mut url = self.url.clone();
-            if self.get_as_post {
+            let mut url = self.config.url.clone();
+            if self.config.get_as_post {
                 let mut query = Map::new();
                 setup_query_params(&mut |key, value| {
                     query.insert(key.into(), Value::String(value));
@@ -94,14 +65,14 @@ impl RestEndpoint {
                 drop(query_mut);
                 self.client.get(url)
             }
-            .timeout(self.timeout)
-            .bearer_auth(&self.auth_token)
+            .timeout(self.config.timeout)
+            .bearer_auth(&self.config.token)
         };
 
         let mut retry = 0;
         let response = loop {
             match request_builder().send().await {
-                Err(error) if error.is_timeout() && retry < self.retry => {
+                Err(error) if error.is_timeout() && retry < self.config.retry => {
                     retry += 1;
                     continue;
                 }

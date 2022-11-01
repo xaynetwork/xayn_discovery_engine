@@ -42,8 +42,8 @@ pub enum Error {
     MissingDomainInUrl(String),
     /// None of the received articles were well-formed. See trace logs for details.
     NoValidArticles,
-    /// In the configuration a URL is malformed/unsupported: {url}
-    MalformedUrlInConfig { url: String },
+    /// In the configuration a URL is malformed/unsupported: {0}
+    MalformedUrlInConfig(#[source] url::ParseError),
     /// In the configuration a URL path is malformed/unsupported: {path}
     MalformedUrlPathInConfig { path: String },
     /// We can't detect which provider to use for given endpoint: {url}
