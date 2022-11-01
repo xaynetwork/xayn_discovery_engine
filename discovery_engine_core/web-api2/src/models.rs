@@ -12,90 +12,84 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Cow, collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
-use derive_more::{AsRef, Display};
+use derive_more::{AsRef, Display, Into};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
 
 use crate::error::common::{InvalidDocumentId, InvalidDocumentPropertyId, InvalidUserId};
 
-/// A unique identifier of a document.
-#[derive(
-    AsRef,
-    Clone,
-    Debug,
-    Display,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    sqlx::Type,
-    sqlx::FromRow,
-)]
-#[sqlx(transparent)]
-pub struct DocumentId(String);
+macro_rules! id_wrapper {
+    ($name:ident, $validate:expr, $error:ident) => {
+        /// A unique identifier of a document.
+        #[derive(
+            AsRef,
+            Into,
+            Clone,
+            Debug,
+            Display,
+            PartialEq,
+            Eq,
+            Hash,
+            Serialize,
+            Deserialize,
+            sqlx::Type,
+            sqlx::FromRow,
+        )]
+        #[sqlx(transparent)]
+        #[serde(try_from = "String", into = "String")]
+        pub struct $name(String);
 
-impl DocumentId {
-    pub fn new(id: impl Into<String>) -> Result<Self, InvalidDocumentId> {
-        let id = id.into();
-
-        if id.is_empty() || id.contains('\u{0000}') {
-            Err(InvalidDocumentId)
-        } else {
-            Ok(Self(id))
+        impl $name {
+            pub fn new(id: impl Into<String> + AsRef<str>) -> Result<Self, $error> {
+                if ($validate)(id.as_ref()) {
+                    Ok(Self(id.into()))
+                } else {
+                    Err($error { id: id.into() })
+                }
+            }
         }
-    }
 
-    pub fn encode(&self) -> Cow<str> {
-        urlencoding::encode(self.as_ref())
-    }
-}
+        impl TryFrom<String> for $name {
+            type Error = $error;
 
-impl FromStr for DocumentId {
-    type Err = InvalidDocumentId;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(s)
-    }
-}
-
-impl From<DocumentId> for String {
-    fn from(item: DocumentId) -> Self {
-        item.0
-    }
-}
-
-#[derive(Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash, AsRef)]
-pub struct DocumentPropertyId(String);
-
-impl DocumentPropertyId {
-    #[allow(dead_code)]
-    pub fn new(id: impl Into<String>) -> Result<Self, InvalidDocumentPropertyId> {
-        let id = id.into();
-
-        if id.is_empty() || id.contains('\u{0000}') {
-            Err(InvalidDocumentPropertyId)
-        } else {
-            Ok(Self(id))
+            fn try_from(value: String) -> Result<Self, Self::Error> {
+                Self::new(value)
+            }
         }
-    }
 
-    #[allow(dead_code)]
-    pub fn encode(&self) -> Cow<str> {
-        urlencoding::encode(self.as_ref())
-    }
+        impl TryFrom<&str> for $name {
+            type Error = $error;
+
+            fn try_from(value: &str) -> Result<Self, Self::Error> {
+                Self::new(value)
+            }
+        }
+
+        impl FromStr for $name {
+            type Err = $error;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Self::new(s)
+            }
+        }
+    };
 }
 
-impl FromStr for DocumentPropertyId {
-    type Err = InvalidDocumentPropertyId;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(s)
-    }
+fn is_valid_id(id: &str) -> bool {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap());
+    RE.is_match(id)
 }
+
+id_wrapper!(DocumentId, is_valid_id, InvalidDocumentId);
+
+id_wrapper!(DocumentPropertyId, is_valid_id, InvalidDocumentPropertyId);
+
+id_wrapper!(UserId, is_valid_id, InvalidUserId);
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DocumentProperty(serde_json::Value);
@@ -139,6 +133,22 @@ pub(crate) struct PersonalizedDocumentsQuery {
     pub(crate) count: Option<usize>,
 }
 
+/// Represents response from personalized documents endpoint.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct PersonalizedDocumentsResponse {
+    /// A list of documents personalized for a specific user.
+    pub(crate) documents: Vec<PersonalizedDocumentData>,
+}
+
+impl PersonalizedDocumentsResponse {
+    #[allow(dead_code)]
+    pub(crate) fn new(documents: impl Into<Vec<PersonalizedDocumentData>>) -> Self {
+        Self {
+            documents: documents.into(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub(crate) enum UserInteractionType {
     #[serde(rename = "positive")]
@@ -160,29 +170,4 @@ pub(crate) struct UserInteractionData {
 pub(crate) struct UserInteractionRequestBody {
     #[allow(dead_code)]
     pub(crate) documents: Vec<UserInteractionData>,
-}
-
-/// Unique identifier for the user.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Display, AsRef)]
-pub struct UserId(String);
-
-impl UserId {
-    #[allow(dead_code)]
-    pub(crate) fn new(id: impl AsRef<str>) -> Result<Self, InvalidUserId> {
-        let id = id.as_ref();
-
-        if id.is_empty() || id.contains('\u{0000}') {
-            Err(InvalidUserId)
-        } else {
-            Ok(Self(id.to_string()))
-        }
-    }
-}
-
-impl FromStr for UserId {
-    type Err = InvalidUserId;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::new(s)
-    }
 }

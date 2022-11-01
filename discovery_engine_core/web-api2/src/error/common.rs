@@ -34,17 +34,23 @@ impl_application_error!(PropertyNotFound => NOT_FOUND);
 
 /// Malformed user id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidUserId;
+pub struct InvalidUserId {
+    pub(crate) id: String,
+}
 impl_application_error!(InvalidUserId => BAD_REQUEST);
 
 /// Malformed document id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidDocumentId;
+pub struct InvalidDocumentId {
+    pub(crate) id: String,
+}
 impl_application_error!(InvalidDocumentId => BAD_REQUEST);
 
 /// Malformed document property id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidDocumentPropertyId;
+pub struct InvalidDocumentPropertyId {
+    pub(crate) id: String,
+}
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST);
 
 /// Not enough interactions.

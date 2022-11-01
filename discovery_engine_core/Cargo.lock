@@ -4605,6 +4605,7 @@ dependencies = [
  "mime",
  "once_cell",
  "pin-project",
+ "regex",
  "secrecy",
  "serde",
  "serde_json",
