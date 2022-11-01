@@ -4595,8 +4595,10 @@ name = "web-api2"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "anyhow",
  "clap 4.0.10",
  "derive_more",
+ "displaydoc",
  "dotenvy",
  "figment",
  "futures-util",
