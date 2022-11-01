@@ -27,7 +27,7 @@ use url::Url;
 use uuid::Uuid;
 
 use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId};
-use xayn_discovery_engine_providers::{GenericArticle, TrendingTopic as BingTopic};
+use xayn_discovery_engine_providers::GenericArticle;
 
 use crate::stack::Id as StackId;
 
@@ -302,48 +302,6 @@ pub struct WeightedSource {
     pub source: String,
     /// Weight of the source in terms of user reactions.
     pub weight: i32,
-}
-
-/// A trending topic.
-pub struct TrendingTopic {
-    /// Id of the topic.
-    pub id: Id,
-    /// Precomputed S-mBert of the topic.
-    pub smbert_embedding: Embedding,
-    /// Title of the topic.
-    pub name: String,
-    /// Query term that returns this topic.
-    pub query: String,
-    /// Link to a related image.
-    pub image: Option<Url>,
-}
-
-impl TryFrom<(BingTopic, Embedding)> for TrendingTopic {
-    type Error = Error;
-    fn try_from((topic, smbert_embedding): (BingTopic, Embedding)) -> Result<Self, Self::Error> {
-        let url = topic.image.url;
-        let image = (!url.is_empty()).then(|| Url::parse(&url)).transpose()?;
-
-        Ok(Self {
-            id: Id::new(),
-            smbert_embedding,
-            name: topic.name,
-            query: topic.query.text,
-            image,
-        })
-    }
-}
-
-impl AiDocument for TrendingTopic {
-    type Id = Id;
-
-    fn id(&self) -> &Self::Id {
-        &self.id
-    }
-
-    fn smbert_embedding(&self) -> &Embedding {
-        &self.smbert_embedding
-    }
 }
 
 #[cfg(test)]

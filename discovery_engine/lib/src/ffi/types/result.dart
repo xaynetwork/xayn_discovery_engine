@@ -24,7 +24,6 @@ import 'package:xayn_discovery_engine/src/ffi/types/document/document_vec.dart'
 import 'package:xayn_discovery_engine/src/ffi/types/search.dart' show SearchFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show StringFfi, StringListFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart';
 
 abstract class ResultFfiAdapter<Ok, Err, RustResult extends NativeType,
     RustOk extends NativeType, RustErr extends NativeType> {
@@ -191,15 +190,6 @@ final resultVecDocumentStringFfiAdapter = ConsumeResultFfiAdapter(
   readNativeErr: StringFfi.readNative,
   throwErr: _throwStringErr,
   freeResult: ffi.drop_result_vec_document_string,
-);
-
-final resultVecTrendingTopicStringFfiAdapter = ConsumeResultFfiAdapter(
-  getOk: ffi.get_result_vec_trending_topic_string_ok,
-  getErr: ffi.get_result_vec_trending_topic_string_err,
-  readNativeOk: TrendingTopicSliceFfi.readVec,
-  readNativeErr: StringFfi.readNative,
-  throwErr: _throwStringErr,
-  freeResult: ffi.drop_result_vec_trending_topic_string,
 );
 
 final resultInitializationResultStringFfiAdapter = MoveResultFfiAdapter(

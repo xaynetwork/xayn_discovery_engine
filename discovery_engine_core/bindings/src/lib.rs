@@ -53,7 +53,6 @@ use xayn_discovery_engine_core::Engine;
         document::Document,
         engine::{InitializationResult, SharedEngine},
         search::Search,
-        trending_topic::TrendingTopic,
     };
 )]
 impl XaynDiscoveryEngineAsyncFfi {
@@ -274,20 +273,6 @@ impl XaynDiscoveryEngineAsyncFfi {
                 .await
                 .close_search()
                 .await
-                .map_err(|error| error.to_string()),
-        )
-    }
-
-    /// Returns the current trending topics.
-    pub async fn trending_topics(engine: &SharedEngine) -> Box<Result<Vec<TrendingTopic>, String>> {
-        Box::new(
-            engine
-                .as_ref()
-                .lock()
-                .await
-                .trending_topics()
-                .await
-                .map(|trending_topics| trending_topics.into_iter().map_into().collect())
                 .map_err(|error| error.to_string()),
         )
     }

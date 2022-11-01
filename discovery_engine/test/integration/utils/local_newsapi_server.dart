@@ -49,7 +49,6 @@ class LocalNewsApiServer {
     'search-news-empty.json'
   ];
   String _lhFile = 'latest-headlines.json';
-  String _ttFile = 'trending-topics.json';
   CapturedRequest? lastCapturedRequest;
   int requestCount = 0;
 
@@ -81,9 +80,6 @@ class LocalNewsApiServer {
             case '/newscatcher/v2/trusted-sources':
               await _replyWithData(request, _lhFile);
               break;
-            case '/bing/v1/trending-topics':
-              await _replyWithData(request, _ttFile);
-              break;
             case '/_health':
               _replyWithOk(request);
               break;
@@ -113,8 +109,6 @@ class LocalNewsApiServer {
   set snFile(String filename) => _snFiles = [filename];
 
   set lhFile(String filename) => _lhFile = filename;
-
-  set ttFile(String filename) => _ttFile = filename;
 
   int get port => _server.port;
 

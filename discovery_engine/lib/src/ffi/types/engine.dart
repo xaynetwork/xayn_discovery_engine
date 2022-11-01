@@ -25,8 +25,6 @@ import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source, ToStringListExt;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
-import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
-    show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -52,12 +50,9 @@ import 'package:xayn_discovery_engine/src/ffi/types/result.dart'
         resultSearchStringFfiAdapter,
         resultVecDocumentStringFfiAdapter,
         resultVecStringStringFfiAdapter,
-        resultVecTrendingTopicStringFfiAdapter,
         resultVoidStringFfiAdapter;
 import 'package:xayn_discovery_engine/src/ffi/types/string.dart'
     show OptionStringFfi, StringFfi, StringListFfi;
-import 'package:xayn_discovery_engine/src/ffi/types/trending_topic_vec.dart'
-    show TrendingTopicSliceFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid.dart'
     show DocumentIdFfi;
 import 'package:xayn_discovery_engine/src/ffi/types/uuid_vec.dart'
@@ -314,15 +309,6 @@ class DiscoveryEngineFfi implements Engine {
     final result = await asyncFfi.closeSearch(_engine.ref);
 
     return resultVoidStringFfiAdapter.consumeNative(result);
-  }
-
-  @override
-  Future<List<TrendingTopic>> trendingTopics() async {
-    final result = await asyncFfi.trendingTopics(_engine.ref);
-
-    return resultVecTrendingTopicStringFfiAdapter
-        .consumeNative(result)
-        .toTrendingTopicList();
   }
 
   @override

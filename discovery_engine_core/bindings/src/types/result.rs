@@ -16,13 +16,7 @@
 
 use std::ptr;
 
-use super::{
-    boxed,
-    document::Document,
-    engine::InitializationResult,
-    search::Search,
-    trending_topic::TrendingTopic,
-};
+use super::{boxed, document::Document, engine::InitializationResult, search::Search};
 
 /// Returns a pointer to the `Result::Ok` success value or a nullptr.
 ///
@@ -159,42 +153,6 @@ pub unsafe extern "C" fn get_result_vec_document_string_err(
 /// - The pointer must represent a valid `Box<Result<Vec<Document>, String>>` instance.
 #[no_mangle]
 pub unsafe extern "C" fn drop_result_vec_document_string(res: *mut Result<Vec<Document>, String>) {
-    unsafe { boxed::drop(res) }
-}
-
-/// Returns a pointer to the `Vec<TrendingTopic>` success value or a nullptr.
-///
-/// # Safety
-///
-/// - The pointer must point to a sound `Result<Vec<TrendingTopic>, String>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn get_result_vec_trending_topic_string_ok(
-    res: *mut Result<Vec<TrendingTopic>, String>,
-) -> *mut Vec<TrendingTopic> {
-    unsafe { get_result_ok(res) }
-}
-
-/// Returns a pointer to the `String` error value or a nullptr.
-///
-/// # Safety
-///
-/// - The pointer must point to a sound `Result<Vec<TrendingTopic>, String>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn get_result_vec_trending_topic_string_err(
-    res: *mut Result<Vec<TrendingTopic>, String>,
-) -> *mut String {
-    unsafe { get_result_err(res) }
-}
-
-/// Drops a `Box<Result<Vec<TrendingTopic>, String>>`.
-///
-/// # Safety
-///
-/// - The pointer must represent a valid `Box<Result<Vec<TrendingTopic>, String>>` instance.
-#[no_mangle]
-pub unsafe extern "C" fn drop_result_vec_trending_topic_string(
-    res: *mut Result<Vec<TrendingTopic>, String>,
-) {
     unsafe { boxed::drop(res) }
 }
 

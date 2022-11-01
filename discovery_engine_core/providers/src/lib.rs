@@ -30,7 +30,6 @@
     clippy::must_use_candidate
 )]
 
-mod bing;
 mod error;
 mod helpers;
 mod mlt;
@@ -45,7 +44,6 @@ use url::Url;
 use self::mlt::MltSimilarNewsProvider;
 
 pub use self::{
-    bing::{BingTrendingTopicsProvider, Response as BingResponse, TrendingTopic},
     error::Error,
     helpers::{
         clean_query::clean_query,
@@ -59,7 +57,6 @@ pub use self::{
         Rank,
         RankLimit,
         SimilarNewsQuery,
-        TrendingTopicsQuery,
         TrustedHeadlinesQuery,
         UrlWithDomain,
     },
@@ -96,16 +93,6 @@ pub trait TrustedHeadlinesProvider: Send + Sync {
     ) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Provider for trending topics.
-#[async_trait]
-pub trait TrendingTopicsProvider: Send + Sync {
-    // TODO: `TrendingTopic` here is the bing specific representation, which we don't really want to expose
-    async fn query_trending_topics(
-        &self,
-        query: &TrendingTopicsQuery<'_>,
-    ) -> Result<Vec<TrendingTopic>, Error>;
-}
-
 /// Provider for similar news.
 #[async_trait]
 pub trait SimilarNewsProvider: Send + Sync {
@@ -133,7 +120,6 @@ pub struct Providers {
     pub headlines: Arc<dyn HeadlinesProvider>,
     pub trusted_headlines: Arc<dyn TrustedHeadlinesProvider>,
     pub news: Arc<dyn NewsProvider>,
-    pub trending_topics: Arc<dyn TrendingTopicsProvider>,
     pub similar_news: Arc<dyn SimilarNewsProvider>,
 }
 
@@ -215,15 +201,6 @@ impl Providers {
         let trusted_headlines =
             NewscatcherTrustedHeadlinesProvider::from_endpoint(trusted_headlines_endpoint);
 
-        // Note: Trending topics only works with bing for now.
-        let trending_topics_endpoint = RestEndpoint::new(
-            create_endpoint_url(&config.api_base_url, "bing/v1/trending-topics")?,
-            config.api_key.clone(),
-            config.timeout,
-            config.retry,
-        );
-        let trending_topics = BingTrendingTopicsProvider::from_endpoint(trending_topics_endpoint);
-
         let similar_news_endpoint = RestEndpoint::new(
             create_endpoint_url(&config.api_base_url, "_mlt")?,
             config.api_key,
@@ -237,7 +214,6 @@ impl Providers {
             headlines,
             trusted_headlines,
             news,
-            trending_topics,
             similar_news,
         })
     }
