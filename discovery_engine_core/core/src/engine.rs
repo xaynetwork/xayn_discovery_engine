@@ -57,8 +57,6 @@ use xayn_discovery_engine_providers::{
     Providers,
     RankLimit,
     SimilarNewsQuery,
-    TrendingTopic as BingTopic,
-    TrendingTopicsQuery,
 };
 
 use crate::{
@@ -78,7 +76,6 @@ use crate::{
         Document,
         HistoricDocument,
         TimeSpent,
-        TrendingTopic,
         UserReacted,
         UserReaction,
         WeightedSource,
@@ -912,36 +909,6 @@ impl Engine {
         }
     }
 
-    /// Returns the current trending topics.
-    pub async fn trending_topics(&mut self) -> Result<Vec<TrendingTopic>, Error> {
-        let mut errors = Vec::new();
-        let mut topics = Vec::new();
-
-        let markets = self.endpoint_config.markets.read().await;
-        for market in markets.iter() {
-            let query = TrendingTopicsQuery { market };
-            match self
-                .providers
-                .trending_topics
-                .query_trending_topics(&query)
-                .await
-            {
-                Ok(batch) => topics.extend(batch),
-                Err(err) => errors.push(Error::Client(err.into())),
-            };
-        }
-
-        let (mut topics, topic_errors) = documentify_topics(&self.smbert, topics);
-        errors.extend(topic_errors);
-
-        rank_trending_topics(&self.coi, &self.user_interests, &mut topics);
-        if topics.is_empty() && !errors.is_empty() {
-            Err(Error::Errors(errors))
-        } else {
-            Ok(topics)
-        }
-    }
-
     async fn filter_excluded_sources_for_all_stacks(&mut self, sources: &HashSet<String>) {
         let mut stacks = self.stacks.write().await;
         for stack in stacks.values_mut() {
@@ -1168,14 +1135,6 @@ fn rank_documents(coi: &CoiSystem, user_interests: &UserInterests, documents: &m
         },
         documents,
     );
-}
-
-fn rank_trending_topics(
-    coi: &CoiSystem,
-    user_interests: &UserInterests,
-    documents: &mut [TrendingTopic],
-) {
-    rank(coi, user_interests, |a, b| a.name.cmp(&b.name), documents);
 }
 
 /// The ranker could rank the documents in a different order so we update the stacks with it.
@@ -1435,27 +1394,6 @@ fn documentify_articles(
         })
         .partition_map(|result| match result {
             Ok(document) => Either::Left(document),
-            Err(error) => Either::Right(error),
-        })
-}
-
-fn documentify_topics(smbert: &SMBert, topics: Vec<BingTopic>) -> (Vec<TrendingTopic>, Vec<Error>) {
-    topics
-        .into_par_iter()
-        .map(|topic| {
-            let embedding = smbert.run(&topic.name).map_err(|error| {
-                let error = Error::Ranker(error.into());
-                error!("{}", error);
-                error
-            })?;
-            (topic, embedding).try_into().map_err(|error| {
-                let error = Error::Document(error);
-                error!("{}", error);
-                error
-            })
-        })
-        .partition_map(|result| match result {
-            Ok(topic) => Either::Left(topic),
             Err(error) => Either::Right(error),
         })
 }

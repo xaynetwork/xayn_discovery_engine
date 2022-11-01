@@ -63,7 +63,6 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
   final EngineEvent activeSearchClosedResponse;
   final EngineEvent activeSearchTermRequestedResponse;
   final EngineEvent deepSearchRequestedResponse;
-  final EngineEvent trendingTopicsRequestedResponse;
   final EngineEvent resetAiRequestedResponse;
   final EngineEvent setSourcesRequestedResponse;
 
@@ -95,8 +94,6 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
     this.trustedSourceRemovedResponse =
         const EngineEvent.clientEventSucceeded(),
     EngineEvent? trustedSourcesListRequestedResponse,
-    this.trendingTopicsRequestedResponse =
-        const EngineEvent.trendingTopicsRequestSucceeded([]),
     EngineEvent? availableSourcesListRequestedResponse,
     this.resetAiRequestedResponse = const EngineEvent.clientEventSucceeded(),
     EngineEvent? setSourcesRequestedResponse,
@@ -161,7 +158,6 @@ class MockDiscoveryEngineWorker extends DiscoveryEngineWorker {
       activeSearchClosed: (_) => activeSearchClosedResponse,
       activeSearchTermRequested: (_) => activeSearchTermRequestedResponse,
       deepSearchRequested: (_) => deepSearchRequestedResponse,
-      trendingTopicsRequested: (_) => trendingTopicsRequestedResponse,
       resetAi: (_) => resetAiRequestedResponse,
       setSourcesRequested: (_) => setSourcesRequestedResponse,
     );

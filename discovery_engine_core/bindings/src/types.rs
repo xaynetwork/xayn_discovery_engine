@@ -35,8 +35,6 @@ pub mod search;
 pub mod slice;
 pub mod string;
 pub mod string_vec;
-pub mod trending_topic;
-pub mod trending_topic_vec;
 pub mod url;
 pub mod uuid;
 pub mod uuid_vec;

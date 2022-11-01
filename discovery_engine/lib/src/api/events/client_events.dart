@@ -198,10 +198,6 @@ class ClientEvent with _$ClientEvent {
   const factory ClientEvent.deepSearchRequested(DocumentId id) =
       DeepSearchRequested;
 
-  /// Event created when the client asks for the currently trending topics.
-  @Implements<SearchClientEvent>()
-  const factory ClientEvent.trendingTopicsRequested() = TrendingTopicsRequested;
-
   /// Resets the AI state of the engine.
   ///
   /// This does not reset configurations like markets, excluded and

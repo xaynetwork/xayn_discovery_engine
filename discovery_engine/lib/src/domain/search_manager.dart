@@ -49,7 +49,6 @@ class SearchManager {
         activeSearchClosed: activeSearchClosed,
         activeSearchTermRequested: activeSearchTermRequested,
         deepSearchRequested: deepSearchRequested,
-        trendingTopicsRequested: trendingTopicsRequested,
         orElse: () =>
             throw UnimplementedError('handler not implemented for $event'),
       );
@@ -185,18 +184,6 @@ class SearchManager {
     return EngineEvent.deepSearchRequestSucceeded(
       docs.map((doc) => doc.document.toApiRepr()).toList(),
     );
-  }
-
-  /// Return the current trending topics.
-  Future<EngineEvent> trendingTopicsRequested() async {
-    final topics = await _engine.trendingTopics();
-
-    if (topics.isEmpty) {
-      const reason = SearchFailureReason.noResultsAvailable;
-      return const EngineEvent.trendingTopicsRequestFailed(reason);
-    }
-
-    return EngineEvent.trendingTopicsRequestSucceeded(topics);
   }
 
   /// Clear the active search and deactivate interacted search documents.

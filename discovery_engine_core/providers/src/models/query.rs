@@ -106,12 +106,6 @@ pub struct TrustedHeadlinesQuery<'a> {
     pub max_age_days: Option<usize>,
 }
 
-/// Parameters for fetching trending news topics.
-pub struct TrendingTopicsQuery<'a> {
-    /// Market to fetch results from.
-    pub market: &'a Market,
-}
-
 /// Parameters determining similar news to fetch.
 pub struct SimilarNewsQuery<'a> {
     /// Query text.

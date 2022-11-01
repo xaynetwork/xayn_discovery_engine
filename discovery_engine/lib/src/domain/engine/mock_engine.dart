@@ -28,8 +28,6 @@ import 'package:xayn_discovery_engine/src/domain/models/source.dart'
     show Source;
 import 'package:xayn_discovery_engine/src/domain/models/time_spent.dart'
     show TimeSpent;
-import 'package:xayn_discovery_engine/src/domain/models/trending_topic.dart'
-    show TrendingTopic;
 import 'package:xayn_discovery_engine/src/domain/models/unique_id.dart'
     show DocumentId, StackId;
 import 'package:xayn_discovery_engine/src/domain/models/user_reacted.dart'
@@ -211,12 +209,6 @@ class MockEngine implements Engine {
   }
 
   @override
-  Future<List<TrendingTopic>> trendingTopics() async {
-    _incrementCount('trendingTopics');
-    return [mockTrendingTopic];
-  }
-
-  @override
   Future<void> dispose() async {
     _incrementCount('dispose');
   }
@@ -230,9 +222,3 @@ class MockEngine implements Engine {
   @override
   String? get lastDbOverrideError => null;
 }
-
-const mockTrendingTopic = TrendingTopic(
-  name: 'Not from Antarctic',
-  query: 'Penguins Australia New Zealand',
-  image: null,
-);
