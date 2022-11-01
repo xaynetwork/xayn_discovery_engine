@@ -27,32 +27,32 @@ use super::application::ApplicationError;
 pub struct DocumentNotFound;
 impl_application_error!(DocumentNotFound => NOT_FOUND);
 
-/// The requested property was not found
+/// The requested property was not found.
 #[derive(Debug, Error, Display, Serialize)]
 pub struct PropertyNotFound;
 impl_application_error!(PropertyNotFound => NOT_FOUND);
 
-/// Malformed user id
+/// Malformed user id.
 #[derive(Debug, Error, Display, Serialize)]
 pub struct InvalidUserId;
 impl_application_error!(InvalidUserId => BAD_REQUEST);
 
-/// Malformed document id
+/// Malformed document id.
 #[derive(Debug, Error, Display, Serialize)]
 pub struct InvalidDocumentId;
 impl_application_error!(InvalidDocumentId => BAD_REQUEST);
 
-/// Malformed document property id
+/// Malformed document property id.
 #[derive(Debug, Error, Display, Serialize)]
 pub struct InvalidPropertyId;
 impl_application_error!(InvalidPropertyId => BAD_REQUEST);
 
-/// Not enough interactions
+/// Not enough interactions.
 #[derive(Debug, Error, Display, Serialize)]
 pub struct NotEnoughInteractions;
 impl_application_error!(NotEnoughInteractions => NOT_FOUND);
 
-/// The ingestion of some documents failed
+/// The ingestion of some documents failed.
 #[derive(Debug, Error, Display, Serialize)]
 pub struct IngestingDocumentsFailed {
     documents: Vec<MappedDocumentId>,
