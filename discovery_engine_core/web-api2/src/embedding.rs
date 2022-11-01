@@ -15,6 +15,9 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
+
+use crate::server::SetupError;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -40,5 +43,23 @@ impl Default for Config {
             vocabulary: default_vocabulary(),
             model: default_model(),
         }
+    }
+}
+
+pub(crate) struct Embedder {
+    #[allow(dead_code)]
+    smbert: SMBert,
+}
+
+impl Embedder {
+    pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
+        let smbert = SMBertConfig::from_files(&config.vocabulary, &config.model)?
+            .with_cleanse_accents(true)
+            .with_lower_case(true)
+            .with_pooling::<AveragePooler>()
+            .with_token_size(64)?
+            .build()?;
+
+        Ok(Embedder { smbert })
     }
 }

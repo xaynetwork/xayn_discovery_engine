@@ -27,6 +27,8 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 url = { workspace = true }
 uuid = { workspace = true }
+xayn-discovery-engine-ai = { path = "../ai/ai" }
+xayn-discovery-engine-bert = { path = "../ai/bert" }
 
 [dev-dependencies]
 trycmd = "0.14.1"

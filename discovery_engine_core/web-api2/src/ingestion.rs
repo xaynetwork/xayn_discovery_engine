@@ -16,10 +16,11 @@ use actix_web::{
     web::{self, Data, Json, ServiceConfig},
     Responder,
 };
+use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    embedding,
+    embedding::{self, Embedder},
     error::application::{Unimplemented, WithRequestIdExt},
     server::{self, Application},
     Error,
@@ -28,31 +29,43 @@ use crate::{
 pub struct Ingestion;
 
 impl Application for Ingestion {
+    type AppStateExtension = AppStateExtension;
     type ConfigExtension = ConfigExtension;
 
-    fn configure(config: &mut ServiceConfig) {
+    fn configure_service(config: &mut ServiceConfig) {
         let resource = web::resource("/documents")
             .route(web::post().to(new_documents.error_with_request_id()));
 
         config.service(resource);
     }
+
+    fn create_app_state_extension(
+        config: &server::Config<Self::ConfigExtension>,
+    ) -> Result<Self::AppStateExtension, server::SetupError> {
+        Ok(AppStateExtension {
+            embedder: Embedder::load(config.extension.as_ref())?,
+        })
+    }
 }
 
 type Config = server::Config<<Ingestion as Application>::ConfigExtension>;
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 pub struct ConfigExtension {
     #[allow(dead_code)]
+    #[as_ref]
     #[serde(default)]
     pub(crate) ingestion: IngestionConfig,
     #[allow(dead_code)]
+    #[as_ref]
     #[serde(default)]
     pub(crate) embedding: embedding::Config,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(AsRef, Debug, Deserialize, Serialize)]
 pub struct IngestionConfig {
     #[allow(dead_code)]
+    #[as_ref]
     #[serde(default = "default_max_document_batch_size")]
     pub(crate) max_document_batch_size: u64,
 }
@@ -67,6 +80,13 @@ impl Default for IngestionConfig {
 
 fn default_max_document_batch_size() -> u64 {
     100
+}
+
+#[derive(AsRef)]
+pub struct AppStateExtension {
+    #[allow(dead_code)]
+    #[as_ref]
+    pub(crate) embedder: Embedder,
 }
 
 //FIXME use actual body
