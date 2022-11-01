@@ -44,11 +44,11 @@ pub trait Application {
 
     /// Configures the actix service(s) used by this application.
     ///
-    /// This should mainly be used to mount the right routs and
+    /// This should mainly be used to mount the right routes and
     /// application specific middleware.
     fn configure_service(config: &mut ServiceConfig);
 
-    /// Create a application specific extension to app state.
+    /// Create an application specific extension to app state.
     //Design Note: We could handle this by adding `TyFrom<&Config<..>>` bounds
     //             to `AppStateExtension` but using this helper method is simpler
     //             and it is also easier to add async if needed (using #[async-trait]).
