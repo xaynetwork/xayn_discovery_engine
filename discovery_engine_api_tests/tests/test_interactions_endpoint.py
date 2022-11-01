@@ -42,8 +42,13 @@ class TestInteractionsEndpoint:
         request = ApiHandler().interact_with_documents(data)
         assert request.status_code == 400
 
-    @allure.severity(allure.severity_level.MINOR)
-    def test_invalid_user_id(self):
-        data = Interactions(su.generate_random_numbers(10), interaction_type="positive").toJSON()
-        request = ApiHandler().interact_with_documents(data)
-        assert request.status_code == 400
+    @allure.severity(allure.severity_level.NORMAL)
+    def test_with_null_values(self, post_docs):
+        data_null_id = Interactions(id=None, interaction_type=su.generate_random_letters(10)).toJSON()
+        data_null_type = Interactions(id=post_docs[0], interaction_type=None).toJSON()
+        request_null_id = ApiHandler().interact_with_documents(data_null_id)
+        request_null_type = ApiHandler().interact_with_documents(data_null_type)
+        au.soft_assert_status_code_equals(request_null_id.status_code, 400)
+        au.soft_assert_status_code_equals(request_null_type.status_code, 400)
+
+    

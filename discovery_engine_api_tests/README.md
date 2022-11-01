@@ -19,6 +19,7 @@ Python 3.8 or higher required
  - All test class as well as test methods names should start with `test_`
  - All test classes should be associated with certain endpoint and all test methods within the class should correspond to it
  - All tests should be marked with label `@allure.severity(allure.severity_level`
+ - All test that contain multiple checks should use soft assertions from assert_utils
  - All testing urls should be within `tests/config.ini` file under corresponding category
  - All tests that require refactoring or expected to skip should be marked with label `@pytest.mark.skip("reason for skipping")`
  - All tests that expected to fail due some bug or improvement should be marked with label `@pytest.mark.xfail("reason for failing")`
