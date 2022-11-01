@@ -110,12 +110,13 @@ impl ElasticSearchClient {
             .await?;
 
         if response.errors {
-            let mut errors = HashMap::new();
-            for (idx, mut response) in response.items.into_iter().enumerate() {
+            let mut errors = Vec::new();
+            for mut response in response.items.into_iter() {
                 if let Some(response) = response.remove("delete") {
                     if let Ok(status) = StatusCode::from_u16(response.status) {
                         if status != StatusCode::NOT_FOUND && !status.is_success() {
-                            errors.insert(documents[idx].clone(), response.error);
+                            error!(document_id=%response.id, error=%response.error);
+                            errors.push(response.id);
                         }
                     } else {
                         error!("Non http status code: {}", response.status);
@@ -126,7 +127,10 @@ impl ElasticSearchClient {
             }
 
             if !errors.is_empty() {
-                return Err(FailedToDeleteSomeDocuments { errors }.into());
+                return Err(FailedToDeleteSomeDocuments {
+                    errors: errors.into_iter().map(Into::into).collect(),
+                }
+                .into());
             }
         }
 
@@ -222,6 +226,9 @@ struct BulkResponse {
 
 #[derive(Debug, Deserialize)]
 struct BulkItemResponse {
+    #[serde(rename = "_id")]
+    id: DocumentId,
     status: u16,
+    #[serde(default)]
     error: Value,
 }
