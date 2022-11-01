@@ -75,12 +75,10 @@ impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);
 pub struct InternalError(anyhow::Error);
 
 impl InternalError {
-    #[allow(dead_code)]
     pub fn from_std(error: impl std::error::Error + Send + Sync + 'static) -> Self {
         Self(anyhow::Error::new(error))
     }
 
-    #[allow(dead_code)]
     pub fn from_anyhow(error: anyhow::Error) -> Self {
         Self(error)
     }
