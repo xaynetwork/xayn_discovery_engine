@@ -23,6 +23,7 @@ use errors::BackendError;
 use log::info;
 use reqwest::Client;
 use serde::Deserialize;
+use serde_json::Value;
 use tokio::sync::RwLock;
 
 use crate::routes::{popular_get, popular_post, search_get, search_post};
@@ -35,7 +36,7 @@ pub struct Config {
 
 struct AppState {
     index: RwLock<usize>,
-    from_index: RwLock<String>,
+    from_index: RwLock<Option<Value>>,
     history: RwLock<Vec<String>>,
     page_size: usize,
     total: usize,
@@ -77,7 +78,7 @@ async fn main() -> std::io::Result<()> {
 
     let app_state = web::Data::new(AppState {
         index: RwLock::new(0),
-        from_index: RwLock::new(String::new()),
+        from_index: RwLock::new(None),
         history: RwLock::new(Vec::new()),
         page_size: 200,
         total: response.count,

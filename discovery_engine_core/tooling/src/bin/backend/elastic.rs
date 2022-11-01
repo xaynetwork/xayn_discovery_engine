@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use serde::Deserialize;
+use serde_json::Value;
 
 #[derive(Clone, Deserialize, Debug)]
 pub struct CountResponse {
@@ -35,7 +36,7 @@ pub struct Hit<T> {
     pub id: String,
     #[serde(rename(deserialize = "_source"))]
     pub source: T,
-    pub sort: String,
+    pub sort: Option<Value>,
 }
 
 /// An article in the MIND dataset.
