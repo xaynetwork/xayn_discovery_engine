@@ -6,6 +6,9 @@ on:
       tag:
         required: false
         description: a tag that will be used for identifying this version (xaynetci/xayn_discovery_web_service:$TAG)
+      force_new_deployment:
+        description: 'Whether to force a new deployment of the service. Valid value is "true". Will default to not force a new deployment.'
+        default: 'false'
 
 permissions:
   contents: read
@@ -95,3 +98,10 @@ jobs:
       - name: docker push
         id: docker-push
         run: docker push "${IMAGE_NAME}"
+
+      - uses: xaynetwork/xayn_infrastructure/.github/actions/service_deployment_dispatch@b6e81c7fe392cea4f39c105bd9999eac2ee12fa0
+        with:
+          image: ${{ env.IMAGE_NAME }}
+          service: ecs-service-users-api
+          token: ${{ secrets.PAT_TOKEN }}
+          force_new_deployment: ${{ github.event.inputs.force_new_deployment }}
