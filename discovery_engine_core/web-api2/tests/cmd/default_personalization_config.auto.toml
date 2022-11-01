@@ -23,7 +23,8 @@ stdout = """
     "user": null,
     "password": "[REDACTED]",
     "db": null,
-    "application_name": null
+    "application_name": null,
+    "skip_migrations": false
   },
   "coi": {
     "shift_factor": 0.1,

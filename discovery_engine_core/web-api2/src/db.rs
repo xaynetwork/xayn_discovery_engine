@@ -48,6 +48,10 @@ pub struct Config {
     /// Defaults to `xayn-web-{CARGO_BIN_NAME}`.
     #[serde(default = "default_application_name")]
     application_name: Option<String>,
+
+    /// If true skips running db migrations on start up.
+    #[serde(default)]
+    skip_migrations: bool,
 }
 
 impl Default for Config {
@@ -59,6 +63,7 @@ impl Default for Config {
             db: None,
             port: None,
             application_name: default_application_name(),
+            skip_migrations: false,
         }
     }
 }
@@ -76,12 +81,16 @@ fn default_application_name() -> Option<String> {
 }
 
 impl Config {
-    pub(crate) async fn create_connection_pool(&self) -> Result<Pool<Postgres>, sqlx::Error> {
-        let options = self.create_connection_options()?;
-        PoolOptions::new().connect_with(options).await
+    pub(crate) async fn setup_database(&self) -> Result<Database, sqlx::Error> {
+        let options = self.build_connection_options()?;
+        let pool = PoolOptions::new().connect_with(options).await?;
+        if !self.skip_migrations {
+            sqlx::migrate!().run(&pool).await?;
+        }
+        Ok(Database { pool })
     }
 
-    fn create_connection_options(&self) -> Result<PgConnectOptions, sqlx::Error> {
+    fn build_connection_options(&self) -> Result<PgConnectOptions, sqlx::Error> {
         let Self {
             base_url,
             port,
@@ -89,6 +98,7 @@ impl Config {
             password,
             db,
             application_name,
+            skip_migrations: _,
         } = &self;
 
         let mut options = base_url
@@ -110,4 +120,9 @@ impl Config {
 
         Ok(options)
     }
+}
+
+pub(crate) struct Database {
+    #[allow(dead_code)]
+    pool: Pool<Postgres>,
 }

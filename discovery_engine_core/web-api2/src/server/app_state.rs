@@ -13,7 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use derive_more::{AsRef, Deref};
-use sqlx::{Pool, Postgres};
+
+use crate::db::Database;
 
 use super::{Config, SetupError};
 
@@ -24,7 +25,7 @@ pub struct AppState<CE, AE> {
     pub(crate) config: Config<CE>,
     #[allow(dead_code)]
     #[as_ref]
-    pub(crate) db: Pool<Postgres>,
+    pub(crate) db: Database,
     #[deref]
     pub(crate) extension: AE,
 }
@@ -34,7 +35,7 @@ impl<CE, AE> AppState<CE, AE> {
         config: Config<CE>,
         create_extension: impl FnOnce(&Config<CE>) -> Result<AE, SetupError>,
     ) -> Result<Self, SetupError> {
-        let db = config.db.create_connection_pool().await?;
+        let db = config.db.setup_database().await?;
         let extension = create_extension(&config)?;
         Ok(Self {
             config,

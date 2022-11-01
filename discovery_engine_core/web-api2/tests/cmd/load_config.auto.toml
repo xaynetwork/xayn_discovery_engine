@@ -23,7 +23,8 @@ stdout = """
     "user": "postgres",
     "password": "[REDACTED]",
     "db": "mydb",
-    "application_name": "the-application"
+    "application_name": "the-application",
+    "skip_migrations": false
   },
   "ingestion": {
     "max_document_batch_size": 999999
