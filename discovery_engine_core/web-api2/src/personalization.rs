@@ -11,19 +11,14 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 
-use actix_web::{
-    web::{self, Data, Json, Path, ServiceConfig},
-    Responder,
-};
+mod routes;
+
+use actix_web::web::ServiceConfig;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 use xayn_discovery_engine_ai::{CoiConfig, CoiSystem};
 
-use crate::{
-    error::application::{Unimplemented, WithRequestIdExt},
-    server::{self, Application},
-    Error,
-};
+use crate::server::{self, Application};
 
 pub struct Personalization;
 
@@ -32,17 +27,7 @@ impl Application for Personalization {
     type AppStateExtension = AppStateExtension;
 
     fn configure_service(config: &mut ServiceConfig) {
-        let scope = web::scope("/users/{user_id}")
-            .service(
-                web::resource("interactions")
-                    .route(web::post().to(update_interactions.error_with_request_id())),
-            )
-            .service(
-                web::resource("personalized_documents")
-                    .route(web::get().to(personalized_documents.error_with_request_id())),
-            );
-
-        config.service(scope);
+        routes::configure_service(config);
     }
 
     fn create_app_state_extension(
@@ -69,38 +54,4 @@ pub struct AppStateExtension {
     #[as_ref]
     #[allow(dead_code)]
     pub(crate) coi: CoiSystem,
-}
-
-//FIXME use actual UserId
-type UserId = String;
-
-//FIXME use actual body
-#[derive(Deserialize, Debug)]
-struct UpdateInteractions {}
-
-async fn update_interactions(
-    config: Data<Config>,
-    user_id: Path<UserId>,
-    interactions: Json<UpdateInteractions>,
-) -> Result<impl Responder, Error> {
-    dbg!((config, user_id, interactions));
-    if true {
-        Err(Unimplemented {
-            functionality: "/users/{user_id}/interactions",
-        })?;
-    }
-    Ok("text body response")
-}
-
-async fn personalized_documents(
-    config: Data<Config>,
-    user_id: Path<UserId>,
-) -> Result<impl Responder, Error> {
-    dbg!((config, user_id));
-    if true {
-        Err(Unimplemented {
-            functionality: "/users/{user_id}/personalized_documents",
-        })?;
-    }
-    Ok("text body response")
 }
