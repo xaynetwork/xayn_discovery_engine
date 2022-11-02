@@ -22,7 +22,6 @@ use crate::{error::common::InternalError, server::SetupError};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    #[allow(dead_code)]
     #[serde(default = "default_directory")]
     directory: RelativePathBuf,
 }

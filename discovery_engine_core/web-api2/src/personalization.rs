@@ -46,7 +46,6 @@ type AppState = server::AppState<
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 pub struct ConfigExtension {
-    #[allow(dead_code)]
     #[as_ref]
     #[serde(default)]
     pub(crate) coi: CoiConfig,
@@ -92,6 +91,5 @@ impl Default for PersonalizationConfig {
 #[derive(AsRef)]
 pub struct AppStateExtension {
     #[as_ref]
-    #[allow(dead_code)]
     pub(crate) coi: CoiSystem,
 }

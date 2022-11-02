@@ -27,7 +27,6 @@ pub struct NetConfig {
     pub(crate) bind_to: SocketAddr,
 
     /// Max body size limit which should be applied to all endpoints
-    #[allow(dead_code)]
     #[serde(default = "default_max_body_size")]
     pub(crate) max_body_size: usize,
 }
