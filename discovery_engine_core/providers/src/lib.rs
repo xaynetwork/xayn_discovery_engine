@@ -32,33 +32,28 @@
 
 mod config;
 mod error;
-mod helpers;
 mod mlt;
 mod models;
 mod newscatcher;
+mod utils;
 
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 
-use crate::mlt::MltSimilarSearchProvider;
 pub use crate::{
     config::Config,
     error::Error,
-    helpers::{
-        clean_query::clean_query,
-        filter::{Filter, Market},
-        rest_endpoint::RestEndpoint,
-    },
+    mlt::MltSimilarSearchProvider,
     models::{
-        GenericArticle,
-        HeadlinesQuery,
-        Rank,
-        RankLimit,
-        SearchQuery,
-        SimilarSearchQuery,
-        TrustedHeadlinesQuery,
-        UrlWithDomain,
+        content::{GenericArticle, Rank, UrlWithDomain},
+        query::{
+            HeadlinesQuery,
+            RankLimit,
+            SearchQuery,
+            SimilarSearchQuery,
+            TrustedHeadlinesQuery,
+        },
     },
     newscatcher::{
         Article as NewscatcherArticle,
@@ -66,6 +61,11 @@ pub use crate::{
         NewscatcherSearchProvider,
         NewscatcherTrustedHeadlinesProvider,
         Response as NewscatcherResponse,
+    },
+    utils::{
+        clean_query::clean_query,
+        filter::{Filter, Market},
+        rest_endpoint::RestEndpoint,
     },
 };
 

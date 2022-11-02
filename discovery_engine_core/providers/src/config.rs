@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use url::Url;
 
-use crate::{error::Error, helpers::rest_endpoint::RestEndpoint};
+use crate::{error::Error, utils::rest_endpoint::RestEndpoint};
 
 /// The provider configurations.
 #[must_use]

@@ -20,17 +20,15 @@ use derive_more::Deref;
 use serde::{de, Deserialize, Deserializer};
 
 use crate::{
-    helpers::rest_endpoint::RestEndpoint,
-    models::SearchQuery,
-    Error,
-    GenericArticle,
+    error::Error,
+    models::{
+        content::GenericArticle,
+        query::{HeadlinesQuery, RankLimit, SearchQuery, TrustedHeadlinesQuery},
+    },
+    utils::{filter::Market, rest_endpoint::RestEndpoint},
     HeadlinesProvider,
-    HeadlinesQuery,
-    Market,
-    RankLimit,
     SearchProvider,
     TrustedHeadlinesProvider,
-    TrustedHeadlinesQuery,
 };
 
 #[derive(Deref)]
@@ -314,12 +312,12 @@ mod tests {
 
     use crate::{
         config::Config,
-        models::RankLimit,
+        models::{
+            content::{Rank, UrlWithDomain},
+            query::{HeadlinesQuery, RankLimit},
+        },
         Filter,
-        HeadlinesQuery,
         Market,
-        Rank,
-        UrlWithDomain,
     };
 
     use super::*;

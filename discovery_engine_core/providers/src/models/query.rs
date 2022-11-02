@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{Filter, Market};
+use crate::utils::filter::{Filter, Market};
 
 /// Page rank limiting strategy.
 pub enum RankLimit {

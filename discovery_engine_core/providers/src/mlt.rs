@@ -19,21 +19,19 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::{
-    newscatcher::{append_market, max_age_to_date_string, to_generic_articles},
-    Error,
-    GenericArticle,
-    NewscatcherResponse,
-    RestEndpoint,
+    error::Error,
+    models::{content::GenericArticle, query::SimilarSearchQuery},
+    newscatcher::{append_market, max_age_to_date_string, to_generic_articles, Response},
+    utils::rest_endpoint::RestEndpoint,
     SimilarSearchProvider,
-    SimilarSearchQuery,
 };
 
-pub(crate) struct MltSimilarSearchProvider {
+pub struct MltSimilarSearchProvider {
     endpoint: RestEndpoint,
 }
 
 impl MltSimilarSearchProvider {
-    pub(crate) fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn SimilarSearchProvider> {
+    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn SimilarSearchProvider> {
         Arc::new(Self { endpoint })
     }
 }
@@ -46,7 +44,7 @@ impl SimilarSearchProvider for MltSimilarSearchProvider {
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<_, NewscatcherResponse>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 query_append("like", query.like.to_string());
                 query_append("min_term_freq", "1".to_string());
 
