@@ -17,6 +17,7 @@ mod errors;
 mod newscatcher;
 mod routes;
 
+use std::net::IpAddr;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use envconfig::Envconfig;
 use errors::BackendError;
@@ -32,6 +33,12 @@ use crate::routes::{popular_get, popular_post, search_get, search_post};
 pub struct Config {
     #[envconfig(from = "MIND_ENDPOINT")]
     pub mind_endpoint: String,
+
+    #[envconfig(from = "PORT", default = "3000")]
+    pub(crate) port: u16,
+
+    #[envconfig(from = "IP_ADDR", default = "0.0.0.0")]
+    pub(crate) ip_addr: IpAddr,
 }
 
 struct AppState {
@@ -84,11 +91,12 @@ async fn main() -> std::io::Result<()> {
         total: response.count,
     });
 
+    let port = config.port;
+    let addr = config.ip_addr;
+
     let app_config = web::Data::new(config);
     let app_client = web::Data::new(client);
 
-    let addr = "0.0.0.0";
-    let port = 8080;
     info!("Starting server on {addr}:{port}");
 
     HttpServer::new(move || {
