@@ -170,10 +170,12 @@ async fn fetch_popular_results(
         ]
     });
 
-    // after the first search also include search_after
+    // after the first search also include search_after\
+    let index = app_state.index.read().await;
     let from_index = app_state.from_index.read().await;
 
-    if let Some(value) = &*from_index {
+    if *index > 0 && from_index.is_some() {
+        let value = from_index.as_ref().unwrap(/* we check if Some above */);
         let map = body.as_object_mut().unwrap(/* body is Object */);
         map.insert("search_after".to_string(), value.clone());
         body = json!(map);

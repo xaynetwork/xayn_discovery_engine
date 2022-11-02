@@ -32,9 +32,9 @@ pub struct Hits<T> {
 
 #[derive(Clone, Deserialize, Debug)]
 pub struct Hit<T> {
-    #[serde(rename(deserialize = "_id"))]
+    #[serde(rename = "_id")]
     pub id: String,
-    #[serde(rename(deserialize = "_source"))]
+    #[serde(rename = "_source")]
     pub source: T,
     pub sort: Option<Value>,
 }
@@ -42,13 +42,13 @@ pub struct Hit<T> {
 /// An article in the MIND dataset.
 #[derive(Clone, Deserialize, Debug)]
 pub struct MindArticle {
-    #[serde(rename(deserialize = "Title"))]
+    #[serde(rename = "Title")]
     pub title: String,
-    #[serde(rename(deserialize = "Abstract"))]
+    #[serde(rename = "Abstract")]
     pub snippet: String,
-    #[serde(rename(deserialize = "URL"))]
+    #[serde(rename = "URL")]
     pub url: String,
-    #[serde(rename(deserialize = "Category"))]
+    #[serde(rename = "Category")]
     pub category: String,
     pub date_published: String,
 }
