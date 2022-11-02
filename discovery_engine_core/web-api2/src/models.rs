@@ -121,7 +121,7 @@ impl AiDocument for PersonalizedDocumentData {
         &self.id
     }
 
-    fn smbert_embedding(&self) -> &Embedding {
+    fn bert_embedding(&self) -> &Embedding {
         &self.embedding
     }
 }
