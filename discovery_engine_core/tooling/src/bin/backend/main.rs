@@ -17,7 +17,6 @@ mod errors;
 mod newscatcher;
 mod routes;
 
-use std::net::IpAddr;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use envconfig::Envconfig;
 use errors::BackendError;
@@ -25,6 +24,7 @@ use log::info;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::Value;
+use std::net::IpAddr;
 use tokio::sync::RwLock;
 
 use crate::routes::{popular_get, popular_post, search_get, search_post};
