@@ -18,7 +18,7 @@ use actix_web::{
     Responder,
 };
 use itertools::Itertools;
-use serde::{de, Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
 use tracing::{error, info, instrument};
 
@@ -26,9 +26,14 @@ use crate::{
     elastic::{BulkInsertionError, ElasticDocument},
     error::{
         application::WithRequestIdExt,
-        common::{BadRequest, IngestingDocumentsFailed},
+        common::{
+            BadRequest,
+            DocumentNotFound,
+            DocumentPropertyNotFound,
+            IngestingDocumentsFailed,
+        },
     },
-    models::{DocumentId, DocumentProperties},
+    models::{DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId},
     Error,
 };
 
@@ -44,6 +49,18 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
         .service(
             web::resource("/documents/{document_id}")
                 .route(web::delete().to(delete_document.error_with_request_id())),
+        )
+        .service(
+            web::resource("/documents/{document_id}/properties")
+                .route(web::get().to(get_document_properties.error_with_request_id()))
+                .route(web::put().to(put_document_properties.error_with_request_id()))
+                .route(web::delete().to(delete_document_properties.error_with_request_id())),
+        )
+        .service(
+            web::resource("/documents/{document_id}/properties/{property_id}")
+                .route(web::get().to(get_document_property.error_with_request_id()))
+                .route(web::put().to(put_document_property.error_with_request_id()))
+                .route(web::delete().to(delete_document_property.error_with_request_id())),
         );
 }
 
@@ -174,4 +191,104 @@ async fn do_delete_documents(state: &AppState, documents: Vec<DocumentId>) -> Re
     state.db.delete_documents(&documents).await?;
     state.elastic.delete_documents(&documents).await?;
     Ok(())
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct DocumentPropertiesAsObject {
+    properties: DocumentProperties,
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn get_document_properties(
+    state: Data<AppState>,
+    document_id: Path<DocumentId>,
+) -> Result<impl Responder, Error> {
+    let properties = state
+        .elastic
+        .get_document_properties(&document_id)
+        .await?
+        .ok_or(DocumentNotFound)?;
+
+    Ok(Json(DocumentPropertiesAsObject { properties }))
+}
+
+#[instrument(skip(state, properties))]
+pub(crate) async fn put_document_properties(
+    state: Data<AppState>,
+    document_id: Path<DocumentId>,
+    Json(properties): Json<DocumentPropertiesAsObject>,
+) -> Result<impl Responder, Error> {
+    state
+        .elastic
+        .put_document_properties(&document_id, &properties.properties)
+        .await?
+        .ok_or(DocumentNotFound)?;
+
+    Ok(HttpResponse::NoContent())
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn delete_document_properties(
+    state: Data<AppState>,
+    document_id: Path<DocumentId>,
+) -> Result<impl Responder, Error> {
+    state
+        .elastic
+        .delete_document_properties(&document_id)
+        .await?
+        .ok_or(DocumentNotFound)?;
+
+    Ok(HttpResponse::NoContent())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DocumentPropertyAsObject {
+    property: DocumentProperty,
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn get_document_property(
+    state: Data<AppState>,
+    ids: Path<(DocumentId, DocumentPropertyId)>,
+) -> Result<impl Responder, Error> {
+    let (document_id, property_id) = ids.into_inner();
+    let property = state
+        .elastic
+        .get_document_property(&document_id, &property_id)
+        .await?
+        .ok_or(DocumentNotFound)?
+        .ok_or(DocumentPropertyNotFound)?;
+
+    Ok(Json(DocumentPropertyAsObject { property }))
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn put_document_property(
+    state: Data<AppState>,
+    ids: Path<(DocumentId, DocumentPropertyId)>,
+    Json(body): Json<DocumentPropertyAsObject>,
+) -> Result<impl Responder, Error> {
+    let (document_id, property_id) = ids.into_inner();
+    state
+        .elastic
+        .put_document_property(&document_id, &property_id, &body.property)
+        .await?
+        .ok_or(DocumentNotFound)?;
+
+    Ok(HttpResponse::NoContent())
+}
+
+#[instrument(skip(state))]
+pub(crate) async fn delete_document_property(
+    state: Data<AppState>,
+    ids: Path<(DocumentId, DocumentPropertyId)>,
+) -> Result<impl Responder, Error> {
+    let (document_id, property_id) = ids.into_inner();
+    state
+        .elastic
+        .delete_document_property(&document_id, &property_id)
+        .await?
+        .ok_or(DocumentNotFound)?;
+
+    Ok(HttpResponse::NoContent())
 }
