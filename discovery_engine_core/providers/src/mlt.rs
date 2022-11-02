@@ -24,19 +24,25 @@ use crate::{
     GenericArticle,
     NewscatcherResponse,
     RestEndpoint,
-    SimilarNewsProvider,
-    SimilarNewsQuery,
+    SimilarSearchProvider,
+    SimilarSearchQuery,
 };
 
-pub(crate) struct MltSimilarNewsProvider {
+pub(crate) struct MltSimilarSearchProvider {
     endpoint: RestEndpoint,
 }
 
+impl MltSimilarSearchProvider {
+    pub(crate) fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn SimilarSearchProvider> {
+        Arc::new(Self { endpoint })
+    }
+}
+
 #[async_trait]
-impl SimilarNewsProvider for MltSimilarNewsProvider {
-    async fn query_similar_news(
+impl SimilarSearchProvider for MltSimilarSearchProvider {
+    async fn query_similar_search(
         &self,
-        query: &SimilarNewsQuery<'_>,
+        query: &SimilarSearchQuery<'_>,
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
@@ -61,11 +67,5 @@ impl SimilarNewsProvider for MltSimilarNewsProvider {
             .await?;
 
         to_generic_articles(response.articles)
-    }
-}
-
-impl MltSimilarNewsProvider {
-    pub(crate) fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn SimilarNewsProvider> {
-        Arc::new(Self { endpoint })
     }
 }

@@ -41,7 +41,7 @@ use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 
-use crate::mlt::MltSimilarNewsProvider;
+use crate::mlt::MltSimilarSearchProvider;
 pub use crate::{
     config::Config,
     error::Error,
@@ -53,29 +53,38 @@ pub use crate::{
     models::{
         GenericArticle,
         HeadlinesQuery,
-        NewsQuery,
         Rank,
         RankLimit,
-        SimilarNewsQuery,
+        SearchQuery,
+        SimilarSearchQuery,
         TrustedHeadlinesQuery,
         UrlWithDomain,
     },
     newscatcher::{
         Article as NewscatcherArticle,
         NewscatcherHeadlinesProvider,
-        NewscatcherNewsProvider,
+        NewscatcherSearchProvider,
         NewscatcherTrustedHeadlinesProvider,
         Response as NewscatcherResponse,
     },
 };
 
-/// Provider for news search functionality.
+/// Provider for search.
 #[async_trait]
-pub trait NewsProvider: Send + Sync {
-    async fn query_news(&self, query: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error>;
+pub trait SearchProvider: Send + Sync {
+    async fn query_search(&self, query: &SearchQuery<'_>) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Provider for the latest headlines.
+/// Provider for similar search.
+#[async_trait]
+pub trait SimilarSearchProvider: Send + Sync {
+    async fn query_similar_search(
+        &self,
+        query: &SimilarSearchQuery<'_>,
+    ) -> Result<Vec<GenericArticle>, Error>;
+}
+
+/// Provider for headlines.
 #[async_trait]
 pub trait HeadlinesProvider: Send + Sync {
     async fn query_headlines(
@@ -87,44 +96,17 @@ pub trait HeadlinesProvider: Send + Sync {
 /// Provider for headlines only from trusted sources.
 #[async_trait]
 pub trait TrustedHeadlinesProvider: Send + Sync {
-    async fn query_trusted_sources(
+    async fn query_trusted_headlines(
         &self,
         query: &TrustedHeadlinesQuery<'_>,
     ) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Provider for similar news.
-#[async_trait]
-pub trait SimilarNewsProvider: Send + Sync {
-    async fn query_similar_news(
-        &self,
-        query: &SimilarNewsQuery<'_>,
-    ) -> Result<Vec<GenericArticle>, Error>;
-}
-
 pub struct Providers {
-    pub news: Arc<dyn NewsProvider>,
-    pub similar_news: Arc<dyn SimilarNewsProvider>,
+    pub search: Arc<dyn SearchProvider>,
+    pub similar_search: Arc<dyn SimilarSearchProvider>,
     pub headlines: Arc<dyn HeadlinesProvider>,
     pub trusted_headlines: Arc<dyn TrustedHeadlinesProvider>,
-}
-
-fn select_provider<T: ?Sized>(
-    endpoint: RestEndpoint,
-    create_newscatcher: impl FnOnce(RestEndpoint) -> Arc<T>,
-) -> Result<Arc<T>, Error> {
-    if let Some(segments) = endpoint.config.url.path_segments() {
-        for segment in segments {
-            return match segment {
-                "newscatcher" => Ok(create_newscatcher(endpoint)),
-                _ => continue,
-            };
-        }
-    }
-
-    Err(Error::NoProviderForEndpoint {
-        url: endpoint.config.url.to_string(),
-    })
 }
 
 impl Providers {
@@ -132,43 +114,41 @@ impl Providers {
     pub fn new(
         api_base_url: &str,
         api_key: String,
-        news_provider: Option<&str>,
-        similar_news_provider: Option<&str>,
+        search_provider: Option<&str>,
+        similar_search_provider: Option<&str>,
         headlines_provider: Option<&str>,
         trusted_headlines_provider: Option<&str>,
         timeout: Option<u64>,
         retry: Option<usize>,
     ) -> Result<Self, Error> {
-        let mut news = Config::news(api_base_url, news_provider, &api_key)?;
-        let mut similar_news = Config::news(api_base_url, similar_news_provider, &api_key)?;
+        let mut search = Config::search(api_base_url, search_provider, &api_key)?;
+        let mut similar_search =
+            Config::similar_search(api_base_url, similar_search_provider, &api_key)?;
         let mut headlines = Config::headlines(api_base_url, headlines_provider, &api_key)?;
         let mut trusted_headlines =
             Config::trusted_headlines(api_base_url, trusted_headlines_provider, api_key)?;
         if let Some(timeout) = timeout.map(Duration::from_millis) {
-            news.timeout = timeout;
-            similar_news.timeout = timeout;
+            search.timeout = timeout;
+            similar_search.timeout = timeout;
             headlines.timeout = timeout;
             trusted_headlines.timeout = timeout;
         }
         if let Some(retry) = retry {
-            news.retry = retry;
-            similar_news.retry = retry;
+            search.retry = retry;
+            similar_search.retry = retry;
             headlines.retry = retry;
             trusted_headlines.retry = retry;
         }
 
-        let news = select_provider(news.build(), NewscatcherNewsProvider::from_endpoint)?;
-        let similar_news = MltSimilarNewsProvider::from_endpoint(similar_news.build());
-        let headlines = select_provider(
-            headlines.build(),
-            NewscatcherHeadlinesProvider::from_endpoint,
-        )?;
+        let search = NewscatcherSearchProvider::from_endpoint(search.build());
+        let similar_search = MltSimilarSearchProvider::from_endpoint(similar_search.build());
+        let headlines = NewscatcherHeadlinesProvider::from_endpoint(headlines.build());
         let trusted_headlines =
             NewscatcherTrustedHeadlinesProvider::from_endpoint(trusted_headlines.build());
 
         Ok(Providers {
-            news,
-            similar_news,
+            search,
+            similar_search,
             headlines,
             trusted_headlines,
         })

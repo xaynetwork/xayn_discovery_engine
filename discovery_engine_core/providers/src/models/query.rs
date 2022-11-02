@@ -20,11 +20,11 @@ pub enum RankLimit {
     Unlimited,
 }
 
-/// Parameters determining which news to fetch.
+/// Parameters determining which news to search.
 ///
 /// Note that, depending on the provider we're fetching from, some of these parameters
 /// may not be supported.
-pub struct NewsQuery<'a> {
+pub struct SearchQuery<'a> {
     /// Market of news.
     pub market: &'a Market,
 
@@ -106,8 +106,8 @@ pub struct TrustedHeadlinesQuery<'a> {
     pub max_age_days: Option<usize>,
 }
 
-/// Parameters determining similar news to fetch.
-pub struct SimilarNewsQuery<'a> {
+/// Parameters determining similar news to search.
+pub struct SimilarSearchQuery<'a> {
     /// Query text.
     pub like: &'a str,
 

@@ -21,25 +21,25 @@ use serde::{de, Deserialize, Deserializer};
 
 use crate::{
     helpers::rest_endpoint::RestEndpoint,
-    models::NewsQuery,
+    models::SearchQuery,
     Error,
     GenericArticle,
     HeadlinesProvider,
     HeadlinesQuery,
     Market,
-    NewsProvider,
     RankLimit,
+    SearchProvider,
     TrustedHeadlinesProvider,
     TrustedHeadlinesQuery,
 };
 
 #[derive(Deref)]
-pub struct NewscatcherNewsProvider {
+pub struct NewscatcherSearchProvider {
     endpoint: RestEndpoint,
 }
 
-impl NewscatcherNewsProvider {
-    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn NewsProvider> {
+impl NewscatcherSearchProvider {
+    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn SearchProvider> {
         Arc::new(Self { endpoint })
     }
 }
@@ -63,8 +63,8 @@ pub(crate) fn to_generic_articles(articles: Vec<Article>) -> Result<Vec<GenericA
 }
 
 #[async_trait]
-impl NewsProvider for NewscatcherNewsProvider {
-    async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error> {
+impl SearchProvider for NewscatcherSearchProvider {
+    async fn query_search(&self, request: &SearchQuery<'_>) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
             .get_request::<_, Response>(|query_append| {
@@ -143,7 +143,7 @@ impl NewscatcherTrustedHeadlinesProvider {
 
 #[async_trait]
 impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
-    async fn query_trusted_sources(
+    async fn query_trusted_headlines(
         &self,
         request: &TrustedHeadlinesQuery<'_>,
     ) -> Result<Vec<GenericArticle>, Error> {
@@ -327,9 +327,9 @@ mod tests {
     #[tokio::test]
     async fn test_simple_news_query() {
         let server = MockServer::start().await;
-        let route = Config::NEWS;
+        let route = Config::SEARCH;
         let token = "test-token";
-        let provider = NewscatcherNewsProvider::from_endpoint(
+        let provider = NewscatcherSearchProvider::from_endpoint(
             Config::new(&server.uri(), route, token, false)
                 .unwrap()
                 .build(),
@@ -355,7 +355,7 @@ mod tests {
         let market = &Market::new("en", "AU");
         let filter = &Filter::default().add_keyword("Climate change");
 
-        let params = NewsQuery {
+        let params = SearchQuery {
             page_size: 2,
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
@@ -365,7 +365,7 @@ mod tests {
             max_age_days: None,
         };
 
-        let docs = provider.query_news(&params).await.unwrap();
+        let docs = provider.query_search(&params).await.unwrap();
 
         assert_eq!(docs.len(), 4);
 
@@ -376,9 +376,9 @@ mod tests {
     #[tokio::test]
     async fn test_news_rank_limit() {
         let server = MockServer::start().await;
-        let route = Config::NEWS;
+        let route = Config::SEARCH;
         let token = "test-token";
-        let provider = NewscatcherNewsProvider::from_endpoint(
+        let provider = NewscatcherSearchProvider::from_endpoint(
             Config::new(&server.uri(), route, token, false)
                 .unwrap()
                 .build(),
@@ -405,7 +405,7 @@ mod tests {
         let market = &Market::new("de", "AT");
         let filter = &Filter::default().add_keyword("Climate change");
 
-        let params = NewsQuery {
+        let params = SearchQuery {
             page_size: 2,
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
@@ -415,7 +415,7 @@ mod tests {
             max_age_days: None,
         };
 
-        let docs = provider.query_news(&params).await.unwrap();
+        let docs = provider.query_search(&params).await.unwrap();
 
         assert_eq!(docs.len(), 4);
 
@@ -426,9 +426,9 @@ mod tests {
     #[tokio::test]
     async fn test_simple_news_query_with_additional_parameters() {
         let server = MockServer::start().await;
-        let route = Config::NEWS;
+        let route = Config::SEARCH;
         let token = "test-token";
-        let provider = NewscatcherNewsProvider::from_endpoint(
+        let provider = NewscatcherSearchProvider::from_endpoint(
             Config::new(&server.uri(), route, token, false)
                 .unwrap()
                 .build(),
@@ -457,7 +457,7 @@ mod tests {
         let market = &Market::new("de", "DE");
         let filter = &Filter::default().add_keyword("Climate change");
 
-        let params = NewsQuery {
+        let params = SearchQuery {
             page_size: 2,
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
@@ -467,7 +467,7 @@ mod tests {
             max_age_days: Some(3),
         };
 
-        let docs = provider.query_news(&params).await.unwrap();
+        let docs = provider.query_search(&params).await.unwrap();
 
         assert_eq!(docs.len(), 4);
 
@@ -478,9 +478,9 @@ mod tests {
     #[tokio::test]
     async fn test_news_multiple_keywords() {
         let server = MockServer::start().await;
-        let route = Config::NEWS;
+        let route = Config::SEARCH;
         let token = "test-token";
-        let provider = NewscatcherNewsProvider::from_endpoint(
+        let provider = NewscatcherSearchProvider::from_endpoint(
             Config::new(&server.uri(), route, token, false)
                 .unwrap()
                 .build(),
@@ -507,7 +507,7 @@ mod tests {
             .add_keyword("Bill Gates")
             .add_keyword("Tim Cook");
 
-        let params = NewsQuery {
+        let params = SearchQuery {
             page_size: 2,
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
@@ -517,7 +517,7 @@ mod tests {
             max_age_days: None,
         };
 
-        let docs = provider.query_news(&params).await.unwrap();
+        let docs = provider.query_search(&params).await.unwrap();
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(0).unwrap();
@@ -627,7 +627,7 @@ mod tests {
             max_age_days: Some(3),
         };
 
-        let docs = provider.query_trusted_sources(&params).await.unwrap();
+        let docs = provider.query_trusted_headlines(&params).await.unwrap();
         assert_eq!(docs.len(), 4);
 
         let doc = docs.get(1).unwrap();

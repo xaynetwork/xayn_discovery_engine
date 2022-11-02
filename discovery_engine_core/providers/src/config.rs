@@ -36,8 +36,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub(crate) const NEWS: &str = "/newscatcher/v2/search";
-    pub(crate) const SIMILAR_NEWS: &str = "/_mlt";
+    pub(crate) const SEARCH: &str = "/newscatcher/v2/search";
+    pub(crate) const SIMILAR_SEARCH: &str = "/_mlt";
     pub(crate) const HEADLINES: &str = "/newscatcher/v2/latest_headlines";
     pub(crate) const TRUSTED_HEADLINES: &str = "/newscatcher/v2/trusted-sources";
 
@@ -58,16 +58,20 @@ impl Config {
         })
     }
 
-    pub fn news(base: &str, route: Option<&str>, token: impl Into<String>) -> Result<Self, Error> {
-        Self::new(base, route.unwrap_or(Self::NEWS), token, true)
-    }
-
-    pub fn similar_news(
+    pub fn search(
         base: &str,
         route: Option<&str>,
         token: impl Into<String>,
     ) -> Result<Self, Error> {
-        Self::new(base, route.unwrap_or(Self::SIMILAR_NEWS), token, true)
+        Self::new(base, route.unwrap_or(Self::SEARCH), token, true)
+    }
+
+    pub fn similar_search(
+        base: &str,
+        route: Option<&str>,
+        token: impl Into<String>,
+    ) -> Result<Self, Error> {
+        Self::new(base, route.unwrap_or(Self::SIMILAR_SEARCH), token, true)
     }
 
     pub fn headlines(
@@ -109,8 +113,8 @@ mod tests {
     fn test_defaults() {
         let base = "https://api.example.com";
         let token = "test-token";
-        let _config = Config::news(base, None, token).unwrap();
-        let _config = Config::similar_news(base, None, token).unwrap();
+        let _config = Config::search(base, None, token).unwrap();
+        let _config = Config::similar_search(base, None, token).unwrap();
         let _config = Config::headlines(base, None, token).unwrap();
         let _config = Config::trusted_headlines(base, None, token).unwrap();
     }

@@ -52,10 +52,10 @@ use xayn_discovery_engine_providers::{
     GenericArticle,
     HeadlinesQuery,
     Market,
-    NewsQuery,
     Providers,
     RankLimit,
-    SimilarNewsQuery,
+    SearchQuery,
+    SimilarSearchQuery,
 };
 
 use crate::{
@@ -328,7 +328,7 @@ impl Engine {
             )) as BoxedOps,
             Box::new(PersonalizedNews::new(
                 &endpoint_config,
-                providers.similar_news.clone(),
+                providers.similar_search.clone(),
             )) as BoxedOps,
         ];
 
@@ -728,7 +728,7 @@ impl Engine {
             return Ok(Vec::new());
         }
 
-        let query = SimilarNewsQuery {
+        let query = SimilarSearchQuery {
             like: stored_document.snippet_or_title(),
             market: &stored_document.news_resource.market,
             page_size: self.core_config.deep_search_max,
@@ -740,8 +740,8 @@ impl Engine {
 
         let articles = self
             .providers
-            .similar_news
-            .query_similar_news(&query)
+            .similar_search
+            .query_similar_search(&query)
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
@@ -851,7 +851,7 @@ impl Engine {
         for market in markets.iter() {
             let query_result = match &by {
                 SearchBy::Query(filter) => {
-                    let news_query = NewsQuery {
+                    let query = SearchQuery {
                         filter: filter.as_ref(),
                         max_age_days: None,
                         market,
@@ -860,10 +860,10 @@ impl Engine {
                         rank_limit: RankLimit::Unlimited,
                         excluded_sources: &excluded_sources,
                     };
-                    self.providers.news.query_news(&news_query).await
+                    self.providers.search.query_search(&query).await
                 }
                 SearchBy::Topic(topic) => {
-                    let headlines_query = HeadlinesQuery {
+                    let query = HeadlinesQuery {
                         trusted_sources: &[],
                         topic: Some(topic),
                         max_age_days: None,
@@ -873,10 +873,7 @@ impl Engine {
                         rank_limit: RankLimit::Unlimited,
                         excluded_sources: &excluded_sources,
                     };
-                    self.providers
-                        .headlines
-                        .query_headlines(&headlines_query)
-                        .await
+                    self.providers.headlines.query_headlines(&query).await
                 }
             };
             query_result.map_or_else(
@@ -1830,7 +1827,7 @@ pub(crate) mod tests {
                 |config: &EndpointConfig, providers: &Providers| {
                     Box::new(PersonalizedNews::new(
                         config,
-                        providers.similar_news.clone(),
+                        providers.similar_search.clone(),
                     )) as _
                 },
             ],

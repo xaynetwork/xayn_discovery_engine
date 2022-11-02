@@ -15,5 +15,7 @@
 mod content;
 mod query;
 
-pub use content::{GenericArticle, Rank, UrlWithDomain};
-pub use query::{HeadlinesQuery, NewsQuery, RankLimit, SimilarNewsQuery, TrustedHeadlinesQuery};
+pub use self::{
+    content::{GenericArticle, Rank, UrlWithDomain},
+    query::{HeadlinesQuery, RankLimit, SearchQuery, SimilarSearchQuery, TrustedHeadlinesQuery},
+};
