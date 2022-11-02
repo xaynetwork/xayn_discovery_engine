@@ -41,7 +41,7 @@ pub(crate) fn init_tracing(log_config: &Config) {
 fn init_tracing_once(log_config: &Config) {
     let subscriber = tracing_subscriber::registry();
 
-    let stdout_log = tracing_subscriber::fmt::layer();
+    let stdout_log = tracing_subscriber::fmt::layer().with_ansi(false);
 
     let sqlx_query_no_info = Targets::new()
         // trace => do not affect filtering of any other targets
@@ -57,7 +57,12 @@ fn init_tracing_once(log_config: &Config) {
                 .truncate(true)
                 .create(true)
                 .open(log_file)
-                .map(|writer| tracing_subscriber::fmt::layer().with_writer(writer).json())
+                .map(|writer| {
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(writer)
+                        .with_ansi(false)
+                        .json()
+                })
         })
         .transpose()
         .map_err(|error| {
