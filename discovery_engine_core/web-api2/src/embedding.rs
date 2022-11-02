@@ -15,9 +15,11 @@
 use crate::utils::RelativePathBuf;
 
 use serde::{Deserialize, Serialize};
+use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
 
-use crate::server::SetupError;
+
+use crate::{error::common::InternalError, server::SetupError};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -44,6 +46,10 @@ pub(crate) struct Embedder {
 }
 
 impl Embedder {
+    pub(crate) fn run(&self, s: &str) -> Result<Embedding, InternalError> {
+        self.smbert.run(s).map_err(InternalError::from_std)
+    }
+
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
         let bert = BertConfig::new(&config.directory.relative())?
             .with_pooler::<AveragePooler>()

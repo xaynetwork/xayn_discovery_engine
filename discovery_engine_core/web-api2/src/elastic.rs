@@ -14,6 +14,7 @@
 
 use std::collections::HashMap;
 
+use derive_more::From;
 use itertools::Itertools;
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
@@ -28,10 +29,10 @@ use tracing::error;
 use xayn_discovery_engine_ai::Embedding;
 
 use crate::{
-    error::common::FailedToDeleteSomeDocuments,
+    error::common::{DocumentIdAsObject, FailedToDeleteSomeDocuments, InternalError},
     models::{DocumentId, DocumentProperties, PersonalizedDocument},
     server::SetupError,
-    utils::serialize_redacted,
+    utils::{serialize_redacted, serialize_to_ndjson},
     Error,
 };
 
@@ -108,7 +109,7 @@ impl ElasticSearchClient {
             .bulk_request(
                 documents
                     .iter()
-                    .map(|document_id| json!({ "delete": { "_id": document_id }})),
+                    .map(|document_id| Ok(BulkInstruction::Delete { id: document_id })),
             )
             .await?;
 
@@ -116,13 +117,9 @@ impl ElasticSearchClient {
             let mut errors = Vec::new();
             for mut response in response.items.into_iter() {
                 if let Some(response) = response.remove("delete") {
-                    if let Ok(status) = StatusCode::from_u16(response.status) {
-                        if status != StatusCode::NOT_FOUND && !status.is_success() {
-                            error!(document_id=%response.id, error=%response.error);
-                            errors.push(response.id);
-                        }
-                    } else {
-                        error!("Non http status code: {}", response.status);
+                    if is_success_status(response.status, true) {
+                        error!(document_id=%response.id, error=%response.error);
+                        errors.push(response.id);
                     }
                 } else {
                     error!("Bulk delete request contains non delete responses: {response:?}");
@@ -140,33 +137,60 @@ impl ElasticSearchClient {
         Ok(())
     }
 
-    async fn bulk_request(
+    pub async fn bulk_insert_documents(
         &self,
-        requests: impl IntoIterator<Item = Value>,
-    ) -> Result<BulkResponse, Error> {
-        let url = self.create_resource_path(&["_bulk"]);
-
-        let mut body = Vec::new();
-        for request in requests {
-            serde_json::to_writer(&mut body, &request)?;
-            body.push(b'\n');
-        }
-
-        let response: BulkResponse = self
-            .client
-            .post(url)
-            .header(
-                CONTENT_TYPE,
-                HeaderValue::from_static("application/x-ndjson"),
-            )
-            .body(body)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
+        documents: &[(DocumentId, ElasticDocument)],
+    ) -> Result<(), BulkInsertionError> {
+        let response = self
+            .bulk_request(documents.iter().flat_map(|(document_id, document)| {
+                [
+                    serde_json::to_value(BulkInstruction::Index { id: document_id })
+                        .map_err(Into::into),
+                    serde_json::to_value(document).map_err(Into::into),
+                ]
+            }))
             .await?;
 
-        Ok(response)
+        if !response.errors {
+            Ok(())
+        } else {
+            let failed_documents = response.items
+                .into_iter()
+                .filter_map(|mut response| {
+                    if let Some(response) = response.remove("index") {
+                        if is_success_status(response.status, false) {
+                            error!(document_id=%response.id, error=%response.error, "Elastic failed to ingest document.");
+                            return Some(response.id.into());
+                        }
+                    } else {
+                        error!("Bulk index request contains non index responses: {response:?}");
+                    }
+                    None
+                })
+                .collect_vec();
+
+            Err(failed_documents.into())
+        }
+    }
+
+    async fn bulk_request(
+        &self,
+        requests: impl IntoIterator<Item = Result<impl Serialize, Error>>,
+    ) -> Result<BulkResponse, Error> {
+        let mut url = self.create_resource_path(&["_bulk"]);
+        url.set_query(Some("refresh"));
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/x-ndjson"),
+        );
+
+        let body = serialize_to_ndjson(requests)?;
+
+        self.query_with_bytes::<_, BulkResponse>(url, Some(body), headers)
+            .await?
+            .ok_or_else(|| InternalError::from_message("_bulk endpoint not found").into())
     }
 
     fn create_resource_path(&self, segments: &[&str]) -> Url {
@@ -201,7 +225,7 @@ impl ElasticSearchClient {
         }));
 
         Ok(self
-            .query_with_json::<_, SearchResponse<_>>("_search", body)
+            .query_with_json::<_, SearchResponse<_>>(self.create_resource_path(&["_search"]), body)
             .await?
             .map(Into::into)
             .unwrap_or_default())
@@ -221,13 +245,13 @@ impl ElasticSearchClient {
         }));
 
         Ok(self
-            .query_with_json::<_, SearchResponse<_>>("_search", body)
+            .query_with_json::<_, SearchResponse<_>>(self.create_resource_path(&["_search"]), body)
             .await?
             .map(Into::into)
             .unwrap_or_default())
     }
 
-    async fn query_with_json<B, T>(&self, route: &str, body: Option<B>) -> Result<Option<T>, Error>
+    async fn query_with_json<B, T>(&self, url: Url, body: Option<B>) -> Result<Option<T>, Error>
     where
         B: Serialize,
         T: DeserializeOwned,
@@ -237,12 +261,12 @@ impl ElasticSearchClient {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-        self.query_with_bytes(route, body, headers).await
+        self.query_with_bytes(url, body, headers).await
     }
 
     async fn query_with_bytes<B, T>(
         &self,
-        route: &str,
+        url: Url,
         body: Option<B>,
         headers: HeaderMap<HeaderValue>,
     ) -> Result<Option<T>, Error>
@@ -250,8 +274,6 @@ impl ElasticSearchClient {
         B: Into<Body>,
         T: DeserializeOwned,
     {
-        let url = format!("{}/{}/{}", self.config.url, self.config.index_name, route);
-
         let request_builder = if let Some(body) = body {
             self.client.post(url).headers(headers).body(body)
         } else {
@@ -274,6 +296,33 @@ impl ElasticSearchClient {
             Ok(Some(value))
         }
     }
+}
+
+#[derive(From)]
+pub(crate) enum BulkInsertionError {
+    General(Error),
+    PartialFailure {
+        failed_documents: Vec<DocumentIdAsObject>,
+    },
+}
+
+fn is_success_status(status: u16, allow_not_found: bool) -> bool {
+    StatusCode::from_u16(status)
+        .map(|status| (status == StatusCode::NOT_FOUND && allow_not_found) || status.is_success())
+        .unwrap_or(false)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "lowercase")]
+enum BulkInstruction<'a> {
+    Index {
+        #[serde(rename = "_id")]
+        id: &'a DocumentId,
+    },
+    Delete {
+        #[serde(rename = "_id")]
+        id: &'a DocumentId,
+    },
 }
 
 #[derive(Deserialize)]
