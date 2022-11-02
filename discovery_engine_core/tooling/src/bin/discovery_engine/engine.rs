@@ -39,8 +39,6 @@ impl TestEngine {
         let config = InitConfig {
             api_key,
             api_base_url: "https://api-gw.xaynet.dev".into(),
-            news_provider_path: "/newscatcher/v1/search-news".into(),
-            headlines_provider_path: "/newscatcher/v1/latest-headlines".into(),
             markets: vec![Market::new("de", "DE"), Market::new("en", "US")],
             bert: smbert_quantized()?.display().to_string(),
             max_docs_per_feed_batch: 1,

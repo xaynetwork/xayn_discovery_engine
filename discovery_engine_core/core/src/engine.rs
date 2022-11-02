@@ -53,7 +53,6 @@ use xayn_discovery_engine_providers::{
     HeadlinesQuery,
     Market,
     NewsQuery,
-    ProviderConfig,
     Providers,
     RankLimit,
     SimilarNewsQuery,
@@ -307,15 +306,13 @@ impl Engine {
                 storage.source_preference().fetch_trusted().await?,
                 storage.source_preference().fetch_excluded().await?,
             );
-        let provider_config = ProviderConfig {
-            api_base_url: config.api_base_url,
-            api_key: config.api_key,
-            news_provider_path: config.news_provider_path,
-            headlines_provider_path: config.headlines_provider_path,
-            timeout: endpoint_config.timeout,
-            retry: endpoint_config.retry,
-        };
-        let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
+        let providers = Providers::new(
+            &config.api_base_url,
+            config.api_key,
+            de_config.extract_inner("endpoint.timeout").ok(),
+            de_config.extract_inner("endpoint.retry").ok(),
+        )
+        .map_err(Error::ProviderError)?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(
                 &endpoint_config,
@@ -1448,9 +1445,7 @@ pub(crate) mod tests {
                 .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
             Mock::given(method("POST"))
-                .and(path_regex(
-                    "/newscatcher/headlines-endpoint-name|/newscatcher/v2/trusted-sources|newscatcher/news-endpoint-name",
-                ))
+                .and(path_regex("/*"))
                 .respond_with(tmpl)
                 .mount(&server)
                 .await;
@@ -1458,8 +1453,6 @@ pub(crate) mod tests {
             let config = InitConfig {
                 api_key: "test-token".into(),
                 api_base_url: server.uri(),
-                news_provider_path: "newscatcher/news-endpoint-name".into(),
-                headlines_provider_path: "newscatcher/headlines-endpoint-name".into(),
                 markets: vec![Market::new("en", "US")],
                 bert: smbert_mocked().unwrap().display().to_string(),
                 max_docs_per_feed_batch: FeedConfig::default()
