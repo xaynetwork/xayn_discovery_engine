@@ -6,6 +6,6 @@ COPY ./ ./
 
 RUN chmod +x ./backend
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD ["./backend"]
