@@ -117,7 +117,7 @@ impl ElasticSearchClient {
             let mut errors = Vec::new();
             for mut response in response.items.into_iter() {
                 if let Some(response) = response.remove("delete") {
-                    if is_success_status(response.status, true) {
+                    if !is_success_status(response.status, true) {
                         error!(document_id=%response.id, error=%response.error);
                         errors.push(response.id);
                     }
@@ -158,7 +158,7 @@ impl ElasticSearchClient {
                 .into_iter()
                 .filter_map(|mut response| {
                     if let Some(response) = response.remove("index") {
-                        if is_success_status(response.status, false) {
+                        if !is_success_status(response.status, false) {
                             error!(document_id=%response.id, error=%response.error, "Elastic failed to ingest document.");
                             return Some(response.id.into());
                         }
