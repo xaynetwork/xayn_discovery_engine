@@ -43,32 +43,6 @@ pub unsafe extern "C" fn init_config_place_of_api_base_url(place: *mut InitConfi
     unsafe { addr_of_mut!((*place).api_base_url) }
 }
 
-/// Returns a pointer to the `news_provider_path` field of a configuration.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`InitConfig`] memory object,
-/// which might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn init_config_place_of_news_provider_path(
-    place: *mut InitConfig,
-) -> *mut String {
-    unsafe { addr_of_mut!((*place).news_provider_path) }
-}
-
-/// Returns a pointer to the `headlines_provider_path` field of a configuration.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`InitConfig`] memory object,
-/// which might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn init_config_place_of_headlines_provider_path(
-    place: *mut InitConfig,
-) -> *mut String {
-    unsafe { addr_of_mut!((*place).headlines_provider_path) }
-}
-
 /// Returns a pointer to the `markets` field of a configuration.
 ///
 /// # Safety

@@ -38,8 +38,6 @@ import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 class InitConfigFfi with EquatableMixin {
   final String apiKey;
   final String apiBaseUrl;
-  final String newsProviderPath;
-  final String headlinesProviderPath;
   final List<FeedMarket> feedMarkets;
   final String bert;
   final int maxDocsPerFeedBatch;
@@ -54,8 +52,6 @@ class InitConfigFfi with EquatableMixin {
   List<Object?> get props => [
         apiKey,
         apiBaseUrl,
-        newsProviderPath,
-        headlinesProviderPath,
         feedMarkets,
         bert,
         maxDocsPerFeedBatch,
@@ -76,8 +72,6 @@ class InitConfigFfi with EquatableMixin {
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
-        newsProviderPath: configuration.newsProviderPath,
-        headlinesProviderPath: configuration.headlinesProviderPath,
         feedMarkets: configuration.feedMarkets.toList(),
         bert: setupData.smbertConfig.replaceAll('/config.toml', ''),
         maxDocsPerFeedBatch: configuration.maxItemsPerFeedBatch,
@@ -92,8 +86,6 @@ class InitConfigFfi with EquatableMixin {
   InitConfigFfi.fromParts({
     required this.apiKey,
     required this.apiBaseUrl,
-    required this.newsProviderPath,
-    required this.headlinesProviderPath,
     required this.feedMarkets,
     required this.bert,
     required this.maxDocsPerFeedBatch,
@@ -115,10 +107,6 @@ class InitConfigFfi with EquatableMixin {
   void writeNative(Pointer<RustInitConfig> place) {
     apiKey.writeNative(ffi.init_config_place_of_api_key(place));
     apiBaseUrl.writeNative(ffi.init_config_place_of_api_base_url(place));
-    newsProviderPath
-        .writeNative(ffi.init_config_place_of_news_provider_path(place));
-    headlinesProviderPath
-        .writeNative(ffi.init_config_place_of_headlines_provider_path(place));
     feedMarkets.writeVec(ffi.init_config_place_of_markets(place));
     bert.writeNative(ffi.init_config_place_of_bert(place));
     maxDocsPerFeedBatch
@@ -142,12 +130,6 @@ class InitConfigFfi with EquatableMixin {
       apiKey: StringFfi.readNative(ffi.init_config_place_of_api_key(config)),
       apiBaseUrl:
           StringFfi.readNative(ffi.init_config_place_of_api_base_url(config)),
-      newsProviderPath: StringFfi.readNative(
-        ffi.init_config_place_of_news_provider_path(config),
-      ),
-      headlinesProviderPath: StringFfi.readNative(
-        ffi.init_config_place_of_headlines_provider_path(config),
-      ),
       feedMarkets:
           FeedMarketSliceFfi.readVec(ffi.init_config_place_of_markets(config)),
       bert: StringFfi.readNative(ffi.init_config_place_of_bert(config)),

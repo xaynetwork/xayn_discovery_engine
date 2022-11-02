@@ -29,8 +29,6 @@ class Configuration with _$Configuration {
     required String apiKey,
     required String apiBaseUrl,
     required String assetsUrl,
-    required String newsProviderPath,
-    required String headlinesProviderPath,
     required int maxItemsPerFeedBatch,
     required int maxItemsPerSearchBatch,
     required String applicationDirectoryPath,
