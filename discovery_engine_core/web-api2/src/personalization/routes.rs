@@ -20,6 +20,7 @@ use serde::Deserialize;
 
 use crate::{
     error::application::{Unimplemented, WithRequestIdExt},
+    models::UserId,
     Error,
 };
 
@@ -38,9 +39,6 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
 
     config.service(scope);
 }
-
-//FIXME use actual UserId
-type UserId = String;
 
 //FIXME use actual body
 #[derive(Deserialize, Debug)]

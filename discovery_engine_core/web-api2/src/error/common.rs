@@ -18,7 +18,7 @@ use serde::Serialize;
 use thiserror::Error;
 use tracing::error;
 
-use crate::impl_application_error;
+use crate::{impl_application_error, models::DocumentId};
 
 use super::application::ApplicationError;
 
@@ -34,18 +34,24 @@ impl_application_error!(PropertyNotFound => NOT_FOUND);
 
 /// Malformed user id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidUserId;
+pub struct InvalidUserId {
+    pub(crate) id: String,
+}
 impl_application_error!(InvalidUserId => BAD_REQUEST);
 
 /// Malformed document id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidDocumentId;
+pub struct InvalidDocumentId {
+    pub(crate) id: String,
+}
 impl_application_error!(InvalidDocumentId => BAD_REQUEST);
 
 /// Malformed document property id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidPropertyId;
-impl_application_error!(InvalidPropertyId => BAD_REQUEST);
+pub struct InvalidDocumentPropertyId {
+    pub(crate) id: String,
+}
+impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST);
 
 /// Not enough interactions.
 #[derive(Debug, Error, Display, Serialize)]
@@ -60,8 +66,7 @@ pub struct IngestingDocumentsFailed {
 
 #[derive(Serialize, Debug)]
 struct MappedDocumentId {
-    //TODO use DocumentId once it's moved to web-api2
-    id: String,
+    id: DocumentId,
 }
 
 impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);
