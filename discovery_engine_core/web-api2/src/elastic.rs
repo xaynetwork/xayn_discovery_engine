@@ -206,14 +206,15 @@ impl ElasticSearchClient {
         let mut url = self.url_to_index.clone();
         // UNWRAP_SAFE: In the constructor we already made sure it's a segmentable url.
         url.path_segments_mut().unwrap().extend(segments);
-        let query = url.query_pairs_mut();
+        let mut query_mut = url.query_pairs_mut();
         for (key, value) in query_parts {
             if let Some(value) = value {
-                query.append_pair(key, value);
+                query_mut.append_pair(key, value);
             } else {
-                query.append_key_only(key);
+                query_mut.append_key_only(key);
             }
         }
+        drop(query_mut);
         url
     }
 

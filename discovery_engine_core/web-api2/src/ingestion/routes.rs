@@ -213,7 +213,7 @@ pub(crate) async fn get_document_properties(
 }
 
 #[instrument(skip(state, properties))]
-pub(crate) async fn put_document_properties(
+async fn put_document_properties(
     state: Data<AppState>,
     document_id: Path<DocumentId>,
     Json(properties): Json<DocumentPropertiesAsObject>,
@@ -228,7 +228,7 @@ pub(crate) async fn put_document_properties(
 }
 
 #[instrument(skip(state))]
-pub(crate) async fn delete_document_properties(
+async fn delete_document_properties(
     state: Data<AppState>,
     document_id: Path<DocumentId>,
 ) -> Result<impl Responder, Error> {
@@ -247,7 +247,7 @@ struct DocumentPropertyAsObject {
 }
 
 #[instrument(skip(state))]
-pub(crate) async fn get_document_property(
+async fn get_document_property(
     state: Data<AppState>,
     ids: Path<(DocumentId, DocumentPropertyId)>,
 ) -> Result<impl Responder, Error> {
@@ -263,7 +263,7 @@ pub(crate) async fn get_document_property(
 }
 
 #[instrument(skip(state))]
-pub(crate) async fn put_document_property(
+async fn put_document_property(
     state: Data<AppState>,
     ids: Path<(DocumentId, DocumentPropertyId)>,
     Json(body): Json<DocumentPropertyAsObject>,
@@ -279,7 +279,7 @@ pub(crate) async fn put_document_property(
 }
 
 #[instrument(skip(state))]
-pub(crate) async fn delete_document_property(
+async fn delete_document_property(
     state: Data<AppState>,
     ids: Path<(DocumentId, DocumentPropertyId)>,
 ) -> Result<impl Responder, Error> {
