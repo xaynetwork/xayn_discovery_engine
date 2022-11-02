@@ -24,6 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
     let embedding = pipeline.run("This is a sequence.")?;
     println!("{}", *embedding);
+    assert_eq!(embedding.shape(), [pipeline.embedding_size()]);
 
     Ok(())
 }

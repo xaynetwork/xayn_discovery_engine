@@ -51,11 +51,11 @@ app.*.map.json
 # Keep the folder structure for assets
 !/assets/smbert_v0003
 !/assets/smbert_v0003/.gitkeep
-!/assets/smbert_quantized_v0000
-!/assets/smbert_quantized_v0000/.gitkeep
-!/assets/smbert_mocked_v0000
-!/assets/smbert_mocked_v0000/.gitkeep
-!/assets/sjbert_v0000
-!/assets/sjbert_v0000/.gitkeep
+!/assets/smbert_quantized_v0003
+!/assets/smbert_quantized_v0003/.gitkeep
+!/assets/smbert_mocked_v0003
+!/assets/smbert_mocked_v0003/.gitkeep
+!/assets/sjbert_v0003
+!/assets/sjbert_v0003/.gitkeep
 !/assets/sources_v0000
 !/assets/sources_v0000/.gitkeep

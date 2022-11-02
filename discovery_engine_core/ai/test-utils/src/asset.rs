@@ -43,17 +43,17 @@ pub fn smbert() -> Result<PathBuf> {
 
 /// Resolves the path to the quantized smbert.
 pub fn smbert_quantized() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smbert_quantized_v0000"])
+    resolve_path(&[DATA_DIR, "smbert_quantized_v0003"])
 }
 
 /// Resolves the path to the mocked smbert.
 pub fn smbert_mocked() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smbert_mocked_v0000"])
+    resolve_path(&[DATA_DIR, "smbert_mocked_v0003"])
 }
 
 /// Resolves the path to the sjbert.
 pub fn sjbert() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "sjbert_v0000"])
+    resolve_path(&[DATA_DIR, "sjbert_v0003"])
 }
 
 /// Resolves the path to the Bert validation transcripts.

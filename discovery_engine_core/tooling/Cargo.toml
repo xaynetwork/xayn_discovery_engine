@@ -27,6 +27,7 @@ url = { workspace = true }
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-core = { path = "../core" }
 xayn-discovery-engine-providers = { path = "../providers" }
+xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
 
 [[bin]]
 name = "clean_sources"

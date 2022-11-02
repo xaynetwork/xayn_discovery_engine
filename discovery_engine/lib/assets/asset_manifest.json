@@ -2,19 +2,19 @@
   "assets": [
     {
       "id": "smbertConfig",
-      "url_suffix": "smbert_quantized_v0000/config.toml",
+      "url_suffix": "smbert_quantized_v0003/config.toml",
       "checksum": "4cd20e13a53a69348c8ba9de085c3246de954aebd8cb4f3f90d50ea1ebed537c",
       "fragments": []
     },
     {
       "id": "smbertVocab",
-      "url_suffix": "smbert_quantized_v0000/vocab.txt",
+      "url_suffix": "smbert_quantized_v0003/vocab.txt",
       "checksum": "ffb2398810fa977ee39e8a0103b07f9c2614f1f9825df53a2c99e71569e3451c",
       "fragments": []
     },
     {
       "id": "smbertModel",
-      "url_suffix": "smbert_quantized_v0000/model.onnx",
+      "url_suffix": "smbert_quantized_v0003/model.onnx",
       "checksum": "83bf0604484231f2d2016aacb0b6e647ee65e1f29024c8c53b8a347e39b745db",
       "fragments": []
     },

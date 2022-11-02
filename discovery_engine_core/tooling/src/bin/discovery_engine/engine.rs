@@ -23,6 +23,7 @@ use xayn_discovery_engine_core::{
     InitConfig,
 };
 use xayn_discovery_engine_providers::Market;
+use xayn_discovery_engine_test_utils::asset::smbert_quantized;
 
 use crate::io::{Dislike, Dislikes, Like, Likes, Output, Persona, Personas};
 
@@ -35,15 +36,13 @@ impl TestEngine {
     pub(crate) async fn new(api_key: String, progress: bool) -> Result<Self> {
         let spinner = progress_spinner(progress, "initializing engine");
 
-        let manifest = std::env::var("CARGO_MANIFEST_DIR")?;
-        let assets = "/../../discovery_engine_flutter/example/assets";
         let config = InitConfig {
             api_key,
             api_base_url: "https://api-gw.xaynet.dev".into(),
             news_provider_path: "/newscatcher/v1/search-news".into(),
             headlines_provider_path: "/newscatcher/v1/latest-headlines".into(),
             markets: vec![Market::new("de", "DE"), Market::new("en", "US")],
-            bert: format!("{manifest}{assets}/smbert_quantized_v0000"),
+            bert: smbert_quantized()?.display().to_string(),
             max_docs_per_feed_batch: 1,
             max_docs_per_search_batch: 1,
             de_config: None,
