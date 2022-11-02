@@ -53,6 +53,7 @@ class WebDataProvider extends DataProvider {
     await assetReporter.fetchingFinished();
 
     return WebSetupData(
+      smbertConfig: fetched[AssetType.smbertConfig]!,
       smbertVocab: fetched[AssetType.smbertVocab]!,
       smbertModel: fetched[AssetType.smbertModel]!,
       availableSources: fetched[AssetType.availableSources]!,
@@ -62,6 +63,8 @@ class WebDataProvider extends DataProvider {
 
 class WebSetupData extends SetupData {
   @override
+  final Uint8List smbertConfig;
+  @override
   final Uint8List smbertVocab;
   @override
   final Uint8List smbertModel;
@@ -69,6 +72,7 @@ class WebSetupData extends SetupData {
   final Uint8List availableSources;
 
   WebSetupData({
+    required this.smbertConfig,
     required this.smbertVocab,
     required this.smbertModel,
     required this.availableSources,

@@ -64,6 +64,7 @@ class Asset {
 
 // Type of an asset.
 enum AssetType {
+  smbertConfig,
   smbertVocab,
   smbertModel,
   availableSources,

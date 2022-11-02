@@ -90,11 +90,11 @@ impl PositiveCoi {
         market: &Market,
         key_phrases: &mut KeyPhrases,
         candidates: &[String],
-        smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
+        bert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
         max_key_phrases: usize,
         gamma: f32,
     ) {
-        key_phrases.update(self, market, candidates, smbert, max_key_phrases, gamma);
+        key_phrases.update(self, market, candidates, bert, max_key_phrases, gamma);
     }
 }
 
@@ -115,7 +115,7 @@ impl KeyPhrases {
         coi: &PositiveCoi,
         market: &Market,
         candidates: &[String],
-        smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
+        bert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
         max_key_phrases: usize,
         gamma: f32,
     ) {
@@ -123,7 +123,7 @@ impl KeyPhrases {
             .selected
             .remove(&(coi.id, market.clone()))
             .unwrap_or_default();
-        let key_phrases = unify(key_phrases, candidates, smbert);
+        let key_phrases = unify(key_phrases, candidates, bert);
         update(
             &mut self.selected,
             coi,
@@ -204,7 +204,7 @@ impl KeyPhrases {
 fn unify(
     mut key_phrases: Vec<KeyPhrase>,
     candidates: &[String],
-    smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
+    bert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
 ) -> Vec<KeyPhrase> {
     if candidates.is_empty() {
         return key_phrases;
@@ -222,7 +222,7 @@ fn unify(
         .collect::<HashSet<_>>()
         .into_par_iter()
         .filter_map(|candidate| {
-            smbert(&candidate)
+            bert(&candidate)
                 .and_then(|point| KeyPhrase::new(candidate, point).map_err(Into::into))
                 .ok()
         })
@@ -493,9 +493,9 @@ mod tests {
     fn test_unify_empty() {
         let key_phrases = vec![];
         let candidates = [];
-        let smbert = |_: &str| unreachable!();
+        let bert = |_: &str| unreachable!();
 
-        let key_phrases = unify(key_phrases, &candidates, smbert);
+        let key_phrases = unify(key_phrases, &candidates, bert);
         assert!(key_phrases.is_empty());
     }
 
@@ -506,9 +506,9 @@ mod tests {
             KeyPhrase::new("phrase", [1., 1., 0.]).unwrap(),
         ];
         let candidates = [];
-        let smbert = |_: &str| unreachable!();
+        let bert = |_: &str| unreachable!();
 
-        let key_phrases = unify(key_phrases, &candidates, smbert);
+        let key_phrases = unify(key_phrases, &candidates, bert);
         assert_eq!(key_phrases, ["key", "phrase"]);
     }
 
@@ -516,13 +516,13 @@ mod tests {
     fn test_unify_only_candidates() {
         let key_phrases = vec![];
         let candidates = ["key".into(), "phrase".into()];
-        let smbert = |words: &str| match words {
+        let bert = |words: &str| match words {
             "key" => Ok([1., 0., 0.].into()),
             "phrase" => Ok([1., 1., 0.].into()),
             _ => unreachable!(),
         };
 
-        let mut key_phrases = unify(key_phrases, &candidates, smbert);
+        let mut key_phrases = unify(key_phrases, &candidates, bert);
         key_phrases.sort_by(|this, other| this.words().cmp(other.words()));
         assert_eq!(key_phrases, ["key", "phrase"]);
     }
@@ -539,13 +539,13 @@ mod tests {
             "words!".into(),
             "words?".into(),
         ];
-        let smbert = |words: &str| match words {
+        let bert = |words: &str| match words {
             "phrase" => Ok([1., 1., 0.].into()),
             "words" => Ok([1., 1., 1.].into()),
             _ => unreachable!(),
         };
 
-        let key_phrases = unify(key_phrases, &candidates, smbert);
+        let key_phrases = unify(key_phrases, &candidates, bert);
         assert_eq!(key_phrases, ["key", "phrase", "words"]);
     }
 
@@ -806,14 +806,14 @@ mod tests {
         let cois = create_pos_cois(&[[1., 0., 0.]]);
         let market = Market::new("aa", "AA");
         let candidates = [];
-        let smbert = |_: &str| unreachable!();
+        let bert = |_: &str| unreachable!();
         let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
             &market,
             &candidates,
-            smbert,
+            bert,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -830,14 +830,14 @@ mod tests {
         ]);
         let market = Market::new("aa", "AA");
         let candidates = [];
-        let smbert = |_: &str| unreachable!();
+        let bert = |_: &str| unreachable!();
         let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
             &market,
             &candidates,
-            smbert,
+            bert,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -855,7 +855,7 @@ mod tests {
         let mut key_phrases = KeyPhrases::default();
         let market = Market::new("aa", "AA");
         let candidates = ["key".into(), "phrase".into()];
-        let smbert = |words: &str| match words {
+        let bert = |words: &str| match words {
             "key" => Ok([1., 1., 0.].into()),
             "phrase" => Ok([1., 1., 1.].into()),
             _ => unreachable!(),
@@ -866,7 +866,7 @@ mod tests {
             &cois[0],
             &market,
             &candidates,
-            smbert,
+            bert,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -884,14 +884,14 @@ mod tests {
         let mut key_phrases = KeyPhrases::default();
         let market = Market::new("aa", "AA");
         let candidates = ["  a  !@#$%  b  ".into()];
-        let smbert = |_: &str| Ok([1., 1., 0.].into());
+        let bert = |_: &str| Ok([1., 1., 0.].into());
         let config = KpsConfig::default();
 
         key_phrases.update(
             &cois[0],
             &market,
             &candidates,
-            smbert,
+            bert,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -909,7 +909,7 @@ mod tests {
         ]);
         let market = Market::new("aa", "AA");
         let candidates = ["test".into(), "words".into()];
-        let smbert = |words: &str| match words {
+        let bert = |words: &str| match words {
             "test" => Ok([1., 1., 1.].into()),
             "words" => Ok([2., 1., 0.].into()),
             _ => unreachable!(),
@@ -921,7 +921,7 @@ mod tests {
             &cois[0],
             &market,
             &candidates,
-            smbert,
+            bert,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -939,7 +939,7 @@ mod tests {
         let mut key_phrases = KeyPhrases::new([(cois[0].id, ("aa", "AA"), "key", [1., 1., 0.])]);
         let market = Market::new("aa", "AA");
         let candidates = ["phrase".into(), "phrase".into()];
-        let smbert = |words: &str| match words {
+        let bert = |words: &str| match words {
             "phrase" => Ok([1., 1., 1.].into()),
             _ => unreachable!(),
         };
@@ -949,7 +949,7 @@ mod tests {
             &cois[0],
             &market,
             &candidates,
-            smbert,
+            bert,
             config.max_key_phrases(),
             config.gamma(),
         );
@@ -970,7 +970,7 @@ mod tests {
         ]);
         let market = Market::new("aa", "AA");
         let candidates = ["words".into()];
-        let smbert = |words: &str| match words {
+        let bert = |words: &str| match words {
             "words" => Ok([3., 1., 0.].into()),
             _ => unreachable!(),
         };
@@ -980,7 +980,7 @@ mod tests {
             &cois[0],
             &market,
             &candidates,
-            smbert,
+            bert,
             config.max_key_phrases(),
             config.gamma(),
         );

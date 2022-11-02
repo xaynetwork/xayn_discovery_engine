@@ -46,6 +46,7 @@ void main() {
       newsProviderPath: '',
     );
     final setupData = NativeSetupData(
+      smbertConfig: '',
       smbertVocab: '',
       smbertModel: '',
       availableSources: '',

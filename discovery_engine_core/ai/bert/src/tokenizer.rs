@@ -12,7 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Cow, io::BufRead, path::PathBuf};
+use std::{
+    borrow::Cow,
+    fs::File,
+    io::{BufRead, BufReader},
+};
 
 use derive_more::{Deref, From};
 use itertools::Itertools;
@@ -35,12 +39,14 @@ use tokenizers::{
         padding::{PaddingDirection, PaddingParams, PaddingStrategy},
         truncation::{TruncationDirection, TruncationParams, TruncationStrategy},
     },
-    Error as TokenizerError,
+    Error,
     Model,
     TokenizerBuilder,
     TokenizerImpl,
 };
 use tract_onnx::prelude::{tvec, TVec, Tensor};
+
+use crate::config::Config;
 
 /// A pre-configured Bert tokenizer.
 pub struct Tokenizer {
@@ -95,26 +101,16 @@ impl From<Encoding> for Vec<Array2<i64>> {
 }
 
 impl Tokenizer {
-    /// Creates a tokenizer from a vocabulary.
-    ///
-    /// If a japanese mecab is given, a japanese pre-tokenizer is created as well.
-    ///
-    /// Can be set to cleanse accents and to lowercase the sequences. Requires the maximum number of
-    /// tokens per tokenized sequence, which applies to padding and truncation and includes special
-    /// tokens as well.
-    pub fn new(
-        vocab: impl BufRead,
-        japanese: Option<PathBuf>,
-        cleanse_accents: bool,
-        lower_case: bool,
-        token_size: usize,
-    ) -> Result<Self, TokenizerError> {
-        let japanese = japanese
+    /// Creates a tokenizer from a configuration.
+    pub fn new<P>(config: &Config<P>) -> Result<Self, Error> {
+        let japanese = config
+            .extract::<String>("pre-tokenizer.path")
+            .ok()
             .map(|mecab| {
                 JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
                     dictionary: JapaneseDictionaryConfig {
                         kind: None,
-                        path: Some(mecab),
+                        path: Some(config.dir.join(mecab)),
                     },
                     user_dictionary: None,
                     mode: JapaneseMode::Normal,
@@ -122,43 +118,44 @@ impl Tokenizer {
             })
             .transpose()?;
 
-        let vocab = vocab
+        let vocab = BufReader::new(File::open(config.dir.join("vocab.txt"))?)
             .lines()
             .enumerate()
             .map(|(idx, word)| Ok((word?.trim().to_string(), u32::try_from(idx)?)))
-            .collect::<Result<_, TokenizerError>>()?;
+            .collect::<Result<_, Error>>()?;
         let model = WordPieceBuilder::new()
             .vocab(vocab)
-            .unk_token("[UNK]".into())
-            .continuing_subword_prefix("##".into())
-            .max_input_chars_per_word(100)
+            .unk_token(config.extract("tokenizer.tokens.unknown")?)
+            .continuing_subword_prefix(config.extract("tokenizer.tokens.continuation")?)
+            .max_input_chars_per_word(config.extract("tokenizer.max-chars")?)
             .build()?;
-        let normalizer = BertNormalizer::new(true, false, Some(cleanse_accents), lower_case);
-        let post_processor = BertProcessing::new(
-            (
-                "[SEP]".into(),
-                model.token_to_id("[SEP]").ok_or("missing sep token")?,
-            ),
-            (
-                "[CLS]".into(),
-                model.token_to_id("[CLS]").ok_or("missing cls token")?,
-            ),
+        let normalizer = BertNormalizer::new(
+            config.extract("tokenizer.cleanse-text")?,
+            false,
+            Some(config.extract("tokenizer.cleanse-accents")?),
+            config.extract("tokenizer.lower-case")?,
         );
+        let sep_token = config.extract::<String>("tokenizer.tokens.separation")?;
+        let sep_id = model.token_to_id(&sep_token).ok_or("missing sep token")?;
+        let cls_token = config.extract::<String>("tokenizer.tokens.class")?;
+        let cls_id = model.token_to_id(&cls_token).ok_or("missing cls token")?;
+        let post_processor = BertProcessing::new((sep_token, sep_id), (cls_token, cls_id));
+        let pad_token = config.extract::<String>("tokenizer.tokens.padding")?;
         let padding = PaddingParams {
-            strategy: PaddingStrategy::Fixed(token_size),
+            strategy: PaddingStrategy::Fixed(config.token_size),
             direction: PaddingDirection::Right,
             pad_to_multiple_of: None,
-            pad_id: 0,
+            pad_id: model.token_to_id(&pad_token).ok_or("missing pad token")?,
             pad_type_id: 0,
-            pad_token: "[PAD]".into(),
+            pad_token,
         };
         let truncation = TruncationParams {
             direction: TruncationDirection::Right,
-            max_length: token_size,
+            max_length: config.token_size,
             strategy: TruncationStrategy::LongestFirst,
             stride: 0,
         };
-        let decoder = WordPieceDecoder::new("##".into(), true);
+        let decoder = WordPieceDecoder::new(config.extract("tokenizer.tokens.continuation")?, true);
 
         let bert = TokenizerBuilder::new()
             .with_model(model)
@@ -176,7 +173,7 @@ impl Tokenizer {
     /// Encodes the sequence.
     ///
     /// The encoding is in correct shape for the model.
-    pub fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, TokenizerError> {
+    pub fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error> {
         #[allow(unstable_name_collisions)]
         let sequence = if let Some(japanese) = &self.japanese {
             japanese
@@ -205,17 +202,44 @@ impl Tokenizer {
 #[cfg(test)]
 mod tests {
     use ndarray::ArrayView;
-    use std::{fs::File, io::BufReader};
-
-    use xayn_discovery_engine_test_utils::smbert::vocab;
+    use xayn_discovery_engine_test_utils::asset::{sjbert, smbert_mocked};
 
     use super::*;
 
     fn tokenizer(token_size: usize) -> Tokenizer {
-        let vocab = BufReader::new(File::open(vocab().unwrap()).unwrap());
-        let cleanse_accents = true;
-        let lower_case = true;
-        Tokenizer::new(vocab, None, cleanse_accents, lower_case, token_size).unwrap()
+        let config = Config::new(smbert_mocked().unwrap())
+            .unwrap()
+            .with_token_size(token_size)
+            .unwrap();
+        Tokenizer::new(&config).unwrap()
+    }
+
+    #[test]
+    fn test_new_multi() {
+        let multi = tokenizer(42);
+        assert!(multi.japanese.is_none());
+        assert!(multi.bert.get_normalizer().is_some());
+        assert!(multi.bert.get_pre_tokenizer().is_some());
+        assert!(multi.bert.get_post_processor().is_some());
+        assert!(multi.bert.get_padding().is_some());
+        assert!(multi.bert.get_truncation().is_some());
+        assert!(multi.bert.get_decoder().is_some());
+    }
+
+    #[test]
+    fn test_new_japan() {
+        let config = Config::new(sjbert().unwrap())
+            .unwrap()
+            .with_token_size(42)
+            .unwrap();
+        let japan = Tokenizer::new(&config).unwrap();
+        assert!(japan.japanese.is_some());
+        assert!(japan.bert.get_normalizer().is_some());
+        assert!(japan.bert.get_pre_tokenizer().is_some());
+        assert!(japan.bert.get_post_processor().is_some());
+        assert!(japan.bert.get_padding().is_some());
+        assert!(japan.bert.get_truncation().is_some());
+        assert!(japan.bert.get_decoder().is_some());
     }
 
     #[test]

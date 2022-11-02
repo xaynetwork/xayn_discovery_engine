@@ -104,7 +104,7 @@ impl From<xayn_discovery_engine_core::document::Document> for Document {
     fn from(document: xayn_discovery_engine_core::document::Document) -> Self {
         Self {
             topic: document.resource.topic,
-            embedding: document.smbert_embedding,
+            embedding: document.bert_embedding,
             stack: document.stack_id,
             user_reaction: document.reaction.unwrap_or_default(),
         }

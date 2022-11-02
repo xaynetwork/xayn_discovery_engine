@@ -37,6 +37,7 @@ const checksum =
     'd9b2aefb1febe2dd6e403f634e18917a8c0dd1a440c976e9fe126b465ae9fc8d';
 final goodJson = {
   'assets': [
+    'smbertConfig',
     'smbertVocab',
     'smbertModel',
     'availableSources',

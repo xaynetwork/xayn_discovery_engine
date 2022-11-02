@@ -223,7 +223,7 @@ clean-tools:
 
 # Removes all asset data
 remove-assets:
-    find $FLUTTER_EXAMPLE_WORKSPACE/assets/*_v* -type f ! -name .gitkeep ! -name '*-mocked.onnx' -exec rm '{}' \;
+    find $FLUTTER_EXAMPLE_WORKSPACE/assets/*_v* -type f ! -name .gitkeep -exec rm '{}' \;
 
 # Removes all local cached dependencies and generated files
 clean: clean-gen-files rust-clean dart-clean
@@ -411,8 +411,9 @@ web-ingestion-up: build-ingestion-service
     compose="$(command -v podman-compose || command -v docker-compose)"
     rm -rf "$RUST_WORKSPACE/web-api/assets"
     mkdir -p "$RUST_WORKSPACE/web-api/assets"
-    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0002/smbert.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
-    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0002/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0003/config.toml" "$RUST_WORKSPACE/web-api/assets/config.toml"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0003/vocab.txt" "$RUST_WORKSPACE/web-api/assets/vocab.txt"
+    ln -s "../../../$FLUTTER_WORKSPACE/example/assets/smbert_v0003/model.onnx" "$RUST_WORKSPACE/web-api/assets/model.onnx"
     $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
     sleep 2
     cd "$RUST_WORKSPACE/web-api"

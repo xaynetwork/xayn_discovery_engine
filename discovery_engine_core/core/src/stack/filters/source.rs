@@ -68,7 +68,7 @@ mod tests {
             .take(3)
             .map(|article| {
                 let doc = Document::default();
-                (article.clone(), doc.stack_id, doc.smbert_embedding)
+                (article.clone(), doc.stack_id, doc.bert_embedding)
                     .try_into()
                     .unwrap()
             })

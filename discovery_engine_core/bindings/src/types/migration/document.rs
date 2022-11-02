@@ -53,17 +53,17 @@ pub unsafe extern "C" fn migration_document_place_of_stack_id(
     unsafe { addr_of_mut!((*place).stack_id) }.cast()
 }
 
-/// Returns a pointer to the `smbert_embedding` field of a [`MigrationDocument`].
+/// Returns a pointer to the `bert_embedding` field of a [`MigrationDocument`].
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`MigrationDocument`] memory object,
 /// which might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn migration_document_place_of_smbert_embedding(
+pub unsafe extern "C" fn migration_document_place_of_bert_embedding(
     place: *mut MigrationDocument,
 ) -> *mut Option<Embedding> {
-    unsafe { addr_of_mut!((*place).smbert_embedding) }
+    unsafe { addr_of_mut!((*place).bert_embedding) }
 }
 
 /// Returns a pointer to the `reaction` field of a [`MigrationDocument`].

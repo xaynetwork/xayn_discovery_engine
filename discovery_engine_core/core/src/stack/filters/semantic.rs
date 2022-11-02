@@ -176,7 +176,7 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
     let cosine_similarity = condensed_cosine_similarity(
         documents
             .iter()
-            .map(|document| document.smbert_embedding.view()),
+            .map(|document| document.bert_embedding.view()),
     );
     let date_distance = condensed_date_distance(
         documents
@@ -284,7 +284,7 @@ where
 {
     let embeddings = documents
         .iter()
-        .map(|document| document.smbert_embedding.view());
+        .map(|document| document.bert_embedding.view());
     let mut retain = max_cosine_similarity(embeddings, cois)
         .into_iter()
         .map(|similarity| similarity <= threshold);
@@ -301,8 +301,8 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use ndarray::aview1;
     use xayn_discovery_engine_ai::Embedding;
-    use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
-    use xayn_discovery_engine_test_utils::{assert_approx_eq, smbert};
+    use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
+    use xayn_discovery_engine_test_utils::{assert_approx_eq, asset::smbert_quantized};
 
     use crate::document::NewsResource;
 
@@ -315,7 +315,7 @@ mod tests {
             let condensed = condensed_cosine_similarity(
                 documents
                     .iter()
-                    .map(|document| document.smbert_embedding.view()),
+                    .map(|document| document.bert_embedding.view()),
             );
             if n < 2 {
                 assert!(condensed.is_empty());
@@ -496,9 +496,9 @@ mod tests {
 
     #[test]
     fn test_normalized_distance() {
-        fn new_doc(smbert_embedding: Embedding, secs: i64) -> Document {
+        fn new_doc(bert_embedding: Embedding, secs: i64) -> Document {
             Document {
-                smbert_embedding,
+                bert_embedding,
                 resource: NewsResource {
                     date_published: Utc.timestamp(secs, 0),
                     ..NewsResource::default()
@@ -509,24 +509,22 @@ mod tests {
 
         fn normalized_distance_for_titles(
             titles: &[(&str, i64)],
-            smbert: &SMBert,
+            bert: &AvgBert,
             expected: &[f32],
         ) {
             let documents = titles
                 .iter()
-                .map(|(title, secs)| new_doc(smbert.run(title).unwrap(), *secs))
+                .map(|(title, secs)| new_doc(bert.run(title).unwrap(), *secs))
                 .collect::<Vec<_>>();
             let distances = normalized_distance(&documents, &SemanticFilterConfig::default());
             assert_approx_eq!(f32, distances, expected);
         }
 
-        let smbert = SMBertConfig::from_files(smbert::vocab().unwrap(), smbert::model().unwrap())
+        let bert = BertConfig::new(smbert_quantized().unwrap())
             .unwrap()
             .with_token_size(52)
             .unwrap()
-            .with_cleanse_accents(true)
-            .with_lower_case(true)
-            .with_pooling::<AveragePooler>()
+            .with_pooler::<AveragePooler>()
             .build()
             .unwrap();
 
@@ -539,7 +537,7 @@ mod tests {
 
         let expected_en = [1., 0.928_844_15, 0.983_816, 0.828_074_4, 0.823_989_33, 0.];
 
-        normalized_distance_for_titles(&titles_en, &smbert, &expected_en);
+        normalized_distance_for_titles(&titles_en, &bert, &expected_en);
 
         let titles_de = [
             ("Autounfall auf der A10", 0),
@@ -556,7 +554,7 @@ mod tests {
             0.559_570_13,
         ];
 
-        normalized_distance_for_titles(&titles_de, &smbert, &expected_de);
+        normalized_distance_for_titles(&titles_de, &bert, &expected_de);
     }
 
     #[test]

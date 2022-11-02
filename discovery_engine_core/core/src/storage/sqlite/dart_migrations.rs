@@ -37,7 +37,7 @@ use super::SqliteStorage;
 pub(super) async fn store_migration_data(
     storage: &mut SqliteStorage,
     data: &mut DartMigrationData,
-    smbert: &(impl Fn(&str) -> Option<Embedding> + Sync),
+    bert: &(impl Fn(&str) -> Option<Embedding> + Sync),
 ) -> Result<(), Error> {
     // it's okay to not have a transaction across the various migrations:
     // 1. by taking `&mut SqliteStorage` we know we have exclusive access
@@ -65,19 +65,19 @@ pub(super) async fn store_migration_data(
         storage.search().store_new_search(search, &[]).await?;
     }
 
-    add_missing_embeddings(smbert, &mut data.documents);
+    add_missing_embeddings(bert, &mut data.documents);
     store_migration_document_data(storage, &data.documents).await?;
 
     Ok(())
 }
 
 fn add_missing_embeddings(
-    smbert: impl Fn(&str) -> Option<Embedding> + Sync,
+    bert: impl Fn(&str) -> Option<Embedding> + Sync,
     documents: &mut [MigrationDocument],
 ) {
     for document in documents {
-        if document.smbert_embedding.is_none() {
-            document.smbert_embedding = smbert(document.resource.title_or_snippet());
+        if document.bert_embedding.is_none() {
+            document.bert_embedding = bert(document.resource.title_or_snippet());
         }
     }
 }
@@ -87,7 +87,7 @@ async fn store_migration_document_data(
     storage: &mut SqliteStorage,
     documents: &[MigrationDocument],
 ) -> Result<(), Error> {
-    let documents_iter = documents.iter().filter(|d| d.smbert_embedding.is_some());
+    let documents_iter = documents.iter().filter(|d| d.bert_embedding.is_some());
     let new_documents = documents_iter.clone().map(|document| {
         NewDocument {
             id: document.id,
@@ -105,7 +105,7 @@ async fn store_migration_document_data(
                 domain_rank: document.resource.rank,
                 score: document.resource.score,
             },
-            embedding: document.smbert_embedding.clone().unwrap(/*we filter out all docs where it's none*/),
+            embedding: document.bert_embedding.clone().unwrap(/*we filter out all docs where it's none*/),
         }
     }).collect::<Vec<_>>();
 
@@ -330,7 +330,7 @@ mod tests {
                 MigrationDocument {
                     id: document::Id::new(),
                     stack_id: stack::PersonalizedNews::id(),
-                    smbert_embedding: Some(Embedding::from(arr1(&[0.0, 1.2, 3.1, 0.4]))),
+                    bert_embedding: Some(Embedding::from(arr1(&[0.0, 1.2, 3.1, 0.4]))),
                     reaction: UserReaction::Positive,
                     resource: document::NewsResource::default(),
                     is_active: true,
@@ -344,7 +344,7 @@ mod tests {
                 MigrationDocument {
                     id: document::Id::new(),
                     stack_id: stack::PersonalizedNews::id(),
-                    smbert_embedding: Some(Embedding::from(arr1(&[1.0, 1.3, 8.1, 0.4]))),
+                    bert_embedding: Some(Embedding::from(arr1(&[1.0, 1.3, 8.1, 0.4]))),
                     reaction: UserReaction::Positive,
                     resource: document::NewsResource::default(),
                     is_active: false,
@@ -358,7 +358,7 @@ mod tests {
                 MigrationDocument {
                     id: document::Id::new(),
                     stack_id: stack::Id::nil(),
-                    smbert_embedding: Some(Embedding::from(arr1(&[0.0, 1.2, 3.1, 0.4]))),
+                    bert_embedding: Some(Embedding::from(arr1(&[0.0, 1.2, 3.1, 0.4]))),
                     reaction: UserReaction::Negative,
                     resource: document::NewsResource::default(),
                     is_active: true,
@@ -372,7 +372,7 @@ mod tests {
                 MigrationDocument {
                     id: document::Id::new(),
                     stack_id: stack::Id::nil(),
-                    smbert_embedding: None,
+                    bert_embedding: None,
                     reaction: UserReaction::Neutral,
                     resource: document::NewsResource::default(),
                     is_active: false,
@@ -393,7 +393,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            data.documents[3].smbert_embedding.as_ref(),
+            data.documents[3].bert_embedding.as_ref(),
             Some(&Embedding::from(arr1(&[3., 2., 1.])))
         );
 

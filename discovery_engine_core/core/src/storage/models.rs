@@ -39,7 +39,7 @@ impl From<document::Document> for NewDocument {
             id: doc.id,
             news_resource,
             newscatcher_data,
-            embedding: doc.smbert_embedding,
+            embedding: doc.bert_embedding,
         }
     }
 }
@@ -108,7 +108,7 @@ impl From<ApiDocumentView> for document::Document {
         document::Document {
             id: view.document_id,
             stack_id: view.stack_id.unwrap_or_default(),
-            smbert_embedding: view.embedding,
+            bert_embedding: view.embedding,
             reaction: view.user_reaction,
             resource: (view.news_resource, view.newscatcher_data).into(),
         }
@@ -151,7 +151,7 @@ pub(crate) struct NewscatcherData {
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct TimeSpentDocumentView {
-    pub(crate) smbert_embedding: Embedding,
+    pub(crate) bert_embedding: Embedding,
     pub(crate) last_reaction: Option<UserReaction>,
     pub(crate) aggregated_view_time: Duration,
 }

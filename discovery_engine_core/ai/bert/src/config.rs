@@ -12,143 +12,155 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    fs::File,
-    io::{BufRead, BufReader, Read},
-    marker::PhantomData,
-    path::{Path, PathBuf},
-};
+use std::{marker::PhantomData, path::PathBuf};
 
-use displaydoc::Display;
-use thiserror::Error;
+use figment::{
+    error::{Actual, Error, Kind},
+    providers::{Format, Toml},
+    Figment,
+};
+use serde::Deserialize;
 
 use crate::{
-    model::{BertModel, Model},
+    model::Model,
     pipeline::{Pipeline, PipelineError},
+    pooler::NonePooler,
     tokenizer::Tokenizer,
-    NonePooler,
 };
 
-/// `BertModel` configuration errors.
-#[derive(Debug, Display, Error)]
-pub enum ConfigError {
-    /// The token size must be greater than two to allow for special tokens
-    TokenSize,
-    /// Failed to load a data file: {0}
-    DataFile(#[from] std::io::Error),
-}
-
-/// A `BertModel` configuration.
+/// A Bert pipeline configuration.
+///
+/// # Example
+///
+/// ```toml
+/// # the config file is always named `config.toml`
+///
+/// # optional, eg to enable the japanese pre-tokenizer
+/// [pre-tokenizer]
+/// path = "mecab"
+///
+/// # the path is always `vocab.txt`
+/// [tokenizer]
+/// cleanse-accents = true
+/// cleanse-text = true
+/// lower-case = false
+/// max-chars = 100
+///
+/// # tokens-related configs of the tokenizer, may differ between tokenizers
+/// [tokenizer.tokens]
+/// # the `token size` must be in the inclusive range, but is passed as an argument
+/// size.min = 2
+/// size.max = 512
+/// class = "[CLS]"
+/// separation = "[SEP]"
+/// padding = "[PAD]"
+/// unknown = "[UNK]"
+/// continuation = "##"
+///
+/// # the [model] path is always `model.onnx`
+///
+/// # each input and output is required by tract
+/// # string shapes are considered dynamic and depend on arguments
+/// [model.input.0]
+/// shape.0 = 1
+/// shape.1 = "token size"
+/// type = "i64"
+///
+/// [model.input.1]
+/// shape.0 = 1
+/// shape.1 = "token size"
+/// type = "i64"
+///
+/// [model.input.2]
+/// shape.0 = 1
+/// shape.1 = "token size"
+/// type = "i64"
+///
+/// [model.output.0]
+/// shape.0 = 1
+/// shape.1 = "token size"
+/// shape.2 = 128
+/// type = "f32"
+///
+/// [model.output.1]
+/// shape.0 = 1
+/// shape.1 = 128
+/// type = "f32"
+/// ```
 #[must_use]
-pub struct Config<'a, K, P> {
-    model_kind: PhantomData<K>,
-    vocab: Box<dyn BufRead + Send + 'a>,
-    japanese: Option<PathBuf>,
-    model: Box<dyn Read + Send + 'a>,
-    cleanse_accents: bool,
-    lower_case: bool,
-    token_size: usize,
+pub struct Config<P> {
+    pub(crate) dir: PathBuf,
+    toml: Figment,
+    pub(crate) token_size: usize,
     pooler: PhantomData<P>,
 }
 
-impl<'a, K: BertModel> Config<'a, K, NonePooler> {
-    /// Creates a `BertModel` configuration from readables.
-    pub fn from_readers(
-        vocab: Box<dyn BufRead + Send + 'a>,
-        model: Box<dyn Read + Send + 'a>,
-    ) -> Self {
-        Config {
-            model_kind: PhantomData,
-            vocab,
-            japanese: None,
-            model,
-            cleanse_accents: true,
-            lower_case: true,
-            token_size: 128,
-            pooler: PhantomData,
-        }
-    }
+impl Config<NonePooler> {
+    /// Creates a Bert pipeline configuration.
+    pub fn new(dir: impl Into<PathBuf>) -> Result<Self, Error> {
+        let dir = dir.into();
+        let toml = Figment::from(Toml::file(dir.join("config.toml")));
+        let token_size = (toml.extract_inner::<usize>(Self::MIN_TOKEN_SIZE)?
+            + toml.extract_inner::<usize>(Self::MAX_TOKEN_SIZE)?)
+            / 2;
 
-    /// Creates a `BertModel` configuration from files.
-    pub fn from_files(
-        vocab: impl AsRef<Path>,
-        model: impl AsRef<Path>,
-    ) -> Result<Self, ConfigError> {
-        let vocab = Box::new(BufReader::new(File::open(vocab)?));
-        let model = Box::new(BufReader::new(File::open(model)?));
-        Ok(Self::from_readers(vocab, model))
+        Ok(Self {
+            dir,
+            toml,
+            token_size,
+            pooler: PhantomData,
+        })
     }
 }
 
-impl<'a, K: BertModel, P> Config<'a, K, P> {
-    /// Whether the tokenizer cleanses accents.
-    ///
-    /// Defaults to `true`.
-    pub fn with_cleanse_accents(mut self, cleanse_accents: bool) -> Self {
-        self.cleanse_accents = cleanse_accents;
-        self
-    }
+impl<P> Config<P> {
+    const MIN_TOKEN_SIZE: &str = "tokenizer.tokens.size.min";
+    const MAX_TOKEN_SIZE: &str = "tokenizer.tokens.size.max";
 
-    /// Whether the tokenizer lowercases.
-    ///
-    /// Defaults to `true`.
-    pub fn with_lower_case(mut self, lower_case: bool) -> Self {
-        self.lower_case = lower_case;
-        self
+    pub fn extract<'b, T>(&self, key: &str) -> Result<T, Error>
+    where
+        T: Deserialize<'b>,
+    {
+        self.toml.extract_inner(key).map_err(Into::into)
     }
 
     /// Sets the token size for the tokenizer and the model.
     ///
-    /// Defaults to [`BertModel::TOKEN_RANGE`].
+    /// Defaults to the midpoint of the token size range.
     ///
     /// # Errors
-    /// Fails if `size` is less than two or greater than 512.
-    pub fn with_token_size(mut self, size: usize) -> Result<Self, ConfigError> {
-        if K::TOKEN_RANGE.contains(&size) {
+    /// Fails if `size` is not within the token size range.
+    pub fn with_token_size(mut self, size: usize) -> Result<Self, Error> {
+        let min = self.extract::<usize>(Self::MIN_TOKEN_SIZE)?;
+        let max = self.extract::<usize>(Self::MAX_TOKEN_SIZE)?;
+
+        if (min..=max).contains(&size) {
             self.token_size = size;
             Ok(self)
         } else {
-            Err(ConfigError::TokenSize)
+            Err(Error::from(Kind::InvalidValue(
+                Actual::Unsigned(size as u128),
+                format!("{min}..={max}"),
+            )))
         }
     }
 
-    /// Sets pooling for the model.
+    /// Sets the pooler for the model.
     ///
     /// Defaults to `NonePooler`.
-    pub fn with_pooling<NP>(self) -> Config<'a, K, NP> {
+    pub fn with_pooler<Q>(self) -> Config<Q> {
         Config {
-            vocab: self.vocab,
-            japanese: self.japanese,
-            model: self.model,
-            model_kind: self.model_kind,
-            cleanse_accents: self.cleanse_accents,
-            lower_case: self.lower_case,
+            dir: self.dir,
+            toml: self.toml,
             token_size: self.token_size,
             pooler: PhantomData,
         }
     }
 
-    /// Enables the japanese pre-tokenizer.
-    ///
-    /// Defaults to disabled. Note, that this doesn't affect the vocabulary used for the Bert
-    /// tokenizer, but only for the japanese pre-tokenizer.
-    pub fn with_japanese(mut self, mecab: impl AsRef<Path>) -> Self {
-        self.japanese = mecab.as_ref().to_path_buf().into();
-        self
-    }
-
-    /// Creates a `BertModel` pipeline from a configuration.
-    pub fn build(self) -> Result<Pipeline<K, P>, PipelineError> {
-        let tokenizer = Tokenizer::new(
-            self.vocab,
-            self.japanese,
-            self.cleanse_accents,
-            self.lower_case,
-            self.token_size,
-        )
-        .map_err(PipelineError::TokenizerBuild)?;
-
-        let model = Model::new(self.model, self.token_size).map_err(PipelineError::ModelBuild)?;
+    /// Creates a Bert pipeline from a configuration.
+    pub fn build(&self) -> Result<Pipeline<P>, PipelineError> {
+        let tokenizer = Tokenizer::new(self)?;
+        let model = Model::new(self)?;
 
         Ok(Pipeline {
             tokenizer,

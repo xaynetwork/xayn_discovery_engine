@@ -34,8 +34,8 @@ pub trait Document {
     /// Gets the document id.
     fn id(&self) -> &Self::Id;
 
-    /// Gets the `SMBert` embedding of the document.
-    fn smbert_embedding(&self) -> &Embedding;
+    /// Gets the `Bert` embedding of the document.
+    fn bert_embedding(&self) -> &Embedding;
 }
 
 #[cfg(test)]
@@ -51,14 +51,14 @@ pub(crate) mod tests {
 
     pub(crate) struct TestDocument {
         pub(crate) id: DocumentId,
-        pub(crate) smbert_embedding: Embedding,
+        pub(crate) bert_embedding: Embedding,
     }
 
     impl TestDocument {
         pub(crate) fn new(id: u128, embedding: impl Into<Embedding>) -> Self {
             Self {
                 id: DocumentId::from_u128(id),
-                smbert_embedding: embedding.into(),
+                bert_embedding: embedding.into(),
             }
         }
     }
@@ -70,8 +70,8 @@ pub(crate) mod tests {
             &self.id
         }
 
-        fn smbert_embedding(&self) -> &Embedding {
-            &self.smbert_embedding
+        fn bert_embedding(&self) -> &Embedding {
+            &self.bert_embedding
         }
     }
 }

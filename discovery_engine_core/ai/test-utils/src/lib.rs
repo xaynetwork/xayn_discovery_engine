@@ -31,9 +31,7 @@
 )]
 
 mod approx_eq;
-mod asset;
-pub mod example;
-pub mod smbert;
+pub mod asset;
 pub mod uuid;
 
 pub use crate::approx_eq::ApproxEqIter;

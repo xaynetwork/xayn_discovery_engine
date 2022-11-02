@@ -108,8 +108,8 @@ pub struct Document {
     /// Stack from which the document has been taken.
     pub stack_id: StackId,
 
-    /// Embedding from smbert.
-    pub smbert_embedding: Embedding,
+    /// Embedding from Bert.
+    pub bert_embedding: Embedding,
 
     /// Reaction.
     pub reaction: Option<UserReaction>,
@@ -122,13 +122,13 @@ impl TryFrom<(GenericArticle, StackId, Embedding)> for Document {
     type Error = Error;
 
     fn try_from(
-        (article, stack_id, smbert_embedding): (GenericArticle, StackId, Embedding),
+        (article, stack_id, bert_embedding): (GenericArticle, StackId, Embedding),
     ) -> Result<Self, Self::Error> {
         let resource: NewsResource = article.into();
         Ok(Self {
             id: Id::new(),
             stack_id,
-            smbert_embedding,
+            bert_embedding,
             resource,
             reaction: None,
         })
@@ -142,8 +142,8 @@ impl AiDocument for Document {
         &self.id
     }
 
-    fn smbert_embedding(&self) -> &Embedding {
-        &self.smbert_embedding
+    fn bert_embedding(&self) -> &Embedding {
+        &self.bert_embedding
     }
 }
 

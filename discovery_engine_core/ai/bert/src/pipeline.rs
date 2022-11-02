@@ -16,11 +16,10 @@ use std::marker::PhantomData;
 
 use displaydoc::Display;
 use thiserror::Error;
-use tokenizers::Error as TokenizerError;
 
 use crate::{
-    model::{BertModel, Model, ModelError},
-    pooler::{Embedding1, Embedding2, PoolerError},
+    model::Model,
+    pooler::{Embedding1, Embedding2},
     tokenizer::Tokenizer,
     AveragePooler,
     FirstPooler,
@@ -32,31 +31,25 @@ use crate::{
 /// Can be built from a [`Config`] and consists of a tokenizer, a model and a pooler.
 ///
 /// [`Config`]: crate::config::Config
-pub struct Pipeline<K, P> {
+pub struct Pipeline<P> {
     pub(crate) tokenizer: Tokenizer,
-    pub(crate) model: Model<K>,
+    pub(crate) model: Model,
     pub(crate) pooler: PhantomData<P>,
 }
 
 /// The potential errors of the [`Pipeline`].
 #[derive(Debug, Display, Error)]
+#[allow(clippy::large_enum_variant)]
 pub enum PipelineError {
+    /// Failed to configure the pipeline: {0}
+    Config(#[from] figment::Error),
     /// Failed to run the tokenizer: {0}
-    Tokenizer(#[from] TokenizerError),
+    Tokenizer(#[from] tokenizers::Error),
     /// Failed to run the model: {0}
-    Model(#[from] ModelError),
-    /// Failed to run the pooler: {0}
-    Pooler(#[from] PoolerError),
-    /// Failed to build the tokenizer: {0}
-    TokenizerBuild(#[source] TokenizerError),
-    /// Failed to build the model: {0}
-    ModelBuild(#[source] ModelError),
+    Model(#[from] tract_onnx::prelude::TractError),
 }
 
-impl<K> Pipeline<K, NonePooler>
-where
-    K: BertModel,
-{
+impl Pipeline<NonePooler> {
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding2, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
@@ -65,10 +58,7 @@ where
     }
 }
 
-impl<K> Pipeline<K, FirstPooler>
-where
-    K: BertModel,
-{
+impl Pipeline<FirstPooler> {
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
@@ -77,10 +67,7 @@ where
     }
 }
 
-impl<K> Pipeline<K, AveragePooler>
-where
-    K: BertModel,
-{
+impl Pipeline<AveragePooler> {
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
@@ -90,36 +77,32 @@ where
     }
 }
 
-impl<K, P> Pipeline<K, P>
-where
-    K: BertModel,
-{
+impl<P> Pipeline<P> {
     /// Gets the token size.
     pub fn token_size(&self) -> usize {
         self.model.token_size
     }
 
     /// Gets the embedding size.
-    pub fn embedding_size() -> usize {
-        K::EMBEDDING_SIZE
+    pub fn embedding_size(&self) -> usize {
+        self.model.embedding_size
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use xayn_discovery_engine_test_utils::smbert::{model, vocab};
+    use xayn_discovery_engine_test_utils::asset::smbert_mocked;
 
     use super::*;
     use crate::{
         config::Config,
-        model::kinds::SMBert,
         pooler::{AveragePooler, FirstPooler, NonePooler},
     };
 
-    fn pipeline<P>() -> Pipeline<SMBert, P> {
-        Config::from_files(vocab().unwrap(), model().unwrap())
+    fn pipeline<P>() -> Pipeline<P> {
+        Config::new(smbert_mocked().unwrap())
             .unwrap()
-            .with_pooling()
+            .with_pooler()
             .build()
             .unwrap()
     }
@@ -127,10 +110,7 @@ mod tests {
     #[test]
     fn test_pipeline_none() {
         let pipeline = pipeline::<NonePooler>();
-        let shape = [
-            pipeline.token_size(),
-            Pipeline::<SMBert, NonePooler>::embedding_size(),
-        ];
+        let shape = [pipeline.token_size(), pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
         assert_eq!(embeddings.shape(), shape);
@@ -142,7 +122,7 @@ mod tests {
     #[test]
     fn test_pipeline_first() {
         let pipeline = pipeline::<FirstPooler>();
-        let shape = [Pipeline::<SMBert, FirstPooler>::embedding_size()];
+        let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
         assert_eq!(embeddings.shape(), shape);
@@ -154,7 +134,7 @@ mod tests {
     #[test]
     fn test_pipeline_average() {
         let pipeline = pipeline::<AveragePooler>();
-        let shape = [crate::SMBert::embedding_size()];
+        let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
         assert_eq!(embeddings.shape(), shape);

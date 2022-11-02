@@ -90,8 +90,8 @@ pub struct MigrationDocument {
     /// [`stack::Id::nil()`] is used for documents which are not from a stack.
     pub stack_id: stack::Id,
 
-    /// Embedding from smbert.
-    pub smbert_embedding: Option<Embedding>,
+    /// Embedding from Bert.
+    pub bert_embedding: Option<Embedding>,
 
     /// Reaction.
     pub reaction: UserReaction,
@@ -173,7 +173,7 @@ pub(crate) trait SearchScope {
     async fn clear(&self) -> Result<bool, Error>;
 
     //FIXME Return a `DeepSearchTemplateView` or similar in the future which
-    //      only contains the necessary fields (snippet, title, smbert_embedding, market).
+    //      only contains the necessary fields (snippet, title, bert_embedding, market).
     async fn get_document(&self, id: document::Id) -> Result<ApiDocumentView, Error>;
 }
 

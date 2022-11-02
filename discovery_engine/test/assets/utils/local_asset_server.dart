@@ -16,6 +16,7 @@ import 'dart:io' show HttpServer, HttpStatus, InternetAddress;
 
 const _bytes = [48, 48, 10];
 const bytesMap = {
+  'smbertConfig': _bytes,
   'smbertVocab': _bytes,
   'smbertModel': _bytes,
   'availableSources': _bytes,

@@ -12,84 +12,77 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    io::{Error as IoError, Read},
-    marker::PhantomData,
-    ops::RangeInclusive,
-    sync::Arc,
-};
+use std::{fs::File, io::BufReader, sync::Arc};
 
 use derive_more::{Deref, From};
-use displaydoc::Display;
-use ndarray::{ErrorKind, ShapeError};
-use thiserror::Error;
+use serde::Deserialize;
 use tract_onnx::prelude::{
-    Datum,
     Framework,
     InferenceFact,
+    InferenceModel,
     InferenceModelExt,
     Tensor,
     TractError,
     TypedModel,
-    TypedSimplePlan,
+    TypedRunnableModel,
 };
 
-use crate::tokenizer::Encoding;
+use crate::{config::Config, tokenizer::Encoding};
 
-pub mod kinds {
-    //! Types [`SMBert`] and [`QAMBert`] represent the kind of model that we want.
-    //! It must be passed together with `vocab` and `model` parameters.
-    //! Passing the wrong kind with respect to the model can lead to a wrong output of the pipeline.
+#[derive(Deserialize)]
+enum DynDim {
+    #[serde(rename = "token size")]
+    TokenSize,
+}
 
-    use std::ops::RangeInclusive;
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Dimension {
+    Fixed(usize),
+    Dynamic(DynDim),
+}
 
-    use super::BertModel;
+impl<P> Config<P> {
+    fn extract_facts(
+        &self,
+        io: &'static str,
+        mut model: InferenceModel,
+        with_io_fact: impl Fn(
+            InferenceModel,
+            usize,
+            InferenceFact,
+        ) -> Result<InferenceModel, TractError>,
+    ) -> Result<InferenceModel, TractError> {
+        let mut i = 0;
+        while let Ok(datum_type) = self
+            .extract::<String>(&format!("model.{io}.{i}.type"))
+            .map_err(Into::into)
+            .and_then(|datum_type| datum_type.parse())
+        {
+            let mut shape = Vec::new();
+            let mut j = 0;
+            while let Ok(dim) = self.extract::<Dimension>(&format!("model.{io}.{i}.shape.{j}")) {
+                let dim = match dim {
+                    Dimension::Fixed(dim) => dim,
+                    Dimension::Dynamic(DynDim::TokenSize) => self.token_size,
+                };
+                shape.push(dim);
+                j += 1;
+            }
+            model = with_io_fact(model, i, InferenceFact::dt_shape(datum_type, shape))?;
+            i += 1;
+        }
 
-    /// Sentence (Embedding) Multilingual Bert
-    #[derive(Debug)]
-    pub struct SMBert;
-
-    impl BertModel for SMBert {
-        const TOKEN_RANGE: RangeInclusive<usize> = 2..=512;
-        const EMBEDDING_SIZE: usize = 128;
-    }
-
-    /// Question Answering (Embedding) Multilingual Bert
-    #[derive(Debug)]
-    pub struct QAMBert;
-
-    impl BertModel for QAMBert {
-        const TOKEN_RANGE: RangeInclusive<usize> = 2..=512;
-        const EMBEDDING_SIZE: usize = 128;
+        Ok(model)
     }
 }
 
 /// A Bert onnx model.
 #[derive(Debug)]
-pub(crate) struct Model<K> {
-    plan: TypedSimplePlan<TypedModel>,
+pub(crate) struct Model {
+    model: TypedRunnableModel<TypedModel>,
     pub(crate) token_size: usize,
-    _kind: PhantomData<K>,
-}
-
-/// The potential errors of the model.
-#[derive(Debug, Display, Error)]
-pub enum ModelError {
-    /// Failed to read the onnx model: {0}
-    Read(#[from] IoError),
-    /// Failed to run a tract operation: {0}
-    Tract(#[from] TractError),
-    /// Invalid onnx model shapes: {0}
-    Shape(#[from] ShapeError),
-}
-
-/// Properties for kinds of Bert models.
-pub trait BertModel: Sized {
-    /// The range of token sizes.
-    const TOKEN_RANGE: RangeInclusive<usize>;
-
-    /// The number of values per embedding.
-    const EMBEDDING_SIZE: usize;
+    pub(crate) embedding_size: usize,
 }
 
 /// The predicted encoding.
@@ -98,60 +91,26 @@ pub trait BertModel: Sized {
 #[derive(Clone, Deref, From)]
 pub(crate) struct Prediction(Arc<Tensor>);
 
-impl<K> Model<K>
-where
-    K: BertModel,
-{
-    /// Creates a model from an onnx model file.
-    ///
-    /// Requires the maximum number of tokens per tokenized sequence.
-    pub(crate) fn new(
-        // `Read` instead of `AsRef<Path>` is needed for wasm
-        mut model: impl Read,
-        token_size: usize,
-    ) -> Result<Self, ModelError> {
-        if !K::TOKEN_RANGE.contains(&token_size) {
-            return Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into());
-        }
+impl Model {
+    /// Creates a model from a configuration.
+    pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, TractError> {
+        let mut model = BufReader::new(File::open(config.dir.join("model.onnx"))?);
+        let model = tract_onnx::onnx().model_for_read(&mut model)?;
+        let model = config.extract_facts("input", model, InferenceModel::with_input_fact)?;
+        let model = config.extract_facts("output", model, InferenceModel::with_output_fact)?;
+        let model = model.into_optimized()?.into_runnable()?;
 
-        let input_fact = InferenceFact::dt_shape(i64::datum_type(), &[1, token_size]);
-        let plan = tract_onnx::onnx()
-            .model_for_read(&mut model)?
-            .with_input_fact(0, input_fact.clone())? // token ids
-            .with_input_fact(1, input_fact.clone())? // attention mask
-            .with_input_fact(2, input_fact)? // type ids
-            .with_output_fact(
-                0,
-                InferenceFact::dt_shape(f32::datum_type(), &[1, token_size, K::EMBEDDING_SIZE]),
-            )? // all embeddings
-            .with_output_fact(
-                1,
-                InferenceFact::dt_shape(f32::datum_type(), &[1, K::EMBEDDING_SIZE]),
-            )? // [CLS] embedding
-            .into_optimized()?
-            .into_runnable()?;
-
-        if plan.model().output_fact(0)?.shape.as_concrete()
-            == Some(&[1, token_size, K::EMBEDDING_SIZE])
-        {
-            Ok(Model {
-                plan,
-                token_size,
-                _kind: PhantomData,
-            })
-        } else {
-            Err(ShapeError::from_kind(ErrorKind::IncompatibleShape).into())
-        }
+        Ok(Model {
+            model,
+            token_size: config.token_size,
+            embedding_size: config.extract("model.output.0.shape.2")?,
+        })
     }
 
     /// Runs prediction on the encoded sequence.
-    pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction, ModelError> {
-        debug_assert_eq!(encoding.token_ids.shape(), [1, self.token_size]);
-        debug_assert_eq!(encoding.attention_mask.shape(), [1, self.token_size]);
-        debug_assert_eq!(encoding.type_ids.shape(), [1, self.token_size]);
+    pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction, TractError> {
         let inputs = encoding.into();
-        let outputs = self.plan.run(inputs)?;
-        debug_assert_eq!(outputs[0].shape(), [1, self.token_size, K::EMBEDDING_SIZE]);
+        let outputs = self.model.run(inputs)?;
 
         Ok(outputs[0].clone().into())
     }
@@ -160,51 +119,50 @@ where
 #[cfg(test)]
 mod tests {
     use ndarray::Array2;
-    use std::{fs::File, io::BufReader};
-
-    use xayn_discovery_engine_test_utils::smbert::model;
+    use tract_onnx::prelude::DatumType;
+    use xayn_discovery_engine_test_utils::asset::smbert_mocked;
 
     use super::*;
 
     #[test]
-    fn test_model_shapes() {
-        assert_eq!(kinds::SMBert::TOKEN_RANGE, 2..=512);
-        assert_eq!(kinds::SMBert::EMBEDDING_SIZE, 128);
+    fn test_new() {
+        let config = Config::new(smbert_mocked().unwrap())
+            .unwrap()
+            .with_token_size(64)
+            .unwrap();
+        let model = Model::new(&config).unwrap();
 
-        assert_eq!(kinds::QAMBert::TOKEN_RANGE, 2..=512);
-        assert_eq!(kinds::QAMBert::EMBEDDING_SIZE, 128);
-    }
+        assert_eq!(model.model.model().input_outlets().unwrap().len(), 3);
+        let fact = model.model.model().input_fact(0).unwrap();
+        assert_eq!(fact.shape.as_concrete().unwrap(), [1, model.token_size]);
+        assert_eq!(fact.datum_type, DatumType::I64);
+        let fact = model.model.model().input_fact(1).unwrap();
+        assert_eq!(fact.shape.as_concrete().unwrap(), [1, model.token_size]);
+        assert_eq!(fact.datum_type, DatumType::I64);
+        let fact = model.model.model().input_fact(2).unwrap();
+        assert_eq!(fact.shape.as_concrete().unwrap(), [1, model.token_size]);
+        assert_eq!(fact.datum_type, DatumType::I64);
 
-    #[test]
-    fn test_model_empty() {
-        assert!(matches!(
-            Model::<kinds::SMBert>::new(Vec::new().as_slice(), 10).unwrap_err(),
-            ModelError::Tract(_),
-        ));
-    }
-
-    #[test]
-    fn test_model_invalid() {
-        assert!(matches!(
-            Model::<kinds::SMBert>::new([0].as_ref(), 10).unwrap_err(),
-            ModelError::Tract(_),
-        ));
-    }
-
-    #[test]
-    fn test_token_size_invalid() {
-        let model = BufReader::new(File::open(model().unwrap()).unwrap());
-        assert!(matches!(
-            Model::<kinds::SMBert>::new(model, 0).unwrap_err(),
-            ModelError::Shape(_),
-        ));
+        assert_eq!(model.model.model().output_outlets().unwrap().len(), 2);
+        let fact = model.model.model().output_fact(0).unwrap();
+        assert_eq!(
+            fact.shape.as_concrete().unwrap(),
+            [1, model.token_size, model.embedding_size],
+        );
+        assert_eq!(fact.datum_type, DatumType::F32);
+        let fact = model.model.model().output_fact(1).unwrap();
+        assert_eq!(fact.shape.as_concrete().unwrap(), [1, model.embedding_size]);
+        assert_eq!(fact.datum_type, DatumType::F32);
     }
 
     #[test]
     fn test_predict() {
         let shape = (1, 64);
-        let model = BufReader::new(File::open(model().unwrap()).unwrap());
-        let model = Model::<kinds::SMBert>::new(model, shape.1).unwrap();
+        let config = Config::new(smbert_mocked().unwrap())
+            .unwrap()
+            .with_token_size(shape.1)
+            .unwrap();
+        let model = Model::new(&config).unwrap();
 
         let encoding = Encoding {
             token_ids: Array2::from_elem(shape, 0),
@@ -212,9 +170,7 @@ mod tests {
             type_ids: Array2::from_elem(shape, 0),
         };
         let prediction = model.predict(encoding).unwrap();
-        assert_eq!(
-            prediction.shape(),
-            [shape.0, shape.1, kinds::SMBert::EMBEDDING_SIZE],
-        );
+        assert_eq!(model.token_size, shape.1);
+        assert_eq!(prediction.shape(), [shape.0, shape.1, model.embedding_size]);
     }
 }

@@ -40,7 +40,7 @@ use super::SqliteStorage;
 pub(super) async fn init_storage_system(
     file_path: Option<PathBuf>,
     mut dart_migration_data: Option<DartMigrationData>,
-    smbert: &(impl Fn(&str) -> Option<Embedding> + Sync),
+    bert: &(impl Fn(&str) -> Option<Embedding> + Sync),
 ) -> Result<(SqliteStorage, InitDbHint), Error> {
     let file_exists = if dart_migration_data.is_some() {
         delete_db_files(file_path.as_deref()).await?;
@@ -53,7 +53,7 @@ pub(super) async fn init_storage_system(
     };
 
     let result =
-        init_storage_system_once(file_path.clone(), dart_migration_data.as_mut(), smbert).await;
+        init_storage_system_once(file_path.clone(), dart_migration_data.as_mut(), bert).await;
     match (file_exists, result) {
         (false, Ok(storage)) => Ok((storage, InitDbHint::NewDbCreated)),
         (true, Ok(storage)) => Ok((storage, InitDbHint::NormalInit)),
@@ -66,7 +66,7 @@ pub(super) async fn init_storage_system(
             //      this is fully out of scope of what we have resources for.
             delete_db_files(file_path.as_deref()).await?;
 
-            init_storage_system_once(file_path, dart_migration_data.as_mut(), smbert)
+            init_storage_system_once(file_path, dart_migration_data.as_mut(), bert)
                 .await
                 .map(|storage| (storage, InitDbHint::DbOverwrittenDueToErrors(first_error)))
         }
@@ -119,15 +119,14 @@ fn with_file_name_suffix(path: &Path, suffix: &str) -> Result<PathBuf, Error> {
 pub(super) async fn init_storage_system_once(
     file_path: Option<PathBuf>,
     dart_migration_data: Option<&mut DartMigrationData>,
-    smbert: &(impl Fn(&str) -> Option<Embedding> + Sync),
+    bert: &(impl Fn(&str) -> Option<Embedding> + Sync),
 ) -> Result<SqliteStorage, Error> {
     let pool = create_connection_pool(file_path.as_deref()).await?;
     update_schema(&pool).await?;
     update_static_data(&pool).await?;
     let mut this = SqliteStorage { pool };
     if let Some(dart_migration_data) = dart_migration_data {
-        super::dart_migrations::store_migration_data(&mut this, dart_migration_data, smbert)
-            .await?;
+        super::dart_migrations::store_migration_data(&mut this, dart_migration_data, bert).await?;
     }
     Ok(this)
 }

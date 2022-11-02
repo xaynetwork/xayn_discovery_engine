@@ -30,8 +30,7 @@ stdout = """
     "max_document_batch_size": 100
   },
   "embedding": {
-    "vocabulary": "assets/vocab.txt",
-    "model": "assets/model.onnx"
+    "directory": "assets"
   }
 }
 """

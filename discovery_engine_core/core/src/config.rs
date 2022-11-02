@@ -78,10 +78,8 @@ pub struct InitConfig {
     pub headlines_provider_path: String,
     /// List of markets to use.
     pub markets: Vec<Market>,
-    /// S-mBert vocabulary path.
-    pub smbert_vocab: String,
-    /// S-mBert model path.
-    pub smbert_model: String,
+    /// Bert path.
+    pub bert: String,
     /// The maximum number of documents per feed batch.
     pub max_docs_per_feed_batch: u32,
     /// The maximum number of documents per search batch.
@@ -293,7 +291,7 @@ pub(crate) fn de_config_from_json(json: &str) -> Figment {
 /// Reads the DE configurations from json and sets defaults for missing fields (if possible).
 pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
     de_config_from_json(json)
-        .join(Serialized::default("smbert.token_size", 150))
+        .join(Serialized::default("bert.token_size", 150))
         .join(Serialized::default("coi", CoiConfig::default()))
         .join(Serialized::default("kps", KpsConfig::default()))
         .join(Serialized::default("core", CoreConfig::default()))
@@ -367,7 +365,7 @@ mod tests {
     #[test]
     fn test_de_config_from_json_default() -> Result<(), GenericError> {
         let de_config = de_config_from_json_with_defaults("{}");
-        assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 150);
+        assert_eq!(de_config.extract_inner::<usize>("bert.token_size")?, 150);
         assert_eq!(
             de_config.extract_inner::<CoiConfig>("coi")?,
             CoiConfig::default(),
@@ -415,7 +413,7 @@ mod tests {
                 "kps": {
                     "penalty": [0.99, 0.66, 0.33]
                 },
-                "smbert": {
+                "bert": {
                     "token_size": 42,
                     "foo": "bar"
                 },
@@ -431,7 +429,7 @@ mod tests {
                 }
             }"#,
         );
-        assert_eq!(de_config.extract_inner::<usize>("smbert.token_size")?, 42);
+        assert_eq!(de_config.extract_inner::<usize>("bert.token_size")?, 42);
         assert_eq!(
             de_config.extract_inner::<CoiConfig>("coi")?,
             CoiConfig::default().with_threshold(0.42)?,

@@ -42,7 +42,7 @@ use web_api::{
     Error,
 };
 use xayn_discovery_engine_ai::GenericError;
-use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
+use xayn_discovery_engine_bert::{AvgBert, Config as BertConfig};
 
 #[derive(Envconfig, Clone, Debug)]
 pub(crate) struct Config {
@@ -64,14 +64,8 @@ pub(crate) struct Config {
     #[envconfig(from = "IP_ADDR", default = "0.0.0.0")]
     pub(crate) ip_addr: IpAddr,
 
-    #[envconfig(from = "SMBERT_VOCAB", default = "assets/vocab.txt")]
-    pub(crate) smbert_vocab: PathBuf,
-
-    #[envconfig(from = "JAPANESE_MECAB")]
-    pub(crate) japanese_mecab: Option<PathBuf>,
-
-    #[envconfig(from = "SMBERT_MODEL", default = "assets/model.onnx")]
-    pub(crate) smbert_model: PathBuf,
+    #[envconfig(from = "BERT", default = "assets")]
+    pub(crate) bert: PathBuf,
 
     #[envconfig(from = "MAX_BODY_SIZE", default = "524288")]
     pub(crate) max_body_size: u64,
@@ -227,37 +221,27 @@ async fn main() -> Result<(), GenericError> {
     Ok(())
 }
 
-fn init_model(config: &Config) -> Result<SMBert, GenericError> {
-    info!("SMBert model loading...");
+fn init_model(config: &Config) -> Result<AvgBert, GenericError> {
+    info!("Bert model loading...");
     let start = Instant::now();
 
     let path = env::current_dir()?;
-    let vocab_path = path.join(&config.smbert_vocab);
-    let model_path = path.join(&config.smbert_model);
-    let smbert = SMBertConfig::from_files(&vocab_path, &model_path)
-        .map(|smbert| {
-            if let Some(mecab) = &config.japanese_mecab {
-                smbert.with_japanese(mecab)
-            } else {
-                smbert
-            }
-        })?
-        .with_cleanse_accents(true)
-        .with_lower_case(true)
-        .with_pooling::<AveragePooler>()
+    let bert_path = path.join(&config.bert);
+    let bert = BertConfig::new(&bert_path)?
+        .with_pooler()
         .with_token_size(64)?
         .build()?;
 
     let load_duration = start.elapsed().as_secs();
-    info!("SMBert model loaded successfully in {} sec", load_duration);
+    info!("Bert model loaded successfully in {} sec", load_duration);
 
-    Ok(smbert)
+    Ok(bert)
 }
 
 // POST /documents
 fn post_documents(
     config: Arc<Config>,
-    model: Arc<SMBert>,
+    model: Arc<AvgBert>,
     client: Arc<ElasticState>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::post()
@@ -381,7 +365,7 @@ fn delete_document_property(
 #[instrument(skip(model, config, client))]
 async fn handle_post_documents(
     body: IngestionRequestBody,
-    model: Arc<SMBert>,
+    model: Arc<AvgBert>,
     config: Arc<Config>,
     client: Arc<ElasticState>,
 ) -> Result<Box<dyn Reply>, Infallible> {
@@ -573,8 +557,8 @@ fn with_config(
 }
 
 fn with_model(
-    model: Arc<SMBert>,
-) -> impl Filter<Extract = (Arc<SMBert>,), Error = Infallible> + Clone {
+    model: Arc<AvgBert>,
+) -> impl Filter<Extract = (Arc<AvgBert>,), Error = Infallible> + Clone {
     warp::any().map(move || model.clone())
 }
 

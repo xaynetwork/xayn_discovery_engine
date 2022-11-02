@@ -25,12 +25,14 @@ const tmpFileExt = 'tmp';
 
 /// Data that is required to initialize [`XaynAi`].
 abstract class SetupData with EquatableMixin {
+  Object get smbertConfig;
   Object get smbertVocab;
   Object get smbertModel;
   Object get availableSources;
 
   @override
-  List<Object?> get props => [smbertVocab, smbertModel, availableSources];
+  List<Object?> get props =>
+      [smbertConfig, smbertVocab, smbertModel, availableSources];
 
   Future<AvailableSources> getAvailableSources();
 }

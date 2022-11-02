@@ -14,77 +14,44 @@
 
 //! Run as `cargo bench --bench mbert --features onnxruntime`.
 
-use std::{
-    fs::File,
-    io::{BufReader, Result},
-    path::Path,
-};
+use std::path::Path;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ndarray::s;
 use onnxruntime::{environment::Environment, GraphOptimizationLevel};
 
-use xayn_discovery_engine_bert::{
-    kinds::SMBert,
-    tokenizer::Tokenizer,
-    AveragePooler,
-    Config,
-    Embedding2,
-    FirstPooler,
-    NonePooler,
-};
-use xayn_discovery_engine_test_utils::smbert;
+use xayn_discovery_engine_bert::{tokenizer::Tokenizer, Config, Embedding2, NonePooler};
+use xayn_discovery_engine_test_utils::asset::smbert;
 
 const TOKEN_SIZE: usize = 64;
 const SEQUENCE: &str = "This is a sequence.";
 
-macro_rules! bench_tract {
-    (
-        $manager:expr,
-        $group:expr => $kind:ty,
-        $vocab:expr,
-        $model:expr,
-        [$($name:expr => $pooler:ty),+ $(,)?] $(,)?
-    ) => {
-        let mut group = $manager.benchmark_group(format!("{} {}", $group, TOKEN_SIZE));
-        $(
-            let pipeline = Config::<$kind, _>::from_files($vocab.unwrap(), $model.unwrap())
-                .unwrap()
-                .with_cleanse_accents(true)
-                .with_lower_case(true)
-                .with_token_size(TOKEN_SIZE)
-                .unwrap()
-                .with_pooling::<$pooler>()
-                .build()
-                .unwrap();
-            group.bench_function($name, |bencher| {
-                bencher.iter(|| pipeline.run(black_box(SEQUENCE)).unwrap())
-            });
-        )+
-    };
+fn bench_tract_bert(manager: &mut Criterion, name: &str, dir: &Path) {
+    let pipeline = Config::new(dir)
+        .unwrap()
+        .with_token_size(TOKEN_SIZE)
+        .unwrap()
+        .with_pooler::<NonePooler>()
+        .build()
+        .unwrap();
+    manager.bench_function(name, |bencher| {
+        bencher.iter(|| pipeline.run(black_box(SEQUENCE)).unwrap())
+    });
 }
 
-fn bench_onnx(
-    manager: &mut Criterion,
-    name: &str,
-    vocab: Result<impl AsRef<Path>>,
-    model: Result<impl AsRef<Path>>,
-) {
-    let tokenizer = Tokenizer::new(
-        BufReader::new(File::open(vocab.unwrap()).unwrap()),
-        None,
-        true,
-        true,
-        TOKEN_SIZE,
-    )
-    .unwrap();
+fn bench_onnx_bert(manager: &mut Criterion, name: &str, dir: &Path) {
+    let config = Config::new(dir)
+        .unwrap()
+        .with_token_size(TOKEN_SIZE)
+        .unwrap();
+    let tokenizer = Tokenizer::new(&config).unwrap();
     let environment = Environment::builder().build().unwrap();
     let mut session = environment
         .new_session_builder()
         .unwrap()
         .with_optimization_level(GraphOptimizationLevel::DisableAll)
         .unwrap()
-        .with_model_from_file(model.unwrap())
+        .with_model_from_file(config.extract::<&Path>("model.path").unwrap())
         .unwrap();
 
     manager.bench_function(name, |bencher| {
@@ -99,21 +66,11 @@ fn bench_onnx(
 }
 
 fn bench_tract_smbert(manager: &mut Criterion) {
-    bench_tract!(
-        manager,
-        "Tract SMBert" => SMBert,
-        smbert::vocab(),
-        smbert::model(),
-        [
-            "None Pooler" => NonePooler,
-            "First Pooler" => FirstPooler,
-            "Average Pooler" => AveragePooler,
-        ],
-    );
+    bench_tract_bert(manager, "Tract SMBert", &smbert().unwrap());
 }
 
 fn bench_onnx_smbert(manager: &mut Criterion) {
-    bench_onnx(manager, "Onnx SMBert", smbert::vocab(), smbert::model());
+    bench_onnx_bert(manager, "Onnx SMBert", &smbert().unwrap());
 }
 
 criterion_group! {
