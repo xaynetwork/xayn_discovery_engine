@@ -44,7 +44,7 @@ impl System {
         market: &Market,
         key_phrases: &mut KeyPhrases,
         candidates: &[String],
-        smbert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
+        bert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
     ) {
         system
             .log_positive_user_reaction(cois, embedding)
@@ -52,7 +52,7 @@ impl System {
                 market,
                 key_phrases,
                 candidates,
-                smbert,
+                bert,
                 self.config.max_key_phrases(),
                 self.config.gamma(),
             );

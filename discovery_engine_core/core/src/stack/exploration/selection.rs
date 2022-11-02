@@ -82,7 +82,7 @@ where
     let documents = filter_too_similar(documents, cois.clone(), config.max_similarity);
     let document_embeddings = documents
         .iter()
-        .map(|document| document.smbert_embedding.view());
+        .map(|document| document.bert_embedding.view());
     let nearest_coi_for_docs = max_cosine_similarity(document_embeddings.clone(), cois);
     let doc_similarities = pairwise_cosine_similarity(document_embeddings);
 
@@ -201,7 +201,7 @@ mod tests {
             .enumerate()
             .map(|(id, point)| Document {
                 id: Id::from(mock_uuid(id)),
-                smbert_embedding: arr1(point.as_init_slice()).into(),
+                bert_embedding: arr1(point.as_init_slice()).into(),
                 ..Document::default()
             })
             .collect()

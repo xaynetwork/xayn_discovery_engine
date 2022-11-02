@@ -12,6 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Path resolvers for example assets.
+//! Run as `cargo run --example bert
 
-pub mod validate;
+use xayn_discovery_engine_bert::{Config, FirstPooler};
+use xayn_discovery_engine_test_utils::asset::smbert;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let pipeline = Config::new(smbert()?)?
+        .with_token_size(64)?
+        .with_pooler::<FirstPooler>()
+        .build()?;
+    let embedding = pipeline.run("This is a sequence.")?;
+    println!("{}", *embedding);
+
+    Ok(())
+}

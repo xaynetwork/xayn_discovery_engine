@@ -55,6 +55,7 @@ class NativeDataProvider extends DataProvider {
     await assetReporter.fetchingFinished();
 
     return NativeSetupData(
+      smbertConfig: paths[AssetType.smbertConfig]!,
       smbertVocab: paths[AssetType.smbertVocab]!,
       smbertModel: paths[AssetType.smbertModel]!,
       availableSources: paths[AssetType.availableSources]!,
@@ -126,6 +127,8 @@ class NativeDataProvider extends DataProvider {
 
 class NativeSetupData extends SetupData {
   @override
+  final String smbertConfig;
+  @override
   final String smbertVocab;
   @override
   final String smbertModel;
@@ -133,6 +136,7 @@ class NativeSetupData extends SetupData {
   final String availableSources;
 
   NativeSetupData({
+    required this.smbertConfig,
     required this.smbertVocab,
     required this.smbertModel,
     required this.availableSources,

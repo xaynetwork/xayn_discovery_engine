@@ -80,26 +80,15 @@ pub unsafe extern "C" fn init_config_place_of_markets(place: *mut InitConfig) ->
     unsafe { addr_of_mut!((*place).markets) }
 }
 
-/// Returns a pointer to the `smbert_vocab` field of a configuration.
+/// Returns a pointer to the `bert` field of a configuration.
 ///
 /// # Safety
 ///
 /// The pointer must point to a valid [`InitConfig`] memory object,
 /// which might be uninitialized.
 #[no_mangle]
-pub unsafe extern "C" fn init_config_place_of_smbert_vocab(place: *mut InitConfig) -> *mut String {
-    unsafe { addr_of_mut!((*place).smbert_vocab) }
-}
-
-/// Returns a pointer to the `smbert_model` field of a configuration.
-///
-/// # Safety
-///
-/// The pointer must point to a valid [`InitConfig`] memory object,
-/// which might be uninitialized.
-#[no_mangle]
-pub unsafe extern "C" fn init_config_place_of_smbert_model(place: *mut InitConfig) -> *mut String {
-    unsafe { addr_of_mut!((*place).smbert_model) }
+pub unsafe extern "C" fn init_config_place_of_bert(place: *mut InitConfig) -> *mut String {
+    unsafe { addr_of_mut!((*place).bert) }
 }
 
 /// Returns a pointer to the `max_docs_per_feed_batch` field of a configuration.

@@ -42,11 +42,13 @@ void main() {
       final manifest = Manifest.fromJson(goodJson);
       final wrongManifest = Manifest.fromJson(wrongChecksumJson);
       final finalSetupData = NativeSetupData(
+        smbertConfig: '$outputPath/smbertConfig',
         smbertVocab: '$outputPath/smbertVocab',
         smbertModel: '$outputPath/smbertModel',
         availableSources: '$outputPath/availableSources',
       );
       final tmpSetupData = NativeSetupData(
+        smbertConfig: '$outputPath/smbertConfig.$tmpFileExt',
         smbertVocab: '$outputPath/smbertVocab.$tmpFileExt',
         smbertModel: '$outputPath/smbertModel.$tmpFileExt',
         availableSources: '$outputPath/availableSources.$tmpFileExt',
@@ -86,7 +88,7 @@ void main() {
 
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
-        expect(assetFetcher.callCount, equals(5));
+        expect(assetFetcher.callCount, equals(6));
       });
 
       test(
@@ -125,7 +127,7 @@ void main() {
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
         expect(allSetupDataFilesExist(tmpSetupData), isFalse);
-        expect(assetFetcher.callCount, equals(5));
+        expect(assetFetcher.callCount, equals(6));
       });
 
       test(
@@ -147,8 +149,8 @@ void main() {
 
         expect(setupData, equals(finalSetupData));
         expect(allSetupDataFilesExist(finalSetupData), isTrue);
-        expect(server.callCountSum, equals(5));
-        expect(assetFetcher.callCount, equals(5));
+        expect(server.callCountSum, equals(6));
+        expect(assetFetcher.callCount, equals(6));
       });
     });
   });
@@ -173,6 +175,7 @@ Future<void> _createAssetFiles(
 
 bool allSetupDataFilesExist(NativeSetupData setupData) {
   final list = [
+    File(setupData.smbertConfig).existsSync(),
     File(setupData.smbertVocab).existsSync(),
     File(setupData.smbertModel).existsSync(),
     File(setupData.availableSources).existsSync(),

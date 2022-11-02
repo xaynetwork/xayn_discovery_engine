@@ -80,9 +80,9 @@ impl SqliteStorage {
     pub(crate) async fn init_storage_system(
         file_path: Option<String>,
         dart_migration_data: Option<DartMigrationData>,
-        smbert: &(impl Fn(&str) -> Option<Embedding> + Sync),
+        bert: &(impl Fn(&str) -> Option<Embedding> + Sync),
     ) -> Result<(BoxedStorage, InitDbHint), Error> {
-        self::setup::init_storage_system(file_path.map(Into::into), dart_migration_data, smbert)
+        self::setup::init_storage_system(file_path.map(Into::into), dart_migration_data, bert)
             .await
             .map(|(storage, hint)| (Box::new(storage) as _, hint))
     }
@@ -939,7 +939,7 @@ impl TryFrom<QueryTimeSpentDocumentView> for TimeSpentDocumentView {
         }: QueryTimeSpentDocumentView,
     ) -> Result<Self, Self::Error> {
         Ok(TimeSpentDocumentView {
-            smbert_embedding: embedding.try_into()?,
+            bert_embedding: embedding.try_into()?,
             last_reaction: user_reaction_from_db(user_reaction)?,
             aggregated_view_time: Duration::from_millis(u64::from(aggregated_view_time)),
         })
@@ -1534,7 +1534,7 @@ mod tests {
         assert_eq!(
             view,
             TimeSpentDocumentView {
-                smbert_embedding: Embedding::default(),
+                bert_embedding: Embedding::default(),
                 last_reaction: Some(UserReaction::Positive),
                 aggregated_view_time: Duration::from_secs(1),
             }
@@ -1549,7 +1549,7 @@ mod tests {
         assert_eq!(
             view,
             TimeSpentDocumentView {
-                smbert_embedding: Embedding::default(),
+                bert_embedding: Embedding::default(),
                 last_reaction: None,
                 aggregated_view_time: Duration::from_secs(3),
             }
@@ -1564,7 +1564,7 @@ mod tests {
         assert_eq!(
             view,
             TimeSpentDocumentView {
-                smbert_embedding: Embedding::default(),
+                bert_embedding: Embedding::default(),
                 last_reaction: None,
                 aggregated_view_time: Duration::from_secs(10),
             }
@@ -1579,7 +1579,7 @@ mod tests {
         assert_eq!(
             view,
             TimeSpentDocumentView {
-                smbert_embedding: Embedding::default(),
+                bert_embedding: Embedding::default(),
                 last_reaction: None,
                 aggregated_view_time: Duration::from_secs(23),
             }

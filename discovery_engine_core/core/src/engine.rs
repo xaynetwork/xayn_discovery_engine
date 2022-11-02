@@ -45,7 +45,7 @@ use xayn_discovery_engine_ai::{
     KpsSystem,
     UserInterests,
 };
-use xayn_discovery_engine_bert::{AveragePooler, SMBert, SMBertConfig};
+use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
 use xayn_discovery_engine_providers::{
     clean_query,
     Filter,
@@ -163,7 +163,7 @@ pub struct Engine {
     request_after: usize,
 
     // systems
-    smbert: SMBert,
+    bert: AvgBert,
     pub(crate) coi: CoiSystem,
     pub(crate) kps: KpsSystem,
     providers: Providers,
@@ -189,7 +189,7 @@ impl Engine {
         exploration_config: ExplorationConfig,
         feed_config: FeedConfig,
         search_config: SearchConfig,
-        smbert: SMBert,
+        bert: AvgBert,
         coi: CoiSystem,
         kps: KpsSystem,
         user_interests: UserInterests,
@@ -229,7 +229,7 @@ impl Engine {
             feed_config,
             search_config,
             request_after: 0,
-            smbert,
+            bert,
             coi,
             kps,
             providers,
@@ -267,24 +267,15 @@ impl Engine {
             .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
 
-        let smbert = SMBertConfig::from_files(&config.smbert_vocab, &config.smbert_model)
-            .map(|smbert| {
-                if let Ok(mecab) = de_config.extract_inner::<&str>("smbert.japanese") {
-                    smbert.with_japanese(mecab)
-                } else {
-                    smbert
-                }
-            })
+        let bert = BertConfig::new(&config.bert)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(
                 de_config
-                    .extract_inner("smbert.token_size")
+                    .extract_inner("bert.token_size")
                     .map_err(|err| Error::Ranker(err.into()))?,
             )
             .map_err(|err| Error::Ranker(err.into()))?
-            .with_cleanse_accents(true)
-            .with_lower_case(true)
-            .with_pooling::<AveragePooler>()
+            .with_pooler::<AveragePooler>()
             .build()
             .map_err(GenericError::from)?;
         let coi = de_config
@@ -304,7 +295,7 @@ impl Engine {
         });
         let (storage, init_db_hint) =
             SqliteStorage::init_storage_system(db_file_path, config.dart_migration_data, &|s| {
-                smbert.run(s).log_error().ok()
+                bert.run(s).log_error().ok()
             })
             .await?;
 
@@ -379,7 +370,7 @@ impl Engine {
             exploration_config,
             feed_config,
             search_config,
-            smbert,
+            bert,
             coi,
             kps,
             user_interests,
@@ -415,7 +406,7 @@ impl Engine {
         update_stacks(
             &mut stacks,
             &mut self.exploration_stack,
-            &self.smbert,
+            &self.bert,
             &self.coi,
             &self.kps,
             &self.user_interests,
@@ -538,7 +529,7 @@ impl Engine {
         {
             CoiSystem::log_document_view_time(
                 &mut self.user_interests.positive,
-                &time_spent.smbert_embedding,
+                &time_spent.bert_embedding,
                 time_spent.aggregated_view_time,
             );
         }
@@ -594,20 +585,20 @@ impl Engine {
         let market = Market::new(&document.resource.language, &document.resource.country);
         match reacted.reaction {
             UserReaction::Positive => {
-                let smbert = &self.smbert;
+                let bert = &self.bert;
                 self.kps.log_positive_user_reaction(
                     &self.coi,
                     &mut self.user_interests.positive,
-                    &document.smbert_embedding,
+                    &document.bert_embedding,
                     &market,
                     &mut self.key_phrases,
                     &[document.resource.snippet_or_title().to_string()],
-                    |words| smbert.run(words).map_err(Into::into),
+                    |words| bert.run(words).map_err(Into::into),
                 );
             }
             UserReaction::Negative => self.coi.log_negative_user_reaction(
                 &mut self.user_interests.negative,
-                &document.smbert_embedding,
+                &document.bert_embedding,
             ),
             UserReaction::Neutral => {}
         }
@@ -625,7 +616,7 @@ impl Engine {
             update_stacks(
                 &mut stacks,
                 &mut self.exploration_stack,
-                &self.smbert,
+                &self.bert,
                 &self.coi,
                 &self.kps,
                 &self.user_interests,
@@ -755,7 +746,7 @@ impl Engine {
         let articles = MalformedFilter::apply(&[], &[], articles)?;
         let (documents, errors) = documentify_articles(
             StackId::nil(), // these documents are not associated with a stack
-            &self.smbert,
+            &self.bert,
             articles,
         );
 
@@ -769,7 +760,7 @@ impl Engine {
             .filter_map(|document| {
                 let similarity = cosine_similarity(
                     stored_document.embedding.view(),
-                    document.smbert_embedding.view(),
+                    document.bert_embedding.view(),
                 );
                 (similarity > self.core_config.deep_search_sim).then_some((similarity, document))
             })
@@ -895,7 +886,7 @@ impl Engine {
 
         let (mut documents, article_errors) = documentify_articles(
             StackId::nil(), // these documents are not associated with a stack
-            &self.smbert,
+            &self.bert,
             articles,
         );
         errors.extend(article_errors);
@@ -1155,7 +1146,7 @@ fn rank_stacks<'a>(
 #[instrument(skip(
     stacks,
     exploration_stack,
-    smbert,
+    bert,
     coi,
     kps,
     user_interests,
@@ -1166,7 +1157,7 @@ fn rank_stacks<'a>(
 async fn update_stacks(
     stacks: &mut HashMap<Id, Stack>,
     exploration_stack: &mut Exploration,
-    smbert: &SMBert,
+    bert: &AvgBert,
     coi: &CoiSystem,
     kps: &KpsSystem,
     user_interests: &UserInterests,
@@ -1218,8 +1209,7 @@ async fn update_stacks(
                     .map_or(&[] as &[_], Vec::as_slice);
                 (
                     stack.id(),
-                    fetch_new_documents_for_stack(stack, smbert, key_phrases, history, market)
-                        .await,
+                    fetch_new_documents_for_stack(stack, bert, key_phrases, history, market).await,
                 )
             })
         })
@@ -1347,7 +1337,7 @@ async fn update_stacks(
 
 async fn fetch_new_documents_for_stack(
     stack: &Stack,
-    smbert: &SMBert,
+    bert: &AvgBert,
     key_phrases: &[KeyPhrase],
     history: &[HistoricDocument],
     market: &Market,
@@ -1358,7 +1348,7 @@ async fn fetch_new_documents_for_stack(
             return Err(Error::StackOpFailed(error));
         }
     };
-    let (documents, errors) = documentify_articles(stack.id(), smbert, articles);
+    let (documents, errors) = documentify_articles(stack.id(), bert, articles);
 
     // only return an error if all articles failed
     if documents.is_empty() && !errors.is_empty() {
@@ -1370,17 +1360,17 @@ async fn fetch_new_documents_for_stack(
 
 fn documentify_articles(
     stack_id: StackId,
-    smbert: &SMBert,
+    bert: &AvgBert,
     articles: Vec<GenericArticle>,
 ) -> (Vec<Document>, Vec<Error>) {
     articles
         .into_par_iter()
         .map(|article| {
             let embedding = match &article.embedding {
-                Some(embedding) if embedding.len() == SMBert::embedding_size() => {
+                Some(embedding) if embedding.len() == bert.embedding_size() => {
                     Embedding::from(Array::from_vec(embedding.clone()))
                 }
-                Some(_) | None => smbert.run(article.snippet_or_title()).map_err(|error| {
+                Some(_) | None => bert.run(article.snippet_or_title()).map_err(|error| {
                     let error = Error::Ranker(error.into());
                     error!("{}", error);
                     error
@@ -1423,7 +1413,7 @@ pub(crate) mod tests {
 
     use crate::{document::tests::mock_generic_article, stack::ops::MockOps};
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
-    use xayn_discovery_engine_test_utils::smbert::{model, vocab};
+    use xayn_discovery_engine_test_utils::asset::{smbert_mocked, smbert_quantized};
 
     use super::*;
 
@@ -1465,17 +1455,13 @@ pub(crate) mod tests {
                 .mount(&server)
                 .await;
 
-            // The config mostly tells the engine were to find the model assets.
-            // Here we use the mocked ones, for speed.
-            let asset_base = "../../discovery_engine_flutter/example/assets";
             let config = InitConfig {
                 api_key: "test-token".into(),
                 api_base_url: server.uri(),
                 news_provider_path: "newscatcher/news-endpoint-name".into(),
                 headlines_provider_path: "newscatcher/headlines-endpoint-name".into(),
                 markets: vec![Market::new("en", "US")],
-                smbert_vocab: format!("{asset_base}/smbert_v0002/vocab.txt"),
-                smbert_model: format!("{asset_base}/smbert_v0002/smbert-mocked.onnx"),
+                bert: smbert_mocked().unwrap().display().to_string(),
                 max_docs_per_feed_batch: FeedConfig::default()
                     .max_docs_per_batch
                     .try_into()
@@ -1582,7 +1568,7 @@ pub(crate) mod tests {
         update_stacks(
             &mut stacks,
             &mut engine.exploration_stack,
-            &engine.smbert,
+            &engine.bert,
             &engine.coi,
             &engine.kps,
             &engine.user_interests,
@@ -1608,7 +1594,7 @@ pub(crate) mod tests {
         update_stacks(
             &mut stacks,
             &mut engine.exploration_stack,
-            &engine.smbert,
+            &engine.bert,
             &engine.coi,
             &engine.kps,
             &engine.user_interests,
@@ -1685,7 +1671,7 @@ pub(crate) mod tests {
         update_stacks(
             &mut *engine.stacks.write().await,
             &mut engine.exploration_stack,
-            &engine.smbert,
+            &engine.bert,
             &engine.coi,
             &engine.kps,
             &engine.user_interests,
@@ -1726,7 +1712,7 @@ pub(crate) mod tests {
         update_stacks(
             &mut *engine.stacks.write().await,
             &mut engine.exploration_stack,
-            &engine.smbert,
+            &engine.bert,
             &engine.coi,
             &engine.kps,
             &engine.user_interests,
@@ -1768,7 +1754,7 @@ pub(crate) mod tests {
         update_stacks(
             &mut *engine.stacks.write().await,
             &mut engine.exploration_stack,
-            &engine.smbert,
+            &engine.bert,
             &engine.coi,
             &engine.kps,
             &engine.user_interests,
@@ -1801,7 +1787,7 @@ pub(crate) mod tests {
         let result = update_stacks(
             &mut *engine.stacks.write().await,
             &mut engine.exploration_stack,
-            &engine.smbert,
+            &engine.bert,
             &engine.coi,
             &engine.kps,
             &engine.user_interests,
@@ -1869,13 +1855,13 @@ pub(crate) mod tests {
 
     #[test]
     fn test_documentify_articles() {
-        let smbert = SMBertConfig::from_files(vocab().unwrap(), model().unwrap())
+        let bert = BertConfig::new(smbert_quantized().unwrap())
             .unwrap()
-            .with_pooling::<AveragePooler>()
+            .with_pooler()
             .build()
             .unwrap();
         let stack_id = StackId::new_random();
-        let size = SMBert::embedding_size();
+        let size = bert.embedding_size();
         let embedding_1 = vec![1.; size];
         let embedding_2 = vec![2.; size + 1];
         let article_1 = GenericArticle {
@@ -1898,10 +1884,10 @@ pub(crate) mod tests {
 
         let expected_1 = Embedding::from(Array::from_vec(embedding_1));
         let expected_2 = Embedding::from(Array::from_vec(embedding_2));
-        let (documents, _) = documentify_articles(stack_id, &smbert, vec![article_1, article_2]);
+        let (documents, _) = documentify_articles(stack_id, &bert, vec![article_1, article_2]);
 
-        assert_eq!(documents[0].smbert_embedding, expected_1);
-        assert_ne!(documents[1].smbert_embedding, expected_2);
+        assert_eq!(documents[0].bert_embedding, expected_1);
+        assert_ne!(documents[1].bert_embedding, expected_2);
     }
 
     #[test]

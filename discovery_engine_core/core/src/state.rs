@@ -140,7 +140,7 @@ mod naive_date_time_migration {
     pub(super) struct DocumentWithNaiveDateTime {
         pub(super) id: Id,
         pub(super) stack_id: StackId,
-        pub(super) smbert_embedding: Embedding,
+        pub(super) bert_embedding: Embedding,
         pub(super) reaction: Option<UserReaction>,
         pub(super) resource: NewsResourceWithNaiveDateTime,
     }
@@ -150,7 +150,7 @@ mod naive_date_time_migration {
             Document {
                 id: document.id,
                 stack_id: document.stack_id,
-                smbert_embedding: document.smbert_embedding,
+                bert_embedding: document.bert_embedding,
                 reaction: document.reaction,
                 resource: document.resource.into(),
             }
@@ -227,7 +227,7 @@ mod tests {
             id: Id::new(),
             stack_id,
             reaction: None,
-            smbert_embedding: Embedding::default(),
+            bert_embedding: Embedding::default(),
             resource: NewsResourceWithNaiveDateTime {
                 title: String::default(),
                 snippet: String::default(),

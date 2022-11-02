@@ -4837,6 +4837,7 @@ dependencies = [
  "csv",
  "derive_more",
  "displaydoc",
+ "figment",
  "float-cmp",
  "indicatif",
  "itertools 0.10.5",
@@ -4943,8 +4944,6 @@ version = "0.1.0"
 dependencies = [
  "float-cmp",
  "ndarray",
- "serde",
- "serde_json",
  "uuid",
 ]
 

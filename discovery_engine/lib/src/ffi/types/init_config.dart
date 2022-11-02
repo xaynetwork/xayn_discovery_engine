@@ -41,8 +41,7 @@ class InitConfigFfi with EquatableMixin {
   final String newsProviderPath;
   final String headlinesProviderPath;
   final List<FeedMarket> feedMarkets;
-  final String smbertVocab;
-  final String smbertModel;
+  final String bert;
   final int maxDocsPerFeedBatch;
   final int maxDocsPerSearchBatch;
   final String? deConfig;
@@ -58,8 +57,7 @@ class InitConfigFfi with EquatableMixin {
         newsProviderPath,
         headlinesProviderPath,
         feedMarkets,
-        smbertVocab,
-        smbertModel,
+        bert,
         maxDocsPerFeedBatch,
         maxDocsPerSearchBatch,
         deConfig,
@@ -81,8 +79,7 @@ class InitConfigFfi with EquatableMixin {
         newsProviderPath: configuration.newsProviderPath,
         headlinesProviderPath: configuration.headlinesProviderPath,
         feedMarkets: configuration.feedMarkets.toList(),
-        smbertVocab: setupData.smbertVocab,
-        smbertModel: setupData.smbertModel,
+        bert: setupData.smbertConfig.replaceAll('/config.toml', ''),
         maxDocsPerFeedBatch: configuration.maxItemsPerFeedBatch,
         maxDocsPerSearchBatch: configuration.maxItemsPerSearchBatch,
         deConfig: deConfig,
@@ -98,8 +95,7 @@ class InitConfigFfi with EquatableMixin {
     required this.newsProviderPath,
     required this.headlinesProviderPath,
     required this.feedMarkets,
-    required this.smbertVocab,
-    required this.smbertModel,
+    required this.bert,
     required this.maxDocsPerFeedBatch,
     required this.maxDocsPerSearchBatch,
     required this.dataDir,
@@ -124,8 +120,7 @@ class InitConfigFfi with EquatableMixin {
     headlinesProviderPath
         .writeNative(ffi.init_config_place_of_headlines_provider_path(place));
     feedMarkets.writeVec(ffi.init_config_place_of_markets(place));
-    smbertVocab.writeNative(ffi.init_config_place_of_smbert_vocab(place));
-    smbertModel.writeNative(ffi.init_config_place_of_smbert_model(place));
+    bert.writeNative(ffi.init_config_place_of_bert(place));
     maxDocsPerFeedBatch
         .writeNative(ffi.init_config_place_of_max_docs_per_feed_batch(place));
     maxDocsPerSearchBatch
@@ -155,10 +150,7 @@ class InitConfigFfi with EquatableMixin {
       ),
       feedMarkets:
           FeedMarketSliceFfi.readVec(ffi.init_config_place_of_markets(config)),
-      smbertVocab:
-          StringFfi.readNative(ffi.init_config_place_of_smbert_vocab(config)),
-      smbertModel:
-          StringFfi.readNative(ffi.init_config_place_of_smbert_model(config)),
+      bert: StringFfi.readNative(ffi.init_config_place_of_bert(config)),
       maxDocsPerFeedBatch: FfiUsizeFfi.readNative(
         ffi.init_config_place_of_max_docs_per_feed_batch(config),
       ),

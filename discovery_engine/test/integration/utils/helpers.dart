@@ -23,7 +23,7 @@ import 'package:xayn_discovery_engine/discovery_engine.dart'
         FeedMarket,
         Manifest;
 import 'package:xayn_discovery_engine/src/domain/assets/assets.dart'
-    show Asset, AssetType, kAssetsPath;
+    show kAssetsPath;
 
 class TestEngineData {
   final Manifest manifest;
@@ -48,19 +48,9 @@ Future<TestEngineData> setupTestEngineData({
     recursive: true,
   );
   final manifest = await createManifestReader().read();
-  final assetsWithMockedModels = manifest.assets.map((asset) {
-    final isModelAsset = asset.id == AssetType.smbertModel;
 
-    if (isModelAsset) {
-      final urlSuffix = asset.urlSuffix.replaceAll(r'quantized', 'mocked');
-      return Asset(asset.id, urlSuffix, asset.checksum, asset.fragments);
-    }
-
-    return asset;
-  }).toList();
-  final mockedManifest = Manifest(assetsWithMockedModels);
   return TestEngineData(
-    mockedManifest,
+    manifest,
     applicationDirectoryPath,
     useEphemeralDb: useEphemeralDb,
   );

@@ -43,11 +43,11 @@ mod pooler;
 pub mod tokenizer;
 
 pub use crate::{
-    config::{Config, ConfigError},
-    model::kinds,
+    config::Config,
     pipeline::{Pipeline, PipelineError},
     pooler::{
         AveragePooler,
+        Embedding,
         Embedding1,
         Embedding2,
         FirstPooler,
@@ -56,20 +56,5 @@ pub use crate::{
     },
 };
 
-/// A sentence (embedding) multilingual Bert pipeline.
-pub type SMBert = Pipeline<kinds::SMBert, AveragePooler>;
-
-/// A sentence (embedding) multilingual Bert configuration.
-pub type SMBertConfig<'a, P> = Config<'a, kinds::SMBert, P>;
-
-/// A question answering (embedding) multilingual Bert pipeline.
-pub type QAMBert = Pipeline<kinds::QAMBert, AveragePooler>;
-
-/// A question answering (embedding) multilingual Bert configuration.
-pub type QAMBertConfig<'a, P> = Config<'a, kinds::QAMBert, P>;
-
-#[cfg(doc)]
-pub use crate::{
-    model::{BertModel, ModelError},
-    pooler::{Embedding, PoolerError},
-};
+/// A Bert pipeline with an average pooler.
+pub type AvgBert = Pipeline<AveragePooler>;

@@ -63,6 +63,7 @@ void main() {
         'when calling DiscoveryEngine "init" method with a proper configuration '
         'it will initialize the engine and return it\'s instance', () async {
       final assets = [
+        'smbertConfig',
         'smbertVocab',
         'smbertModel',
         'availableSources',

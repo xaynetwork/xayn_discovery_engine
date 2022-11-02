@@ -173,7 +173,7 @@ pub(crate) struct PersonalizedDocumentData {
     /// Similarity score of the personalized document.
     pub(crate) score: f32,
 
-    /// Embedding from smbert.
+    /// Embedding from Bert.
     #[serde(skip_serializing)]
     pub(crate) embedding: Embedding,
 
@@ -188,7 +188,7 @@ impl AiDocument for PersonalizedDocumentData {
         &self.id
     }
 
-    fn smbert_embedding(&self) -> &Embedding {
+    fn bert_embedding(&self) -> &Embedding {
         &self.embedding
     }
 }

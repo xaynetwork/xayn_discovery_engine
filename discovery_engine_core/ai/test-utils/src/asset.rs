@@ -13,21 +13,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    collections::HashMap,
     env::var_os,
-    fs::File,
-    io::{BufReader, Error, ErrorKind, Result},
+    io::{Error, ErrorKind, Result},
     path::{Path, PathBuf},
 };
 
-use serde::Deserialize;
-use serde_json::from_reader;
-
-pub(crate) const DATA_DIR: &str = "../discovery_engine_flutter/example/assets/";
-const ASSET_MANIFEST: &str = "../discovery_engine/lib/assets/asset_manifest.json";
+const DATA_DIR: &str = "../discovery_engine_flutter/example/assets/";
 
 /// Resolves the path to the requested data relative to the workspace directory.
-pub(crate) fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
+fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
     let manifest = var_os("CARGO_MANIFEST_DIR")
         .ok_or_else(|| Error::new(ErrorKind::NotFound, "missing CARGO_MANIFEST_DIR"))?;
 
@@ -42,36 +36,52 @@ pub(crate) fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
         .canonicalize()
 }
 
-#[derive(Deserialize)]
-struct Asset {
-    #[serde(rename(deserialize = "id"))]
-    name: String,
-    url_suffix: String,
+/// Resolves the path to the smbert.
+pub fn smbert() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "smbert_v0003"])
 }
 
-#[derive(Deserialize)]
-struct Assets {
-    assets: Vec<Asset>,
+/// Resolves the path to the quantized smbert.
+pub fn smbert_quantized() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "smbert_quantized_v0000"])
 }
 
-/// Reads the asset paths from the static assets file.
-fn read_assets() -> Result<HashMap<String, PathBuf>> {
-    let path = resolve_path(&[ASSET_MANIFEST])?;
-
-    from_reader::<_, Assets>(BufReader::new(File::open(path)?))
-        .map(|assets| {
-            assets
-                .assets
-                .into_iter()
-                .map(|asset| (asset.name, [DATA_DIR, &asset.url_suffix].iter().collect()))
-                .collect()
-        })
-        .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))
+/// Resolves the path to the mocked smbert.
+pub fn smbert_mocked() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "smbert_mocked_v0000"])
 }
 
-/// Resolves the path to the requested asset relative to the workspace directory.
-pub(crate) fn resolve_asset(asset: &str) -> Result<PathBuf> {
-    resolve_path(&[read_assets()?
-        .get(asset)
-        .ok_or_else(|| Error::new(ErrorKind::NotFound, format!("missing asset '{}'", asset)))?])
+/// Resolves the path to the sjbert.
+pub fn sjbert() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "sjbert_v0000"])
+}
+
+/// Resolves the path to the Bert validation transcripts.
+pub fn transcripts() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "ted_talk_transcripts.csv"])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_smbert() {
+        assert!(smbert().is_ok());
+    }
+
+    #[test]
+    fn test_smbert_quantized() {
+        assert!(smbert_quantized().is_ok());
+    }
+
+    #[test]
+    fn test_smbert_mocked() {
+        assert!(smbert_mocked().is_ok());
+    }
+
+    #[test]
+    fn test_sjbert() {
+        assert!(sjbert().is_ok());
+    }
 }

@@ -8,6 +8,7 @@ license = "AGPL-3.0-only"
 [dependencies]
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
+figment = { workspace = true, features = ["toml"] }
 float-cmp = { workspace = true }
 itertools = { workspace = true }
 lindera = { git = "https://github.com/lindera-morphology/lindera", rev = "316fcdeafa3f1f0253f29d6a9bf17c702668ec6d" }
@@ -27,7 +28,7 @@ indicatif = { workspace = true }
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
 
 [[example]]
-name = "mbert"
+name = "bert"
 test = false
 
 [[example]]
@@ -36,7 +37,7 @@ test = false
 required-features = ["onnxruntime"]
 
 [[bench]]
-name = "mbert"
+name = "bert"
 harness = false
 test = false
 required-features = ["onnxruntime"]

@@ -12,13 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Compares MBert models evaluated by the onnx or the tract runtime.
+//! Compares Bert models evaluated by the onnx or the tract runtime.
 //!
 //! Run as `cargo run --release --example validate --features onnxruntime`.
 
 use std::{
-    fs::File,
-    io::BufReader,
     marker::PhantomPinned,
     ops::{Bound, Deref, RangeBounds},
     path::{Path, PathBuf},
@@ -31,32 +29,21 @@ use ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use onnxruntime::{environment::Environment, session::Session, GraphOptimizationLevel};
 
 use xayn_discovery_engine_bert::{
-    kinds::{QAMBert, SMBert},
     tokenizer::Tokenizer,
     Config,
     Embedding2,
     NonePooler,
     Pipeline as BertPipeline,
 };
-use xayn_discovery_engine_test_utils::{example::validate::transcripts, smbert};
+use xayn_discovery_engine_test_utils::asset::{smbert, transcripts};
 
 fn main() {
     ValidatorConfig {
-        tokenizer: TokenizerConfig {
-            cleanse_accents: true,
-            lower_case: true,
-            token_size: 90,
-        },
-        source: ModelConfig {
-            kind: ModelKind::OnnxMBert,
-            vocab: smbert::vocab().unwrap(),
-            model: smbert::model().unwrap(),
-        },
-        target: ModelConfig {
-            kind: ModelKind::TractSMBert,
-            vocab: smbert::vocab().unwrap(),
-            model: smbert::model().unwrap(),
-        },
+        token_size: 90,
+        source_rt: Runtime::Onnx,
+        source_dir: smbert().unwrap(),
+        target_rt: Runtime::Tract,
+        target_dir: smbert().unwrap(),
         data: DataConfig {
             talks: transcripts().unwrap(),
             range: ..100,
@@ -67,35 +54,10 @@ fn main() {
     .print();
 }
 
-/// The available model kinds.
-#[allow(dead_code, clippy::enum_variant_names)]
-enum ModelKind {
-    /// A SMBert or QAMBert model for the onnx runtime.
-    OnnxMBert,
-    /// A SMBert model for the tract runtime.
-    TractSMBert,
-    /// A QAMBert model for the tract runtime.
-    TractQAMBert,
-}
-
-/// Tokenizer configurations.
-struct TokenizerConfig {
-    /// Whether to keep the accents on characters.
-    cleanse_accents: bool,
-    /// Whether to lowercase words.
-    lower_case: bool,
-    /// The number of tokens for truncation/padding.
-    token_size: usize,
-}
-
-/// Source or target model configurations.
-struct ModelConfig {
-    /// The model kind.
-    kind: ModelKind,
-    /// The path to the vocabulary.
-    vocab: PathBuf,
-    /// The path to the model.
-    model: PathBuf,
+/// The available runtimes.
+enum Runtime {
+    Onnx,
+    Tract,
 }
 
 /// Ted talks data configurations.
@@ -108,9 +70,11 @@ struct DataConfig<R: RangeBounds<usize>> {
 
 /// Combined validation configurations.
 struct ValidatorConfig<R: RangeBounds<usize>> {
-    tokenizer: TokenizerConfig,
-    source: ModelConfig,
-    target: ModelConfig,
+    token_size: usize,
+    source_rt: Runtime,
+    source_dir: PathBuf,
+    target_rt: Runtime,
+    target_dir: PathBuf,
     data: DataConfig<R>,
 }
 
@@ -121,19 +85,17 @@ impl<R: RangeBounds<usize>> ValidatorConfig<R> {
     }
 }
 
-/// The available MBert model pipelines.
+/// The available Bert model pipelines.
 #[allow(clippy::enum_variant_names)]
 enum Pipeline {
-    /// A SMBert or QAMBert model pipeline for the onnx runtime.
-    OnnxMBert {
+    /// A Bert model pipeline for the onnx runtime.
+    OnnxBert {
         tokenizer: Tokenizer,
         session: Session<'static>,
         _environment: Pin<Box<(Environment, PhantomPinned)>>,
     },
-    /// A SMBert model pipeline for the tract runtime.
-    TractSMBert(BertPipeline<SMBert, NonePooler>),
-    /// A QAMBert model pipeline for the tract runtime.
-    TractQAMBert(BertPipeline<QAMBert, NonePooler>),
+    /// A Bert model pipeline for the tract runtime.
+    TractBert(BertPipeline<NonePooler>),
 }
 
 // prevent moving out of the pipeline, since we can't pin the session together with the environment
@@ -142,18 +104,16 @@ impl Drop for Pipeline {
 }
 
 impl Pipeline {
-    /// Builds a pipeline from a tokenizer and model configuration.
-    fn build(tokenizer: &TokenizerConfig, model: &ModelConfig) -> Self {
-        match model.kind {
-            ModelKind::OnnxMBert => {
-                let tokenizer = Tokenizer::new(
-                    BufReader::new(File::open(model.vocab.as_path()).unwrap()),
-                    None,
-                    tokenizer.cleanse_accents,
-                    tokenizer.lower_case,
-                    tokenizer.token_size,
-                )
-                .unwrap();
+    /// Builds a pipeline from a configuration.
+    fn build(rt: Runtime, dir: &Path, token_size: usize) -> Self {
+        let config = Config::new(dir)
+            .unwrap()
+            .with_token_size(token_size)
+            .unwrap()
+            .with_pooler::<NonePooler>();
+        match rt {
+            Runtime::Onnx => {
+                let tokenizer = Tokenizer::new(&config).unwrap();
                 let _environment =
                     Box::pin((Environment::builder().build().unwrap(), PhantomPinned));
                 // Safety:
@@ -164,49 +124,23 @@ impl Pipeline {
                     .unwrap()
                     .with_optimization_level(GraphOptimizationLevel::DisableAll)
                     .unwrap()
-                    // Safety:
-                    // - the path becomes owned in the function before the pathbuf gets dropped here
-                    // - the file behind the path is valid at least for the duration of the program
-                    .with_model_from_file(unsafe {
-                        std::mem::transmute::<_, &'static Path>(model.model.as_path())
-                    })
+                    .with_model_from_file(config.extract::<&Path>("model.path").unwrap())
                     .unwrap();
 
-                Self::OnnxMBert {
+                Self::OnnxBert {
                     tokenizer,
                     session,
                     _environment,
                 }
             }
-            ModelKind::TractSMBert => {
-                let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
-                    .unwrap()
-                    .with_cleanse_accents(tokenizer.cleanse_accents)
-                    .with_lower_case(tokenizer.lower_case)
-                    .with_token_size(tokenizer.token_size)
-                    .unwrap()
-                    .with_pooling::<NonePooler>();
-
-                Self::TractSMBert(config.build().unwrap())
-            }
-            ModelKind::TractQAMBert => {
-                let config = Config::from_files(model.vocab.as_path(), model.model.as_path())
-                    .unwrap()
-                    .with_cleanse_accents(tokenizer.cleanse_accents)
-                    .with_lower_case(tokenizer.lower_case)
-                    .with_token_size(tokenizer.token_size)
-                    .unwrap()
-                    .with_pooling::<NonePooler>();
-
-                Self::TractQAMBert(config.build().unwrap())
-            }
+            Runtime::Tract => Self::TractBert(config.build().unwrap()),
         }
     }
 
     /// Runs the model pipeline to infer the embedding of a sequence.
     fn run(&mut self, sequence: impl AsRef<str>) -> Embedding2 {
         match self {
-            Self::OnnxMBert {
+            Self::OnnxBert {
                 tokenizer, session, ..
             } => {
                 let encoding = tokenizer.encode(sequence).unwrap();
@@ -215,8 +149,7 @@ impl Pipeline {
 
                 outputs[0].slice(s![0, .., ..]).to_owned().into()
             }
-            Self::TractSMBert(pipeline) => pipeline.run(sequence).unwrap(),
-            Self::TractQAMBert(pipeline) => pipeline.run(sequence).unwrap(),
+            Self::TractBert(pipeline) => pipeline.run(sequence).unwrap(),
         }
     }
 }
@@ -245,8 +178,8 @@ impl Validator {
             Bound::Excluded(end) => *end,
             Bound::Unbounded => 2467, // total #talks
         } - skip;
-        let source = Pipeline::build(&config.tokenizer, &config.source);
-        let target = Pipeline::build(&config.tokenizer, &config.target);
+        let source = Pipeline::build(config.source_rt, &config.source_dir, config.token_size);
+        let target = Pipeline::build(config.target_rt, &config.target_dir, config.token_size);
         let errors = Array1::default(11); // #sentences and mean & std per error
 
         Self {

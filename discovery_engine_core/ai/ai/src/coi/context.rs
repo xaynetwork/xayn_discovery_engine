@@ -196,7 +196,7 @@ pub(crate) fn compute_scores_for_docs<T: Document>(
         .iter()
         .map(|document| {
             let score = compute_score_for_embedding(
-                document.smbert_embedding(),
+                document.bert_embedding(),
                 user_interests,
                 config.horizon(),
                 now,

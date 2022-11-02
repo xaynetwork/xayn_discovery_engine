@@ -145,13 +145,6 @@ where
     }
 }
 
-/// The potential errors of the pooler.
-#[derive(Debug, Display, Error)]
-pub enum PoolerError {
-    /// Invalid prediction datum type {0}
-    Datum(#[from] TractError),
-}
-
 /// An inert pooling strategy.
 ///
 /// The prediction is just passed through.
@@ -159,7 +152,7 @@ pub struct NonePooler;
 
 impl NonePooler {
     /// Passes through the prediction.
-    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding2, PoolerError> {
+    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding2, TractError> {
         Ok(prediction
             .to_array_view()?
             .slice(s![0, .., ..])
@@ -175,7 +168,7 @@ pub struct FirstPooler;
 
 impl FirstPooler {
     /// Pools the prediction over its first token.
-    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding1, PoolerError> {
+    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding1, TractError> {
         Ok(prediction
             .to_array_view()?
             .slice(s![0, 0, ..])
@@ -194,7 +187,7 @@ impl AveragePooler {
     pub(crate) fn pool(
         prediction: &Prediction,
         attention_mask: &AttentionMask,
-    ) -> Result<Embedding1, PoolerError> {
+    ) -> Result<Embedding1, TractError> {
         let attention_mask: Array1<f32> = attention_mask.slice(s![0, ..]).mapv(
             #[allow(clippy::cast_precision_loss)] // values are only 0 or 1
             |mask| mask as f32,
