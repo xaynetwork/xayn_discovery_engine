@@ -16,7 +16,6 @@ use actix_web::http::StatusCode;
 use displaydoc::Display;
 use serde::Serialize;
 use thiserror::Error;
-use tracing::error;
 
 use crate::{impl_application_error, models::DocumentId};
 

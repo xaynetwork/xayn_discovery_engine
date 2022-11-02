@@ -105,11 +105,11 @@ macro_rules! impl_application_error {
                 stringify!($name)
             }
 
-            fn encode_details(&self) -> serde_json::Value {
+            fn encode_details(&self) -> ::serde_json::Value {
                 ::serde_json::to_value(self)
                     .unwrap_or_else(|err| {
-                        error!(%err, "serializing error details failed");
-                        serde_json::Value::Null
+                        ::tracing::error!(%err, "serializing error details failed");
+                        ::serde_json::Value::Null
                     })
             }
         }
