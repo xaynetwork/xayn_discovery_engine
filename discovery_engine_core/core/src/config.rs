@@ -72,6 +72,14 @@ pub struct InitConfig {
     pub api_key: String,
     /// API base url.
     pub api_base_url: String,
+    /// Route for the news provider.
+    pub news_provider: Option<String>,
+    /// Route for the similar news provider.
+    pub similar_news_provider: Option<String>,
+    /// Route for the headlines provider.
+    pub headlines_provider: Option<String>,
+    /// Route for the trusted headlines provider.
+    pub trusted_headlines_provider: Option<String>,
     /// List of markets to use.
     pub markets: Vec<Market>,
     /// Bert path.

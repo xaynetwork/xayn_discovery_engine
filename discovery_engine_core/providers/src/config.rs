@@ -25,9 +25,9 @@ pub struct Config {
     pub(crate) url: Url,
     /// The auth token/key to the provider API.
     pub(crate) token: String,
-    /// The timeout of the provider API.
+    /// The timeout of the provider API. Defaults to 3500ms.
     pub(crate) timeout: Duration,
-    /// The number of retries in case of a timeout.
+    /// The number of retries in case of a timeout. Defaults to 0.
     pub(crate) retry: usize,
     /// Use POST for GET requests.
     ///
@@ -36,15 +36,14 @@ pub struct Config {
 }
 
 impl Config {
-    pub(crate) const NEWS: &'static str = "/newscatcher/v2/search";
-    pub(crate) const SIMILAR_NEWS: &'static str = "/_mlt";
-    pub(crate) const HEADLINES: &'static str = "/newscatcher/v2/latest_headlines";
-    pub(crate) const TRUSTED_HEADLINES: &'static str = "/newscatcher/v2/trusted-sources";
-    pub(crate) const TRENDING_TOPICS: &'static str = "/bing/v1/trending-topics";
+    pub(crate) const NEWS: &str = "/newscatcher/v2/search";
+    pub(crate) const SIMILAR_NEWS: &str = "/_mlt";
+    pub(crate) const HEADLINES: &str = "/newscatcher/v2/latest_headlines";
+    pub(crate) const TRUSTED_HEADLINES: &str = "/newscatcher/v2/trusted-sources";
 
     pub(crate) fn new(
         base: &str,
-        route: &'static str,
+        route: &str,
         token: impl Into<String>,
         get_as_post: bool,
     ) -> Result<Self, Error> {
@@ -59,24 +58,32 @@ impl Config {
         })
     }
 
-    pub fn news(base: &str, token: impl Into<String>) -> Result<Self, Error> {
-        Self::new(base, Self::NEWS, token, true)
+    pub fn news(base: &str, route: Option<&str>, token: impl Into<String>) -> Result<Self, Error> {
+        Self::new(base, route.unwrap_or(Self::NEWS), token, true)
     }
 
-    pub fn similar_news(base: &str, token: impl Into<String>) -> Result<Self, Error> {
-        Self::new(base, Self::SIMILAR_NEWS, token, true)
+    pub fn similar_news(
+        base: &str,
+        route: Option<&str>,
+        token: impl Into<String>,
+    ) -> Result<Self, Error> {
+        Self::new(base, route.unwrap_or(Self::SIMILAR_NEWS), token, true)
     }
 
-    pub fn headlines(base: &str, token: impl Into<String>) -> Result<Self, Error> {
-        Self::new(base, Self::HEADLINES, token, true)
+    pub fn headlines(
+        base: &str,
+        route: Option<&str>,
+        token: impl Into<String>,
+    ) -> Result<Self, Error> {
+        Self::new(base, route.unwrap_or(Self::HEADLINES), token, true)
     }
 
-    pub fn trusted_headlines(base: &str, token: impl Into<String>) -> Result<Self, Error> {
-        Self::new(base, Self::TRUSTED_HEADLINES, token, true)
-    }
-
-    pub fn trending_topics(base: &str, token: impl Into<String>) -> Result<Self, Error> {
-        Self::new(base, Self::TRENDING_TOPICS, token, false)
+    pub fn trusted_headlines(
+        base: &str,
+        route: Option<&str>,
+        token: impl Into<String>,
+    ) -> Result<Self, Error> {
+        Self::new(base, route.unwrap_or(Self::TRUSTED_HEADLINES), token, true)
     }
 
     pub fn with_timeout(mut self, millis: u64) -> Self {
@@ -102,10 +109,9 @@ mod tests {
     fn test_defaults() {
         let base = "https://api.example.com";
         let token = "test-token";
-        let _config = Config::news(base, token).unwrap();
-        let _config = Config::similar_news(base, token).unwrap();
-        let _config = Config::headlines(base, token).unwrap();
-        let _config = Config::trusted_headlines(base, token).unwrap();
-        let _config = Config::trending_topics(base, token).unwrap();
+        let _config = Config::news(base, None, token).unwrap();
+        let _config = Config::similar_news(base, None, token).unwrap();
+        let _config = Config::headlines(base, None, token).unwrap();
+        let _config = Config::trusted_headlines(base, None, token).unwrap();
     }
 }

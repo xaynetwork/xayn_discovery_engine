@@ -35,6 +35,10 @@ class Configuration with _$Configuration {
     required FeedMarkets feedMarkets,
     required Manifest manifest,
     @Default(false) bool useEphemeralDb,
+    String? newsProvider,
+    String? similarNewsProvider,
+    String? headlinesProvider,
+    String? trustedHeadlinesProvider,
     String? logFile,
   }) = _Configuration;
 

@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
         "Please provide the NEWSCATCHER_DEV_BEARER_AUTH_TOKEN environment variable for the dev environment. \
                   The token can be found in 1Password",
     )?;
-    let config = Config::headlines(base_url, token)?
+    let config = Config::headlines(base_url, None, token)?
         .with_timeout(3500)
         .with_retry(3);
     let provider = NewscatcherHeadlinesProvider::from_endpoint(RestEndpoint::new(config));

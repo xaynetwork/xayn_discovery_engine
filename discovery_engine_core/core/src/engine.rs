@@ -309,6 +309,10 @@ impl Engine {
         let providers = Providers::new(
             &config.api_base_url,
             config.api_key,
+            config.news_provider.as_deref(),
+            config.similar_news_provider.as_deref(),
+            config.headlines_provider.as_deref(),
+            config.trusted_headlines_provider.as_deref(),
             de_config.extract_inner("endpoint.timeout").ok(),
             de_config.extract_inner("endpoint.retry").ok(),
         )
@@ -1453,6 +1457,10 @@ pub(crate) mod tests {
             let config = InitConfig {
                 api_key: "test-token".into(),
                 api_base_url: server.uri(),
+                news_provider: None,
+                similar_news_provider: None,
+                headlines_provider: None,
+                trusted_headlines_provider: None,
                 markets: vec![Market::new("en", "US")],
                 bert: smbert_mocked().unwrap().display().to_string(),
                 max_docs_per_feed_batch: FeedConfig::default()
