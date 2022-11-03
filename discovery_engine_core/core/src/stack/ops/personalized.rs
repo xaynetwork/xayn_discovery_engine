@@ -23,8 +23,8 @@ use xayn_discovery_engine_providers::{
     GenericArticle,
     Market,
     RankLimit,
-    SimilarNewsProvider,
-    SimilarNewsQuery,
+    SimilarSearchProvider,
+    SimilarSearchQuery,
 };
 
 use crate::{
@@ -40,7 +40,7 @@ use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for personalized news items.
 pub struct PersonalizedNews {
-    client: Arc<dyn SimilarNewsProvider>,
+    client: Arc<dyn SimilarSearchProvider>,
     excluded_sources: Arc<RwLock<Vec<String>>>,
     page_size: usize,
     max_requests: usize,
@@ -58,7 +58,7 @@ impl PersonalizedNews {
     }
 
     /// Creates a personalized news stack.
-    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn SimilarNewsProvider>) -> Self {
+    pub(crate) fn new(config: &EndpointConfig, client: Arc<dyn SimilarSearchProvider>) -> Self {
         Self {
             client,
             page_size: config.page_size,
@@ -115,7 +115,7 @@ impl Ops for PersonalizedNews {
             self.min_articles,
             self.page_size,
             |request_num| {
-                spawn_news_request(
+                spawn_search_request(
                     self.client.clone(),
                     market.clone(),
                     phrase.to_string(),
@@ -136,8 +136,8 @@ impl Ops for PersonalizedNews {
     }
 }
 
-fn spawn_news_request(
-    client: Arc<dyn SimilarNewsProvider>,
+fn spawn_search_request(
+    client: Arc<dyn SimilarSearchProvider>,
     market: Market,
     like: String,
     page_size: usize,
@@ -147,7 +147,7 @@ fn spawn_news_request(
 ) -> JoinHandle<Result<Vec<GenericArticle>, GenericError>> {
     tokio::spawn(async move {
         let market = market;
-        let query = SimilarNewsQuery {
+        let query = SimilarSearchQuery {
             market: &market,
             page_size,
             page,
@@ -156,6 +156,9 @@ fn spawn_news_request(
             like: &like,
             max_age_days: Some(max_article_age_days),
         };
-        client.query_similar_news(&query).await.map_err(Into::into)
+        client
+            .query_similar_search(&query)
+            .await
+            .map_err(Into::into)
     })
 }

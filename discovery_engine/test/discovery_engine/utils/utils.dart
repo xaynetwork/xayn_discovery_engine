@@ -183,8 +183,6 @@ final mockConfig = Configuration(
   applicationDirectoryPath: './',
   feedMarkets: {const FeedMarket(langCode: 'de', countryCode: 'DE')},
   manifest: Manifest.fromJson(goodJson),
-  headlinesProviderPath: '/newscatcher/v1/latest-headlines',
-  newsProviderPath: '/newscatcher/v1/search-news',
 );
 
 final mockNewsResource = NewsResource(

@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashSet, sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc};
 
 use figment::{
     providers::{Format, Json, Serialized},
@@ -72,10 +72,14 @@ pub struct InitConfig {
     pub api_key: String,
     /// API base url.
     pub api_base_url: String,
-    /// Url path for the news search provider.
-    pub news_provider_path: String,
-    /// Url path for the latest headlines provider.
-    pub headlines_provider_path: String,
+    /// Route for the news provider.
+    pub news_provider: Option<String>,
+    /// Route for the similar news provider.
+    pub similar_news_provider: Option<String>,
+    /// Route for the headlines provider.
+    pub headlines_provider: Option<String>,
+    /// Route for the trusted headlines provider.
+    pub trusted_headlines_provider: Option<String>,
     /// List of markets to use.
     pub markets: Vec<Market>,
     /// Bert path.
@@ -124,11 +128,6 @@ pub struct EndpointConfig {
     /// The maximum age of a news article, in days, after which we no longer
     /// want to display them.
     pub max_article_age_days: usize,
-    /// The timeout after which a provider aborts a request.
-    #[serde(with = "serde_duration_as_milliseconds")]
-    pub timeout: Duration,
-    /// The number of retries in case of a timeout.
-    pub retry: usize,
 }
 
 impl Default for EndpointConfig {
@@ -142,8 +141,6 @@ impl Default for EndpointConfig {
             min_articles: 20,
             max_headline_age_days: 3,
             max_article_age_days: 30,
-            timeout: Duration::from_millis(3500),
-            retry: 0,
         }
     }
 }
@@ -314,27 +311,6 @@ pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
         ))
 }
 
-pub(crate) mod serde_duration_as_milliseconds {
-    use std::time::Duration;
-
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    #[allow(clippy::cast_possible_truncation)] // durations are small enough
-    pub(crate) fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        (duration.as_millis() as u64).serialize(serializer)
-    }
-
-    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        u64::deserialize(deserializer).map(Duration::from_millis)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use xayn_discovery_engine_ai::GenericError;
@@ -382,6 +358,8 @@ mod tests {
             de_config.extract_inner::<EndpointConfig>("endpoint")?,
             EndpointConfig::default(),
         );
+        assert!(de_config.extract_inner::<u64>("endpoint.timeout").is_err());
+        assert!(de_config.extract_inner::<usize>("endpoint.retry").is_err());
         assert_eq!(
             de_config.extract_inner::<StackConfig>(&format!("stacks.{}", BreakingNews::id()))?,
             StackConfig::default(),
@@ -444,11 +422,10 @@ mod tests {
         );
         assert_eq!(
             de_config.extract_inner::<EndpointConfig>("endpoint")?,
-            EndpointConfig {
-                timeout: Duration::from_millis(1234),
-                ..EndpointConfig::default()
-            },
+            EndpointConfig::default(),
         );
+        assert_eq!(de_config.extract_inner::<u64>("endpoint.timeout")?, 1234);
+        assert!(de_config.extract_inner::<usize>("endpoint.retry").is_err());
         assert_eq!(
             de_config
                 .extract_inner::<ExplorationConfig>(&format!("stacks.{}", Exploration::id()))?,

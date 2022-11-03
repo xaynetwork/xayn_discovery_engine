@@ -69,14 +69,14 @@ class LocalNewsApiServer {
           break;
         case ReplyWith.data:
           switch (request.uri.path) {
-            case '/newscatcher/v1/search-news':
+            case '/newscatcher/v2/search':
             case '/_mlt':
               await _replyWithData(
                 request,
                 _snFiles.asMap()[_snCounter++] ?? 'search-news-empty.json',
               );
               break;
-            case '/newscatcher/v1/latest-headlines':
+            case '/newscatcher/v2/latest_headlines':
             case '/newscatcher/v2/trusted-sources':
               await _replyWithData(request, _lhFile);
               break;
@@ -90,7 +90,7 @@ class LocalNewsApiServer {
           break;
         case ReplyWith.data2:
           switch (request.uri.path) {
-            case '/newscatcher/v1/search-news':
+            case '/newscatcher/v2/search':
               await _replyWithData(request, 'msft-vs-aapl.json');
               break;
             default:

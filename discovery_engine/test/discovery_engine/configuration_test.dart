@@ -34,8 +34,6 @@ void main() {
           maxItemsPerSearchBatch: -1,
           applicationDirectoryPath: '',
           manifest: Manifest([]),
-          headlinesProviderPath: '/newscatcher/v1/latest-headlines',
-          newsProviderPath: '/newscatcher/v1/search-news',
         ),
         throwsA(isA<AssertionError>()),
       );

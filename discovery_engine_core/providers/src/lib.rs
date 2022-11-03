@@ -30,52 +30,61 @@
     clippy::must_use_candidate
 )]
 
+mod config;
 mod error;
-mod helpers;
 mod mlt;
 mod models;
 mod newscatcher;
+mod utils;
 
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use url::Url;
 
-use self::mlt::MltSimilarNewsProvider;
-
-pub use self::{
+pub use crate::{
+    config::Config,
     error::Error,
-    helpers::{
-        clean_query::clean_query,
-        filter::{Filter, Market},
-        rest_endpoint::RestEndpoint,
-    },
+    mlt::MltSimilarSearchProvider,
     models::{
-        GenericArticle,
-        HeadlinesQuery,
-        NewsQuery,
-        Rank,
-        RankLimit,
-        SimilarNewsQuery,
-        TrustedHeadlinesQuery,
-        UrlWithDomain,
+        content::{GenericArticle, Rank, UrlWithDomain},
+        query::{
+            HeadlinesQuery,
+            RankLimit,
+            SearchQuery,
+            SimilarSearchQuery,
+            TrustedHeadlinesQuery,
+        },
     },
     newscatcher::{
         Article as NewscatcherArticle,
         NewscatcherHeadlinesProvider,
-        NewscatcherNewsProvider,
+        NewscatcherSearchProvider,
         NewscatcherTrustedHeadlinesProvider,
         Response as NewscatcherResponse,
     },
+    utils::{
+        clean_query::clean_query,
+        filter::{Filter, Market},
+        rest_endpoint::RestEndpoint,
+    },
 };
 
-/// Provider for news search functionality.
+/// Provider for search.
 #[async_trait]
-pub trait NewsProvider: Send + Sync {
-    async fn query_news(&self, query: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error>;
+pub trait SearchProvider: Send + Sync {
+    async fn query_search(&self, query: &SearchQuery<'_>) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Provider for the latest headlines.
+/// Provider for similar search.
+#[async_trait]
+pub trait SimilarSearchProvider: Send + Sync {
+    async fn query_similar_search(
+        &self,
+        query: &SimilarSearchQuery<'_>,
+    ) -> Result<Vec<GenericArticle>, Error>;
+}
+
+/// Provider for headlines.
 #[async_trait]
 pub trait HeadlinesProvider: Send + Sync {
     async fn query_headlines(
@@ -87,134 +96,61 @@ pub trait HeadlinesProvider: Send + Sync {
 /// Provider for headlines only from trusted sources.
 #[async_trait]
 pub trait TrustedHeadlinesProvider: Send + Sync {
-    async fn query_trusted_sources(
+    async fn query_trusted_headlines(
         &self,
         query: &TrustedHeadlinesQuery<'_>,
     ) -> Result<Vec<GenericArticle>, Error>;
 }
 
-/// Provider for similar news.
-#[async_trait]
-pub trait SimilarNewsProvider: Send + Sync {
-    async fn query_similar_news(
-        &self,
-        query: &SimilarNewsQuery<'_>,
-    ) -> Result<Vec<GenericArticle>, Error>;
-}
-
-pub struct ProviderConfig {
-    pub api_base_url: String,
-    /// Key for accessing the API.
-    pub api_key: String,
-    /// Url path for the news search provider.
-    pub news_provider_path: String,
-    /// Url path for the latest headlines provider.
-    pub headlines_provider_path: String,
-    /// The timeout after which a provider aborts a request.
-    pub timeout: Duration,
-    /// The number of retries in case of a timeout.
-    pub retry: usize,
-}
-
 pub struct Providers {
+    pub search: Arc<dyn SearchProvider>,
+    pub similar_search: Arc<dyn SimilarSearchProvider>,
     pub headlines: Arc<dyn HeadlinesProvider>,
     pub trusted_headlines: Arc<dyn TrustedHeadlinesProvider>,
-    pub news: Arc<dyn NewsProvider>,
-    pub similar_news: Arc<dyn SimilarNewsProvider>,
-}
-
-fn create_endpoint_url(raw_base_url: &str, path: &str) -> Result<Url, Error> {
-    let mut base_url = Url::parse(raw_base_url).map_err(|_| Error::MalformedUrlInConfig {
-        url: raw_base_url.into(),
-    })?;
-
-    let mut segments = base_url
-        .path_segments_mut()
-        .map_err(|_| Error::MalformedUrlInConfig {
-            url: raw_base_url.into(),
-        })?;
-
-    segments.pop_if_empty();
-    let stripped_path = path.strip_prefix('/').unwrap_or(path);
-    let stripped_path = stripped_path.strip_suffix('/').unwrap_or(stripped_path);
-
-    for new_segment in stripped_path.split('/') {
-        segments.push(new_segment);
-        if new_segment.is_empty() {
-            return Err(Error::MalformedUrlPathInConfig { path: path.into() });
-        }
-    }
-
-    drop(segments);
-    Ok(base_url)
-}
-
-fn select_provider<T: ?Sized>(
-    endpoint: RestEndpoint,
-    create_newscatcher: impl FnOnce(RestEndpoint) -> Arc<T>,
-) -> Result<Arc<T>, Error> {
-    if let Some(segments) = endpoint.url().path_segments() {
-        for segment in segments {
-            return match segment {
-                "newscatcher" => Ok(create_newscatcher(endpoint)),
-                _ => continue,
-            };
-        }
-    }
-
-    Err(Error::NoProviderForEndpoint {
-        url: endpoint.url().to_string(),
-    })
 }
 
 impl Providers {
-    pub fn new(config: ProviderConfig) -> Result<Self, Error> {
-        let headlines_endpoint = RestEndpoint::new(
-            create_endpoint_url(&config.api_base_url, &config.headlines_provider_path)?,
-            config.api_key.clone(),
-            config.timeout,
-            config.retry,
-        )
-        .with_get_as_post(true);
-        let headlines = select_provider(
-            headlines_endpoint,
-            NewscatcherHeadlinesProvider::from_endpoint,
-        )?;
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        api_base_url: &str,
+        api_key: String,
+        search_provider: Option<&str>,
+        similar_search_provider: Option<&str>,
+        headlines_provider: Option<&str>,
+        trusted_headlines_provider: Option<&str>,
+        timeout: Option<u64>,
+        retry: Option<usize>,
+    ) -> Result<Self, Error> {
+        let mut search = Config::search(api_base_url, search_provider, &api_key)?;
+        let mut similar_search =
+            Config::similar_search(api_base_url, similar_search_provider, &api_key)?;
+        let mut headlines = Config::headlines(api_base_url, headlines_provider, &api_key)?;
+        let mut trusted_headlines =
+            Config::trusted_headlines(api_base_url, trusted_headlines_provider, api_key)?;
+        if let Some(timeout) = timeout.map(Duration::from_millis) {
+            search.timeout = timeout;
+            similar_search.timeout = timeout;
+            headlines.timeout = timeout;
+            trusted_headlines.timeout = timeout;
+        }
+        if let Some(retry) = retry {
+            search.retry = retry;
+            similar_search.retry = retry;
+            headlines.retry = retry;
+            trusted_headlines.retry = retry;
+        }
 
-        let news_endpoint = RestEndpoint::new(
-            create_endpoint_url(&config.api_base_url, &config.news_provider_path)?,
-            config.api_key.clone(),
-            config.timeout,
-            config.retry,
-        )
-        .with_get_as_post(true);
-        let news = select_provider(news_endpoint, NewscatcherNewsProvider::from_endpoint)?;
-
-        // Note: Trusted-sources only works with newscatcher for now.
-        let trusted_headlines_endpoint = RestEndpoint::new(
-            create_endpoint_url(&config.api_base_url, "newscatcher/v2/trusted-sources")?,
-            config.api_key.clone(),
-            config.timeout,
-            config.retry,
-        )
-        .with_get_as_post(true);
+        let search = NewscatcherSearchProvider::from_endpoint(search.build());
+        let similar_search = MltSimilarSearchProvider::from_endpoint(similar_search.build());
+        let headlines = NewscatcherHeadlinesProvider::from_endpoint(headlines.build());
         let trusted_headlines =
-            NewscatcherTrustedHeadlinesProvider::from_endpoint(trusted_headlines_endpoint);
-
-        let similar_news_endpoint = RestEndpoint::new(
-            create_endpoint_url(&config.api_base_url, "_mlt")?,
-            config.api_key,
-            config.timeout,
-            config.retry,
-        )
-        .with_get_as_post(true);
-        let similar_news = MltSimilarNewsProvider::from_endpoint(similar_news_endpoint);
+            NewscatcherTrustedHeadlinesProvider::from_endpoint(trusted_headlines.build());
 
         Ok(Providers {
+            search,
+            similar_search,
             headlines,
             trusted_headlines,
-            news,
-            similar_news,
         })
     }
 }

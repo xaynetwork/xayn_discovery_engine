@@ -143,7 +143,7 @@ fn spawn_trusted_request(
             max_age_days: Some(max_headline_age_days),
         };
         client
-            .query_trusted_sources(&query)
+            .query_trusted_headlines(&query)
             .await
             .map_err(Into::into)
     })

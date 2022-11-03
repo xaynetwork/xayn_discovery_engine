@@ -17,7 +17,7 @@ use derive_more::Deref;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::{Error, Error::InvalidUrl, NewscatcherArticle};
+use crate::{error::Error, newscatcher::Article as NewscatcherArticle};
 
 /// A helper type used to ensure that, within the [`GenericArticle`] struct,
 /// we never use a URL which does not have a domain, such as `file:///foo/bar`.
@@ -34,7 +34,7 @@ impl UrlWithDomain {
     }
 
     pub fn parse(input: &str) -> Result<Self, Error> {
-        let url = Url::parse(input).map_err(InvalidUrl)?;
+        let url = Url::parse(input).map_err(Error::InvalidUrl)?;
         UrlWithDomain::new(url).ok_or_else(|| Error::MissingDomainInUrl(input.to_string()))
     }
 
@@ -195,7 +195,7 @@ mod tests {
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
-        assert!(matches!(res, Err(InvalidUrl(_))));
+        assert!(matches!(res, Err(Error::InvalidUrl(_))));
     }
 
     #[test]
@@ -217,6 +217,6 @@ mod tests {
         };
 
         let res: Result<GenericArticle, _> = invalid_url.try_into();
-        assert!(matches!(res, Err(InvalidUrl(_))));
+        assert!(matches!(res, Err(Error::InvalidUrl(_))));
     }
 }

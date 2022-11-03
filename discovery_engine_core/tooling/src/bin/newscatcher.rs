@@ -30,38 +30,36 @@
     clippy::must_use_candidate
 )]
 
-use std::time::Duration;
-
 use anyhow::{Context, Result};
-use url::Url;
 use xayn_discovery_engine_providers::{
-    HeadlinesProvider,
+    Config,
     HeadlinesQuery,
     Market,
     NewscatcherHeadlinesProvider,
     RankLimit,
+    RestEndpoint,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let url = Url::parse("https://api-gw.xaynet.dev/newscatcher/v1/latest-headlines").unwrap();
+    let base_url = "https://api-gw.xaynet.dev";
     let token = std::env::var("NEWSCATCHER_DEV_BEARER_AUTH_TOKEN").context(
         "Please provide the NEWSCATCHER_DEV_BEARER_AUTH_TOKEN environment variable for the dev environment. \
                   The token can be found in 1Password",
     )?;
-    let timeout = Duration::from_millis(3500);
-    let retry = 3;
+    let config = Config::headlines(base_url, None, token)?
+        .with_timeout(3500)
+        .with_retry(3);
+    let provider = NewscatcherHeadlinesProvider::from_endpoint(RestEndpoint::new(config));
 
     tokio::fs::create_dir("./headlines_download")
         .await
         .context("Failed to create download directory. Does it already exist?")?;
 
-    let provider = NewscatcherHeadlinesProvider::new(url, token, timeout, retry);
-    let market = Market::new("en", "US");
-
     // This is updated every iteration, based on the response from Newscatcher. So in reality,
     // we'll be fetching more than one page.
     let mut page = 1;
+    let market = Market::new("en", "US");
     loop {
         println!("Fetching page {}", page);
         let params = HeadlinesQuery {

@@ -52,11 +52,10 @@ use xayn_discovery_engine_providers::{
     GenericArticle,
     HeadlinesQuery,
     Market,
-    NewsQuery,
-    ProviderConfig,
     Providers,
     RankLimit,
-    SimilarNewsQuery,
+    SearchQuery,
+    SimilarSearchQuery,
 };
 
 use crate::{
@@ -307,15 +306,17 @@ impl Engine {
                 storage.source_preference().fetch_trusted().await?,
                 storage.source_preference().fetch_excluded().await?,
             );
-        let provider_config = ProviderConfig {
-            api_base_url: config.api_base_url,
-            api_key: config.api_key,
-            news_provider_path: config.news_provider_path,
-            headlines_provider_path: config.headlines_provider_path,
-            timeout: endpoint_config.timeout,
-            retry: endpoint_config.retry,
-        };
-        let providers = Providers::new(provider_config).map_err(Error::ProviderError)?;
+        let providers = Providers::new(
+            &config.api_base_url,
+            config.api_key,
+            config.news_provider.as_deref(),
+            config.similar_news_provider.as_deref(),
+            config.headlines_provider.as_deref(),
+            config.trusted_headlines_provider.as_deref(),
+            de_config.extract_inner("endpoint.timeout").ok(),
+            de_config.extract_inner("endpoint.retry").ok(),
+        )
+        .map_err(Error::ProviderError)?;
         let stack_ops = vec![
             Box::new(BreakingNews::new(
                 &endpoint_config,
@@ -327,7 +328,7 @@ impl Engine {
             )) as BoxedOps,
             Box::new(PersonalizedNews::new(
                 &endpoint_config,
-                providers.similar_news.clone(),
+                providers.similar_search.clone(),
             )) as BoxedOps,
         ];
 
@@ -727,7 +728,7 @@ impl Engine {
             return Ok(Vec::new());
         }
 
-        let query = SimilarNewsQuery {
+        let query = SimilarSearchQuery {
             like: stored_document.snippet_or_title(),
             market: &stored_document.news_resource.market,
             page_size: self.core_config.deep_search_max,
@@ -739,8 +740,8 @@ impl Engine {
 
         let articles = self
             .providers
-            .similar_news
-            .query_similar_news(&query)
+            .similar_search
+            .query_similar_search(&query)
             .await
             .map_err(|error| Error::Client(error.into()))?;
         let articles = MalformedFilter::apply(&[], &[], articles)?;
@@ -850,7 +851,7 @@ impl Engine {
         for market in markets.iter() {
             let query_result = match &by {
                 SearchBy::Query(filter) => {
-                    let news_query = NewsQuery {
+                    let query = SearchQuery {
                         filter: filter.as_ref(),
                         max_age_days: None,
                         market,
@@ -859,10 +860,10 @@ impl Engine {
                         rank_limit: RankLimit::Unlimited,
                         excluded_sources: &excluded_sources,
                     };
-                    self.providers.news.query_news(&news_query).await
+                    self.providers.search.query_search(&query).await
                 }
                 SearchBy::Topic(topic) => {
-                    let headlines_query = HeadlinesQuery {
+                    let query = HeadlinesQuery {
                         trusted_sources: &[],
                         topic: Some(topic),
                         max_age_days: None,
@@ -872,10 +873,7 @@ impl Engine {
                         rank_limit: RankLimit::Unlimited,
                         excluded_sources: &excluded_sources,
                     };
-                    self.providers
-                        .headlines
-                        .query_headlines(&headlines_query)
-                        .await
+                    self.providers.headlines.query_headlines(&query).await
                 }
             };
             query_result.map_or_else(
@@ -1448,9 +1446,7 @@ pub(crate) mod tests {
                 .set_body_string(include_str!("../test-fixtures/newscatcher/duplicates.json"));
 
             Mock::given(method("POST"))
-                .and(path_regex(
-                    "/newscatcher/headlines-endpoint-name|/newscatcher/v2/trusted-sources|newscatcher/news-endpoint-name",
-                ))
+                .and(path_regex("/*"))
                 .respond_with(tmpl)
                 .mount(&server)
                 .await;
@@ -1458,8 +1454,10 @@ pub(crate) mod tests {
             let config = InitConfig {
                 api_key: "test-token".into(),
                 api_base_url: server.uri(),
-                news_provider_path: "newscatcher/news-endpoint-name".into(),
-                headlines_provider_path: "newscatcher/headlines-endpoint-name".into(),
+                news_provider: None,
+                similar_news_provider: None,
+                headlines_provider: None,
+                trusted_headlines_provider: None,
                 markets: vec![Market::new("en", "US")],
                 bert: smbert_mocked().unwrap().display().to_string(),
                 max_docs_per_feed_batch: FeedConfig::default()
@@ -1829,7 +1827,7 @@ pub(crate) mod tests {
                 |config: &EndpointConfig, providers: &Providers| {
                     Box::new(PersonalizedNews::new(
                         config,
-                        providers.similar_news.clone(),
+                        providers.similar_search.clone(),
                     )) as _
                 },
             ],

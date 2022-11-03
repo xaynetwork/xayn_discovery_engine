@@ -38,8 +38,10 @@ import 'package:xayn_discovery_engine/src/infrastructure/migration.dart';
 class InitConfigFfi with EquatableMixin {
   final String apiKey;
   final String apiBaseUrl;
-  final String newsProviderPath;
-  final String headlinesProviderPath;
+  final String? newsProvider;
+  final String? similarNewsProvider;
+  final String? headlinesProvider;
+  final String? trustedHeadlinesProvider;
   final List<FeedMarket> feedMarkets;
   final String bert;
   final int maxDocsPerFeedBatch;
@@ -54,8 +56,10 @@ class InitConfigFfi with EquatableMixin {
   List<Object?> get props => [
         apiKey,
         apiBaseUrl,
-        newsProviderPath,
-        headlinesProviderPath,
+        newsProvider,
+        similarNewsProvider,
+        headlinesProvider,
+        trustedHeadlinesProvider,
         feedMarkets,
         bert,
         maxDocsPerFeedBatch,
@@ -76,8 +80,10 @@ class InitConfigFfi with EquatableMixin {
       InitConfigFfi.fromParts(
         apiKey: configuration.apiKey,
         apiBaseUrl: configuration.apiBaseUrl,
-        newsProviderPath: configuration.newsProviderPath,
-        headlinesProviderPath: configuration.headlinesProviderPath,
+        newsProvider: configuration.newsProvider,
+        similarNewsProvider: configuration.similarNewsProvider,
+        headlinesProvider: configuration.headlinesProvider,
+        trustedHeadlinesProvider: configuration.trustedHeadlinesProvider,
         feedMarkets: configuration.feedMarkets.toList(),
         bert: setupData.smbertConfig.replaceAll('/config.toml', ''),
         maxDocsPerFeedBatch: configuration.maxItemsPerFeedBatch,
@@ -92,14 +98,16 @@ class InitConfigFfi with EquatableMixin {
   InitConfigFfi.fromParts({
     required this.apiKey,
     required this.apiBaseUrl,
-    required this.newsProviderPath,
-    required this.headlinesProviderPath,
     required this.feedMarkets,
     required this.bert,
     required this.maxDocsPerFeedBatch,
     required this.maxDocsPerSearchBatch,
     required this.dataDir,
     required this.useEphemeralDb,
+    this.newsProvider,
+    this.similarNewsProvider,
+    this.headlinesProvider,
+    this.trustedHeadlinesProvider,
     this.deConfig,
     this.logFile,
     this.dartMigrationData,
@@ -115,10 +123,14 @@ class InitConfigFfi with EquatableMixin {
   void writeNative(Pointer<RustInitConfig> place) {
     apiKey.writeNative(ffi.init_config_place_of_api_key(place));
     apiBaseUrl.writeNative(ffi.init_config_place_of_api_base_url(place));
-    newsProviderPath
-        .writeNative(ffi.init_config_place_of_news_provider_path(place));
-    headlinesProviderPath
-        .writeNative(ffi.init_config_place_of_headlines_provider_path(place));
+    newsProvider.writeNative(ffi.init_config_place_of_news_provider(place));
+    similarNewsProvider
+        .writeNative(ffi.init_config_place_of_similar_news_provider(place));
+    headlinesProvider
+        .writeNative(ffi.init_config_place_of_headlines_provider(place));
+    trustedHeadlinesProvider.writeNative(
+      ffi.init_config_place_of_trusted_headlines_provider(place),
+    );
     feedMarkets.writeVec(ffi.init_config_place_of_markets(place));
     bert.writeNative(ffi.init_config_place_of_bert(place));
     maxDocsPerFeedBatch
@@ -142,11 +154,17 @@ class InitConfigFfi with EquatableMixin {
       apiKey: StringFfi.readNative(ffi.init_config_place_of_api_key(config)),
       apiBaseUrl:
           StringFfi.readNative(ffi.init_config_place_of_api_base_url(config)),
-      newsProviderPath: StringFfi.readNative(
-        ffi.init_config_place_of_news_provider_path(config),
+      newsProvider: OptionStringFfi.readNative(
+        ffi.init_config_place_of_news_provider(config),
       ),
-      headlinesProviderPath: StringFfi.readNative(
-        ffi.init_config_place_of_headlines_provider_path(config),
+      similarNewsProvider: OptionStringFfi.readNative(
+        ffi.init_config_place_of_similar_news_provider(config),
+      ),
+      headlinesProvider: OptionStringFfi.readNative(
+        ffi.init_config_place_of_headlines_provider(config),
+      ),
+      trustedHeadlinesProvider: OptionStringFfi.readNative(
+        ffi.init_config_place_of_trusted_headlines_provider(config),
       ),
       feedMarkets:
           FeedMarketSliceFfi.readVec(ffi.init_config_place_of_markets(config)),

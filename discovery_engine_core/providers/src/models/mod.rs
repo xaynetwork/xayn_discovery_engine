@@ -12,8 +12,5 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod content;
-mod query;
-
-pub use content::{GenericArticle, Rank, UrlWithDomain};
-pub use query::{HeadlinesQuery, NewsQuery, RankLimit, SimilarNewsQuery, TrustedHeadlinesQuery};
+pub(crate) mod content;
+pub(crate) mod query;

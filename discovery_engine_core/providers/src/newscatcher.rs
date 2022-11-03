@@ -12,41 +12,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, TimeZone, Utc};
 use derive_more::Deref;
 use serde::{de, Deserialize, Deserializer};
-use url::Url;
 
 use crate::{
-    helpers::rest_endpoint::RestEndpoint,
-    models::NewsQuery,
-    Error,
-    GenericArticle,
+    error::Error,
+    models::{
+        content::GenericArticle,
+        query::{HeadlinesQuery, RankLimit, SearchQuery, TrustedHeadlinesQuery},
+    },
+    utils::{filter::Market, rest_endpoint::RestEndpoint},
     HeadlinesProvider,
-    HeadlinesQuery,
-    Market,
-    NewsProvider,
-    RankLimit,
+    SearchProvider,
     TrustedHeadlinesProvider,
-    TrustedHeadlinesQuery,
 };
 
 #[derive(Deref)]
-pub struct NewscatcherNewsProvider {
+pub struct NewscatcherSearchProvider {
     endpoint: RestEndpoint,
 }
 
-impl NewscatcherNewsProvider {
-    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
-        Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
-        }
-    }
-
-    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn NewsProvider> {
+impl NewscatcherSearchProvider {
+    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn SearchProvider> {
         Arc::new(Self { endpoint })
     }
 }
@@ -70,8 +61,8 @@ pub(crate) fn to_generic_articles(articles: Vec<Article>) -> Result<Vec<GenericA
 }
 
 #[async_trait]
-impl NewsProvider for NewscatcherNewsProvider {
-    async fn query_news(&self, request: &NewsQuery<'_>) -> Result<Vec<GenericArticle>, Error> {
+impl SearchProvider for NewscatcherSearchProvider {
+    async fn query_search(&self, request: &SearchQuery<'_>) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
             .get_request::<_, Response>(|query_append| {
@@ -101,13 +92,6 @@ pub struct NewscatcherHeadlinesProvider {
 }
 
 impl NewscatcherHeadlinesProvider {
-    /// Create a new provider.
-    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
-        Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
-        }
-    }
-
     pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn HeadlinesProvider> {
         Arc::new(Self { endpoint })
     }
@@ -150,12 +134,6 @@ pub struct NewscatcherTrustedHeadlinesProvider {
 }
 
 impl NewscatcherTrustedHeadlinesProvider {
-    pub fn new(endpoint_url: Url, auth_token: String, timeout: Duration, retry: usize) -> Self {
-        Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
-        }
-    }
-
     pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn TrustedHeadlinesProvider> {
         Arc::new(Self { endpoint })
     }
@@ -163,7 +141,7 @@ impl NewscatcherTrustedHeadlinesProvider {
 
 #[async_trait]
 impl TrustedHeadlinesProvider for NewscatcherTrustedHeadlinesProvider {
-    async fn query_trusted_sources(
+    async fn query_trusted_headlines(
         &self,
         request: &TrustedHeadlinesQuery<'_>,
     ) -> Result<Vec<GenericArticle>, Error> {
@@ -324,6 +302,7 @@ pub struct Response {
 
 #[cfg(test)]
 mod tests {
+    use url::Url;
     use wiremock::{
         matchers::{header, method, path, query_param, query_param_is_missing},
         Mock,
@@ -331,41 +310,50 @@ mod tests {
         ResponseTemplate,
     };
 
-    use crate::{models::RankLimit, Filter, HeadlinesQuery, Market, Rank, UrlWithDomain};
+    use crate::{
+        config::Config,
+        models::{
+            content::{Rank, UrlWithDomain},
+            query::{HeadlinesQuery, RankLimit},
+        },
+        Filter,
+        Market,
+    };
 
     use super::*;
 
     #[tokio::test]
     async fn test_simple_news_query() {
-        let mock_server = MockServer::start().await;
-        let provider = NewscatcherNewsProvider::new(
-            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
-            "test-token".into(),
-            Duration::from_secs(1),
-            0,
+        let server = MockServer::start().await;
+        let route = Config::SEARCH;
+        let token = "test-token";
+        let provider = NewscatcherSearchProvider::from_endpoint(
+            Config::new(&server.uri(), route, token, false)
+                .unwrap()
+                .build(),
         );
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v1/search-news"))
+            .and(path(route))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "en"))
             .and(query_param("countries", "AU"))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
             .respond_with(tmpl)
             .expect(1)
-            .mount(&mock_server)
+            .mount(&server)
             .await;
 
         let market = &Market::new("en", "AU");
         let filter = &Filter::default().add_keyword("Climate change");
 
-        let params = NewsQuery {
+        let params = SearchQuery {
             page_size: 2,
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
@@ -375,7 +363,7 @@ mod tests {
             max_age_days: None,
         };
 
-        let docs = provider.query_news(&params).await.unwrap();
+        let docs = provider.query_search(&params).await.unwrap();
 
         assert_eq!(docs.len(), 4);
 
@@ -385,19 +373,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_news_rank_limit() {
-        let mock_server = MockServer::start().await;
-        let provider = NewscatcherNewsProvider::new(
-            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
-            "test-token".into(),
-            Duration::from_secs(1),
-            0,
+        let server = MockServer::start().await;
+        let route = Config::SEARCH;
+        let token = "test-token";
+        let provider = NewscatcherSearchProvider::from_endpoint(
+            Config::new(&server.uri(), route, token, false)
+                .unwrap()
+                .build(),
         );
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v1/search-news"))
+            .and(path(route))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
@@ -405,16 +394,16 @@ mod tests {
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("to_rank", "70000"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
             .respond_with(tmpl)
             .expect(1)
-            .mount(&mock_server)
+            .mount(&server)
             .await;
 
         let market = &Market::new("de", "AT");
         let filter = &Filter::default().add_keyword("Climate change");
 
-        let params = NewsQuery {
+        let params = SearchQuery {
             page_size: 2,
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
@@ -424,7 +413,7 @@ mod tests {
             max_age_days: None,
         };
 
-        let docs = provider.query_news(&params).await.unwrap();
+        let docs = provider.query_search(&params).await.unwrap();
 
         assert_eq!(docs.len(), 4);
 
@@ -434,19 +423,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_simple_news_query_with_additional_parameters() {
-        let mock_server = MockServer::start().await;
-        let provider = NewscatcherNewsProvider::new(
-            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
-            "test-token".into(),
-            Duration::from_secs(1),
-            0,
+        let server = MockServer::start().await;
+        let route = Config::SEARCH;
+        let token = "test-token";
+        let provider = NewscatcherSearchProvider::from_endpoint(
+            Config::new(&server.uri(), route, token, false)
+                .unwrap()
+                .build(),
         );
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/search-news.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v1/search-news"))
+            .and(path(route))
             .and(query_param("q", "(Climate change)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
@@ -456,16 +446,16 @@ mod tests {
             .and(query_param("from", max_age_to_date_string(3)))
             .and(query_param("not_sources", "dodo.com,dada.net"))
             .and(query_param("to_rank", "9000"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
             .respond_with(tmpl)
             .expect(1)
-            .mount(&mock_server)
+            .mount(&server)
             .await;
 
         let market = &Market::new("de", "DE");
         let filter = &Filter::default().add_keyword("Climate change");
 
-        let params = NewsQuery {
+        let params = SearchQuery {
             page_size: 2,
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
@@ -475,7 +465,7 @@ mod tests {
             max_age_days: Some(3),
         };
 
-        let docs = provider.query_news(&params).await.unwrap();
+        let docs = provider.query_search(&params).await.unwrap();
 
         assert_eq!(docs.len(), 4);
 
@@ -485,28 +475,29 @@ mod tests {
 
     #[tokio::test]
     async fn test_news_multiple_keywords() {
-        let mock_server = MockServer::start().await;
-        let provider = NewscatcherNewsProvider::new(
-            Url::parse(&format!("{}/v1/search-news", mock_server.uri())).unwrap(),
-            "test-token".into(),
-            Duration::from_secs(1),
-            0,
+        let server = MockServer::start().await;
+        let route = Config::SEARCH;
+        let token = "test-token";
+        let provider = NewscatcherSearchProvider::from_endpoint(
+            Config::new(&server.uri(), route, token, false)
+                .unwrap()
+                .build(),
         );
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/msft-vs-aapl.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v1/search-news"))
+            .and(path(route))
             .and(query_param("q", "(Bill Gates) OR (Tim Cook)"))
             .and(query_param("sort_by", "relevancy"))
             .and(query_param("lang", "de"))
             .and(query_param("countries", "DE"))
             .and(query_param("page_size", "2"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
             .respond_with(tmpl)
             .expect(1)
-            .mount(&mock_server)
+            .mount(&server)
             .await;
 
         let market = &Market::new("de", "DE");
@@ -514,7 +505,7 @@ mod tests {
             .add_keyword("Bill Gates")
             .add_keyword("Tim Cook");
 
-        let params = NewsQuery {
+        let params = SearchQuery {
             page_size: 2,
             page: 1,
             rank_limit: RankLimit::LimitedByMarket,
@@ -524,7 +515,7 @@ mod tests {
             max_age_days: None,
         };
 
-        let docs = provider.query_news(&params).await.unwrap();
+        let docs = provider.query_search(&params).await.unwrap();
         assert_eq!(docs.len(), 2);
 
         let doc = docs.get(0).unwrap();
@@ -536,19 +527,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_headlines() {
-        let mock_server = MockServer::start().await;
-        let provider = NewscatcherHeadlinesProvider::new(
-            Url::parse(&format!("{}/v1/latest-headlines", mock_server.uri())).unwrap(),
-            "test-token".into(),
-            Duration::from_secs(1),
-            0,
+        let server = MockServer::start().await;
+        let route = Config::HEADLINES;
+        let token = "test-token";
+        let provider = NewscatcherHeadlinesProvider::from_endpoint(
+            Config::new(&server.uri(), route, token, false)
+                .unwrap()
+                .build(),
         );
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v1/latest-headlines"))
+            .and(path(route))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("lang", "en"))
@@ -557,10 +549,10 @@ mod tests {
             .and(query_param("when", "3d"))
             // `sort_by` only supported by the news endpoint
             .and(query_param_is_missing("sort_by"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
             .respond_with(tmpl)
             .expect(1)
-            .mount(&mock_server)
+            .mount(&server)
             .await;
 
         let params = HeadlinesQuery {
@@ -597,29 +589,30 @@ mod tests {
 
     #[tokio::test]
     async fn test_trusted_sources() {
-        let mock_server = MockServer::start().await;
-        let provider = NewscatcherTrustedHeadlinesProvider::new(
-            Url::parse(&format!("{}/v2/trusted-sources", mock_server.uri())).unwrap(),
-            "test-token".into(),
-            Duration::from_secs(1),
-            0,
+        let server = MockServer::start().await;
+        let route = Config::TRUSTED_HEADLINES;
+        let token = "test-token";
+        let provider = NewscatcherTrustedHeadlinesProvider::from_endpoint(
+            Config::new(&server.uri(), route, token, false)
+                .unwrap()
+                .build(),
         );
 
         let tmpl = ResponseTemplate::new(200)
             .set_body_string(include_str!("../test-fixtures/latest-headlines.json"));
 
         Mock::given(method("GET"))
-            .and(path("/v2/trusted-sources"))
+            .and(path(route))
             .and(query_param("page_size", "2"))
             .and(query_param("page", "1"))
             .and(query_param("sources", "dodo.com,dada.net"))
             .and(query_param("when", "3d"))
             // `sort_by` only supported by the news endpoint
             .and(query_param_is_missing("sort_by"))
-            .and(header("Authorization", "Bearer test-token"))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
             .respond_with(tmpl)
             .expect(1)
-            .mount(&mock_server)
+            .mount(&server)
             .await;
 
         let params = TrustedHeadlinesQuery {
@@ -632,7 +625,7 @@ mod tests {
             max_age_days: Some(3),
         };
 
-        let docs = provider.query_trusted_sources(&params).await.unwrap();
+        let docs = provider.query_trusted_headlines(&params).await.unwrap();
         assert_eq!(docs.len(), 4);
 
         let doc = docs.get(1).unwrap();

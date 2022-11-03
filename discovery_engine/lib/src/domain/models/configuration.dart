@@ -29,14 +29,16 @@ class Configuration with _$Configuration {
     required String apiKey,
     required String apiBaseUrl,
     required String assetsUrl,
-    required String newsProviderPath,
-    required String headlinesProviderPath,
     required int maxItemsPerFeedBatch,
     required int maxItemsPerSearchBatch,
     required String applicationDirectoryPath,
     required FeedMarkets feedMarkets,
     required Manifest manifest,
     @Default(false) bool useEphemeralDb,
+    String? newsProvider,
+    String? similarNewsProvider,
+    String? headlinesProvider,
+    String? trustedHeadlinesProvider,
     String? logFile,
   }) = _Configuration;
 

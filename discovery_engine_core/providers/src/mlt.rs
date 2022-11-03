@@ -14,34 +14,37 @@
 
 //! Client for "more like this" queries.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use url::Url;
 
 use crate::{
-    newscatcher::{append_market, max_age_to_date_string, to_generic_articles},
-    Error,
-    GenericArticle,
-    NewscatcherResponse,
-    RestEndpoint,
-    SimilarNewsProvider,
-    SimilarNewsQuery,
+    error::Error,
+    models::{content::GenericArticle, query::SimilarSearchQuery},
+    newscatcher::{append_market, max_age_to_date_string, to_generic_articles, Response},
+    utils::rest_endpoint::RestEndpoint,
+    SimilarSearchProvider,
 };
 
-pub(crate) struct MltSimilarNewsProvider {
+pub struct MltSimilarSearchProvider {
     endpoint: RestEndpoint,
 }
 
+impl MltSimilarSearchProvider {
+    pub fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn SimilarSearchProvider> {
+        Arc::new(Self { endpoint })
+    }
+}
+
 #[async_trait]
-impl SimilarNewsProvider for MltSimilarNewsProvider {
-    async fn query_similar_news(
+impl SimilarSearchProvider for MltSimilarSearchProvider {
+    async fn query_similar_search(
         &self,
-        query: &SimilarNewsQuery<'_>,
+        query: &SimilarSearchQuery<'_>,
     ) -> Result<Vec<GenericArticle>, Error> {
         let response = self
             .endpoint
-            .get_request::<_, NewscatcherResponse>(|query_append| {
+            .get_request::<_, Response>(|query_append| {
                 query_append("like", query.like.to_string());
                 query_append("min_term_freq", "1".to_string());
 
@@ -62,23 +65,5 @@ impl SimilarNewsProvider for MltSimilarNewsProvider {
             .await?;
 
         to_generic_articles(response.articles)
-    }
-}
-
-impl MltSimilarNewsProvider {
-    #[allow(dead_code)] // TEMP
-    pub(crate) fn new(
-        endpoint_url: Url,
-        auth_token: String,
-        timeout: Duration,
-        retry: usize,
-    ) -> Self {
-        Self {
-            endpoint: RestEndpoint::new(endpoint_url, auth_token, timeout, retry),
-        }
-    }
-
-    pub(crate) fn from_endpoint(endpoint: RestEndpoint) -> Arc<dyn SimilarNewsProvider> {
-        Arc::new(Self { endpoint })
     }
 }

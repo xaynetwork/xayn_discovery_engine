@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::helpers::expression::Expr;
+use crate::utils::expression::Expr;
 
 /// Filter the data using custom criteria.
 #[derive(Default, Clone, Debug)]

@@ -23,8 +23,6 @@ void main() {
     final config = InitConfigFfi.fromParts(
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
-      headlinesProviderPath: '/newscatcher/v1/latest-headlines',
-      newsProviderPath: '/newscatcher/v1/search-news',
       feedMarkets: [
         const FeedMarket(langCode: 'de', countryCode: 'DE'),
         const FeedMarket(langCode: 'en', countryCode: 'US'),
@@ -45,8 +43,6 @@ void main() {
     final config = InitConfigFfi.fromParts(
       apiKey: 'hjlsdfhjfdhjk',
       apiBaseUrl: 'https://foo.example/api/v1',
-      headlinesProviderPath: '/newscatcher/v1/latest-headlines',
-      newsProviderPath: '/newscatcher/v1/search-news',
       feedMarkets: [
         const FeedMarket(langCode: 'de', countryCode: 'DE'),
         const FeedMarket(langCode: 'en', countryCode: 'US'),
