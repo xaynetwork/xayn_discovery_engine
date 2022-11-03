@@ -14,7 +14,8 @@
 
 //! Setup tracing on different platforms.
 
-use std::{fs::OpenOptions, path::PathBuf, sync::Once};
+use crate::utils::RelativePathBuf;
+use std::{fs::OpenOptions, sync::Once};
 
 use serde::{Deserialize, Serialize};
 use tracing::Level;
@@ -26,7 +27,7 @@ use tracing_subscriber::{
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
-    pub(crate) file: Option<PathBuf>,
+    pub(crate) file: Option<RelativePathBuf>,
 }
 
 static INIT_TRACING: Once = Once::new();
@@ -50,13 +51,13 @@ fn init_tracing_once(log_config: &Config) {
 
     let file_log = log_config
         .file
-        .as_deref()
+        .as_ref()
         .map(|log_file| {
             OpenOptions::new()
                 .write(true)
                 .truncate(true)
                 .create(true)
-                .open(log_file)
+                .open(log_file.relative())
                 .map(|writer| {
                     tracing_subscriber::fmt::layer()
                         .with_writer(writer)

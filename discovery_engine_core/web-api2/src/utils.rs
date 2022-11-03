@@ -11,8 +11,25 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 
+use derive_more::Deref;
+use figment::value::magic::RelativePathBuf as FigmentRelativePathBuf;
 use secrecy::Secret;
-use serde::Serializer;
+use serde::{Deserialize, Serialize, Serializer};
+
+#[derive(Serialize, Deserialize, Debug, Deref)]
+#[serde(transparent)]
+pub struct RelativePathBuf {
+    #[serde(serialize_with = "FigmentRelativePathBuf::serialize_relative")]
+    inner: FigmentRelativePathBuf,
+}
+
+impl From<&str> for RelativePathBuf {
+    fn from(s: &str) -> Self {
+        Self {
+            inner: FigmentRelativePathBuf::from(s),
+        }
+    }
+}
 
 /// Serialize a `Secret<String>` as `"[REDACTED]"`.
 pub(crate) fn serialize_redacted<S>(

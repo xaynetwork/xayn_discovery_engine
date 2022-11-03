@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::PathBuf;
+use crate::utils::RelativePathBuf;
 
 use serde::{Deserialize, Serialize};
 use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
@@ -23,10 +23,10 @@ use crate::server::SetupError;
 pub struct Config {
     #[allow(dead_code)]
     #[serde(default = "default_directory")]
-    directory: PathBuf,
+    directory: RelativePathBuf,
 }
 
-fn default_directory() -> PathBuf {
+fn default_directory() -> RelativePathBuf {
     "assets".into()
 }
 
@@ -45,7 +45,7 @@ pub(crate) struct Embedder {
 
 impl Embedder {
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
-        let bert = BertConfig::new(&config.directory)?
+        let bert = BertConfig::new(&config.directory.relative())?
             .with_pooler::<AveragePooler>()
             .with_token_size(64)?
             .build()?;
