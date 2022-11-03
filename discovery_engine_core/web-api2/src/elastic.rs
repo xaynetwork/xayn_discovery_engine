@@ -12,14 +12,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use reqwest::{
     header::{HeaderValue, CONTENT_TYPE},
     StatusCode,
+    Url,
 };
 use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::{json, Value};
+use tracing::error;
 
-use crate::{error::common::InternalError, utils::serialize_redacted, Error};
+use crate::{
+    error::common::{FailedToDeleteSomeDocuments, InternalError},
+    models::DocumentId,
+    server::SetupError,
+    utils::serialize_redacted,
+    Error,
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
@@ -65,18 +76,101 @@ impl Default for Config {
 }
 
 pub(crate) struct ElasticSearchClient {
-    #[allow(dead_code)]
     config: Config,
-    #[allow(dead_code)]
+    url_to_index: Url,
     client: reqwest::Client,
 }
 
 impl ElasticSearchClient {
-    pub(crate) fn new(config: Config) -> Self {
-        Self {
+    pub(crate) fn new(config: Config) -> Result<Self, SetupError> {
+        let mut url_to_index: Url = config.url.parse()?;
+        url_to_index
+            .path_segments_mut()
+            .map_err(|()| "non segmentable url in config")?
+            .push(&config.index_name);
+
+        Ok(Self {
             config,
+            url_to_index,
             client: reqwest::Client::new(),
+        })
+    }
+
+    pub(crate) async fn delete_documents(&self, documents: &[DocumentId]) -> Result<(), Error> {
+        if documents.is_empty() {
+            return Ok(());
         }
+
+        let response = self
+            .bulk_request(
+                documents
+                    .iter()
+                    .map(|document_id| json!({ "delete": { "_id": document_id }})),
+            )
+            .await?;
+
+        if response.errors {
+            let mut errors = Vec::new();
+            for mut response in response.items.into_iter() {
+                if let Some(response) = response.remove("delete") {
+                    if let Ok(status) = StatusCode::from_u16(response.status) {
+                        if status != StatusCode::NOT_FOUND && !status.is_success() {
+                            error!(document_id=%response.id, error=%response.error);
+                            errors.push(response.id);
+                        }
+                    } else {
+                        error!("Non http status code: {}", response.status);
+                    }
+                } else {
+                    error!("Bulk delete request contains non delete responses: {response:?}");
+                }
+            }
+
+            if !errors.is_empty() {
+                return Err(FailedToDeleteSomeDocuments {
+                    errors: errors.into_iter().map(Into::into).collect(),
+                }
+                .into());
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn bulk_request(
+        &self,
+        requests: impl IntoIterator<Item = Value>,
+    ) -> Result<BulkResponse, Error> {
+        let url = self.create_resource_path(&["_bulk"]);
+
+        let mut body = Vec::new();
+        for request in requests {
+            serde_json::to_writer(&mut body, &request)?;
+            body.push(b'\n');
+        }
+
+        let response: BulkResponse = self
+            .client
+            .post(url)
+            .header(
+                CONTENT_TYPE,
+                HeaderValue::from_static("application/x-ndjson"),
+            )
+            .body(body)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+
+        Ok(response)
+    }
+
+    fn create_resource_path(&self, segments: &[&str]) -> Url {
+        let mut url = self.url_to_index.clone();
+        // UNWRAP_SAFE: In the constructor we already made sure it's a segmentable url.
+        url.path_segments_mut().unwrap().extend(segments);
+        url
     }
 
     #[allow(dead_code)]
@@ -122,4 +216,19 @@ impl ElasticSearchClient {
             Ok(Some(value))
         }
     }
+}
+
+#[derive(Deserialize)]
+struct BulkResponse {
+    errors: bool,
+    items: Vec<HashMap<String, BulkItemResponse>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BulkItemResponse {
+    #[serde(rename = "_id")]
+    id: DocumentId,
+    status: u16,
+    #[serde(default)]
+    error: Value,
 }

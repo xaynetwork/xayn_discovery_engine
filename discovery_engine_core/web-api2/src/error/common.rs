@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use actix_web::http::StatusCode;
+use derive_more::From;
 use displaydoc::Display;
 use serde::Serialize;
 use thiserror::Error;
@@ -57,18 +58,24 @@ impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST);
 pub struct NotEnoughInteractions;
 impl_application_error!(NotEnoughInteractions => NOT_FOUND);
 
+/// Failed to delete some documents
+#[derive(Debug, Error, Display, Serialize)]
+pub struct FailedToDeleteSomeDocuments {
+    pub(crate) errors: Vec<DocumentIdAsObject>,
+}
+impl_application_error!(FailedToDeleteSomeDocuments => INTERNAL_SERVER_ERROR);
+
 /// The ingestion of some documents failed.
 #[derive(Debug, Error, Display, Serialize)]
 pub struct IngestingDocumentsFailed {
-    documents: Vec<MappedDocumentId>,
+    pub(crate) documents: Vec<DocumentIdAsObject>,
 }
-
-#[derive(Serialize, Debug)]
-struct MappedDocumentId {
-    id: DocumentId,
-}
-
 impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);
+
+#[derive(Serialize, Debug, From)]
+pub(crate) struct DocumentIdAsObject {
+    pub(crate) id: DocumentId,
+}
 
 /// Internal Error: {0}
 #[derive(Debug, Display, Error)]

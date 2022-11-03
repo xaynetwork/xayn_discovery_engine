@@ -42,7 +42,10 @@ impl Application for Ingestion {
     }
 }
 
-type Config = server::Config<<Ingestion as Application>::ConfigExtension>;
+type AppState = server::AppState<
+    <Ingestion as Application>::ConfigExtension,
+    <Ingestion as Application>::AppStateExtension,
+>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 pub struct ConfigExtension {
