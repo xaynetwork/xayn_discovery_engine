@@ -17,7 +17,7 @@ use displaydoc::Display;
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::{impl_application_error, models::DocumentId};
+use crate::{impl_application_error, models::DocumentId, Error};
 
 use super::application::ApplicationError;
 
@@ -75,12 +75,10 @@ impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);
 pub struct InternalError(anyhow::Error);
 
 impl InternalError {
-    #[allow(dead_code)]
     pub fn from_std(error: impl std::error::Error + Send + Sync + 'static) -> Self {
         Self(anyhow::Error::new(error))
     }
 
-    #[allow(dead_code)]
     pub fn from_anyhow(error: anyhow::Error) -> Self {
         Self(error)
     }
@@ -99,3 +97,27 @@ impl ApplicationError for InternalError {
         serde_json::Value::Null
     }
 }
+
+impl From<anyhow::Error> for Error {
+    fn from(error: anyhow::Error) -> Self {
+        InternalError::from_anyhow(error).into()
+    }
+}
+
+macro_rules! impl_from_std_error {
+    ($($error:ty,)*) => {$(
+        impl From<$error> for Error {
+            fn from(error: $error) -> Self {
+                InternalError::from_std(error).into()
+            }
+        }
+    )*};
+}
+
+impl_from_std_error!(
+    sqlx::Error,
+    reqwest::Error,
+    std::io::Error,
+    tokio::task::JoinError,
+    serde_json::Error,
+);
