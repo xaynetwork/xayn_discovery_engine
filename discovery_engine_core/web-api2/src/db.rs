@@ -341,7 +341,7 @@ struct QueriedInteractedDocumentId {
 }
 
 impl From<QueriedInteractedDocumentId> for DocumentId {
-    fn from(document: QueriedInteractedDocumentId) -> Self {
-        document.doc_id
+    fn from(document_id: QueriedInteractedDocumentId) -> Self {
+        document_id.doc_id
     }
 }
