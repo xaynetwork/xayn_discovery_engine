@@ -23,6 +23,8 @@ use errors::BackendError;
 use log::info;
 use reqwest::Client;
 use serde::Deserialize;
+use serde_json::Value;
+use std::net::IpAddr;
 use tokio::sync::RwLock;
 
 use crate::routes::{popular_get, popular_post, search_get, search_post};
@@ -31,11 +33,17 @@ use crate::routes::{popular_get, popular_post, search_get, search_post};
 pub struct Config {
     #[envconfig(from = "MIND_ENDPOINT")]
     pub mind_endpoint: String,
+
+    #[envconfig(from = "PORT", default = "3000")]
+    pub(crate) port: u16,
+
+    #[envconfig(from = "IP_ADDR", default = "0.0.0.0")]
+    pub(crate) ip_addr: IpAddr,
 }
 
 struct AppState {
     index: RwLock<usize>,
-    from_index: RwLock<String>,
+    from_index: RwLock<Option<Value>>,
     history: RwLock<Vec<String>>,
     page_size: usize,
     total: usize,
@@ -77,17 +85,18 @@ async fn main() -> std::io::Result<()> {
 
     let app_state = web::Data::new(AppState {
         index: RwLock::new(0),
-        from_index: RwLock::new(String::new()),
+        from_index: RwLock::new(None),
         history: RwLock::new(Vec::new()),
         page_size: 200,
         total: response.count,
     });
 
+    let port = config.port;
+    let addr = config.ip_addr;
+
     let app_config = web::Data::new(config);
     let app_client = web::Data::new(client);
 
-    let addr = "0.0.0.0";
-    let port = 8080;
     info!("Starting server on {addr}:{port}");
 
     HttpServer::new(move || {

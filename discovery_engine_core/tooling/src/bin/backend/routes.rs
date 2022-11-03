@@ -100,7 +100,7 @@ async fn handle_popular(
 
     if *index + app_state.page_size > app_state.total {
         *index = 0;
-        from_index.clear();
+        *from_index = None;
     } else {
         *index += app_state.page_size;
         *from_index = hits.last().unwrap(/* nonempty hits */).sort.clone();
@@ -170,14 +170,16 @@ async fn fetch_popular_results(
         ]
     });
 
-    // after the first search also include search_after
+    // after the first search also include search_after\
     let index = app_state.index.read().await;
     let from_index = app_state.from_index.read().await;
-    if *index > 0 || !from_index.is_empty() {
+
+    if *index > 0 && from_index.is_some() {
+        let value = from_index.as_ref().unwrap(/* we check if Some above */);
         let map = body.as_object_mut().unwrap(/* body is Object */);
-        map.insert("search_after".to_string(), json!(from_index.clone()));
+        map.insert("search_after".to_string(), value.clone());
         body = json!(map);
-    };
+    }
 
     query_elastic_search(config, client, body).await
 }
