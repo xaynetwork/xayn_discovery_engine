@@ -25,4 +25,5 @@ serde_json = "1.0.85"
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
 
 [features]
+default = ["japanese"]
 japanese = ["xayn-discovery-engine-bert/japanese"]

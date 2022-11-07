@@ -57,10 +57,10 @@ pub(crate) struct InitConfig {
 pub(crate) fn init_db(config: &InitConfig) -> Result<Db, Box<dyn std::error::Error>> {
     let none: Option<PathBuf> = None;
     let smbert = SMBertConfig::from_files(&config.smbert_vocab, none, &config.smbert_model)?
-        .with_cleanse_accents(true)
+        .with_cleanse_accents(false)
         .with_lower_case(true)
         .with_pooling::<AveragePooler>()
-        .with_token_size(64)?
+        .with_token_size(150)?
         .build()?;
 
     let file = File::open(&config.data_store).expect("Couldn't open the data file");

@@ -39,5 +39,6 @@ download()
 }
 
 download smbert v0002
+download sjbert demo
 download kpe v0001
 download sources v0000

@@ -1733,6 +1733,8 @@ pub enum SearchBy<'a> {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #![allow(dead_code, unused_imports)]
+
     use std::mem::size_of;
 
     use async_once_cell::OnceCell;
@@ -1837,43 +1839,43 @@ pub(crate) mod tests {
         */
         let data = init_engine.await;
         {
-        let lock = &mut data.lock().await;
-        let engine = &mut lock.1;
+            let lock = &mut data.lock().await;
+            let engine = &mut lock.1;
 
-        // reset the stacks and states
-        #[cfg(feature = "storage")]
-        {
-            engine.storage = {
-                let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
-                storage.init_database().await.unwrap();
-                Box::new(storage) as BoxedStorage
-            };
-        }
-        engine.stacks = RwLock::new(
-            stack_ops
-                .into_iter()
-                .map(|stack_ops_new| {
-                    let stack = Stack::new(
-                        StackData::default(),
-                        stack_ops_new(&engine.endpoint_config, &engine.providers),
-                        StackConfig::default(),
-                    )
+            // reset the stacks and states
+            #[cfg(feature = "storage")]
+            {
+                engine.storage = {
+                    let storage = SqliteStorage::connect("sqlite::memory:").await.unwrap();
+                    storage.init_database().await.unwrap();
+                    Box::new(storage) as BoxedStorage
+                };
+            }
+            engine.stacks = RwLock::new(
+                stack_ops
+                    .into_iter()
+                    .map(|stack_ops_new| {
+                        let stack = Stack::new(
+                            StackData::default(),
+                            stack_ops_new(&engine.endpoint_config, &engine.providers),
+                            StackConfig::default(),
+                        )
+                        .unwrap();
+                        (stack.id(), stack)
+                    })
+                    .collect(),
+            );
+            engine.exploration_stack.data = StackData::default();
+            engine.state = CoiSystemState::default();
+
+            if update_after_reset {
+                engine
+                    .update_stacks_for_all_markets(&[], &[], usize::MAX)
+                    .await
                     .unwrap();
-                    (stack.id(), stack)
-                })
-                .collect(),
-        );
-        engine.exploration_stack.data = StackData::default();
-        engine.state = CoiSystemState::default();
+            }
 
-        if update_after_reset {
-            engine
-                .update_stacks_for_all_markets(&[], &[], usize::MAX)
-                .await
-                .unwrap();
-        }
-
-//            drop(lock);
+            //            drop(lock);
         }
 
         data
@@ -1910,7 +1912,7 @@ pub(crate) mod tests {
         )
         .await;
         let mut lock = engine.lock().await;
-        let engine = &mut  lock.1;
+        let engine = &mut lock.1;
 
         // Stacks should be empty before we start fetching anything
         let mut stacks = engine.stacks.write().await;
