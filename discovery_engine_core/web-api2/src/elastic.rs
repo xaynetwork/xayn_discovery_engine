@@ -30,7 +30,13 @@ use xayn_discovery_engine_ai::Embedding;
 
 use crate::{
     error::common::{DocumentIdAsObject, FailedToDeleteSomeDocuments, InternalError},
-    models::{DocumentId, DocumentProperties, PersonalizedDocument},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        PersonalizedDocument,
+    },
     server::SetupError,
     utils::{serialize_redacted, serialize_to_ndjson},
     Error,
@@ -177,8 +183,7 @@ impl ElasticSearchClient {
         &self,
         requests: impl IntoIterator<Item = Result<impl Serialize, Error>>,
     ) -> Result<BulkResponse, Error> {
-        let mut url = self.create_resource_path(&["_bulk"]);
-        url.set_query(Some("refresh"));
+        let url = self.create_resource_path(["_bulk"], [("refresh", None)]);
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -193,10 +198,23 @@ impl ElasticSearchClient {
             .ok_or_else(|| InternalError::from_message("_bulk endpoint not found").into())
     }
 
-    fn create_resource_path(&self, segments: &[&str]) -> Url {
+    fn create_resource_path<'a>(
+        &self,
+        segments: impl IntoIterator<Item = &'a str>,
+        query_parts: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+    ) -> Url {
         let mut url = self.url_to_index.clone();
         // UNWRAP_SAFE: In the constructor we already made sure it's a segmentable url.
         url.path_segments_mut().unwrap().extend(segments);
+        let mut query_mut = url.query_pairs_mut();
+        for (key, value) in query_parts {
+            if let Some(value) = value {
+                query_mut.append_pair(key, value);
+            } else {
+                query_mut.append_key_only(key);
+            }
+        }
+        drop(query_mut);
         url
     }
 
@@ -225,7 +243,10 @@ impl ElasticSearchClient {
         }));
 
         Ok(self
-            .query_with_json::<_, SearchResponse<_>>(self.create_resource_path(&["_search"]), body)
+            .query_with_json::<_, SearchResponse<_>>(
+                self.create_resource_path(["_search"], None),
+                body,
+            )
             .await?
             .map(Into::into)
             .unwrap_or_default())
@@ -245,10 +266,140 @@ impl ElasticSearchClient {
         }));
 
         Ok(self
-            .query_with_json::<_, SearchResponse<_>>(self.create_resource_path(&["_search"]), body)
+            .query_with_json::<_, SearchResponse<_>>(
+                self.create_resource_path(["_search"], None),
+                body,
+            )
             .await?
             .map(Into::into)
             .unwrap_or_default())
+    }
+
+    pub async fn get_document_properties(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<DocumentProperties>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
+        let url = self.create_resource_path(
+            ["_source", id.as_ref()],
+            [("_source_includes", Some("properties"))],
+        );
+
+        Ok(self
+            .query_with_json::<Value, DocumentPropertiesResponse>(url, None)
+            .await?
+            .map(|resp| resp.properties))
+    }
+
+    pub async fn put_document_properties(
+        &self,
+        id: &DocumentId,
+        properties: &DocumentProperties,
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        let url = self.create_resource_path(["_update", id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties = params.properties",
+                "params": {
+                    "properties": properties
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| ()))
+    }
+
+    pub async fn delete_document_properties(&self, id: &DocumentId) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        // don't delete the field, but put an empty map instead, similar to the ingestion service
+        let url = self.create_resource_path(["_update", id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties = params.properties",
+                "params": {
+                    "properties": DocumentProperties::new()
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| ()))
+    }
+
+    pub async fn get_document_property(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+    ) -> Result<Option<Option<DocumentProperty>>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
+        let url = self.create_resource_path(
+            ["_source", document_id.as_ref()],
+            [(
+                "_source_includes",
+                Some(&*format!("properties.{}", property_id)),
+            )],
+        );
+
+        Ok(self
+            .query_with_json::<Value, DocumentPropertiesResponse>(url, None)
+            .await?
+            .map(|mut response| response.properties.remove(property_id)))
+    }
+
+    pub async fn put_document_property(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+        property: &DocumentProperty,
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        let url = self.create_resource_path(["_update", document_id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties.put(params.prop_id, params.property)",
+                "params": {
+                    "prop_id": property_id,
+                    "property": property
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| ()))
+    }
+
+    pub async fn delete_document_property(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        let url = self.create_resource_path(["_update", document_id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties.remove(params.prop_id)",
+                "params": {
+                    "prop_id": property_id
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| ()))
     }
 
     async fn query_with_json<B, T>(&self, url: Url, body: Option<B>) -> Result<Option<T>, Error>
@@ -400,6 +551,15 @@ struct Total {
     #[allow(dead_code)]
     value: usize,
 }
+
+#[derive(Clone, Debug, Deserialize)]
+struct DocumentPropertiesResponse {
+    #[serde(default)]
+    properties: DocumentProperties,
+}
+
+#[derive(Deserialize)]
+struct IgnoredResponse {}
 
 pub(crate) mod serde_embedding_as_vec {
     use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
