@@ -49,11 +49,9 @@ type AppState = server::AppState<
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 pub struct ConfigExtension {
-    #[allow(dead_code)]
     #[as_ref]
     #[serde(default)]
     pub(crate) ingestion: IngestionConfig,
-    #[allow(dead_code)]
     #[as_ref]
     #[serde(default)]
     pub(crate) embedding: embedding::Config,
@@ -61,7 +59,6 @@ pub struct ConfigExtension {
 
 #[derive(AsRef, Debug, Deserialize, Serialize)]
 pub struct IngestionConfig {
-    #[allow(dead_code)]
     #[as_ref]
     #[serde(default = "default_max_document_batch_size")]
     pub(crate) max_document_batch_size: usize,
@@ -81,7 +78,6 @@ fn default_max_document_batch_size() -> usize {
 
 #[derive(AsRef)]
 pub struct AppStateExtension {
-    #[allow(dead_code)]
     #[as_ref]
     pub(crate) embedder: Embedder,
 }

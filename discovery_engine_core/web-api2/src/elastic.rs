@@ -44,16 +44,12 @@ use crate::{
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
-    #[allow(dead_code)]
     #[serde(default = "default_url")]
     url: String,
-    #[allow(dead_code)]
     #[serde(default = "default_user")]
     user: String,
-    #[allow(dead_code)]
     #[serde(default = "default_password", serialize_with = "serialize_redacted")]
     password: Secret<String>,
-    #[allow(dead_code)]
     #[serde(default = "default_index_name")]
     index_name: String,
 }
@@ -532,8 +528,6 @@ struct SearchResponse<T> {
 #[derive(Clone, Debug, Deserialize)]
 struct Hits<T> {
     hits: Vec<Hit<T>>,
-    #[allow(dead_code)]
-    total: Total,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -544,12 +538,6 @@ struct Hit<T> {
     source: T,
     #[serde(rename = "_score")]
     score: f32,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct Total {
-    #[allow(dead_code)]
-    value: usize,
 }
 
 #[derive(Clone, Debug, Deserialize)]

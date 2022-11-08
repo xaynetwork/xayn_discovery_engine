@@ -66,10 +66,8 @@ pub(crate) struct UpdateInteractions {
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct UserInteractionData {
-    #[allow(dead_code)]
     #[serde(rename = "id")]
     pub(crate) document_id: DocumentId,
-    #[allow(dead_code)]
     #[serde(rename = "type")]
     pub(crate) interaction_type: UserInteractionType,
 }
@@ -233,7 +231,6 @@ pub(crate) struct PersonalizedDocumentsResponse {
 }
 
 impl PersonalizedDocumentsResponse {
-    #[allow(dead_code)]
     pub(crate) fn new(documents: impl Into<Vec<PersonalizedDocument>>) -> Self {
         Self {
             documents: documents.into(),

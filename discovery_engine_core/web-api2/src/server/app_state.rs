@@ -20,13 +20,10 @@ use super::{Config, SetupError};
 
 #[derive(Deref, AsRef)]
 pub struct AppState<CE, AE> {
-    #[allow(dead_code)]
     #[as_ref]
     pub(crate) config: Config<CE>,
-    #[allow(dead_code)]
     #[as_ref]
     pub(crate) db: Database,
-    #[allow(dead_code)]
     #[as_ref]
     pub(crate) elastic: ElasticSearchClient,
     #[deref]
