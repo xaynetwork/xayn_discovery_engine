@@ -64,7 +64,7 @@ pub struct IngestionConfig {
     #[allow(dead_code)]
     #[as_ref]
     #[serde(default = "default_max_document_batch_size")]
-    pub(crate) max_document_batch_size: u64,
+    pub(crate) max_document_batch_size: usize,
 }
 
 impl Default for IngestionConfig {
@@ -75,7 +75,7 @@ impl Default for IngestionConfig {
     }
 }
 
-fn default_max_document_batch_size() -> u64 {
+fn default_max_document_batch_size() -> usize {
     100
 }
 

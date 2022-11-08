@@ -98,6 +98,14 @@ impl From<&'static str> for BadRequest {
     }
 }
 
+impl From<String> for BadRequest {
+    fn from(message: String) -> Self {
+        Self {
+            message: Cow::Owned(message),
+        }
+    }
+}
+
 #[derive(Serialize, Debug, From)]
 pub(crate) struct DocumentIdAsObject {
     pub(crate) id: DocumentId,

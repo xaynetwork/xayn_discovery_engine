@@ -17,44 +17,136 @@ use actix_web::{
     HttpResponse,
     Responder,
 };
-use serde::Deserialize;
+use itertools::Itertools;
+use serde::{de, Deserialize, Deserializer};
+use tokio::time::Instant;
+use tracing::{error, info, instrument};
 
 use crate::{
-    error::application::{Unimplemented, WithRequestIdExt},
-    models::DocumentId,
+    elastic::{BulkInsertionError, ElasticDocument},
+    error::{
+        application::WithRequestIdExt,
+        common::{BadRequest, IngestingDocumentsFailed},
+    },
+    models::{DocumentId, DocumentProperties},
     Error,
 };
 
 use super::AppState;
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
-    let documents = web::scope("/documents")
+    config
         .service(
-            web::resource("")
+            web::resource("/documents")
                 .route(web::post().to(new_documents.error_with_request_id()))
                 .route(web::delete().to(delete_documents.error_with_request_id())),
         )
         .service(
-            web::resource("/{document_id}")
+            web::resource("/documents/{document_id}")
                 .route(web::delete().to(delete_document.error_with_request_id())),
         );
-    config.service(documents);
 }
 
-//FIXME use actual body
-#[derive(Deserialize)]
-struct NewDocuments {}
+/// Represents body of a POST documents request.
+#[derive(Debug, Clone, Deserialize)]
+struct IngestionRequestBody {
+    documents: Vec<IngestedDocument>,
+}
 
-async fn new_documents(
-    _state: Data<AppState>,
-    _new_documents: Json<NewDocuments>,
-) -> Result<impl Responder, Error> {
-    if true {
-        Err(Unimplemented {
-            functionality: "endpoint /documents",
-        })?;
+/// Represents a document sent for ingestion.
+#[derive(Debug, Clone, Deserialize)]
+struct IngestedDocument {
+    /// Unique identifier of the document.
+    id: DocumentId,
+
+    /// Snippet used to calculate embeddings for a document.
+    #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
+    snippet: String,
+
+    /// Contents of the document properties.
+    properties: DocumentProperties,
+}
+
+fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Err(de::Error::custom("field can't be an empty string"))
+    } else if s.contains('\u{0000}') {
+        Err(de::Error::custom("field can't contain zero bytes"))
+    } else {
+        Ok(s)
     }
-    Ok("text body response")
+}
+
+#[instrument(skip(state))]
+async fn new_documents(
+    state: Data<AppState>,
+    Json(body): Json<IngestionRequestBody>,
+) -> Result<impl Responder, Error> {
+    if body.documents.is_empty() {
+        return Ok(HttpResponse::NoContent());
+    }
+
+    if body.documents.len() > state.config.ingestion.max_document_batch_size {
+        error!("{} documents exceeds maximum number", body.documents.len());
+        return Err(BadRequest::from(format!(
+            "Document batch size exceeded maximum of {}.",
+            state.config.ingestion.max_document_batch_size
+        ))
+        .into());
+    }
+
+    let start = Instant::now();
+
+    let (documents, mut failed_documents) = body
+        .documents
+        .into_iter()
+        .map(|document| match state.embedder.run(&document.snippet) {
+            Ok(embedding) => Ok((
+                document.id,
+                ElasticDocument {
+                    snippet: document.snippet,
+                    properties: document.properties,
+                    embedding,
+                },
+            )),
+            Err(err) => {
+                error!(
+                    "Document with id '{}' caused a PipelineError: {:#?}",
+                    document.id, err
+                );
+                Err(document.id.into())
+            }
+        })
+        .partition_result::<Vec<_>, Vec<_>, _, _>();
+
+    info!(
+        "{} embeddings calculated in {} sec",
+        documents.len(),
+        start.elapsed().as_secs(),
+    );
+
+    state
+        .elastic
+        .bulk_insert_documents(&documents)
+        .await
+        .map_err(|err| match err {
+            BulkInsertionError::General(err) => err,
+            BulkInsertionError::PartialFailure {
+                failed_documents: fd,
+            } => {
+                failed_documents.extend(fd);
+                IngestingDocumentsFailed {
+                    documents: failed_documents,
+                }
+                .into()
+            }
+        })?;
+
+    Ok(HttpResponse::NoContent())
 }
 
 async fn delete_document(
