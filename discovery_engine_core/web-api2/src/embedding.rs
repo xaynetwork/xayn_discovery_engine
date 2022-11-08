@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
 
-
 use crate::{error::common::InternalError, server::SetupError};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -41,13 +40,12 @@ impl Default for Config {
 }
 
 pub(crate) struct Embedder {
-    #[allow(dead_code)]
     bert: AvgBert,
 }
 
 impl Embedder {
     pub(crate) fn run(&self, s: &str) -> Result<Embedding, InternalError> {
-        self.smbert.run(s).map_err(InternalError::from_std)
+        self.bert.run(s).map_err(InternalError::from_std)
     }
 
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
