@@ -14,8 +14,10 @@
 
 use std::collections::HashMap;
 
+use itertools::Itertools;
 use reqwest::{
-    header::{HeaderValue, CONTENT_TYPE},
+    header::{HeaderMap, HeaderValue, CONTENT_TYPE},
+    Body,
     StatusCode,
     Url,
 };
@@ -23,10 +25,11 @@ use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::error;
+use xayn_discovery_engine_ai::Embedding;
 
 use crate::{
-    error::common::{FailedToDeleteSomeDocuments, InternalError},
-    models::DocumentId,
+    error::common::FailedToDeleteSomeDocuments,
+    models::{DocumentId, DocumentProperties, PersonalizedDocument},
     server::SetupError,
     utils::serialize_redacted,
     Error,
@@ -173,23 +176,84 @@ impl ElasticSearchClient {
         url
     }
 
-    #[allow(dead_code)]
-    async fn query_elastic_search<B, T>(
+    pub(crate) async fn get_documents_by_embedding(
+        &self,
+        params: KnnSearchParams,
+    ) -> Result<Vec<PersonalizedDocument>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
+        let body = Some(json!({
+            "size": params.size,
+            "knn": {
+                "field": "embedding",
+                "query_vector": params.embedding,
+                "k":params.k_neighbors,
+                "num_candidates": params.num_candidates,
+                "filter": {
+                    "bool": {
+                        "must_not": {
+                            "ids": {
+                                "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
+                            }
+                        }
+                    }
+                }
+            }
+        }));
+
+        Ok(self
+            .query_with_json::<_, SearchResponse<_>>("_search", body)
+            .await?
+            .map(Into::into)
+            .unwrap_or_default())
+    }
+
+    pub(crate) async fn get_documents_by_ids(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<Vec<PersonalizedDocument>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/query-dsl-ids-query.html
+        let body = Some(json!({
+            "query": {
+                "ids" : {
+                    "values" : ids
+                }
+            }
+        }));
+
+        Ok(self
+            .query_with_json::<_, SearchResponse<_>>("_search", body)
+            .await?
+            .map(Into::into)
+            .unwrap_or_default())
+    }
+
+    async fn query_with_json<B, T>(&self, route: &str, body: Option<B>) -> Result<Option<T>, Error>
+    where
+        B: Serialize,
+        T: DeserializeOwned,
+    {
+        let body = body.map(|json| serde_json::to_vec(&json)).transpose()?;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+        self.query_with_bytes(route, body, headers).await
+    }
+
+    async fn query_with_bytes<B, T>(
         &self,
         route: &str,
         body: Option<B>,
+        headers: HeaderMap<HeaderValue>,
     ) -> Result<Option<T>, Error>
     where
-        B: Serialize,
+        B: Into<Body>,
         T: DeserializeOwned,
     {
         let url = format!("{}/{}/{}", self.config.url, self.config.index_name, route);
 
         let request_builder = if let Some(body) = body {
-            self.client
-                .post(url)
-                .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
-                .json(&body)
+            self.client.post(url).headers(headers).body(body)
         } else {
             self.client.get(url)
         };
@@ -200,18 +264,12 @@ impl ElasticSearchClient {
                 Some(self.config.password.expose_secret()),
             )
             .send()
-            .await
-            .map_err(InternalError::from_std)?;
+            .await?;
 
         if response.status() == StatusCode::NOT_FOUND {
             Ok(None)
         } else {
-            let value = response
-                .error_for_status()
-                .map_err(InternalError::from_std)?
-                .json()
-                .await
-                .map_err(InternalError::from_std)?;
+            let value = response.error_for_status()?.json().await?;
 
             Ok(Some(value))
         }
@@ -231,4 +289,88 @@ struct BulkItemResponse {
     status: u16,
     #[serde(default)]
     error: Value,
+}
+
+pub(crate) struct KnnSearchParams {
+    pub(crate) excluded: Vec<DocumentId>,
+    pub(crate) embedding: Vec<f32>,
+    pub(crate) size: usize,
+    pub(crate) k_neighbors: usize,
+    pub(crate) num_candidates: usize,
+}
+
+/// Represents a document with calculated embeddings that is stored in Elastic Search.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ElasticDocument {
+    pub snippet: String,
+    pub properties: DocumentProperties,
+    #[serde(with = "serde_embedding_as_vec")]
+    pub embedding: Embedding,
+}
+
+impl From<SearchResponse<ElasticDocument>> for Vec<PersonalizedDocument> {
+    fn from(response: SearchResponse<ElasticDocument>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| PersonalizedDocument {
+                id: hit.id,
+                score: hit.score,
+                embedding: hit.source.embedding,
+                properties: hit.source.properties,
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct SearchResponse<T> {
+    hits: Hits<T>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct Hits<T> {
+    hits: Vec<Hit<T>>,
+    #[allow(dead_code)]
+    total: Total,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct Hit<T> {
+    #[serde(rename = "_id")]
+    id: DocumentId,
+    #[serde(rename = "_source")]
+    source: T,
+    #[serde(rename = "_score")]
+    score: f32,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct Total {
+    #[allow(dead_code)]
+    value: usize,
+}
+
+pub(crate) mod serde_embedding_as_vec {
+    use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
+    use xayn_discovery_engine_ai::Embedding;
+
+    pub(crate) fn serialize<S>(embedding: &Embedding, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(embedding.len()))?;
+        for element in embedding.iter() {
+            seq.serialize_element(element)?;
+        }
+        seq.end()
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Embedding, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Vec::<f32>::deserialize(deserializer).map(Embedding::from)
+    }
 }

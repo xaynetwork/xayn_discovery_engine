@@ -4602,6 +4602,7 @@ dependencies = [
  "dotenvy",
  "figment",
  "futures-util",
+ "itertools 0.10.5",
  "mime",
  "once_cell",
  "pin-project",

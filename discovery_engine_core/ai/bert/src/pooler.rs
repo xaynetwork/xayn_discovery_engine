@@ -51,6 +51,12 @@ impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
     }
 }
 
+impl From<Vec<f32>> for Embedding<Ix1> {
+    fn from(vec: Vec<f32>) -> Self {
+        Array::from_vec(vec).into()
+    }
+}
+
 #[derive(Clone, Debug, Display, Error)]
 /// Bytes do not represent a valid embedding.
 pub struct MalformedBytesEmbedding;

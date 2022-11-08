@@ -39,7 +39,10 @@ impl Application for Personalization {
     }
 }
 
-type Config = server::Config<<Personalization as Application>::ConfigExtension>;
+type AppState = server::AppState<
+    <Personalization as Application>::ConfigExtension,
+    <Personalization as Application>::AppStateExtension,
+>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 pub struct ConfigExtension {
@@ -47,6 +50,43 @@ pub struct ConfigExtension {
     #[as_ref]
     #[serde(default)]
     pub(crate) coi: CoiConfig,
+
+    #[as_ref]
+    #[serde(default)]
+    pub(crate) personalization: PersonalizationConfig,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct PersonalizationConfig {
+    #[serde(default = "default_max_number_documents")]
+    pub(crate) max_number_documents: usize,
+    #[serde(default = "default_default_number_documents")]
+    pub(crate) default_number_documents: usize,
+    #[serde(default = "default_max_cois_for_knn")]
+    pub(crate) max_cois_for_knn: usize,
+}
+
+fn default_max_number_documents() -> usize {
+    100
+}
+
+fn default_default_number_documents() -> usize {
+    100
+}
+
+fn default_max_cois_for_knn() -> usize {
+    //FIXME what is a default value we know works well with how we do knn?
+    10
+}
+
+impl Default for PersonalizationConfig {
+    fn default() -> Self {
+        Self {
+            max_number_documents: default_max_number_documents(),
+            default_number_documents: default_default_number_documents(),
+            max_cois_for_knn: default_max_cois_for_knn(),
+        }
+    }
 }
 
 #[derive(AsRef)]
