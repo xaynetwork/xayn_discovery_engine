@@ -22,3 +22,13 @@ CREATE TABLE IF NOT EXISTS interaction (
 
 CREATE INDEX IF NOT EXISTS idx_interaction_by_user_id
     ON interaction(user_id);
+
+CREATE TABLE IF NOT EXISTS weighted_category (
+    user_id TEXT NOT NULL,
+    category TEXT NOT NULL,
+    weight INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, category)
+);
+
+CREATE INDEX IF NOT EXISTS idx_category_by_user_id
+    ON weighted_category(user_id);

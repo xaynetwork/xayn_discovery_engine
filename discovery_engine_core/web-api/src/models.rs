@@ -111,6 +111,9 @@ pub(crate) struct PersonalizedDocument {
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
+
+    /// The high-level category the document belongs to.
+    pub(crate) category: Option<String>,
 }
 
 impl AiDocument for PersonalizedDocument {
