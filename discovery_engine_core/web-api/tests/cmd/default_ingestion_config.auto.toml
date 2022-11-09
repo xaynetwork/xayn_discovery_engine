@@ -1,4 +1,4 @@
-bin.name = "personalization2"
+bin.name = "ingestion"
 args = ["--print-config"]
 status.code = 0
 stderr = ""
@@ -26,17 +26,11 @@ stdout = """
     "application_name": null,
     "skip_migrations": false
   },
-  "coi": {
-    "shift_factor": 0.1,
-    "threshold": 0.67,
-    "min_positive_cois": 2,
-    "min_negative_cois": 0,
-    "horizon": 30
+  "ingestion": {
+    "max_document_batch_size": 100
   },
-  "personalization": {
-    "max_number_documents": 100,
-    "default_number_documents": 100,
-    "max_cois_for_knn": 10
+  "embedding": {
+    "directory": "assets"
   }
 }
 """
