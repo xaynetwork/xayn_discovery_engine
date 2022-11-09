@@ -4,8 +4,6 @@ WORKDIR /service
 
 COPY ./ ./
 
-RUN chmod +x ./web-api
+RUN chmod +x ./personalization
 
-EXPOSE 3000
-
-CMD ["./web-api"]
+CMD ["./personalization"]
