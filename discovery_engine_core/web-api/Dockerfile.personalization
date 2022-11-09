@@ -1,9 +1,0 @@
-FROM debian:bookworm-slim
-
-WORKDIR /service
-
-COPY ./ ./
-
-RUN chmod +x ./personalization
-
-CMD ["./personalization"]
