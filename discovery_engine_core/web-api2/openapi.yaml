@@ -1,0 +1,491 @@
+openapi: 3.0.3
+info:
+  title: Personalization API
+  version: 1.0.0-rc4
+  description: |-
+    # Overview
+    The personalization system is divided into two parts: one to manage documents and one to manage users.
+
+    ## Documents management
+    For this system, a document is anything that has an id, a snippet, and an arbitrary set of properties.
+    The id uniquely identifies the document in the system.
+    The system uses the snippet to create a document representation that can be matched against user interests.
+
+    It is possible to attach any properties to a document; the system will not use them but will be returned together with the document when asking for personalized documents for a user. They could help store information like a title and the URL where it is possible to find the document. Each document can have its own set of properties.
+
+    The API offers an endpoint that allows uploading the documents to the system. After a successful upload, it will be possible to use the document in other endpoints.
+
+    ## User management
+    The system identifies a user with only an id.
+    There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document), and one to retrieve a personalized set of documents for the user. The system needs a few user interactions with documents before it can generate a personalized list.
+
+    # Auth
+    To authenticate with the API two bearer tokens will be provided. One will work for the
+    user endpoints and the other one to manage the documents.
+
+tags:
+  - name: users
+    description: Interaction of the user and personalized document.
+  - name: documents
+    description: Management of the documents in the system.
+
+paths:
+  /users/{user_id}/personalized_documents:
+    get:
+      tags:
+        - users
+      summary: Get personalized documents for the user
+      description: |-
+        Returns a list of documents personalized for the given `user_id`.
+        Each document contains the id, the score and the properties that are attached to the document.
+        The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
+      parameters:
+        - name: user_id
+          in: path
+          description: Id of the user
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+        - name: count
+          in: query
+          description: Maximum number of personalized documents to return
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+        '400':
+          description: invalid user id.
+        '404':
+          description: user not found.
+        '422':
+          description: impossible to create a personalized list for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
+
+  /users/{user_id}/interactions:
+    patch:
+      tags:
+        - users
+      summary: Add interaction between a user and a document
+      description: |-
+        The interaction is used to provide personalized documents to the user.
+      parameters:
+        - name: user_id
+          in: path
+          description: Id of the user
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInteractionRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request. User or document id is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInteractionError'
+
+  /documents:
+    post:
+      tags:
+        - documents
+      summary: Add documents to the system
+      description: |-
+        Add documents to the system. The system will create a representation of the document
+        that will be used to match it against the preferences of a user.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestionRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request
+        '500':
+          description: all or some of the documents were not successfully uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionError'
+    delete:
+      tags:
+        - documents
+      summary: Delete all listed documents.
+      description: |-
+        Delete all documents listed in the request body. The endpoint is
+        idempotent. I.e. if the list contains one or multiple non-existing
+        documents, no error is produced.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteDocumentsRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request
+
+  /documents/{document_id}:
+    delete:
+      tags:
+        - documents
+      summary: Delete the document from the system.
+      description: |-
+        Permanently deletes the document from the system. The endpoint is
+        idempotent. Deleting a non-existing document does not produce an error.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request
+
+  /documents/{document_id}/properties:
+    get:
+      tags:
+        - documents
+      summary: Get all document properties
+      description: Gets all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPropertiesResponse'
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+    put:
+      tags:
+        - documents
+      summary: Set all document properties
+      description: Sets or replaces all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentPropertiesRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+    delete:
+      tags:
+        - documents
+      summary: Delete all document properties
+      description: Deletes all the properties of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id
+        '404':
+          description: document id not found
+
+  /documents/{document_id}/properties/{property_id}:
+    get:
+      tags:
+        - documents
+      summary: Get a document property
+      description: Gets the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPropertyResponse'
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id or property id not found
+    put:
+      tags:
+        - documents
+      summary: Set a document property
+      description: Sets or replaces the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentPropertyRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id not found
+    delete:
+      tags:
+        - documents
+      summary: Delete a document property
+      description: Deletes the property of the document.
+      parameters:
+        - name: document_id
+          in: path
+          description: Id of the document
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentId'
+        - name: property_id
+          in: path
+          description: Id of the document property
+          required: true
+          schema:
+            $ref: '#/components/schemas/DocumentPropertyId'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid document id or property id
+        '404':
+          description: document id or property id not found
+
+components:
+  schemas:
+    DocumentId:
+      description: |-
+        A document id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
+      type: string
+      example: "document_id"
+    DocumentPropertyId:
+      description: |-
+        A document property id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
+      type: string
+      example: "document_property_id"
+    DocumentProperty:
+      description: Arbitrary property that can be attached to a document.
+      example: "News title"
+    DocumentPropertyRequest:
+      type: object
+      required: [property]
+      properties:
+        property:
+          $ref: '#/components/schemas/DocumentProperty'
+    DocumentPropertyResponse:
+      type: object
+      required: [property]
+      properties:
+        property:
+          $ref: '#/components/schemas/DocumentProperty'
+    DocumentProperties:
+      description: Arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/DocumentProperty'
+      example:
+        title: "News title"
+        image_url: "http://example.com/news_image.jpg"
+        link: "http://example.com/this_news"
+    DocumentPropertiesRequest:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
+    DocumentPropertiesResponse:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
+    UserId:
+      description: |-
+        A user id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
+      type: string
+      example: "user_id"
+    BaseError:
+      type: object
+      required: [request_id, kind]
+      properties:
+        request_id:
+          description: Request ID optionally generated from the service. It can be communicated to xayn to help debugging.
+          type: string
+        kind:
+          description: What kind of error this is.
+          type: String
+        details:
+          description: Additional error details. Might differ depending on debug options.
+          type: object
+    PersonalizedDocumentData:
+      type: object
+      required: [id, score]
+      properties:
+        id:
+          $ref: '#/components/schemas/DocumentId'
+        score:
+          type: number
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
+    PersonalizedDocumentsResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalizedDocumentData'
+    PersonalizedDocumentsError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [NotEnoughInteractions]
+    UserInteractionType:
+      type: string
+      enum: [positive]
+    UserInteractionData:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/DocumentId'
+        type:
+          $ref: '#/components/schemas/UserInteractionType'
+    UserInteractionRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserInteractionData'
+    UserInteractionError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [InvalidUserId, InvalidDocumentId]
+    IngestedDocument:
+      type: object
+      required: [id, snippet]
+      properties:
+        id:
+          $ref: '#/components/schemas/DocumentId'
+        snippet:
+          description: Text that will be used to match the document against the user interests.
+          type: string
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
+    IngestionRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestedDocument'
+    IngestionError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+        - type: object
+          required: [details]
+          properties:
+            details:
+              type: object
+              required: [documents]
+              properties:
+                documents:
+                  type: array
+                  items:
+                    type: object
+                    required: [id]
+                    properties:
+                      id:
+                        $ref: '#/components/schemas/DocumentId'
+    DeleteDocumentsRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentId'
