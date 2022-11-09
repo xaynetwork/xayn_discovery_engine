@@ -25,7 +25,9 @@ mod personalization;
 mod server;
 mod utils;
 
-pub use error::application::{ApplicationError, Error};
-pub use ingestion::Ingestion;
-pub use personalization::Personalization;
-pub use server::run;
+pub use crate::{
+    error::application::{ApplicationError, Error},
+    ingestion::Ingestion,
+    personalization::Personalization,
+    server::run,
+};
