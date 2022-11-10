@@ -26,6 +26,7 @@ use sqlx::{
     Postgres,
     QueryBuilder,
 };
+use tracing::{info, instrument};
 use uuid::Uuid;
 use xayn_discovery_engine_ai::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
@@ -98,8 +99,10 @@ fn default_application_name() -> Option<String> {
 }
 
 impl Config {
+    #[instrument]
     pub(crate) async fn setup_database(&self) -> Result<Database, sqlx::Error> {
         let options = self.build_connection_options()?;
+        info!("starting postgres setup");
         let pool = PoolOptions::new().connect_with(options).await?;
         if !self.skip_migrations {
             sqlx::migrate!().run(&pool).await?;
