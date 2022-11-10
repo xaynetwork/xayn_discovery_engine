@@ -102,7 +102,7 @@ impl Config {
     #[instrument]
     pub(crate) async fn setup_database(&self) -> Result<Database, sqlx::Error> {
         let options = self.build_connection_options()?;
-        info!("starting posgres setup");
+        info!("starting postgres setup");
         let pool = PoolOptions::new().connect_with(options).await?;
         if !self.skip_migrations {
             sqlx::migrate!().run(&pool).await?;
