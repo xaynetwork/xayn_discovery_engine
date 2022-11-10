@@ -1,8 +1,6 @@
 [workspace]
 members = [
     "ai/*",
-    "async-bindgen/*",
-    "bindings",
     "core",
     "providers",
     "tooling",
@@ -54,14 +52,6 @@ tract-onnx = "0.18.1"
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.1.2", features = ["serde", "v4"] }
 wiremock = "0.5.14"
-
-[patch.crates-io.xayn-dart-api-dl]
-git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
-branch = "main"
-
-[patch.crates-io.xayn-dart-api-dl-sys]
-git = "https://github.com/xaynetwork/xayn_dart_api_dl.git"
-branch = "main"
 
 [profile.dev.package.tract-core]
 opt-level = 3

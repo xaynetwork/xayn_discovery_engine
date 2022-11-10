@@ -1,4 +1,0 @@
-# Omit generated files
-# Note: If we ever publish this package to crates.io we _must_ include the generated *.rs files
-src/async_bindings/*.rs
-include/

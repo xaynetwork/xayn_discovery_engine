@@ -19,9 +19,7 @@ jobs:
     container:
       image: xaynetci/yellow:v5
     outputs:
-      dart: ${{ steps.filter.outputs.dart }}
       rust: ${{ steps.filter.outputs.rust }}
-      flutter: ${{ steps.filter.outputs.flutter }}
     timeout-minutes: 5
     steps:
       - name: Checkout repository
@@ -37,28 +35,11 @@ jobs:
               - '.github/actions/setup-job-docker/*'
               - '.github/actions/setup-job/*'
               - 'justfile'
-            dart: &dart
-              - *rust
-              - 'discovery_engine/**'
-            flutter:
-              - *rust
-              - *dart
-              - 'discovery_engine_flutter/**'
 
   rust-checks:
     needs: selection
     if: ${{ needs.selection.outputs.rust  == 'true' }}
     uses: ./.github/workflows/_reusable.rust.yml
-
-  dart-checks:
-    needs: selection
-    if: ${{ needs.selection.outputs.dart  == 'true' }}
-    uses: ./.github/workflows/_reusable.dart.yml
-
-  flutter-checks:
-    needs: selection
-    if: ${{ needs.selection.outputs.flutter  == 'true' }}
-    uses: ./.github/workflows/_reusable.flutter.yml
 
   copyright:
     if: ${{ always() }}
