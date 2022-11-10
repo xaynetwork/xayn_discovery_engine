@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use itertools::Itertools;
 use secrecy::{ExposeSecret, Secret};
@@ -323,6 +323,29 @@ impl Database {
         Ok(documents.into_iter().map_into().collect())
     }
 
+    pub(crate) async fn fetch_category_weights(
+        &self,
+        user_id: &UserId,
+    ) -> Result<HashMap<String, usize>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let categories = sqlx::query_as::<_, QueriedWeightedCategory>(
+            "SELECT (category, weight)
+            FROM weighted_category
+            WHERE user_id = $1;",
+        )
+        .bind(user_id.as_ref())
+        .fetch_all(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(categories
+            .into_iter()
+            .map(|category| (category.category, category.weight as usize))
+            .collect())
+    }
+
     pub(crate) async fn update_category_weight(
         &self,
         user_id: &UserId,
@@ -370,4 +393,11 @@ impl From<QueriedInteractedDocumentId> for DocumentId {
     fn from(document_id: QueriedInteractedDocumentId) -> Self {
         document_id.doc_id
     }
+}
+
+#[derive(FromRow)]
+struct QueriedWeightedCategory {
+    category: String,
+    /// The weight is a `usize` stored as `i32` in database
+    weight: i32,
 }
