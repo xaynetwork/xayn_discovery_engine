@@ -1,12 +1,6 @@
 name: Build docker ci image
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - .env
-      - discovery_engine_core/rust-toolchain.toml
+on: workflow_dispatch
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
