@@ -39,5 +39,7 @@ download()
 }
 
 download smbert v0003
+download smbert_quantized v0003
 download smbert_mocked v0003
 download sjbert v0003
+download sources v0000
