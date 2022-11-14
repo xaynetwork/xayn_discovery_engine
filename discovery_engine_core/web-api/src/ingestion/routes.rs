@@ -108,8 +108,7 @@ fn deserialize_empty_option_string_as_none<'de, D>(
 where
     D: Deserializer<'de>,
 {
-    Option::<String>::deserialize(deserializer)
-        .map(|s| s.and_then(|s| (!s.is_empty()).then_some(s)))
+    Option::<String>::deserialize(deserializer).map(|s| s.filter(|s| !s.is_empty()))
 }
 
 #[instrument(skip(state))]
