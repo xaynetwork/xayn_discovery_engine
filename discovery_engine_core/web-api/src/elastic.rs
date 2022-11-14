@@ -502,6 +502,7 @@ pub struct ElasticDocument {
     pub properties: DocumentProperties,
     #[serde(with = "serde_embedding_as_vec")]
     pub embedding: Embedding,
+    pub category: Option<String>,
 }
 
 impl From<SearchResponse<ElasticDocument>> for Vec<PersonalizedDocument> {
