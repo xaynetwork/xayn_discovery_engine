@@ -12,15 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use futures_util::FutureExt;
-use serde::Serialize;
 use std::future::Future;
 
 use actix_web::{
     dev::{Service, ServiceRequest, ServiceResponse},
     HttpMessage,
 };
-
+use futures_util::FutureExt;
+use serde::Serialize;
 use tracing::{info_span, trace, Instrument};
 use uuid::Uuid;
 

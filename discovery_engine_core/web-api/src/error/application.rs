@@ -35,9 +35,8 @@ use serde_json::Value;
 use thiserror::Error;
 use tracing::error;
 
-use crate::middleware::tracing::RequestId;
-
 use super::json_error::JsonErrorResponseBuilder;
+use crate::middleware::tracing::RequestId;
 
 #[derive(Display, Debug, Deref)]
 #[display(fmt = "{}", error)]

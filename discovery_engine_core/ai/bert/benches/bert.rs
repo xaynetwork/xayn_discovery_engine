@@ -19,7 +19,6 @@ use std::path::Path;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ndarray::s;
 use onnxruntime::{environment::Environment, GraphOptimizationLevel};
-
 use xayn_discovery_engine_bert::{tokenizer::Tokenizer, Config, Embedding2, NonePooler};
 use xayn_discovery_engine_test_utils::asset::smbert;
 

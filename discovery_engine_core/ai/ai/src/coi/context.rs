@@ -211,12 +211,11 @@ mod tests {
     use ndarray::arr1;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
+    use super::*;
     use crate::{
         coi::point::tests::{create_neg_cois, create_pos_cois},
         utils::SECONDS_PER_DAY_F32,
     };
-
-    use super::*;
 
     #[test]
     fn test_has_enough_cois() {

@@ -25,13 +25,11 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
-
+pub use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId};
 use xayn_discovery_engine_providers::GenericArticle;
 
 use crate::stack::Id as StackId;
-
-pub use xayn_discovery_engine_ai::Embedding;
 
 /// Errors that could happen when constructing a [`Document`].
 #[derive(Error, Debug, DisplayDoc)]
@@ -307,7 +305,6 @@ pub struct WeightedSource {
 #[cfg(test)]
 pub(crate) mod tests {
     use chrono::TimeZone;
-
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
 
     use super::*;

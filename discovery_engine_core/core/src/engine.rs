@@ -29,7 +29,6 @@ use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, Level};
-
 use xayn_discovery_engine_ai::{
     self,
     cosine_similarity,
@@ -1408,12 +1407,11 @@ pub(crate) mod tests {
         MockServer,
         ResponseTemplate,
     };
-
-    use crate::{document::tests::mock_generic_article, stack::ops::MockOps};
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
     use xayn_discovery_engine_test_utils::asset::{smbert_mocked, smbert_quantized};
 
     use super::*;
+    use crate::{document::tests::mock_generic_article, stack::ops::MockOps};
 
     #[test]
     fn test_usize_not_to_small() {

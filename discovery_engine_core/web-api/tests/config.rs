@@ -18,6 +18,7 @@ use std::{
     os::unix::prelude::OsStrExt,
     sync::Mutex,
 };
+
 use trycmd::TestCases;
 
 fn with_env_guard(

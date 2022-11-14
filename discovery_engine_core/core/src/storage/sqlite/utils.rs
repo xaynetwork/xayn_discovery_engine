@@ -51,9 +51,8 @@ impl<T> SqlxSqliteResultExt<T> for Result<T, sqlx::Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{document, storage::sqlite::setup::create_connection_pool};
-
     use super::*;
+    use crate::{document, storage::sqlite::setup::create_connection_pool};
 
     #[tokio::test]
     async fn test_fk_violation_is_invalid_document() {

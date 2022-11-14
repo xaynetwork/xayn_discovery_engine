@@ -12,13 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::utils::RelativePathBuf;
-
 use serde::{Deserialize, Serialize};
 use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
 
-use crate::{error::common::InternalError, server::SetupError};
+use crate::{error::common::InternalError, server::SetupError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {

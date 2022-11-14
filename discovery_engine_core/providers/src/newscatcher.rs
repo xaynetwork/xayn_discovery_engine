@@ -310,6 +310,7 @@ mod tests {
         ResponseTemplate,
     };
 
+    use super::*;
     use crate::{
         config::Config,
         models::{
@@ -319,8 +320,6 @@ mod tests {
         Filter,
         Market,
     };
-
-    use super::*;
 
     #[tokio::test]
     async fn test_simple_news_query() {

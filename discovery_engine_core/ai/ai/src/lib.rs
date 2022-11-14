@@ -38,6 +38,8 @@ mod error;
 mod kps;
 pub mod utils;
 
+#[cfg(doc)]
+pub use crate::embedding::COSINE_SIMILARITY_RANGE;
 pub use crate::{
     coi::{
         config::{Config as CoiConfig, Error as CoiConfigError},
@@ -62,6 +64,3 @@ pub use crate::{
     },
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, system_time_now},
 };
-
-#[cfg(doc)]
-pub use crate::embedding::COSINE_SIMILARITY_RANGE;

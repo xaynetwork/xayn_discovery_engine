@@ -22,7 +22,6 @@ use actix_web::{
 use futures_util::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-
 use tracing::{error, warn};
 use xayn_discovery_engine_ai::{
     compute_coi_relevances,
@@ -32,6 +31,7 @@ use xayn_discovery_engine_ai::{
     PositiveCoi,
 };
 
+use super::{AppState, PersonalizationConfig};
 use crate::{
     elastic::KnnSearchParams,
     error::{
@@ -41,8 +41,6 @@ use crate::{
     models::{DocumentId, PersonalizedDocument, UserId, UserInteractionType},
     Error,
 };
-
-use super::{AppState, PersonalizationConfig};
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     let scope = web::scope("/users/{user_id}")

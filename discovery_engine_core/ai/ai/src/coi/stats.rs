@@ -128,10 +128,10 @@ pub(super) fn compute_coi_decay_factor(
 
 #[cfg(test)]
 mod tests {
-    use crate::coi::{config::Config, point::tests::create_pos_cois};
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
+    use crate::coi::{config::Config, point::tests::create_pos_cois};
 
     #[test]
     fn test_compute_relevances_empty_cois() {

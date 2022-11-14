@@ -34,6 +34,7 @@ mod approx_eq;
 pub mod asset;
 pub mod uuid;
 
-pub use crate::approx_eq::ApproxEqIter;
 #[doc(hidden)] // required for standalone export of assert_approx_eq!
 pub use float_cmp::approx_eq;
+
+pub use crate::approx_eq::ApproxEqIter;

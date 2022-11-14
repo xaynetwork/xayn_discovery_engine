@@ -20,9 +20,8 @@ use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
 use xayn_discovery_engine_ai::{cosine_similarity, nan_safe_f32_cmp, pairwise_cosine_similarity};
 
-use crate::document::{Document, WeightedSource};
-
 use super::source_weight;
+use crate::document::{Document, WeightedSource};
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
 fn condensed_cosine_similarity<'a, I>(embeddings: I) -> Vec<f32>
@@ -304,9 +303,8 @@ mod tests {
     use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, asset::smbert_quantized};
 
-    use crate::document::NewsResource;
-
     use super::*;
+    use crate::document::NewsResource;
 
     #[test]
     fn test_condensed_cosine_similarity() {

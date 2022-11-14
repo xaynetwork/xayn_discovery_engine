@@ -18,11 +18,6 @@ use std::{
     str::FromStr,
 };
 
-use crate::{
-    stack,
-    storage::{utils::SqlxPushTupleExt, DartMigrationData, Error, InitDbHint},
-    utils::{remove_file_if_exists, CompoundError, MiscErrorExt},
-};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     Pool,
@@ -32,6 +27,11 @@ use sqlx::{
 use xayn_discovery_engine_ai::Embedding;
 
 use super::SqliteStorage;
+use crate::{
+    stack,
+    storage::{utils::SqlxPushTupleExt, DartMigrationData, Error, InitDbHint},
+    utils::{remove_file_if_exists, CompoundError, MiscErrorExt},
+};
 
 /// Initializes the Sqlite storage system.
 ///
@@ -197,9 +197,8 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use crate::storage::Storage;
-
     use super::*;
+    use crate::storage::Storage;
 
     #[tokio::test]
     async fn test_missing_stacks_are_added_and_removed_stacks_removed() {
