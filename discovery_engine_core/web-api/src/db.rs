@@ -334,7 +334,7 @@ impl Database {
             FROM weighted_category
             WHERE user_id = $1;",
         )
-        .bind(user_id.as_ref())
+        .bind(user_id)
         .fetch_all(&mut tx)
         .await?;
 
