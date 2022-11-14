@@ -198,15 +198,28 @@ async fn personalized_documents(
         })
         .collect::<FuturesUnordered<_>>();
 
-    let mut all_documents = Vec::new();
+    let mut all_documents = HashMap::new();
     let mut errors = Vec::new();
 
     while let Some(result) = document_futures.next().await {
         match result {
-            Ok(documents) => all_documents.extend(documents),
-            Err(err) => {
-                error!("Error fetching document: {err}");
-                errors.push(err);
+            Ok(documents) => {
+                // the same document can be returned with different elastic scores, hence the
+                // documents are deduplicated and only the highest score is retained for each
+                for document in documents {
+                    all_documents
+                        .entry(document.id.clone())
+                        .and_modify(|PersonalizedDocument { score, .. }| {
+                            if *score < document.score {
+                                *score = document.score;
+                            }
+                        })
+                        .or_insert(document);
+                }
+            }
+            Err(error) => {
+                error!("Error fetching documents: {error}");
+                errors.push(error);
             }
         };
     }
@@ -215,17 +228,16 @@ async fn personalized_documents(
         return Err(InternalError::from_message("Fetching documents failed").into());
     }
 
+    let mut all_documents = all_documents.into_values().collect_vec();
     match state.coi.score(&all_documents, &user_interests) {
         Ok(scores) => rank(&mut all_documents, &scores),
         Err(_) => {
             return Err(NotEnoughInteractions.into());
         }
     }
+    all_documents.truncate(document_count);
 
-    let max_docs = document_count.min(all_documents.len());
-    let documents = &all_documents[0..max_docs];
-
-    Ok(Json(PersonalizedDocumentsResponse::new(documents)))
+    Ok(Json(PersonalizedDocumentsResponse::new(all_documents)))
 }
 
 /// Represents response from personalized documents endpoint.
