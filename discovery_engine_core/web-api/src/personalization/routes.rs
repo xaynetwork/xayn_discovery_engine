@@ -94,7 +94,6 @@ async fn update_interactions(
         match document.interaction_type {
             UserInteractionType::Positive => {
                 if let Some(document) = documents.get(&document.document_id) {
-                    //TODO for some reason this was returning a BAD_REQUEST error????
                     state
                         .db
                         .update_positive_cois(&document.id, &user_id, |positive_cois| {
