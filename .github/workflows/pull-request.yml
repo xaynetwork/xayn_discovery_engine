@@ -31,9 +31,7 @@ jobs:
           filters: |
             rust: &rust
               - 'discovery_engine_core/**'
-              - '.github/workflows/ci*'
               - '.github/actions/setup-job-docker/*'
-              - '.github/actions/setup-job/*'
               - 'justfile'
 
   rust-checks:
