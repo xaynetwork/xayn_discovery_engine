@@ -4,10 +4,8 @@ set -e
 
 files_to_check() {
     find . \
-         -path "./discovery_engine_core/ai/tokenizer" -prune \
-         -o -type d -name target -prune \
-         -o -type d -name .dart_tool -prune \
-         -o \( -name "*.rs" -o -name "*.dart" \) \
+         -or -type d -name target -prune \
+         -or -name "*.rs" \
          -print
 }
 
