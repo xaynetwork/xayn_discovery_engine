@@ -204,6 +204,8 @@ async fn personalized_documents(
     while let Some(result) = document_futures.next().await {
         match result {
             Ok(documents) => {
+                // the same document can be returned with different elastic scores, hence the
+                // documents are deduplicated and only the highest score is retained for each
                 for document in documents {
                     all_documents
                         .entry(document.id.clone())
