@@ -322,6 +322,30 @@ impl Database {
 
         Ok(documents.into_iter().map_into().collect())
     }
+
+    pub(crate) async fn update_category_weight(
+        &self,
+        user_id: &UserId,
+        category: &str,
+    ) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+            "INSERT INTO weighted_category (user_id, category, weight)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, category) DO UPDATE SET
+                weight = weighted_category.weight + 1;",
+        )
+        .bind(user_id.as_ref())
+        .bind(category)
+        .bind(1)
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(())
+    }
 }
 
 #[derive(FromRow)]

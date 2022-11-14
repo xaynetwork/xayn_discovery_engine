@@ -516,6 +516,7 @@ impl From<SearchResponse<ElasticDocument>> for Vec<PersonalizedDocument> {
                 score: hit.score,
                 embedding: hit.source.embedding,
                 properties: hit.source.properties,
+                category: hit.source.category,
             })
             .collect()
     }

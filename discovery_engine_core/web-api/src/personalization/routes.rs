@@ -23,7 +23,7 @@ use futures_util::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use tracing::error;
+use tracing::{error, warn};
 use xayn_discovery_engine_ai::{
     compute_coi_relevances,
     nan_safe_f32_cmp,
@@ -85,24 +85,29 @@ async fn update_interactions(
         .map(|document| &document.document_id)
         .collect_vec();
     let documents = state.elastic.get_documents_by_ids(&ids).await?;
-    let embeddings = documents
-        .into_iter()
-        .map(|document| (document.id, document.embedding))
+    let documents = documents
+        .iter()
+        .map(|document| (&document.id, document))
         .collect::<HashMap<_, _>>();
 
     for document in interactions.documents {
         match document.interaction_type {
             UserInteractionType::Positive => {
-                //TODO for some reason this was returning a BAD_REQUEST error????
-                state
-                    .db
-                    .update_positive_cois(&document.document_id, &user_id, |positive_cois| {
-                        state.coi.log_positive_user_reaction(
-                            positive_cois,
-                            &embeddings[&document.document_id],
-                        )
-                    })
-                    .await?;
+                if let Some(document) = documents.get(&document.document_id) {
+                    state
+                        .db
+                        .update_positive_cois(&document.id, &user_id, |positive_cois| {
+                            state
+                                .coi
+                                .log_positive_user_reaction(positive_cois, &document.embedding)
+                        })
+                        .await?;
+                    if let Some(category) = &document.category {
+                        state.db.update_category_weight(&user_id, category).await?;
+                    }
+                } else {
+                    warn!(%document.document_id, "interacted document doesn't exist anymore");
+                }
             }
         }
     }
