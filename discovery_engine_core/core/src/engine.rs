@@ -108,7 +108,7 @@ use crate::{
 /// Discovery engine errors.
 #[derive(Error, Debug, Display)]
 pub enum Error {
-    /// Failed to serialize internal state of the engine: {0}.
+    /// AA Failed to serialize internal state of the engine: {0}.
     Serialization(#[source] bincode::Error),
 
     /// Failed to deserialize internal state to create the engine: {0}.
@@ -253,7 +253,7 @@ impl Engine {
         let de_config =
             de_config_from_json_with_defaults(config.de_config.as_deref().unwrap_or("{}"));
         let core_config = de_config
-            .extract_inner("coreee")
+            .extract_inner("core")
             .map_err(|err| Error::Ranker(err.into()))?;
         let feed_config = FeedConfig {
             max_docs_per_batch: config.max_docs_per_feed_batch as usize,
