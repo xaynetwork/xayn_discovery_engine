@@ -1,3 +1,5 @@
+# no cache 0
+
 [package]
 name = "xayn-discovery-engine-core"
 version = { workspace = true }
