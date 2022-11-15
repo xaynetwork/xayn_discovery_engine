@@ -24,7 +24,7 @@ use super::source_weight;
 use crate::document::{Document, WeightedSource};
 
 /// Computes the condensed cosine similarity matrix of the documents' embeddings.
-fn condensed_cosine_similarity<'a, I>(embeddings: I) -> Vec<f32>
+pub fn condensed_cosine_similarity<'a, I>(embeddings: I) -> Vec<f32>
 where
     I: IntoIterator<Item = ArrayView1<'a, f32>>,
     I::IntoIter: Clone,
@@ -38,7 +38,7 @@ where
 }
 
 /// Computes the condensed date distance matrix (in days) of the documents' publication dates.
-fn condensed_date_distance<I>(dates: I) -> Vec<f32>
+pub fn condensed_date_distance<I>(dates: I) -> Vec<f32>
 where
     I: IntoIterator<Item = DateTime<Utc>>,
     I::IntoIter: Clone,
@@ -56,7 +56,7 @@ where
 }
 
 /// Computes the condensed decayed date distance matrix.
-fn condensed_decay_factor(date_distance: Vec<f32>, max_days: f32, threshold: f32) -> Vec<f32> {
+pub fn condensed_decay_factor(date_distance: Vec<f32>, max_days: f32, threshold: f32) -> Vec<f32> {
     let exp_max_days = (-0.1 * max_days).exp();
     date_distance
         .into_iter()
@@ -69,7 +69,10 @@ fn condensed_decay_factor(date_distance: Vec<f32>, max_days: f32, threshold: f32
 }
 
 /// Computes the condensed combined normalized distance matrix.
-fn condensed_normalized_distance(cosine_similarity: Vec<f32>, decay_factor: Vec<f32>) -> Vec<f32> {
+pub fn condensed_normalized_distance(
+    cosine_similarity: Vec<f32>,
+    decay_factor: Vec<f32>,
+) -> Vec<f32> {
     let combined = izip!(cosine_similarity, decay_factor)
         .map(|(similarity, factor)| similarity * factor)
         .collect::<Vec<_>>();
@@ -171,7 +174,7 @@ fn assign_labels(clusters: BTreeMap<usize, Vec<usize>>, len: usize) -> Vec<usize
 }
 
 /// Calculates the normalized distances.
-fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
+pub fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) -> Vec<f32> {
     let cosine_similarity = condensed_cosine_similarity(
         documents
             .iter()
@@ -187,7 +190,7 @@ fn normalized_distance(documents: &[Document], config: &SemanticFilterConfig) ->
 }
 
 /// Configurations for semantic filtering.
-pub(crate) struct SemanticFilterConfig {
+pub struct SemanticFilterConfig {
     /// Maximum days threshold after which documents fully decay (must be non-negative).
     pub(crate) max_days: f32,
     /// Threshold to scale the time decay factor.

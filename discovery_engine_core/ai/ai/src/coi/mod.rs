@@ -15,7 +15,7 @@
 pub(crate) mod config;
 pub(crate) mod context;
 pub(crate) mod point;
-pub(crate) mod stats;
+pub mod stats;
 pub(crate) mod system;
 
 use derive_more::{AsRef, From};
@@ -32,6 +32,12 @@ use crate::embedding::Embedding;
     Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize, From, AsRef,
 )]
 pub struct CoiId(Uuid);
+
+impl CoiId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+}
 
 #[derive(Debug, Display, Error)]
 pub(crate) enum CoiError {

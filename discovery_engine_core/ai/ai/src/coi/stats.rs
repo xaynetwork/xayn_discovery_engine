@@ -108,11 +108,7 @@ pub fn compute_coi_relevances(
 }
 
 /// Computes the time decay factor for a coi based on its `last_view` stat.
-pub(super) fn compute_coi_decay_factor(
-    horizon: Duration,
-    now: SystemTime,
-    last_view: SystemTime,
-) -> f32 {
+pub fn compute_coi_decay_factor(horizon: Duration, now: SystemTime, last_view: SystemTime) -> f32 {
     const DAYS_SCALE: f32 = -0.1;
     let horizon = (horizon.as_secs_f32() * DAYS_SCALE / SECONDS_PER_DAY_F32).exp();
     let days = (now

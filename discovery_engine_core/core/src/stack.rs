@@ -34,7 +34,7 @@ use crate::{
 
 mod data;
 pub(crate) mod exploration;
-pub(crate) mod filters;
+pub mod filters;
 pub(crate) mod ops;
 
 pub(crate) use self::{data::Data, ops::NewItemsError};

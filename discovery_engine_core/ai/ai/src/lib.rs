@@ -31,7 +31,7 @@
     clippy::must_use_candidate
 )]
 
-mod coi;
+pub mod coi;
 mod document;
 mod embedding;
 mod error;
