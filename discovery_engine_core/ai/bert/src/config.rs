@@ -89,7 +89,7 @@ use crate::{
 /// ```
 #[must_use]
 pub struct Config<P> {
-    pub(crate) dir: PathBuf,
+    pub dir: PathBuf,
     toml: Figment,
     pub(crate) token_size: usize,
     pooler: PhantomData<P>,

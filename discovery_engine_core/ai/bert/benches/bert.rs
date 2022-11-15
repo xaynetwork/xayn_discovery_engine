@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Run as `cargo bench --bench mbert --features onnxruntime`.
+//! Run as `cargo bench --bench bert --features onnxruntime`.
 
 use std::path::Path;
 
@@ -50,7 +50,7 @@ fn bench_onnx_bert(manager: &mut Criterion, name: &str, dir: &Path) {
         .unwrap()
         .with_optimization_level(GraphOptimizationLevel::DisableAll)
         .unwrap()
-        .with_model_from_file(config.extract::<&Path>("model.path").unwrap())
+        .with_model_from_file(config.dir.join("model.onnx"))
         .unwrap();
 
     manager.bench_function(name, |bencher| {
