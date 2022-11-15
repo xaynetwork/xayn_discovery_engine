@@ -6,5 +6,4 @@
 
 .env.local
 
-cargo-installs/
 headlines_download/

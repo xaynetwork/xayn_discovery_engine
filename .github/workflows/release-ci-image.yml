@@ -10,8 +10,8 @@ env:
   release_tag: v5
 
 jobs:
-  release:
-    runs-on: hetzner-pm
+  release-docker-image:
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - name: Checkout repository
@@ -19,7 +19,6 @@ jobs:
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2.1.0
-        if: github.ref == 'refs/heads/main'
         with:
           username: "${{ secrets.DOCKERHUB_USERNAME }}"
           password: "${{ secrets.DOCKERHUB_TOKEN }}"
@@ -30,8 +29,7 @@ jobs:
           echo "image_tag=${IMAGE_TAG}" >> $GITHUB_ENV
 
       - name: docker pull
-        run: |
-          docker pull "${{ env.image_name }}:${{ env.image_tag }}"
+        run: docker pull "${{ env.image_name }}:${{ env.image_tag }}"
       
       - name: tag as release
         run: docker tag "${{ env.image_name }}:${{ env.image_tag }}" "${{ env.image_name }}:${{ env.release_tag }}"

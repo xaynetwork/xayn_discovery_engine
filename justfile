@@ -31,14 +31,6 @@ rust-deps:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$RUST_WORKSPACE"
-    for TARGET in $ANDROID_TARGETS; do
-        rustup target add $TARGET
-    done
-    if [[ "{{os()}}" == "macos" ]]; then
-        for TARGET in $IOS_TARGETS; do
-            rustup target add $TARGET
-        done
-    fi
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
 # Get/Update/Fetch/Install all dependencies
@@ -60,7 +52,7 @@ rust-check:
     cd "$RUST_WORKSPACE"; \
     cargo clippy --all-targets --locked;
 
-# Checks rust, fails if there are any issues on CI
+# Checks all code, fails if there are any issues on CI
 check: rust-check
 
 # Checks if rust documentation can be build without issues
@@ -73,10 +65,10 @@ rust-doc *args:
     cd "$RUST_WORKSPACE"; \
     cargo doc --all-features --document-private-items --locked {{args}}
 
-# Builds rust and dart documentation
+# Builds all documentation
 doc: rust-doc
 
-# Checks if documentation can be build without issues
+# Checks if all documentation can be build without issues
 check-doc: rust-check-doc
 
 # Builds rust
@@ -84,7 +76,7 @@ rust-build:
     cd "$RUST_WORKSPACE"; \
     cargo build --locked
 
-# Builds rust
+# Builds all code
 build: rust-build
 
 # Tests rust
@@ -95,7 +87,7 @@ rust-test: download-assets
     cargo test --lib --bins --tests --quiet --locked
     cargo test --doc --quiet --locked
 
-# Tests rust
+# Tests all code
 test: rust-test
 
 # Cleans up rusts build cache
@@ -105,12 +97,12 @@ rust-clean:
 
 # Removes all asset data
 remove-assets:
-    find $FLUTTER_EXAMPLE_WORKSPACE/assets/*_v* -type f ! -name .gitkeep -exec rm '{}' \;
+    find $RUST_WORKSPACE/assets/*_v* -exec rm -fr '{}' \;
 
 # Removes all local cached dependencies and generated files
 clean: rust-clean
 
-# Runs clean and removes local installed tools
+# Runs clean and removes assets
 clean-fully: clean remove-assets
 
 # Workaround to set env variable CI for all job dependencies
@@ -171,7 +163,7 @@ db-migrate +ARGS:
 web-dev-up:
     #!/usr/bin/env -S bash -eux -o pipefail
     rm "$RUST_WORKSPACE/web-api/assets" || :
-    ln -s "../../$FLUTTER_WORKSPACE/example/assets/smbert_v0003" "$RUST_WORKSPACE/web-api/assets"
+    ln -s "$RUST_WORKSPACE/assets/smbert_v0003" "$RUST_WORKSPACE/web-api/assets"
     compose="$(command -v podman-compose || command -v docker-compose)"
     $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
 
