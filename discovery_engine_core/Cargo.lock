@@ -1757,8 +1757,9 @@ dependencies = [
 
 [[package]]
 name = "lindera"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "829c9494aa0d91292189b0e43e254cca759be09adabfde0466f53299c7836e07"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1782,8 +1783,9 @@ dependencies = [
 
 [[package]]
 name = "lindera-cc-cedict-builder"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3491724d10366f71a76034c80a98c58265ff3c12dbcb76d9a98573b78471591d"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1800,8 +1802,9 @@ dependencies = [
 
 [[package]]
 name = "lindera-core"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6447d337aa8b5860c67c34710764ed5fbf5f33ef9b9adf1eaafc4cf13874f2ec"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1815,8 +1818,9 @@ dependencies = [
 
 [[package]]
 name = "lindera-decompress"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f68fc033ebb05cffb3da9f97504419831e977344594bea04b30dde63641bdf9e"
 dependencies = [
  "anyhow",
  "lzma-rs",
@@ -1825,8 +1829,9 @@ dependencies = [
 
 [[package]]
 name = "lindera-dictionary"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d26aa8505277d1f23fed84f80d942dd455525aa58f563ab72affb9c536fc26a6"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1836,8 +1841,9 @@ dependencies = [
 
 [[package]]
 name = "lindera-ipadic"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a51dfc69e9f9c10005ab110f1ba8f5942fc5f7bef0551a81495a61bc69b6c534"
 dependencies = [
  "bincode",
  "byteorder",
@@ -1848,8 +1854,9 @@ dependencies = [
 
 [[package]]
 name = "lindera-ipadic-builder"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97c08316ef336a91e520b793d1f45c022c1072eb326249909683791cdde1b4ff"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1868,8 +1875,9 @@ dependencies = [
 
 [[package]]
 name = "lindera-ko-dic-builder"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c99d9022f658aff38f2d8b4206ca1f63aa04dbac0dd957b6f85dc76e4cc9a9ce"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1886,8 +1894,9 @@ dependencies = [
 
 [[package]]
 name = "lindera-unidic-builder"
-version = "0.17.0"
-source = "git+https://github.com/lindera-morphology/lindera?rev=316fcdeafa3f1f0253f29d6a9bf17c702668ec6d#316fcdeafa3f1f0253f29d6a9bf17c702668ec6d"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d84af09b52f3175343db9d5cd6dfce95762ad0bc0e1245d3ed85ed91de3b6afa"
 dependencies = [
  "anyhow",
  "bincode",

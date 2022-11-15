@@ -180,7 +180,7 @@ impl Tokenizer {
                 .tokenize(sequence.as_ref())?
                 .into_iter()
                 .map(|token| token.text)
-                .intersperse(" ")
+                .intersperse(" ".into())
                 .collect::<String>()
                 .into()
         } else {

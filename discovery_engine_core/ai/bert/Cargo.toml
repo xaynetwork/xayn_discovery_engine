@@ -11,7 +11,7 @@ displaydoc = { workspace = true }
 figment = { workspace = true, features = ["toml"] }
 float-cmp = { workspace = true }
 itertools = { workspace = true }
-lindera = { git = "https://github.com/lindera-morphology/lindera", rev = "316fcdeafa3f1f0253f29d6a9bf17c702668ec6d" }
+lindera = "0.18.0"
 ndarray = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
