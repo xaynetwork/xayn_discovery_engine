@@ -45,7 +45,10 @@ fn create_embeddings(n: usize, embedding_size: usize) -> impl Iterator<Item = Ar
 fn create_dates(n: usize, days_range: usize) -> impl Iterator<Item = DateTime<Utc>> {
     let range = Uniform::new(0, days_range);
 
-    let base_date = NaiveDate::from_ymd(2016, 1, 1).and_hms(0, 0, 0);
+    let base_date = NaiveDate::from_ymd_opt(2016, 1, 1)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
     let base_date = DateTime::<Utc>::from_utc(base_date, Utc);
 
     rand::thread_rng()

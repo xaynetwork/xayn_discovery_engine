@@ -501,7 +501,7 @@ mod tests {
             Document {
                 bert_embedding,
                 resource: NewsResource {
-                    date_published: Utc.timestamp(secs, 0),
+                    date_published: Utc.timestamp_opt(secs, 0).unwrap(),
                     ..NewsResource::default()
                 },
                 ..Document::default()

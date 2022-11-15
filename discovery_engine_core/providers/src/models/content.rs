@@ -139,7 +139,7 @@ mod tests {
                 snippet: String::default(),
                 url: example_url(),
                 image: None,
-                date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
+                date_published: Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
                 score: None,
                 rank: Rank::default(),
                 country: "US".to_string(),

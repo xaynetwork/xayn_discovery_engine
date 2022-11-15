@@ -1865,7 +1865,7 @@ pub(crate) mod tests {
             snippet: String::default(),
             url: example_url(),
             image: None,
-            date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
+            date_published: Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
             score: None,
             rank: Rank::default(),
             country: "US".to_string(),
@@ -1889,13 +1889,13 @@ pub(crate) mod tests {
     #[test]
     fn test_rank_documents_default() {
         let mut a = Document::default();
-        a.resource.date_published = Utc.ymd(2022, 1, 1).and_hms(1, 0, 0);
+        a.resource.date_published = Utc.with_ymd_and_hms(2022, 1, 1, 1, 0, 0).unwrap();
 
         let mut b = Document::default();
-        b.resource.date_published = Utc.ymd(2020, 1, 1).and_hms(1, 0, 0);
+        b.resource.date_published = Utc.with_ymd_and_hms(2020, 1, 1, 1, 0, 0).unwrap();
 
         let mut c = Document::default();
-        c.resource.date_published = Utc.ymd(2021, 1, 1).and_hms(1, 0, 0);
+        c.resource.date_published = Utc.with_ymd_and_hms(2021, 1, 1, 1, 0, 0).unwrap();
 
         let mut documents = vec![a, b, c];
 
