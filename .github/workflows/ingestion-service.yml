@@ -45,9 +45,9 @@ jobs:
         run: |
           cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/target/release/ingestion ./ingestion-service/ingestion
           cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/web-api/Dockerfile.ingestion ./ingestion-service/Dockerfile
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0003/config.toml ./ingestion-service/assets/config.toml
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0003/vocab.txt ./ingestion-service/assets/vocab.txt
-          cp ${GITHUB_WORKSPACE}/${{ env.FLUTTER_WORKSPACE }}/example/assets/smbert_v0003/model.onnx ./ingestion-service/assets/model.onnx
+          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/assets/smbert_v0003/config.toml ./ingestion-service/assets/config.toml
+          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/assets/smbert_v0003/vocab.txt ./ingestion-service/assets/vocab.txt
+          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/assets/smbert_v0003/model.onnx ./ingestion-service/assets/model.onnx
           tar -cvf ingestion-service.tar ./ingestion-service
 
       - name: Upload archive
