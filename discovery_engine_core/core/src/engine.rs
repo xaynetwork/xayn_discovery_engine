@@ -108,7 +108,7 @@ use crate::{
 /// Discovery engine errors.
 #[derive(Error, Debug, Display)]
 pub enum Error {
-    /// AABB Failed to serialize internal state of the engine: {0}.
+    /// AABBCC Failed to serialize internal state of the engine: {0}.
     Serialization(#[source] bincode::Error),
 
     /// Failed to deserialize internal state to create the engine: {0}.
@@ -264,6 +264,8 @@ impl Engine {
         let exploration_config = de_config
             .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
+
+
 
         let bert = BertConfig::new(&config.bert)
             .map_err(|err| Error::Ranker(err.into()))?
@@ -442,7 +444,7 @@ impl Engine {
     /// Clears the data of all stacks.
     async fn clear_stack_data(&mut self) {
         let mut stacks = self.stacks.write().await;
-        for stack in stacks.values_mut() {
+        for stack in stacks.values_mut().skip(0) {
             stack.data = StackData::default();
         }
         drop(stacks); // guard
