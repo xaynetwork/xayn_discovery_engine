@@ -108,7 +108,7 @@ use crate::{
 /// Discovery engine errors.
 #[derive(Error, Debug, Display)]
 pub enum Error {
-    /// AA Failed to serialize internal state of the engine: {0}.
+    /// AABB Failed to serialize internal state of the engine: {0}.
     Serialization(#[source] bincode::Error),
 
     /// Failed to deserialize internal state to create the engine: {0}.
