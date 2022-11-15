@@ -15,14 +15,14 @@ jobs:
     name: Add WIP label
     steps:
       - name: Add WIP Label
-        uses: buildsville/add-remove-label@v2.0.0
+        uses: buildsville/add-remove-label@eeae411a9be2e173f2420e1644514edbecc4e835 # v2.0.0
         with:
           token: ${{secrets.GITHUB_TOKEN}}
           labels: work-in-progress
           type: add
 
       - name: Remove Ready for Review Label 
-        uses: buildsville/add-remove-label@v2.0.0
+        uses: buildsville/add-remove-label@eeae411a9be2e173f2420e1644514edbecc4e835 # v2.0.0
         with:
           token: ${{secrets.GITHUB_TOKEN}}
           labels: ready-for-review
@@ -34,14 +34,14 @@ jobs:
     name: Remove label
     steps:
       - name: Remove WIP Label 
-        uses: buildsville/add-remove-label@v2.0.0
+        uses: buildsville/add-remove-label@eeae411a9be2e173f2420e1644514edbecc4e835 # v2.0.0
         with:
           token: ${{secrets.GITHUB_TOKEN}}
           labels: work-in-progress
           type: remove
 
       - name: Add Ready for Review Label
-        uses: buildsville/add-remove-label@v2.0.0
+        uses: buildsville/add-remove-label@eeae411a9be2e173f2420e1644514edbecc4e835 # v2.0.0
         with:
           token: ${{secrets.GITHUB_TOKEN}}
           labels: ready-for-review

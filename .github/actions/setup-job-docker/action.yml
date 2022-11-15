@@ -14,9 +14,9 @@ runs:
   using: "composite"
   steps:
     - name: Load .env
-      uses: xom9ikk/dotenv@v2
+      uses: xom9ikk/dotenv@eff1dce037c4c0143cc4180a810511024c2560c0 # v2
 
-    - uses: Swatinem/rust-cache@v2.2.0
+    - uses: Swatinem/rust-cache@359a70e43a0bb8a13953b04a90f76428b4959bb6 # v2.2.0
       if: inputs.rust != 'false'
       with:
         key: ${{ inputs.cache-key }}
