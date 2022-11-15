@@ -19,8 +19,8 @@ $ source .venv/bin/activate
 # install dependencies
 $ pip install -r requirements.txt
 
-# generate smbert model, put it in the flutter example assets dir and upload a new version
+# generate smbert model, put it in the assets dir and upload a new version
 $ python src/mock_onnx_tool.py \
   --type smbert \
-  --output ../discovery_engine_flutter/example/assets/smbert_mocked_v0004
+  --output ../discovery_engine_core/assets/smbert_mocked_v0004
 ```

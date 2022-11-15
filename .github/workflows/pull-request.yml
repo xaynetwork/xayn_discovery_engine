@@ -32,6 +32,7 @@ jobs:
             rust: &rust
               - 'discovery_engine_core/**'
               - '.github/actions/setup-job-docker/*'
+              - '.github/workflows/_reusable.rust.yml'
               - 'justfile'
 
   rust-checks:
