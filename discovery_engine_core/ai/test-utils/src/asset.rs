@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const DATA_DIR: &str = "../discovery_engine_flutter/example/assets/";
+const DATA_DIR: &str = "assets/";
 
 /// Resolves the path to the requested data relative to the workspace directory.
 fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {

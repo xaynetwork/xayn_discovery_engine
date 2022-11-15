@@ -121,7 +121,9 @@ pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
 download-assets:
-    cd "$FLUTTER_EXAMPLE_WORKSPACE"; \
+    #!/usr/bin/env bash
+    set -eux -o pipefail
+    cd {{justfile_directory()}}/.github/scripts
     ./download_assets.sh
 
 build-web-service:
