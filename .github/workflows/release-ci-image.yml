@@ -7,7 +7,7 @@ permissions:
 
 env:
   image_name: xaynetci/yellow
-  release_tag: v5
+  release_tag: v6
 
 jobs:
   release-docker-image:
