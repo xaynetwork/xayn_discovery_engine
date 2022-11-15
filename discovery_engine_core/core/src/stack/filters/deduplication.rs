@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, HashSet};
+
 use xayn_discovery_engine_providers::GenericArticle;
 
 use crate::document::{Document, HistoricDocument, NewsResource};

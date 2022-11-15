@@ -20,9 +20,8 @@ use displaydoc::Display;
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::{impl_application_error, models::DocumentId, Error};
-
 use super::application::ApplicationError;
+use crate::{impl_application_error, models::DocumentId, Error};
 
 /// The requested document was not found.
 #[derive(Debug, Error, Display, Serialize)]

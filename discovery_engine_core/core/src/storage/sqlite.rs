@@ -25,6 +25,7 @@ use url::Url;
 use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_providers::Market;
 
+use self::utils::SqlxSqliteResultExt;
 use crate::{
     document::{self, HistoricDocument, UserReaction, ViewMode, WeightedSource},
     stack,
@@ -53,8 +54,6 @@ use crate::{
         Storage,
     },
 };
-
-use self::utils::SqlxSqliteResultExt;
 
 mod dart_migrations;
 mod setup;
@@ -1036,14 +1035,13 @@ impl SourceReactionScope for SqliteStorage {
 
 #[cfg(test)]
 mod tests {
-    use maplit::hashset;
     use std::{collections::HashSet, time::Duration};
 
+    use maplit::hashset;
     use xayn_discovery_engine_ai::Embedding;
 
-    use crate::{document::NewsResource, stack, storage::models::NewDocument};
-
     use super::*;
+    use crate::{document::NewsResource, stack, storage::models::NewDocument};
 
     fn create_documents(n: u8) -> Vec<NewDocument> {
         (0..n)

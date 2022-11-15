@@ -14,9 +14,8 @@
 
 use derive_more::{AsRef, Deref};
 
-use crate::{db::Database, elastic::ElasticSearchClient};
-
 use super::{Config, SetupError};
+use crate::{db::Database, elastic::ElasticSearchClient};
 
 #[derive(Deref, AsRef)]
 pub struct AppState<CE, AE> {

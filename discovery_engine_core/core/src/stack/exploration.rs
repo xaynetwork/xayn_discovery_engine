@@ -15,6 +15,7 @@
 //! Exploration stack.
 
 use std::collections::HashSet;
+
 use uuid::uuid;
 use xayn_discovery_engine_ai::UserInterests;
 

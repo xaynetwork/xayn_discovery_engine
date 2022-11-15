@@ -467,12 +467,11 @@ mod tests {
     use ndarray::arr2;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
+    use super::*;
     use crate::{
         coi::{config::Config as CoiConfig, point::tests::create_pos_cois},
         kps::config::Config as KpsConfig,
     };
-
-    use super::*;
 
     impl KeyPhrases {
         pub(crate) fn new<'a, const N: usize>(

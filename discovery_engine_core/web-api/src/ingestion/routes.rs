@@ -22,6 +22,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
 use tracing::{error, info, instrument};
 
+use super::AppState;
 use crate::{
     elastic::{BulkInsertionError, ElasticDocument},
     error::{
@@ -36,8 +37,6 @@ use crate::{
     models::{DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId},
     Error,
 };
-
-use super::AppState;
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     config

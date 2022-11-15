@@ -16,10 +16,6 @@ mod app_state;
 mod cli;
 mod config;
 
-use clap::Parser;
-use serde::{de::DeserializeOwned, Serialize};
-use tracing::error;
-
 use actix_web::{
     middleware,
     web::{self, JsonConfig, ServiceConfig},
@@ -27,16 +23,18 @@ use actix_web::{
     HttpResponse,
     HttpServer,
 };
-
-use crate::{
-    load_config::load_config,
-    logging::init_tracing,
-    middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request},
-};
+use clap::Parser;
+use serde::{de::DeserializeOwned, Serialize};
+use tracing::error;
 
 pub use self::{
     app_state::AppState,
     config::{Config, NetConfig},
+};
+use crate::{
+    load_config::load_config,
+    logging::init_tracing,
+    middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request},
 };
 
 pub trait Application {

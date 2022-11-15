@@ -12,12 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use xayn_discovery_engine_ai::GenericError;
+use xayn_discovery_engine_providers::GenericArticle;
+
 use crate::{
     document::{Document, HistoricDocument},
     stack::filters::DuplicateFilter,
 };
-use xayn_discovery_engine_ai::GenericError;
-use xayn_discovery_engine_providers::GenericArticle;
 
 pub(crate) trait ArticleFilter {
     fn apply(
@@ -76,12 +77,11 @@ impl SourcesFilter {
 mod tests {
     use std::{collections::HashMap, iter::FromIterator};
 
-    use crate::document::Document;
     use itertools::Itertools;
-
     use xayn_discovery_engine_providers::{NewscatcherArticle, Rank};
 
     use super::*;
+    use crate::document::Document;
 
     pub(crate) fn to_generic_article(articles: Vec<NewscatcherArticle>) -> Vec<GenericArticle> {
         articles

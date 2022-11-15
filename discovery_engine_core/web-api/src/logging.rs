@@ -14,7 +14,6 @@
 
 //! Setup tracing on different platforms.
 
-use crate::utils::RelativePathBuf;
 use std::{fs::OpenOptions, sync::Once};
 
 use serde::{Deserialize, Serialize};
@@ -24,6 +23,8 @@ use tracing_subscriber::{
     layer::SubscriberExt,
     util::SubscriberInitExt,
 };
+
+use crate::utils::RelativePathBuf;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {

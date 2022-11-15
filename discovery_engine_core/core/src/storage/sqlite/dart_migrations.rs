@@ -19,6 +19,7 @@ use sqlx::QueryBuilder;
 use xayn_discovery_engine_ai::Embedding;
 use xayn_discovery_engine_providers::Market;
 
+use super::SqliteStorage;
 use crate::{
     document::ViewMode,
     stack,
@@ -30,8 +31,6 @@ use crate::{
         Storage,
     },
 };
-
-use super::SqliteStorage;
 
 /// Add the data from the  dart -> rust/sqlite migration to the prepared database.
 pub(super) async fn store_migration_data(
@@ -233,12 +232,11 @@ mod tests {
     use num_traits::FromPrimitive;
     use tracing::warn;
 
+    use super::{super::setup::init_storage_system_once, *};
     use crate::{
         document::{self, UserReaction, WeightedSource},
         storage::models::{Paging, Search, SearchBy},
     };
-
-    use super::{super::setup::init_storage_system_once, *};
 
     macro_rules! assert_migration_doc_eq_api_doc {
         ($migration_doc:expr, $search_doc:expr) => {{

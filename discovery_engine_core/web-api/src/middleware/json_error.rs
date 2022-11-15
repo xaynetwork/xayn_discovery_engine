@@ -25,9 +25,8 @@ use derive_more::Display;
 use futures_util::TryFutureExt;
 use serde_json::{json, Value};
 
-use crate::error::json_error::JsonErrorResponseBuilder;
-
 use super::tracing::RequestId;
+use crate::error::json_error::JsonErrorResponseBuilder;
 
 pub(crate) fn wrap_non_json_errors<S, B>(
     request: ServiceRequest,

@@ -17,7 +17,6 @@ use std::ops::RangeInclusive;
 use itertools::Itertools;
 use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
 use xayn_discovery_engine_bert::Embedding1;
-
 // Re-export `Embedding` specific errors.
 pub use xayn_discovery_engine_bert::MalformedBytesEmbedding;
 
@@ -109,9 +108,9 @@ pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 
 #[cfg(test)]
 mod tests {
     use ndarray::{arr1, arr2};
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
-    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     #[test]
     fn test_l2_norm() {

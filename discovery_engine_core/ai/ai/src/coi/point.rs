@@ -164,7 +164,6 @@ where
 #[cfg(test)]
 pub(crate) mod tests {
     use ndarray::{arr1, FixedInitializer};
-
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;

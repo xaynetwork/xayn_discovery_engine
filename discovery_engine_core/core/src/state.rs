@@ -105,15 +105,17 @@ impl Engine {
 }
 
 mod naive_date_time_migration {
+    use std::collections::HashMap;
+
+    use chrono::{DateTime, NaiveDateTime, Utc};
+    use serde::{Deserialize, Serialize};
+    use url::Url;
+    use xayn_discovery_engine_ai::Embedding;
+
     use crate::{
         document::{Document, Id, NewsResource, UserReaction},
         stack::{Data, Id as StackId},
     };
-    use chrono::{DateTime, NaiveDateTime, Utc};
-    use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
-    use url::Url;
-    use xayn_discovery_engine_ai::Embedding;
 
     #[derive(Serialize, Deserialize)]
     pub(super) struct DataWithNaiveDateTime {

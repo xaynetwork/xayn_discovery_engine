@@ -184,9 +184,8 @@ mod tests {
     use xayn_discovery_engine_ai::CoiId;
     use xayn_discovery_engine_test_utils::{assert_approx_eq, uuid::mock_uuid};
 
-    use crate::document::Id;
-
     use super::*;
+    use crate::document::Id;
 
     fn new_doc() -> Document {
         Document {

@@ -17,7 +17,6 @@ use displaydoc::Display;
 #[cfg(test)]
 use mockall::automock;
 use thiserror::Error;
-
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{GenericArticle, Market};
 

@@ -117,9 +117,9 @@ mod tests {
 
     use serde::{Deserialize, Serialize};
     use serde_json::{from_str, to_string};
+    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
-    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     #[test]
     fn test_nan_safe_f32_cmp_sorts_in_the_right_order() {

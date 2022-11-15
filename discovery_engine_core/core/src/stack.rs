@@ -299,9 +299,8 @@ mod tests {
     use uuid::Uuid;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
-    use crate::stack::ops::MockOps;
-
     use super::*;
+    use crate::stack::ops::MockOps;
 
     // assert that `f` returns ok if the argument contains only documents valid `stack_id`
     fn assert_valid_document<T, F>(f: F, stack_id: Id)

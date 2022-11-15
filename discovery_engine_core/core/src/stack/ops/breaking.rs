@@ -27,6 +27,7 @@ use xayn_discovery_engine_providers::{
     RankLimit,
 };
 
+use super::{common::request_min_new_items, NewItemsError, Ops};
 use crate::{
     config::EndpointConfig,
     document::{Document, HistoricDocument},
@@ -35,8 +36,6 @@ use crate::{
         Id,
     },
 };
-
-use super::{common::request_min_new_items, NewItemsError, Ops};
 
 /// Stack operations customized for breaking news items.
 pub struct BreakingNews {

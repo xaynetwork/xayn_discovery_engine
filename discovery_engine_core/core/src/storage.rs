@@ -25,14 +25,13 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use displaydoc::Display;
 use thiserror::Error;
-use xayn_discovery_engine_ai::{GenericError, MalformedBytesEmbedding};
+use xayn_discovery_engine_ai::{Embedding, GenericError, MalformedBytesEmbedding};
 
 use crate::{
     document::{self, HistoricDocument, NewsResource, UserReaction, ViewMode, WeightedSource},
     stack,
     storage::models::{ApiDocumentView, NewDocument, Search, TimeSpentDocumentView},
 };
-use xayn_discovery_engine_ai::Embedding;
 
 pub(crate) type BoxedStorage = Box<dyn Storage + Send + Sync>;
 

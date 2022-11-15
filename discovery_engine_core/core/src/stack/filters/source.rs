@@ -44,9 +44,10 @@ pub(crate) fn source_weight(document: &Document, sources: &[WeightedSource]) -> 
 
 #[cfg(test)]
 mod tests {
+    use xayn_discovery_engine_providers::{GenericArticle, NewscatcherArticle};
+
     use super::*;
     use crate::document::{Document, WeightedSource};
-    use xayn_discovery_engine_providers::{GenericArticle, NewscatcherArticle};
 
     impl WeightedSource {
         fn new(source_domain: &str, weight: i32) -> Self {
