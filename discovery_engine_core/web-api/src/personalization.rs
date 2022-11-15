@@ -67,8 +67,8 @@ pub(crate) struct PersonalizationConfig {
     #[serde(default = "default_max_cois_for_knn")]
     pub(crate) max_cois_for_knn: usize,
     /// Weighting of user interests vs document categories. Must be in the interval `[0, 1]`.
-    #[serde(default = "default_rank_weight")]
-    pub(crate) rank_weight: f32,
+    #[serde(default = "default_interest_category_bias")]
+    pub(crate) interest_category_bias: f32,
 }
 
 fn default_max_number_documents() -> usize {
@@ -84,7 +84,7 @@ fn default_max_cois_for_knn() -> usize {
     10
 }
 
-fn default_rank_weight() -> f32 {
+fn default_interest_category_bias() -> f32 {
     0.5
 }
 
@@ -94,7 +94,7 @@ impl Default for PersonalizationConfig {
             max_number_documents: default_max_number_documents(),
             default_number_documents: default_default_number_documents(),
             max_cois_for_knn: default_max_cois_for_knn(),
-            rank_weight: default_rank_weight(),
+            interest_category_bias: default_interest_category_bias(),
         }
     }
 }

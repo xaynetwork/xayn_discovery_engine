@@ -258,7 +258,7 @@ async fn personalized_documents(
         .map(|(rank, (document_id, _))| (document_id, rank))
         .collect::<HashMap<_, _>>();
 
-    let weight = state.config.personalization.rank_weight;
+    let weight = state.config.personalization.interest_category_bias;
     all_documents.sort_unstable_by(|a, b| {
         let weighted_a = documents_by_interests[&a.id] as f32 * weight
             + documents_by_categories[&a.id] as f32 * (1. - weight);
