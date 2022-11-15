@@ -15,8 +15,8 @@ lindera = { git = "https://github.com/lindera-morphology/lindera", rev = "316fcd
 ndarray = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
-tokenizers = { workspace = true }
-tract-onnx = { workspace = true }
+tokenizers = { version = "0.13.2", default-features = false, features = ["onig"] }
+tract-onnx = "0.18.3"
 
 # dev-dependencies which don't work for aarch targets
 onnxruntime = { version = "0.0.13", optional = true }

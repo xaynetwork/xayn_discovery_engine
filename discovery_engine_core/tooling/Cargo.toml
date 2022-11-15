@@ -7,12 +7,12 @@ license = "AGPL-3.0-only"
 publish = false
 
 [dependencies]
-actix-web = "4.2.1"
+actix-web = { workspace = true, features = ["macros"] }
 anyhow = { workspace = true }
 clap = { workspace = true }
 csv = { workspace = true }
 displaydoc = { workspace = true }
-env_logger = "0.9.1"
+env_logger = "0.9.3"
 envconfig = "0.10.0"
 envconfig_derive = "0.10.0"
 indicatif = { workspace = true }
@@ -30,6 +30,9 @@ xayn-discovery-engine-providers = { path = "../providers" }
 xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
 
 [[bin]]
+name = "backend"
+
+[[bin]]
 name = "clean_sources"
 
 [[bin]]
@@ -37,6 +40,3 @@ name = "discovery_engine"
 
 [[bin]]
 name = "newscatcher"
-
-[[bin]]
-name = "backend"
