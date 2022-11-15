@@ -107,7 +107,7 @@ impl SqliteStorage {
                 .reset()
                 .push("Document (documentId) ")
                 .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(&doc.id);
+                    stm.push_bind(doc.id);
                 })
                 .build()
                 .persistent(false)
@@ -119,7 +119,7 @@ impl SqliteStorage {
                 .reset()
                 .push("HistoricDocument (documentId) ")
                 .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(&doc.id);
+                    stm.push_bind(doc.id);
                 })
                 .build()
                 .persistent(false)
@@ -131,13 +131,13 @@ impl SqliteStorage {
             .reset()
             .push("NewsResource (documentId, title, snippet, topic, url, image, datePublished, source, market) ")
             .push_values(documents, |mut stm, doc| {
-                stm.push_bind(&doc.id)
+                stm.push_bind(doc.id)
                     .push_bind(&doc.news_resource.title)
                     .push_bind(&doc.news_resource.snippet)
                     .push_bind(&doc.news_resource.topic)
                     .push_bind(doc.news_resource.url.as_str())
                     .push_bind(doc.news_resource.image.as_ref().map(Url::as_str))
-                    .push_bind(&doc.news_resource.date_published)
+                    .push_bind(doc.news_resource.date_published)
                     .push_bind(&doc.news_resource.source)
                     .push_bind(format!(
                         "{}{}",
@@ -157,7 +157,7 @@ impl SqliteStorage {
                 .push_values(documents, |mut stm, doc| {
                     // fine as we convert it back to u64 when we fetch it from the database
                     #[allow(clippy::cast_possible_wrap)]
-                    stm.push_bind(&doc.id)
+                    stm.push_bind(doc.id)
                         .push_bind(doc.newscatcher_data.domain_rank as i64)
                         .push_bind(doc.newscatcher_data.score);
                 })
@@ -173,7 +173,7 @@ impl SqliteStorage {
                 .push_values(documents.iter().enumerate(), |mut stm, (idx, doc)| {
                     // we won't have so many documents that idx > u32
                     #[allow(clippy::cast_possible_truncation)]
-                    stm.push_bind(&doc.id)
+                    stm.push_bind(doc.id)
                         .push_bind(timestamp.timestamp())
                         .push_bind(idx as u32);
                 })
@@ -187,7 +187,7 @@ impl SqliteStorage {
                 .reset()
                 .push("Embedding (documentId, embedding) ")
                 .push_values(documents, |mut stm, doc| {
-                    stm.push_bind(&doc.id).push_bind(doc.embedding.to_bytes());
+                    stm.push_bind(doc.id).push_bind(doc.embedding.to_bytes());
                 })
                 .build()
                 .persistent(false)
@@ -210,7 +210,7 @@ impl SqliteStorage {
 
         QueryBuilder::new("INSERT INTO SearchDocument (documentId) ")
             .push_values(documents, |mut stm, doc| {
-                stm.push_bind(&doc.id);
+                stm.push_bind(doc.id);
             })
             .build()
             .persistent(false)
@@ -909,8 +909,7 @@ impl FeedbackScope for SqliteStorage {
         match self.fetch_source_weight(source).await? {
             0 => self.update_source_weight(source, weight_diff).await?,
             weight if (weight > 0) == liked => {
-                self.update_source_weight(source, if liked { 1 } else { 0 })
-                    .await?;
+                self.update_source_weight(source, i32::from(liked)).await?;
             }
 
             _ => self.delete_source_reaction(source).await?,

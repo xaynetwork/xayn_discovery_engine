@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_news_resource_from_article_empty_media() {
         let article = NewscatcherArticle {
-            media: "".to_string(),
+            media: String::new(),
             ..NewscatcherArticle::default()
         };
 
