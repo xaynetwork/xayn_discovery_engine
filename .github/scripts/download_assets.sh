@@ -1,23 +1,22 @@
-#!/bin/sh
+#!/bin/bash
+set -eu -o pipefail
 
-set -eu
-
-# We can't use `pushd` or `readlink -f` so we
-# fall back to this.
-CALLING_BASE_DIR="$(pwd -L)"
+realpath() {
+    [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+}
 
 # path to the directory where this file is
 SELF_DIR_PATH="$(dirname "$0")"
 
-# in this way we can call the script from different directory
-# but the data should go in the correct destination
-DATA_DIR="$SELF_DIR_PATH/assets"
+# a parameter for the destination of the assets can be passed.
+# the default is the directory assets, we assume the script is in .github/scripts/
+DATA_DIR="${1:-$SELF_DIR_PATH/../../discovery_engine_core/assets}"
+DATA_DIR=`realpath $DATA_DIR`
 
 CHECKSUM_FILE="sha256sums"
 
 download()
 {
-  cd "$CALLING_BASE_DIR"
   NAME="$1"
   VERSION="$2"
   ARCHIVE_BASENAME="${NAME}_$VERSION"
