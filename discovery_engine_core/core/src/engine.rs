@@ -265,8 +265,6 @@ impl Engine {
             .extract_inner(&format!("stacks.{}", Exploration::id()))
             .map_err(|err| Error::Ranker(err.into()))?;
 
-
-
         let bert = BertConfig::new(&config.bert)
             .map_err(|err| Error::Ranker(err.into()))?
             .with_token_size(
