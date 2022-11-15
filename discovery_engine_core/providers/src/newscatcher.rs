@@ -47,7 +47,7 @@ pub(crate) fn max_age_to_date_string(max_age_days: usize) -> String {
     // think that's worth guarding against.
     let days = max_age_days as i64;
 
-    let from = Utc::today() - chrono::Duration::days(days);
+    let from = Utc::now() - chrono::Duration::days(days);
     from.format("%Y/%m/%d").to_string()
 }
 
@@ -272,7 +272,7 @@ where
     D: Deserializer<'de>,
 {
     Option::<String>::deserialize(deserializer)?.map_or_else(
-        || Ok(Utc.ymd(1970, 1, 1).and_hms(0, 0, 0)),
+        || Ok(Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap()),
         |s| {
             Utc.datetime_from_str(&s, "%Y-%m-%d %H:%M:%S")
                 .map_err(de::Error::custom)
@@ -577,7 +577,7 @@ mod tests {
             url: UrlWithDomain::parse("https://example.com/a/2").unwrap(),
             image: Some(Url::parse("https://uploads.example.com/image2.png").unwrap()),
             topic: "gaming".to_string(),
-            date_published: Utc.ymd(2022, 1, 27).and_hms(13, 24, 33),
+            date_published: Utc.with_ymd_and_hms(2022, 1, 27, 13, 24, 33).unwrap(),
             country: "US".to_string(),
             language: "en".to_string(),
             embedding: None
@@ -636,7 +636,7 @@ mod tests {
             url: UrlWithDomain::parse("https://example.com/a/2").unwrap(),
             image: Some(Url::parse("https://uploads.example.com/image2.png").unwrap()),
             topic: "gaming".to_string(),
-            date_published: Utc.ymd(2022, 1, 27).and_hms(13, 24, 33),
+            date_published: Utc.with_ymd_and_hms(2022, 1, 27, 13, 24, 33).unwrap(),
             country: "US".to_string(),
             language: "en".to_string(),
             embedding: None
@@ -658,7 +658,7 @@ mod tests {
                 topic: "news".to_string(),
                 country: "US".to_string(),
                 language: "en".to_string(),
-                date_published: Utc.ymd(2022, 1, 1).and_hms(9, 0, 0),
+                date_published: Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
                 embedding: None,
             }
         }
