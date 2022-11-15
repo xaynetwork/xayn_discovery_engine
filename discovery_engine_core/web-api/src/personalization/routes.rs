@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, time::Duration};
+use std::{cmp::Ordering, collections::HashMap, time::Duration};
 
 use actix_web::{
     web::{self, Data, Json, Path, Query, ServiceConfig},
@@ -233,6 +233,47 @@ async fn personalized_documents(
             return Err(NotEnoughInteractions.into());
         }
     }
+    let documents_by_interests = all_documents
+        .iter()
+        .enumerate()
+        .map(|(rank, document)| (document.id.clone(), rank))
+        .collect::<HashMap<_, _>>();
+
+    let categories = state.db.fetch_category_weights(&user_id).await?;
+    let mut documents_by_categories = all_documents
+        .iter()
+        .map(|document| {
+            let weight = document
+                .category
+                .as_deref()
+                .and_then(|category| categories.get(category).copied())
+                .unwrap_or_default();
+            (document.id.clone(), weight)
+        })
+        .collect_vec();
+    documents_by_categories.sort_unstable_by(|(_, a), (_, b)| a.cmp(b).reverse());
+    let documents_by_categories = documents_by_categories
+        .into_iter()
+        .enumerate()
+        .map(|(rank, (document_id, _))| (document_id, rank))
+        .collect::<HashMap<_, _>>();
+
+    let weight = state.config.personalization.interest_category_bias;
+    all_documents.sort_unstable_by(|a, b| {
+        let weighted_a = documents_by_interests[&a.id] as f32 * weight
+            + documents_by_categories[&a.id] as f32 * (1. - weight);
+        let weighted_b = documents_by_interests[&b.id] as f32 * weight
+            + documents_by_categories[&b.id] as f32 * (1. - weight);
+        match nan_safe_f32_cmp(&weighted_a, &weighted_b) {
+            Ordering::Equal if weight > 0.5 => {
+                documents_by_interests[&a.id].cmp(&documents_by_interests[&b.id])
+            }
+            Ordering::Equal if weight < 0.5 => {
+                documents_by_categories[&a.id].cmp(&documents_by_categories[&b.id])
+            }
+            ordering => ordering,
+        }
+    });
     all_documents.truncate(document_count);
 
     Ok(Json(PersonalizedDocumentsResponse::new(all_documents)))

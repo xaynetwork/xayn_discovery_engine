@@ -128,6 +128,18 @@ impl AiDocument for PersonalizedDocument {
     }
 }
 
+impl AiDocument for &PersonalizedDocument {
+    type Id = DocumentId;
+
+    fn id(&self) -> &Self::Id {
+        &self.id
+    }
+
+    fn bert_embedding(&self) -> &Embedding {
+        &self.embedding
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub(crate) enum UserInteractionType {
     #[serde(rename = "positive")]

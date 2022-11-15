@@ -57,12 +57,18 @@ pub struct ConfigExtension {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct PersonalizationConfig {
+    /// Max number of documents to return.
     #[serde(default = "default_max_number_documents")]
     pub(crate) max_number_documents: usize,
+    /// Default number of documents to return.
     #[serde(default = "default_default_number_documents")]
     pub(crate) default_number_documents: usize,
+    /// Max number of positive cois to use in knn search.
     #[serde(default = "default_max_cois_for_knn")]
     pub(crate) max_cois_for_knn: usize,
+    /// Weighting of user interests vs document categories. Must be in the interval `[0, 1]`.
+    #[serde(default = "default_interest_category_bias")]
+    pub(crate) interest_category_bias: f32,
 }
 
 fn default_max_number_documents() -> usize {
@@ -78,12 +84,17 @@ fn default_max_cois_for_knn() -> usize {
     10
 }
 
+fn default_interest_category_bias() -> f32 {
+    0.5
+}
+
 impl Default for PersonalizationConfig {
     fn default() -> Self {
         Self {
             max_number_documents: default_max_number_documents(),
             default_number_documents: default_default_number_documents(),
             max_cois_for_knn: default_max_cois_for_knn(),
+            interest_category_bias: default_interest_category_bias(),
         }
     }
 }
