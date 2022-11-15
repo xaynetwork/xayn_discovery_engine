@@ -19,7 +19,6 @@ use ndarray::Array1;
 use rand::Rng;
 use rand_distr::Uniform;
 use uuid::Uuid;
-
 use xayn_discovery_engine_ai::{
     coi::stats::compute_coi_decay_factor,
     compute_coi_relevances,

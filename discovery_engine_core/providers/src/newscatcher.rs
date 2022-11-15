@@ -47,7 +47,7 @@ pub(crate) fn max_age_to_date_string(max_age_days: usize) -> String {
     // think that's worth guarding against.
     let days = max_age_days as i64;
 
-    let from = Utc::now() - chrono::Duration::days(days);
+    let from = Utc::today() - chrono::Duration::days(days);
     from.format("%Y/%m/%d").to_string()
 }
 
@@ -272,7 +272,7 @@ where
     D: Deserializer<'de>,
 {
     Option::<String>::deserialize(deserializer)?.map_or_else(
-        || Ok(Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap()),
+        || Ok(Utc.ymd(1970, 1, 1).and_hms(0, 0, 0)),
         |s| {
             Utc.datetime_from_str(&s, "%Y-%m-%d %H:%M:%S")
                 .map_err(de::Error::custom)

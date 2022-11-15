@@ -20,7 +20,6 @@ use itertools::Itertools;
 use ndarray::Array1;
 use rand::Rng;
 use rand_distr::Uniform;
-
 use xayn_discovery_engine_ai::pairwise_cosine_similarity;
 use xayn_discovery_engine_core::{
     document::{Document, NewsResource},
@@ -72,7 +71,7 @@ fn create_documents(
         Document {
             id: Uuid::new_v4().into(),
             stack_id: Uuid::new_v4().into(),
-            smbert_embedding: embedding.into(),
+            bert_embedding: embedding.into(),
             reaction: None,
             resource: NewsResource {
                 country: "gb".to_string(),
