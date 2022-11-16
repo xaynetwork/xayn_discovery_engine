@@ -224,7 +224,10 @@ mod tests {
     #[test]
     fn test_naive_date_time_migration() {
         let stack_id = StackId::nil();
-        let date_published = NaiveDate::from_ymd(2016, 7, 8).and_hms(10, 25, 55);
+        let date_published = NaiveDate::from_ymd_opt(2016, 7, 8)
+            .unwrap()
+            .and_hms_opt(10, 25, 55)
+            .unwrap();
         let old_document = DocumentWithNaiveDateTime {
             id: Id::new(),
             stack_id,

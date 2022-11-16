@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn test_build_value_empty() {
-        let empty = "".to_string();
+        let empty = String::new();
 
         assert_eq!(empty, Expr::Value(empty.clone()).build());
     }
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_build_and_empty() {
-        let v = Expr::Value("".to_string());
+        let v = Expr::Value(String::new());
 
         let empty_and = v.clone().and(v.clone());
         assert_eq!("", empty_and.build());
@@ -324,7 +324,7 @@ mod tests {
 
     #[test]
     fn test_build_or_empty() {
-        let v = Expr::Value("".to_string());
+        let v = Expr::Value(String::new());
 
         let empty_or = v.clone().or(v.clone());
         assert_eq!("", empty_or.build());

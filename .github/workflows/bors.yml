@@ -18,11 +18,10 @@ jobs:
     uses: ./.github/workflows/_reusable.rust.yml
 
   ci-ok:
-    needs:
-      - rust-checks
+    needs: rust-checks
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v5
+      image: xaynetci/yellow:v6
     timeout-minutes: 5
     if: ${{ always() }}
     steps:

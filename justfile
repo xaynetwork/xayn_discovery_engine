@@ -42,7 +42,7 @@ rust-fmt:
     set -eux -o pipefail
     cd "$RUST_WORKSPACE";
     cargo +"$RUST_NIGHTLY" fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};
-    cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }}
+    cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check --check-format" } else { "" } }}
 
 # Formats all code (checks only on CI)
 fmt: rust-fmt

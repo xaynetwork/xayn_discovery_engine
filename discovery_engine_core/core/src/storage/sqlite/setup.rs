@@ -230,7 +230,7 @@ mod tests {
     }
 
     fn create_bad_file(path: &Path) {
-        std::fs::write(path, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 77, 88, 112]).unwrap();
+        std::fs::write(path, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 77, 88, 112]).unwrap();
     }
 
     #[tokio::test]
