@@ -35,7 +35,7 @@ mod io;
 
 use anyhow::Result;
 use clap::Parser;
-use xayn_discovery_engine_core::{document::UserReaction, stack};
+use xayn_discovery_engine::{document::UserReaction, stack};
 
 use crate::{
     engine::TestEngine,

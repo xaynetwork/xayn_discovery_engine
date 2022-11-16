@@ -29,6 +29,7 @@ use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, Level};
+use xayn_ai_bert::{AveragePooler, AvgBert, Config as BertConfig};
 use xayn_ai_coi::{
     self,
     cosine_similarity,
@@ -40,7 +41,6 @@ use xayn_ai_coi::{
     UserInterests,
 };
 use xayn_discovery_engine_ai::{GenericError, KeyPhrase, KeyPhrases, KpsConfig, KpsSystem};
-use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
 use xayn_discovery_engine_providers::{
     clean_query,
     Filter,

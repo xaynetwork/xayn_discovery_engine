@@ -1,5 +1,5 @@
 [package]
-name = "xayn-discovery-engine-core"
+name = "xayn-discovery-engine"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
@@ -30,9 +30,9 @@ tokio = { workspace = true, features = ["fs", "macros", "sync"] }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 uuid = { workspace = true }
-xayn-ai-coi = { path = "../ai/coi" }
-xayn-discovery-engine-ai = { path = "../ai/ai" }
-xayn-discovery-engine-bert = { path = "../ai/bert" }
+xayn-ai-bert = { path = "../../bert" }
+xayn-ai-coi = { path = "../../coi" }
+xayn-discovery-engine-ai = { path = "../ai" }
 xayn-discovery-engine-providers = { path = "../providers" }
 
 [dev-dependencies]
@@ -45,7 +45,7 @@ serde_json = { workspace = true }
 tempfile = "3.3.0"
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 wiremock = { workspace = true }
-xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
+xayn-discovery-engine-test-utils = { path = "../../test-utils" }
 
 [[bench]]
 name = "benches"

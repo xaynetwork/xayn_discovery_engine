@@ -1,5 +1,5 @@
 [package]
-name = "xayn-ai-coi"
+name = "xayn-discovery-engine-ai"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
@@ -11,19 +11,16 @@ derive_more = { workspace = true }
 displaydoc = { workspace = true }
 itertools = { workspace = true }
 ndarray = { workspace = true }
+rayon = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 uuid = { workspace = true }
-xayn-discovery-engine-bert = { path = "../bert" }
+xayn-ai-bert = { path = "../../bert" }
+xayn-ai-coi = { path = "../../coi" }
+xayn-discovery-engine-providers = { path = "../providers" }
 
 [dev-dependencies]
-criterion = { workspace = true }
 rand = { workspace = true }
-rand_distr = { workspace = true }
 serde_json = { workspace = true }
-xayn-discovery-engine-test-utils = { path = "../test-utils" }
+xayn-discovery-engine-test-utils = { path = "../../test-utils" }
 
-[[bench]]
-name = "benches"
-harness = false

@@ -27,7 +27,7 @@ use csv::Reader;
 use indicatif::ProgressBar;
 use ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use onnxruntime::{environment::Environment, session::Session, GraphOptimizationLevel};
-use xayn_discovery_engine_bert::{
+use xayn_ai_bert::{
     tokenizer::Tokenizer,
     Config,
     Embedding2,

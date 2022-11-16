@@ -24,11 +24,11 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "rt-multi-thread"] }
 url = { workspace = true }
-xayn-ai-coi = { path = "../ai/coi" }
-xayn-discovery-engine-ai = { path = "../ai/ai" }
-xayn-discovery-engine-core = { path = "../core" }
+xayn-ai-coi = { path = "../../coi" }
+xayn-discovery-engine = { path = "../engine" }
+xayn-discovery-engine-ai = { path = "../ai" }
 xayn-discovery-engine-providers = { path = "../providers" }
-xayn-discovery-engine-test-utils = { path = "../ai/test-utils" }
+xayn-discovery-engine-test-utils = { path = "../../test-utils" }
 
 [[bin]]
 name = "backend"

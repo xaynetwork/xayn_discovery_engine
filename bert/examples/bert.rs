@@ -14,7 +14,7 @@
 
 //! Run as `cargo run --example bert
 
-use xayn_discovery_engine_bert::{Config, FirstPooler};
+use xayn_ai_bert::{Config, FirstPooler};
 use xayn_discovery_engine_test_utils::asset::smbert;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

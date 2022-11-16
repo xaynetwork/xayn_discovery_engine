@@ -21,7 +21,7 @@ use ndarray::Array1;
 use rand::Rng;
 use rand_distr::Uniform;
 use xayn_ai_coi::pairwise_cosine_similarity;
-use xayn_discovery_engine_core::{
+use xayn_discovery_engine::{
     document::{Document, NewsResource},
     stack::filters::semantic::{
         condensed_date_distance,
