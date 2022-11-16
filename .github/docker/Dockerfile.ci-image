@@ -9,7 +9,7 @@ USER root
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends software-properties-common build-essential wget curl git; \
+    apt-get install -y --no-install-recommends ca-certificates wget curl git zstd gcc libc6-dev; \
     rm -rf /var/lib/apt/lists/*;
 
 # Begin: Rust base
