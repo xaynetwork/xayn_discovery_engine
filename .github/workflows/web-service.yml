@@ -39,7 +39,6 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/personalization
-          cp ${GITHUB_WORKSPACE}/web-api/.env ./web-service/.env
           cp ${GITHUB_WORKSPACE}/web-api/Dockerfile ./web-service/Dockerfile
           tar -cvf web-service.tar ./web-service
 
