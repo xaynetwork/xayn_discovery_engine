@@ -122,7 +122,7 @@ build-web-service:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd "$RUST_WORKSPACE"
-    cargo build --release --bin web-api
+    cargo build --release --bin personalization
 
 build-ingestion-service:
     #!/usr/bin/env bash
