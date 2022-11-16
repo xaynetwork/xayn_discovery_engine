@@ -1897,6 +1897,11 @@ pub(crate) mod tests {
         let mut c = Document::default();
         c.resource.date_published = Utc.with_ymd_and_hms(2021, 1, 1, 1, 0, 0).unwrap();
 
+       
+
+
+
+
         let mut documents = vec![a, b, c];
 
         let coi = CoiConfig::default().build();
