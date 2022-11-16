@@ -38,9 +38,9 @@ jobs:
       - name: Create archive
         working-directory: ${{ runner.temp }}
         run: |
-          cp ${GITHUB_WORKSPACE}/target/release/web-api ./web-service/web-api
+          cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/personalization
           cp ${GITHUB_WORKSPACE}/web-api/.env ./web-service/.env
-          cp ${GITHUB_WORKSPACE}/web-api/Dockerfile.web-api ./web-service/Dockerfile
+          cp ${GITHUB_WORKSPACE}/web-api/Dockerfile ./web-service/Dockerfile
           tar -cvf web-service.tar ./web-service
 
       - name: Upload archive
