@@ -25,8 +25,6 @@ jobs:
 
       - name: Setup job
         uses: ./.github/actions/setup-job-docker
-        with:
-          rust: true
 
       - name: Build artifacts
         run: just build-backend-service
@@ -40,8 +38,8 @@ jobs:
       - name: Create archive
         working-directory: ${{ runner.temp }}
         run: |
-          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/target/release/backend ./backend-service/backend
-          cp ${GITHUB_WORKSPACE}/${{ env.RUST_WORKSPACE }}/tooling/Dockerfile ./backend-service/Dockerfile
+          cp ${GITHUB_WORKSPACE}/target/release/backend ./backend-service/backend
+          cp ${GITHUB_WORKSPACE}/tooling/Dockerfile ./backend-service/Dockerfile
           tar -cvf backend-service.tar ./backend-service
 
       - name: Upload archive

@@ -14,8 +14,6 @@ jobs:
 
       - name: Setup the CI.
         uses: ./.github/actions/setup-job-docker
-        with:
-          rust: true
 
       - name: cargo fmt
         run: just rust-fmt
@@ -30,8 +28,6 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
-        with:
-          rust: true
 
       - name: rust check
         run: just rust-check
@@ -46,8 +42,6 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
-        with:
-          rust: true
 
       - name: Download test assets
         run: just download-assets
@@ -65,8 +59,6 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
-        with:
-          rust: true
 
       - name: cargo doc
         run: just rust-check-doc
