@@ -33,7 +33,7 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           rm -rf ./web-service
-          mkdir -p web-service/assets
+          mkdir web-service
 
       - name: Create archive
         working-directory: ${{ runner.temp }}
@@ -79,7 +79,7 @@ jobs:
             fi
           fi
           IMAGE_NAME="xaynetci/xayn_discovery_web_service:$TAG"
-          docker build -t "${IMAGE_NAME}" .
+          docker build --build-arg api=personalization -t "${IMAGE_NAME}" .
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "TAG=${TAG}" >> $GITHUB_ENV
 

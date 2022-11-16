@@ -85,7 +85,7 @@ jobs:
             fi
           fi
           IMAGE_NAME="xaynetci/xayn_discovery_ingestion_service:$TAG"
-          docker build -t "${IMAGE_NAME}" .
+          docker build --build-arg api=ingestion -t "${IMAGE_NAME}" .
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "TAG=${TAG}" >> $GITHUB_ENV
 
