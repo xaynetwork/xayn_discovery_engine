@@ -10,7 +10,7 @@ SELF_DIR_PATH="$(dirname "$0")"
 
 # a parameter for the destination of the assets can be passed.
 # the default is the directory assets, we assume the script is in .github/scripts/
-DATA_DIR="${1:-$SELF_DIR_PATH/../../discovery_engine_core/assets}"
+DATA_DIR="${1:-$SELF_DIR_PATH/../../assets}"
 DATA_DIR=`realpath $DATA_DIR`
 
 CHECKSUM_FILE="sha256sums"

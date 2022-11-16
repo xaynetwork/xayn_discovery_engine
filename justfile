@@ -30,7 +30,6 @@ default:
 rust-deps:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE"
     cargo fetch {{ if env_var_or_default("CI", "false") == "true" { "--locked" } else { "" } }}
 
 # Get/Update/Fetch/Install all dependencies
@@ -40,7 +39,6 @@ deps: rust-deps
 rust-fmt:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE";
     cargo +"$RUST_NIGHTLY" fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};
     cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check --check-format" } else { "" } }}
 
@@ -49,7 +47,6 @@ fmt: rust-fmt
 
 # Checks rust code, fails on warnings on CI
 rust-check: 
-    cd "$RUST_WORKSPACE"; \
     cargo clippy --all-targets --locked;
 
 # Checks all code, fails if there are any issues on CI
@@ -57,12 +54,10 @@ check: rust-check
 
 # Checks if rust documentation can be build without issues
 rust-check-doc:
-    cd "$RUST_WORKSPACE"; \
     cargo doc --all-features --no-deps --document-private-items --locked
 
 # Builds rust documentation
 rust-doc *args:
-    cd "$RUST_WORKSPACE"; \
     cargo doc --all-features --document-private-items --locked {{args}}
 
 # Builds all documentation
@@ -73,7 +68,6 @@ check-doc: rust-check-doc
 
 # Builds rust
 rust-build:
-    cd "$RUST_WORKSPACE"; \
     cargo build --locked
 
 # Builds all code
@@ -83,7 +77,6 @@ build: rust-build
 rust-test: download-assets
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE";
     cargo test --lib --bins --tests --quiet --locked
     cargo test --doc --quiet --locked
 
@@ -92,12 +85,11 @@ test: rust-test
 
 # Cleans up rusts build cache
 rust-clean:
-    cd "$RUST_WORKSPACE"; \
     cargo clean
 
 # Removes all asset data
 remove-assets:
-    find $RUST_WORKSPACE/assets/*_v* -exec rm -fr '{}' \;
+    rm -rf ./assets/*
 
 # Removes all local cached dependencies and generated files
 clean: rust-clean
@@ -121,25 +113,21 @@ download-assets:
 build-web-service:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE"
     cargo build --release --bin personalization
 
 build-ingestion-service:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE"
     cargo build --release --bin ingestion
 
 build-backend-service:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE"
     cargo build --release --bin backend
 
 db-setup:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE"
     ERROR=""
     (cargo sqlx --help 2>&1 | head -n1) || ERROR=$?
     if [[ "$ERROR" == "101" ]]; then
@@ -156,21 +144,20 @@ db-setup:
 db-migrate +ARGS:
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cd "$RUST_WORKSPACE"
     export $(cat .env.db.dev | xargs)
     cargo sqlx migrate --source "core/src/storage/migrations" {{ARGS}}
 
 web-dev-up:
     #!/usr/bin/env -S bash -eux -o pipefail
-    rm "$RUST_WORKSPACE/web-api/assets" || :
-    ln -s "$RUST_WORKSPACE/assets/smbert_v0003" "$RUST_WORKSPACE/web-api/assets"
+    rm "./web-api/assets" || :
+    ln -s "./assets/smbert_v0003" "./web-api/assets"
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" up --detach --remove-orphans
+    $compose -f "./web-api/compose.yml" up --detach --remove-orphans
 
 web-dev-down:
     #!/usr/bin/env -S bash -eux -o pipefail
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "$RUST_WORKSPACE/web-api/compose.yml" down
+    $compose -f "./web-api/compose.yml" down
 
 print-just-env:
     export

@@ -29,5 +29,4 @@ runs:
       if: inputs.rust != 'false'
       with:
         key: ${{ inputs.cache-key }}
-        workspaces: ${{ env.RUST_WORKSPACE }} -> target
 

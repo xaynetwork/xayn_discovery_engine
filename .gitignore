@@ -7,3 +7,5 @@
 .env.local
 
 headlines_download/
+target/
+.env.db.dev
