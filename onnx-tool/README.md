@@ -22,5 +22,5 @@ $ pip install -r requirements.txt
 # generate smbert model, put it in the assets dir and upload a new version
 $ python src/mock_onnx_tool.py \
   --type smbert \
-  --output ../discovery_engine_core/assets/smbert_mocked_v0004
+  --output ../assets/smbert_mocked_v0004
 ```

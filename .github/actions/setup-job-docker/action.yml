@@ -1,10 +1,6 @@
 name: Setup ci job
 
 inputs:
-  rust:
-    description: Setup rust
-    default: "false"
-    required: false
   cache-key:
     description: An optional key that is added to the automatic cache key
     default: ""
@@ -26,7 +22,6 @@ runs:
 
     # This action uses env vars for hash used in the key, therefore we keep it as last. 
     - uses: Swatinem/rust-cache@359a70e43a0bb8a13953b04a90f76428b4959bb6 # v2.2.0
-      if: inputs.rust != 'false'
       with:
         key: ${{ inputs.cache-key }}
 
