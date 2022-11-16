@@ -25,8 +25,6 @@ jobs:
 
       - name: Setup job
         uses: ./.github/actions/setup-job-docker
-        with:
-          rust: true
 
       - name: Build artifacts
         run: just build-web-service
