@@ -30,19 +30,3 @@ runs:
         # slowing all builds down.
         echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
 
-    - name: Jfrog authentication
-      shell: bash
-      if: ${{ inputs.jfrog_token != 'false' }}
-      env:
-          JFROG_TOKEN: ${{ inputs.jfrog_token }}
-      run: |
-        if [ -z "${JFROG_TOKEN}" ]; then
-          echo "JFROG access token missing"
-          exit 1
-        fi
-        echo "${JFROG_TOKEN}" | dart pub token add "https://xayn.jfrog.io/artifactory/api/pub/dart.xayn.private"
-
-    - name: dart deps
-      shell: bash
-      if: ${{ inputs.dart != 'false' }}
-      run: just dart-deps
