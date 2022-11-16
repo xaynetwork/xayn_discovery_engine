@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use url::Url;
-use xayn_discovery_engine_ai::Embedding;
+use xayn_ai_coi::Embedding;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{

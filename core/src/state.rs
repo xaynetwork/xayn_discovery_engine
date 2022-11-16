@@ -15,7 +15,8 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
-use xayn_discovery_engine_ai::{GenericError, KeyPhrases, UserInterests};
+use xayn_ai_coi::UserInterests;
+use xayn_discovery_engine_ai::{GenericError, KeyPhrases};
 
 use crate::{
     engine::{Engine, Error},
@@ -110,7 +111,7 @@ mod naive_date_time_migration {
     use chrono::{DateTime, NaiveDateTime, Utc};
     use serde::{Deserialize, Serialize};
     use url::Url;
-    use xayn_discovery_engine_ai::Embedding;
+    use xayn_ai_coi::Embedding;
 
     use crate::{
         document::{Document, Id, NewsResource, UserReaction},
@@ -208,7 +209,7 @@ mod tests {
 
     use chrono::{DateTime, NaiveDate, Utc};
     use url::Url;
-    use xayn_discovery_engine_ai::Embedding;
+    use xayn_ai_coi::Embedding;
 
     use super::naive_date_time_migration::DataWithNaiveDateTime;
     use crate::{

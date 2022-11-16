@@ -22,7 +22,7 @@ use std::{
 
 use anyhow::Result;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use xayn_discovery_engine_ai::Embedding;
+use xayn_ai_coi::Embedding;
 use xayn_discovery_engine_core::{document::UserReaction, stack};
 
 fn deserialize_seconds_as_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>

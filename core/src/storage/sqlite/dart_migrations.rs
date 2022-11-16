@@ -16,7 +16,7 @@
 
 use itertools::{chain, Itertools};
 use sqlx::QueryBuilder;
-use xayn_discovery_engine_ai::Embedding;
+use xayn_ai_coi::Embedding;
 use xayn_discovery_engine_providers::Market;
 
 use super::SqliteStorage;

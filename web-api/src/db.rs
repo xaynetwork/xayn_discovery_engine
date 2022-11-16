@@ -28,7 +28,7 @@ use sqlx::{
 };
 use tracing::{info, instrument};
 use uuid::Uuid;
-use xayn_discovery_engine_ai::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
+use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
 use crate::{
     models::{DocumentId, UserId, UserInteractionType},

@@ -25,8 +25,8 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
-pub use xayn_discovery_engine_ai::Embedding;
-use xayn_discovery_engine_ai::{Document as AiDocument, DocumentId};
+use xayn_ai_coi::Document as AiDocument;
+pub use xayn_ai_coi::Embedding;
 use xayn_discovery_engine_providers::GenericArticle;
 
 use crate::stack::Id as StackId;
@@ -79,12 +79,6 @@ impl From<Uuid> for Id {
 impl From<Id> for Uuid {
     fn from(id: Id) -> Self {
         id.0
-    }
-}
-
-impl From<Id> for DocumentId {
-    fn from(id: Id) -> Self {
-        Uuid::from(id).into()
     }
 }
 

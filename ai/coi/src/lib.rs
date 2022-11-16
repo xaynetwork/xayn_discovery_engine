@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! The AI of the discovery engine.
+//! Center of interests module.
 
 #![forbid(unsafe_op_in_unsafe_fn)]
 #![deny(
@@ -31,16 +31,31 @@
     clippy::must_use_candidate
 )]
 
-mod error;
-mod kps;
+pub mod config;
+pub(crate) mod context;
+mod document;
+pub mod embedding;
+pub mod id;
+pub mod point;
+pub mod stats;
+pub mod system;
 pub mod utils;
 
+#[cfg(doc)]
+pub use crate::embedding::COSINE_SIMILARITY_RANGE;
 pub use crate::{
-    error::GenericError,
-    kps::{
-        config::{Config as KpsConfig, Error as KpsConfigError},
-        key_phrase::{KeyPhrase, KeyPhrases},
-        system::System as KpsSystem,
+    config::{Config as CoiConfig, Error as CoiConfigError},
+    context::Error as CoiContextError,
+    document::Document,
+    embedding::{
+        cosine_similarity,
+        pairwise_cosine_similarity,
+        Embedding,
+        MalformedBytesEmbedding,
     },
+    id::CoiId,
+    point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+    stats::{compute_coi_relevances, CoiStats},
+    system::System as CoiSystem,
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, system_time_now},
 };

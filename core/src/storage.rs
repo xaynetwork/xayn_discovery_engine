@@ -25,7 +25,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use displaydoc::Display;
 use thiserror::Error;
-use xayn_discovery_engine_ai::{Embedding, GenericError, MalformedBytesEmbedding};
+use xayn_ai_coi::{Embedding, MalformedBytesEmbedding};
+use xayn_discovery_engine_ai::GenericError;
 
 use crate::{
     document::{self, HistoricDocument, NewsResource, UserReaction, ViewMode, WeightedSource},

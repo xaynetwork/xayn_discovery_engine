@@ -4292,7 +4292,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
- "xayn-discovery-engine-ai",
+ "xayn-ai-coi",
  "xayn-discovery-engine-bert",
 ]
 
@@ -4465,11 +4465,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "xayn-discovery-engine-ai"
+name = "xayn-ai-coi"
 version = "0.1.0"
 dependencies = [
- "bincode",
- "chrono",
  "criterion",
  "derivative",
  "derive_more",
@@ -4478,12 +4476,31 @@ dependencies = [
  "ndarray",
  "rand 0.8.5",
  "rand_distr",
- "rayon",
  "serde",
  "serde_json",
  "thiserror",
  "tracing",
  "uuid",
+ "xayn-discovery-engine-bert",
+ "xayn-discovery-engine-test-utils",
+]
+
+[[package]]
+name = "xayn-discovery-engine-ai"
+version = "0.1.0"
+dependencies = [
+ "derivative",
+ "derive_more",
+ "displaydoc",
+ "itertools 0.10.5",
+ "ndarray",
+ "rand 0.8.5",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "uuid",
+ "xayn-ai-coi",
  "xayn-discovery-engine-bert",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
@@ -4493,13 +4510,11 @@ dependencies = [
 name = "xayn-discovery-engine-bert"
 version = "0.1.0"
 dependencies = [
- "criterion",
  "csv",
  "derive_more",
  "displaydoc",
  "figment",
  "float-cmp",
- "indicatif",
  "itertools 0.10.5",
  "lindera",
  "ndarray",
@@ -4547,6 +4562,7 @@ dependencies = [
  "url",
  "uuid",
  "wiremock",
+ "xayn-ai-coi",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-bert",
  "xayn-discovery-engine-providers",
@@ -4606,6 +4622,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+ "xayn-ai-coi",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-core",
  "xayn-discovery-engine-providers",

@@ -22,18 +22,32 @@ use std::{
 };
 
 use derivative::Derivative;
+use displaydoc::Display;
 use itertools::izip;
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix, Ix2};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use xayn_ai_coi::{
+    embedding::{pairwise_cosine_similarity, Embedding},
+    point::PositiveCoi,
+    stats::compute_coi_relevances,
+    CoiId,
+};
 use xayn_discovery_engine_providers::{clean_query, Market};
 
 use crate::{
-    coi::{point::PositiveCoi, stats::compute_coi_relevances, CoiError, CoiId},
-    embedding::{pairwise_cosine_similarity, Embedding},
     error::GenericError,
     utils::{nan_safe_f32_cmp, system_time_now},
 };
+
+#[derive(Debug, Display, Error)]
+pub(crate) enum CoiError {
+    /// A key phrase is empty
+    EmptyKeyPhrase,
+    /// A key phrase has non-finite embedding values: {0:#?}
+    NonFiniteKeyPhrase(Embedding),
+}
 
 /// A key phrase representation with a cached point.
 #[derive(Clone, Debug, Derivative, Deserialize, Serialize)]
@@ -81,23 +95,6 @@ impl PartialEq<&str> for KeyPhrase {
     }
 }
 
-impl PositiveCoi {
-    /// Updates the key phrases for the market.
-    ///
-    /// The most relevant key phrases are selected from the existing key phrases and the candidates.
-    pub(super) fn update_key_phrases(
-        &self,
-        market: &Market,
-        key_phrases: &mut KeyPhrases,
-        candidates: &[String],
-        bert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
-        max_key_phrases: usize,
-        gamma: f32,
-    ) {
-        key_phrases.update(self, market, candidates, bert, max_key_phrases, gamma);
-    }
-}
-
 /// Sorted maps from cois and markets to key phrases.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct KeyPhrases {
@@ -110,7 +107,7 @@ impl KeyPhrases {
     /// Updates the key phrases for the positive coi and market.
     ///
     /// The most relevant key phrases are selected from the existing key phrases and the candidates.
-    fn update(
+    pub(crate) fn update(
         &mut self,
         coi: &PositiveCoi,
         market: &Market,
@@ -464,14 +461,28 @@ mod tests {
     use std::{mem::swap, time::Duration};
 
     use itertools::Itertools;
-    use ndarray::arr2;
+    use ndarray::{arr1, arr2, FixedInitializer};
+    use xayn_ai_coi::config::Config as CoiConfig;
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
-    use crate::{
-        coi::{config::Config as CoiConfig, point::tests::create_pos_cois},
-        kps::config::Config as KpsConfig,
-    };
+    use crate::kps::config::Config as KpsConfig;
+
+    fn coiid_mocked(id: usize) -> CoiId {
+        CoiId::new(uuid::Uuid::from_u128(id as u128))
+    }
+
+    fn create_pos_cois<FI: FixedInitializer<Elem = f32>>(points: &[FI]) -> Vec<PositiveCoi> {
+        if FI::len() == 0 {
+            return Vec::new();
+        }
+
+        points
+            .iter()
+            .enumerate()
+            .map(|(id, point)| PositiveCoi::new(coiid_mocked(id), arr1(point.as_init_slice())))
+            .collect()
+    }
 
     impl KeyPhrases {
         pub(crate) fn new<'a, const N: usize>(
@@ -998,7 +1009,7 @@ mod tests {
     #[test]
     fn test_refresh_key_phrases_empty_cois() {
         let cois = create_pos_cois(&[] as &[[f32; 0]]);
-        let coi_id = CoiId::mocked(1);
+        let coi_id = coiid_mocked(1);
         let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([(coi_id, ("aa", "AA"), "key", [1., 1., 1.])]);
         swap(&mut key_phrases.selected, &mut key_phrases.removed);
@@ -1130,7 +1141,7 @@ mod tests {
 
     #[test]
     fn test_remove_missing() {
-        let coi_id = CoiId::mocked(1);
+        let coi_id = coiid_mocked(1);
         let market = Market::new("aa", "AA");
         let key_phrase = KeyPhrase::new("key", [1., 1., 1.]).unwrap();
         let mut key_phrases = KeyPhrases::default();
@@ -1186,7 +1197,7 @@ mod tests {
     #[test]
     fn test_take_key_phrases_empty_cois() {
         let cois = create_pos_cois(&[] as &[[f32; 0]]);
-        let coi_id = CoiId::mocked(1);
+        let coi_id = coiid_mocked(1);
         let market = Market::new("aa", "AA");
         let mut key_phrases = KeyPhrases::new([(coi_id, ("aa", "AA"), "key", [1., 1., 1.])]);
         let coi_config = CoiConfig::default();

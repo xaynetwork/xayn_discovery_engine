@@ -26,7 +26,7 @@ use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::error;
-use xayn_discovery_engine_ai::Embedding;
+use xayn_ai_coi::Embedding;
 
 use crate::{
     error::common::{DocumentIdAsObject, FailedToDeleteSomeDocuments, InternalError},
@@ -553,7 +553,7 @@ struct IgnoredResponse {}
 
 pub(crate) mod serde_embedding_as_vec {
     use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
-    use xayn_discovery_engine_ai::Embedding;
+    use xayn_ai_coi::Embedding;
 
     pub(crate) fn serialize<S>(embedding: &Embedding, serializer: S) -> Result<S::Ok, S::Error>
     where

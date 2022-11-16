@@ -18,7 +18,7 @@ use chrono::{offset::Utc, DateTime};
 use itertools::{izip, Itertools};
 use kodama::{linkage, Dendrogram, Method};
 use ndarray::ArrayView1;
-use xayn_discovery_engine_ai::{cosine_similarity, nan_safe_f32_cmp, pairwise_cosine_similarity};
+use xayn_ai_coi::{cosine_similarity, nan_safe_f32_cmp, pairwise_cosine_similarity};
 
 use super::source_weight;
 use crate::document::{Document, WeightedSource};
@@ -302,7 +302,7 @@ mod tests {
 
     use chrono::{TimeZone, Utc};
     use ndarray::aview1;
-    use xayn_discovery_engine_ai::Embedding;
+    use xayn_ai_coi::Embedding;
     use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
     use xayn_discovery_engine_test_utils::{assert_approx_eq, asset::smbert_quantized};
 

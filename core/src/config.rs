@@ -20,7 +20,8 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use xayn_discovery_engine_ai::{CoiConfig, KpsConfig};
+use xayn_ai_coi::CoiConfig;
+use xayn_discovery_engine_ai::KpsConfig;
 use xayn_discovery_engine_providers::Market;
 
 use crate::{

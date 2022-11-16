@@ -12,20 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use derive_more::Display;
-use uuid::Uuid;
-
 use crate::embedding::Embedding;
-
-/// A unique identifier of a document.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Display)]
-pub struct DocumentId(Uuid);
-
-impl From<Uuid> for DocumentId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
-}
 
 /// Common document properties.
 pub trait Document {
@@ -40,11 +27,24 @@ pub trait Document {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use derive_more::Display;
+    use uuid::Uuid;
+
     use super::*;
+
+    /// A unique identifier of a document.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Display)]
+    pub(crate) struct DocumentId(Uuid);
+
+    impl From<Uuid> for DocumentId {
+        fn from(id: Uuid) -> Self {
+            Self(id)
+        }
+    }
 
     impl DocumentId {
         /// Creates a `DocumentId` from a 128bit value in big-endian order.
-        pub const fn from_u128(id: u128) -> Self {
+        pub(crate) const fn from_u128(id: u128) -> Self {
             DocumentId(Uuid::from_u128(id))
         }
     }

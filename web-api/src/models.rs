@@ -18,7 +18,7 @@ use derive_more::{AsRef, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use xayn_discovery_engine_ai::{Document as AiDocument, Embedding};
+use xayn_ai_coi::{Document as AiDocument, Embedding};
 
 use crate::error::common::{InvalidDocumentId, InvalidDocumentPropertyId, InvalidUserId};
 

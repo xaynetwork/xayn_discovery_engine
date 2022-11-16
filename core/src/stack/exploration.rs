@@ -17,7 +17,7 @@
 use std::collections::HashSet;
 
 use uuid::uuid;
-use xayn_discovery_engine_ai::UserInterests;
+use xayn_ai_coi::UserInterests;
 
 use crate::{
     config::ExplorationConfig as Config,

@@ -22,7 +22,7 @@ use chrono::{DateTime, Utc};
 use num_traits::FromPrimitive;
 use sqlx::{sqlite::Sqlite, FromRow, Pool, QueryBuilder, Transaction};
 use url::Url;
-use xayn_discovery_engine_ai::Embedding;
+use xayn_ai_coi::Embedding;
 use xayn_discovery_engine_providers::Market;
 
 use self::utils::SqlxSqliteResultExt;
@@ -1037,7 +1037,7 @@ mod tests {
     use std::{collections::HashSet, time::Duration};
 
     use maplit::hashset;
-    use xayn_discovery_engine_ai::Embedding;
+    use xayn_ai_coi::Embedding;
 
     use super::*;
     use crate::{document::NewsResource, stack, storage::models::NewDocument};

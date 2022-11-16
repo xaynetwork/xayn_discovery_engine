@@ -21,14 +21,12 @@ use displaydoc::Display;
 use thiserror::Error;
 
 use crate::{
-    coi::{
-        config::Config,
-        point::{find_closest_coi, CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
-        stats::{compute_coi_decay_factor, compute_coi_relevances},
-        CoiId,
-    },
+    config::Config,
     document::Document,
     embedding::Embedding,
+    id::CoiId,
+    point::{find_closest_coi, CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+    stats::{compute_coi_decay_factor, compute_coi_relevances},
     utils::system_time_now,
 };
 
@@ -213,7 +211,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        coi::point::tests::{create_neg_cois, create_pos_cois},
+        point::tests::{create_neg_cois, create_pos_cois},
         utils::SECONDS_PER_DAY_F32,
     };
 

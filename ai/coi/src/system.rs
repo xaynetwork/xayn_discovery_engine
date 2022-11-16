@@ -18,21 +18,19 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
-    coi::{
-        config::Config,
-        context,
-        context::compute_scores_for_docs,
-        point::{
-            find_closest_coi_index,
-            find_closest_coi_mut,
-            CoiPoint,
-            NegativeCoi,
-            PositiveCoi,
-            UserInterests,
-        },
-    },
+    config::Config,
+    context,
+    context::compute_scores_for_docs,
     document::Document,
     embedding::Embedding,
+    point::{
+        find_closest_coi_index,
+        find_closest_coi_mut,
+        CoiPoint,
+        NegativeCoi,
+        PositiveCoi,
+        UserInterests,
+    },
 };
 
 /// The center of interest (coi) system.
@@ -110,8 +108,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        coi::point::tests::{create_neg_cois, create_pos_cois},
-        document::{tests::TestDocument, DocumentId},
+        document::tests::{DocumentId, TestDocument},
+        point::tests::{create_neg_cois, create_pos_cois},
         utils,
     };
 

@@ -22,9 +22,7 @@ tract-onnx = "0.18.3"
 onnxruntime = { version = "0.0.13", optional = true }
 
 [dev-dependencies]
-criterion = { workspace = true }
 csv = { workspace = true }
-indicatif = { workspace = true }
 xayn-discovery-engine-test-utils = { path = "../test-utils" }
 
 [[example]]

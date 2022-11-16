@@ -12,22 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub(crate) mod config;
-pub(crate) mod context;
-pub(crate) mod point;
-pub mod stats;
-pub(crate) mod system;
-
 use derive_more::{AsRef, From};
-use displaydoc::Display;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use uuid::Uuid;
 
-use crate::embedding::Embedding;
-
 /// A unique identifier of a `CoI`.
-#[repr(transparent)] // needed for FFI
 #[derive(
     Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize, From, AsRef,
 )]
@@ -37,14 +26,6 @@ impl CoiId {
     pub fn new(id: Uuid) -> Self {
         Self(id)
     }
-}
-
-#[derive(Debug, Display, Error)]
-pub(crate) enum CoiError {
-    /// A key phrase is empty
-    EmptyKeyPhrase,
-    /// A key phrase has non-finite embedding values: {0:#?}
-    NonFiniteKeyPhrase(Embedding),
 }
 
 #[cfg(test)]
