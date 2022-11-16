@@ -16,12 +16,6 @@ runs:
     - name: Load .env
       uses: xom9ikk/dotenv@eff1dce037c4c0143cc4180a810511024c2560c0 # v2
 
-    - uses: Swatinem/rust-cache@359a70e43a0bb8a13953b04a90f76428b4959bb6 # v2.2.0
-      if: inputs.rust != 'false'
-      with:
-        key: ${{ inputs.cache-key }}
-        workspaces: ${{ env.RUST_WORKSPACE }} -> target
-
     - name: Configure cargo
       shell: bash
       run: |
@@ -29,3 +23,11 @@ runs:
         # and if multiple cargo build jobs run at max parallelism it ends up
         # slowing all builds down.
         echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
+
+    # This action uses env vars for hash used in the key, therefore we keep it as last. 
+    - uses: Swatinem/rust-cache@359a70e43a0bb8a13953b04a90f76428b4959bb6 # v2.2.0
+      if: inputs.rust != 'false'
+      with:
+        key: ${{ inputs.cache-key }}
+        workspaces: ${{ env.RUST_WORKSPACE }} -> target
+
