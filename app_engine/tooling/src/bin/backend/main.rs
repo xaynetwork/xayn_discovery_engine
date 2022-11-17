@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! A newscatcher-like elastic backend.
+
 #![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
 #![deny(
     clippy::future_not_send,

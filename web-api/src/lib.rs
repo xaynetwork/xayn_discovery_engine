@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! The web engine & api.
+
 #![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
 #![deny(
     // TODO: check if/how this can be enabled as this has conflicts inherently rooted in actix-web trait bounds
