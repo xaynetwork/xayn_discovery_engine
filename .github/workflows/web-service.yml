@@ -33,12 +33,12 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           rm -rf ./web-service
-          mkdir -p web-service/assets
+          mkdir web-service
 
       - name: Create archive
         working-directory: ${{ runner.temp }}
         run: |
-          cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/personalization
+          cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/server.bin
           cp ${GITHUB_WORKSPACE}/web-api/Dockerfile ./web-service/Dockerfile
           tar -cvf web-service.tar ./web-service
 
