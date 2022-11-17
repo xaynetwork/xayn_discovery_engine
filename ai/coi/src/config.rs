@@ -19,8 +19,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    coi::system::System,
     embedding::COSINE_SIMILARITY_RANGE,
+    system::System,
     utils::{serde_duration_as_days, SECONDS_PER_DAY_U64},
 };
 

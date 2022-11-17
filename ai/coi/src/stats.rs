@@ -17,7 +17,7 @@ use std::time::{Duration, SystemTime};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    coi::point::{NegativeCoi, PositiveCoi},
+    point::{NegativeCoi, PositiveCoi},
     utils::{system_time_now, SECONDS_PER_DAY_F32},
 };
 
@@ -59,7 +59,7 @@ impl Default for CoiStats {
 }
 
 impl PositiveCoi {
-    pub(crate) fn log_time(&mut self, viewed: Duration) -> &mut Self {
+    pub fn log_time(&mut self, viewed: Duration) -> &mut Self {
         self.stats.log_time(viewed);
         self
     }
@@ -127,7 +127,7 @@ mod tests {
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
-    use crate::coi::{config::Config, point::tests::create_pos_cois};
+    use crate::{config::Config, point::tests::create_pos_cois};
 
     #[test]
     fn test_compute_relevances_empty_cois() {

@@ -16,7 +16,7 @@ mod routes;
 use actix_web::web::ServiceConfig;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
-use xayn_discovery_engine_ai::{CoiConfig, CoiSystem};
+use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::server::{self, Application};
 

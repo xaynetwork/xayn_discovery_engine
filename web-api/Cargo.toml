@@ -32,7 +32,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"] }
 url = { workspace = true }
 urlencoding = "2.1.2"
 uuid = { workspace = true }
-xayn-discovery-engine-ai = { path = "../ai/ai" }
+xayn-ai-coi = { path = "../ai/coi" }
 xayn-discovery-engine-bert = { path = "../ai/bert" }
 
 [dev-dependencies]

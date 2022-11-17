@@ -19,7 +19,7 @@ use itertools::chain;
 use ndarray::Array2;
 use rand::{prelude::IteratorRandom, Rng};
 use thiserror::Error;
-use xayn_discovery_engine_ai::{
+use xayn_ai_coi::{
     nan_safe_f32_cmp,
     pairwise_cosine_similarity,
     CoiPoint,
@@ -181,7 +181,7 @@ mod tests {
     use ndarray::{arr1, FixedInitializer};
     use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
-    use xayn_discovery_engine_ai::CoiId;
+    use xayn_ai_coi::CoiId;
     use xayn_discovery_engine_test_utils::{assert_approx_eq, uuid::mock_uuid};
 
     use super::*;

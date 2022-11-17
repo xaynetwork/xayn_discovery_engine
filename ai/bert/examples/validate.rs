@@ -86,6 +86,7 @@ impl<R: RangeBounds<usize>> ValidatorConfig<R> {
 
 /// The available Bert model pipelines.
 #[allow(clippy::enum_variant_names)]
+#[allow(clippy::large_enum_variant)]
 enum Pipeline {
     /// A Bert model pipeline for the onnx runtime.
     OnnxBert {

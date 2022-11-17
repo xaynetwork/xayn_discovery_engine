@@ -24,6 +24,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "rt-multi-thread"] }
 url = { workspace = true }
+xayn-ai-coi = { path = "../ai/coi" }
 xayn-discovery-engine-ai = { path = "../ai/ai" }
 xayn-discovery-engine-core = { path = "../core" }
 xayn-discovery-engine-providers = { path = "../providers" }

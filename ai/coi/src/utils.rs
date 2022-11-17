@@ -14,7 +14,7 @@
 
 use std::{cmp::Ordering, collections::HashMap, time::SystemTime};
 
-use xayn_ai_coi::Document;
+use crate::Document;
 
 /// Pretend that f32 has a total ordering.
 ///
@@ -63,6 +63,12 @@ pub fn nan_safe_f32_cmp_desc(a: &f32, b: &f32) -> Ordering {
     nan_safe_f32_cmp(b, a)
 }
 
+/// The number of seconds per day (without leap seconds).
+pub(crate) const SECONDS_PER_DAY_F32: f32 = 86400.;
+
+/// The number of seconds per day (without leap seconds).
+pub(crate) const SECONDS_PER_DAY_U64: u64 = 86400;
+
 /// Gets the current system time depending on the target architecture.
 #[inline]
 pub fn system_time_now() -> SystemTime {
@@ -83,6 +89,28 @@ where
     });
 }
 
+pub(crate) mod serde_duration_as_days {
+    use std::time::Duration;
+
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    use crate::utils::SECONDS_PER_DAY_U64;
+
+    pub(crate) fn serialize<S>(horizon: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (horizon.as_secs() / SECONDS_PER_DAY_U64).serialize(serializer)
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        u64::deserialize(deserializer).map(|days| Duration::from_secs(SECONDS_PER_DAY_U64 * days))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{error::Error, time::Duration};
@@ -92,32 +120,6 @@ mod tests {
     use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
-
-    /// The number of seconds per day (without leap seconds).
-    const SECONDS_PER_DAY_U64: u64 = 86400;
-
-    mod serde_duration_as_days {
-        use std::time::Duration;
-
-        use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-        use super::SECONDS_PER_DAY_U64;
-
-        pub(crate) fn serialize<S>(horizon: &Duration, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            (horizon.as_secs() / SECONDS_PER_DAY_U64).serialize(serializer)
-        }
-
-        pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            u64::deserialize(deserializer)
-                .map(|days| Duration::from_secs(SECONDS_PER_DAY_U64 * days))
-        }
-    }
 
     #[test]
     fn test_nan_safe_f32_cmp_sorts_in_the_right_order() {

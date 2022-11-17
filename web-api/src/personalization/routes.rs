@@ -23,7 +23,7 @@ use futures_util::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
-use xayn_discovery_engine_ai::{
+use xayn_ai_coi::{
     compute_coi_relevances,
     nan_safe_f32_cmp,
     system_time_now,

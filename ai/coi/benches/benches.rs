@@ -19,11 +19,7 @@ use ndarray::Array1;
 use rand::Rng;
 use rand_distr::Uniform;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::{
-    coi::stats::compute_coi_decay_factor,
-    compute_coi_relevances,
-    PositiveCoi,
-};
+use xayn_ai_coi::{compute_coi_relevances, stats::compute_coi_decay_factor, PositiveCoi};
 
 fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
     let range = Uniform::new(-10000., 10000.);

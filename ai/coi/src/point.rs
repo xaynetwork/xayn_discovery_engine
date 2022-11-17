@@ -18,8 +18,9 @@ use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    coi::{stats::CoiStats, CoiId},
     embedding::{cosine_similarity, Embedding},
+    id::CoiId,
+    stats::CoiStats,
     utils::system_time_now,
 };
 

@@ -20,7 +20,7 @@ use itertools::Itertools;
 use ndarray::Array1;
 use rand::Rng;
 use rand_distr::Uniform;
-use xayn_discovery_engine_ai::pairwise_cosine_similarity;
+use xayn_ai_coi::pairwise_cosine_similarity;
 use xayn_discovery_engine_core::{
     document::{Document, NewsResource},
     stack::filters::semantic::{

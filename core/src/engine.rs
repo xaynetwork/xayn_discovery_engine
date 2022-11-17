@@ -29,7 +29,7 @@ use rayon::iter::{Either, IntoParallelIterator, ParallelIterator};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, Level};
-use xayn_discovery_engine_ai::{
+use xayn_ai_coi::{
     self,
     cosine_similarity,
     nan_safe_f32_cmp,
@@ -37,13 +37,9 @@ use xayn_discovery_engine_ai::{
     CoiSystem,
     Document as AiDocument,
     Embedding,
-    GenericError,
-    KeyPhrase,
-    KeyPhrases,
-    KpsConfig,
-    KpsSystem,
     UserInterests,
 };
+use xayn_discovery_engine_ai::{GenericError, KeyPhrase, KeyPhrases, KpsConfig, KpsSystem};
 use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
 use xayn_discovery_engine_providers::{
     clean_query,
@@ -1105,7 +1101,7 @@ where
     };
 
     if let Ok(scores) = coi.score(documents, user_interests) {
-        xayn_discovery_engine_ai::utils::rank(documents, &scores);
+        xayn_ai_coi::utils::rank(documents, &scores);
     } else {
         documents.sort_unstable_by(default_ord);
     }

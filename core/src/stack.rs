@@ -22,7 +22,8 @@ use displaydoc::Display as DisplayDoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use xayn_discovery_engine_ai::{CoiPoint, GenericError, KeyPhrase, UserInterests};
+use xayn_ai_coi::{CoiPoint, UserInterests};
+use xayn_discovery_engine_ai::{GenericError, KeyPhrase};
 use xayn_discovery_engine_providers::{GenericArticle, Market};
 
 use crate::{

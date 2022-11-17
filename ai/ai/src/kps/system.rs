@@ -12,11 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use xayn_ai_coi::{embedding::Embedding, point::PositiveCoi};
 use xayn_discovery_engine_providers::Market;
 
 use crate::{
-    coi::point::PositiveCoi,
-    embedding::Embedding,
     kps::{
         config::Config,
         key_phrase::{KeyPhrase, KeyPhrases},
@@ -38,7 +37,7 @@ impl System {
     #[allow(clippy::too_many_arguments)]
     pub fn log_positive_user_reaction(
         &self,
-        system: &crate::coi::system::System,
+        system: &xayn_ai_coi::system::System,
         cois: &mut Vec<PositiveCoi>,
         embedding: &Embedding,
         market: &Market,
@@ -46,22 +45,22 @@ impl System {
         candidates: &[String],
         bert: impl Fn(&str) -> Result<Embedding, GenericError> + Sync,
     ) {
-        system
-            .log_positive_user_reaction(cois, embedding)
-            .update_key_phrases(
-                market,
-                key_phrases,
-                candidates,
-                bert,
-                self.config.max_key_phrases(),
-                self.config.gamma(),
-            );
+        let coi = system.log_positive_user_reaction(cois, embedding);
+
+        key_phrases.update(
+            coi,
+            market,
+            candidates,
+            bert,
+            self.config.max_key_phrases(),
+            self.config.gamma(),
+        );
     }
 
     /// Takes the top key phrases from the positive cois and market, sorted in descending relevance.
     pub fn take_key_phrases(
         &self,
-        system: &crate::coi::system::System,
+        system: &xayn_ai_coi::system::System,
         cois: &[PositiveCoi],
         market: &Market,
         key_phrases: &mut KeyPhrases,

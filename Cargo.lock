@@ -503,9 +503,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.0.24"
+version = "4.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60494cedb60cb47462c0ff7be53de32c0e42a6fc2c772184554fa12bd9489c03"
+checksum = "389ca505fd2c00136e0d0cd34bcd8b6bd0b59d5779aab396054b716334230c1c"
 dependencies = [
  "atty",
  "bitflags",
@@ -4268,7 +4268,7 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "anyhow",
- "clap 4.0.24",
+ "clap 4.0.25",
  "derive_more",
  "displaydoc",
  "dotenvy",
@@ -4292,7 +4292,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
- "xayn-discovery-engine-ai",
+ "xayn-ai-coi",
  "xayn-discovery-engine-bert",
 ]
 
@@ -4465,11 +4465,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "xayn-discovery-engine-ai"
+name = "xayn-ai-coi"
 version = "0.1.0"
 dependencies = [
- "bincode",
- "chrono",
  "criterion",
  "derivative",
  "derive_more",
@@ -4478,12 +4476,31 @@ dependencies = [
  "ndarray",
  "rand 0.8.5",
  "rand_distr",
- "rayon",
  "serde",
  "serde_json",
  "thiserror",
  "tracing",
  "uuid",
+ "xayn-discovery-engine-bert",
+ "xayn-discovery-engine-test-utils",
+]
+
+[[package]]
+name = "xayn-discovery-engine-ai"
+version = "0.1.0"
+dependencies = [
+ "derivative",
+ "derive_more",
+ "displaydoc",
+ "itertools 0.10.5",
+ "ndarray",
+ "rand 0.8.5",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "uuid",
+ "xayn-ai-coi",
  "xayn-discovery-engine-bert",
  "xayn-discovery-engine-providers",
  "xayn-discovery-engine-test-utils",
@@ -4547,6 +4564,7 @@ dependencies = [
  "url",
  "uuid",
  "wiremock",
+ "xayn-ai-coi",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-bert",
  "xayn-discovery-engine-providers",
@@ -4591,7 +4609,7 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "anyhow",
- "clap 4.0.24",
+ "clap 4.0.25",
  "csv",
  "displaydoc",
  "env_logger",
@@ -4606,6 +4624,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+ "xayn-ai-coi",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-core",
  "xayn-discovery-engine-providers",

@@ -24,7 +24,7 @@ use sqlx::{
     QueryBuilder,
     Sqlite,
 };
-use xayn_discovery_engine_ai::Embedding;
+use xayn_ai_coi::Embedding;
 
 use super::SqliteStorage;
 use crate::{
