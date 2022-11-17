@@ -41,7 +41,7 @@ jobs:
       - name: Create archive
         working-directory: ${{ runner.temp }}
         run: |
-          cp ${GITHUB_WORKSPACE}/target/release/ingestion ./ingestion-service/ingestion
+          cp ${GITHUB_WORKSPACE}/target/release/ingestion ./ingestion-service/server.bin
           cp ${GITHUB_WORKSPACE}/web-api/Dockerfile ./ingestion-service/Dockerfile
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/config.toml ./ingestion-service/assets/config.toml
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/vocab.txt ./ingestion-service/assets/vocab.txt
@@ -85,7 +85,7 @@ jobs:
             fi
           fi
           IMAGE_NAME="xaynetci/xayn_discovery_ingestion_service:$TAG"
-          docker build --build-arg api=ingestion -t "${IMAGE_NAME}" .
+          docker build -t "${IMAGE_NAME}" .
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "TAG=${TAG}" >> $GITHUB_ENV
 
