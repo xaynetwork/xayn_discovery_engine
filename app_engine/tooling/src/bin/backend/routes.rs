@@ -216,10 +216,10 @@ impl From<Hit<MindArticle>> for NewscatcherArticle {
             clean_url: hit.source.url.clone(),
             excerpt: hit.source.snippet,
             link: hit.source.url,
-            media: "".to_string(),
+            media: String::new(),
             topic: hit.source.category,
-            country: "".to_string(),
-            language: "".to_string(),
+            country: String::new(),
+            language: String::new(),
             published_date: hit.source.date_published,
             embedding: Vec::new(),
         }

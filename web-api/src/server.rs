@@ -27,10 +27,7 @@ use clap::Parser;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
-pub use self::{
-    app_state::AppState,
-    config::{Config, NetConfig},
-};
+pub(crate) use self::{app_state::AppState, config::Config};
 use crate::{
     load_config::load_config,
     logging::init_tracing,
@@ -56,7 +53,7 @@ pub trait Application {
     ) -> Result<Self::AppStateExtension, SetupError>;
 }
 
-pub type SetupError = Box<dyn std::error::Error + 'static>;
+pub(crate) type SetupError = Box<dyn std::error::Error + 'static>;
 
 /// Run the server with using given endpoint configuration functions.
 ///

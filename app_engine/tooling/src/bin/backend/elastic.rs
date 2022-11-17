@@ -16,39 +16,39 @@ use serde::Deserialize;
 use serde_json::Value;
 
 #[derive(Clone, Deserialize, Debug)]
-pub struct CountResponse {
-    pub count: usize,
+pub(crate) struct CountResponse {
+    pub(crate) count: usize,
 }
 
 #[derive(Clone, Deserialize, Debug)]
-pub struct Response<T> {
-    pub hits: Hits<T>,
+pub(crate) struct Response<T> {
+    pub(crate) hits: Hits<T>,
 }
 
 #[derive(Clone, Deserialize, Debug)]
-pub struct Hits<T> {
-    pub hits: Vec<Hit<T>>,
+pub(crate) struct Hits<T> {
+    pub(crate) hits: Vec<Hit<T>>,
 }
 
 #[derive(Clone, Deserialize, Debug)]
-pub struct Hit<T> {
+pub(crate) struct Hit<T> {
     #[serde(rename = "_id")]
-    pub id: String,
+    pub(crate) id: String,
     #[serde(rename = "_source")]
-    pub source: T,
-    pub sort: Option<Value>,
+    pub(crate) source: T,
+    pub(crate) sort: Option<Value>,
 }
 
 /// An article in the MIND dataset.
 #[derive(Clone, Deserialize, Debug)]
-pub struct MindArticle {
+pub(crate) struct MindArticle {
     #[serde(rename = "Title")]
-    pub title: String,
+    pub(crate) title: String,
     #[serde(rename = "Abstract")]
-    pub snippet: String,
+    pub(crate) snippet: String,
     #[serde(rename = "URL")]
-    pub url: String,
+    pub(crate) url: String,
     #[serde(rename = "Category")]
-    pub category: String,
-    pub date_published: String,
+    pub(crate) category: String,
+    pub(crate) date_published: String,
 }

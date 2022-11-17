@@ -18,7 +18,7 @@ use super::{Config, SetupError};
 use crate::{db::Database, elastic::ElasticSearchClient};
 
 #[derive(Deref, AsRef)]
-pub struct AppState<CE, AE> {
+pub(crate) struct AppState<CE, AE> {
     #[as_ref]
     pub(crate) config: Config<CE>,
     #[as_ref]

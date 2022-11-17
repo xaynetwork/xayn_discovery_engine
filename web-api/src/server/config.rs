@@ -36,7 +36,7 @@ fn default_bind_address() -> SocketAddr {
 }
 
 fn default_max_body_size() -> usize {
-    524288
+    524_288
 }
 
 impl Default for NetConfig {

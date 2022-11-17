@@ -121,10 +121,9 @@ struct PersonalizedDocumentsQuery {
 
 impl PersonalizedDocumentsQuery {
     fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
-        let count = self
-            .count
-            .map(|count| count.min(config.max_number_documents))
-            .unwrap_or(config.default_number_documents);
+        let count = self.count.map_or(config.default_number_documents, |count| {
+            count.min(config.max_number_documents)
+        });
 
         if count > 0 {
             Ok(count)
@@ -134,6 +133,7 @@ impl PersonalizedDocumentsQuery {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 async fn personalized_documents(
     state: Data<AppState>,
     user_id: Path<UserId>,
@@ -259,21 +259,24 @@ async fn personalized_documents(
         .collect::<HashMap<_, _>>();
 
     let weight = state.config.personalization.interest_category_bias;
-    all_documents.sort_unstable_by(|a, b| {
-        let weighted_a = documents_by_interests[&a.id] as f32 * weight
-            + documents_by_categories[&a.id] as f32 * (1. - weight);
-        let weighted_b = documents_by_interests[&b.id] as f32 * weight
-            + documents_by_categories[&b.id] as f32 * (1. - weight);
-        match nan_safe_f32_cmp(&weighted_a, &weighted_b) {
-            Ordering::Equal if weight > 0.5 => {
-                documents_by_interests[&a.id].cmp(&documents_by_interests[&b.id])
+    all_documents.sort_unstable_by(
+        #[allow(clippy::cast_precision_loss)] // number of docs is small enough
+        |a, b| {
+            let weighted_a = documents_by_interests[&a.id] as f32 * weight
+                + documents_by_categories[&a.id] as f32 * (1. - weight);
+            let weighted_b = documents_by_interests[&b.id] as f32 * weight
+                + documents_by_categories[&b.id] as f32 * (1. - weight);
+            match nan_safe_f32_cmp(&weighted_a, &weighted_b) {
+                Ordering::Equal if weight > 0.5 => {
+                    documents_by_interests[&a.id].cmp(&documents_by_interests[&b.id])
+                }
+                Ordering::Equal if weight < 0.5 => {
+                    documents_by_categories[&a.id].cmp(&documents_by_categories[&b.id])
+                }
+                ordering => ordering,
             }
-            Ordering::Equal if weight < 0.5 => {
-                documents_by_categories[&a.id].cmp(&documents_by_categories[&b.id])
-            }
-            ordering => ordering,
-        }
-    });
+        },
+    );
     all_documents.truncate(document_count);
 
     Ok(Json(PersonalizedDocumentsResponse::new(all_documents)))
