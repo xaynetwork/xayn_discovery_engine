@@ -18,33 +18,33 @@
 use serde::Serialize;
 
 #[derive(Clone, Serialize, Debug)]
-pub struct Article {
-    pub title: String,
+pub(crate) struct Article {
+    pub(crate) title: String,
     #[serde(rename(serialize = "_score"), skip_serializing_if = "Option::is_none")]
-    pub score: Option<f32>,
-    pub rank: u64,
-    pub clean_url: String,
-    pub excerpt: String,
-    pub link: String,
+    pub(crate) score: Option<f32>,
+    pub(crate) rank: u64,
+    pub(crate) clean_url: String,
+    pub(crate) excerpt: String,
+    pub(crate) link: String,
     #[serde(skip_serializing_if = "String::is_empty")]
-    pub media: String,
+    pub(crate) media: String,
     #[serde(skip_serializing_if = "String::is_empty")]
-    pub topic: String,
-    pub country: String,
-    pub language: String,
-    pub published_date: String,
-    pub embedding: Vec<f32>,
+    pub(crate) topic: String,
+    pub(crate) country: String,
+    pub(crate) language: String,
+    pub(crate) published_date: String,
+    pub(crate) embedding: Vec<f32>,
 }
 
 #[derive(Serialize, Debug)]
-pub struct Response {
-    pub status: String,
-    pub articles: Vec<Article>,
-    pub total_pages: usize,
+pub(crate) struct Response {
+    pub(crate) status: String,
+    pub(crate) articles: Vec<Article>,
+    pub(crate) total_pages: usize,
 }
 
 impl Response {
-    pub fn new(articles: Vec<Article>, total_pages: usize) -> Self {
+    pub(crate) fn new(articles: Vec<Article>, total_pages: usize) -> Self {
         Self {
             status: "ok".to_string(),
             articles,
