@@ -17,7 +17,7 @@ use std::{collections::HashMap, time::Duration};
 use anyhow::Result;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::{thread_rng, Rng};
-use xayn_discovery_engine_core::{
+use xayn_discovery_engine::{
     document::{Document, TimeSpent, UserReacted, UserReaction, ViewMode},
     Engine,
     InitConfig,

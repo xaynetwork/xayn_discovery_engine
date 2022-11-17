@@ -1,5 +1,5 @@
 [package]
-name = "xayn-discovery-engine-bert"
+name = "xayn-ai-bert"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }

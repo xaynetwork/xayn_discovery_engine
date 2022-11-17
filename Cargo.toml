@@ -1,9 +1,8 @@
 [workspace]
 members = [
-    "ai/*",
-    "core",
-    "providers",
-    "tooling",
+    "app_engine/*",
+    "bert",
+    "coi",
     "web-api",
 ]
 

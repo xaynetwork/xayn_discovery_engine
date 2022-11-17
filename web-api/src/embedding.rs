@@ -13,8 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use serde::{Deserialize, Serialize};
+use xayn_ai_bert::{AveragePooler, AvgBert, Config as BertConfig};
 use xayn_ai_coi::Embedding;
-use xayn_discovery_engine_bert::{AveragePooler, AvgBert, Config as BertConfig};
 
 use crate::{error::common::InternalError, server::SetupError, utils::RelativePathBuf};
 

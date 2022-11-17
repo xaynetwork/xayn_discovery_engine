@@ -23,7 +23,7 @@ use std::{
 use anyhow::Result;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use xayn_ai_coi::Embedding;
-use xayn_discovery_engine_core::{document::UserReaction, stack};
+use xayn_discovery_engine::{document::UserReaction, stack};
 
 fn deserialize_seconds_as_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
 where
@@ -100,8 +100,8 @@ pub(crate) struct Document {
     pub(crate) user_reaction: UserReaction,
 }
 
-impl From<xayn_discovery_engine_core::document::Document> for Document {
-    fn from(document: xayn_discovery_engine_core::document::Document) -> Self {
+impl From<xayn_discovery_engine::document::Document> for Document {
+    fn from(document: xayn_discovery_engine::document::Document) -> Self {
         Self {
             topic: document.resource.topic,
             embedding: document.bert_embedding,

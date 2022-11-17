@@ -16,9 +16,9 @@ use std::ops::RangeInclusive;
 
 use itertools::Itertools;
 use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
-use xayn_discovery_engine_bert::Embedding1;
+use xayn_ai_bert::Embedding1;
 // Re-export `Embedding` specific errors.
-pub use xayn_discovery_engine_bert::MalformedBytesEmbedding;
+pub use xayn_ai_bert::MalformedBytesEmbedding;
 
 /// A 1-dimensional sequence embedding.
 ///
