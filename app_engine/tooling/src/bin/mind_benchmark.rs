@@ -12,11 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Here we emulate the format of the Newscatcher API, so that it's compatible with
-// our current client in the discovery engine.
-
-use std::fs::File;
-use std::{collections::HashMap, error::Error};
+//! Executes the user-based MIND benchmark.
+use std::{collections::HashMap, error::Error, fs::File};
 
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use serde::Deserialize;
@@ -78,8 +75,7 @@ fn run_benchmark() -> Result<(), Box<dyn Error>> {
         articles_map.entry(article.id.clone()).or_insert(article);
     }
 
-    let impressions_iter =
-        read_impressions("behaviors.tsv")?;
+    let impressions_iter = read_impressions("behaviors.tsv")?;
 
     for impression in impressions_iter {
         let impression: Impression = impression?;
