@@ -79,7 +79,7 @@ fn run_benchmark() -> Result<(), Box<dyn Error>> {
 
     for impression in impressions_iter {
         let impression: Impression = impression?;
-        let clicks = impression.clicks.split(" ").collect::<Vec<&str>>();
+        let clicks = impression.clicks.split(' ').collect::<Vec<&str>>();
         match articles_map.get(clicks[0]) {
             Some(imp) => println!("{:?}", imp),
             None => println!("Article id {} not found.", clicks[0]),
