@@ -20,7 +20,7 @@ use crate::Error;
 
 #[derive(Serialize, Deserialize, Debug, Deref)]
 #[serde(transparent)]
-pub struct RelativePathBuf {
+pub(crate) struct RelativePathBuf {
     #[serde(serialize_with = "FigmentRelativePathBuf::serialize_relative")]
     inner: FigmentRelativePathBuf,
 }

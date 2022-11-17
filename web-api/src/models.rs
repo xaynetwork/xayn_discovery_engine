@@ -94,7 +94,7 @@ id_wrapper!(UserId, is_valid_id, InvalidUserId);
 pub struct DocumentProperty(serde_json::Value);
 
 /// Arbitrary properties that can be attached to a document.
-pub type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
+pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
 /// Represents a result from a query.
 #[derive(Debug, Clone, Serialize)]

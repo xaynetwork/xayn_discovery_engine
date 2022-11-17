@@ -342,7 +342,10 @@ impl Database {
 
         Ok(categories
             .into_iter()
-            .map(|category| (category.category, category.weight as usize))
+            .map(
+                #[allow(clippy::cast_sign_loss)] // the weight originally was a usize
+                |category| (category.category, category.weight as usize),
+            )
             .collect())
     }
 

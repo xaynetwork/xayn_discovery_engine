@@ -53,7 +53,10 @@ use serde::{de::DeserializeOwned, Serialize};
 /// Env variables are split at `__`. I.e. `XAYN_WEB_API_FOO__BAR=12` will be treated like
 /// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config. The `__` is needed, otherwise
 /// there would be no way to have fields like `bind_to` in the config.
-pub fn load_config<C, U>(config_file: Option<&Path>, update_with: U) -> Result<C, figment::Error>
+pub(crate) fn load_config<C, U>(
+    config_file: Option<&Path>,
+    update_with: U,
+) -> Result<C, figment::Error>
 where
     C: DeserializeOwned,
     U: Serialize,

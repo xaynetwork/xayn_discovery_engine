@@ -117,7 +117,7 @@ impl ElasticSearchClient {
 
         if response.errors {
             let mut errors = Vec::new();
-            for mut response in response.items.into_iter() {
+            for mut response in response.items {
                 if let Some(response) = response.remove("delete") {
                     if !is_success_status(response.status, true) {
                         error!(document_id=%response.id, error=%response.error);
@@ -139,7 +139,7 @@ impl ElasticSearchClient {
         Ok(())
     }
 
-    pub async fn bulk_insert_documents(
+    pub(crate) async fn bulk_insert_documents(
         &self,
         documents: &[(DocumentId, ElasticDocument)],
     ) -> Result<(), BulkInsertionError> {
@@ -153,9 +153,7 @@ impl ElasticSearchClient {
             }))
             .await?;
 
-        if !response.errors {
-            Ok(())
-        } else {
+        if response.errors {
             let failed_documents = response.items
                 .into_iter()
                 .filter_map(|mut response| {
@@ -172,6 +170,8 @@ impl ElasticSearchClient {
                 .collect_vec();
 
             Err(failed_documents.into())
+        } else {
+            Ok(())
         }
     }
 
@@ -271,7 +271,7 @@ impl ElasticSearchClient {
             .unwrap_or_default())
     }
 
-    pub async fn get_document_properties(
+    pub(crate) async fn get_document_properties(
         &self,
         id: &DocumentId,
     ) -> Result<Option<DocumentProperties>, Error> {
@@ -287,7 +287,7 @@ impl ElasticSearchClient {
             .map(|resp| resp.properties))
     }
 
-    pub async fn put_document_properties(
+    pub(crate) async fn put_document_properties(
         &self,
         id: &DocumentId,
         properties: &DocumentProperties,
@@ -310,7 +310,10 @@ impl ElasticSearchClient {
             .map(|_| ()))
     }
 
-    pub async fn delete_document_properties(&self, id: &DocumentId) -> Result<Option<()>, Error> {
+    pub(crate) async fn delete_document_properties(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         // don't delete the field, but put an empty map instead, similar to the ingestion service
         let url = self.create_resource_path(["_update", id.as_ref()], None);
@@ -330,7 +333,7 @@ impl ElasticSearchClient {
             .map(|_| ()))
     }
 
-    pub async fn get_document_property(
+    pub(crate) async fn get_document_property(
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
@@ -350,7 +353,7 @@ impl ElasticSearchClient {
             .map(|mut response| response.properties.remove(property_id)))
     }
 
-    pub async fn put_document_property(
+    pub(crate) async fn put_document_property(
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
@@ -375,7 +378,7 @@ impl ElasticSearchClient {
             .map(|_| ()))
     }
 
-    pub async fn delete_document_property(
+    pub(crate) async fn delete_document_property(
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
