@@ -17,7 +17,7 @@ use std::{collections::HashMap, str::FromStr};
 use derive_more::{AsRef, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use xayn_ai_coi::{Document as AiDocument, Embedding};
 
 use crate::error::common::{InvalidDocumentId, InvalidDocumentPropertyId, InvalidUserId};
@@ -144,4 +144,45 @@ impl AiDocument for &PersonalizedDocument {
 pub(crate) enum UserInteractionType {
     #[serde(rename = "positive")]
     Positive = 1,
+}
+
+/// Represents a document sent for ingestion.
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct IngestedDocument {
+    /// Unique identifier of the document.
+    pub(crate) id: DocumentId,
+
+    /// Snippet used to calculate embeddings for a document.
+    #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
+    pub(crate) snippet: String,
+
+    /// Contents of the document properties.
+    pub(crate) properties: DocumentProperties,
+
+    /// The high-level category the document belongs to.
+    #[serde(default, deserialize_with = "deserialize_empty_option_string_as_none")]
+    pub(crate) category: Option<String>,
+}
+
+fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Err(de::Error::custom("field can't be an empty string"))
+    } else if s.contains('\u{0000}') {
+        Err(de::Error::custom("field can't contain zero bytes"))
+    } else {
+        Ok(s)
+    }
+}
+
+fn deserialize_empty_option_string_as_none<'de, D>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer).map(|s| s.filter(|s| !s.is_empty()))
 }

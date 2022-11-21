@@ -9,6 +9,7 @@ license = "AGPL-3.0-only"
 [dependencies]
 actix-web = { workspace = true }
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 clap = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }

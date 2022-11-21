@@ -11,20 +11,22 @@ stdout = """
     "bind_to": "127.0.0.1:4252",
     "max_body_size": 524288
   },
-  "elastic": {
-    "url": "http://localhost:9200",
-    "user": "elastic",
-    "password": "[REDACTED]",
-    "index_name": "test_index"
-  },
-  "db": {
-    "base_url": "postgres://user:pw@localhost:5432/xayn",
-    "port": null,
-    "user": null,
-    "password": "[REDACTED]",
-    "db": null,
-    "application_name": null,
-    "skip_migrations": false
+  "storage": {
+    "elastic": {
+      "url": "http://localhost:9200",
+      "user": "elastic",
+      "password": "[REDACTED]",
+      "index_name": "test_index"
+    },
+    "postgres": {
+      "base_url": "postgres://user:pw@localhost:5432/xayn",
+      "port": null,
+      "user": null,
+      "password": "[REDACTED]",
+      "db": null,
+      "application_name": null,
+      "skip_migrations": false
+    }
   },
   "coi": {
     "shift_factor": 0.1,
