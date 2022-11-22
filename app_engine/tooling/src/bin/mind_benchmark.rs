@@ -13,60 +13,60 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Executes the user-based MIND benchmark.
-use std::{collections::HashMap, error::Error, fs::File};
+use std::{collections::HashMap, fs::File};
 
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Impression {
-    _id: String,
-    _user_id: String,
-    _time: String,
+    id: String,
+    user_id: String,
+    time: String,
     clicks: String,
-    _news: String,
+    news: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Article {
     id: String,
-    _category: String,
-    _subcategory: String,
-    _title: String,
-    _snippet: String,
-    _url: String,
+    category: String,
+    subcategory: String,
+    title: String,
+    snippet: String,
+    url: String,
 }
 
 /// Reads and deserializes news data from a tsv file path and returns an iterator
-fn read_articles(path: &str) -> Result<DeserializeRecordsIntoIter<File, Article>, Box<dyn Error>> {
-    let file_reader = read_from_tsv(path)?;
-    let iter = file_reader.into_deserialize::<Article>();
+fn read_articles(path: &str) -> Result<DeserializeRecordsIntoIter<File, Article>, anyhow::Error> {
+    let iter = read_from_tsv(path)?;
+    let another = iter.into_deserialize();
 
-    Ok(iter)
+    Ok(another)
 }
 
 /// Reads and deserializes impressions data from a tsv file path and returns an iterator
 fn read_impressions(
     path: &str,
-) -> Result<DeserializeRecordsIntoIter<File, Impression>, Box<dyn Error>> {
-    let file_reader = read_from_tsv(path)?;
-    let iter = file_reader.into_deserialize::<Impression>();
+) -> Result<DeserializeRecordsIntoIter<File, Impression>, anyhow::Error> {
+    let iter = read_from_tsv(path)?.into_deserialize();
 
     Ok(iter)
 }
 
 /// Reads data from a tsv file path into a reader
-fn read_from_tsv(path: &str) -> Result<Reader<File>, Box<dyn Error>> {
-    let file_reader = ReaderBuilder::new()
+fn read_from_tsv(path: &str) -> Result<Reader<File>, anyhow:: Error> {
+    ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
-        .from_path(path)?;
-
-    Ok(file_reader)
+        .from_path(path)
+        .map_err(Into::into)
 }
 
 /// Runs the user-based mind benchmark
-fn run_benchmark() -> Result<(), Box<dyn Error>> {
+fn run_benchmark() -> Result<(), anyhow::Error> {
     let mut articles_map = HashMap::new();
     let articles_iter = read_articles("news.tsv")?;
 
