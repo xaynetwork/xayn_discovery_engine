@@ -31,8 +31,6 @@
     clippy::must_use_candidate
 )]
 
-mod db;
-mod elastic;
 mod embedding;
 mod error;
 mod ingestion;
@@ -42,6 +40,7 @@ mod middleware;
 mod models;
 mod personalization;
 mod server;
+mod storage;
 mod utils;
 
 pub use crate::{

@@ -18,13 +18,12 @@ use actix_web::{
     Responder,
 };
 use itertools::Itertools;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use tokio::time::Instant;
 use tracing::{error, info, instrument};
 
 use super::AppState;
 use crate::{
-    elastic::{BulkInsertionError, ElasticDocument},
     error::{
         application::WithRequestIdExt,
         common::{
@@ -34,7 +33,20 @@ use crate::{
             IngestingDocumentsFailed,
         },
     },
-    models::{DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        IngestedDocument,
+    },
+    storage::{
+        Document as _,
+        DocumentProperties as _,
+        DocumentProperty as _,
+        InsertionError,
+        Interaction as _,
+    },
     Error,
 };
 
@@ -69,47 +81,6 @@ struct IngestionRequestBody {
     documents: Vec<IngestedDocument>,
 }
 
-/// Represents a document sent for ingestion.
-#[derive(Debug, Clone, Deserialize)]
-struct IngestedDocument {
-    /// Unique identifier of the document.
-    id: DocumentId,
-
-    /// Snippet used to calculate embeddings for a document.
-    #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
-    snippet: String,
-
-    /// Contents of the document properties.
-    properties: DocumentProperties,
-
-    /// The high-level category the document belongs to.
-    #[serde(default, deserialize_with = "deserialize_empty_option_string_as_none")]
-    category: Option<String>,
-}
-
-fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    if s.is_empty() {
-        Err(de::Error::custom("field can't be an empty string"))
-    } else if s.contains('\u{0000}') {
-        Err(de::Error::custom("field can't contain zero bytes"))
-    } else {
-        Ok(s)
-    }
-}
-
-fn deserialize_empty_option_string_as_none<'de, D>(
-    deserializer: D,
-) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Option::<String>::deserialize(deserializer).map(|s| s.filter(|s| !s.is_empty()))
-}
-
 #[instrument(skip(state))]
 async fn new_documents(
     state: Data<AppState>,
@@ -134,19 +105,11 @@ async fn new_documents(
         .documents
         .into_iter()
         .map(|document| match state.embedder.run(&document.snippet) {
-            Ok(embedding) => Ok((
-                document.id,
-                ElasticDocument {
-                    snippet: document.snippet,
-                    properties: document.properties,
-                    embedding,
-                    category: document.category,
-                },
-            )),
+            Ok(embedding) => Ok((document, embedding)),
             Err(err) => {
                 error!(
                     "Document with id '{}' caused a PipelineError: {:#?}",
-                    document.id, err
+                    document.id, err,
                 );
                 Err(document.id.into())
             }
@@ -160,12 +123,13 @@ async fn new_documents(
     );
 
     state
-        .elastic
-        .bulk_insert_documents(&documents)
+        .storage
+        .document()
+        .insert(documents)
         .await
         .map_err(|err| match err {
-            BulkInsertionError::General(err) => err,
-            BulkInsertionError::PartialFailure {
+            InsertionError::General(err) => err,
+            InsertionError::PartialFailure {
                 failed_documents: fd,
             } => {
                 failed_documents.extend(fd);
@@ -201,8 +165,8 @@ struct BatchDeleteRequest {
 }
 
 async fn do_delete_documents(state: &AppState, documents: Vec<DocumentId>) -> Result<(), Error> {
-    state.db.delete_documents(&documents).await?;
-    state.elastic.delete_documents(&documents).await?;
+    state.storage.interaction().delete(&documents).await?;
+    state.storage.document().delete(&documents).await?;
     Ok(())
 }
 
@@ -217,8 +181,9 @@ pub(crate) async fn get_document_properties(
     document_id: Path<DocumentId>,
 ) -> Result<impl Responder, Error> {
     let properties = state
-        .elastic
-        .get_document_properties(&document_id)
+        .storage
+        .document_properties()
+        .get(&document_id)
         .await?
         .ok_or(DocumentNotFound)?;
 
@@ -232,8 +197,9 @@ async fn put_document_properties(
     Json(properties): Json<DocumentPropertiesAsObject>,
 ) -> Result<impl Responder, Error> {
     state
-        .elastic
-        .put_document_properties(&document_id, &properties.properties)
+        .storage
+        .document_properties()
+        .put(&document_id, &properties.properties)
         .await?
         .ok_or(DocumentNotFound)?;
 
@@ -246,8 +212,9 @@ async fn delete_document_properties(
     document_id: Path<DocumentId>,
 ) -> Result<impl Responder, Error> {
     state
-        .elastic
-        .delete_document_properties(&document_id)
+        .storage
+        .document_properties()
+        .delete(&document_id)
         .await?
         .ok_or(DocumentNotFound)?;
 
@@ -266,8 +233,9 @@ async fn get_document_property(
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let property = state
-        .elastic
-        .get_document_property(&document_id, &property_id)
+        .storage
+        .document_property()
+        .get(&document_id, &property_id)
         .await?
         .ok_or(DocumentNotFound)?
         .ok_or(DocumentPropertyNotFound)?;
@@ -283,8 +251,9 @@ async fn put_document_property(
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     state
-        .elastic
-        .put_document_property(&document_id, &property_id, &body.property)
+        .storage
+        .document_property()
+        .put(&document_id, &property_id, &body.property)
         .await?
         .ok_or(DocumentNotFound)?;
 
@@ -298,8 +267,9 @@ async fn delete_document_property(
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     state
-        .elastic
-        .delete_document_property(&document_id, &property_id)
+        .storage
+        .document_property()
+        .delete(&document_id, &property_id)
         .await?
         .ok_or(DocumentNotFound)?;
 

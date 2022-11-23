@@ -33,12 +33,12 @@ use xayn_ai_coi::{
 
 use super::{AppState, PersonalizationConfig};
 use crate::{
-    elastic::KnnSearchParams,
     error::{
         application::WithRequestIdExt,
         common::{BadRequest, InternalError, NotEnoughInteractions},
     },
     models::{DocumentId, PersonalizedDocument, UserId, UserInteractionType},
+    storage::{Category as _, Document as _, Interaction as _, Interest as _, KnnSearchParams},
     Error,
 };
 
@@ -75,14 +75,14 @@ async fn update_interactions(
     user_id: Path<UserId>,
     Json(interactions): Json<UpdateInteractions>,
 ) -> Result<impl Responder, Error> {
-    state.db.user_seen(&user_id).await?;
+    state.storage.interaction().user_seen(&user_id).await?;
 
     let ids = interactions
         .documents
         .iter()
         .map(|document| &document.document_id)
         .collect_vec();
-    let documents = state.elastic.get_documents_by_ids(&ids).await?;
+    let documents = state.storage.document().get_by_ids(&ids).await?;
     let documents = documents
         .iter()
         .map(|document| (&document.id, document))
@@ -93,15 +93,16 @@ async fn update_interactions(
             UserInteractionType::Positive => {
                 if let Some(document) = documents.get(&document.document_id) {
                     state
-                        .db
-                        .update_positive_cois(&document.id, &user_id, |positive_cois| {
+                        .storage
+                        .interest()
+                        .update_positive(&document.id, &user_id, |positive_cois| {
                             state
                                 .coi
                                 .log_positive_user_reaction(positive_cois, &document.embedding)
                         })
                         .await?;
                     if let Some(category) = &document.category {
-                        state.db.update_category_weight(&user_id, category).await?;
+                        state.storage.category().update(&user_id, category).await?;
                     }
                 } else {
                     warn!(%document.document_id, "interacted document doesn't exist anymore");
@@ -141,9 +142,9 @@ async fn personalized_documents(
 ) -> Result<impl Responder, Error> {
     let document_count = options.document_count(&state.config.personalization)?;
 
-    state.db.user_seen(&user_id).await?;
+    state.storage.interaction().user_seen(&user_id).await?;
 
-    let user_interests = state.db.fetch_interests(&user_id).await?;
+    let user_interests = state.storage.interest().get(&user_id).await?;
 
     if user_interests.is_empty() {
         return Err(NotEnoughInteractions.into());
@@ -166,7 +167,7 @@ async fn personalized_documents(
     let cois = &cois[0..max_cois];
     let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
 
-    let excluded = state.db.fetch_interacted_document_ids(&user_id).await?;
+    let excluded = state.storage.interaction().get(&user_id).await?;
 
     let mut document_futures = cois
         .iter()
@@ -184,8 +185,9 @@ async fn personalized_documents(
             let k_neighbors = (weight * document_count as f32).ceil() as usize;
 
             state
-                .elastic
-                .get_documents_by_embedding(KnnSearchParams {
+                .storage
+                .document()
+                .get_by_embedding(KnnSearchParams {
                     excluded: excluded.clone(),
                     embedding: coi.point.to_vec(),
                     size: k_neighbors,
@@ -239,7 +241,7 @@ async fn personalized_documents(
         .map(|(rank, document)| (document.id.clone(), rank))
         .collect::<HashMap<_, _>>();
 
-    let categories = state.db.fetch_category_weights(&user_id).await?;
+    let categories = state.storage.category().get(&user_id).await?;
     let mut documents_by_categories = all_documents
         .iter()
         .map(|document| {

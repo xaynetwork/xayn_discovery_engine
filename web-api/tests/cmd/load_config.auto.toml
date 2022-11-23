@@ -11,20 +11,22 @@ stdout = """
     "bind_to": "127.0.1.1:3040",
     "max_body_size": 64
   },
-  "elastic": {
-    "url": "http://localhost:3219",
-    "user": "tic",
-    "password": "[REDACTED]",
-    "index_name": "other_index"
-  },
-  "db": {
-    "base_url": "postgres://user:pw@localhost:5432/xayn",
-    "port": 42,
-    "user": "postgres",
-    "password": "[REDACTED]",
-    "db": "mydb",
-    "application_name": "the-application",
-    "skip_migrations": false
+  "storage": {
+    "elastic": {
+      "url": "http://localhost:3219",
+      "user": "tic",
+      "password": "[REDACTED]",
+      "index_name": "other_index"
+    },
+    "postgres": {
+      "base_url": "postgres://user:pw@localhost:5432/xayn",
+      "port": 42,
+      "user": "postgres",
+      "password": "[REDACTED]",
+      "db": "mydb",
+      "application_name": "the-application",
+      "skip_migrations": false
+    }
   },
   "ingestion": {
     "max_document_batch_size": 999999

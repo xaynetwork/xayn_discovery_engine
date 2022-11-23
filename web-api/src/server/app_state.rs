@@ -14,34 +14,32 @@
 
 use derive_more::{AsRef, Deref};
 
-use super::{Config, SetupError};
-use crate::{db::Database, elastic::ElasticSearchClient};
+use crate::{
+    server::{Config, SetupError},
+    storage::Storage,
+};
 
 #[derive(Deref, AsRef)]
-pub(crate) struct AppState<CE, AE> {
+pub(crate) struct AppState<CE, AE, S> {
     #[as_ref]
     pub(crate) config: Config<CE>,
-    #[as_ref]
-    pub(crate) db: Database,
-    #[as_ref]
-    pub(crate) elastic: ElasticSearchClient,
     #[deref]
     pub(crate) extension: AE,
+    pub(crate) storage: S,
 }
 
-impl<CE, AE> AppState<CE, AE> {
+impl<CE, AE> AppState<CE, AE, Storage> {
     pub(super) async fn create(
         config: Config<CE>,
         create_extension: impl FnOnce(&Config<CE>) -> Result<AE, SetupError>,
     ) -> Result<Self, SetupError> {
-        let db = config.db.setup_database().await?;
-        let elastic = ElasticSearchClient::new(config.elastic.clone())?;
         let extension = create_extension(&config)?;
+        let storage = config.storage.setup().await?;
+
         Ok(Self {
             config,
-            db,
-            elastic,
             extension,
+            storage,
         })
     }
 }

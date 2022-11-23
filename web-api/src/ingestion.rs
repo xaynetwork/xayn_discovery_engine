@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     embedding::{self, Embedder},
     server::{self, Application},
+    storage::Storage,
 };
 
 pub struct Ingestion;
@@ -45,6 +46,7 @@ impl Application for Ingestion {
 type AppState = server::AppState<
     <Ingestion as Application>::ConfigExtension,
     <Ingestion as Application>::AppStateExtension,
+    Storage,
 >;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]

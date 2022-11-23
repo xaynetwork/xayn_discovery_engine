@@ -18,7 +18,10 @@ use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
-use crate::server::{self, Application};
+use crate::{
+    server::{self, Application},
+    storage::Storage,
+};
 
 pub struct Personalization;
 
@@ -42,6 +45,7 @@ impl Application for Personalization {
 type AppState = server::AppState<
     <Personalization as Application>::ConfigExtension,
     <Personalization as Application>::AppStateExtension,
+    Storage,
 >;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]

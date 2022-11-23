@@ -14,6 +14,7 @@
 
 use std::{collections::HashMap, time::Duration};
 
+use async_trait::async_trait;
 use itertools::Itertools;
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
@@ -32,12 +33,25 @@ use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
 use crate::{
     models::{DocumentId, UserId, UserInteractionType},
+    storage::{self, Storage},
     utils::serialize_redacted,
     Error,
 };
 
+fn default_base_url() -> String {
+    "postgres://user:pw@localhost:5432/xayn".into()
+}
+
+fn default_password() -> Secret<String> {
+    String::from("pw").into()
+}
+
+fn default_application_name() -> Option<String> {
+    option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}"))
+}
+
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Config {
+pub(crate) struct Config {
     /// The default base url.
     ///
     /// Passwords in the URL will be ignored, do not set the
@@ -86,30 +100,7 @@ impl Default for Config {
     }
 }
 
-fn default_password() -> Secret<String> {
-    String::from("pw").into()
-}
-
-fn default_base_url() -> String {
-    "postgres://user:pw@localhost:5432/xayn".into()
-}
-
-fn default_application_name() -> Option<String> {
-    option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}"))
-}
-
 impl Config {
-    #[instrument]
-    pub(crate) async fn setup_database(&self) -> Result<Database, sqlx::Error> {
-        let options = self.build_connection_options()?;
-        info!("starting postgres setup");
-        let pool = PoolOptions::new().connect_with(options).await?;
-        if !self.skip_migrations {
-            sqlx::migrate!().run(&pool).await?;
-        }
-        Ok(Database { pool })
-    }
-
     fn build_connection_options(&self) -> Result<PgConnectOptions, sqlx::Error> {
         let Self {
             base_url,
@@ -140,51 +131,45 @@ impl Config {
 
         Ok(options)
     }
+
+    #[instrument]
+    pub(crate) async fn setup_database(&self) -> Result<Database, sqlx::Error> {
+        let options = self.build_connection_options()?;
+        info!("starting postgres setup");
+        let pool = PoolOptions::new().connect_with(options).await?;
+        if !self.skip_migrations {
+            sqlx::migrate!().run(&pool).await?;
+        }
+        Ok(Database { pool })
+    }
 }
 
 pub(crate) struct Database {
     pool: Pool<Postgres>,
 }
 
-impl Database {
-    pub(crate) async fn delete_documents(&self, documents: &[DocumentId]) -> Result<(), Error> {
-        if documents.is_empty() {
-            return Ok(());
-        }
+#[derive(FromRow)]
+struct QueriedCoi {
+    coi_id: Uuid,
+    is_positive: bool,
+    embedding: Vec<f32>,
+    /// The count is a `usize` stored as `i32` in database
+    view_count: i32,
+    /// The time is a `u64` stored as `i64` in database
+    view_time_ms: i64,
+    last_view: DateTime<Utc>,
+}
 
-        QueryBuilder::new("DELETE FROM interaction WHERE doc_id in")
-            .push_tuples(documents, |mut query, id| {
-                query.push_bind(id);
-            })
-            .build()
-            .persistent(false)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
-        sqlx::query(
-            "INSERT INTO users(user_id, last_seen)
-            VALUES ($1, Now())
-            ON CONFLICT (user_id)
-            DO UPDATE SET last_seen = EXCLUDED.last_seen;",
-        )
-        .bind(id.as_ref())
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
-    }
-
-    pub(crate) async fn fetch_interests(&self, user_id: &UserId) -> Result<UserInterests, Error> {
+#[async_trait]
+impl storage::Interest for Storage {
+    async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
         let cois = sqlx::query_as::<_, QueriedCoi>(
             "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
             FROM center_of_interest
             WHERE user_id = $1",
         )
         .bind(user_id.as_ref())
-        .fetch_all(&self.pool)
+        .fetch_all(&self.postgres.pool)
         .await?;
 
         let (positive, negative) = cois
@@ -218,7 +203,7 @@ impl Database {
         Ok(UserInterests { positive, negative })
     }
 
-    pub(crate) async fn update_positive_cois<F>(
+    async fn update_positive<F>(
         &self,
         doc_id: &DocumentId,
         user_id: &UserId,
@@ -227,7 +212,7 @@ impl Database {
     where
         F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync,
     {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.postgres.pool.begin().await?;
 
         sqlx::query("INSERT INTO coi_update_lock (user_id) VALUES ($1) ON CONFLICT DO NOTHING;")
             .bind(user_id)
@@ -302,12 +287,24 @@ impl Database {
 
         Ok(())
     }
+}
 
-    pub(crate) async fn fetch_interacted_document_ids(
-        &self,
-        user_id: &UserId,
-    ) -> Result<Vec<DocumentId>, Error> {
-        let mut tx = self.pool.begin().await?;
+#[derive(FromRow)]
+struct QueriedInteractedDocumentId {
+    //FIXME this should be called `document_id`
+    doc_id: DocumentId,
+}
+
+impl From<QueriedInteractedDocumentId> for DocumentId {
+    fn from(document_id: QueriedInteractedDocumentId) -> Self {
+        document_id.doc_id
+    }
+}
+
+#[async_trait]
+impl storage::Interaction for Storage {
+    async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
 
         let documents = sqlx::query_as::<_, QueriedInteractedDocumentId>(
             "SELECT DISTINCT doc_id
@@ -323,11 +320,48 @@ impl Database {
         Ok(documents.into_iter().map_into().collect())
     }
 
-    pub(crate) async fn fetch_category_weights(
-        &self,
-        user_id: &UserId,
-    ) -> Result<HashMap<String, usize>, Error> {
-        let mut tx = self.pool.begin().await?;
+    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error> {
+        if documents.is_empty() {
+            return Ok(());
+        }
+
+        QueryBuilder::new("DELETE FROM interaction WHERE doc_id in")
+            .push_tuples(documents, |mut query, id| {
+                query.push_bind(id);
+            })
+            .build()
+            .persistent(false)
+            .execute(&self.postgres.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
+        sqlx::query(
+            "INSERT INTO users(user_id, last_seen)
+            VALUES ($1, Now())
+            ON CONFLICT (user_id)
+            DO UPDATE SET last_seen = EXCLUDED.last_seen;",
+        )
+        .bind(id.as_ref())
+        .execute(&self.postgres.pool)
+        .await?;
+
+        Ok(())
+    }
+}
+
+#[derive(FromRow)]
+struct QueriedWeightedCategory {
+    category: String,
+    /// The weight is a `usize` stored as `i32` in database
+    weight: i32,
+}
+
+#[async_trait]
+impl storage::Category for Storage {
+    async fn get(&self, user_id: &UserId) -> Result<HashMap<String, usize>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
 
         let categories = sqlx::query_as::<_, QueriedWeightedCategory>(
             "SELECT (category, weight)
@@ -349,12 +383,8 @@ impl Database {
             .collect())
     }
 
-    pub(crate) async fn update_category_weight(
-        &self,
-        user_id: &UserId,
-        category: &str,
-    ) -> Result<(), Error> {
-        let mut tx = self.pool.begin().await?;
+    async fn update(&self, user_id: &UserId, category: &str) -> Result<(), Error> {
+        let mut tx = self.postgres.pool.begin().await?;
 
         sqlx::query(
             "INSERT INTO weighted_category (user_id, category, weight)
@@ -372,35 +402,4 @@ impl Database {
 
         Ok(())
     }
-}
-
-#[derive(FromRow)]
-struct QueriedCoi {
-    coi_id: Uuid,
-    is_positive: bool,
-    embedding: Vec<f32>,
-    /// The count is a `usize` stored as `i32` in database
-    view_count: i32,
-    /// The time is a `u64` stored as `i64` in database
-    view_time_ms: i64,
-    last_view: DateTime<Utc>,
-}
-
-#[derive(FromRow)]
-struct QueriedInteractedDocumentId {
-    //FIXME this should be called `document_id`
-    doc_id: DocumentId,
-}
-
-impl From<QueriedInteractedDocumentId> for DocumentId {
-    fn from(document_id: QueriedInteractedDocumentId) -> Self {
-        document_id.doc_id
-    }
-}
-
-#[derive(FromRow)]
-struct QueriedWeightedCategory {
-    category: String,
-    /// The weight is a `usize` stored as `i32` in database
-    weight: i32,
 }
