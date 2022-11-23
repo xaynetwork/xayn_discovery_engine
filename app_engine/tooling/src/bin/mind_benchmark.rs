@@ -41,10 +41,9 @@ struct Article {
 
 /// Reads and deserializes news data from a tsv file path and returns an iterator
 fn read_articles(path: &str) -> Result<DeserializeRecordsIntoIter<File, Article>, anyhow::Error> {
-    let iter = read_from_tsv(path)?;
-    let another = iter.into_deserialize();
+    let iter = read_from_tsv(path)?.into_deserialize();
 
-    Ok(another)
+    Ok(iter)
 }
 
 /// Reads and deserializes impressions data from a tsv file path and returns an iterator
@@ -57,7 +56,7 @@ fn read_impressions(
 }
 
 /// Reads data from a tsv file path into a reader
-fn read_from_tsv(path: &str) -> Result<Reader<File>, anyhow:: Error> {
+fn read_from_tsv(path: &str) -> Result<Reader<File>, anyhow::Error> {
     ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
