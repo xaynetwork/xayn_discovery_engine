@@ -64,6 +64,8 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
 
     let impressions_iter = read("behaviors.tsv")?;
 
+    // Loop over all impressions, prepare reranker with news in click history
+    // and rerank the news in an impression
     for impression in impressions_iter {
         let impression: Impression = impression?;
         let clicks = impression.clicks.split(' ').collect::<Vec<&str>>();
@@ -71,6 +73,7 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
             Some(imp) => println!("{:?}", imp),
             None => println!("Article id {} not found.", clicks[0]),
         }
+
     }
 
     Ok(())
