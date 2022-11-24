@@ -13,6 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub(crate) mod elastic;
+#[cfg(test)]
+pub(crate) mod memory;
 pub(crate) mod postgres;
 
 use std::collections::HashMap;

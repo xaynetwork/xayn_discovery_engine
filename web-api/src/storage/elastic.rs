@@ -300,6 +300,10 @@ fn is_success_status(status: u16, allow_not_found: bool) -> bool {
 #[async_trait]
 impl storage::Document for Storage {
     async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/query-dsl-ids-query.html
         let body = Some(json!({
             "query": {
@@ -359,6 +363,10 @@ impl storage::Document for Storage {
         &self,
         documents: Vec<(IngestedDocument, Embedding)>,
     ) -> Result<(), InsertionError> {
+        if documents.is_empty() {
+            return Ok(());
+        }
+
         let response = self
             .elastic
             .bulk_request(documents.into_iter().flat_map(|(document, embedding)| {

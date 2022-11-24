@@ -38,4 +38,7 @@ xayn-ai-bert = { path = "../bert" }
 xayn-ai-coi = { path = "../coi" }
 
 [dev-dependencies]
+bincode = { workspace = true }
+chrono = { workspace = true, features = ["clock", "serde"] }
+tokio = { workspace = true, features = ["sync"] }
 trycmd = "0.14.4"

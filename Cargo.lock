@@ -4269,6 +4269,8 @@ dependencies = [
  "actix-web",
  "anyhow",
  "async-trait",
+ "bincode",
+ "chrono",
  "clap 4.0.25",
  "csv",
  "derive_more",
