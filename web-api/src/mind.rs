@@ -11,6 +11,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#![allow(dead_code)]
 
 //! Executes the user-based MIND benchmark.
 use std::{collections::HashMap, fs::File};
