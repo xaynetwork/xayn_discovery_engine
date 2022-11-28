@@ -38,11 +38,11 @@ use crate::{
     Error,
 };
 
-pub(crate) struct KnnSearchParams {
-    pub(crate) excluded: Vec<DocumentId>,
-    pub(crate) embedding: Vec<f32>,
-    pub(crate) size: usize,
+pub(crate) struct KnnSearchParams<'a> {
+    pub(crate) excluded: &'a [DocumentId],
+    pub(crate) embedding: &'a Embedding,
     pub(crate) k_neighbors: usize,
+    // must be >= k_neighbors
     pub(crate) num_candidates: usize,
 }
 
@@ -58,9 +58,9 @@ pub(crate) enum InsertionError {
 pub(crate) trait Document {
     async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error>;
 
-    async fn get_by_embedding(
+    async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn insert(

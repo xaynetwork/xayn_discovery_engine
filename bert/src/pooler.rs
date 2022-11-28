@@ -20,22 +20,22 @@ use std::{
 use derive_more::{Deref, From};
 use displaydoc::Display;
 use float_cmp::{ApproxEq, F32Margin};
-use ndarray::{s, Array, Array1, ArrayBase, Data, Dimension, Ix1, Ix2, Zip};
-use serde::{Deserialize, Serialize};
+use ndarray::{s, Array, Array1, Array2, ArrayBase, Data, Dimension, Ix1, Ix2, Zip};
+use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use tract_onnx::prelude::TractError;
 
 use crate::{model::Prediction, tokenizer::AttentionMask};
 
 /// A d-dimensional sequence embedding.
-#[derive(Clone, Debug, Deref, From, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deref, From, Default)]
 pub struct Embedding<D>(Array<f32, D>)
 where
     D: Dimension;
 
 /// A 1-dimensional sequence embedding.
 ///
-/// The embedding is of shape `(embedding_size,)`.
+/// The embedding is of shape `(embedding_size,)`. The serde is identical to a `Vec<f32>`.
 pub type Embedding1 = Embedding<Ix1>;
 
 impl Embedding<Ix1> {
@@ -54,6 +54,28 @@ impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
 impl From<Vec<f32>> for Embedding<Ix1> {
     fn from(vec: Vec<f32>) -> Self {
         Array::from_vec(vec).into()
+    }
+}
+
+impl Serialize for Embedding<Ix1> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut sequence = serializer.serialize_seq(Some(self.len()))?;
+        for element in self.iter() {
+            sequence.serialize_element(element)?;
+        }
+        sequence.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Embedding<Ix1> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Vec::<f32>::deserialize(deserializer).map(Self::from)
     }
 }
 
@@ -85,6 +107,24 @@ impl TryFrom<Vec<u8>> for Embedding<Ix1> {
 ///
 /// The embedding is of shape `(token_size, embedding_size)`.
 pub type Embedding2 = Embedding<Ix2>;
+
+impl Serialize for Embedding<Ix2> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Embedding<Ix2> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Array2::<f32>::deserialize(deserializer).map(Self)
+    }
+}
 
 impl<S, D> PartialEq<ArrayBase<S, D>> for Embedding<D>
 where

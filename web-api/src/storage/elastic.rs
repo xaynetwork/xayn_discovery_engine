@@ -246,32 +246,8 @@ struct SearchResponse<T> {
 pub struct Document {
     pub snippet: String,
     pub properties: DocumentProperties,
-    #[serde(with = "serde_embedding_as_vec")]
     pub embedding: Embedding,
     pub category: Option<String>,
-}
-
-pub(crate) mod serde_embedding_as_vec {
-    use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
-    use xayn_ai_coi::Embedding;
-
-    pub(crate) fn serialize<S>(embedding: &Embedding, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut sequence = serializer.serialize_seq(Some(embedding.len()))?;
-        for element in embedding.iter() {
-            sequence.serialize_element(element)?;
-        }
-        sequence.end()
-    }
-
-    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Embedding, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Vec::<f32>::deserialize(deserializer).map(Embedding::from)
-    }
 }
 
 impl From<SearchResponse<Document>> for Vec<PersonalizedDocument> {
@@ -324,17 +300,17 @@ impl storage::Document for Storage {
             .unwrap_or_default())
     }
 
-    async fn get_by_embedding(
+    async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
         let body = Some(json!({
-            "size": params.size,
+            "size": params.k_neighbors,
             "knn": {
                 "field": "embedding",
                 "query_vector": params.embedding,
-                "k":params.k_neighbors,
+                "k": params.k_neighbors,
                 "num_candidates": params.num_candidates,
                 "filter": {
                     "bool": {

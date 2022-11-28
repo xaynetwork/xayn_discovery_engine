@@ -16,14 +16,7 @@ use std::ops::RangeInclusive;
 
 use itertools::Itertools;
 use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
-use xayn_ai_bert::Embedding1;
-// Re-export `Embedding` specific errors.
-pub use xayn_ai_bert::MalformedBytesEmbedding;
-
-/// A 1-dimensional sequence embedding.
-///
-/// The embedding is of shape `(embedding_size,)`.
-pub type Embedding = Embedding1;
+pub use xayn_ai_bert::{Embedding1 as Embedding, MalformedBytesEmbedding};
 
 /// Computes the l2 norm (euclidean metric) of a vector.
 ///

@@ -152,12 +152,12 @@ impl storage::Document for Storage {
             .map_err(Into::into)
     }
 
-    async fn get_by_embedding(
+    async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         fn knn_search<'a>(
-            _params: &'a KnnSearchParams,
+            _params: &'a KnnSearchParams<'a>,
             _documents: &'a FnvHashMap<DocumentId, Document>,
         ) -> &'a [(DocumentId, Document)] {
             todo!("ET-3680")
