@@ -4277,6 +4277,7 @@ dependencies = [
  "displaydoc",
  "dotenvy",
  "figment",
+ "fnv",
  "futures-util",
  "itertools 0.10.5",
  "mime",

@@ -40,5 +40,6 @@ xayn-ai-coi = { path = "../coi" }
 [dev-dependencies]
 bincode = { workspace = true }
 chrono = { workspace = true, features = ["clock", "serde"] }
+fnv = "1.0.7"
 tokio = { workspace = true, features = ["sync"] }
 trycmd = "0.14.4"

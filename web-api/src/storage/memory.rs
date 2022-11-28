@@ -20,7 +20,6 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    hash::{BuildHasherDefault, Hasher},
     io::{Read, Write},
 };
 
@@ -28,6 +27,7 @@ use async_trait::async_trait;
 use bincode::{deserialize_from, serialize_into, serialized_size};
 use chrono::{DateTime, Local, NaiveDateTime};
 use derive_more::Display;
+use fnv::FnvHashMap;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -118,32 +118,13 @@ impl TryFrom<&models::UserId> for UserId {
     }
 }
 
-#[derive(Default)]
-struct IdentityHasher(u64);
-
-impl Hasher for IdentityHasher {
-    fn write(&mut self, _: &[u8]) {
-        unimplemented!("only u32");
-    }
-
-    fn write_u32(&mut self, i: u32) {
-        self.0 = i.into();
-    }
-
-    fn finish(&self) -> u64 {
-        self.0
-    }
-}
-
-type Map<K, V> = HashMap<K, V, BuildHasherDefault<IdentityHasher>>;
-
 #[derive(Debug, Default)]
 pub(crate) struct Storage {
-    documents: RwLock<Map<DocumentId, Document>>,
-    interests: RwLock<Map<UserId, UserInterests>>,
-    interactions: RwLock<Map<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
-    users: RwLock<Map<UserId, NaiveDateTime>>,
-    categories: RwLock<Map<UserId, HashMap<String, usize>>>,
+    documents: RwLock<FnvHashMap<DocumentId, Document>>,
+    interests: RwLock<FnvHashMap<UserId, UserInterests>>,
+    interactions: RwLock<FnvHashMap<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
+    users: RwLock<FnvHashMap<UserId, NaiveDateTime>>,
+    categories: RwLock<FnvHashMap<UserId, HashMap<String, usize>>>,
 }
 
 #[async_trait]
@@ -177,7 +158,7 @@ impl storage::Document for Storage {
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         fn knn_search<'a>(
             _params: &'a KnnSearchParams,
-            _documents: &'a Map<DocumentId, Document>,
+            _documents: &'a FnvHashMap<DocumentId, Document>,
         ) -> &'a [(DocumentId, Document)] {
             todo!("ET-3680")
         }
