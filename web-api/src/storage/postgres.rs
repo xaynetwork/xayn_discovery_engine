@@ -333,6 +333,7 @@ impl storage::Interaction for Storage {
             .persistent(false)
             .execute(&self.postgres.pool)
             .await?;
+
         Ok(())
     }
 

@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS interaction (
     PRIMARY KEY (doc_id, user_id, time_stamp)
 );
 
+CREATE INDEX IF NOT EXISTS idx_interaction_by_doc_id
+    ON interaction(doc_id);
+
 CREATE INDEX IF NOT EXISTS idx_interaction_by_user_id
     ON interaction(user_id);
 
