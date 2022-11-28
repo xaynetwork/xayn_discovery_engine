@@ -4270,6 +4270,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap 4.0.25",
+ "csv",
  "derive_more",
  "displaydoc",
  "dotenvy",
