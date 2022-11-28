@@ -14,13 +14,12 @@
 #![allow(dead_code)]
 
 //! Executes the user-based MIND benchmark.
-use std::{collections::HashMap, fs::File};
+use std::{collections::HashMap, fs::File, path::Path};
 
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct Impression {
     id: String,
     user_id: String,
@@ -30,7 +29,6 @@ struct Impression {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct Article {
     id: String,
     category: String,
@@ -40,24 +38,17 @@ struct Article {
     url: String,
 }
 
-/// Reads and deserializes news data from a tsv file path and returns an iterator
-fn read_articles(path: &str) -> Result<DeserializeRecordsIntoIter<File, Article>, anyhow::Error> {
-    let iter = read_from_tsv(path)?.into_deserialize();
-
-    Ok(iter)
+fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, anyhow::Error>
+where
+    for<'de> T: Deserialize<'de>,
+{
+    Ok(read_from_tsv(path)?.into_deserialize())
 }
 
-/// Reads and deserializes impressions data from a tsv file path and returns an iterator
-fn read_impressions(
-    path: &str,
-) -> Result<DeserializeRecordsIntoIter<File, Impression>, anyhow::Error> {
-    let iter = read_from_tsv(path)?.into_deserialize();
-
-    Ok(iter)
-}
-
-/// Reads data from a tsv file path into a reader
-fn read_from_tsv(path: &str) -> Result<Reader<File>, anyhow::Error> {
+fn read_from_tsv<P>(path: P) -> Result<Reader<File>, anyhow::Error>
+where
+    P: AsRef<Path>,
+{
     ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
@@ -67,20 +58,16 @@ fn read_from_tsv(path: &str) -> Result<Reader<File>, anyhow::Error> {
 
 /// Runs the user-based mind benchmark
 fn run_benchmark() -> Result<(), anyhow::Error> {
-    let mut articles_map = HashMap::new();
-    let articles_iter = read_articles("news.tsv")?;
+    let articles = read("news.tsv")?
+        .map(|result| result.map(|article: Article| (article.id.clone(), article)))
+        .collect::<Result<HashMap<_, _>, _>>()?;
 
-    for article in articles_iter {
-        let article: Article = article?;
-        articles_map.entry(article.id.clone()).or_insert(article);
-    }
-
-    let impressions_iter = read_impressions("behaviors.tsv")?;
+    let impressions_iter = read("behaviors.tsv")?;
 
     for impression in impressions_iter {
         let impression: Impression = impression?;
         let clicks = impression.clicks.split(' ').collect::<Vec<&str>>();
-        match articles_map.get(clicks[0]) {
+        match articles.get(clicks[0]) {
             Some(imp) => println!("{:?}", imp),
             None => println!("Article id {} not found.", clicks[0]),
         }
