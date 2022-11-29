@@ -99,7 +99,7 @@ pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 
         return 1.;
     }
 
-    let norm_b = l2_norm(a.view());
+    let norm_b = l2_norm(b.view());
     if norm_b <= 0. {
         return 1.;
     }

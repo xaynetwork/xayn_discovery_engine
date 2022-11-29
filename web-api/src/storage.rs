@@ -46,7 +46,7 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) num_candidates: usize,
 }
 
-#[derive(From)]
+#[derive(Debug, From)]
 pub(crate) enum InsertionError {
     General(Error),
     PartialFailure {

@@ -601,3 +601,67 @@ impl Storage {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::Document;
+
+    #[tokio::test]
+    async fn test_knn_search() {
+        let ids = (0..3)
+            .map(|id| models::DocumentId::new(format!("N{id}")).unwrap())
+            .collect_vec();
+        let documents = ids
+            .iter()
+            .map(|id| IngestedDocument {
+                id: id.clone(),
+                snippet: String::new(),
+                properties: DocumentProperties::default(),
+                category: None,
+            })
+            .collect_vec();
+        let embeddings = [
+            [1., 0., 0.].into(),
+            [1., 1., 0.].into(),
+            [1., 1., 1.].into(),
+        ];
+        let storage = Storage::default();
+        storage
+            .document()
+            .insert(documents.iter().cloned().zip(embeddings).collect_vec())
+            .await
+            .unwrap();
+
+        let embedding = &[0., 0., 1.].into();
+        let documents = storage
+            .document()
+            .get_by_embedding(KnnSearchParams {
+                excluded: &[],
+                embedding,
+                k_neighbors: 2,
+                num_candidates: 2,
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            documents.iter().map(|document| &document.id).collect_vec(),
+            [&ids[2], &ids[1]],
+        );
+
+        let documents = storage
+            .document()
+            .get_by_embedding(KnnSearchParams {
+                excluded: &[ids[1].clone()],
+                embedding,
+                k_neighbors: 3,
+                num_candidates: 3,
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            documents.iter().map(|document| &document.id).collect_vec(),
+            [&ids[2], &ids[0]],
+        );
+    }
+}
