@@ -444,7 +444,7 @@ struct DocumentPropertiesResponse {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-struct IgnoredResponse;
+struct IgnoredResponse {}
 
 #[async_trait]
 impl storage::DocumentProperties for Storage {

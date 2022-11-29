@@ -40,13 +40,13 @@ rust-fmt:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cargo +"$RUST_NIGHTLY" fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};
-    cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check --check-format" } else { "" } }}
+    cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }}
 
 # Formats all code (checks only on CI)
 fmt: rust-fmt
 
 # Checks rust code, fails on warnings on CI
-rust-check: 
+rust-check:
     cargo clippy --all-targets --locked {{ if env_var_or_default("CI", "false") == "true" { "--all-features" } else { "" } }}
 
 # Checks all code, fails if there are any issues on CI
