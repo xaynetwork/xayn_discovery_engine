@@ -17,21 +17,27 @@
 //   "U") to allow for faster map access without hashing (ie each u32 is already its own hash)
 // - there are only positive interactions (ie as in the current web engine) to avoid to store
 //   redundant information
+// - document ingestion and deletion is preferably done in a single batch to avoid to rebuild the
+//   index for the embeddings too frequently
 
 use std::{
     collections::{HashMap, HashSet},
+    fmt,
     io::{Read, Write},
+    mem,
 };
 
 use async_trait::async_trait;
 use bincode::{deserialize_from, serialize_into, serialized_size};
 use chrono::{DateTime, Local, NaiveDateTime};
-use derive_more::Display;
-use fnv::FnvHashMap;
+use derive_more::{Deref, Display};
+use fnv::{FnvHashMap, FnvHashSet};
+use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use itertools::Itertools;
+use ouroboros::self_referencing;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use xayn_ai_coi::{Embedding, PositiveCoi, UserInterests};
+use xayn_ai_coi::{cosine_similarity, Embedding, PositiveCoi, UserInterests};
 
 use crate::{
     error::{
@@ -57,7 +63,6 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, Deserialize, Display, Eq, Hash, PartialEq, Serialize)]
 #[display(fmt = "N{_0}")]
-#[repr(transparent)]
 struct DocumentId(u32);
 
 impl TryFrom<&models::DocumentId> for DocumentId {
@@ -83,26 +88,59 @@ impl TryFrom<&DocumentId> for models::DocumentId {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
-    embedding: Embedding,
     properties: DocumentProperties,
     category: Option<String>,
 }
 
-impl From<(models::DocumentId, &Document)> for PersonalizedDocument {
-    fn from((document_id, document): (models::DocumentId, &Document)) -> Self {
-        Self {
-            id: document_id,
-            score: 0.,
-            embedding: document.embedding.clone(),
-            properties: document.properties.clone(),
-            category: document.category.clone(),
+#[derive(Clone, Copy, Deref)]
+struct EmbeddingRef<'a>(&'a Embedding);
+
+impl Point for EmbeddingRef<'_> {
+    fn distance(&self, other: &Self) -> f32 {
+        1. - cosine_similarity(self.view(), other.view())
+    }
+}
+
+#[self_referencing]
+struct Embeddings {
+    map: FnvHashMap<DocumentId, Embedding>,
+    #[borrows(map)]
+    #[covariant]
+    index: HnswMap<EmbeddingRef<'this>, &'this DocumentId>,
+}
+
+impl From<FnvHashMap<DocumentId, Embedding>> for Embeddings {
+    fn from(map: FnvHashMap<DocumentId, Embedding>) -> Self {
+        EmbeddingsBuilder {
+            map,
+            index_builder: |map| {
+                let (embeddings, ids) = map
+                    .iter()
+                    .map(|(id, embedding)| (EmbeddingRef(embedding), id))
+                    .unzip();
+                HnswBuilder::default().build(embeddings, ids)
+            },
         }
+        .build()
+    }
+}
+
+impl fmt::Debug for Embeddings {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Embeddings")
+            .field("map", self.borrow_map())
+            .finish()
+    }
+}
+
+impl Default for Embeddings {
+    fn default() -> Self {
+        FnvHashMap::default().into()
     }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Display, Eq, Hash, PartialEq, Serialize)]
 #[display(fmt = "U{_0}")]
-#[repr(transparent)]
 struct UserId(u32);
 
 impl TryFrom<&models::UserId> for UserId {
@@ -120,7 +158,7 @@ impl TryFrom<&models::UserId> for UserId {
 
 #[derive(Debug, Default)]
 pub(crate) struct Storage {
-    documents: RwLock<FnvHashMap<DocumentId, Document>>,
+    documents: RwLock<(FnvHashMap<DocumentId, Document>, Embeddings)>,
     interests: RwLock<FnvHashMap<UserId, UserInterests>>,
     interactions: RwLock<FnvHashMap<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
     users: RwLock<FnvHashMap<UserId, NaiveDateTime>>,
@@ -142,9 +180,17 @@ impl storage::Document for Storage {
             .filter_map(|&id| {
                 id.try_into()
                     .map(|document_id| {
-                        documents
-                            .get(&document_id)
-                            .map(|document| (id.clone(), document).into())
+                        documents.0.get(&document_id).and_then(|document| {
+                            documents.1.borrow_map().get(&document_id).map(|embedding| {
+                                PersonalizedDocument {
+                                    id: id.clone(),
+                                    score: 1.,
+                                    embedding: embedding.clone(),
+                                    properties: document.properties.clone(),
+                                    category: document.category.clone(),
+                                }
+                            })
+                        })
                     })
                     .transpose()
             })
@@ -156,52 +202,67 @@ impl storage::Document for Storage {
         &self,
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        fn knn_search<'a>(
-            _params: &'a KnnSearchParams<'a>,
-            _documents: &'a FnvHashMap<DocumentId, Document>,
-        ) -> &'a [(DocumentId, Document)] {
-            todo!("ET-3680")
-        }
-
-        knn_search(&params, &*self.documents.read().await)
+        let excluded = params
+            .excluded
             .iter()
-            .map(|(document_id, document)| {
-                models::DocumentId::new(document_id.to_string())
-                    .map(|document_id| (document_id, document).into())
+            .map(TryInto::try_into)
+            .try_collect::<_, FnvHashSet<DocumentId>, _>()?;
+        let documents = self.documents.read().await;
+        documents
+            .1
+            .borrow_index()
+            .search(&EmbeddingRef(params.embedding), &mut Search::default())
+            .filter_map(|item| {
+                let id = *item.value;
+                if excluded.contains(id) {
+                    None
+                } else {
+                    documents.0.get(id).map(|document| {
+                        id.try_into().map(|id| PersonalizedDocument {
+                            id,
+                            score: item.distance,
+                            embedding: item.point.0.clone(),
+                            properties: document.properties.clone(),
+                            category: document.category.clone(),
+                        })
+                    })
+                }
             })
+            .take(params.k_neighbors)
             .try_collect()
             .map_err(Into::into)
     }
 
     async fn insert(
         &self,
-        documents: Vec<(IngestedDocument, Embedding)>,
+        documents_embeddings: Vec<(IngestedDocument, Embedding)>,
     ) -> Result<(), InsertionError> {
-        let documents_embeddings = documents;
         if documents_embeddings.is_empty() {
             return Ok(());
         }
 
         let mut documents = self.documents.write().await;
+        let mut embeddings = mem::take(&mut documents.1).into_heads().map;
         let failed_documents = documents_embeddings
             .into_iter()
             .filter_map(|(document, embedding)| {
                 (&document.id).try_into().map_or_else(
                     |_| Some(DocumentIdAsObject { id: document.id }),
                     |document_id| {
-                        documents.insert(
+                        documents.0.insert(
                             document_id,
                             Document {
-                                embedding,
                                 properties: document.properties,
                                 category: document.category,
                             },
                         );
+                        embeddings.insert(document_id, embedding);
                         None
                     },
                 )
             })
             .collect_vec();
+        documents.1 = embeddings.into();
 
         if failed_documents.is_empty() {
             Ok(())
@@ -210,16 +271,20 @@ impl storage::Document for Storage {
         }
     }
 
-    async fn delete(&self, documents: &[models::DocumentId]) -> Result<(), Error> {
-        let ids = documents;
+    async fn delete(&self, ids: &[models::DocumentId]) -> Result<(), Error> {
         if ids.is_empty() {
             return Ok(());
         }
 
+        let ids = ids
+            .iter()
+            .map(TryInto::try_into)
+            .try_collect::<_, FnvHashSet<DocumentId>, _>()?;
         let mut documents = self.documents.write().await;
-        for id in ids {
-            documents.remove(&id.try_into()?);
-        }
+        documents.0.retain(|id, _| !ids.contains(id));
+        let mut embeddings = mem::take(&mut documents.1).into_heads().map;
+        embeddings.retain(|id, _| !ids.contains(id));
+        documents.1 = embeddings.into();
 
         Ok(())
     }
@@ -233,6 +298,7 @@ impl storage::DocumentProperties for Storage {
             .documents
             .read()
             .await
+            .0
             .get(&id)
             .ok_or(DocumentNotFound)?
             .properties
@@ -250,6 +316,7 @@ impl storage::DocumentProperties for Storage {
         self.documents
             .write()
             .await
+            .0
             .get_mut(&id)
             .ok_or(DocumentNotFound)?
             .properties = properties.clone();
@@ -262,6 +329,7 @@ impl storage::DocumentProperties for Storage {
         self.documents
             .write()
             .await
+            .0
             .get_mut(&id)
             .ok_or(DocumentNotFound)?
             .properties
@@ -283,6 +351,7 @@ impl storage::DocumentProperty for Storage {
             .documents
             .read()
             .await
+            .0
             .get(&document_id)
             .ok_or(DocumentNotFound)?
             .properties
@@ -303,6 +372,7 @@ impl storage::DocumentProperty for Storage {
         self.documents
             .write()
             .await
+            .0
             .get_mut(&document_id)
             .ok_or(DocumentNotFound)?
             .properties
@@ -321,6 +391,7 @@ impl storage::DocumentProperty for Storage {
             .documents
             .write()
             .await
+            .0
             .get_mut(&document_id)
             .ok_or(DocumentNotFound)?
             .properties
@@ -398,7 +469,7 @@ impl storage::Interaction for Storage {
         let ids = documents
             .iter()
             .map(TryInto::try_into)
-            .try_collect::<_, HashSet<DocumentId>, _>()?;
+            .try_collect::<_, FnvHashSet<DocumentId>, _>()?;
         self.interactions.write().await.retain(|_, interactions| {
             interactions.retain(|(id, _)| !ids.contains(id));
             !interactions.is_empty()
@@ -485,7 +556,8 @@ impl Storage {
         let categories = self.categories.read().await;
 
         serialized_size(&(
-            &*documents,
+            &documents.0,
+            documents.1.borrow_map(),
             &*interests,
             &*interactions,
             &*users,
@@ -507,7 +579,8 @@ impl Storage {
         serialize_into(
             writer,
             &(
-                &*documents,
+                &documents.0,
+                documents.1.borrow_map(),
                 &*interests,
                 &*interactions,
                 &*users,
@@ -517,14 +590,14 @@ impl Storage {
     }
 
     pub(crate) fn deserialize(reader: impl Read) -> Result<Self, bincode::Error> {
-        let (documents, interests, interactions, users, categories) = deserialize_from(reader)?;
-
-        Ok(Self {
-            documents: RwLock::new(documents),
-            interests: RwLock::new(interests),
-            interactions: RwLock::new(interactions),
-            users: RwLock::new(users),
-            categories: RwLock::new(categories),
-        })
+        deserialize_from::<_, (_, FnvHashMap<_, _>, _, _, _, _)>(reader).map(
+            |(documents, embeddings, interests, interactions, users, categories)| Self {
+                documents: RwLock::new((documents, embeddings.into())),
+                interests: RwLock::new(interests),
+                interactions: RwLock::new(interactions),
+                users: RwLock::new(users),
+                categories: RwLock::new(categories),
+            },
+        )
     }
 }

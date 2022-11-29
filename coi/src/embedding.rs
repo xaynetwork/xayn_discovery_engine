@@ -50,9 +50,8 @@ pub const COSINE_SIMILARITY_RANGE: RangeInclusive<f32> =
 
 /// Computes the pairwise cosine similarities of vectors.
 ///
-/// * For vectors with only positive components, cosine similarity is bounded in [0, 1]
-/// * Generally it is bounded in [-1, 1]
-/// * Zero vectors are always "similar" to all other vectors, thus will yield a similarity of 1
+/// Each value is bounded in `[-1, 1]`. The zero vector is always "similar" to all other vectors,
+/// thus will yield a similarity of 1.
 ///
 /// # Panics
 /// Panics if the vectors don't consist solely of real values or their shapes don't match.
@@ -95,7 +94,17 @@ where
 ///
 /// See [`pairwise_cosine_similarity`] for details.
 pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
-    pairwise_cosine_similarity([a.view(), b.view()])[[0, 1]]
+    let norm_a = l2_norm(a.view());
+    if norm_a <= 0. {
+        return 1.;
+    }
+
+    let norm_b = l2_norm(a.view());
+    if norm_b <= 0. {
+        return 1.;
+    }
+
+    (a.dot(&b) / norm_a / norm_b).clamp(-1., 1.)
 }
 
 #[cfg(test)]
