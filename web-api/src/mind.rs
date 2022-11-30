@@ -39,6 +39,8 @@ struct Article {
     url: String,
 }
 
+struct SnippetLabelPair(String, String);
+
 fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, anyhow::Error>
 where
     for<'de> T: Deserialize<'de>,
@@ -80,15 +82,19 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
         let news = impression.news.split(' ').collect::<Vec<&str>>();
 
         // Placeholder for reranking the results
-        let mut news_ids_labels = news
-            .iter()
-            .map(|x| x.split('-').collect::<Vec<_>>())
-            .collect::<Vec<Vec<_>>>();
-        news_ids_labels.shuffle(&mut thread_rng());
+        let news_labels_iter = news.iter().map(|x| x.split('-').collect::<Vec<_>>());
 
-        let labels = news_ids_labels
+        let mut snippet_label_pairs = news_labels_iter
+            .map(|id_label| match articles.get(id_label[0]) {
+                Some(article) => SnippetLabelPair((*article.snippet).to_string(), id_label[1].to_string()),
+                _ => unreachable!(),
+            })
+            .collect::<Vec<_>>();
+        snippet_label_pairs.shuffle(&mut thread_rng());
+
+        let labels = snippet_label_pairs
             .iter()
-            .map(|x| x[1].parse::<f32>().unwrap())
+            .map(|snippet_label| snippet_label.1.parse::<f32>().unwrap())
             .collect::<Vec<_>>();
         let ndcgs = ndcg(&labels[..], &[3]);
         println!("{:?}", ndcgs);
