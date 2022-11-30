@@ -4488,7 +4488,7 @@ dependencies = [
  "thiserror",
  "tokenizers",
  "tract-onnx",
- "xayn-discovery-engine-test-utils",
+ "xayn-ai-test-utils",
 ]
 
 [[package]]
@@ -4509,7 +4509,16 @@ dependencies = [
  "tracing",
  "uuid",
  "xayn-ai-bert",
- "xayn-discovery-engine-test-utils",
+ "xayn-ai-test-utils",
+]
+
+[[package]]
+name = "xayn-ai-test-utils"
+version = "0.1.0"
+dependencies = [
+ "float-cmp",
+ "ndarray",
+ "uuid",
 ]
 
 [[package]]
@@ -4550,9 +4559,9 @@ dependencies = [
  "wiremock",
  "xayn-ai-bert",
  "xayn-ai-coi",
+ "xayn-ai-test-utils",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-providers",
- "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -4572,8 +4581,8 @@ dependencies = [
  "uuid",
  "xayn-ai-bert",
  "xayn-ai-coi",
+ "xayn-ai-test-utils",
  "xayn-discovery-engine-providers",
- "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -4600,15 +4609,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "xayn-discovery-engine-test-utils"
-version = "0.1.0"
-dependencies = [
- "float-cmp",
- "ndarray",
- "uuid",
-]
-
-[[package]]
 name = "xayn-discovery-engine-tooling"
 version = "0.1.0"
 dependencies = [
@@ -4630,10 +4630,10 @@ dependencies = [
  "tokio",
  "url",
  "xayn-ai-coi",
+ "xayn-ai-test-utils",
  "xayn-discovery-engine",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-providers",
- "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]

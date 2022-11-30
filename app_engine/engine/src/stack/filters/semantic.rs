@@ -304,7 +304,7 @@ mod tests {
     use ndarray::aview1;
     use xayn_ai_bert::{AveragePooler, AvgBert, Config as BertConfig};
     use xayn_ai_coi::Embedding;
-    use xayn_discovery_engine_test_utils::{assert_approx_eq, asset::smbert_quantized};
+    use xayn_ai_test_utils::{assert_approx_eq, asset::smbert_quantized};
 
     use super::*;
     use crate::document::NewsResource;

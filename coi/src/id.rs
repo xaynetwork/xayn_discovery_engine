@@ -30,7 +30,7 @@ impl CoiId {
 
 #[cfg(test)]
 mod tests {
-    use xayn_discovery_engine_test_utils::uuid::mock_uuid;
+    use xayn_ai_test_utils::uuid::mock_uuid;
 
     use super::*;
 

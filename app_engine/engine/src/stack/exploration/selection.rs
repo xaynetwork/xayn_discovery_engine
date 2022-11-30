@@ -182,7 +182,7 @@ mod tests {
     use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
     use xayn_ai_coi::CoiId;
-    use xayn_discovery_engine_test_utils::{assert_approx_eq, uuid::mock_uuid};
+    use xayn_ai_test_utils::{assert_approx_eq, uuid::mock_uuid};
 
     use super::*;
     use crate::document::Id;

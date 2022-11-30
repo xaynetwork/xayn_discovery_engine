@@ -22,7 +22,7 @@ criterion = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 serde_json = { workspace = true }
-xayn-discovery-engine-test-utils = { path = "../test-utils" }
+xayn-ai-test-utils = { path = "../test-utils" }
 
 [[bench]]
 name = "benches"

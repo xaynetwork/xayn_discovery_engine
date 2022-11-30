@@ -202,7 +202,7 @@ impl Tokenizer {
 #[cfg(test)]
 mod tests {
     use ndarray::ArrayView;
-    use xayn_discovery_engine_test_utils::asset::{sjbert, smbert_mocked};
+    use xayn_ai_test_utils::asset::{sjbert, smbert_mocked};
 
     use super::*;
 

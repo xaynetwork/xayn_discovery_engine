@@ -463,7 +463,7 @@ mod tests {
     use itertools::Itertools;
     use ndarray::{arr1, arr2, FixedInitializer};
     use xayn_ai_coi::config::Config as CoiConfig;
-    use xayn_discovery_engine_test_utils::assert_approx_eq;
+    use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
     use crate::kps::config::Config as KpsConfig;

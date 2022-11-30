@@ -108,7 +108,7 @@ pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 
 #[cfg(test)]
 mod tests {
     use ndarray::{arr1, arr2};
-    use xayn_discovery_engine_test_utils::assert_approx_eq;
+    use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
 

@@ -298,7 +298,7 @@ mod tests {
     use std::fmt::Debug;
 
     use uuid::Uuid;
-    use xayn_discovery_engine_test_utils::assert_approx_eq;
+    use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
     use crate::stack::ops::MockOps;

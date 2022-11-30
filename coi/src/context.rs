@@ -207,7 +207,7 @@ pub(crate) fn compute_scores_for_docs<T: Document>(
 #[cfg(test)]
 mod tests {
     use ndarray::arr1;
-    use xayn_discovery_engine_test_utils::assert_approx_eq;
+    use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
     use crate::{
