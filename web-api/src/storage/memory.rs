@@ -92,7 +92,7 @@ struct Document {
     category: Option<String>,
 }
 
-#[derive(Clone, Copy, Deref)]
+#[derive(Clone, Copy, Debug, Deref)]
 struct EmbeddingRef<'a>(&'a Embedding);
 
 impl Point for EmbeddingRef<'_> {
@@ -129,6 +129,16 @@ impl fmt::Debug for Embeddings {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Embeddings")
             .field("map", self.borrow_map())
+            .field("index", {
+                let ids = &self.borrow_index().values;
+                &self
+                    .borrow_index()
+                    .iter()
+                    .filter_map(|(i, embedding)| {
+                        ids.get(i.into_inner() as usize).map(|id| (id, embedding))
+                    })
+                    .collect::<FnvHashMap<_, _>>()
+            })
             .finish()
     }
 }
@@ -564,7 +574,7 @@ impl Storage {
             &*categories,
         ))
         .map(
-            #[allow(clippy::cast_possible_truncation)] // bound by system architecture
+            #[allow(clippy::cast_possible_truncation)] // bounded by system architecture
             |size| size as usize,
         )
     }
