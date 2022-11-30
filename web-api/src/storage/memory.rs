@@ -633,7 +633,7 @@ mod tests {
             .await
             .unwrap();
 
-        let embedding = &[0., 0., 1.].into();
+        let embedding = &[0., 1., 1.].into();
         let documents = storage
             .document()
             .get_by_embedding(KnnSearchParams {
