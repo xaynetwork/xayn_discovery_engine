@@ -20,6 +20,7 @@ figment = { workspace = true, features = ["env", "toml"] }
 futures-util = "0.3.25"
 itertools = { workspace = true }
 mime = "0.3.16"
+ndarray = { workspace = true }
 once_cell = { workspace = true }
 pin-project = "1.0.12"
 rand = { workspace = true }

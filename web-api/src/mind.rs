@@ -17,6 +17,7 @@
 use std::{cmp::min, collections::HashMap, fs::File, path::Path};
 
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
+use ndarray::{Array, ArrayView};
 use rand::{seq::SliceRandom, thread_rng};
 use serde::Deserialize;
 
@@ -65,14 +66,14 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
         .map(|result| result.map(|article: Article| (article.id.clone(), article)))
         .collect::<Result<HashMap<_, _>, _>>()?;
 
-    let impressions_iter = read("behaviors.tsv")?;
+    let impressions = read("behaviors.tsv")?;
 
     let nranks = vec![3];
-    let mut ndcgs: Vec<Vec<f32>> = vec![vec![]; nranks.len()];
+    let mut ndcgs = Array::zeros((nranks.len(), 0));
 
     // Loop over all impressions, prepare reranker with news in click history
     // and rerank the news in an impression
-    for impression in impressions_iter {
+    for impression in impressions {
         let impression: Impression = impression?;
         let clicks_iter = impression.clicks.split(' ');
 
@@ -103,13 +104,11 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
             .collect::<Vec<_>>();
         let ndcgs_iteration = ndcg(&labels[..], &nranks);
 
-        ndcgs_iteration
-            .iter()
-            .enumerate()
-            .for_each(|(i, ndcg)| ndcgs[i].push(*ndcg));
-
-        println!("{:?}", ndcgs_iteration);
+        ndcgs
+            .push_column(ArrayView::from(&ndcgs_iteration))
+            .unwrap();
     }
+    println!("{:?}", ndcgs);
 
     Ok(())
 }
