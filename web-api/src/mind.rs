@@ -67,6 +67,9 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
 
     let impressions_iter = read("behaviors.tsv")?;
 
+    let nranks = vec![3];
+    let mut ndcgs: Vec<Vec<f32>> = vec![vec![]; nranks.len()];
+
     // Loop over all impressions, prepare reranker with news in click history
     // and rerank the news in an impression
     for impression in impressions_iter {
@@ -86,7 +89,9 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
 
         let mut snippet_label_pairs = news_labels_iter
             .map(|id_label| match articles.get(id_label[0]) {
-                Some(article) => SnippetLabelPair((*article.snippet).to_string(), id_label[1].to_string()),
+                Some(article) => {
+                    SnippetLabelPair((*article.snippet).to_string(), id_label[1].to_string())
+                }
                 _ => unreachable!(),
             })
             .collect::<Vec<_>>();
@@ -96,8 +101,14 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
             .iter()
             .map(|snippet_label| snippet_label.1.parse::<f32>().unwrap())
             .collect::<Vec<_>>();
-        let ndcgs = ndcg(&labels[..], &[3]);
-        println!("{:?}", ndcgs);
+        let ndcgs_iteration = ndcg(&labels[..], &nranks);
+
+        ndcgs_iteration
+            .iter()
+            .enumerate()
+            .for_each(|(i, ndcg)| ndcgs[i].push(*ndcg));
+
+        println!("{:?}", ndcgs_iteration);
     }
 
     Ok(())
