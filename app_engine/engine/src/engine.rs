@@ -1403,8 +1403,8 @@ pub(crate) mod tests {
         MockServer,
         ResponseTemplate,
     };
+    use xayn_ai_test_utils::asset::{smbert_mocked, smbert_quantized};
     use xayn_discovery_engine_providers::{Rank, UrlWithDomain};
-    use xayn_discovery_engine_test_utils::asset::{smbert_mocked, smbert_quantized};
 
     use super::*;
     use crate::{document::tests::mock_generic_article, stack::ops::MockOps};

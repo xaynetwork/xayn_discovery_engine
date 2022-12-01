@@ -34,7 +34,7 @@ use xayn_ai_bert::{
     NonePooler,
     Pipeline as BertPipeline,
 };
-use xayn_discovery_engine_test_utils::asset::{smbert, transcripts};
+use xayn_ai_test_utils::asset::{smbert, transcripts};
 
 fn main() {
     ValidatorConfig {

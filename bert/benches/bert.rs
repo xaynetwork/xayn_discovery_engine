@@ -20,7 +20,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ndarray::s;
 use onnxruntime::{environment::Environment, GraphOptimizationLevel};
 use xayn_ai_bert::{tokenizer::Tokenizer, Config, Embedding2, NonePooler};
-use xayn_discovery_engine_test_utils::asset::smbert;
+use xayn_ai_test_utils::asset::smbert;
 
 const TOKEN_SIZE: usize = 64;
 const SEQUENCE: &str = "This is a sequence.";

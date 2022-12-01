@@ -1,5 +1,5 @@
 [package]
-name = "web-api"
+name = "xayn-web-api"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
