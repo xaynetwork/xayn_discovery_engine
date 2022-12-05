@@ -109,8 +109,8 @@ struct Embeddings {
     index: HnswMap<EmbeddingRef<'this>, &'this DocumentId>,
 }
 
-impl From<FnvHashMap<DocumentId, Embedding>> for Embeddings {
-    fn from(map: FnvHashMap<DocumentId, Embedding>) -> Self {
+impl Embeddings {
+    fn build(map: FnvHashMap<DocumentId, Embedding>) -> Self {
         EmbeddingsBuilder {
             map,
             index_builder: |map| {
@@ -145,7 +145,7 @@ impl fmt::Debug for Embeddings {
 
 impl Default for Embeddings {
     fn default() -> Self {
-        FnvHashMap::default().into()
+        Self::build(FnvHashMap::default())
     }
 }
 
@@ -272,7 +272,7 @@ impl storage::Document for Storage {
                 )
             })
             .collect_vec();
-        documents.1 = embeddings.into();
+        documents.1 = Embeddings::build(embeddings);
 
         if failed_documents.is_empty() {
             Ok(())
@@ -294,7 +294,7 @@ impl storage::Document for Storage {
         documents.0.retain(|id, _| !ids.contains(id));
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
         embeddings.retain(|id, _| !ids.contains(id));
-        documents.1 = embeddings.into();
+        documents.1 = Embeddings::build(embeddings);
 
         Ok(())
     }
@@ -602,7 +602,7 @@ impl Storage {
     pub(crate) fn deserialize(reader: impl Read) -> Result<Self, bincode::Error> {
         deserialize_from::<_, (_, FnvHashMap<_, _>, _, _, _, _)>(reader).map(
             |(documents, embeddings, interests, interactions, users, categories)| Self {
-                documents: RwLock::new((documents, embeddings.into())),
+                documents: RwLock::new((documents, Embeddings::build(embeddings))),
                 interests: RwLock::new(interests),
                 interactions: RwLock::new(interactions),
                 users: RwLock::new(users),

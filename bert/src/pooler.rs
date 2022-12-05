@@ -20,8 +20,8 @@ use std::{
 use derive_more::{Deref, From};
 use displaydoc::Display;
 use float_cmp::{ApproxEq, F32Margin};
-use ndarray::{s, Array, Array1, Array2, ArrayBase, Data, Dimension, Ix1, Ix2, Zip};
-use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
+use ndarray::{s, Array, Array1, ArrayBase, Data, Dimension, Ix1, Ix2, Zip};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use tract_onnx::prelude::TractError;
 
@@ -62,11 +62,7 @@ impl Serialize for Embedding<Ix1> {
     where
         S: Serializer,
     {
-        let mut sequence = serializer.serialize_seq(Some(self.len()))?;
-        for element in self.iter() {
-            sequence.serialize_element(element)?;
-        }
-        sequence.end()
+        serializer.collect_seq(&self.0)
     }
 }
 
@@ -107,24 +103,6 @@ impl TryFrom<Vec<u8>> for Embedding<Ix1> {
 ///
 /// The embedding is of shape `(token_size, embedding_size)`.
 pub type Embedding2 = Embedding<Ix2>;
-
-impl Serialize for Embedding<Ix2> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.0.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Embedding<Ix2> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Array2::<f32>::deserialize(deserializer).map(Self)
-    }
-}
 
 impl<S, D> PartialEq<ArrayBase<S, D>> for Embedding<D>
 where
