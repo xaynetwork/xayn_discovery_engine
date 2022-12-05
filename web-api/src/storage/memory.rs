@@ -13,8 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Assumptions:
-// - document and user ids follow the mind format (ie they are unique u32s prefixed with a "N" resp
-//   "U") to allow for faster map access without hashing (ie each u32 is already its own hash)
 // - there are only positive interactions (ie as in the current web engine) to avoid to store
 //   redundant information
 // - document ingestion and deletion is preferably done in a single batch to avoid to rebuild the
@@ -30,8 +28,7 @@ use std::{
 use async_trait::async_trait;
 use bincode::{deserialize_from, serialize_into, serialized_size};
 use chrono::{DateTime, Local, NaiveDateTime};
-use derive_more::{Deref, Display};
-use fnv::{FnvHashMap, FnvHashSet};
+use derive_more::Deref;
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use itertools::Itertools;
 use ouroboros::self_referencing;
@@ -42,49 +39,19 @@ use xayn_ai_coi::{cosine_similarity, Embedding, PositiveCoi, UserInterests};
 use crate::{
     error::{
         application::Error,
-        common::{
-            DocumentIdAsObject,
-            DocumentNotFound,
-            DocumentPropertyNotFound,
-            InvalidDocumentId,
-            InvalidUserId,
-        },
+        common::{DocumentNotFound, DocumentPropertyNotFound},
     },
     models::{
-        self,
+        DocumentId,
         DocumentProperties,
         DocumentProperty,
         DocumentPropertyId,
         IngestedDocument,
         PersonalizedDocument,
+        UserId,
     },
     storage::{self, InsertionError, KnnSearchParams},
 };
-
-#[derive(Clone, Copy, Debug, Deserialize, Display, Eq, Hash, PartialEq, Serialize)]
-#[display(fmt = "N{_0}")]
-struct DocumentId(u32);
-
-impl TryFrom<&models::DocumentId> for DocumentId {
-    type Error = InvalidDocumentId;
-
-    fn try_from(id: &models::DocumentId) -> Result<Self, Self::Error> {
-        id.as_ref()
-            .trim()
-            .trim_start_matches('N')
-            .parse()
-            .map(Self)
-            .map_err(|_| InvalidDocumentId { id: id.to_string() })
-    }
-}
-
-impl TryFrom<&DocumentId> for models::DocumentId {
-    type Error = InvalidDocumentId;
-
-    fn try_from(id: &DocumentId) -> Result<Self, Self::Error> {
-        Self::new(id.to_string())
-    }
-}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
@@ -103,14 +70,14 @@ impl Point for EmbeddingRef<'_> {
 
 #[self_referencing]
 struct Embeddings {
-    map: FnvHashMap<DocumentId, Embedding>,
+    map: HashMap<DocumentId, Embedding>,
     #[borrows(map)]
     #[covariant]
     index: HnswMap<EmbeddingRef<'this>, &'this DocumentId>,
 }
 
 impl Embeddings {
-    fn build(map: FnvHashMap<DocumentId, Embedding>) -> Self {
+    fn build(map: HashMap<DocumentId, Embedding>) -> Self {
         EmbeddingsBuilder {
             map,
             index_builder: |map| {
@@ -137,7 +104,7 @@ impl fmt::Debug for Embeddings {
                     .filter_map(|(i, embedding)| {
                         ids.get(i.into_inner() as usize).map(|id| (id, embedding))
                     })
-                    .collect::<FnvHashMap<_, _>>()
+                    .collect::<HashMap<_, _>>()
             })
             .finish()
     }
@@ -145,80 +112,56 @@ impl fmt::Debug for Embeddings {
 
 impl Default for Embeddings {
     fn default() -> Self {
-        Self::build(FnvHashMap::default())
-    }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Display, Eq, Hash, PartialEq, Serialize)]
-#[display(fmt = "U{_0}")]
-struct UserId(u32);
-
-impl TryFrom<&models::UserId> for UserId {
-    type Error = InvalidUserId;
-
-    fn try_from(id: &models::UserId) -> Result<Self, Self::Error> {
-        id.as_ref()
-            .trim()
-            .trim_start_matches('U')
-            .parse()
-            .map(Self)
-            .map_err(|_| InvalidUserId { id: id.to_string() })
+        Self::build(HashMap::default())
     }
 }
 
 #[derive(Debug, Default)]
 pub(crate) struct Storage {
-    documents: RwLock<(FnvHashMap<DocumentId, Document>, Embeddings)>,
-    interests: RwLock<FnvHashMap<UserId, UserInterests>>,
-    interactions: RwLock<FnvHashMap<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
-    users: RwLock<FnvHashMap<UserId, NaiveDateTime>>,
-    categories: RwLock<FnvHashMap<UserId, HashMap<String, usize>>>,
+    documents: RwLock<(HashMap<DocumentId, Document>, Embeddings)>,
+    interests: RwLock<HashMap<UserId, UserInterests>>,
+    interactions: RwLock<HashMap<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
+    users: RwLock<HashMap<UserId, NaiveDateTime>>,
+    categories: RwLock<HashMap<UserId, HashMap<String, usize>>>,
 }
 
 #[async_trait]
 impl storage::Document for Storage {
-    async fn get_by_ids(
-        &self,
-        ids: &[&models::DocumentId],
-    ) -> Result<Vec<PersonalizedDocument>, Error> {
+    async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
 
         let documents = self.documents.read().await;
-        ids.iter()
+        let documents = ids
+            .iter()
             .filter_map(|&id| {
-                id.try_into()
-                    .map(|document_id| {
-                        documents.0.get(&document_id).and_then(|document| {
-                            documents.1.borrow_map().get(&document_id).map(|embedding| {
-                                PersonalizedDocument {
-                                    id: id.clone(),
-                                    score: 1.,
-                                    embedding: embedding.clone(),
-                                    properties: document.properties.clone(),
-                                    category: document.category.clone(),
-                                }
-                            })
+                documents.0.get(id).and_then(|document| {
+                    documents
+                        .1
+                        .borrow_map()
+                        .get(id)
+                        .map(|embedding| PersonalizedDocument {
+                            id: id.clone(),
+                            score: 1.,
+                            embedding: embedding.clone(),
+                            properties: document.properties.clone(),
+                            category: document.category.clone(),
                         })
-                    })
-                    .transpose()
+                })
             })
-            .try_collect()
-            .map_err(Into::into)
+            .collect();
+
+        Ok(documents)
     }
 
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let excluded = params
-            .excluded
-            .iter()
-            .map(TryInto::try_into)
-            .try_collect::<_, FnvHashSet<DocumentId>, _>()?;
+        let excluded = params.excluded.iter().collect::<HashSet<_>>();
         let documents = self.documents.read().await;
-        documents
+        let documents = documents
             .1
             .borrow_index()
             .search(&EmbeddingRef(params.embedding), &mut Search::default())
@@ -227,20 +170,19 @@ impl storage::Document for Storage {
                 if excluded.contains(id) {
                     None
                 } else {
-                    documents.0.get(id).map(|document| {
-                        id.try_into().map(|id| PersonalizedDocument {
-                            id,
-                            score: item.distance,
-                            embedding: item.point.0.clone(),
-                            properties: document.properties.clone(),
-                            category: document.category.clone(),
-                        })
+                    documents.0.get(id).map(|document| PersonalizedDocument {
+                        id: id.clone(),
+                        score: item.distance,
+                        embedding: item.point.0.clone(),
+                        properties: document.properties.clone(),
+                        category: document.category.clone(),
                     })
                 }
             })
             .take(params.k_neighbors)
-            .try_collect()
-            .map_err(Into::into)
+            .collect();
+
+        Ok(documents)
     }
 
     async fn insert(
@@ -253,43 +195,27 @@ impl storage::Document for Storage {
 
         let mut documents = self.documents.write().await;
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
-        let failed_documents = documents_embeddings
-            .into_iter()
-            .filter_map(|(document, embedding)| {
-                (&document.id).try_into().map_or_else(
-                    |_| Some(DocumentIdAsObject { id: document.id }),
-                    |document_id| {
-                        documents.0.insert(
-                            document_id,
-                            Document {
-                                properties: document.properties,
-                                category: document.category,
-                            },
-                        );
-                        embeddings.insert(document_id, embedding);
-                        None
-                    },
-                )
-            })
-            .collect_vec();
+        for (document, embedding) in documents_embeddings {
+            documents.0.insert(
+                document.id.clone(),
+                Document {
+                    properties: document.properties,
+                    category: document.category,
+                },
+            );
+            embeddings.insert(document.id, embedding);
+        }
         documents.1 = Embeddings::build(embeddings);
 
-        if failed_documents.is_empty() {
-            Ok(())
-        } else {
-            Err(InsertionError::PartialFailure { failed_documents })
-        }
+        Ok(())
     }
 
-    async fn delete(&self, ids: &[models::DocumentId]) -> Result<(), Error> {
+    async fn delete(&self, ids: &[DocumentId]) -> Result<(), Error> {
         if ids.is_empty() {
             return Ok(());
         }
 
-        let ids = ids
-            .iter()
-            .map(TryInto::try_into)
-            .try_collect::<_, FnvHashSet<DocumentId>, _>()?;
+        let ids = ids.iter().collect::<HashSet<_>>();
         let mut documents = self.documents.write().await;
         documents.0.retain(|id, _| !ids.contains(id));
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
@@ -302,14 +228,13 @@ impl storage::Document for Storage {
 
 #[async_trait]
 impl storage::DocumentProperties for Storage {
-    async fn get(&self, id: &models::DocumentId) -> Result<Option<DocumentProperties>, Error> {
-        let id = id.try_into()?;
+    async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
         let properties = self
             .documents
             .read()
             .await
             .0
-            .get(&id)
+            .get(id)
             .ok_or(DocumentNotFound)?
             .properties
             .clone();
@@ -319,28 +244,26 @@ impl storage::DocumentProperties for Storage {
 
     async fn put(
         &self,
-        id: &models::DocumentId,
+        id: &DocumentId,
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
-        let id = id.try_into()?;
         self.documents
             .write()
             .await
             .0
-            .get_mut(&id)
+            .get_mut(id)
             .ok_or(DocumentNotFound)?
             .properties = properties.clone();
 
         Ok(Some(()))
     }
 
-    async fn delete(&self, id: &models::DocumentId) -> Result<Option<()>, Error> {
-        let id = id.try_into()?;
+    async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
         self.documents
             .write()
             .await
             .0
-            .get_mut(&id)
+            .get_mut(id)
             .ok_or(DocumentNotFound)?
             .properties
             .clear();
@@ -353,16 +276,15 @@ impl storage::DocumentProperties for Storage {
 impl storage::DocumentProperty for Storage {
     async fn get(
         &self,
-        document_id: &models::DocumentId,
+        document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
-        let document_id = document_id.try_into()?;
         let property = self
             .documents
             .read()
             .await
             .0
-            .get(&document_id)
+            .get(document_id)
             .ok_or(DocumentNotFound)?
             .properties
             .get(property_id)
@@ -374,16 +296,15 @@ impl storage::DocumentProperty for Storage {
 
     async fn put(
         &self,
-        document_id: &models::DocumentId,
+        document_id: &DocumentId,
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
-        let document_id = document_id.try_into()?;
         self.documents
             .write()
             .await
             .0
-            .get_mut(&document_id)
+            .get_mut(document_id)
             .ok_or(DocumentNotFound)?
             .properties
             .insert(property_id.clone(), property.clone());
@@ -393,16 +314,15 @@ impl storage::DocumentProperty for Storage {
 
     async fn delete(
         &self,
-        document_id: &models::DocumentId,
+        document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<()>, Error> {
-        let document_id = document_id.try_into()?;
         let property = self
             .documents
             .write()
             .await
             .0
-            .get_mut(&document_id)
+            .get_mut(document_id)
             .ok_or(DocumentNotFound)?
             .properties
             .remove(property_id);
@@ -417,13 +337,12 @@ impl storage::DocumentProperty for Storage {
 
 #[async_trait]
 impl storage::Interest for Storage {
-    async fn get(&self, user_id: &models::UserId) -> Result<UserInterests, Error> {
-        let user_id = user_id.try_into()?;
+    async fn get(&self, id: &UserId) -> Result<UserInterests, Error> {
         let interests = self
             .interests
             .read()
             .await
-            .get(&user_id)
+            .get(id)
             .cloned()
             .unwrap_or_default();
 
@@ -432,26 +351,24 @@ impl storage::Interest for Storage {
 
     async fn update_positive<F>(
         &self,
-        doc_id: &models::DocumentId,
-        user_id: &models::UserId,
+        document_id: &DocumentId,
+        user_id: &UserId,
         update_cois: F,
     ) -> Result<(), Error>
     where
         F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync,
     {
-        let document_id = doc_id.try_into()?;
-        let user_id = user_id.try_into()?;
         let mut interests = self.interests.write().await;
         let mut interactions = self.interactions.write().await;
 
-        let updated_coi = update_cois(&mut interests.entry(user_id).or_default().positive);
+        let updated_coi = update_cois(&mut interests.entry(user_id.clone()).or_default().positive);
         let timestamp = DateTime::<Local>::from(updated_coi.stats.last_view).naive_local();
         interactions
-            .entry(user_id)
+            .entry(user_id.clone())
             .and_modify(|interactions| {
-                interactions.insert((document_id, timestamp));
+                interactions.insert((document_id.clone(), timestamp));
             })
-            .or_insert_with(|| [(document_id, timestamp)].into());
+            .or_insert_with(|| [(document_id.clone(), timestamp)].into());
 
         Ok(())
     }
@@ -459,27 +376,29 @@ impl storage::Interest for Storage {
 
 #[async_trait]
 impl storage::Interaction for Storage {
-    async fn get(&self, user_id: &models::UserId) -> Result<Vec<models::DocumentId>, Error> {
-        let id = user_id.try_into()?;
-        if let Some(interactions) = self.interactions.read().await.get(&id) {
-            interactions
-                .iter()
-                .map(|(document_id, _)| document_id.try_into().map_err(Into::into))
-                .try_collect()
-        } else {
-            Ok(Vec::new())
-        }
+    async fn get(&self, id: &UserId) -> Result<Vec<DocumentId>, Error> {
+        let document_ids = self
+            .interactions
+            .read()
+            .await
+            .get(id)
+            .map(|interactions| {
+                interactions
+                    .iter()
+                    .map(|(document_id, _)| document_id.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Ok(document_ids)
     }
 
-    async fn delete(&self, documents: &[models::DocumentId]) -> Result<(), Error> {
-        if documents.is_empty() {
+    async fn delete(&self, ids: &[DocumentId]) -> Result<(), Error> {
+        if ids.is_empty() {
             return Ok(());
         }
 
-        let ids = documents
-            .iter()
-            .map(TryInto::try_into)
-            .try_collect::<_, FnvHashSet<DocumentId>, _>()?;
+        let ids = ids.iter().collect::<HashSet<_>>();
         self.interactions.write().await.retain(|_, interactions| {
             interactions.retain(|(id, _)| !ids.contains(id));
             !interactions.is_empty()
@@ -488,12 +407,11 @@ impl storage::Interaction for Storage {
         Ok(())
     }
 
-    async fn user_seen(&self, id: &models::UserId) -> Result<(), Error> {
-        let id = id.try_into()?;
+    async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
         self.users
             .write()
             .await
-            .insert(id, Local::now().naive_local());
+            .insert(id.clone(), Local::now().naive_local());
 
         Ok(())
     }
@@ -501,25 +419,23 @@ impl storage::Interaction for Storage {
 
 #[async_trait]
 impl storage::Category for Storage {
-    async fn get(&self, user_id: &models::UserId) -> Result<HashMap<String, usize>, Error> {
-        let id = user_id.try_into()?;
+    async fn get(&self, id: &UserId) -> Result<HashMap<String, usize>, Error> {
         let categories = self
             .categories
             .read()
             .await
-            .get(&id)
+            .get(id)
             .cloned()
             .unwrap_or_default();
 
         Ok(categories)
     }
 
-    async fn update(&self, user_id: &models::UserId, category: &str) -> Result<(), Error> {
-        let id = user_id.try_into()?;
+    async fn update(&self, id: &UserId, category: &str) -> Result<(), Error> {
         self.categories
             .write()
             .await
-            .entry(id)
+            .entry(id.clone())
             .and_modify(|categories| {
                 categories
                     .entry(category.to_string())
@@ -600,7 +516,7 @@ impl Storage {
     }
 
     pub(crate) fn deserialize(reader: impl Read) -> Result<Self, bincode::Error> {
-        deserialize_from::<_, (_, FnvHashMap<_, _>, _, _, _, _)>(reader).map(
+        deserialize_from::<_, (_, HashMap<_, _>, _, _, _, _)>(reader).map(
             |(documents, embeddings, interests, interactions, users, categories)| Self {
                 documents: RwLock::new((documents, Embeddings::build(embeddings))),
                 interests: RwLock::new(interests),
@@ -620,7 +536,7 @@ mod tests {
     #[tokio::test]
     async fn test_knn_search() {
         let ids = (0..3)
-            .map(|id| models::DocumentId::new(format!("N{id}")).unwrap())
+            .map(|id| DocumentId::new(id.to_string()).unwrap())
             .collect_vec();
         let documents = ids
             .iter()

@@ -4685,7 +4685,6 @@ dependencies = [
  "displaydoc",
  "dotenvy",
  "figment",
- "fnv",
  "futures-util",
  "instant-distance",
  "itertools 0.10.5",
