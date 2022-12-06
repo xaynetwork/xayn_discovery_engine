@@ -138,7 +138,9 @@ pub(crate) trait Category {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct Config {
+    #[serde(default)]
     elastic: elastic::Config,
+    #[serde(default)]
     postgres: postgres::Config,
 }
 
