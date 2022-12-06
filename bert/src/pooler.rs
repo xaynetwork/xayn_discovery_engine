@@ -21,21 +21,21 @@ use derive_more::{Deref, From};
 use displaydoc::Display;
 use float_cmp::{ApproxEq, F32Margin};
 use ndarray::{s, Array, Array1, ArrayBase, Data, Dimension, Ix1, Ix2, Zip};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use tract_onnx::prelude::TractError;
 
 use crate::{model::Prediction, tokenizer::AttentionMask};
 
 /// A d-dimensional sequence embedding.
-#[derive(Clone, Debug, Deref, From, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deref, From, Default)]
 pub struct Embedding<D>(Array<f32, D>)
 where
     D: Dimension;
 
 /// A 1-dimensional sequence embedding.
 ///
-/// The embedding is of shape `(embedding_size,)`.
+/// The embedding is of shape `(embedding_size,)`. The serde is identical to a `Vec<f32>`.
 pub type Embedding1 = Embedding<Ix1>;
 
 impl Embedding<Ix1> {
@@ -54,6 +54,24 @@ impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
 impl From<Vec<f32>> for Embedding<Ix1> {
     fn from(vec: Vec<f32>) -> Self {
         Array::from_vec(vec).into()
+    }
+}
+
+impl Serialize for Embedding<Ix1> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_seq(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Embedding<Ix1> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Vec::<f32>::deserialize(deserializer).map(Self::from)
     }
 }
 

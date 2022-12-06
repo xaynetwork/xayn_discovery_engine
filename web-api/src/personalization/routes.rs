@@ -188,9 +188,8 @@ async fn personalized_documents(
                 .storage
                 .document()
                 .get_by_embedding(KnnSearchParams {
-                    excluded: excluded.clone(),
-                    embedding: coi.point.to_vec(),
-                    size: k_neighbors,
+                    excluded: &excluded,
+                    embedding: &coi.point,
                     k_neighbors,
                     num_candidates: document_count,
                 })
