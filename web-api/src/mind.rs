@@ -22,6 +22,10 @@ use ndarray::{Array, ArrayView};
 use rand::{seq::IteratorRandom, seq::SliceRandom, thread_rng};
 use rand::{seq::IteratorRandom, thread_rng};
 use rand::{seq::SliceRandom, thread_rng};
+use rand::{
+    seq::{IteratorRandom, SliceRandom},
+    thread_rng,
+};
 use serde::Deserialize;
 use xayn_ai_coi::nan_safe_f32_cmp_desc;
 
@@ -125,9 +129,9 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
             .split(' ')
             .filter_map(|x| {
                 x.split_once('-').and_then(|(id, label)| {
-                    article_provider.get(id).map(|article| {
-                        SnippetLabelPair(article.snippet.to_string(), label.to_string())
-                    })
+                    article_provider
+                        .get(id)
+                        .map(|article| SnippetLabelPair(article.snippet, label.to_string()))
                 })
             })
             .collect::<Vec<_>>();
