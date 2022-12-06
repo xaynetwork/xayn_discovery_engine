@@ -159,6 +159,36 @@ web-dev-down:
     compose="$(command -v podman-compose || command -v docker-compose)"
     $compose -f "./web-api/compose.yml" down
 
+oci-cargo-install $CRATE_PATH $BIN $ASSET_DIR="":
+    #!/usr/bin/env -S bash -eux -o pipefail
+    ociBuilder="$(command -v podman || command -v docker)"
+    # if this is nested add more .. to the soft-link below
+    out=oci-cargo-install-build-dir
+    # cleanup from previous builds
+    [ -d "$out/bin"] && rm -r "$out/bin"
+    # if it's a link remove it
+    [ -L "$out/assets" ] && rm "$out/assets"
+    # if it's a dummy dir remove it
+    [ -d "$out/assets" ] && rmdir "$out/assets"
+    # remove old install metadata
+    rm -f "$out/.crates"{".toml","2.json"}
+    # install binary into our helper dir
+    cargo install \
+        --path "$CRATE_PATH" \
+        --bin "$BIN" \
+        --debug \
+        --root "$out"
+    # rename binary as to not needing to modify the Dockerfile
+    mv "$out/bin/"{"$BIN","app.bin"}
+    if [ -n "$ASSET_DIR" ]; then
+        # link asset dir, only works if asset dir is in the
+        # same dir or a sub-dir of the justfile
+        ln -s "../$ASSET_DIR"   "$out/assets"
+    else
+        mkdir "$out/assets"
+    fi
+    "$ociBuilder" build -f "$out/Dockerfile" -t "$BIN" --build-arg base="$out" .
+
 print-just-env:
     export
 

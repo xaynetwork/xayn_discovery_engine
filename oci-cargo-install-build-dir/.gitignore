@@ -1,0 +1,4 @@
+# Ignore everything but the Dockerfile and .gitignore
+*
+!.gitignore
+!Dockerfile
