@@ -75,11 +75,15 @@ services:
 
 networks:
   internal:
-    # When using "compose up" with multiple files at once it will merge the files,
-    # which means AFIK we can't define it here and set it to `external` in the other
-    # compose files, instead we use a trick of explicitly setting the "external name"
-    # to the same then if started as one thing it will work as expected and if not
-    # merged but started separately it will also behave as expected. It will use the
-    # already existing network named "internal". If we would not set an "external name"
-    # (e.g. `internal: {}`) it would create a different network if "internal" already existed.
+    # Problem:
+    #   - the proper way to start multiple compose files is to start them all together
+    #     as one merged config
+    #   - but sometimes you want to start some (e.g. db) and then start/stop others
+    #   - but networks will by default choose an unused global name
+    # Solution:
+    #   - we manually set the global name (`name: internal`) which normally is not
+    #     necessary
+    # Bad Solution:
+    #   - we set `external: true` in all other compos files except this one, problem
+    #     is if we then start all as one merged config this might behave unexpected
     name: internal
