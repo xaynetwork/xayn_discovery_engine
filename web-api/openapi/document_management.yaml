@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Personalization API
+  title: Personalization API For Document Management
   version: 1.0.0-rc5
   description: |-
     # Documents management
