@@ -29,6 +29,9 @@ tags:
   - name: documents
     description: Management of the documents in the system.
 
+security:
+  - ApiKeyAuth: []    
+
 paths:
   /users/{user_id}/personalized_documents:
     get:
