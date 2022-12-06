@@ -22,5 +22,4 @@ xayn-discovery-engine-providers = { path = "../providers" }
 [dev-dependencies]
 rand = { workspace = true }
 serde_json = { workspace = true }
-xayn-discovery-engine-test-utils = { path = "../../test-utils" }
-
+xayn-ai-test-utils = { path = "../../test-utils" }

@@ -16,6 +16,7 @@ mod app_state;
 mod cli;
 mod config;
 
+use actix_cors::Cors;
 use actix_web::{
     middleware,
     web::{self, JsonConfig, ServiceConfig},
@@ -91,6 +92,7 @@ where
                 .wrap_fn(wrap_non_json_errors)
                 .wrap_fn(tracing_log_request)
                 .wrap(middleware::Compress::default())
+                .wrap(Cors::permissive())
         })
         .bind(addr)?
         .run()

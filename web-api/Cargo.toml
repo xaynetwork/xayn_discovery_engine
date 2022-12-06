@@ -1,5 +1,5 @@
 [package]
-name = "web-api"
+name = "xayn-web-api"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
@@ -7,6 +7,7 @@ description = "Wep Api server for the document personalization service."
 license = "AGPL-3.0-only"
 
 [dependencies]
+actix-cors = "0.6.4"
 actix-web = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -19,6 +20,7 @@ figment = { workspace = true, features = ["env", "toml"] }
 futures-util = "0.3.25"
 itertools = { workspace = true }
 mime = "0.3.16"
+ndarray = { workspace = true }
 once_cell = { workspace = true }
 pin-project = "1.0.12"
 rand = { workspace = true }

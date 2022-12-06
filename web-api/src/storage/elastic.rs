@@ -452,7 +452,12 @@ struct DocumentPropertiesResponse {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-struct IgnoredResponse;
+/// Deserializes from any map/struct dropping all fields.
+///
+/// This will not work with non self describing non schema
+/// formats like bincode.
+//Note: The {} is needed for it to work correctly.
+struct IgnoredResponse {}
 
 #[async_trait]
 impl storage::DocumentProperties for Storage {

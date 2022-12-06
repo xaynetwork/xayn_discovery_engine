@@ -46,7 +46,7 @@ rust-fmt:
 fmt: rust-fmt
 
 # Checks rust code, fails on warnings on CI
-rust-check: 
+rust-check:
     cargo clippy --all-targets --locked {{ if env_var_or_default("CI", "false") == "true" { "--all-features" } else { "" } }}
 
 # Checks all code, fails if there are any issues on CI

@@ -17,13 +17,13 @@ use std::{collections::HashMap, time::Duration};
 use anyhow::Result;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::{thread_rng, Rng};
+use xayn_ai_test_utils::asset::smbert_quantized;
 use xayn_discovery_engine::{
     document::{Document, TimeSpent, UserReacted, UserReaction, ViewMode},
     Engine,
     InitConfig,
 };
 use xayn_discovery_engine_providers::Market;
-use xayn_discovery_engine_test_utils::asset::smbert_quantized;
 
 use crate::io::{Dislike, Dislikes, Like, Likes, Output, Persona, Personas};
 

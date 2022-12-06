@@ -20,6 +20,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-cors"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b340e9cfa5b08690aae90fb61beb44e9b06f44fe3d0f93781aaa58cfba86245e"
+dependencies = [
+ "actix-utils",
+ "actix-web",
+ "derive_more",
+ "futures-util",
+ "log",
+ "once_cell",
+ "smallvec",
+]
+
+[[package]]
 name = "actix-http"
 version = "3.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4263,46 +4278,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c38c045535d93ec4f0b4defec448e4291638ee608530863b1e2ba115d4fff7f"
 
 [[package]]
-name = "web-api"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "anyhow",
- "async-trait",
- "bincode",
- "chrono",
- "clap 4.0.25",
- "csv",
- "derive_more",
- "displaydoc",
- "dotenvy",
- "figment",
- "fnv",
- "futures-util",
- "itertools 0.10.5",
- "mime",
- "once_cell",
- "pin-project",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "secrecy",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "trycmd",
- "url",
- "urlencoding",
- "uuid",
- "xayn-ai-bert",
- "xayn-ai-coi",
-]
-
-[[package]]
 name = "web-sys"
 version = "0.3.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4489,7 +4464,7 @@ dependencies = [
  "thiserror",
  "tokenizers",
  "tract-onnx",
- "xayn-discovery-engine-test-utils",
+ "xayn-ai-test-utils",
 ]
 
 [[package]]
@@ -4510,7 +4485,16 @@ dependencies = [
  "tracing",
  "uuid",
  "xayn-ai-bert",
- "xayn-discovery-engine-test-utils",
+ "xayn-ai-test-utils",
+]
+
+[[package]]
+name = "xayn-ai-test-utils"
+version = "0.1.0"
+dependencies = [
+ "float-cmp",
+ "ndarray",
+ "uuid",
 ]
 
 [[package]]
@@ -4551,9 +4535,9 @@ dependencies = [
  "wiremock",
  "xayn-ai-bert",
  "xayn-ai-coi",
+ "xayn-ai-test-utils",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-providers",
- "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -4573,8 +4557,8 @@ dependencies = [
  "uuid",
  "xayn-ai-bert",
  "xayn-ai-coi",
+ "xayn-ai-test-utils",
  "xayn-discovery-engine-providers",
- "xayn-discovery-engine-test-utils",
 ]
 
 [[package]]
@@ -4601,15 +4585,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "xayn-discovery-engine-test-utils"
-version = "0.1.0"
-dependencies = [
- "float-cmp",
- "ndarray",
- "uuid",
-]
-
-[[package]]
 name = "xayn-discovery-engine-tooling"
 version = "0.1.0"
 dependencies = [
@@ -4631,10 +4606,52 @@ dependencies = [
  "tokio",
  "url",
  "xayn-ai-coi",
+ "xayn-ai-test-utils",
  "xayn-discovery-engine",
  "xayn-discovery-engine-ai",
  "xayn-discovery-engine-providers",
- "xayn-discovery-engine-test-utils",
+]
+
+[[package]]
+name = "xayn-web-api"
+version = "0.1.0"
+dependencies = [
+ "actix-cors",
+ "actix-web",
+ "anyhow",
+ "async-trait",
+ "bincode",
+ "chrono",
+ "clap 4.0.25",
+ "csv",
+ "derive_more",
+ "displaydoc",
+ "dotenvy",
+ "figment",
+ "fnv",
+ "futures-util",
+ "itertools 0.10.5",
+ "mime",
+ "ndarray",
+ "once_cell",
+ "pin-project",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trycmd",
+ "url",
+ "urlencoding",
+ "uuid",
+ "xayn-ai-bert",
+ "xayn-ai-coi",
 ]
 
 [[package]]

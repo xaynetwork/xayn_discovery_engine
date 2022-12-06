@@ -313,8 +313,8 @@ pub(crate) fn de_config_from_json_with_defaults(json: &str) -> Figment {
 
 #[cfg(test)]
 mod tests {
+    use xayn_ai_test_utils::assert_approx_eq;
     use xayn_discovery_engine_ai::GenericError;
-    use xayn_discovery_engine_test_utils::assert_approx_eq;
 
     use super::*;
 
