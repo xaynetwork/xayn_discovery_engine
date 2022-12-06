@@ -14,12 +14,13 @@
 #![allow(dead_code)]
 
 //! Executes the user-based MIND benchmark.
-use std::{cmp::min, collections::HashMap, fs::File, path::Path};
+use std::{collections::HashMap, fs::File, path::Path};
 
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use ndarray::{Array, ArrayView};
 use rand::{seq::SliceRandom, thread_rng};
 use serde::Deserialize;
+use xayn_ai_coi::nan_safe_f32_cmp_desc;
 
 #[derive(Debug, Deserialize)]
 struct Impression {
@@ -75,25 +76,25 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
     // and rerank the news in an impression
     for impression in impressions {
         let impression: Impression = impression?;
-        let clicks_iter = impression.clicks.split(' ');
 
         // Placeholder for interacting with the entire click history
-        clicks_iter.for_each(|click| match articles.get(click) {
+        for click in impression.clicks.split(' ') {
+            match articles.get(click) {
             Some(article) => println!("The article {:?} was interacted.", article),
             None => println!("Article id {} not found.", click),
-        });
-
-        let news = impression.news.split(' ').collect::<Vec<&str>>();
+            }
+        }
 
         // Placeholder for reranking the results
-        let news_labels_iter = news.iter().map(|x| x.split('-').collect::<Vec<_>>());
-
-        let mut snippet_label_pairs = news_labels_iter
-            .map(|id_label| match articles.get(id_label[0]) {
-                Some(article) => {
-                    SnippetLabelPair((*article.snippet).to_string(), id_label[1].to_string())
-                }
-                _ => unreachable!(),
+        let mut snippet_label_pairs = impression
+            .news
+            .split(' ')
+            .filter_map(|x| {
+                x.split_once('-').and_then(|(id, label)| {
+                    articles.get(id).map(|article| {
+                        SnippetLabelPair(article.snippet.to_string(), label.to_string())
+                    })
+                })
             })
             .collect::<Vec<_>>();
         snippet_label_pairs.shuffle(&mut thread_rng());
@@ -102,7 +103,7 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
             .iter()
             .map(|snippet_label| snippet_label.1.parse::<f32>().unwrap())
             .collect::<Vec<_>>();
-        let ndcgs_iteration = ndcg(&labels[..], &nranks);
+        let ndcgs_iteration = ndcg(&labels, &nranks);
 
         ndcgs
             .push_column(ArrayView::from(&ndcgs_iteration))
@@ -115,26 +116,29 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
 
 fn ndcg(relevance: &[f32], k: &[usize]) -> Vec<f32> {
     let mut optimal_order = relevance.to_owned();
-    optimal_order.sort_by(|a, b| b.partial_cmp(a).unwrap());
-
-    let last = min(*k.iter().max().unwrap() as usize, relevance.len());
-
-    let mut out = Vec::new();
-    let mut dcg: f32 = 0.0;
-    let mut ideal_dcg: f32 = 0.0;
-
-    #[allow(clippy::cast_precision_loss)] // small numbers
-    for i in 0..last {
-        dcg += (2f32.powf(relevance[i]) - 1.0) / (i as f32 + 2.0).log2();
-        ideal_dcg += (2f32.powf(optimal_order[i]) - 1.0) / ((i as f32) + 2.0).log2();
-
-        out.push(dcg / (ideal_dcg + 0.00001));
-    }
-    out.into_iter()
+    optimal_order.sort_by(nan_safe_f32_cmp_desc);
+    let last = k
+        .iter()
+        .max()
+        .copied()
+        .map_or_else(|| relevance.len(), |k| k.min(relevance.len()));
+    relevance
+        .iter()
+        .zip(optimal_order)
+        .take(last)
+        .scan(
+            (1_f32, 0., 0.),
+            |(i, dcg, ideal_dcg), (relevance, optimal_order)| {
+                *i += 1.;
+                let log_i = (*i).log2();
+                *dcg += (2_f32.powf(*relevance) - 1.) / log_i;
+                *ideal_dcg += (2_f32.powf(optimal_order) - 1.) / log_i;
+                Some(*dcg / (*ideal_dcg + 0.00001))
+            },
+        )
         .enumerate()
-        .filter(|&(i, _)| k.contains(&(i + 1)))
-        .map(|(_, e)| e)
-        .collect::<Vec<f32>>()
+        .filter_map(|(i, ndcg)| k.contains(&(i + 1)).then_some(ndcg))
+        .collect()
 }
 
 fn main() {
