@@ -152,12 +152,12 @@ web-dev-up:
     rm "./web-api/assets" || :
     ln -s "./assets/smbert_v0003" "./web-api/assets"
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.yml" up --detach --remove-orphans
+    $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
 
 web-dev-down:
     #!/usr/bin/env -S bash -eux -o pipefail
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.yml" down
+    $compose -f "./web-api/compose.db.yml" down
 
 oci-cargo-install $CRATE_PATH $BIN $ASSET_DIR="":
     #!/usr/bin/env -S bash -eux -o pipefail
@@ -165,7 +165,7 @@ oci-cargo-install $CRATE_PATH $BIN $ASSET_DIR="":
     # if this is nested add more .. to the soft-link below
     out=oci-cargo-install-build-dir
     # cleanup from previous builds
-    [ -d "$out/bin"] && rm -r "$out/bin"
+    [ -d "$out/bin" ] && rm -r "$out/bin"
     # if it's a link remove it
     [ -L "$out/assets" ] && rm "$out/assets"
     # if it's a dummy dir remove it
@@ -188,6 +188,30 @@ oci-cargo-install $CRATE_PATH $BIN $ASSET_DIR="":
         mkdir "$out/assets"
     fi
     "$ociBuilder" build -f "$out/Dockerfile" -t "$BIN" --build-arg base="$out" .
+
+
+compose-all-build $SMBERT="smbert_v0003":
+    #!/usr/bin/env -S bash -eux -o pipefail
+    {{just_executable()}} oci-cargo-install web-api personalization
+    {{just_executable()}} oci-cargo-install web-api ingestion "assets/$SMBERT"
+
+compose-all-up:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    "$compose" \
+        -f web-api/compose.db.yml \
+        -f web-api/compose.personalization.yml \
+        -f web-api/compose.ingestion.yml \
+        up
+
+compose-all-down:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    "$compose" \
+        -f web-api/compose.db.yml \
+        -f web-api/compose.personalization.yml \
+        -f web-api/compose.ingestion.yml \
+        down
 
 print-just-env:
     export

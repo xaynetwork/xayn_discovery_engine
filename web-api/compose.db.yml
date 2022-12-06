@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pw
+      POSTGRES_DB: xayn
+    ports:
+      - 5432:5432
+    networks:
+      - internal
+
+  # adminer:
+  #   image: adminer
+  #   restart: always
+  #   ports:
+  #     - 8080:8080
+  #   networks:
+  #     - internal
+
+  elasticsearch:
+    image: elasticsearch:8.4.0
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - 9200:9200
+    networks:
+      - internal
+
+  setup_elastic:
+    image: curlimages/curl
+    restart: "no"
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - |
+        while ! curl -s -X OPTIONS http://elasticsearch:9200/test_index ; do
+          echo "Waiting for elasticsearch";
+          sleep 1;
+        done;
+        sleep 5; curl -v -X PUT 'http://elasticsearch:9200/test_index?pretty' \
+          -H 'Content-Type: application/json' \
+          -d '{
+            "mappings": {
+              "properties": {
+                "snippet": {
+                  "type": "text"
+                },
+                "embedding": {
+                  "type": "dense_vector",
+                  "dims": 128,
+                  "index": true,
+                  "similarity": "cosine"
+                }
+              }
+            }
+        }'
+    depends_on:
+      - elasticsearch
+    networks:
+      - internal
+
+  # kibana:
+  #   image: kibana:8.4.0
+  #   restart: always
+  #   ports:
+  #     - 5601:5601
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - internal
+
+networks:
+  internal:
+    # When using "compose up" with multiple files at once it will merge the files,
+    # which means AFIK we can't define it here and set it to `external` in the other
+    # compose files, instead we use a trick of explicitly setting the "external name"
+    # to the same then if started as one thing it will work as expected and if not
+    # merged but started separately it will also behave as expected. It will use the
+    # already existing network named "internal". If we would not set an "external name"
+    # (e.g. `internal: {}`) it would create a different network if "internal" already existed.
+    name: internal
