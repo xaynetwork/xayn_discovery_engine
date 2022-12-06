@@ -195,6 +195,7 @@ impl storage::Document for Storage {
 
         let mut documents = self.documents.write().await;
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
+        documents.0.reserve(documents_embeddings.len());
         for (document, embedding) in documents_embeddings {
             documents.0.insert(
                 document.id.clone(),
