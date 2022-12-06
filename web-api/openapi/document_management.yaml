@@ -67,7 +67,7 @@ paths:
           description: successful operation
         '400':
           description: invalid request
-   
+
   /documents/{document_id}:
     delete:
       tags:
