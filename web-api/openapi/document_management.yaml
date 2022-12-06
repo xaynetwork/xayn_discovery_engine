@@ -23,6 +23,51 @@ security:
   - ApiKeyAuth: []    
 
 paths:
+  /documents:
+    post:
+      tags:
+        - documents
+      summary: Add documents to the system
+      description: |-
+        Add documents to the system. The system will create a representation of the document
+        that will be used to match it against the preferences of a user.
+      operationId: ingestDocuments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestionRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request
+        '500':
+          description: all or some of the documents were not successfully uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionError'
+    delete:
+      tags:
+        - documents
+      summary: Delete all listed documents.
+      description: |-
+        Delete all documents listed in the request body. The endpoint is
+        idempotent. I.e. if the list contains one or multiple non-existing
+        documents, no error is produced.
+      operationId: deleteDocuments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteDocumentsRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request
+   
   /documents/{document_id}:
     delete:
       tags:
