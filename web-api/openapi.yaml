@@ -333,6 +333,11 @@ paths:
           description: document id or property id not found
 
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: authorizationToken
   schemas:
     DocumentId:
       description: |-
