@@ -17,6 +17,8 @@
 use std::{collections::HashMap, fs::File, path::Path};
 
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
+use itertools::Itertools;
+use rand::{seq::IteratorRandom, thread_rng};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -28,7 +30,7 @@ struct Impression {
     news: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct Article {
     id: String,
     category: String,
@@ -36,6 +38,39 @@ struct Article {
     title: String,
     snippet: String,
     url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ArticleProvider {
+    articles: HashMap<String, Article>,
+}
+
+impl ArticleProvider {
+    fn new(path: &str) -> Result<Self, anyhow::Error> {
+        let mut articles = HashMap::new();
+        for article in read::<Article>(path)? {
+            let article = article?;
+            articles.insert(article.id.clone(), article);
+        }
+        Ok(Self { articles })
+    }
+
+    fn sample(&self, n: usize) -> Vec<Article> {
+        let mut rng = thread_rng();
+        self.articles
+            .values()
+            .cloned()
+            .collect_vec()
+            .iter()
+            .choose_multiple(&mut rng, n)
+            .into_iter()
+            .cloned()
+            .collect()
+    }
+
+    fn get(&self, id: &str) -> Option<Article> {
+        self.articles.get(id).cloned()
+    }
 }
 
 fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, anyhow::Error>
@@ -58,16 +93,14 @@ where
 
 /// Runs the user-based mind benchmark
 fn run_benchmark() -> Result<(), anyhow::Error> {
-    let articles = read("news.tsv")?
-        .map(|result| result.map(|article: Article| (article.id.clone(), article)))
-        .collect::<Result<HashMap<_, _>, _>>()?;
+    let article_provider = ArticleProvider::new("news.tsv")?;
 
     let impressions_iter = read("behaviors.tsv")?;
 
     for impression in impressions_iter {
         let impression: Impression = impression?;
         let clicks = impression.clicks.split(' ').collect::<Vec<&str>>();
-        match articles.get(clicks[0]) {
+        match article_provider.get(clicks[0]) {
             Some(imp) => println!("{:?}", imp),
             None => println!("Article id {} not found.", clicks[0]),
         }
