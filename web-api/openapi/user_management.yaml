@@ -1,0 +1,193 @@
+openapi: 3.0.3
+info:
+  title: Personalization API For User Management
+  version: 1.0.0-rc5
+  description: |-
+    # User management
+    The system identifies a user with only an id.
+    There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document), and one to retrieve a personalized set of documents for the user. The system needs a few user interactions with documents before it can generate a personalized list.
+
+    # Auth
+    To authenticate with the API, a token will be provided.
+
+tags:
+  - name: users
+    description: Interaction of the user and personalized document.
+
+security:
+  - ApiKeyAuth: []    
+
+paths:
+  /users/{user_id}/personalized_documents:
+    get:
+      tags:
+        - users
+      summary: Get personalized documents for the user
+      description: |-
+        Returns a list of documents personalized for the given `user_id`.
+        Each document contains the id, the score and the properties that are attached to the document.
+        The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
+      operationId: getPersonalizedDocuments
+      parameters:
+        - name: user_id
+          in: path
+          description: Id of the user
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+        - name: count
+          in: query
+          description: Maximum number of personalized documents to return
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+        '400':
+          description: invalid user id.
+        '404':
+          description: user not found.
+        '422':
+          description: impossible to create a personalized list for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
+
+  /users/{user_id}/interactions:
+    patch:
+      tags:
+        - users
+      summary: Add interaction between a user and a document
+      description: |-
+        The interaction is used to provide personalized documents to the user.
+      operationId: documentInteraction
+      parameters:
+        - name: user_id
+          in: path
+          description: Id of the user
+          required: true
+          schema:
+            $ref: '#/components/schemas/UserId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInteractionRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request. User or document id is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInteractionError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: authorizationToken
+  schemas:
+    DocumentId:
+      description: |-
+        A document id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
+      type: string
+      example: "document_id"
+    DocumentProperty:
+      description: Arbitrary property that can be attached to a document.
+      example: "News title"
+    DocumentProperties:
+      description: Arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/DocumentProperty'
+      example:
+        title: "News title"
+        image_url: "http://example.com/news_image.jpg"
+        link: "http://example.com/this_news"
+    UserId:
+      description: |-
+        A user id can be any non-empty UTF-8 string that does not contain the null byte.
+        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
+      type: string
+      example: "user_id"
+    BaseError:
+      type: object
+      required: [request_id, kind]
+      properties:
+        request_id:
+          description: Request ID optionally generated from the service. It can be communicated to xayn to help debugging.
+          type: string
+        kind:
+          description: What kind of error this is.
+          type: string
+        details:
+          description: Additional error details. Might differ depending on debug options.
+          type: object
+    PersonalizedDocumentData:
+      type: object
+      required: [id, score]
+      properties:
+        id:
+          $ref: '#/components/schemas/DocumentId'
+        score:
+          type: number
+        properties:
+          $ref: '#/components/schemas/DocumentProperties'
+    PersonalizedDocumentsResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalizedDocumentData'
+    PersonalizedDocumentsError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [NotEnoughInteractions]
+    UserInteractionType:
+      type: string
+      enum: [positive]
+    UserInteractionData:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/DocumentId'
+        type:
+          $ref: '#/components/schemas/UserInteractionType'
+    UserInteractionRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserInteractionData'
+    UserInteractionError:
+      allOf:
+        - $ref: '#/components/schemas/BaseError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [InvalidUserId, InvalidDocumentId]
