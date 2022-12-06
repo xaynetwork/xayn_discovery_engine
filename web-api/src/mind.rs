@@ -17,7 +17,9 @@
 use std::{collections::HashMap, fs::File, path::Path};
 
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
+use itertools::Itertools;
 use ndarray::{Array, ArrayView};
+use rand::{seq::IteratorRandom, thread_rng};
 use rand::{seq::SliceRandom, thread_rng};
 use serde::Deserialize;
 use xayn_ai_coi::nan_safe_f32_cmp_desc;
@@ -31,7 +33,7 @@ struct Impression {
     news: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct Article {
     id: String,
     category: String,
@@ -39,6 +41,39 @@ struct Article {
     title: String,
     snippet: String,
     url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ArticleProvider {
+    articles: HashMap<String, Article>,
+}
+
+impl ArticleProvider {
+    fn new(path: &str) -> Result<Self, anyhow::Error> {
+        let mut articles = HashMap::new();
+        for article in read::<Article>(path)? {
+            let article = article?;
+            articles.insert(article.id.clone(), article);
+        }
+        Ok(Self { articles })
+    }
+
+    fn sample(&self, n: usize) -> Vec<Article> {
+        let mut rng = thread_rng();
+        self.articles
+            .values()
+            .cloned()
+            .collect_vec()
+            .iter()
+            .choose_multiple(&mut rng, n)
+            .into_iter()
+            .cloned()
+            .collect()
+    }
+
+    fn get(&self, id: &str) -> Option<Article> {
+        self.articles.get(id).cloned()
+    }
 }
 
 struct SnippetLabelPair(String, String);
@@ -63,9 +98,7 @@ where
 
 /// Runs the user-based mind benchmark
 fn run_benchmark() -> Result<(), anyhow::Error> {
-    let articles = read("news.tsv")?
-        .map(|result| result.map(|article: Article| (article.id.clone(), article)))
-        .collect::<Result<HashMap<_, _>, _>>()?;
+    let article_provider = ArticleProvider::new("news.tsv")?;
 
     let impressions = read("behaviors.tsv")?;
 
@@ -79,7 +112,7 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
 
         // Placeholder for interacting with the entire click history
         for click in impression.clicks.split(' ') {
-            match articles.get(click) {
+            match article_provider.get(click) {
                 Some(article) => println!("The article {:?} was interacted.", article),
                 None => println!("Article id {} not found.", click),
             }
