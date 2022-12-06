@@ -80,8 +80,8 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
         // Placeholder for interacting with the entire click history
         for click in impression.clicks.split(' ') {
             match articles.get(click) {
-            Some(article) => println!("The article {:?} was interacted.", article),
-            None => println!("Article id {} not found.", click),
+                Some(article) => println!("The article {:?} was interacted.", article),
+                None => println!("Article id {} not found.", click),
             }
         }
 
