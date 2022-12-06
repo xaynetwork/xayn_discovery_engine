@@ -19,7 +19,7 @@ use std::{collections::HashMap, fs::File, path::Path};
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
 use ndarray::{Array, ArrayView};
-use rand::{seq::IteratorRandom, thread_rng, SliceRandom};
+use rand::{seq::IteratorRandom, seq::SliceRandom, thread_rng};
 use serde::Deserialize;
 use xayn_ai_coi::nan_safe_f32_cmp_desc;
 
@@ -123,7 +123,7 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
             .split(' ')
             .filter_map(|x| {
                 x.split_once('-').and_then(|(id, label)| {
-                    articles.get(id).map(|article| {
+                    article_provider.get(id).map(|article| {
                         SnippetLabelPair(article.snippet.to_string(), label.to_string())
                     })
                 })
