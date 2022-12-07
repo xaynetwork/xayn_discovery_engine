@@ -20,18 +20,18 @@ use crate::{
 };
 
 #[derive(Deref, AsRef)]
-pub(crate) struct AppState<CE, AE, S> {
+pub(crate) struct AppState<C, E, S> {
     #[as_ref]
-    pub(crate) config: Config<CE>,
+    pub(crate) config: Config<C>,
     #[deref]
-    pub(crate) extension: AE,
+    pub(crate) extension: E,
     pub(crate) storage: S,
 }
 
-impl<CE, AE> AppState<CE, AE, Storage> {
+impl<C, E> AppState<C, E, Storage> {
     pub(super) async fn create(
-        config: Config<CE>,
-        create_extension: impl FnOnce(&Config<CE>) -> Result<AE, SetupError>,
+        config: Config<C>,
+        create_extension: impl FnOnce(&Config<C>) -> Result<E, SetupError>,
     ) -> Result<Self, SetupError> {
         let extension = create_extension(&config)?;
         let storage = config.storage.setup().await?;

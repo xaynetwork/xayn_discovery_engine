@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod routes;
+pub(crate) mod routes;
 
 use actix_web::web::ServiceConfig;
 use derive_more::AsRef;
@@ -53,20 +53,20 @@ type AppState = server::AppState<
 pub struct ConfigExtension {
     #[as_ref]
     #[serde(default)]
-    pub(crate) ingestion: IngestionConfig,
+    pub(crate) ingestion: Config,
     #[as_ref]
     #[serde(default)]
     pub(crate) embedding: embedding::Config,
 }
 
 #[derive(AsRef, Debug, Deserialize, Serialize)]
-pub struct IngestionConfig {
+pub struct Config {
     #[as_ref]
     #[serde(default = "default_max_document_batch_size")]
     pub(crate) max_document_batch_size: usize,
 }
 
-impl Default for IngestionConfig {
+impl Default for Config {
     fn default() -> Self {
         Self {
             max_document_batch_size: default_max_document_batch_size(),
