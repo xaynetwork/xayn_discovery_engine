@@ -11,6 +11,8 @@ actix-cors = "0.6.4"
 actix-web = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+bincode = { workspace = true, optional = true }
+chrono = { workspace = true, features = ["clock", "serde"], optional = true }
 clap = { workspace = true }
 csv = { workspace = true }
 derive_more = { workspace = true }
@@ -18,10 +20,12 @@ displaydoc = { workspace = true }
 dotenvy = "0.15.6"
 figment = { workspace = true, features = ["env", "toml"] }
 futures-util = "0.3.25"
+instant-distance = { version = "0.6.0", optional = true }
 itertools = { workspace = true }
 mime = "0.3.16"
 ndarray = { workspace = true }
 once_cell = { workspace = true }
+ouroboros = { version = "0.15.5", optional = true }
 pin-project = "1.0.12"
 rand = { workspace = true }
 regex = { workspace = true }
@@ -41,9 +45,7 @@ xayn-ai-bert = { path = "../bert" }
 xayn-ai-coi = { path = "../coi" }
 
 [dev-dependencies]
-bincode = { workspace = true }
-chrono = { workspace = true, features = ["clock", "serde"] }
-instant-distance = "0.6.0"
-ouroboros = "0.15.5"
-tokio = { workspace = true, features = ["sync"] }
 trycmd = "0.14.4"
+
+[features]
+mind = ["dep:bincode", "dep:chrono", "dep:instant-distance", "dep:ouroboros", "tokio/sync"]

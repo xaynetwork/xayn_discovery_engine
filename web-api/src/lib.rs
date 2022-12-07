@@ -37,6 +37,7 @@ mod ingestion;
 mod load_config;
 mod logging;
 mod middleware;
+#[cfg(feature = "mind")]
 mod mind;
 mod models;
 mod personalization;

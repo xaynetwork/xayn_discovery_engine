@@ -30,7 +30,6 @@ use bincode::{deserialize_from, serialize_into, serialized_size};
 use chrono::{DateTime, Local, NaiveDateTime};
 use derive_more::Deref;
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
-use itertools::Itertools;
 use ouroboros::self_referencing;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -523,6 +522,8 @@ impl Storage {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use super::*;
     use crate::storage::Document;
 

@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub(crate) mod elastic;
-#[cfg(test)]
+#[cfg(feature = "mind")]
 pub(crate) mod memory;
 pub(crate) mod postgres;
 mod utils;
