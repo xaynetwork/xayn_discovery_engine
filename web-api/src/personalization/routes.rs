@@ -116,8 +116,8 @@ async fn update_interactions(
 
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
-struct PersonalizedDocumentsQuery {
-    count: Option<usize>,
+pub(crate) struct PersonalizedDocumentsQuery {
+    pub(crate) count: Option<usize>,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -284,7 +284,7 @@ async fn personalized_documents(
 }
 
 /// Represents response from personalized documents endpoint.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct PersonalizedDocumentsResponse {
     /// A list of documents personalized for a specific user.
     pub(crate) documents: Vec<PersonalizedDocument>,

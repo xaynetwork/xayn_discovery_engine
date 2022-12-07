@@ -11,7 +11,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 
-mod routes;
+pub(crate) mod routes;
 
 use actix_web::web::ServiceConfig;
 use derive_more::AsRef;

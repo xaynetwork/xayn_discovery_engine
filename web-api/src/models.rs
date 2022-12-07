@@ -91,13 +91,13 @@ id_wrapper!(DocumentPropertyId, is_valid_id, InvalidDocumentPropertyId);
 id_wrapper!(UserId, is_valid_id, InvalidUserId);
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct DocumentProperty(serde_json::Value);
+pub struct DocumentProperty(pub(crate) serde_json::Value);
 
 /// Arbitrary properties that can be attached to a document.
 pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
 /// Represents a result from a query.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct PersonalizedDocument {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,

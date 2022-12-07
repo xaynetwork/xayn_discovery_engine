@@ -18,22 +18,45 @@
 
 use std::{collections::HashMap, fs::File, path::Path};
 
-use actix_web::web::{Data, Json};
+use actix_web::{
+    body::{BoxBody, EitherBody},
+    test::TestRequest,
+    web::{Data, Json, Query},
+    Responder,
+};
+use anyhow::{bail, Error};
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
 use ndarray::{Array, ArrayView};
+use once_cell::sync::Lazy;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
     thread_rng,
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
 
 use crate::{
     embedding::{self, Embedder},
     ingestion::{self, routes::IngestionRequestBody},
-    models::{DocumentProperties, IngestedDocument},
-    personalization,
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        IngestedDocument,
+        UserInteractionType,
+    },
+    personalization::{
+        self,
+        routes::{
+            PersonalizedDocumentsQuery,
+            PersonalizedDocumentsResponse,
+            UpdateInteractions,
+            UserInteractionData,
+        },
+    },
     server,
     storage::memory::Storage,
 };
@@ -58,7 +81,7 @@ struct ConfigExtension {
 type AppState = server::AppState<ConfigExtension, AppStateExtension, Storage>;
 
 impl AppState {
-    fn new() -> Result<Data<Self>, anyhow::Error> {
+    fn new() -> Result<Data<Self>, Error> {
         let config = server::Config::<ConfigExtension>::default();
         let extension = AppStateExtension {
             embedder: Embedder::load(&config.extension.embedding)?,
@@ -74,43 +97,136 @@ impl AppState {
     }
 }
 
+static CATEGORY_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "category".try_into().unwrap());
+static SUBCATEGORY_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "subcategory".try_into().unwrap());
+static TITLE_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "title".try_into().unwrap());
+static SNIPPET_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "snippet".try_into().unwrap());
+static URL_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "url".try_into().unwrap());
+
 impl IngestionRequestBody {
-    fn new(documents: Vec<Document>) -> Result<Json<Self>, anyhow::Error> {
+    fn new(documents: Vec<Document>) -> Json<Self> {
         let documents = documents
             .into_iter()
             .map(|document| {
-                document.id.try_into().map(|id| {
-                    let snippet = if document.snippet.is_empty() {
-                        document.title
+                let snippet = if document.snippet.is_empty() {
+                    document.title.to_string()
+                } else {
+                    document.snippet.to_string()
+                };
+                let category = if document.category.is_empty() {
+                    if document.subcategory.is_empty() {
+                        None
                     } else {
-                        document.snippet
-                    };
-                    let properties = DocumentProperties::default();
-                    let category = if document.category.is_empty() {
-                        if document.subcategory.is_empty() {
-                            None
-                        } else {
-                            Some(document.subcategory)
-                        }
-                    } else {
-                        Some(document.category)
-                    };
-
-                    IngestedDocument {
-                        id,
-                        snippet,
-                        properties,
-                        category,
+                        Some(document.subcategory.to_string())
                     }
-                })
-            })
-            .try_collect()?;
+                } else {
+                    Some(document.category.to_string())
+                };
+                let properties = [
+                    (
+                        CATEGORY_ID.clone(),
+                        DocumentProperty(Value::String(document.category)),
+                    ),
+                    (
+                        SUBCATEGORY_ID.clone(),
+                        DocumentProperty(Value::String(document.subcategory)),
+                    ),
+                    (
+                        TITLE_ID.clone(),
+                        DocumentProperty(Value::String(document.title)),
+                    ),
+                    (
+                        SNIPPET_ID.clone(),
+                        DocumentProperty(Value::String(document.snippet)),
+                    ),
+                    (
+                        URL_ID.clone(),
+                        DocumentProperty(Value::String(document.url)),
+                    ),
+                ]
+                .into();
 
-        Ok(Json(Self { documents }))
+                IngestedDocument {
+                    id: document.id,
+                    snippet,
+                    properties,
+                    category,
+                }
+            })
+            .collect();
+
+        Json(Self { documents })
     }
 }
 
-use crate::models::DocumentId;
+impl UpdateInteractions {
+    fn new(documents: &[Document]) -> Json<Self> {
+        let documents = documents
+            .iter()
+            .map(|document| UserInteractionData {
+                document_id: document.id.clone(),
+                interaction_type: UserInteractionType::Positive,
+            })
+            .collect();
+
+        Json(Self { documents })
+    }
+}
+
+impl PersonalizedDocumentsQuery {
+    fn new(count: usize) -> Query<Self> {
+        Query(Self { count: Some(count) })
+    }
+
+    fn default() -> Query<Self> {
+        Query(Self { count: None })
+    }
+}
+
+fn remove_property(properties: &mut DocumentProperties, id: &DocumentPropertyId) -> Option<String> {
+    properties.remove(id).and_then(|property| {
+        if let Value::String(property) = property.0 {
+            Some(property)
+        } else {
+            None
+        }
+    })
+}
+
+impl PersonalizedDocumentsResponse {
+    fn from(
+        responder: impl Responder<Body = EitherBody<String, BoxBody>>,
+    ) -> Result<Vec<Document>, Error> {
+        match responder
+            .respond_to(&TestRequest::default().to_http_request())
+            .into_body()
+        {
+            EitherBody::Left { body } => serde_json::from_str::<Self>(&body)
+                .map(|documents| {
+                    documents
+                        .documents
+                        .into_iter()
+                        .map(|mut document| Document {
+                            id: document.id,
+                            category: remove_property(&mut document.properties, &CATEGORY_ID)
+                                .or(document.category)
+                                .unwrap_or_default(),
+                            subcategory: remove_property(&mut document.properties, &SUBCATEGORY_ID)
+                                .unwrap_or_default(),
+                            title: remove_property(&mut document.properties, &TITLE_ID)
+                                .unwrap_or_default(),
+                            snippet: remove_property(&mut document.properties, &SNIPPET_ID)
+                                .unwrap_or_default(),
+                            url: remove_property(&mut document.properties, &URL_ID)
+                                .unwrap_or_default(),
+                        })
+                        .collect()
+                })
+                .map_err(Into::into),
+            EitherBody::Right { body } => bail!("{body:?}"),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 struct ViewedDocument {
@@ -181,7 +297,7 @@ struct DocumentProvider {
 }
 
 impl DocumentProvider {
-    fn new(path: &str) -> Result<Self, anyhow::Error> {
+    fn new(path: &str) -> Result<Self, Error> {
         let documents = read::<Document>(path)?
             .map(|document| document.map(|document| (document.id.clone(), document)))
             .try_collect()?;
@@ -201,14 +317,14 @@ impl DocumentProvider {
 
 struct SnippetLabelPair(String, bool);
 
-fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, anyhow::Error>
+fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Error>
 where
     for<'de> T: Deserialize<'de>,
 {
     Ok(read_from_tsv(path)?.into_deserialize())
 }
 
-fn read_from_tsv<P>(path: P) -> Result<Reader<File>, anyhow::Error>
+fn read_from_tsv<P>(path: P) -> Result<Reader<File>, Error>
 where
     P: AsRef<Path>,
 {
@@ -220,7 +336,7 @@ where
 }
 
 /// Runs the user-based mind benchmark
-fn run_benchmark() -> Result<(), anyhow::Error> {
+fn run_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
 
     let impressions = read("behaviors.tsv")?;
