@@ -11,11 +11,14 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#![allow(dead_code)]
 
 //! Executes the user-based MIND benchmark.
+
+#![allow(dead_code)]
+
 use std::{collections::HashMap, fs::File, path::Path};
 
+use actix_web::web::{Data, Json};
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
 use ndarray::{Array, ArrayView};
@@ -23,8 +26,89 @@ use rand::{
     seq::{IteratorRandom, SliceRandom},
     thread_rng,
 };
-use serde::{de, Deserialize, Deserializer};
-use xayn_ai_coi::nan_safe_f32_cmp_desc;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
+
+use crate::{
+    embedding::{self, Embedder},
+    ingestion::{self, routes::IngestionRequestBody},
+    models::{DocumentProperties, IngestedDocument},
+    personalization,
+    server,
+    storage::memory::Storage,
+};
+
+struct AppStateExtension {
+    embedder: Embedder,
+    coi: CoiSystem,
+}
+
+#[derive(Default, Deserialize, Serialize)]
+struct ConfigExtension {
+    #[serde(default)]
+    ingestion: ingestion::Config,
+    #[serde(default)]
+    personalization: personalization::Config,
+    #[serde(default)]
+    embedding: embedding::Config,
+    #[serde(default)]
+    coi: CoiConfig,
+}
+
+type AppState = server::AppState<ConfigExtension, AppStateExtension, Storage>;
+
+impl AppState {
+    fn new() -> Result<Data<Self>, anyhow::Error> {
+        let config = server::Config::<ConfigExtension>::default();
+        let extension = AppStateExtension {
+            embedder: Embedder::load(&config.extension.embedding)?,
+            coi: config.extension.coi.clone().build(),
+        };
+        let storage = Storage::default();
+
+        Ok(Data::new(Self {
+            config,
+            extension,
+            storage,
+        }))
+    }
+}
+
+impl IngestionRequestBody {
+    fn new(documents: Vec<Document>) -> Result<Json<Self>, anyhow::Error> {
+        let documents = documents
+            .into_iter()
+            .map(|document| {
+                document.id.try_into().map(|id| {
+                    let snippet = if document.snippet.is_empty() {
+                        document.title
+                    } else {
+                        document.snippet
+                    };
+                    let properties = DocumentProperties::default();
+                    let category = if document.category.is_empty() {
+                        if document.subcategory.is_empty() {
+                            None
+                        } else {
+                            Some(document.subcategory)
+                        }
+                    } else {
+                        Some(document.category)
+                    };
+
+                    IngestedDocument {
+                        id,
+                        snippet,
+                        properties,
+                        category,
+                    }
+                })
+            })
+            .try_collect()?;
+
+        Ok(Json(Self { documents }))
+    }
+}
 
 use crate::models::DocumentId;
 

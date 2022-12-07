@@ -88,7 +88,7 @@ impl Config {
         let mut url_to_index = self.url.parse::<Url>()?;
         url_to_index
             .path_segments_mut()
-            .map_err(|()| "non segmentable url in config")?
+            .map_err(|()| anyhow::anyhow!("non segmentable url in config"))?
             .push(&self.index_name);
 
         Ok(Client {

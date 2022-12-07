@@ -15,6 +15,6 @@
 use xayn_web_api::{run, Personalization};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+async fn main() -> Result<(), anyhow::Error> {
     run::<Personalization>().await
 }

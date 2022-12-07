@@ -54,7 +54,7 @@ pub trait Application {
     ) -> Result<Self::AppStateExtension, SetupError>;
 }
 
-pub(crate) type SetupError = Box<dyn std::error::Error + 'static>;
+pub(crate) type SetupError = anyhow::Error;
 
 /// Run the server with using given endpoint configuration functions.
 ///

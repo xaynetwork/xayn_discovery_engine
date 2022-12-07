@@ -78,8 +78,8 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
 
 /// Represents body of a POST documents request.
 #[derive(Debug, Clone, Deserialize)]
-struct IngestionRequestBody {
-    documents: Vec<IngestedDocument>,
+pub(crate) struct IngestionRequestBody {
+    pub(crate) documents: Vec<IngestedDocument>,
 }
 
 #[instrument(skip_all)]
