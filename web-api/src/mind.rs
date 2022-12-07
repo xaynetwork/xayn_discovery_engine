@@ -174,12 +174,17 @@ impl UpdateInteractions {
 }
 
 impl PersonalizedDocumentsQuery {
-    fn new(count: usize) -> Query<Self> {
-        Query(Self { count: Some(count) })
-    }
+    fn new(count: Option<usize>, documents: Option<&[Article]>) -> Result<Query<Self>, Error> {
+        let documents = documents
+            .map(|documents| {
+                documents
+                    .iter()
+                    .map(|document| document.id.as_str().try_into())
+                    .try_collect()
+            })
+            .transpose()?;
 
-    fn default() -> Query<Self> {
-        Query(Self { count: None })
+        Ok(Query(Self { count, documents }))
     }
 }
 

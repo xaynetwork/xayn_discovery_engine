@@ -118,6 +118,11 @@ async fn update_interactions(
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct PersonalizedDocumentsQuery {
     pub(crate) count: Option<usize>,
+    /// Personalize only the specified documents, otherwise fetch documents to be personalized.
+    // Note: documents can't be provided via the public server api, since Query<Self> always fails
+    // to deserialize if documents is present in a query string (because it's a sequence) and the
+    // route returns a bad request
+    pub(crate) documents: Option<Vec<DocumentId>>,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -134,11 +139,10 @@ impl PersonalizedDocumentsQuery {
     }
 }
 
-#[allow(clippy::too_many_lines)]
 async fn personalized_documents(
     state: Data<AppState>,
     user_id: Path<UserId>,
-    options: Query<PersonalizedDocumentsQuery>,
+    Query(options): Query<PersonalizedDocumentsQuery>,
 ) -> Result<impl Responder, Error> {
     let document_count = options.document_count(&state.config.personalization)?;
 
@@ -150,84 +154,16 @@ async fn personalized_documents(
         return Err(NotEnoughInteractions.into());
     }
 
-    let cois = &user_interests.positive;
-    let horizon = state.coi.config().horizon();
-    let coi_weights = compute_coi_weights(cois, horizon);
-    let cois = cois
-        .iter()
-        .zip(coi_weights)
-        .sorted_by(|(_, a_weight), (_, b_weight)| nan_safe_f32_cmp(b_weight, a_weight))
-        .collect_vec();
+    let mut all_documents = if let Some(documents) = options.documents {
+        state
+            .storage
+            .document()
+            .get_by_ids(&documents.iter().collect_vec())
+            .await?
+    } else {
+        search_knn_documents(&state, &user_id, &user_interests.positive, document_count).await?
+    };
 
-    let max_cois = state
-        .config
-        .personalization
-        .max_cois_for_knn
-        .min(user_interests.positive.len());
-    let cois = &cois[0..max_cois];
-    let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
-
-    let excluded = state.storage.interaction().get(&user_id).await?;
-
-    let mut document_futures = cois
-        .iter()
-        .map(|(coi, weight)| async {
-            // weights_sum can't be zero, because coi weights will always return some weights that are > 0
-            let weight = *weight / weights_sum;
-            #[allow(
-                // fine as max documents count is small enough
-                clippy::cast_precision_loss,
-                // fine as weight should be between 0 and 1
-                clippy::cast_sign_loss,
-                // fine as number of neighbors is small enough
-                clippy::cast_possible_truncation
-            )]
-            let k_neighbors = (weight * document_count as f32).ceil() as usize;
-
-            state
-                .storage
-                .document()
-                .get_by_embedding(KnnSearchParams {
-                    excluded: &excluded,
-                    embedding: &coi.point,
-                    k_neighbors,
-                    num_candidates: document_count,
-                })
-                .await
-        })
-        .collect::<FuturesUnordered<_>>();
-
-    let mut all_documents = HashMap::new();
-    let mut errors = Vec::new();
-
-    while let Some(result) = document_futures.next().await {
-        match result {
-            Ok(documents) => {
-                // the same document can be returned with different elastic scores, hence the
-                // documents are deduplicated and only the highest score is retained for each
-                for document in documents {
-                    all_documents
-                        .entry(document.id.clone())
-                        .and_modify(|PersonalizedDocument { score, .. }| {
-                            if *score < document.score {
-                                *score = document.score;
-                            }
-                        })
-                        .or_insert(document);
-                }
-            }
-            Err(error) => {
-                error!("Error fetching documents: {error}");
-                errors.push(error);
-            }
-        };
-    }
-
-    if all_documents.is_empty() && !errors.is_empty() {
-        return Err(InternalError::from_message("Fetching documents failed").into());
-    }
-
-    let mut all_documents = all_documents.into_values().collect_vec();
     match state.coi.score(&all_documents, &user_interests) {
         Ok(scores) => rank(&mut all_documents, &scores),
         Err(_) => {
@@ -321,4 +257,90 @@ fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
             }
         })
         .collect()
+}
+
+/// Performs an approximate knn search for documents similar to the positive user interests.
+async fn search_knn_documents(
+    state: &AppState,
+    user_id: &UserId,
+    cois: &[PositiveCoi],
+    document_count: usize,
+) -> Result<Vec<PersonalizedDocument>, Error> {
+    let horizon = state.coi.config().horizon();
+    let max_cois = state
+        .config
+        .personalization
+        .max_cois_for_knn
+        .min(cois.len());
+    let coi_weights = compute_coi_weights(cois, horizon);
+    let cois = cois
+        .iter()
+        .zip(coi_weights)
+        .sorted_by(|(_, a_weight), (_, b_weight)| nan_safe_f32_cmp(b_weight, a_weight))
+        .collect_vec();
+
+    let cois = &cois[0..max_cois];
+    let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
+
+    let excluded = state.storage.interaction().get(user_id).await?;
+
+    let mut document_futures = cois
+        .iter()
+        .map(|(coi, weight)| async {
+            // weights_sum can't be zero, because coi weights will always return some weights that are > 0
+            let weight = *weight / weights_sum;
+            #[allow(
+            // fine as max documents count is small enough
+            clippy::cast_precision_loss,
+            // fine as weight should be between 0 and 1
+            clippy::cast_sign_loss,
+            // fine as number of neighbors is small enough
+            clippy::cast_possible_truncation
+        )]
+            let k_neighbors = (weight * document_count as f32).ceil() as usize;
+
+            state
+                .storage
+                .document()
+                .get_by_embedding(KnnSearchParams {
+                    excluded: &excluded,
+                    embedding: &coi.point,
+                    k_neighbors,
+                    num_candidates: document_count,
+                })
+                .await
+        })
+        .collect::<FuturesUnordered<_>>();
+
+    let mut all_documents = HashMap::new();
+    let mut errors = Vec::new();
+
+    while let Some(result) = document_futures.next().await {
+        match result {
+            Ok(documents) => {
+                // the same document can be returned with different elastic scores, hence the
+                // documents are deduplicated and only the highest score is retained for each
+                for document in documents {
+                    all_documents
+                        .entry(document.id.clone())
+                        .and_modify(|PersonalizedDocument { score, .. }| {
+                            if *score < document.score {
+                                *score = document.score;
+                            }
+                        })
+                        .or_insert(document);
+                }
+            }
+            Err(error) => {
+                error!("Error fetching documents: {error}");
+                errors.push(error);
+            }
+        };
+    }
+
+    if all_documents.is_empty() && !errors.is_empty() {
+        Err(InternalError::from_message("Fetching documents failed").into())
+    } else {
+        Ok(all_documents.into_values().collect_vec())
+    }
 }
