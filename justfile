@@ -196,7 +196,7 @@ compose-all-up:
         -f web-api/compose.db.yml \
         -f web-api/compose.personalization.yml \
         -f web-api/compose.ingestion.yml \
-        up
+        up --detach
 
 compose-all-down:
     #!/usr/bin/env -S bash -eux -o pipefail
