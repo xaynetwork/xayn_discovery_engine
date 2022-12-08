@@ -120,33 +120,6 @@ build-ingestion-service:
     set -eux -o pipefail
     cargo build --release --bin ingestion
 
-build-backend-service:
-    #!/usr/bin/env bash
-    set -eux -o pipefail
-    cargo build --release --bin backend
-
-db-setup:
-    #!/usr/bin/env bash
-    set -eux -o pipefail
-    ERROR=""
-    (cargo sqlx --help 2>&1 | head -n1) || ERROR=$?
-    if [[ "$ERROR" == "101" ]]; then
-        echo 'You need to install sqlx-cli: `cargo install sqlx-cli`' >&2
-        exit 101
-    elif [[ -n "$ERROR" ]]; then
-        echo '`cargo sqlx --help` failed in an unexpected way with exit code:' "$ERROR" >&2
-        exit "$ERROR"
-    fi
-    export DATABASE_URL="sqlite:file://$(mktemp -d -t sqlx.discovery_engine.XXXX)/db.sqlite?mode=rwc"
-    cargo sqlx database setup --source "core/src/storage/migrations"
-    echo "DATABASE_URL=${DATABASE_URL}" >>.env.db.dev
-
-db-migrate +ARGS:
-    #!/usr/bin/env bash
-    set -eux -o pipefail
-    export $(cat .env.db.dev | xargs)
-    cargo sqlx migrate --source "core/src/storage/migrations" {{ARGS}}
-
 web-dev-up:
     #!/usr/bin/env -S bash -eux -o pipefail
     rm "./web-api/assets" || :
