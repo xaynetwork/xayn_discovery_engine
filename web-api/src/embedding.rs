@@ -22,16 +22,23 @@ use crate::{error::common::InternalError, server::SetupError, utils::RelativePat
 pub struct Config {
     #[serde(default = "default_directory")]
     directory: RelativePathBuf,
+    #[serde(default = "default_token_size")]
+    token_size: usize,
 }
 
 fn default_directory() -> RelativePathBuf {
     "assets".into()
 }
 
+fn default_token_size() -> usize {
+    250
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
             directory: default_directory(),
+            token_size: default_token_size(),
         }
     }
 }
@@ -48,7 +55,7 @@ impl Embedder {
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
         let bert = BertConfig::new(&config.directory.relative())?
             .with_pooler::<AveragePooler>()
-            .with_token_size(64)?
+            .with_token_size(config.token_size)?
             .build()?;
 
         Ok(Embedder { bert })
