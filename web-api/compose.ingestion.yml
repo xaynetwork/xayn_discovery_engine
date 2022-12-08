@@ -20,6 +20,4 @@ networks:
   internal:
     name: xayn-web-api_internal
   publisher:
-    name: publisher
-  public:
-    name: public
+    name: xayn-web-api_publisher

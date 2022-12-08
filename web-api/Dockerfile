@@ -1,7 +1,9 @@
 FROM debian:bookworm-slim
 WORKDIR /app
-ARG base="."
+ARG assets=""
+COPY $assets ./assets
 # include cargo-install metadata
+ARG base="."
 COPY $base/ ./
-RUN chmod +x /app/server.bin
+# RUN chmod +x /app/server.bin
 ENTRYPOINT ["/app/server.bin"]

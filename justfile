@@ -174,14 +174,11 @@ build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     # rename binary as to not needing to modify the Dockerfile
     mv "$out/bin/$BIN" "$out/server.bin"
     rmdir "$out/bin"
-    if [ -n "$ASSET_DIR" ]; then
-        # link asset dir, only works if asset dir is in the
-        # same dir or a sub-dir of the justfile
-        ln -s "../../$ASSET_DIR" "$out/assets"
-    else
-        mkdir "$out/assets"
+    if [ -z "$ASSET_DIR" ]; then
+        ASSET_DIR="$out/assets"
+        mkdir -p "$out/assets"
     fi
-    "$ociBuilder" build -f "$CRATE_PATH/Dockerfile" -t "$BIN" --build-arg base="$out" .
+    "$ociBuilder" build -f "$CRATE_PATH/Dockerfile" -t "$BIN" --build-arg base="$out" --build-arg assets="$ASSET_DIR"  .
 
 
 compose-all-build $SMBERT="smbert_v0003":
@@ -189,14 +186,15 @@ compose-all-build $SMBERT="smbert_v0003":
     {{just_executable()}} build-service-image web-api personalization
     {{just_executable()}} build-service-image web-api ingestion "assets/$SMBERT"
 
-compose-all-up:
+compose-all-up *args:
     #!/usr/bin/env -S bash -eux -o pipefail
     compose="$(command -v podman-compose || command -v docker-compose)"
     "$compose" \
         -f web-api/compose.db.yml \
         -f web-api/compose.personalization.yml \
         -f web-api/compose.ingestion.yml \
-        up --detach
+        {{args}} \
+        up
 
 compose-all-down:
     #!/usr/bin/env -S bash -eux -o pipefail
