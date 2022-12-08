@@ -32,4 +32,3 @@ test = false
 name = "bert"
 harness = false
 test = false
-required-features = ["onnxruntime"]

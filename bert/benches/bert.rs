@@ -15,8 +15,7 @@
 use std::path::Path;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ndarray::s;
-use xayn_ai_bert::{tokenizer::Tokenizer, Config, Embedding2, NonePooler};
+use xayn_ai_bert::{Config, NonePooler};
 use xayn_ai_test_utils::asset::smbert;
 
 const TOKEN_SIZE: usize = 64;
