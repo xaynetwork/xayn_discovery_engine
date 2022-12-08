@@ -86,4 +86,4 @@ networks:
     # Bad Solution:
     #   - we set `external: true` in all other compos files except this one, problem
     #     is if we then start all as one merged config this might behave unexpected
-    name: internal
+    name: xayn-web-api_internal

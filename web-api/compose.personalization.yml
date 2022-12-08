@@ -18,8 +18,8 @@ services:
 networks:
   # See other compose.db.yml
   internal:
-    name: internal
+    name: xayn-web-api_internal
   publisher:
-    name: publisher
+    name: xayn-web-api_publisher
   public:
-    name: public
+    name: xayn-web-api_public
