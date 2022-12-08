@@ -152,7 +152,7 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
 
     let impressions = read("behaviors.tsv")?;
 
-    let nranks = vec![2];
+    let nranks = vec![3];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
 
     // Loop over all impressions, prepare reranker with news in click history
