@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "app_engine/*",
     "bert",
     "coi",
     "web-api",
