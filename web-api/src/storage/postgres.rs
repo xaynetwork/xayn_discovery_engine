@@ -33,7 +33,7 @@ use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
 use crate::{
     models::{DocumentId, UserId, UserInteractionType},
-    storage::{self, Storage},
+    storage::{self, utils::SqlxPushTupleExt, DeletionError, InsertionError, Storage},
     utils::serialize_redacted,
     Error,
 };
@@ -146,6 +146,83 @@ impl Config {
 
 pub(crate) struct Database {
     pool: Pool<Postgres>,
+}
+
+impl Database {
+    // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
+    const BIND_LIMIT: usize = 65_535;
+
+    pub(crate) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), InsertionError> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|error| InsertionError::General(error.into()))?;
+
+        let mut builder = QueryBuilder::new("INSERT INTO document (doc_id) ");
+        let mut failed_documents = Vec::new();
+        for ids in ids.chunks(Self::BIND_LIMIT) {
+            #[allow(clippy::blocks_in_if_conditions)]
+            if builder
+                .reset()
+                .push_values(ids, |mut builder, id| {
+                    builder.push_bind(id);
+                })
+                .push(" ON CONFLICT DO NOTHING;")
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await
+                .is_err()
+            {
+                failed_documents.extend(ids.iter().cloned().map_into());
+            }
+        }
+
+        tx.commit()
+            .await
+            .map_err(|error| InsertionError::General(error.into()))?;
+
+        if failed_documents.is_empty() {
+            Ok(())
+        } else {
+            Err(InsertionError::PartialFailure { failed_documents })
+        }
+    }
+
+    pub(crate) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), DeletionError> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|error| DeletionError::General(error.into()))?;
+
+        let mut builder = QueryBuilder::new("DELETE FROM document WHERE doc_id IN ");
+        let mut errors = Vec::new();
+        for ids in ids.chunks(Self::BIND_LIMIT) {
+            if builder
+                .reset()
+                .push_tuple(ids)
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await
+                .is_err()
+            {
+                errors.extend(ids.iter().cloned().map_into());
+            }
+        }
+
+        tx.commit()
+            .await
+            .map_err(|error| DeletionError::General(error.into()))?;
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(DeletionError::PartialFailure { errors })
+        }
+    }
 }
 
 #[derive(FromRow)]
@@ -318,23 +395,6 @@ impl storage::Interaction for Storage {
         tx.commit().await?;
 
         Ok(documents.into_iter().map_into().collect())
-    }
-
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error> {
-        if documents.is_empty() {
-            return Ok(());
-        }
-
-        QueryBuilder::new("DELETE FROM interaction WHERE doc_id in")
-            .push_tuples(documents, |mut query, id| {
-                query.push_bind(id);
-            })
-            .build()
-            .persistent(false)
-            .execute(&self.postgres.pool)
-            .await?;
-
-        Ok(())
     }
 
     async fn user_seen(&self, id: &UserId) -> Result<(), Error> {

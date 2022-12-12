@@ -50,7 +50,7 @@ use crate::{
         PersonalizedDocument,
         UserId,
     },
-    storage::{self, InsertionError, KnnSearchParams},
+    storage::{self, DeletionError, InsertionError, KnnSearchParams},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -211,17 +211,23 @@ impl storage::Document for Storage {
         Ok(())
     }
 
-    async fn delete(&self, ids: &[DocumentId]) -> Result<(), Error> {
+    async fn delete(&self, ids: &[DocumentId]) -> Result<(), DeletionError> {
         if ids.is_empty() {
             return Ok(());
         }
 
-        let ids = ids.iter().collect::<HashSet<_>>();
         let mut documents = self.documents.write().await;
+        let mut interactions = self.interactions.write().await;
+
+        let ids = ids.iter().collect::<HashSet<_>>();
         documents.0.retain(|id, _| !ids.contains(id));
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
         embeddings.retain(|id, _| !ids.contains(id));
         documents.1 = Embeddings::build(embeddings);
+        interactions.retain(|_, interactions| {
+            interactions.retain(|(id, _)| !ids.contains(id));
+            !interactions.is_empty()
+        });
 
         Ok(())
     }
@@ -392,20 +398,6 @@ impl storage::Interaction for Storage {
             .unwrap_or_default();
 
         Ok(document_ids)
-    }
-
-    async fn delete(&self, ids: &[DocumentId]) -> Result<(), Error> {
-        if ids.is_empty() {
-            return Ok(());
-        }
-
-        let ids = ids.iter().collect::<HashSet<_>>();
-        self.interactions.write().await.retain(|_, interactions| {
-            interactions.retain(|(id, _)| !ids.contains(id));
-            !interactions.is_empty()
-        });
-
-        Ok(())
     }
 
     async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
