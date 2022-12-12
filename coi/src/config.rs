@@ -50,7 +50,7 @@ fn default_threshold() -> f32 {
 }
 
 fn default_min_positive_cois() -> usize {
-    2
+    1
 }
 
 fn default_min_negative_cois() -> usize {
