@@ -18,19 +18,14 @@ jobs:
     uses: ./.github/workflows/_reusable.rust.yml
 
   open-api:
-    runs-on: ubuntu-22.04
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v7
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0    
   
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '14'
-
-      - name: Install spectral and ruleset
-        run: npm install -g @stoplight/spectral-cli @ibm-cloud/openapi-ruleset validator
-
-      - name: Validate
-        run: spectral lint --verbose -F warn web-api/openapi/*.yaml
+      - name: Validate openapi
+        run: just validate-openapi
 
   copyright:
     if: ${{ always() }}

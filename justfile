@@ -161,7 +161,10 @@ web-dev-down:
 
 install-openapi-validator:
     #!/usr/bin/env -S bash -eux -o pipefail
-    npm install -g @stoplight/spectral-cli @ibm-cloud/openapi-ruleset validator  
+    npm install -g \
+      @stoplight/spectral-cli@${SPECTRAL_CLI_VERSION} \
+      @ibm-cloud/openapi-ruleset@${IBM_OPENAPI_RULESET_VERSION} \
+      validator@${VALIDATOR_VERSION}
 
 validate-openapi:
     spectral lint --verbose -F warn web-api/openapi/*.yaml

@@ -4,12 +4,17 @@ ARG rust_version
 ARG rust_nightly_version
 ARG just_version
 ARG cargo_sort_version
+ARG spectral_cli_version
+ARG ibm_openapi_ruleset_version
+ARG validator_version
 
 USER root
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates wget curl git zstd gcc libc6-dev; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates wget curl git zstd gcc libc6-dev \ 
+      nodejs npm; \
     rm -rf /var/lib/apt/lists/*;
 
 # Begin: Rust base
@@ -55,3 +60,10 @@ RUN set -eux; \
 
 # End: Additional Rust requirements
 # ---------------------------------
+
+RUN set -eux; \
+    npm install -g \
+      @stoplight/spectral-cli@${spectral_cli_version} \
+      @ibm-cloud/openapi-ruleset@${ibm_openapi_ruleset_version} \
+      validator@${validator_version}
+
