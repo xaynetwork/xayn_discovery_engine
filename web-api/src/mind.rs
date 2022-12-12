@@ -41,23 +41,21 @@ where
     String::deserialize(deserializer)?
         .split(' ')
         .map(|viewed_document| {
-            let mut parts = viewed_document.split('-');
-            let document_id = parts
-                .next()
-                .ok_or_else(|| de::Error::custom("missing document id"))?;
-            let document_id = DocumentId::new(document_id).map_err(de::Error::custom)?;
-            let was_clicked = parts
-                .next()
-                .ok_or_else(|| de::Error::custom("missing was_clicked"))?;
-            let was_clicked = match was_clicked {
-                "0" => Ok(false),
-                "1" => Ok(true),
-                _ => Err(de::Error::custom("invalid was_clicked")),
-            }?;
-            Ok(ViewedDocument {
-                document_id,
-                was_clicked,
-            })
+            viewed_document
+                .split_once('-')
+                .ok_or_else(|| de::Error::custom("missing document id"))
+                .and_then(|(document_id, was_clicked)| {
+                    let document_id = DocumentId::new(document_id).map_err(de::Error::custom)?;
+                    let was_clicked = match was_clicked {
+                        "0" => Ok(false),
+                        "1" => Ok(true),
+                        _ => Err(de::Error::custom("invalid was_clicked")),
+                    }?;
+                    Ok(ViewedDocument {
+                        document_id,
+                        was_clicked,
+                    })
+                })
         })
         .collect()
 }
