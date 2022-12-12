@@ -1,9 +1,0 @@
-# extends: "spectral:oas"
-extends: "@ibm-cloud/openapi-ruleset"
-rules:
-  oas3-api-servers: off
-  info-contact: off
-  operation-operationId: off
-  enum-case-convention: off
-
-
