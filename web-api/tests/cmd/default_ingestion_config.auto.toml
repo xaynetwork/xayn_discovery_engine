@@ -32,7 +32,8 @@ stdout = """
     "max_document_batch_size": 100
   },
   "embedding": {
-    "directory": "assets"
+    "directory": "assets",
+    "token_size": 250
   }
 }
 """

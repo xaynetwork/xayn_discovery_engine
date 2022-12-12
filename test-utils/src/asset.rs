@@ -41,11 +41,6 @@ pub fn smbert() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "smbert_v0003"])
 }
 
-/// Resolves the path to the quantized smbert.
-pub fn smbert_quantized() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smbert_quantized_v0003"])
-}
-
 /// Resolves the path to the mocked smbert.
 pub fn smbert_mocked() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "smbert_mocked_v0003"])
@@ -56,11 +51,6 @@ pub fn sjbert() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "sjbert_v0003"])
 }
 
-/// Resolves the path to the Bert validation transcripts.
-pub fn transcripts() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "ted_talk_transcripts.csv"])
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -68,11 +58,6 @@ mod tests {
     #[test]
     fn test_smbert() {
         assert!(smbert().is_ok());
-    }
-
-    #[test]
-    fn test_smbert_quantized() {
-        assert!(smbert_quantized().is_ok());
     }
 
     #[test]

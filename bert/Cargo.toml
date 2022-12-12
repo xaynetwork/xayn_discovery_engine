@@ -18,9 +18,6 @@ thiserror = { workspace = true }
 tokenizers = { version = "0.13.2", default-features = false, features = ["onig"] }
 tract-onnx = "0.18.3"
 
-# dev-dependencies which don't work for aarch targets
-onnxruntime = { version = "0.0.13", optional = true }
-
 [dev-dependencies]
 criterion = { workspace = true }
 csv = { workspace = true }
@@ -31,13 +28,7 @@ xayn-ai-test-utils = { path = "../test-utils" }
 name = "bert"
 test = false
 
-[[example]]
-name = "validate"
-test = false
-required-features = ["onnxruntime"]
-
 [[bench]]
 name = "bert"
 harness = false
 test = false
-required-features = ["onnxruntime"]
