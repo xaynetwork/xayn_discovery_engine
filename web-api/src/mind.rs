@@ -34,23 +34,13 @@ struct ViewedDocument {
     was_clicked: bool,
 }
 
-impl ViewedDocument {
-    fn new(document_id: DocumentId, was_clicked: bool) -> Self {
-        Self {
-            document_id,
-            was_clicked,
-        }
-    }
-}
-
 fn deserialize_viewed_documents<'de, D>(deserializer: D) -> Result<Vec<ViewedDocument>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
-    let viewed_documents = s.split(' ');
-    viewed_documents
-        .map(|viewed_document| -> Result<_, D::Error> {
+    String::deserialize(deserializer)?
+        .split(' ')
+        .map(|viewed_document| {
             let mut parts = viewed_document.split('-');
             let document_id = parts
                 .next()
@@ -64,7 +54,10 @@ where
                 "1" => Ok(true),
                 _ => Err(de::Error::custom("invalid was_clicked")),
             }?;
-            Ok(ViewedDocument::new(document_id, was_clicked))
+            Ok(ViewedDocument {
+                document_id,
+                was_clicked,
+            })
         })
         .collect()
 }
@@ -73,13 +66,9 @@ fn deserialize_clicked_documents<'de, D>(deserializer: D) -> Result<Vec<Document
 where
     D: Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
-    let viewed_documents = s.split(' ');
-    viewed_documents
-        .map(|document| -> Result<_, D::Error> {
-            let document_id = DocumentId::new(document).map_err(de::Error::custom)?;
-            Ok(document_id)
-        })
+    String::deserialize(deserializer)?
+        .split(' ')
+        .map(|document| DocumentId::new(document).map_err(de::Error::custom))
         .collect()
 }
 
@@ -106,23 +95,25 @@ struct Document {
 
 #[derive(Debug, Deserialize)]
 struct DocumentProvider {
-    articles: HashMap<DocumentId, Document>,
+    documents: HashMap<DocumentId, Document>,
 }
 
 impl DocumentProvider {
     fn new(path: &str) -> Result<Self, anyhow::Error> {
-        let articles = read::<Document>(path)?
-            .map(|article| article.map(|article| (article.id.clone(), article)))
+        let documents = read::<Document>(path)?
+            .map(|document| document.map(|document| (document.id.clone(), document)))
             .try_collect()?;
-        Ok(Self { articles })
+        Ok(Self { documents })
     }
 
     fn sample(&self, n: usize) -> Vec<&Document> {
-        self.articles.values().choose_multiple(&mut thread_rng(), n)
+        self.documents
+            .values()
+            .choose_multiple(&mut thread_rng(), n)
     }
 
     fn get(&self, id: &DocumentId) -> Option<&Document> {
-        self.articles.get(id)
+        self.documents.get(id)
     }
 }
 
@@ -148,7 +139,7 @@ where
 
 /// Runs the user-based mind benchmark
 fn run_benchmark() -> Result<(), anyhow::Error> {
-    let article_provider = DocumentProvider::new("news.tsv")?;
+    let document_provider = DocumentProvider::new("news.tsv")?;
 
     let impressions = read("behaviors.tsv")?;
 
@@ -162,9 +153,9 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
 
         // Placeholder for interacting with the entire click history
         for click in impression.clicks {
-            match article_provider.get(&click) {
-                Some(article) => println!("The article {:?} was interacted.", article),
-                None => println!("Article id {} not found.", click),
+            match document_provider.get(&click) {
+                Some(document) => println!("The document {:?} was interacted.", document),
+                None => println!("Document id {} not found.", click),
             }
         }
 
@@ -173,10 +164,10 @@ fn run_benchmark() -> Result<(), anyhow::Error> {
             .news
             .iter()
             .filter_map(|viewed_document| {
-                article_provider
+                document_provider
                     .get(&viewed_document.document_id)
-                    .map(|article| {
-                        SnippetLabelPair(article.snippet.clone(), viewed_document.was_clicked)
+                    .map(|document| {
+                        SnippetLabelPair(document.snippet.clone(), viewed_document.was_clicked)
                     })
             })
             .collect::<Vec<_>>();
