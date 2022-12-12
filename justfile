@@ -162,10 +162,8 @@ web-dev-down:
 build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     #!/usr/bin/env -S bash -eux -o pipefail
     ociBuilder="$(command -v podman || command -v docker)"
-    # if this is further nested add more .. to the soft-link below
-    out=.tmp/oci-build-dir
-    [ -d "$out" ] && rm -r "$out"
-    mkdir -p "$out"
+    out="$(mktemp -d -t xayn.web-api.compose.XXXX)"
+    echo "Building in: $out"
     cargo install \
         --path "$CRATE_PATH" \
         --bin "$BIN" \
@@ -174,12 +172,11 @@ build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     # rename binary to the name the Dockerfile expects
     mv "$out/bin/$BIN" "$out/server.bin"
     rmdir "$out/bin"
-    if [ -z "$ASSET_DIR" ]; then
-        ASSET_DIR="$out/assets"
-        mkdir -p "$out/assets"
+    if [ -n "$ASSET_DIR" ]; then
+        cp -R "$ASSET_DIR" "$out/assets"
     fi
-    "$ociBuilder" build -f "$CRATE_PATH/Dockerfile" -t "$BIN" --build-arg base="$out" --build-arg assets="$ASSET_DIR"  .
-
+    "$ociBuilder" build -f "$CRATE_PATH/Dockerfile" -t "xayn-$CRATE_PATH-$BIN" "$out"
+    rm -rf "$out"
 
 compose-all-build $SMBERT="smbert_v0003":
     #!/usr/bin/env -S bash -eux -o pipefail
