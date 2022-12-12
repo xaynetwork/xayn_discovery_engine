@@ -171,7 +171,7 @@ build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
         --bin "$BIN" \
         --debug \
         --root "$out"
-    # rename binary as to not needing to modify the Dockerfile
+    # rename binary to the name the Dockerfile expects
     mv "$out/bin/$BIN" "$out/server.bin"
     rmdir "$out/bin"
     if [ -z "$ASSET_DIR" ]; then
