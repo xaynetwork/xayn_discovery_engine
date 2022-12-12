@@ -159,6 +159,13 @@ web-dev-down:
     compose="$(command -v podman-compose || command -v docker-compose)"
     $compose -f "./web-api/compose.yml" down
 
+install-openapi-validator:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    npm install -g @stoplight/spectral-cli @ibm-cloud/openapi-ruleset validator  
+
+validate-openapi:
+    spectral lint --verbose -F warn web-api/openapi/*.yaml
+
 print-just-env:
     export
 
