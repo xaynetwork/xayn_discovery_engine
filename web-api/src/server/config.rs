@@ -49,7 +49,7 @@ impl Default for NetConfig {
 }
 
 /// Configuration combining all other configurations.
-#[derive(AsRef, Debug, Default, Deref, Deserialize, Serialize)]
+#[derive(AsRef, Debug, Deref, Deserialize, Serialize)]
 pub struct Config<E> {
     #[as_ref]
     #[serde(default)]

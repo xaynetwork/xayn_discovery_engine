@@ -18,245 +18,116 @@
 
 use std::{collections::HashMap, fs::File, path::Path};
 
-use actix_web::{
-    body::EitherBody,
-    test::TestRequest,
-    web::{Data, Json, Query},
-    Responder,
-};
-use anyhow::{bail, Error};
+use anyhow::Error;
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
 use ndarray::{Array, ArrayView};
-use once_cell::sync::Lazy;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
     thread_rng,
 };
-use serde::{de, Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use serde::{de, Deserialize, Deserializer};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
 
 use crate::{
     embedding::{self, Embedder},
-    ingestion::{routes::IngestionRequestBody, IngestionConfig},
-    models::{
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        IngestedDocument,
-        UserInteractionType,
-    },
+    models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            PersonalizedDocumentsQuery,
-            PersonalizedDocumentsResponse,
-            UpdateInteractions,
+            personalize_documents_by,
+            update_interactions,
+            PersonalizeBy,
             UserInteractionData,
         },
         PersonalizationConfig,
     },
-    server,
-    storage::memory::Storage,
+    storage::{self, memory::Storage},
 };
 
-pub(crate) struct AppStateExtension {
-    pub(crate) embedder: Embedder,
-    pub(crate) coi: CoiSystem,
+struct State {
+    storage: Storage,
+    embedder: Embedder,
+    coi: CoiSystem,
+    personalization: PersonalizationConfig,
 }
 
-#[derive(Default, Deserialize, Serialize)]
-pub(crate) struct ConfigExtension {
-    #[serde(default)]
-    pub(crate) ingestion: IngestionConfig,
-    #[serde(default)]
-    pub(crate) personalization: PersonalizationConfig,
-    #[serde(default)]
-    embedding: embedding::Config,
-    #[serde(default)]
-    coi: CoiConfig,
-}
+impl State {
+    fn new(storage: Storage) -> Result<Self, Error> {
+        let embedder = Embedder::load(&embedding::Config {
+            directory: "../assets/smbert_v0003".into(),
+            ..embedding::Config::default()
+        })?;
+        let coi = CoiConfig::default().build();
+        let personalization = PersonalizationConfig::default();
 
-pub(crate) type AppState = server::AppState<ConfigExtension, AppStateExtension, Storage>;
-
-impl AppState {
-    fn new() -> Result<Data<Self>, Error> {
-        let config = server::Config::<ConfigExtension> {
-            extension: ConfigExtension {
-                embedding: embedding::Config {
-                    directory: "../assets/smbert_v0003".into(),
-                    ..embedding::Config::default()
-                },
-                ..ConfigExtension::default()
-            },
-            ..server::Config::default()
-        };
-        let extension = AppStateExtension {
-            embedder: Embedder::load(&config.extension.embedding)?,
-            coi: config.extension.coi.clone().build(),
-        };
-        let storage = Storage::default();
-
-        Ok(Data::new(Self {
-            config,
-            extension,
+        Ok(Self {
             storage,
-        }))
+            embedder,
+            coi,
+            personalization,
+        })
     }
-}
 
-static CATEGORY_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "category".try_into().unwrap());
-static SUBCATEGORY_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "subcategory".try_into().unwrap());
-static TITLE_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "title".try_into().unwrap());
-static SNIPPET_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "snippet".try_into().unwrap());
-static URL_ID: Lazy<DocumentPropertyId> = Lazy::new(|| "url".try_into().unwrap());
-
-impl IngestionRequestBody {
-    fn new(documents: Vec<Document>) -> Json<Self> {
+    async fn insert(&self, documents: Vec<Document>) -> Result<(), Error> {
         let documents = documents
             .into_iter()
             .map(|document| {
                 let snippet = if document.snippet.is_empty() {
-                    document.title.to_string()
+                    document.title.clone()
                 } else {
-                    document.snippet.to_string()
+                    document.snippet.clone()
                 };
+                let embedding = self.embedder.run(&snippet)?;
                 let category = if document.category.is_empty() {
                     if document.subcategory.is_empty() {
                         None
                     } else {
-                        Some(document.subcategory.to_string())
+                        Some(document.subcategory)
                     }
                 } else {
-                    Some(document.category.to_string())
+                    Some(document.category)
                 };
-                let properties = [
-                    (
-                        CATEGORY_ID.clone(),
-                        DocumentProperty(Value::String(document.category)),
-                    ),
-                    (
-                        SUBCATEGORY_ID.clone(),
-                        DocumentProperty(Value::String(document.subcategory)),
-                    ),
-                    (
-                        TITLE_ID.clone(),
-                        DocumentProperty(Value::String(document.title)),
-                    ),
-                    (
-                        SNIPPET_ID.clone(),
-                        DocumentProperty(Value::String(document.snippet)),
-                    ),
-                    (
-                        URL_ID.clone(),
-                        DocumentProperty(Value::String(document.url)),
-                    ),
-                ]
-                .into();
-
-                IngestedDocument {
+                let document = IngestedDocument {
                     id: document.id,
                     snippet,
-                    properties,
+                    properties: DocumentProperties::default(),
                     category,
-                }
+                };
+
+                Ok((document, embedding))
             })
-            .collect();
+            .try_collect::<_, _, Error>()?;
 
-        Json(Self { documents })
+        storage::Document::insert(&self.storage, documents)
+            .await
+            .map_err(Into::into)
     }
-}
 
-impl UpdateInteractions {
-    fn new(ids: &[DocumentId]) -> Json<Self> {
-        let documents = ids
+    async fn interact(&self, user: &UserId, documents: &[DocumentId]) -> Result<(), Error> {
+        let interactions = documents
             .iter()
             .map(|id| UserInteractionData {
                 document_id: id.clone(),
                 interaction_type: UserInteractionType::Positive,
             })
-            .collect();
+            .collect_vec();
 
-        Json(Self { documents })
+        update_interactions(&self.storage, &self.coi, user, &interactions)
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn personalize(
+        &self,
+        user: &UserId,
+        by: PersonalizeBy<'_>,
+    ) -> Result<Vec<DocumentId>, Error> {
+        personalize_documents_by(&self.storage, &self.coi, user, &self.personalization, by)
+            .await
+            .map(|documents| documents.into_iter().map(|document| document.id).collect())
+            .map_err(Into::into)
     }
 }
-
-impl PersonalizedDocumentsQuery {
-    fn new(count: Option<usize>, documents: Option<&[DocumentId]>) -> Query<Self> {
-        Query(Self {
-            count,
-            documents: documents.map(<[DocumentId]>::to_vec),
-        })
-    }
-}
-
-trait PersonalizedDocumentsResponder
-where
-    Self: Responder<Body = EitherBody<String>> + Sized,
-{
-    fn extract(self) -> Result<Vec<Document>, Error> {
-        match self
-            .respond_to(&TestRequest::default().to_http_request())
-            .into_body()
-        {
-            EitherBody::Left { body } => {
-                serde_json::from_str::<PersonalizedDocumentsResponse>(&body)
-                    .map(|documents| {
-                        documents
-                            .documents
-                            .into_iter()
-                            .map(|mut document| {
-                                let category =
-                                    Self::remove_property(&mut document.properties, &CATEGORY_ID)
-                                        .or(document.category)
-                                        .unwrap_or_default();
-                                let subcategory = Self::remove_property(
-                                    &mut document.properties,
-                                    &SUBCATEGORY_ID,
-                                )
-                                .unwrap_or_default();
-                                let title =
-                                    Self::remove_property(&mut document.properties, &TITLE_ID)
-                                        .unwrap_or_default();
-                                let snippet =
-                                    Self::remove_property(&mut document.properties, &SNIPPET_ID)
-                                        .unwrap_or_default();
-                                let url = Self::remove_property(&mut document.properties, &URL_ID)
-                                    .unwrap_or_default();
-
-                                Document {
-                                    id: document.id,
-                                    category,
-                                    subcategory,
-                                    title,
-                                    snippet,
-                                    url,
-                                }
-                            })
-                            .collect()
-                    })
-                    .map_err(Into::into)
-            }
-            EitherBody::Right { body } => bail!("{body:?}"),
-        }
-    }
-
-    fn remove_property(
-        properties: &mut DocumentProperties,
-        id: &DocumentPropertyId,
-    ) -> Option<String> {
-        properties.remove(id).and_then(|property| {
-            if let Value::String(property) = property.0 {
-                Some(property)
-            } else {
-                None
-            }
-        })
-    }
-}
-
-impl<T> PersonalizedDocumentsResponder for T where T: Responder<Body = EitherBody<String>> {}
 
 #[derive(Debug, Deserialize)]
 struct ViewedDocument {

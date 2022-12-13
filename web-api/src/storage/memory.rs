@@ -442,30 +442,6 @@ impl storage::Category for Storage {
 
 #[allow(dead_code)]
 impl Storage {
-    pub(crate) fn document(&self) -> &impl storage::Document {
-        self
-    }
-
-    pub(crate) fn document_properties(&self) -> &impl storage::DocumentProperties {
-        self
-    }
-
-    pub(crate) fn document_property(&self) -> &impl storage::DocumentProperty {
-        self
-    }
-
-    pub(crate) fn interest(&self) -> &impl storage::Interest {
-        self
-    }
-
-    pub(crate) fn interaction(&self) -> &impl storage::Interaction {
-        self
-    }
-
-    pub(crate) fn category(&self) -> &impl storage::Category {
-        self
-    }
-
     pub(crate) async fn serialized_size(&self) -> Result<usize, bincode::Error> {
         let documents = self.documents.read().await;
         let interests = self.interests.read().await;
@@ -525,7 +501,6 @@ mod tests {
     use itertools::Itertools;
 
     use super::*;
-    use crate::storage::Document;
 
     #[tokio::test]
     async fn test_knn_search() {
@@ -547,38 +522,41 @@ mod tests {
             [1., 1., 1.].into(),
         ];
         let storage = Storage::default();
-        storage
-            .document()
-            .insert(documents.iter().cloned().zip(embeddings).collect_vec())
-            .await
-            .unwrap();
+        storage::Document::insert(
+            &storage,
+            documents.iter().cloned().zip(embeddings).collect_vec(),
+        )
+        .await
+        .unwrap();
 
         let embedding = &[0., 1., 1.].into();
-        let documents = storage
-            .document()
-            .get_by_embedding(KnnSearchParams {
+        let documents = storage::Document::get_by_embedding(
+            &storage,
+            KnnSearchParams {
                 excluded: &[],
                 embedding,
                 k_neighbors: 2,
                 num_candidates: 2,
-            })
-            .await
-            .unwrap();
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(
             documents.iter().map(|document| &document.id).collect_vec(),
             [&ids[2], &ids[1]],
         );
 
-        let documents = storage
-            .document()
-            .get_by_embedding(KnnSearchParams {
+        let documents = storage::Document::get_by_embedding(
+            &storage,
+            KnnSearchParams {
                 excluded: &[ids[1].clone()],
                 embedding,
                 k_neighbors: 3,
                 num_candidates: 3,
-            })
-            .await
-            .unwrap();
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(
             documents.iter().map(|document| &document.id).collect_vec(),
             [&ids[2], &ids[0]],

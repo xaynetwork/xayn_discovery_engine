@@ -15,7 +15,6 @@
 use std::{cmp::Ordering, collections::HashMap, time::Duration};
 
 use actix_web::{
-    body::EitherBody,
     web::{self, Data, Json, Path, Query, ServiceConfig},
     HttpResponse,
     Responder,
@@ -29,21 +28,18 @@ use xayn_ai_coi::{
     nan_safe_f32_cmp,
     system_time_now,
     utils::rank,
+    CoiSystem,
     PositiveCoi,
 };
 
-use super::PersonalizationConfig;
-#[cfg(feature = "mind")]
-use crate::mind::AppState;
-#[cfg(not(feature = "mind"))]
-use crate::personalization::AppState;
+use super::{AppState, PersonalizationConfig};
 use crate::{
     error::{
         application::WithRequestIdExt,
         common::{BadRequest, InternalError, NotEnoughInteractions},
     },
     models::{DocumentId, PersonalizedDocument, UserId, UserInteractionType},
-    storage::{Category as _, Document as _, Interaction as _, Interest as _, KnnSearchParams},
+    storage::{self, KnnSearchParams},
     Error,
 };
 
@@ -51,7 +47,7 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
     let scope = web::scope("/users/{user_id}")
         .service(
             web::resource("interactions")
-                .route(web::patch().to(update_interactions.error_with_request_id())),
+                .route(web::patch().to(interactions.error_with_request_id())),
         )
         .service(
             web::resource("personalized_documents")
@@ -75,39 +71,55 @@ pub(crate) struct UserInteractionData {
     pub(crate) interaction_type: UserInteractionType,
 }
 
-pub(crate) async fn update_interactions(
+async fn interactions(
     state: Data<AppState>,
     user_id: Path<UserId>,
     Json(interactions): Json<UpdateInteractions>,
 ) -> Result<impl Responder, Error> {
-    state.storage.interaction().user_seen(&user_id).await?;
+    update_interactions(
+        &state.storage,
+        &state.coi,
+        &user_id,
+        &interactions.documents,
+    )
+    .await?;
+
+    Ok(HttpResponse::NoContent())
+}
+
+pub(crate) async fn update_interactions(
+    storage: &(impl storage::Category + storage::Document + storage::Interaction + storage::Interest),
+    coi: &CoiSystem,
+    user_id: &UserId,
+    interactions: &[UserInteractionData],
+) -> Result<(), Error> {
+    storage::Interaction::user_seen(storage, user_id).await?;
 
     let ids = interactions
-        .documents
         .iter()
         .map(|document| &document.document_id)
         .collect_vec();
-    let documents = state.storage.document().get_by_ids(&ids).await?;
+    let documents = storage::Document::get_by_ids(storage, &ids).await?;
     let documents = documents
         .iter()
         .map(|document| (&document.id, document))
         .collect::<HashMap<_, _>>();
 
-    for document in interactions.documents {
+    for document in interactions {
         match document.interaction_type {
             UserInteractionType::Positive => {
                 if let Some(document) = documents.get(&document.document_id) {
-                    state
-                        .storage
-                        .interest()
-                        .update_positive(&document.id, &user_id, |positive_cois| {
-                            state
-                                .coi
-                                .log_positive_user_reaction(positive_cois, &document.embedding)
-                        })
-                        .await?;
+                    storage::Interest::update_positive(
+                        storage,
+                        &document.id,
+                        user_id,
+                        |positive_cois| {
+                            coi.log_positive_user_reaction(positive_cois, &document.embedding)
+                        },
+                    )
+                    .await?;
                     if let Some(category) = &document.category {
-                        state.storage.category().update(&user_id, category).await?;
+                        storage::Category::update(storage, user_id, category).await?;
                     }
                 } else {
                     warn!(%document.document_id, "interacted document doesn't exist anymore");
@@ -116,18 +128,13 @@ pub(crate) async fn update_interactions(
         }
     }
 
-    Ok(HttpResponse::NoContent())
+    Ok(())
 }
 
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct PersonalizedDocumentsQuery {
     pub(crate) count: Option<usize>,
-    /// Personalize only the specified documents, otherwise fetch documents to be personalized.
-    // Note: documents can't be provided via the public server api, since Query<Self> always fails
-    // to deserialize if documents is present in a query string (because it's a sequence) and the
-    // route returns a bad request
-    pub(crate) documents: Option<Vec<DocumentId>>,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -144,99 +151,27 @@ impl PersonalizedDocumentsQuery {
     }
 }
 
-pub(crate) async fn personalized_documents(
+async fn personalized_documents(
     state: Data<AppState>,
     user_id: Path<UserId>,
-    Query(options): Query<PersonalizedDocumentsQuery>,
-) -> Result<impl Responder<Body = EitherBody<String>>, Error> {
-    let document_count = options.document_count(&state.config.personalization)?;
-
-    state.storage.interaction().user_seen(&user_id).await?;
-
-    let user_interests = state.storage.interest().get(&user_id).await?;
-
-    if user_interests.is_empty() {
-        return Err(NotEnoughInteractions.into());
-    }
-
-    let mut all_documents = if let Some(documents) = options.documents {
-        state
-            .storage
-            .document()
-            .get_by_ids(&documents.iter().collect_vec())
-            .await?
-    } else {
-        search_knn_documents(&state, &user_id, &user_interests.positive, document_count).await?
-    };
-
-    match state.coi.score(&all_documents, &user_interests) {
-        Ok(scores) => rank(&mut all_documents, &scores),
-        Err(_) => {
-            return Err(NotEnoughInteractions.into());
-        }
-    }
-    let documents_by_interests = all_documents
-        .iter()
-        .enumerate()
-        .map(|(rank, document)| (document.id.clone(), rank))
-        .collect::<HashMap<_, _>>();
-
-    let categories = state.storage.category().get(&user_id).await?;
-    let mut documents_by_categories = all_documents
-        .iter()
-        .map(|document| {
-            let weight = document
-                .category
-                .as_deref()
-                .and_then(|category| categories.get(category).copied())
-                .unwrap_or_default();
-            (document.id.clone(), weight)
-        })
-        .collect_vec();
-    documents_by_categories.sort_unstable_by(|(_, a), (_, b)| a.cmp(b).reverse());
-    let documents_by_categories = documents_by_categories
-        .into_iter()
-        .enumerate()
-        .map(|(rank, (document_id, _))| (document_id, rank))
-        .collect::<HashMap<_, _>>();
-
-    let weight = state.config.personalization.interest_category_bias;
-    all_documents.sort_unstable_by(
-        #[allow(clippy::cast_precision_loss)] // number of docs is small enough
-        |a, b| {
-            let weighted_a = documents_by_interests[&a.id] as f32 * weight
-                + documents_by_categories[&a.id] as f32 * (1. - weight);
-            let weighted_b = documents_by_interests[&b.id] as f32 * weight
-                + documents_by_categories[&b.id] as f32 * (1. - weight);
-            match nan_safe_f32_cmp(&weighted_a, &weighted_b) {
-                Ordering::Equal if weight > 0.5 => {
-                    documents_by_interests[&a.id].cmp(&documents_by_interests[&b.id])
-                }
-                Ordering::Equal if weight < 0.5 => {
-                    documents_by_categories[&a.id].cmp(&documents_by_categories[&b.id])
-                }
-                ordering => ordering,
-            }
-        },
-    );
-    all_documents.truncate(document_count);
-
-    Ok(Json(PersonalizedDocumentsResponse::new(all_documents)))
+    options: Query<PersonalizedDocumentsQuery>,
+) -> Result<impl Responder, Error> {
+    personalize_documents_by(
+        &state.storage,
+        &state.coi,
+        &user_id,
+        &state.config.personalization,
+        PersonalizeBy::KnnSearch(options.document_count(&state.config.personalization)?),
+    )
+    .await
+    .map(|documents| Json(PersonalizedDocumentsResponse { documents }))
 }
 
 /// Represents response from personalized documents endpoint.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub(crate) struct PersonalizedDocumentsResponse {
     /// A list of documents personalized for a specific user.
     pub(crate) documents: Vec<PersonalizedDocument>,
-}
-
-impl PersonalizedDocumentsResponse {
-    pub(crate) fn new(documents: impl Into<Vec<PersonalizedDocument>>) -> Self {
-        Self {
-            documents: documents.into(),
-        }
-    }
 }
 
 /// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each centers' embedding.
@@ -266,17 +201,13 @@ fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
 
 /// Performs an approximate knn search for documents similar to the positive user interests.
 async fn search_knn_documents(
-    state: &AppState,
+    storage: &(impl storage::Document + storage::Interaction),
     user_id: &UserId,
     cois: &[PositiveCoi],
-    document_count: usize,
+    horizon: Duration,
+    max_cois: usize,
+    count: usize,
 ) -> Result<Vec<PersonalizedDocument>, Error> {
-    let horizon = state.coi.config().horizon();
-    let max_cois = state
-        .config
-        .personalization
-        .max_cois_for_knn
-        .min(cois.len());
     let coi_weights = compute_coi_weights(cois, horizon);
     let cois = cois
         .iter()
@@ -284,10 +215,10 @@ async fn search_knn_documents(
         .sorted_by(|(_, a_weight), (_, b_weight)| nan_safe_f32_cmp(b_weight, a_weight))
         .collect_vec();
 
-    let cois = &cois[0..max_cois];
+    let cois = &cois[..max_cois.min(cois.len())];
     let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
 
-    let excluded = state.storage.interaction().get(user_id).await?;
+    let excluded = storage::Interaction::get(storage, user_id).await?;
 
     let mut document_futures = cois
         .iter()
@@ -302,18 +233,18 @@ async fn search_knn_documents(
             // fine as number of neighbors is small enough
             clippy::cast_possible_truncation
         )]
-            let k_neighbors = (weight * document_count as f32).ceil() as usize;
+            let k_neighbors = (weight * count as f32).ceil() as usize;
 
-            state
-                .storage
-                .document()
-                .get_by_embedding(KnnSearchParams {
+            storage::Document::get_by_embedding(
+                storage,
+                KnnSearchParams {
                     excluded: &excluded,
                     embedding: &coi.point,
                     k_neighbors,
-                    num_candidates: document_count,
-                })
-                .await
+                    num_candidates: count,
+                },
+            )
+            .await
         })
         .collect::<FuturesUnordered<_>>();
 
@@ -348,4 +279,97 @@ async fn search_knn_documents(
     } else {
         Ok(all_documents.into_values().collect_vec())
     }
+}
+
+pub(crate) enum PersonalizeBy<'a> {
+    KnnSearch(usize),
+    #[allow(dead_code)]
+    Documents(&'a [&'a DocumentId]),
+}
+
+pub(crate) async fn personalize_documents_by(
+    storage: &(impl storage::Category + storage::Document + storage::Interaction + storage::Interest),
+    coi: &CoiSystem,
+    user_id: &UserId,
+    personalization: &PersonalizationConfig,
+    by: PersonalizeBy<'_>,
+) -> Result<Vec<PersonalizedDocument>, Error> {
+    storage::Interaction::user_seen(storage, user_id).await?;
+
+    let user_interests = storage::Interest::get(storage, user_id).await?;
+    if user_interests.is_empty() {
+        return Err(NotEnoughInteractions.into());
+    }
+
+    let mut all_documents = match by {
+        PersonalizeBy::KnnSearch(count) => {
+            search_knn_documents(
+                storage,
+                user_id,
+                &user_interests.positive,
+                coi.config().horizon(),
+                personalization.max_cois_for_knn,
+                count,
+            )
+            .await?
+        }
+        PersonalizeBy::Documents(documents) => {
+            storage::Document::get_by_ids(storage, documents).await?
+        }
+    };
+
+    if let Ok(scores) = coi.score(&all_documents, &user_interests) {
+        rank(&mut all_documents, &scores);
+    } else {
+        return Err(NotEnoughInteractions.into());
+    }
+    let documents_by_interests = all_documents
+        .iter()
+        .enumerate()
+        .map(|(rank, document)| (document.id.clone(), rank))
+        .collect::<HashMap<_, _>>();
+
+    let categories = storage::Category::get(storage, user_id).await?;
+    let mut documents_by_categories = all_documents
+        .iter()
+        .map(|document| {
+            let weight = document
+                .category
+                .as_deref()
+                .and_then(|category| categories.get(category).copied())
+                .unwrap_or_default();
+            (document.id.clone(), weight)
+        })
+        .collect_vec();
+    documents_by_categories.sort_unstable_by(|(_, a), (_, b)| a.cmp(b).reverse());
+    let documents_by_categories = documents_by_categories
+        .into_iter()
+        .enumerate()
+        .map(|(rank, (document_id, _))| (document_id, rank))
+        .collect::<HashMap<_, _>>();
+
+    let weight = personalization.interest_category_bias;
+    all_documents.sort_unstable_by(
+        #[allow(clippy::cast_precision_loss)] // number of docs is small enough
+        |a, b| {
+            let weighted_a = documents_by_interests[&a.id] as f32 * weight
+                + documents_by_categories[&a.id] as f32 * (1. - weight);
+            let weighted_b = documents_by_interests[&b.id] as f32 * weight
+                + documents_by_categories[&b.id] as f32 * (1. - weight);
+            match nan_safe_f32_cmp(&weighted_a, &weighted_b) {
+                Ordering::Equal if weight > 0.5 => {
+                    documents_by_interests[&a.id].cmp(&documents_by_interests[&b.id])
+                }
+                Ordering::Equal if weight < 0.5 => {
+                    documents_by_categories[&a.id].cmp(&documents_by_categories[&b.id])
+                }
+                ordering => ordering,
+            }
+        },
+    );
+    if let PersonalizeBy::KnnSearch(count) = by {
+        all_documents.truncate(count);
+    }
+
+    Ok(all_documents)
 }

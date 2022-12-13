@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub(crate) mod routes;
+mod routes;
 
 use actix_web::web::ServiceConfig;
 use derive_more::AsRef;
@@ -43,7 +43,6 @@ impl Application for Ingestion {
     }
 }
 
-#[cfg_attr(feature = "mind", allow(dead_code))]
 type AppState = server::AppState<
     <Ingestion as Application>::ConfigExtension,
     <Ingestion as Application>::AppStateExtension,

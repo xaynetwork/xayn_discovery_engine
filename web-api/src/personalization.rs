@@ -42,7 +42,6 @@ impl Application for Personalization {
     }
 }
 
-#[cfg_attr(feature = "mind", allow(dead_code))]
 type AppState = server::AppState<
     <Personalization as Application>::ConfigExtension,
     <Personalization as Application>::AppStateExtension,
