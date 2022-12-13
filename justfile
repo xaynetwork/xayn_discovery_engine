@@ -125,12 +125,55 @@ web-dev-up:
     rm "./web-api/assets" || :
     ln -s "./assets/smbert_v0003" "./web-api/assets"
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.yml" up --detach --remove-orphans
+    $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
 
 web-dev-down:
     #!/usr/bin/env -S bash -eux -o pipefail
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.yml" down
+    $compose -f "./web-api/compose.db.yml" down
+
+build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
+    #!/usr/bin/env -S bash -eux -o pipefail
+    ociBuilder="$(command -v podman || command -v docker)"
+    out="$(mktemp -d -t xayn.web-api.compose.XXXX)"
+    echo "Building in: $out"
+    cargo install \
+        --path "$CRATE_PATH" \
+        --bin "$BIN" \
+        --debug \
+        --root "$out"
+    # rename binary to the name the Dockerfile expects
+    mv "$out/bin/$BIN" "$out/server.bin"
+    rmdir "$out/bin"
+    if [ -n "$ASSET_DIR" ]; then
+        cp -R "$ASSET_DIR" "$out/assets"
+    fi
+    "$ociBuilder" build -f "$CRATE_PATH/Dockerfile" -t "xayn-$CRATE_PATH-$BIN" "$out"
+    rm -rf "$out"
+
+compose-all-build $SMBERT="smbert_v0003":
+    #!/usr/bin/env -S bash -eux -o pipefail
+    {{just_executable()}} build-service-image web-api personalization
+    {{just_executable()}} build-service-image web-api ingestion "assets/$SMBERT"
+
+compose-all-up *args:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    "$compose" \
+        -f web-api/compose.db.yml \
+        -f web-api/compose.personalization.yml \
+        -f web-api/compose.ingestion.yml \
+        {{args}} \
+        up
+
+compose-all-down:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    "$compose" \
+        -f web-api/compose.db.yml \
+        -f web-api/compose.personalization.yml \
+        -f web-api/compose.ingestion.yml \
+        down
 
 print-just-env:
     export

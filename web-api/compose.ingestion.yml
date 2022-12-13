@@ -1,0 +1,23 @@
+services:
+  ingestion:
+    image: xayn-web-api-ingestion:latest
+    command: "--bind-to=0.0.0.0:3030"
+    restart: "no"
+    environment:
+      XAYN_WEB_API__STORAGE__POSTGRES__BASE_URL:  "postgres://user:pw@postgres:5432/xayn"
+      XAYN_WEB_API__STORAGE__ELASTIC__URL: "http://elasticsearch:9200/"
+    ports:
+      - 3030:3030
+    depends_on:
+      - elasticsearch
+      - postgres
+    networks:
+      - internal
+      - publisher
+
+networks:
+  # See other compose.db.yml
+  internal:
+    name: xayn-web-api_internal
+  publisher:
+    name: xayn-web-api_publisher
