@@ -22,7 +22,10 @@ use serde::{Deserialize, Serialize};
 use tokio::time::Instant;
 use tracing::{error, info, instrument};
 
-use super::AppState;
+#[cfg(not(feature = "mind"))]
+use crate::ingestion::AppState;
+#[cfg(feature = "mind")]
+use crate::mind::AppState;
 use crate::{
     error::{
         application::WithRequestIdExt,

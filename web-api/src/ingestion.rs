@@ -43,6 +43,7 @@ impl Application for Ingestion {
     }
 }
 
+#[cfg_attr(feature = "mind", allow(dead_code))]
 type AppState = server::AppState<
     <Ingestion as Application>::ConfigExtension,
     <Ingestion as Application>::AppStateExtension,

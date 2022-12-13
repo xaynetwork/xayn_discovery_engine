@@ -163,6 +163,7 @@ pub(crate) struct Storage {
     postgres: postgres::Database,
 }
 
+#[cfg_attr(feature = "mind", allow(dead_code))]
 impl Storage {
     pub(crate) fn document(&self) -> &impl Document {
         self

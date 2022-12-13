@@ -15,6 +15,7 @@
 use std::{cmp::Ordering, collections::HashMap, time::Duration};
 
 use actix_web::{
+    body::EitherBody,
     web::{self, Data, Json, Path, Query, ServiceConfig},
     HttpResponse,
     Responder,
@@ -31,7 +32,10 @@ use xayn_ai_coi::{
     PositiveCoi,
 };
 
-use super::AppState;
+#[cfg(feature = "mind")]
+use crate::mind::AppState;
+#[cfg(not(feature = "mind"))]
+use crate::personalization::AppState;
 use crate::{
     error::{
         application::WithRequestIdExt,
@@ -70,7 +74,7 @@ pub(crate) struct UserInteractionData {
     pub(crate) interaction_type: UserInteractionType,
 }
 
-async fn update_interactions(
+pub(crate) async fn update_interactions(
     state: Data<AppState>,
     user_id: Path<UserId>,
     Json(interactions): Json<UpdateInteractions>,
@@ -139,11 +143,11 @@ impl PersonalizedDocumentsQuery {
     }
 }
 
-async fn personalized_documents(
+pub(crate) async fn personalized_documents(
     state: Data<AppState>,
     user_id: Path<UserId>,
     Query(options): Query<PersonalizedDocumentsQuery>,
-) -> Result<impl Responder, Error> {
+) -> Result<impl Responder<Body = EitherBody<String>>, Error> {
     let document_count = options.document_count(&state.config.personalization)?;
 
     state.storage.interaction().user_seen(&user_id).await?;
