@@ -32,6 +32,7 @@ impl_application_error!(DocumentNotFound => NOT_FOUND);
 /// The requested document was found but not the requested property.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct DocumentPropertyNotFound;
+
 impl_application_error!(DocumentPropertyNotFound => NOT_FOUND);
 
 /// The requested property was not found.

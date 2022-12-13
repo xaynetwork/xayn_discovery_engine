@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -29,7 +29,7 @@ use tracing::error;
 use xayn_ai_coi::Embedding;
 
 use crate::{
-    error::common::{FailedToDeleteSomeDocuments, InternalError},
+    error::common::InternalError,
     models::{
         DocumentId,
         DocumentProperties,
@@ -39,7 +39,7 @@ use crate::{
         PersonalizedDocument,
     },
     server::SetupError,
-    storage::{self, InsertionError, KnnSearchParams, Storage},
+    storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
     utils::{serialize_redacted, serialize_to_ndjson},
     Error,
 };
@@ -343,6 +343,11 @@ impl storage::Document for Storage {
             return Ok(());
         }
 
+        let mut ids = documents
+            .iter()
+            .map(|(document, _)| document.id.clone())
+            .collect::<HashSet<_>>();
+
         let response = self
             .elastic
             .bulk_request(documents.into_iter().flat_map(|(document, embedding)| {
@@ -359,14 +364,19 @@ impl storage::Document for Storage {
                 ]
             }))
             .await?;
-
-        if response.errors {
-            let failed_documents = response.items
+        let failed_documents = response.errors.then(|| {
+            response
+                .items
                 .into_iter()
                 .filter_map(|mut response| {
                     if let Some(response) = response.remove("index") {
                         if !is_success_status(response.status, false) {
-                            error!(document_id=%response.id, error=%response.error, "Elastic failed to ingest document.");
+                            error!(
+                                document_id=%response.id,
+                                error=%response.error,
+                                "Elastic failed to ingest document.",
+                            );
+                            ids.remove(&response.id);
                             return Some(response.id.into());
                         }
                     } else {
@@ -374,18 +384,26 @@ impl storage::Document for Storage {
                     }
                     None
                 })
-                .collect_vec();
+                .collect_vec()
+        });
 
+        self.postgres
+            .insert_documents(&ids.into_iter().collect_vec(/* Itertools::chunks() is !Send */))
+            .await?;
+
+        if let Some(failed_documents) = failed_documents {
             Err(failed_documents.into())
         } else {
             Ok(())
         }
     }
 
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error> {
+    async fn delete(&self, documents: &[DocumentId]) -> Result<(), DeletionError> {
         if documents.is_empty() {
             return Ok(());
         }
+
+        self.postgres.delete_documents(documents).await?;
 
         let response = self
             .elastic
@@ -395,29 +413,33 @@ impl storage::Document for Storage {
                     .map(|document_id| Ok(BulkInstruction::Delete { id: document_id })),
             )
             .await?;
-
-        if response.errors {
-            let mut errors = Vec::new();
-            for mut response in response.items {
-                if let Some(response) = response.remove("delete") {
-                    if !is_success_status(response.status, true) {
-                        error!(document_id=%response.id, error=%response.error);
-                        errors.push(response.id);
+        let failed_documents = response.errors.then(|| {
+            response
+                .items
+                .into_iter()
+                .filter_map(|mut response| {
+                    if let Some(response) = response.remove("delete") {
+                        if !is_success_status(response.status, true) {
+                            error!(
+                                document_id=%response.id,
+                                error=%response.error,
+                                "Elastic failed to delete document.",
+                            );
+                            return Some(response.id.into());
+                        }
+                    } else {
+                        error!("Bulk delete request contains non delete responses: {response:?}",);
                     }
-                } else {
-                    error!("Bulk delete request contains non delete responses: {response:?}");
-                }
-            }
+                    None
+                })
+                .collect_vec()
+        });
 
-            if !errors.is_empty() {
-                return Err(FailedToDeleteSomeDocuments {
-                    errors: errors.into_iter().map(Into::into).collect(),
-                }
-                .into());
-            }
+        if let Some(failed_documents) = failed_documents {
+            Err(failed_documents.into())
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 }
 

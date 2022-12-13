@@ -16,6 +16,7 @@ pub(crate) mod elastic;
 #[cfg(test)]
 pub(crate) mod memory;
 pub(crate) mod postgres;
+mod utils;
 
 use std::collections::HashMap;
 
@@ -54,6 +55,12 @@ pub(crate) enum InsertionError {
     },
 }
 
+#[derive(Debug, From)]
+pub(crate) enum DeletionError {
+    General(Error),
+    PartialFailure { errors: Vec<DocumentIdAsObject> },
+}
+
 #[async_trait]
 pub(crate) trait Document {
     async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error>;
@@ -68,7 +75,7 @@ pub(crate) trait Document {
         documents: Vec<(IngestedDocument, Embedding)>,
     ) -> Result<(), InsertionError>;
 
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error>;
+    async fn delete(&self, documents: &[DocumentId]) -> Result<(), DeletionError>;
 }
 
 #[async_trait]
@@ -123,8 +130,6 @@ pub(crate) trait Interest {
 #[async_trait]
 pub(crate) trait Interaction {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error>;
-
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error>;
 
     async fn user_seen(&self, id: &UserId) -> Result<(), Error>;
 }

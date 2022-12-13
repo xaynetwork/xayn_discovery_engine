@@ -30,6 +30,7 @@ use crate::{
             BadRequest,
             DocumentNotFound,
             DocumentPropertyNotFound,
+            FailedToDeleteSomeDocuments,
             IngestingDocumentsFailed,
         },
     },
@@ -41,11 +42,11 @@ use crate::{
         IngestedDocument,
     },
     storage::{
+        DeletionError,
         Document as _,
         DocumentProperties as _,
         DocumentProperty as _,
         InsertionError,
-        Interaction as _,
     },
     Error,
 };
@@ -147,27 +148,39 @@ async fn delete_document(
     state: Data<AppState>,
     id: Path<DocumentId>,
 ) -> Result<impl Responder, Error> {
-    do_delete_documents(&state, vec![id.into_inner()]).await?;
+    delete_documents(
+        state,
+        Json(BatchDeleteRequest {
+            documents: vec![id.into_inner()],
+        }),
+    )
+    .await?;
+
     Ok(HttpResponse::NoContent())
 }
 
 async fn delete_documents(
     state: Data<AppState>,
-    documents: Json<BatchDeleteRequest>,
+    Json(documents): Json<BatchDeleteRequest>,
 ) -> Result<impl Responder, Error> {
-    do_delete_documents(&state, documents.into_inner().documents).await?;
+    state
+        .storage
+        .document()
+        .delete(&documents.documents)
+        .await
+        .map_err(|error| match error {
+            DeletionError::General(error) => error,
+            DeletionError::PartialFailure { errors } => {
+                FailedToDeleteSomeDocuments { errors }.into()
+            }
+        })?;
+
     Ok(HttpResponse::NoContent())
 }
 
 #[derive(Deserialize)]
 struct BatchDeleteRequest {
     documents: Vec<DocumentId>,
-}
-
-async fn do_delete_documents(state: &AppState, documents: Vec<DocumentId>) -> Result<(), Error> {
-    state.storage.interaction().delete(&documents).await?;
-    state.storage.document().delete(&documents).await?;
-    Ok(())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
