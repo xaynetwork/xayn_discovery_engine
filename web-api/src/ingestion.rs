@@ -54,20 +54,20 @@ type AppState = server::AppState<
 pub struct ConfigExtension {
     #[as_ref]
     #[serde(default)]
-    pub(crate) ingestion: Config,
+    pub(crate) ingestion: IngestionConfig,
     #[as_ref]
     #[serde(default)]
     pub(crate) embedding: embedding::Config,
 }
 
 #[derive(AsRef, Debug, Deserialize, Serialize)]
-pub struct Config {
+pub struct IngestionConfig {
     #[as_ref]
     #[serde(default = "default_max_document_batch_size")]
     pub(crate) max_document_batch_size: usize,
 }
 
-impl Default for Config {
+impl Default for IngestionConfig {
     fn default() -> Self {
         Self {
             max_document_batch_size: default_max_document_batch_size(),

@@ -164,7 +164,7 @@ async fn delete_document(
 
 async fn delete_documents(
     state: Data<AppState>,
-    Json(documents): Json<BatchDeleteRequest>,
+    documents: Json<BatchDeleteRequest>,
 ) -> Result<impl Responder, Error> {
     state
         .storage

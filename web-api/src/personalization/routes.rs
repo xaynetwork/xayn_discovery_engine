@@ -32,6 +32,7 @@ use xayn_ai_coi::{
     PositiveCoi,
 };
 
+use super::PersonalizationConfig;
 #[cfg(feature = "mind")]
 use crate::mind::AppState;
 #[cfg(not(feature = "mind"))]
@@ -130,7 +131,7 @@ pub(crate) struct PersonalizedDocumentsQuery {
 }
 
 impl PersonalizedDocumentsQuery {
-    fn document_count(&self, config: &super::Config) -> Result<usize, Error> {
+    fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
         let count = self.count.map_or(config.default_number_documents, |count| {
             count.min(config.max_number_documents)
         });

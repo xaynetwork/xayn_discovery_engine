@@ -39,7 +39,7 @@ use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
 
 use crate::{
     embedding::{self, Embedder},
-    ingestion::{self, routes::IngestionRequestBody},
+    ingestion::{routes::IngestionRequestBody, IngestionConfig},
     models::{
         DocumentId,
         DocumentProperties,
@@ -49,13 +49,13 @@ use crate::{
         UserInteractionType,
     },
     personalization::{
-        self,
         routes::{
             PersonalizedDocumentsQuery,
             PersonalizedDocumentsResponse,
             UpdateInteractions,
             UserInteractionData,
         },
+        PersonalizationConfig,
     },
     server,
     storage::memory::Storage,
@@ -69,9 +69,9 @@ pub(crate) struct AppStateExtension {
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct ConfigExtension {
     #[serde(default)]
-    pub(crate) ingestion: ingestion::Config,
+    pub(crate) ingestion: IngestionConfig,
     #[serde(default)]
-    pub(crate) personalization: personalization::Config,
+    pub(crate) personalization: PersonalizationConfig,
     #[serde(default)]
     embedding: embedding::Config,
     #[serde(default)]

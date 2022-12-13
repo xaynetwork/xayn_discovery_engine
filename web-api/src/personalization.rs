@@ -57,11 +57,11 @@ pub struct ConfigExtension {
 
     #[as_ref]
     #[serde(default)]
-    pub(crate) personalization: Config,
+    pub(crate) personalization: PersonalizationConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct Config {
+pub(crate) struct PersonalizationConfig {
     /// Max number of documents to return.
     #[serde(default = "default_max_number_documents")]
     pub(crate) max_number_documents: usize,
@@ -93,7 +93,7 @@ fn default_interest_category_bias() -> f32 {
     0.5
 }
 
-impl Default for Config {
+impl Default for PersonalizationConfig {
     fn default() -> Self {
         Self {
             max_number_documents: default_max_number_documents(),

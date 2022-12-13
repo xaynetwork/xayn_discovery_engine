@@ -61,14 +61,6 @@ macro_rules! id_wrapper {
             }
         }
 
-        impl TryFrom<&String> for $name {
-            type Error = $error;
-
-            fn try_from(value: &String) -> Result<Self, Self::Error> {
-                Self::new(value)
-            }
-        }
-
         impl TryFrom<&str> for $name {
             type Error = $error;
 
