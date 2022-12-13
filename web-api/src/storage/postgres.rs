@@ -192,6 +192,47 @@ impl Database {
 
         Ok(())
     }
+
+    pub(crate) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {
+        sqlx::query("SELECT doc_id FROM document WHERE doc_id = $1;")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .map(|id| id.is_some())
+            .map_err(Into::into)
+    }
+
+    pub(crate) async fn documents_exist(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<Vec<DocumentId>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let mut builder = QueryBuilder::new("SELECT doc_id FROM document WHERE doc_id IN ");
+        let mut existing_ids = Vec::with_capacity(ids.len());
+        for ids in ids.chunks(Self::BIND_LIMIT) {
+            for id in builder
+                .reset()
+                .push_tuple(ids)
+                .build()
+                .fetch_all(&mut tx)
+                .await?
+            {
+                existing_ids.push(DocumentId::from_row(&id)?);
+            }
+        }
+
+        tx.commit().await?;
+
+        Ok(existing_ids)
+    }
+
+    pub(crate) async fn documents(&self) -> Result<Vec<DocumentId>, Error> {
+        sqlx::query_as("SELECT doc_id FROM document;")
+            .fetch_all(&self.pool)
+            .await
+            .map_err(Into::into)
+    }
 }
 
 #[derive(FromRow)]
