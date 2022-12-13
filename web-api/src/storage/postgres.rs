@@ -33,7 +33,7 @@ use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
 use crate::{
     models::{DocumentId, UserId, UserInteractionType},
-    storage::{self, utils::SqlxPushTupleExt, DeletionError, InsertionError, Storage},
+    storage::{self, utils::SqlxPushTupleExt, Storage},
     utils::serialize_redacted,
     Error,
 };
@@ -152,18 +152,12 @@ impl Database {
     // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
     const BIND_LIMIT: usize = 65_535;
 
-    pub(crate) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), InsertionError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|error| InsertionError::General(error.into()))?;
+    pub(crate) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
 
-        let mut builder = QueryBuilder::new("INSERT INTO document (doc_id) ");
-        let mut failed_documents = Vec::new();
+        let mut builder = QueryBuilder::new("INSERT INTO document (document_id) ");
         for ids in ids.chunks(Self::BIND_LIMIT) {
-            #[allow(clippy::blocks_in_if_conditions)]
-            if builder
+            builder
                 .reset()
                 .push_values(ids, |mut builder, id| {
                     builder.push_bind(id);
@@ -172,56 +166,31 @@ impl Database {
                 .build()
                 .persistent(false)
                 .execute(&mut tx)
-                .await
-                .is_err()
-            {
-                failed_documents.extend(ids.iter().cloned().map_into());
-            }
+                .await?;
         }
 
-        tx.commit()
-            .await
-            .map_err(|error| InsertionError::General(error.into()))?;
+        tx.commit().await?;
 
-        if failed_documents.is_empty() {
-            Ok(())
-        } else {
-            Err(InsertionError::PartialFailure { failed_documents })
-        }
+        Ok(())
     }
 
-    pub(crate) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), DeletionError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|error| DeletionError::General(error.into()))?;
+    pub(crate) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
 
-        let mut builder = QueryBuilder::new("DELETE FROM document WHERE doc_id IN ");
-        let mut errors = Vec::new();
+        let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
         for ids in ids.chunks(Self::BIND_LIMIT) {
-            if builder
+            builder
                 .reset()
                 .push_tuple(ids)
                 .build()
                 .persistent(false)
                 .execute(&mut tx)
-                .await
-                .is_err()
-            {
-                errors.extend(ids.iter().cloned().map_into());
-            }
+                .await?;
         }
 
-        tx.commit()
-            .await
-            .map_err(|error| DeletionError::General(error.into()))?;
+        tx.commit().await?;
 
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(DeletionError::PartialFailure { errors })
-        }
+        Ok(())
     }
 }
 

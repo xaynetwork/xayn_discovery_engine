@@ -12,12 +12,8 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-CREATE TABLE IF NOT EXISTS document (
-    doc_id TEXT NOT NULL PRIMARY KEY
-);
-
 CREATE TABLE IF NOT EXISTS interaction (
-    doc_id TEXT NOT NULL REFERENCES document (doc_id) ON DELETE CASCADE,
+    doc_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     time_stamp TIMESTAMPTZ NOT NULL DEFAULT Now(),
     user_reaction SMALLINT NOT NULL,
