@@ -18,3 +18,10 @@ DocumentProperties:
     title: "News title"
     image_url: "http://example.com/news_image.jpg"
     link: "http://example.com/this_news"
+
+DocumentPropertyId:
+  description: |-
+    A document property id can be any non-empty UTF-8 string that does not contain the null byte.
+    It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
+  type: string
+  example: "document_property_id"
