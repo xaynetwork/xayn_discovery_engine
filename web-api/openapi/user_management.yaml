@@ -34,7 +34,7 @@ paths:
           description: Id of the user
           required: true
           schema:
-            $ref: '#/components/schemas/UserId'
+            $ref: './schemas/user.yml#/UserId'
         - name: count
           in: query
           description: Maximum number of personalized documents to return
@@ -77,7 +77,7 @@ paths:
           description: Id of the user
           required: true
           schema:
-            $ref: '#/components/schemas/UserId'
+            $ref: './schemas/user.yml#/UserId'
       requestBody:
         content:
           application/json:
@@ -100,12 +100,6 @@ components:
       in: header
       name: authorizationToken
   schemas:
-    UserId:
-      description: |-
-        A user id can be any non-empty UTF-8 string that does not contain the null byte.
-        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
-      type: string
-      example: "user_id"
     BaseError:
       type: object
       required: [request_id, kind]
