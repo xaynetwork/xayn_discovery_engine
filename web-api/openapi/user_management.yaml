@@ -29,12 +29,7 @@ paths:
         The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
       operationId: getPersonalizedDocuments
       parameters:
-        - name: user_id
-          in: path
-          description: Id of the user
-          required: true
-          schema:
-            $ref: './schemas/user.yml#/UserId'
+        - $ref: './parameters/path/user_id.yml'
         - name: count
           in: query
           description: Maximum number of personalized documents to return
@@ -72,12 +67,7 @@ paths:
         The interaction is used to provide personalized documents to the user.
       operationId: documentInteraction
       parameters:
-        - name: user_id
-          in: path
-          description: Id of the user
-          required: true
-          schema:
-            $ref: './schemas/user.yml#/UserId'
+        - $ref: './parameters/path/user_id.yml'
       requestBody:
         content:
           application/json:
