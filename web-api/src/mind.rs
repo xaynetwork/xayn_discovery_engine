@@ -14,14 +14,15 @@
 #![allow(dead_code)]
 
 //! Executes the user-based MIND benchmark.
-use std::{collections::HashMap, fs::File, path::Path};
+use std::{collections::HashMap, fs::File, io, path::Path};
 
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
-use ndarray::{Array, ArrayView};
+use ndarray::{Array, ArrayView, Axis};
+use npyz::WriterBuilder;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
-    thread_rng,
+    thread_rng, Rng,
 };
 use serde::{de, Deserialize, Deserializer};
 use xayn_ai_coi::nan_safe_f32_cmp_desc;
@@ -91,6 +92,16 @@ struct Document {
     url: String,
 }
 
+impl Document {
+    // check if the document is interesting to the user
+    fn is_interesting(&self, user_interests: &UserInterests) -> bool {
+        user_interests.interests.iter().any(|interest| {
+            let (main_category, sub_category) = interest.split_once("/").unwrap();
+            self.category == main_category || self.subcategory == sub_category
+        })
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct DocumentProvider {
     documents: HashMap<DocumentId, Document>,
@@ -112,6 +123,50 @@ impl DocumentProvider {
 
     fn get(&self, id: &DocumentId) -> Option<&Document> {
         self.documents.get(id)
+    }
+
+    // get all documents that matches user's interest
+    fn get_all_interest(&self, interests: &UserInterests) -> Vec<&Document> {
+        self.documents
+            .values()
+            .filter(|doc| doc.is_interesting(interests))
+            .collect()
+    }
+}
+
+// struct storing users interests. It's a list of user ids and a list of their interests
+#[derive(Debug, Deserialize)]
+struct UserInterests {
+    user_id: String,
+    interests: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UsersInterests {
+    user_interests: Vec<UserInterests>,
+}
+
+impl UsersInterests {
+    // function that reads the users interests from a json file
+    fn new(path: &str) -> Result<Self, anyhow::Error> {
+        let file = File::open(path)?;
+        let json: serde_json::Value = serde_json::from_reader(file)?;
+        let map = json.as_object().unwrap();
+        // iterate over map and create a vector of UserInterests
+        Ok(UsersInterests {
+            user_interests: map
+                .into_iter()
+                .map(|(user_id, interests)| UserInterests {
+                    user_id: user_id.to_string(),
+                    interests: interests
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|interest| interest.as_str().unwrap().to_string())
+                        .collect(),
+                })
+                .collect(),
+        })
     }
 }
 
@@ -135,11 +190,128 @@ where
         .map_err(Into::into)
 }
 
+// function that assigns a score to a vector of documents based on the user's interests
+// score is equal to 1 if the document is interesting to the user, 0 otherwise
+fn score_documents(documents: &Vec<&Document>, user_interests: &UserInterests) -> Vec<f32> {
+    documents
+        .iter()
+        .map(|document| {
+            if document.is_interesting(user_interests) {
+                1.0
+            } else {
+                0.0
+            }
+        })
+        .collect()
+}
+
+fn write_array<T, S, D>(writer: impl io::Write, array: &ndarray::ArrayBase<S, D>) -> io::Result<()>
+where
+    T: Clone + npyz::AutoSerialize,
+    S: ndarray::Data<Elem = T>,
+    D: ndarray::Dimension,
+{
+    let shape = array.shape().iter().map(|&x| x as u64).collect::<Vec<_>>();
+    let c_order_items = array.iter();
+
+    let mut writer = npyz::WriteOptions::new()
+        .default_dtype()
+        .shape(&shape)
+        .writer(writer)
+        .begin_nd()?;
+    writer.extend(c_order_items)?;
+    writer.finish()
+}
+
+/// Runs the persona-based MIND benchmark. We load the user's preferences from the json file and
+/// then use the user's preferences to select the documents that are relevant to the user.
+/// The documents are then used to prepare reranker. The reranker is then used to rerank the
+/// randomly selected documents. Then NDCG is calculated.
+fn run_persona_based_benchmark() -> Result<(), anyhow::Error> {
+    // define random thread
+    let mut rng = thread_rng();
+    // define how many documents to sample
+    let amount_of_doc_used_to_prepare = 1;
+
+    // define how many documents to rerank
+    let amount_of_doc_used_to_rerank = 30;
+
+    //probability of a document being clicked if it is interesting to the user
+    let click_probability = 0.5;
+
+    //define how many iterations to perform
+    let iterations = 10;
+
+    // define how many documents to use to calculate NDCG
+    let nranks = vec![3, 5];
+
+    // create a 3d array to store the results
+    let mut results = Array::zeros((nranks.len(), iterations, 0));
+
+    // read in users' interests from json file
+    let users_interests = UsersInterests::new("user_categories.json").unwrap();
+    // read in documents from tsv file
+    let document_provider = DocumentProvider::new("news.tsv").unwrap();
+    // iterate over users' interests and select documents that are relevant to the user
+    for user_interest in users_interests.user_interests {
+        // get all documents that match user's interests
+        let interesting_documents = document_provider.get_all_interest(&user_interest);
+        // sample documents that will be used to prepare the reranker from interesting documents
+        let documents_to_prepare =
+            interesting_documents.choose_multiple(&mut rng, amount_of_doc_used_to_prepare);
+
+        let mut ndcgs = Array::zeros((nranks.len(), 0));
+
+        // Placeholder for interacting with the sampled news (preparing the reranker)
+        for document in documents_to_prepare {
+            println!("The document {:?} was interacted with.", document);
+        }
+
+        // running iterations
+        for _ in 0..iterations {
+            // Sample random documents
+            let sampled_documents = document_provider.sample(amount_of_doc_used_to_rerank);
+            //Placeholder for reranking the sampled documents
+            for document in &sampled_documents {
+                println!("The document {:?} was reranked.", document);
+            }
+            // Assing labels to the documents
+            let labels = score_documents(&sampled_documents, &user_interest);
+            // Calculate NDCG
+            let iteration_ndcg = ndcg(&labels, &nranks);
+
+            ndcgs
+                .push(Axis(1), ArrayView::from(&iteration_ndcg))
+                .unwrap();
+
+            //placeholder for interacting with the sampled news
+            for document in sampled_documents {
+                if document.is_interesting(&user_interest) {
+                    // user clicked on the document if the probability is greater than click_probability
+                    if rng.gen::<f32>() < click_probability {
+                        println!("The document {:?} was clicked.", document);
+                    }
+                }
+            }
+        }
+        // add ndcgs for the user to the results
+        results.push(Axis(2), ArrayView::from(&ndcgs)).unwrap();
+    }
+
+    // save the results to a npy file
+    let mut file = io::BufWriter::new(File::create("ndarray.npy")?);
+
+    write_array(&mut file, &results)?;
+    Ok(())
+}
+
 /// Runs the user-based mind benchmark
 fn run_benchmark() -> Result<(), anyhow::Error> {
-    let document_provider = DocumentProvider::new("news.tsv")?;
+    let document_provider = DocumentProvider::new("/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/web-api/src/bin/news_no_nans.tsv")?;
 
-    let impressions = read("behaviors.tsv")?;
+    let impressions = read(
+        "/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/web-api/src/bin/behaviors.tsv",
+    )?;
 
     let nranks = vec![3];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
@@ -214,7 +386,5 @@ fn ndcg(relevance: &[f32], k: &[usize]) -> Vec<f32> {
 }
 
 fn main() {
-    if let Err(e) = run_benchmark() {
-        eprintln!("{}", e);
-    }
+    run_persona_based_benchmark().expect("TODO: panic message");
 }
