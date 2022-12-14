@@ -1,0 +1,4 @@
+ApiKeyAuth:
+  type: apiKey
+  in: header
+  name: authorizationToken

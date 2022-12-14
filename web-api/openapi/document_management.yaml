@@ -253,9 +253,7 @@ paths:
 components:
   securitySchemes:
     ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: authorizationToken
+      $ref: './securitySchemes/auth.yml#/ApiKeyAuth'
   schemas:
     DocumentPropertyRequest:
       type: object
