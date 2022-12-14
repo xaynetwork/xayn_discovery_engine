@@ -43,7 +43,7 @@ xayn-ai-coi = { path = "../coi" }
 [dev-dependencies]
 bincode = { workspace = true }
 chrono = { workspace = true, features = ["clock", "serde"] }
-instant-distance = { version = "0.6.0" }
-ouroboros = { version = "0.15.5" }
+instant-distance = "0.6.0"
+ouroboros = "0.15.5"
 tokio = { workspace = true, features = ["sync"] }
 trycmd = "0.14.4"

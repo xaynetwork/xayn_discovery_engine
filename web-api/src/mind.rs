@@ -72,12 +72,6 @@ impl State {
         let documents = documents
             .into_iter()
             .map(|document| {
-                let snippet = if document.snippet.is_empty() {
-                    document.title.clone()
-                } else {
-                    document.snippet.clone()
-                };
-                let embedding = self.embedder.run(&snippet)?;
                 let category = if document.category.is_empty() {
                     if document.subcategory.is_empty() {
                         None
@@ -89,10 +83,11 @@ impl State {
                 };
                 let document = IngestedDocument {
                     id: document.id,
-                    snippet,
+                    snippet: document.snippet,
                     properties: DocumentProperties::default(),
                     category,
                 };
+                let embedding = self.embedder.run(&document.snippet)?;
 
                 Ok((document, embedding))
             })
