@@ -19,10 +19,11 @@ use actix_web::{
     HttpResponse,
     Responder,
 };
+use derive_more::AsRef;
 use futures_util::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tracing::{error, warn};
+use tracing::error;
 use xayn_ai_coi::{
     compute_coi_relevances,
     nan_safe_f32_cmp,
@@ -63,8 +64,9 @@ pub(crate) struct UpdateInteractions {
     pub(crate) documents: Vec<UserInteractionData>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, AsRef)]
 pub(crate) struct UserInteractionData {
+    #[as_ref]
     #[serde(rename = "id")]
     pub(crate) document_id: DocumentId,
     #[serde(rename = "type")]
@@ -93,38 +95,28 @@ pub(crate) async fn update_interactions(
     user_id: &UserId,
     interactions: &[UserInteractionData],
 ) -> Result<(), Error> {
-    storage::Interaction::user_seen(storage, user_id).await?;
+    storage.user_seen(user_id).await?;
 
-    let ids = interactions
+    #[allow(clippy::zero_sized_map_values)]
+    let interaction_map = interactions
         .iter()
-        .map(|document| &document.document_id)
-        .collect_vec();
-    let documents = storage::Document::get_by_ids(storage, &ids).await?;
-    let documents = documents
-        .iter()
-        .map(|document| (&document.id, document))
+        .map(|interaction| (&interaction.document_id, interaction.interaction_type))
         .collect::<HashMap<_, _>>();
 
-    for document in interactions {
-        match document.interaction_type {
-            UserInteractionType::Positive => {
-                if let Some(document) = documents.get(&document.document_id) {
-                    storage::Interest::update_positive(
-                        storage,
-                        &document.id,
-                        user_id,
-                        |positive_cois| {
-                            coi.log_positive_user_reaction(positive_cois, &document.embedding)
-                        },
+    let ids = interactions.iter().map(|i| &i.document_id).collect_vec();
+    storage
+        .update_interactions(user_id, &ids, |context| {
+            match interaction_map[&context.document.id] {
+                UserInteractionType::Positive => {
+                    *context.category_weight_diff += 1;
+                    coi.log_positive_user_reaction(
+                        context.positive_cois,
+                        &context.document.embedding,
                     )
-                    .await?;
-                    storage::Tag::update(storage, user_id, &document.tags).await?;
-                } else {
-                    warn!(%document.document_id, "interacted document doesn't exist anymore");
                 }
             }
-        }
-    }
+        })
+        .await?;
 
     Ok(())
 }

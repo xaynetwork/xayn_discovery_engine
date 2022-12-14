@@ -27,7 +27,7 @@ use std::{
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use chrono::{DateTime, Local, NaiveDateTime};
+use chrono::{Local, NaiveDateTime};
 use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
@@ -35,6 +35,7 @@ use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Seri
 use tokio::sync::RwLock;
 use xayn_ai_coi::{cosine_similarity, Embedding, PositiveCoi, UserInterests};
 
+use super::InteractionUpdateContext;
 use crate::{
     error::{
         application::Error,
@@ -454,29 +455,29 @@ impl storage::Interest for Storage {
         Ok(interests)
     }
 
-    async fn update_positive<F>(
-        &self,
-        document_id: &DocumentId,
-        user_id: &UserId,
-        update_cois: F,
-    ) -> Result<(), Error>
-    where
-        F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync,
-    {
-        let mut interests = self.interests.write().await;
-        let mut interactions = self.interactions.write().await;
+    // async fn update_positive<F>(
+    //     &self,
+    //     document_id: &DocumentId,
+    //     user_id: &UserId,
+    //     update_cois: F,
+    // ) -> Result<(), Error>
+    // where
+    //     F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync,
+    // {
+    //     let mut interests = self.interests.write().await;
+    //     let mut interactions = self.interactions.write().await;
 
-        let updated_coi = update_cois(&mut interests.entry(user_id.clone()).or_default().positive);
-        let timestamp = DateTime::<Local>::from(updated_coi.stats.last_view).naive_local();
-        interactions
-            .entry(user_id.clone())
-            .and_modify(|interactions| {
-                interactions.insert((document_id.clone(), timestamp));
-            })
-            .or_insert_with(|| [(document_id.clone(), timestamp)].into());
+    //     let updated_coi = update_cois(&mut interests.entry(user_id.clone()).or_default().positive);
+    //     let timestamp = DateTime::<Local>::from(updated_coi.stats.last_view).naive_local();
+    //     interactions
+    //         .entry(user_id.clone())
+    //         .and_modify(|interactions| {
+    //             interactions.insert((document_id.clone(), timestamp));
+    //         })
+    //         .or_insert_with(|| [(document_id.clone(), timestamp)].into());
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
 
 #[async_trait]
@@ -506,6 +507,19 @@ impl storage::Interaction for Storage {
 
         Ok(())
     }
+
+    async fn update_interactions<F>(
+        &self,
+        user_id: &UserId,
+        updated_document_ids: &[&DocumentId],
+        update_logic: F,
+    ) -> Result<(), Error>
+    where
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> &'b PositiveCoi + Send + Sync,
+    {
+        //TODO
+        todo!()
+    }
 }
 
 #[async_trait]
@@ -514,29 +528,41 @@ impl storage::Tag for Storage {
         Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
     }
 
-    async fn update(&self, id: &UserId, tags: &[String]) -> Result<(), Error> {
-        if tags.is_empty() {
-            return Ok(());
-        }
+    // async fn update(&self, id: &UserId, tags: &[String]) -> Result<(), Error> {
+    //     if tags.is_empty() {
+    //         return Ok(());
+    //     }
 
-        let mut tags_by_users = self.tags.write().await;
-        if let Some(user_tags) = tags_by_users.get_mut(id) {
-            for tag in tags {
-                if let Some(weight) = user_tags.get_mut(tag) {
-                    *weight += 1;
-                } else {
-                    user_tags.insert(tag.to_string(), 1);
-                }
-            }
-        } else {
-            tags_by_users.insert(
-                id.clone(),
-                tags.iter().map(|tag| (tag.to_string(), 1)).collect(),
-            );
-        }
+    //     let mut tags_by_users = self.tags.write().await;
+    //     if let Some(user_tags) = tags_by_users.get_mut(id) {
+    //         for tag in tags {
+    //             if let Some(weight) = user_tags.get_mut(tag) {
+    //                 *weight += 1;
+    //             } else {
+    //                 user_tags.insert(tag.to_string(), 1);
+    //             }
+    //         }
+    //     } else {
+    //         tags_by_users.insert(
+    //             id.clone(),
+    //             tags.iter().map(|tag| (tag.to_string(), 1)).collect(),
+    //         );
+    //     }
+    // async fn update(&self, id: &UserId, category: &str) -> Result<(), Error> {
+    //     self.categories
+    //         .write()
+    //         .await
+    //         .entry(id.clone())
+    //         .and_modify(|categories| {
+    //             categories
+    //                 .entry(category.to_string())
+    //                 .and_modify(|weight| *weight += 1)
+    //                 .or_insert(1);
+    //         })
+    //         .or_insert_with(|| [(category.to_string(), 1)].into());
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
 
 impl Storage {
@@ -645,9 +671,10 @@ mod tests {
         )
         .await
         .unwrap();
-        storage::Tag::update(&storage, &UserId::new("abc").unwrap(), &["tag".into()])
-            .await
-            .unwrap();
+        //TODO[pmk]
+        // storage::Interaction::update_interactions (&storage, &UserId::new("abc").unwrap(), &["tag".into()])
+        //     .await
+        //     .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
         let documents = storage::Document::get_by_ids(&storage, &[&DocumentId::new("42").unwrap()])
@@ -656,12 +683,12 @@ mod tests {
         assert_eq!(documents[0].id, DocumentId::new("42").unwrap());
         assert_eq!(documents[0].embedding, Embedding::from([1., 2., 3.]));
         assert!(documents[0].properties.is_empty());
-        assert_eq!(documents[0].tags, vec![String::from("tag")]);
-        assert_eq!(
-            storage::Tag::get(&storage, &UserId::new("abc").unwrap())
-                .await
-                .unwrap(),
-            HashMap::from([(String::from("tag"), 1)]),
-        );
+        // assert_eq!(documents[0].tags, vec![String::from("tag")]);
+        // assert_eq!(
+        //     storage::Tag::get(&storage, &UserId::new("abc").unwrap())
+        //         .await
+        //         .unwrap(),
+        //     HashMap::from([(String::from("tag"), 1)]),
+        // );
     }
 }
