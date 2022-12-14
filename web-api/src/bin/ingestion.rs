@@ -15,6 +15,6 @@
 use xayn_web_api::{run, Ingestion};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+async fn main() -> Result<(), anyhow::Error> {
     run::<Ingestion>().await
 }

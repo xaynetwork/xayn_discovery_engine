@@ -23,6 +23,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use xayn_ai_coi::{Embedding, PositiveCoi, UserInterests};
 
 use crate::{
@@ -47,9 +48,11 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) num_candidates: usize,
 }
 
-#[derive(Debug, From)]
+#[derive(Debug, Error, From)]
 pub(crate) enum InsertionError {
+    #[error("{0}")]
     General(Error),
+    #[error("{failed_documents:?}")]
     PartialFailure {
         failed_documents: Vec<DocumentIdAsObject>,
     },
@@ -161,30 +164,4 @@ impl Config {
 pub(crate) struct Storage {
     elastic: elastic::Client,
     postgres: postgres::Database,
-}
-
-impl Storage {
-    pub(crate) fn document(&self) -> &impl Document {
-        self
-    }
-
-    pub(crate) fn document_properties(&self) -> &impl DocumentProperties {
-        self
-    }
-
-    pub(crate) fn document_property(&self) -> &impl DocumentProperty {
-        self
-    }
-
-    pub(crate) fn interest(&self) -> &impl Interest {
-        self
-    }
-
-    pub(crate) fn interaction(&self) -> &impl Interaction {
-        self
-    }
-
-    pub(crate) fn category(&self) -> &impl Category {
-        self
-    }
 }

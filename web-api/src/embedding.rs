@@ -21,9 +21,9 @@ use crate::{error::common::InternalError, server::SetupError, utils::RelativePat
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default = "default_directory")]
-    directory: RelativePathBuf,
+    pub(crate) directory: RelativePathBuf,
     #[serde(default = "default_token_size")]
-    token_size: usize,
+    pub(crate) token_size: usize,
 }
 
 fn default_directory() -> RelativePathBuf {
