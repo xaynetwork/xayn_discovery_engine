@@ -314,11 +314,6 @@ impl storage::Document for Storage {
                 "num_candidates": params.num_candidates,
                 "filter": {
                     "bool": {
-                        "filter": {
-                            "ids": {
-                                "values": self.postgres.documents().await?
-                            }
-                        },
                         "must_not": {
                             "ids": {
                                 "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
@@ -329,15 +324,26 @@ impl storage::Document for Storage {
             }
         }));
 
-        Ok(self
+        // the existing documents are not filtered in the elastic query to avoid too much work for a
+        // cold path, filtering them afterwards can occasionally lead to less than k results though
+        let mut documents = self
             .elastic
             .query_with_json::<_, SearchResponse<_>>(
                 self.elastic.create_resource_path(["_search"], None),
                 body,
             )
             .await?
-            .map(Into::into)
-            .unwrap_or_default())
+            .map(<Vec<_>>::from)
+            .unwrap_or_default();
+        let ids = self
+            .postgres
+            .documents_exist(&documents.iter().map(|document| &document.id).collect_vec())
+            .await?
+            .into_iter()
+            .collect::<HashSet<_>>();
+        documents.retain(|document| ids.contains(&document.id));
+
+        Ok(documents)
     }
 
     async fn insert(

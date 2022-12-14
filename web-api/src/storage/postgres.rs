@@ -226,13 +226,6 @@ impl Database {
 
         Ok(existing_ids)
     }
-
-    pub(crate) async fn documents(&self) -> Result<Vec<DocumentId>, Error> {
-        sqlx::query_as("SELECT doc_id FROM document;")
-            .fetch_all(&self.pool)
-            .await
-            .map_err(Into::into)
-    }
 }
 
 #[derive(FromRow)]
