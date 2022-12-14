@@ -4,3 +4,17 @@ DocumentId:
     It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
   type: string
   example: "document_id"
+
+DocumentProperty:
+  description: Arbitrary property that can be attached to a document.
+  example: "News title"
+
+DocumentProperties:
+  description: Arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
+  type: object
+  additionalProperties:
+    $ref: '#/DocumentProperty'
+  example:
+    title: "News title"
+    image_url: "http://example.com/news_image.jpg"
+    link: "http://example.com/this_news"

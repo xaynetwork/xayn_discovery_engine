@@ -100,18 +100,6 @@ components:
       in: header
       name: authorizationToken
   schemas:
-    DocumentProperty:
-      description: Arbitrary property that can be attached to a document.
-      example: "News title"
-    DocumentProperties:
-      description: Arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
-      type: object
-      additionalProperties:
-        $ref: '#/components/schemas/DocumentProperty'
-      example:
-        title: "News title"
-        image_url: "http://example.com/news_image.jpg"
-        link: "http://example.com/this_news"
     UserId:
       description: |-
         A user id can be any non-empty UTF-8 string that does not contain the null byte.
@@ -140,7 +128,7 @@ components:
         score:
           type: number
         properties:
-          $ref: '#/components/schemas/DocumentProperties'
+          $ref: './schemas/document.yml#/DocumentProperties'
     PersonalizedDocumentsResponse:
       type: object
       required: [documents]

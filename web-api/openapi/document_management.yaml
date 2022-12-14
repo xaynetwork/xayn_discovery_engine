@@ -263,42 +263,30 @@ components:
         It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
       type: string
       example: "document_property_id"
-    DocumentProperty:
-      description: Arbitrary property that can be attached to a document.
-      example: "News title"
     DocumentPropertyRequest:
       type: object
       required: [property]
       properties:
         property:
-          $ref: '#/components/schemas/DocumentProperty'
+          $ref: './schemas/document.yml#/DocumentProperty'
     DocumentPropertyResponse:
       type: object
       required: [property]
       properties:
         property:
-          $ref: '#/components/schemas/DocumentProperty'
-    DocumentProperties:
-      description: Arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
-      type: object
-      additionalProperties:
-        $ref: '#/components/schemas/DocumentProperty'
-      example:
-        title: "News title"
-        image_url: "http://example.com/news_image.jpg"
-        link: "http://example.com/this_news"
+          $ref: './schemas/document.yml#/DocumentProperty'
     DocumentPropertiesRequest:
       type: object
       required: [properties]
       properties:
         properties:
-          $ref: '#/components/schemas/DocumentProperties'
+          $ref: './schemas/document.yml#/DocumentProperties'
     DocumentPropertiesResponse:
       type: object
       required: [properties]
       properties:
         properties:
-          $ref: '#/components/schemas/DocumentProperties'
+          $ref: './schemas/document.yml#/DocumentProperties'
     BaseError:
       type: object
       required: [request_id, kind]
@@ -322,7 +310,7 @@ components:
           description: Text that will be used to match the document against the user interests.
           type: string
         properties:
-          $ref: '#/components/schemas/DocumentProperties'
+          $ref: './schemas/document.yml#/DocumentProperties'
     IngestionRequest:
       type: object
       required: [documents]
