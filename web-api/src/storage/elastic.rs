@@ -284,7 +284,7 @@ impl storage::Document for Storage {
         let body = Some(json!({
             "query": {
                 "ids" : {
-                    "values" : ids
+                    "values" : self.postgres.documents_exist(ids).await?
                 }
             }
         }));
@@ -324,15 +324,26 @@ impl storage::Document for Storage {
             }
         }));
 
-        Ok(self
+        // the existing documents are not filtered in the elastic query to avoid too much work for a
+        // cold path, filtering them afterwards can occasionally lead to less than k results though
+        let mut documents = self
             .elastic
             .query_with_json::<_, SearchResponse<_>>(
                 self.elastic.create_resource_path(["_search"], None),
                 body,
             )
             .await?
-            .map(Into::into)
-            .unwrap_or_default())
+            .map(<Vec<_>>::from)
+            .unwrap_or_default();
+        let ids = self
+            .postgres
+            .documents_exist(&documents.iter().map(|document| &document.id).collect_vec())
+            .await?
+            .into_iter()
+            .collect::<HashSet<_>>();
+        documents.retain(|document| ids.contains(&document.id));
+
+        Ok(documents)
     }
 
     async fn insert(
@@ -460,6 +471,10 @@ struct IgnoredResponse {}
 #[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
+        if !self.postgres.document_exists(id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
         let url = self.elastic.create_resource_path(
             ["_source", id.as_ref()],
@@ -478,6 +493,10 @@ impl storage::DocumentProperties for Storage {
         id: &DocumentId,
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
+        if !self.postgres.document_exists(id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let url = self
             .elastic
@@ -500,6 +519,10 @@ impl storage::DocumentProperties for Storage {
     }
 
     async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
+        if !self.postgres.document_exists(id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         // don't delete the field, but put an empty map instead, similar to the ingestion service
         let url = self
@@ -530,6 +553,10 @@ impl storage::DocumentProperty for Storage {
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
+        if !self.postgres.document_exists(document_id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
         let url = self.elastic.create_resource_path(
             ["_source", document_id.as_ref()],
@@ -552,6 +579,10 @@ impl storage::DocumentProperty for Storage {
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
+        if !self.postgres.document_exists(document_id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let url = self
             .elastic
@@ -579,6 +610,10 @@ impl storage::DocumentProperty for Storage {
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<()>, Error> {
+        if !self.postgres.document_exists(document_id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let url = self
             .elastic
