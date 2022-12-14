@@ -82,7 +82,7 @@ struct IngestionRequestBody {
     documents: Vec<IngestedDocument>,
 }
 
-#[instrument(skip(state))]
+#[instrument(skip_all)]
 async fn new_documents(
     state: Data<AppState>,
     Json(body): Json<IngestionRequestBody>,
