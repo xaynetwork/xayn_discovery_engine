@@ -83,7 +83,7 @@ paths:
           description: Id of the document
           required: true
           schema:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: './schemas/document.yml#/DocumentId'
       responses:
         '204':
           description: successful operation
@@ -103,7 +103,7 @@ paths:
           description: Id of the document
           required: true
           schema:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: './schemas/document.yml#/DocumentId'
       responses:
         '200':
           description: successful operation
@@ -127,7 +127,7 @@ paths:
           description: Id of the document
           required: true
           schema:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: './schemas/document.yml#/DocumentId'
       requestBody:
         content:
           application/json:
@@ -152,7 +152,7 @@ paths:
           description: Id of the document
           required: true
           schema:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: './schemas/document.yml#/DocumentId'
       responses:
         '204':
           description: successful operation
@@ -174,7 +174,7 @@ paths:
           description: Id of the document
           required: true
           schema:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: './schemas/document.yml#/DocumentId'
         - name: property_id
           in: path
           description: Id of the document property
@@ -204,7 +204,7 @@ paths:
           description: Id of the document
           required: true
           schema:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: './schemas/document.yml#/DocumentId'
         - name: property_id
           in: path
           description: Id of the document property
@@ -235,7 +235,7 @@ paths:
           description: Id of the document
           required: true
           schema:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: './schemas/document.yml#/DocumentId'
         - name: property_id
           in: path
           description: Id of the document property
@@ -257,12 +257,6 @@ components:
       in: header
       name: authorizationToken
   schemas:
-    DocumentId:
-      description: |-
-        A document id can be any non-empty UTF-8 string that does not contain the null byte.
-        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
-      type: string
-      example: "document_id"
     DocumentPropertyId:
       description: |-
         A document property id can be any non-empty UTF-8 string that does not contain the null byte.
@@ -323,7 +317,7 @@ components:
       required: [id, snippet]
       properties:
         id:
-          $ref: '#/components/schemas/DocumentId'
+          $ref: './schemas/document.yml#/DocumentId'
         snippet:
           description: Text that will be used to match the document against the user interests.
           type: string
@@ -354,7 +348,7 @@ components:
                     required: [id]
                     properties:
                       id:
-                        $ref: '#/components/schemas/DocumentId'
+                        $ref: './schemas/document.yml#/DocumentId'
     DeleteDocumentsRequest:
       type: object
       required: [documents]
@@ -362,4 +356,4 @@ components:
         documents:
           type: array
           items:
-            $ref: '#/components/schemas/DocumentId'
+            $ref: './schemas/document.yml#/DocumentId'

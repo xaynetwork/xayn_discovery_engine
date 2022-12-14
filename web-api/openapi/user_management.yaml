@@ -100,12 +100,6 @@ components:
       in: header
       name: authorizationToken
   schemas:
-    DocumentId:
-      description: |-
-        A document id can be any non-empty UTF-8 string that does not contain the null byte.
-        It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
-      type: string
-      example: "document_id"
     DocumentProperty:
       description: Arbitrary property that can be attached to a document.
       example: "News title"
@@ -142,7 +136,7 @@ components:
       required: [id, score]
       properties:
         id:
-          $ref: '#/components/schemas/DocumentId'
+          $ref: './schemas/document.yml#/DocumentId'
         score:
           type: number
         properties:
@@ -171,7 +165,7 @@ components:
       type: object
       properties:
         id:
-          $ref: '#/components/schemas/DocumentId'
+          $ref: './schemas/document.yml#/DocumentId'
         type:
           $ref: '#/components/schemas/UserInteractionType'
     UserInteractionRequest:
