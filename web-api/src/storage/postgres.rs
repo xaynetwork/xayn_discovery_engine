@@ -194,7 +194,7 @@ impl Database {
     }
 
     pub(crate) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {
-        sqlx::query("SELECT doc_id FROM document WHERE doc_id = $1;")
+        sqlx::query("SELECT document_id FROM document WHERE document_id = $1;")
             .bind(id)
             .fetch_optional(&self.pool)
             .await
@@ -208,7 +208,8 @@ impl Database {
     ) -> Result<Vec<DocumentId>, Error> {
         let mut tx = self.pool.begin().await?;
 
-        let mut builder = QueryBuilder::new("SELECT doc_id FROM document WHERE doc_id IN ");
+        let mut builder =
+            QueryBuilder::new("SELECT document_id FROM document WHERE document_id IN ");
         let mut existing_ids = Vec::with_capacity(ids.len());
         for ids in ids.chunks(Self::BIND_LIMIT) {
             for id in builder
