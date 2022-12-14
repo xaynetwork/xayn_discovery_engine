@@ -51,6 +51,9 @@ jobs:
             --build-arg rust_nightly_version="${RUST_NIGHTLY}" \
             --build-arg just_version="${JUST_VERSION}" \
             --build-arg cargo_sort_version="${CARGO_SORT_VERSION}" \
+            --build-arg spectral_cli_version="${SPECTRAL_CLI_VERSION}" \
+            --build-arg ibm_openapi_ruleset_version="${IBM_OPENAPI_RULESET_VERSION}" \
+            --build-arg validator_version="${VALIDATOR_VERSION}" \
             --tag "${{ env.image_name }}:${{ env.image_tag }}" \
             - < .github/docker/Dockerfile.ci-image
 
