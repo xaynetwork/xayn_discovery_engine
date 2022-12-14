@@ -69,6 +69,8 @@ paths:
           description: invalid request
 
   /documents/{document_id}:
+    parameters:
+      - $ref: './parameters/path/document_id.yml'
     delete:
       tags:
         - documents
@@ -77,13 +79,6 @@ paths:
         Permanently deletes the document from the system. The endpoint is
         idempotent. Deleting a non-existing document does not produce an error.
       operationId: deleteDocument
-      parameters:
-        - name: document_id
-          in: path
-          description: Id of the document
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentId'
       responses:
         '204':
           description: successful operation
@@ -91,19 +86,14 @@ paths:
           description: invalid request
 
   /documents/{document_id}/properties:
+    parameters:
+      - $ref: './parameters/path/document_id.yml'
     get:
       tags:
         - documents
       summary: Get all document properties
       description: Gets all the properties of the document.
       operationId: getDocumentProperties
-      parameters:
-        - name: document_id
-          in: path
-          description: Id of the document
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentId'
       responses:
         '200':
           description: successful operation
@@ -121,13 +111,6 @@ paths:
       summary: Set all document properties
       description: Sets or replaces all the properties of the document.
       operationId: setDocumentProperties
-      parameters:
-        - name: document_id
-          in: path
-          description: Id of the document
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentId'
       requestBody:
         content:
           application/json:
@@ -146,13 +129,6 @@ paths:
       summary: Delete all document properties
       description: Deletes all the properties of the document.
       operationId: deleteDocumentProperties
-      parameters:
-        - name: document_id
-          in: path
-          description: Id of the document
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentId'
       responses:
         '204':
           description: successful operation
@@ -162,25 +138,20 @@ paths:
           description: document id not found
 
   /documents/{document_id}/properties/{property_id}:
+    parameters:
+      - $ref: './parameters/path/document_id.yml'
+      - name: property_id
+        in: path
+        description: Id of the document property
+        required: true
+        schema:
+          $ref: './schemas/document.yml#/DocumentPropertyId'
     get:
       tags:
         - documents
       summary: Get a document property
       description: Gets the property of the document.
       operationId: getDocumentProperty
-      parameters:
-        - name: document_id
-          in: path
-          description: Id of the document
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentId'
-        - name: property_id
-          in: path
-          description: Id of the document property
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentPropertyId'
       responses:
         '200':
           description: successful operation
@@ -198,19 +169,6 @@ paths:
       summary: Set a document property
       description: Sets or replaces the property of the document.
       operationId: setDocumentProperty
-      parameters:
-        - name: document_id
-          in: path
-          description: Id of the document
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentId'
-        - name: property_id
-          in: path
-          description: Id of the document property
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentPropertyId'
       requestBody:
         content:
           application/json:
@@ -229,19 +187,6 @@ paths:
       summary: Delete a document property
       description: Deletes the property of the document.
       operationId: deleteDocumentProperty
-      parameters:
-        - name: document_id
-          in: path
-          description: Id of the document
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentId'
-        - name: property_id
-          in: path
-          description: Id of the document property
-          required: true
-          schema:
-            $ref: './schemas/document.yml#/DocumentPropertyId'
       responses:
         '204':
           description: successful operation
