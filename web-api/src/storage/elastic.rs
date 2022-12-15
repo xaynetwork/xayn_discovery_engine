@@ -247,7 +247,8 @@ pub struct Document {
     pub snippet: String,
     pub properties: DocumentProperties,
     pub embedding: Embedding,
-    pub category: Option<String>,
+    #[serde(alias = "category")] // deprecated
+    pub tags: Option<String>,
 }
 
 impl From<SearchResponse<Document>> for Vec<PersonalizedDocument> {
@@ -261,7 +262,7 @@ impl From<SearchResponse<Document>> for Vec<PersonalizedDocument> {
                 score: hit.score,
                 embedding: hit.source.embedding,
                 properties: hit.source.properties,
-                category: hit.source.category,
+                tags: hit.source.tags,
             })
             .collect()
     }
@@ -369,7 +370,7 @@ impl storage::Document for Storage {
                         snippet: document.snippet,
                         properties: document.properties,
                         embedding,
-                        category: document.category,
+                        tags: document.tags,
                     })
                     .map_err(Into::into),
                 ]

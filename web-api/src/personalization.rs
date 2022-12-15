@@ -70,9 +70,9 @@ pub(crate) struct PersonalizationConfig {
     /// Max number of positive cois to use in knn search.
     #[serde(default = "default_max_cois_for_knn")]
     pub(crate) max_cois_for_knn: usize,
-    /// Weighting of user interests vs document categories. Must be in the interval `[0, 1]`.
-    #[serde(default = "default_interest_category_bias")]
-    pub(crate) interest_category_bias: f32,
+    /// Weighting of user interests vs document tags. Must be in the interval `[0, 1]`.
+    #[serde(default = "default_interest_tag_bias")]
+    pub(crate) interest_tag_bias: f32,
 }
 
 fn default_max_number_documents() -> usize {
@@ -88,7 +88,7 @@ fn default_max_cois_for_knn() -> usize {
     10
 }
 
-fn default_interest_category_bias() -> f32 {
+fn default_interest_tag_bias() -> f32 {
     0.5
 }
 
@@ -98,7 +98,7 @@ impl Default for PersonalizationConfig {
             max_number_documents: default_max_number_documents(),
             default_number_documents: default_default_number_documents(),
             max_cois_for_knn: default_max_cois_for_knn(),
-            interest_category_bias: default_interest_category_bias(),
+            interest_tag_bias: default_interest_tag_bias(),
         }
     }
 }
