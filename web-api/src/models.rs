@@ -112,8 +112,8 @@ pub(crate) struct PersonalizedDocument {
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
 
-    /// The high-level category the document belongs to.
-    pub(crate) category: Option<String>,
+    /// The tags associated to the document.
+    pub(crate) tags: Option<String>,
 }
 
 impl AiDocument for PersonalizedDocument {
@@ -159,9 +159,9 @@ pub(crate) struct IngestedDocument {
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
 
-    /// The high-level category the document belongs to.
+    /// The tags associated to the document.
     #[serde(default, deserialize_with = "deserialize_empty_option_string_as_none")]
-    pub(crate) category: Option<String>,
+    pub(crate) tags: Option<String>,
 }
 
 fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>

@@ -249,7 +249,7 @@ impl storage::Interest for Storage {
             FROM center_of_interest
             WHERE user_id = $1",
         )
-        .bind(user_id.as_ref())
+        .bind(user_id)
         .fetch_all(&self.postgres.pool)
         .await?;
 
@@ -392,7 +392,7 @@ impl storage::Interaction for Storage {
             FROM interaction
             WHERE user_id = $1;",
         )
-        .bind(user_id.as_ref())
+        .bind(user_id)
         .fetch_all(&mut tx)
         .await?;
 
@@ -408,7 +408,7 @@ impl storage::Interaction for Storage {
             ON CONFLICT (user_id)
             DO UPDATE SET last_seen = EXCLUDED.last_seen;",
         )
-        .bind(id.as_ref())
+        .bind(id)
         .execute(&self.postgres.pool)
         .await?;
 
@@ -417,20 +417,20 @@ impl storage::Interaction for Storage {
 }
 
 #[derive(FromRow)]
-struct QueriedWeightedCategory {
-    category: String,
+struct QueriedWeightedTag {
+    tag: String,
     /// The weight is a `usize` stored as `i32` in database
     weight: i32,
 }
 
 #[async_trait]
-impl storage::Category for Storage {
+impl storage::Tag for Storage {
     async fn get(&self, user_id: &UserId) -> Result<HashMap<String, usize>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let categories = sqlx::query_as::<_, QueriedWeightedCategory>(
-            "SELECT category, weight
-            FROM weighted_category
+        let tags = sqlx::query_as::<_, QueriedWeightedTag>(
+            "SELECT tag, weight
+            FROM weighted_tag
             WHERE user_id = $1;",
         )
         .bind(user_id)
@@ -439,26 +439,26 @@ impl storage::Category for Storage {
 
         tx.commit().await?;
 
-        Ok(categories
+        Ok(tags
             .into_iter()
             .map(
                 #[allow(clippy::cast_sign_loss)] // the weight originally was a usize
-                |category| (category.category, category.weight as usize),
+                |tag| (tag.tag, tag.weight as usize),
             )
             .collect())
     }
 
-    async fn update(&self, user_id: &UserId, category: &str) -> Result<(), Error> {
+    async fn update(&self, user_id: &UserId, tags: &str) -> Result<(), Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
         sqlx::query(
-            "INSERT INTO weighted_category (user_id, category, weight)
+            "INSERT INTO weighted_tag (user_id, tag, weight)
             VALUES ($1, $2, $3)
-            ON CONFLICT (user_id, category) DO UPDATE SET
-                weight = weighted_category.weight + 1;",
+            ON CONFLICT (user_id, tag) DO UPDATE SET
+                weight = weighted_tag.weight + 1;",
         )
-        .bind(user_id.as_ref())
-        .bind(category)
+        .bind(user_id)
+        .bind(tags)
         .bind(1)
         .execute(&mut tx)
         .await?;

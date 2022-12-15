@@ -138,10 +138,10 @@ pub(crate) trait Interaction {
 }
 
 #[async_trait]
-pub(crate) trait Category {
+pub(crate) trait Tag {
     async fn get(&self, user_id: &UserId) -> Result<HashMap<String, usize>, Error>;
 
-    async fn update(&self, user_id: &UserId, category: &str) -> Result<(), Error>;
+    async fn update(&self, user_id: &UserId, tags: &str) -> Result<(), Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
