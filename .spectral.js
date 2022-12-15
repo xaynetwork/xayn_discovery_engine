@@ -32,7 +32,6 @@ module.exports = {
       }
     },
     'major-version-in-path': 'off',
-    'string-boundary': 'off',
     'array-boundary': 'off',
     'schema-description': 'off',
     'inline-property-schema': 'off',

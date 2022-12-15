@@ -233,6 +233,9 @@ components:
         snippet:
           description: Text that will be used to match the document against the user interests.
           type: string
+          minLength: 1
+          maxLength: 1024
+          pattern: '.+'
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
     IngestionRequest:
