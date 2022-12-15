@@ -142,7 +142,6 @@ impl AiDocument for &PersonalizedDocument {
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub(crate) enum UserInteractionType {
-    #[serde(rename = "positive")]
     Positive = 1,
 }
 

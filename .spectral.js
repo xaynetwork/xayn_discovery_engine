@@ -46,7 +46,6 @@ module.exports = {
     'response-example-provided': 'off',
     'collection-array-property': 'off',
     'response-error-response-schema': 'off',
-    'enum-case-convention': 'off',
     'operation-id-case-convention': 'off',
     'patch-request-content-type': 'off',
   }

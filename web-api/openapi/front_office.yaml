@@ -117,7 +117,7 @@ components:
               enum: [NotEnoughInteractions]
     UserInteractionType:
       type: string
-      enum: [positive]
+      enum: [Positive]
     UserInteractionData:
       type: object
       properties:
