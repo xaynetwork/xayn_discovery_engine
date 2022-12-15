@@ -193,7 +193,7 @@ impl Document {
     // check if the document is interesting to the user
     fn is_interesting(&self, user_interests: &UserInterests) -> bool {
         user_interests.interests.iter().any(|interest| {
-            let (main_category, sub_category) = interest.split_once("/").unwrap();
+            let (main_category, sub_category) = interest.split_once('/').unwrap();
             self.category == main_category || self.subcategory == sub_category
         })
     }
@@ -289,7 +289,7 @@ where
 
 // function that assigns a score to a vector of documents based on the user's interests
 // score is equal to 1 if the document is interesting to the user, 0 otherwise
-fn score_documents(documents: &Vec<&Document>, user_interests: &UserInterests) -> Vec<f32> {
+fn score_documents(documents: &[&Document], user_interests: &UserInterests) -> Vec<f32> {
     documents
         .iter()
         .map(|document| {
