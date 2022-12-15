@@ -1,0 +1,6 @@
+name: document_id
+in: path
+description: Id of the document
+required: true
+schema:
+  $ref: '../../schemas/document.yml#/DocumentId'
