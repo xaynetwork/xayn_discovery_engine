@@ -1,0 +1,13 @@
+BaseError:
+  type: object
+  required: [request_id, kind]
+  properties:
+    request_id:
+      description: Request ID optionally generated from the service. It can be communicated to xayn to help debugging.
+      type: string
+    kind:
+      description: What kind of error this is.
+      type: string
+    details:
+      description: Additional error details. Might differ depending on debug options.
+      type: object

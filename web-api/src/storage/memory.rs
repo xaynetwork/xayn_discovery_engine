@@ -55,7 +55,7 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
     properties: DocumentProperties,
-    category: Option<String>,
+    tags: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deref)]
@@ -121,7 +121,7 @@ pub(crate) struct Storage {
     interests: RwLock<HashMap<UserId, UserInterests>>,
     interactions: RwLock<HashMap<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
     users: RwLock<HashMap<UserId, NaiveDateTime>>,
-    categories: RwLock<HashMap<UserId, HashMap<String, usize>>>,
+    tags: RwLock<HashMap<UserId, HashMap<String, usize>>>,
 }
 
 #[async_trait]
@@ -145,7 +145,7 @@ impl storage::Document for Storage {
                             score: 1.,
                             embedding: embedding.clone(),
                             properties: document.properties.clone(),
-                            category: document.category.clone(),
+                            tags: document.tags.clone(),
                         })
                 })
             })
@@ -174,7 +174,7 @@ impl storage::Document for Storage {
                         score: item.distance,
                         embedding: item.point.0.clone(),
                         properties: document.properties.clone(),
-                        category: document.category.clone(),
+                        tags: document.tags.clone(),
                     })
                 }
             })
@@ -200,7 +200,7 @@ impl storage::Document for Storage {
                 document.id.clone(),
                 Document {
                     properties: document.properties,
-                    category: document.category,
+                    tags: document.tags,
                 },
             );
             embeddings.insert(document.id, embedding);
@@ -410,31 +410,24 @@ impl storage::Interaction for Storage {
 }
 
 #[async_trait]
-impl storage::Category for Storage {
+impl storage::Tag for Storage {
     async fn get(&self, id: &UserId) -> Result<HashMap<String, usize>, Error> {
-        let categories = self
-            .categories
-            .read()
-            .await
-            .get(id)
-            .cloned()
-            .unwrap_or_default();
+        let tags = self.tags.read().await.get(id).cloned().unwrap_or_default();
 
-        Ok(categories)
+        Ok(tags)
     }
 
-    async fn update(&self, id: &UserId, category: &str) -> Result<(), Error> {
-        self.categories
+    async fn update(&self, id: &UserId, tag: &str) -> Result<(), Error> {
+        self.tags
             .write()
             .await
             .entry(id.clone())
-            .and_modify(|categories| {
-                categories
-                    .entry(category.to_string())
+            .and_modify(|tags| {
+                tags.entry(tag.to_string())
                     .and_modify(|weight| *weight += 1)
                     .or_insert(1);
             })
-            .or_insert_with(|| [(category.to_string(), 1)].into());
+            .or_insert_with(|| [(tag.to_string(), 1)].into());
 
         Ok(())
     }
@@ -447,7 +440,7 @@ impl Storage {
         let interests = self.interests.read().await;
         let interactions = self.interactions.read().await;
         let users = self.users.read().await;
-        let categories = self.categories.read().await;
+        let tags = self.tags.read().await;
 
         serialized_size(&(
             &documents.0,
@@ -455,7 +448,7 @@ impl Storage {
             &*interests,
             &*interactions,
             &*users,
-            &*categories,
+            &*tags,
         ))
         .map(
             #[allow(clippy::cast_possible_truncation)] // bounded by system architecture
@@ -468,7 +461,7 @@ impl Storage {
         let interests = self.interests.read().await;
         let interactions = self.interactions.read().await;
         let users = self.users.read().await;
-        let categories = self.categories.read().await;
+        let tags = self.tags.read().await;
 
         serialize_into(
             writer,
@@ -478,19 +471,19 @@ impl Storage {
                 &*interests,
                 &*interactions,
                 &*users,
-                &*categories,
+                &*tags,
             ),
         )
     }
 
     pub(crate) fn deserialize(reader: impl Read) -> Result<Self, bincode::Error> {
         deserialize_from::<_, (_, HashMap<_, _>, _, _, _, _)>(reader).map(
-            |(documents, embeddings, interests, interactions, users, categories)| Self {
+            |(documents, embeddings, interests, interactions, users, tags)| Self {
                 documents: RwLock::new((documents, Embeddings::build(embeddings))),
                 interests: RwLock::new(interests),
                 interactions: RwLock::new(interactions),
                 users: RwLock::new(users),
-                categories: RwLock::new(categories),
+                tags: RwLock::new(tags),
             },
         )
     }
@@ -513,7 +506,7 @@ mod tests {
                 id: id.clone(),
                 snippet: String::new(),
                 properties: DocumentProperties::default(),
-                category: None,
+                tags: None,
             })
             .collect_vec();
         let embeddings = [

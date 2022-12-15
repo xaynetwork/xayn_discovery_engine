@@ -74,7 +74,7 @@ impl State {
         let documents = documents
             .into_iter()
             .map(|document| {
-                let category = if document.category.is_empty() {
+                let tags = if document.category.is_empty() {
                     if document.subcategory.is_empty() {
                         None
                     } else {
@@ -87,7 +87,7 @@ impl State {
                     id: document.id,
                     snippet: document.snippet,
                     properties: DocumentProperties::default(),
-                    category,
+                    tags,
                 };
                 let embedding = self.embedder.run(&document.snippet)?;
 

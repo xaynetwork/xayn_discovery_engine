@@ -88,7 +88,7 @@ async fn interactions(
 }
 
 pub(crate) async fn update_interactions(
-    storage: &(impl storage::Category + storage::Document + storage::Interaction + storage::Interest),
+    storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
     coi: &CoiSystem,
     user_id: &UserId,
     interactions: &[UserInteractionData],
@@ -118,8 +118,8 @@ pub(crate) async fn update_interactions(
                         },
                     )
                     .await?;
-                    if let Some(category) = &document.category {
-                        storage::Category::update(storage, user_id, category).await?;
+                    if let Some(tags) = &document.tags {
+                        storage::Tag::update(storage, user_id, tags).await?;
                     }
                 } else {
                     warn!(%document.document_id, "interacted document doesn't exist anymore");
@@ -288,7 +288,7 @@ pub(crate) enum PersonalizeBy<'a> {
 }
 
 pub(crate) async fn personalize_documents_by(
-    storage: &(impl storage::Category + storage::Document + storage::Interaction + storage::Interest),
+    storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
     coi: &CoiSystem,
     user_id: &UserId,
     personalization: &PersonalizationConfig,
@@ -329,39 +329,39 @@ pub(crate) async fn personalize_documents_by(
         .map(|(rank, document)| (document.id.clone(), rank))
         .collect::<HashMap<_, _>>();
 
-    let categories = storage::Category::get(storage, user_id).await?;
-    let mut documents_by_categories = all_documents
+    let tags = storage::Tag::get(storage, user_id).await?;
+    let mut documents_by_tags = all_documents
         .iter()
         .map(|document| {
             let weight = document
-                .category
+                .tags
                 .as_deref()
-                .and_then(|category| categories.get(category).copied())
+                .and_then(|tag| tags.get(tag).copied())
                 .unwrap_or_default();
             (document.id.clone(), weight)
         })
         .collect_vec();
-    documents_by_categories.sort_unstable_by(|(_, a), (_, b)| a.cmp(b).reverse());
-    let documents_by_categories = documents_by_categories
+    documents_by_tags.sort_unstable_by(|(_, a), (_, b)| a.cmp(b).reverse());
+    let documents_by_tags = documents_by_tags
         .into_iter()
         .enumerate()
         .map(|(rank, (document_id, _))| (document_id, rank))
         .collect::<HashMap<_, _>>();
 
-    let weight = personalization.interest_category_bias;
+    let weight = personalization.interest_tag_bias;
     all_documents.sort_unstable_by(
         #[allow(clippy::cast_precision_loss)] // number of docs is small enough
         |a, b| {
             let weighted_a = documents_by_interests[&a.id] as f32 * weight
-                + documents_by_categories[&a.id] as f32 * (1. - weight);
+                + documents_by_tags[&a.id] as f32 * (1. - weight);
             let weighted_b = documents_by_interests[&b.id] as f32 * weight
-                + documents_by_categories[&b.id] as f32 * (1. - weight);
+                + documents_by_tags[&b.id] as f32 * (1. - weight);
             match nan_safe_f32_cmp(&weighted_a, &weighted_b) {
                 Ordering::Equal if weight > 0.5 => {
                     documents_by_interests[&a.id].cmp(&documents_by_interests[&b.id])
                 }
                 Ordering::Equal if weight < 0.5 => {
-                    documents_by_categories[&a.id].cmp(&documents_by_categories[&b.id])
+                    documents_by_tags[&a.id].cmp(&documents_by_tags[&b.id])
                 }
                 ordering => ordering,
             }

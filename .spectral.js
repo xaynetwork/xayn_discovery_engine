@@ -36,7 +36,6 @@ module.exports = {
     'array-boundary': 'off',
     'schema-description': 'off',
     'inline-property-schema': 'off',
-    'duplicate-path-parameter': 'off',
     'content-entry-provided': 'off',
     'property-description': 'off',
     'oas3-api-servers': 'off',
