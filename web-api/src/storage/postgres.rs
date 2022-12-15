@@ -366,10 +366,12 @@ impl storage::Interaction for Storage {
             .get_by_ids_with_transaction(updated_document_ids, Some(&mut tx))
             .await?;
 
+        let now = Utc::now();
+
         let mut document_map = documents
             .iter()
-            .map(|d| (&d.id, (d, None)))
-            .collect::<HashMap<_, (_, Option<DateTime<Utc>>)>>();
+            .map(|d| (&d.id, d))
+            .collect::<HashMap<_, _>>();
 
         // fine as we convert it to i32 when we store it in the database
         #[allow(clippy::cast_sign_loss)]
@@ -402,7 +404,7 @@ impl storage::Interaction for Storage {
         let mut updates = Vec::new();
 
         for id in updated_document_ids {
-            if let Some((document, timestamp)) = document_map.get_mut(id) {
+            if let Some(document) = document_map.get_mut(id) {
                 let category_weight_diff = category_weight_diff_map
                     .get_mut(&document.tags)
                     .unwrap(/*we added entries for all categories*/);
@@ -413,7 +415,6 @@ impl storage::Interaction for Storage {
                     positive_cois: &mut positive_cois,
                 })
                 .clone();
-                *timestamp = Some(update.stats.last_view.into());
                 updates.push(update);
             } else {
                 warn!(%id, "interacted document doesn't exist");
@@ -442,7 +443,7 @@ impl storage::Interaction for Storage {
                         .push_bind(update.point.to_vec())
                         .push_bind(update.stats.view_count as i32)
                         .push_bind(update.stats.view_time.as_millis() as i64)
-                        .push_bind(<DateTime<Utc>>::from(update.stats.last_view));
+                        .push_bind(now);
                 })
                 .push(
                     " ON CONFLICT (coi_id) DO UPDATE SET
@@ -465,11 +466,11 @@ impl storage::Interaction for Storage {
             let chunk = (&mut iter).take(Database::BIND_LIMIT / 4);
             builder
                 .reset()
-                .push_values(chunk, |mut builder, (document, timestamp)| {
+                .push_values(chunk, |mut builder, document| {
                     builder
                         .push_bind(&document.id)
                         .push_bind(user_id)
-                        .push_bind(timestamp.unwrap())
+                        .push_bind(now)
                         .push_bind(UserInteractionType::Positive as i16);
                 })
                 .push(
