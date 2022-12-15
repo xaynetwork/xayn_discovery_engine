@@ -22,6 +22,7 @@ use sqlx::{
     pool::PoolOptions,
     postgres::PgConnectOptions,
     types::chrono::{DateTime, Utc},
+    Executor,
     FromRow,
     Pool,
     Postgres,
@@ -235,30 +236,34 @@ impl Database {
         }
         Ok(existing_ids)
     }
-}
 
-#[derive(FromRow)]
-struct QueriedCoi {
-    coi_id: Uuid,
-    is_positive: bool,
-    embedding: Vec<f32>,
-    /// The count is a `usize` stored as `i32` in database
-    view_count: i32,
-    /// The time is a `u64` stored as `i64` in database
-    view_time_ms: i64,
-    last_view: DateTime<Utc>,
-}
+    async fn acquire_user_coi_lock(
+        tx: &mut Transaction<'_, Postgres>,
+        user_id: &UserId,
+    ) -> Result<(), Error> {
+        // locks db for given user for coi update context
+        sqlx::query("INSERT INTO coi_update_lock (user_id) VALUES ($1) ON CONFLICT DO NOTHING;")
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("SELECT FROM coi_update_lock WHERE user_id = $1 FOR UPDATE;")
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+        Ok(())
+    }
 
-#[async_trait]
-impl storage::Interest for Storage {
-    async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
+    async fn get_user_interests(
+        tx: impl Executor<'_, Database = Postgres>,
+        user_id: &UserId,
+    ) -> Result<UserInterests, Error> {
         let cois = sqlx::query_as::<_, QueriedCoi>(
             "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
             FROM center_of_interest
             WHERE user_id = $1",
         )
         .bind(user_id)
-        .fetch_all(&self.postgres.pool)
+        .fetch_all(tx)
         .await?;
 
         let (positive, negative) = cois
@@ -290,6 +295,25 @@ impl storage::Interest for Storage {
             .collect_vec();
 
         Ok(UserInterests { positive, negative })
+    }
+}
+
+#[derive(FromRow)]
+struct QueriedCoi {
+    coi_id: Uuid,
+    is_positive: bool,
+    embedding: Vec<f32>,
+    /// The count is a `usize` stored as `i32` in database
+    view_count: i32,
+    /// The time is a `u64` stored as `i64` in database
+    view_time_ms: i64,
+    last_view: DateTime<Utc>,
+}
+
+#[async_trait]
+impl storage::Interest for Storage {
+    async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
+        Database::get_user_interests(&self.postgres.pool, user_id).await
     }
 }
 
@@ -352,15 +376,7 @@ impl storage::Interaction for Storage {
 
         let mut tx = self.postgres.pool.begin().await?;
 
-        // locks db for given user for coi update context
-        sqlx::query("INSERT INTO coi_update_lock (user_id) VALUES ($1) ON CONFLICT DO NOTHING;")
-            .bind(user_id)
-            .execute(&mut tx)
-            .await?;
-        sqlx::query("SELECT FROM coi_update_lock WHERE user_id = $1 FOR UPDATE;")
-            .bind(user_id)
-            .execute(&mut tx)
-            .await?;
+        Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
         let documents = self
             .get_by_ids_with_transaction(updated_document_ids, Some(&mut tx))
@@ -373,27 +389,7 @@ impl storage::Interaction for Storage {
             .map(|d| (&d.id, d))
             .collect::<HashMap<_, _>>();
 
-        // fine as we convert it to i32 when we store it in the database
-        #[allow(clippy::cast_sign_loss)]
-        let mut positive_cois: Vec<_> = sqlx::query_as::<_, QueriedCoi>(
-            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
-            FROM center_of_interest
-            WHERE user_id = $1 AND is_positive;",
-        )
-        .bind(user_id)
-        .fetch_all(&mut tx)
-        .await?
-        .into_iter()
-        .map(|coi| PositiveCoi {
-            id: coi.coi_id.into(),
-            point: Embedding::from(coi.embedding),
-            stats: CoiStats {
-                view_count: coi.view_count as usize,
-                view_time: Duration::from_millis(coi.view_time_ms as u64),
-                last_view: coi.last_view.into(),
-            },
-        })
-        .collect();
+        let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
 
         let mut category_weight_diff_map = documents
             .iter()
@@ -412,7 +408,7 @@ impl storage::Interaction for Storage {
                 let update = update_logic(InteractionUpdateContext {
                     document,
                     category_weight_diff,
-                    positive_cois: &mut positive_cois,
+                    positive_cois: &mut interests.positive,
                 })
                 .clone();
                 updates.push(update);
