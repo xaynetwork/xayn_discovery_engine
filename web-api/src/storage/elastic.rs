@@ -247,7 +247,6 @@ pub struct Document {
     pub snippet: String,
     pub properties: DocumentProperties,
     pub embedding: Embedding,
-    #[serde(alias = "category")] // deprecated
     pub tags: Option<String>,
 }
 

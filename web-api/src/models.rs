@@ -112,7 +112,7 @@ pub(crate) struct PersonalizedDocument {
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
 
-    /// The metadata of the document.
+    /// The tags associated to the document.
     pub(crate) tags: Option<String>,
 }
 
@@ -159,7 +159,7 @@ pub(crate) struct IngestedDocument {
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
 
-    /// The metadata of the document.
+    /// The tags associated to the document.
     #[serde(default, deserialize_with = "deserialize_empty_option_string_as_none")]
     pub(crate) tags: Option<String>,
 }
