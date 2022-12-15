@@ -296,6 +296,103 @@ impl Database {
 
         Ok(UserInterests { positive, negative })
     }
+
+    async fn upsert_cois(
+        tx: &mut Transaction<'_, Postgres>,
+        user_id: &UserId,
+        now: DateTime<Utc>,
+        cois: &[PositiveCoi],
+    ) -> Result<(), Error> {
+        let persist = match cois.len() {
+            0 => return Ok(()),
+            1 => true,
+            _ => false,
+        };
+
+        let mut builder = QueryBuilder::new(
+            "INSERT INTO center_of_interest (
+            coi_id, user_id,
+            is_positive, embedding,
+            view_count, view_time_ms,
+            last_view
+        ) ",
+        );
+        for chunk in cois.chunks(Database::BIND_LIMIT / 7) {
+            builder
+                .reset()
+                .push_values(chunk, |mut builder, update| {
+                    // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
+                    // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
+                    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+                    builder
+                        .push_bind(update.id.as_ref())
+                        .push_bind(user_id)
+                        .push_bind(true)
+                        .push_bind(update.point.to_vec())
+                        .push_bind(update.stats.view_count as i32)
+                        .push_bind(update.stats.view_time.as_millis() as i64)
+                        .push_bind(now);
+                })
+                .push(
+                    " ON CONFLICT (coi_id) DO UPDATE SET
+                    embedding = EXCLUDED.embedding,
+                    view_count = EXCLUDED.view_count,
+                    view_time_ms = EXCLUDED.view_time_ms,
+                    last_view = EXCLUDED.last_view;",
+                )
+                .build()
+                .persistent(persist)
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn upsert_interactions<'d, I>(
+        tx: &mut Transaction<'_, Postgres>,
+        user_id: &UserId,
+        now: DateTime<Utc>,
+        interactions: I,
+    ) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (&'d DocumentId, UserInteractionType)>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let interactions = interactions.into_iter();
+        let persist = match interactions.len() {
+            0 => return Ok(()),
+            1 => true,
+            _ => false,
+        };
+
+        let mut builder = QueryBuilder::new(
+            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)",
+        );
+        let mut iter = interactions.peekable();
+        while iter.peek().is_some() {
+            let chunk = (&mut iter).take(Database::BIND_LIMIT / 4);
+            builder
+                .reset()
+                .push_values(chunk, |mut builder, (document_id, interaction)| {
+                    builder
+                        .push_bind(document_id)
+                        .push_bind(user_id)
+                        .push_bind(now)
+                        .push_bind(interaction as i16);
+                })
+                .push(
+                    "ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
+                    user_reaction = EXCLUDED.user_reaction;",
+                )
+                .build()
+                .persistent(persist)
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(FromRow)]
@@ -417,67 +514,19 @@ impl storage::Interaction for Storage {
             }
         }
 
-        let mut builder = QueryBuilder::new(
-            "INSERT INTO center_of_interest (
-            coi_id, user_id,
-            is_positive, embedding,
-            view_count, view_time_ms,
-            last_view
-        ) ",
-        );
-        for updates_chunk in updates.chunks(Database::BIND_LIMIT / 7) {
-            builder
-                .reset()
-                .push_values(updates_chunk, |mut builder, update| {
-                    // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
-                    // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
-                    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-                    builder
-                        .push_bind(update.id.as_ref())
-                        .push_bind(user_id)
-                        .push_bind(true)
-                        .push_bind(update.point.to_vec())
-                        .push_bind(update.stats.view_count as i32)
-                        .push_bind(update.stats.view_time.as_millis() as i64)
-                        .push_bind(now);
-                })
-                .push(
-                    " ON CONFLICT (coi_id) DO UPDATE SET
-                    embedding = EXCLUDED.embedding,
-                    view_count = EXCLUDED.view_count,
-                    view_time_ms = EXCLUDED.view_time_ms,
-                    last_view = EXCLUDED.last_view;",
-                )
-                .build()
-                .persistent(persist_build_queries)
-                .execute(&mut tx)
-                .await?;
-        }
-
-        let mut builder = QueryBuilder::new(
-            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)",
-        );
-        let mut iter = document_map.values().peekable();
-        while iter.peek().is_some() {
-            let chunk = (&mut iter).take(Database::BIND_LIMIT / 4);
-            builder
-                .reset()
-                .push_values(chunk, |mut builder, document| {
-                    builder
-                        .push_bind(&document.id)
-                        .push_bind(user_id)
-                        .push_bind(now)
-                        .push_bind(UserInteractionType::Positive as i16);
-                })
-                .push(
-                    "ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
-                    user_reaction = EXCLUDED.user_reaction;",
-                )
-                .build()
-                .persistent(persist_build_queries)
-                .execute(&mut tx)
-                .await?;
-        }
+        Database::upsert_cois(&mut tx, user_id, now, &updates).await?;
+        Database::upsert_interactions(
+            &mut tx,
+            user_id,
+            now,
+            document_map
+                .values()
+                .map(|d| (&d.id, UserInteractionType::Positive))
+                //needed or rust fails with a `error: higher-ranked lifetime error`
+                // this seems to beg a limitation/(bug?) in rustc not our code
+                .collect_vec(),
+        )
+        .await?;
 
         let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
         let mut iter = category_weight_diff_map.iter().peekable();
