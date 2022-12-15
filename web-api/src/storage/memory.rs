@@ -27,7 +27,7 @@ use std::{
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use chrono::{Local, NaiveDateTime};
+use chrono::{Local, NaiveDateTime, Utc, DateTime};
 use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
@@ -35,7 +35,7 @@ use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Seri
 use tokio::sync::RwLock;
 use xayn_ai_coi::{cosine_similarity, Embedding, PositiveCoi, UserInterests};
 
-use super::InteractionUpdateContext;
+use super::{Document as _, InteractionUpdateContext};
 use crate::{
     error::{
         application::Error,
@@ -454,30 +454,6 @@ impl storage::Interest for Storage {
 
         Ok(interests)
     }
-
-    // async fn update_positive<F>(
-    //     &self,
-    //     document_id: &DocumentId,
-    //     user_id: &UserId,
-    //     update_cois: F,
-    // ) -> Result<(), Error>
-    // where
-    //     F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync,
-    // {
-    //     let mut interests = self.interests.write().await;
-    //     let mut interactions = self.interactions.write().await;
-
-    //     let updated_coi = update_cois(&mut interests.entry(user_id.clone()).or_default().positive);
-    //     let timestamp = DateTime::<Local>::from(updated_coi.stats.last_view).naive_local();
-    //     interactions
-    //         .entry(user_id.clone())
-    //         .and_modify(|interactions| {
-    //             interactions.insert((document_id.clone(), timestamp));
-    //         })
-    //         .or_insert_with(|| [(document_id.clone(), timestamp)].into());
-
-    //     Ok(())
-    // }
 }
 
 #[async_trait]
@@ -512,13 +488,43 @@ impl storage::Interaction for Storage {
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
-        update_logic: F,
+        mut update_logic: F,
     ) -> Result<(), Error>
     where
         F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> &'b PositiveCoi + Send + Sync,
     {
-        //TODO
-        todo!()
+        // This doesn't have the exact same concurrency semantics as the postgres version
+        let documents = self.get_by_ids(updated_document_ids).await?;
+        let mut interests = self.interests.write().await;
+        let mut interactions = self.interactions.write().await;
+        let interactions = interactions.entry(user_id.clone()).or_default();
+        let mut tags = self.tags.write().await;
+        let tags = tags.entry(user_id.clone()).or_default();
+
+        let positive_cois = &mut interests.entry(user_id.clone()).or_default().positive;
+
+        for document in documents {
+            let mut local_diff = 0;
+            let updated = update_logic(InteractionUpdateContext {
+                document: &document,
+                category_weight_diff: &mut local_diff,
+                positive_cois,
+            });
+            if let Some(tag) = &document.tags {
+                let weight = tags.entry(tag.to_string()).or_default();
+                if local_diff < 0 {
+                    *weight -= local_diff.unsigned_abs() as usize;
+                } else {
+                    *weight += local_diff.unsigned_abs() as usize;
+                }
+            }
+            interactions.insert((
+                document.id,
+                DateTime::<Utc>::from(updated.stats.last_view).naive_utc(),
+            ));
+        }
+
+        Ok(())
     }
 }
 

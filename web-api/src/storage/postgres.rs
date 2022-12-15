@@ -482,8 +482,7 @@ impl storage::Interaction for Storage {
                 .await?;
         }
 
-        let mut builder =
-            QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
+        let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
         let mut iter = category_weight_diff_map.iter().peekable();
         while iter.peek().is_some() {
             let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
