@@ -403,7 +403,7 @@ impl storage::Interaction for Storage {
 
     async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
         sqlx::query(
-            "INSERT INTO users(user_id, last_seen)
+            "INSERT INTO users (user_id, last_seen)
             VALUES ($1, Now())
             ON CONFLICT (user_id)
             DO UPDATE SET last_seen = EXCLUDED.last_seen;",
@@ -429,7 +429,7 @@ impl storage::Category for Storage {
         let mut tx = self.postgres.pool.begin().await?;
 
         let categories = sqlx::query_as::<_, QueriedWeightedCategory>(
-            "SELECT (category, weight)
+            "SELECT category, weight
             FROM weighted_category
             WHERE user_id = $1;",
         )
