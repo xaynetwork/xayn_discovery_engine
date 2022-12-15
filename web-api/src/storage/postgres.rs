@@ -33,7 +33,7 @@ use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
 use crate::{
     models::{DocumentId, UserId, UserInteractionType},
-    storage::{self, Storage},
+    storage::{self, utils::SqlxPushTupleExt, Storage},
     utils::serialize_redacted,
     Error,
 };
@@ -146,6 +146,87 @@ impl Config {
 
 pub(crate) struct Database {
     pool: Pool<Postgres>,
+}
+
+impl Database {
+    // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
+    const BIND_LIMIT: usize = 65_535;
+
+    pub(crate) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let mut builder = QueryBuilder::new("INSERT INTO document (document_id) ");
+        for ids in ids.chunks(Self::BIND_LIMIT) {
+            builder
+                .reset()
+                .push_values(ids, |mut builder, id| {
+                    builder.push_bind(id);
+                })
+                .push(" ON CONFLICT DO NOTHING;")
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
+        for ids in ids.chunks(Self::BIND_LIMIT) {
+            builder
+                .reset()
+                .push_tuple(ids)
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {
+        sqlx::query("SELECT document_id FROM document WHERE document_id = $1;")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .map(|id| id.is_some())
+            .map_err(Into::into)
+    }
+
+    pub(crate) async fn documents_exist(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<Vec<DocumentId>, Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let mut builder =
+            QueryBuilder::new("SELECT document_id FROM document WHERE document_id IN ");
+        let mut existing_ids = Vec::with_capacity(ids.len());
+        for ids in ids.chunks(Self::BIND_LIMIT) {
+            for id in builder
+                .reset()
+                .push_tuple(ids)
+                .build()
+                .fetch_all(&mut tx)
+                .await?
+            {
+                existing_ids.push(DocumentId::from_row(&id)?);
+            }
+        }
+
+        tx.commit().await?;
+
+        Ok(existing_ids)
+    }
 }
 
 #[derive(FromRow)]
@@ -318,23 +399,6 @@ impl storage::Interaction for Storage {
         tx.commit().await?;
 
         Ok(documents.into_iter().map_into().collect())
-    }
-
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error> {
-        if documents.is_empty() {
-            return Ok(());
-        }
-
-        QueryBuilder::new("DELETE FROM interaction WHERE doc_id in")
-            .push_tuples(documents, |mut query, id| {
-                query.push_bind(id);
-            })
-            .build()
-            .persistent(false)
-            .execute(&self.postgres.pool)
-            .await?;
-
-        Ok(())
     }
 
     async fn user_seen(&self, id: &UserId) -> Result<(), Error> {

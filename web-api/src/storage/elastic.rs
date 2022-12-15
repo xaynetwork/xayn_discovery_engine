@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -29,7 +29,7 @@ use tracing::error;
 use xayn_ai_coi::Embedding;
 
 use crate::{
-    error::common::{FailedToDeleteSomeDocuments, InternalError},
+    error::common::InternalError,
     models::{
         DocumentId,
         DocumentProperties,
@@ -39,7 +39,7 @@ use crate::{
         PersonalizedDocument,
     },
     server::SetupError,
-    storage::{self, InsertionError, KnnSearchParams, Storage},
+    storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
     utils::{serialize_redacted, serialize_to_ndjson},
     Error,
 };
@@ -88,7 +88,7 @@ impl Config {
         let mut url_to_index = self.url.parse::<Url>()?;
         url_to_index
             .path_segments_mut()
-            .map_err(|()| "non segmentable url in config")?
+            .map_err(|()| anyhow::anyhow!("non segmentable url in config"))?
             .push(&self.index_name);
 
         Ok(Client {
@@ -284,7 +284,7 @@ impl storage::Document for Storage {
         let body = Some(json!({
             "query": {
                 "ids" : {
-                    "values" : ids
+                    "values" : self.postgres.documents_exist(ids).await?
                 }
             }
         }));
@@ -324,15 +324,26 @@ impl storage::Document for Storage {
             }
         }));
 
-        Ok(self
+        // the existing documents are not filtered in the elastic query to avoid too much work for a
+        // cold path, filtering them afterwards can occasionally lead to less than k results though
+        let mut documents = self
             .elastic
             .query_with_json::<_, SearchResponse<_>>(
                 self.elastic.create_resource_path(["_search"], None),
                 body,
             )
             .await?
-            .map(Into::into)
-            .unwrap_or_default())
+            .map(<Vec<_>>::from)
+            .unwrap_or_default();
+        let ids = self
+            .postgres
+            .documents_exist(&documents.iter().map(|document| &document.id).collect_vec())
+            .await?
+            .into_iter()
+            .collect::<HashSet<_>>();
+        documents.retain(|document| ids.contains(&document.id));
+
+        Ok(documents)
     }
 
     async fn insert(
@@ -342,6 +353,11 @@ impl storage::Document for Storage {
         if documents.is_empty() {
             return Ok(());
         }
+
+        let mut ids = documents
+            .iter()
+            .map(|(document, _)| document.id.clone())
+            .collect::<HashSet<_>>();
 
         let response = self
             .elastic
@@ -359,14 +375,19 @@ impl storage::Document for Storage {
                 ]
             }))
             .await?;
-
-        if response.errors {
-            let failed_documents = response.items
+        let failed_documents = response.errors.then(|| {
+            response
+                .items
                 .into_iter()
                 .filter_map(|mut response| {
                     if let Some(response) = response.remove("index") {
                         if !is_success_status(response.status, false) {
-                            error!(document_id=%response.id, error=%response.error, "Elastic failed to ingest document.");
+                            error!(
+                                document_id=%response.id,
+                                error=%response.error,
+                                "Elastic failed to ingest document.",
+                            );
+                            ids.remove(&response.id);
                             return Some(response.id.into());
                         }
                     } else {
@@ -374,18 +395,26 @@ impl storage::Document for Storage {
                     }
                     None
                 })
-                .collect_vec();
+                .collect_vec()
+        });
 
+        self.postgres
+            .insert_documents(&ids.into_iter().collect_vec(/* Itertools::chunks() is !Send */))
+            .await?;
+
+        if let Some(failed_documents) = failed_documents {
             Err(failed_documents.into())
         } else {
             Ok(())
         }
     }
 
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error> {
+    async fn delete(&self, documents: &[DocumentId]) -> Result<(), DeletionError> {
         if documents.is_empty() {
             return Ok(());
         }
+
+        self.postgres.delete_documents(documents).await?;
 
         let response = self
             .elastic
@@ -395,29 +424,33 @@ impl storage::Document for Storage {
                     .map(|document_id| Ok(BulkInstruction::Delete { id: document_id })),
             )
             .await?;
-
-        if response.errors {
-            let mut errors = Vec::new();
-            for mut response in response.items {
-                if let Some(response) = response.remove("delete") {
-                    if !is_success_status(response.status, true) {
-                        error!(document_id=%response.id, error=%response.error);
-                        errors.push(response.id);
+        let failed_documents = response.errors.then(|| {
+            response
+                .items
+                .into_iter()
+                .filter_map(|mut response| {
+                    if let Some(response) = response.remove("delete") {
+                        if !is_success_status(response.status, true) {
+                            error!(
+                                document_id=%response.id,
+                                error=%response.error,
+                                "Elastic failed to delete document.",
+                            );
+                            return Some(response.id.into());
+                        }
+                    } else {
+                        error!("Bulk delete request contains non delete responses: {response:?}",);
                     }
-                } else {
-                    error!("Bulk delete request contains non delete responses: {response:?}");
-                }
-            }
+                    None
+                })
+                .collect_vec()
+        });
 
-            if !errors.is_empty() {
-                return Err(FailedToDeleteSomeDocuments {
-                    errors: errors.into_iter().map(Into::into).collect(),
-                }
-                .into());
-            }
+        if let Some(failed_documents) = failed_documents {
+            Err(failed_documents.into())
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 }
 
@@ -438,6 +471,10 @@ struct IgnoredResponse {}
 #[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
+        if !self.postgres.document_exists(id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
         let url = self.elastic.create_resource_path(
             ["_source", id.as_ref()],
@@ -456,6 +493,10 @@ impl storage::DocumentProperties for Storage {
         id: &DocumentId,
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
+        if !self.postgres.document_exists(id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let url = self
             .elastic
@@ -478,6 +519,10 @@ impl storage::DocumentProperties for Storage {
     }
 
     async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
+        if !self.postgres.document_exists(id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         // don't delete the field, but put an empty map instead, similar to the ingestion service
         let url = self
@@ -508,6 +553,10 @@ impl storage::DocumentProperty for Storage {
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
+        if !self.postgres.document_exists(document_id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
         let url = self.elastic.create_resource_path(
             ["_source", document_id.as_ref()],
@@ -530,6 +579,10 @@ impl storage::DocumentProperty for Storage {
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
+        if !self.postgres.document_exists(document_id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let url = self
             .elastic
@@ -557,6 +610,10 @@ impl storage::DocumentProperty for Storage {
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<()>, Error> {
+        if !self.postgres.document_exists(document_id).await? {
+            return Ok(None);
+        }
+
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
         let url = self
             .elastic

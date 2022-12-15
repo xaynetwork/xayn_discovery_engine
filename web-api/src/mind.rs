@@ -11,11 +11,14 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#![allow(dead_code)]
 
 //! Executes the user-based MIND benchmark.
+
+#![allow(dead_code)]
+
 use std::{collections::HashMap, fs::File, io, path::Path};
 
+use anyhow::Error;
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
 use ndarray::{Array, ArrayView, Axis};
@@ -25,9 +28,99 @@ use rand::{
     thread_rng, Rng,
 };
 use serde::{de, Deserialize, Deserializer};
-use xayn_ai_coi::nan_safe_f32_cmp_desc;
+use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
 
-use crate::models::DocumentId;
+use crate::{
+    embedding::{self, Embedder},
+    models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
+    personalization::{
+        routes::{
+            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
+        },
+        PersonalizationConfig,
+    },
+    storage::{self, memory::Storage},
+};
+
+struct State {
+    storage: Storage,
+    embedder: Embedder,
+    coi: CoiSystem,
+    personalization: PersonalizationConfig,
+}
+
+impl State {
+    fn new(storage: Storage) -> Result<Self, Error> {
+        let embedder = Embedder::load(&embedding::Config {
+            directory: "../assets/smbert_v0003".into(),
+            ..embedding::Config::default()
+        })?;
+        let coi = CoiConfig::default().build();
+        let personalization = PersonalizationConfig::default();
+
+        Ok(Self {
+            storage,
+            embedder,
+            coi,
+            personalization,
+        })
+    }
+
+    async fn insert(&self, documents: Vec<Document>) -> Result<(), Error> {
+        let documents = documents
+            .into_iter()
+            .map(|document| {
+                let category = if document.category.is_empty() {
+                    if document.subcategory.is_empty() {
+                        None
+                    } else {
+                        Some(document.subcategory)
+                    }
+                } else {
+                    Some(document.category)
+                };
+                let document = IngestedDocument {
+                    id: document.id,
+                    snippet: document.snippet,
+                    properties: DocumentProperties::default(),
+                    category,
+                };
+                let embedding = self.embedder.run(&document.snippet)?;
+
+                Ok((document, embedding))
+            })
+            .try_collect::<_, _, Error>()?;
+
+        storage::Document::insert(&self.storage, documents)
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn interact(&self, user: &UserId, documents: &[DocumentId]) -> Result<(), Error> {
+        let interactions = documents
+            .iter()
+            .map(|id| UserInteractionData {
+                document_id: id.clone(),
+                interaction_type: UserInteractionType::Positive,
+            })
+            .collect_vec();
+
+        update_interactions(&self.storage, &self.coi, user, &interactions)
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn personalize(
+        &self,
+        user: &UserId,
+        by: PersonalizeBy<'_>,
+    ) -> Result<Vec<DocumentId>, Error> {
+        personalize_documents_by(&self.storage, &self.coi, user, &self.personalization, by)
+            .await
+            .map(|documents| documents.into_iter().map(|document| document.id).collect())
+            .map_err(Into::into)
+    }
+}
 
 #[derive(Debug, Deserialize)]
 struct ViewedDocument {
@@ -108,7 +201,7 @@ struct DocumentProvider {
 }
 
 impl DocumentProvider {
-    fn new(path: &str) -> Result<Self, anyhow::Error> {
+    fn new(path: &str) -> Result<Self, Error> {
         let documents = read::<Document>(path)?
             .map(|document| document.map(|document| (document.id.clone(), document)))
             .try_collect()?;
@@ -172,14 +265,14 @@ impl UsersInterests {
 
 struct SnippetLabelPair(String, bool);
 
-fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, anyhow::Error>
+fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Error>
 where
     for<'de> T: Deserialize<'de>,
 {
     Ok(read_from_tsv(path)?.into_deserialize())
 }
 
-fn read_from_tsv<P>(path: P) -> Result<Reader<File>, anyhow::Error>
+fn read_from_tsv<P>(path: P) -> Result<Reader<File>, Error>
 where
     P: AsRef<Path>,
 {
@@ -306,12 +399,10 @@ fn run_persona_based_benchmark() -> Result<(), anyhow::Error> {
 }
 
 /// Runs the user-based mind benchmark
-fn run_benchmark() -> Result<(), anyhow::Error> {
+fn run_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/web-api/src/bin/news_no_nans.tsv")?;
 
-    let impressions = read(
-        "/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/web-api/src/bin/behaviors.tsv",
-    )?;
+    let impressions = read("behaviors.tsv")?;
 
     let nranks = vec![3];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
@@ -386,5 +477,7 @@ fn ndcg(relevance: &[f32], k: &[usize]) -> Vec<f32> {
 }
 
 fn main() {
-    run_persona_based_benchmark().expect("TODO: panic message");
+    if let Err(e) = run_benchmark() {
+        eprintln!("{}", e);
+    }
 }

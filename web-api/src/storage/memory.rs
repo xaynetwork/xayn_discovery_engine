@@ -30,7 +30,6 @@ use bincode::{deserialize_from, serialize_into, serialized_size};
 use chrono::{DateTime, Local, NaiveDateTime};
 use derive_more::Deref;
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
-use itertools::Itertools;
 use ouroboros::self_referencing;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -50,7 +49,7 @@ use crate::{
         PersonalizedDocument,
         UserId,
     },
-    storage::{self, InsertionError, KnnSearchParams},
+    storage::{self, DeletionError, InsertionError, KnnSearchParams},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -211,17 +210,23 @@ impl storage::Document for Storage {
         Ok(())
     }
 
-    async fn delete(&self, ids: &[DocumentId]) -> Result<(), Error> {
+    async fn delete(&self, ids: &[DocumentId]) -> Result<(), DeletionError> {
         if ids.is_empty() {
             return Ok(());
         }
 
-        let ids = ids.iter().collect::<HashSet<_>>();
         let mut documents = self.documents.write().await;
+        let mut interactions = self.interactions.write().await;
+
+        let ids = ids.iter().collect::<HashSet<_>>();
         documents.0.retain(|id, _| !ids.contains(id));
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
         embeddings.retain(|id, _| !ids.contains(id));
         documents.1 = Embeddings::build(embeddings);
+        interactions.retain(|_, interactions| {
+            interactions.retain(|(id, _)| !ids.contains(id));
+            !interactions.is_empty()
+        });
 
         Ok(())
     }
@@ -394,20 +399,6 @@ impl storage::Interaction for Storage {
         Ok(document_ids)
     }
 
-    async fn delete(&self, ids: &[DocumentId]) -> Result<(), Error> {
-        if ids.is_empty() {
-            return Ok(());
-        }
-
-        let ids = ids.iter().collect::<HashSet<_>>();
-        self.interactions.write().await.retain(|_, interactions| {
-            interactions.retain(|(id, _)| !ids.contains(id));
-            !interactions.is_empty()
-        });
-
-        Ok(())
-    }
-
     async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
         self.users
             .write()
@@ -451,30 +442,6 @@ impl storage::Category for Storage {
 
 #[allow(dead_code)]
 impl Storage {
-    pub(crate) fn document(&self) -> &impl storage::Document {
-        self
-    }
-
-    pub(crate) fn document_properties(&self) -> &impl storage::DocumentProperties {
-        self
-    }
-
-    pub(crate) fn document_property(&self) -> &impl storage::DocumentProperty {
-        self
-    }
-
-    pub(crate) fn interest(&self) -> &impl storage::Interest {
-        self
-    }
-
-    pub(crate) fn interaction(&self) -> &impl storage::Interaction {
-        self
-    }
-
-    pub(crate) fn category(&self) -> &impl storage::Category {
-        self
-    }
-
     pub(crate) async fn serialized_size(&self) -> Result<usize, bincode::Error> {
         let documents = self.documents.read().await;
         let interests = self.interests.read().await;
@@ -531,8 +498,9 @@ impl Storage {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use super::*;
-    use crate::storage::Document;
 
     #[tokio::test]
     async fn test_knn_search() {
@@ -554,38 +522,41 @@ mod tests {
             [1., 1., 1.].into(),
         ];
         let storage = Storage::default();
-        storage
-            .document()
-            .insert(documents.iter().cloned().zip(embeddings).collect_vec())
-            .await
-            .unwrap();
+        storage::Document::insert(
+            &storage,
+            documents.iter().cloned().zip(embeddings).collect_vec(),
+        )
+        .await
+        .unwrap();
 
         let embedding = &[0., 1., 1.].into();
-        let documents = storage
-            .document()
-            .get_by_embedding(KnnSearchParams {
+        let documents = storage::Document::get_by_embedding(
+            &storage,
+            KnnSearchParams {
                 excluded: &[],
                 embedding,
                 k_neighbors: 2,
                 num_candidates: 2,
-            })
-            .await
-            .unwrap();
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(
             documents.iter().map(|document| &document.id).collect_vec(),
             [&ids[2], &ids[1]],
         );
 
-        let documents = storage
-            .document()
-            .get_by_embedding(KnnSearchParams {
+        let documents = storage::Document::get_by_embedding(
+            &storage,
+            KnnSearchParams {
                 excluded: &[ids[1].clone()],
                 embedding,
                 k_neighbors: 3,
                 num_candidates: 3,
-            })
-            .await
-            .unwrap();
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(
             documents.iter().map(|document| &document.id).collect_vec(),
             [&ids[2], &ids[0]],

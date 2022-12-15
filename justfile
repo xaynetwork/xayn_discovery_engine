@@ -47,7 +47,7 @@ fmt: rust-fmt
 
 # Checks rust code, fails on warnings on CI
 rust-check:
-    cargo clippy --all-targets --locked {{ if env_var_or_default("CI", "false") == "true" { "--all-features" } else { "" } }}
+    cargo clippy --all-targets --locked
 
 # Checks all code, fails if there are any issues on CI
 check: rust-check
@@ -125,12 +125,65 @@ web-dev-up:
     rm "./web-api/assets" || :
     ln -s "./assets/smbert_v0003" "./web-api/assets"
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.yml" up --detach --remove-orphans
+    $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
 
 web-dev-down:
     #!/usr/bin/env -S bash -eux -o pipefail
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.yml" down
+    $compose -f "./web-api/compose.db.yml" down
+
+build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
+    #!/usr/bin/env -S bash -eux -o pipefail
+    ociBuilder="$(command -v podman || command -v docker)"
+    out="$(mktemp -d -t xayn.web-api.compose.XXXX)"
+    echo "Building in: $out"
+    cargo install \
+        --path "$CRATE_PATH" \
+        --bin "$BIN" \
+        --debug \
+        --root "$out"
+    # rename binary to the name the Dockerfile expects
+    mv "$out/bin/$BIN" "$out/server.bin"
+    rmdir "$out/bin"
+    if [ -n "$ASSET_DIR" ]; then
+        cp -R "$ASSET_DIR" "$out/assets"
+    fi
+    "$ociBuilder" build -f "$CRATE_PATH/Dockerfile" -t "xayn-$CRATE_PATH-$BIN" "$out"
+    rm -rf "$out"
+
+compose-all-build $SMBERT="smbert_v0003":
+    #!/usr/bin/env -S bash -eux -o pipefail
+    {{just_executable()}} build-service-image web-api personalization
+    {{just_executable()}} build-service-image web-api ingestion "assets/$SMBERT"
+
+compose-all-up *args:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    "$compose" \
+        -f web-api/compose.db.yml \
+        -f web-api/compose.personalization.yml \
+        -f web-api/compose.ingestion.yml \
+        {{args}} \
+        up
+
+compose-all-down:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    compose="$(command -v podman-compose || command -v docker-compose)"
+    "$compose" \
+        -f web-api/compose.db.yml \
+        -f web-api/compose.personalization.yml \
+        -f web-api/compose.ingestion.yml \
+        down
+
+install-openapi-validator:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    npm install -g \
+      @stoplight/spectral-cli@${SPECTRAL_CLI_VERSION} \
+      @ibm-cloud/openapi-ruleset@${IBM_OPENAPI_RULESET_VERSION} \
+      validator@${VALIDATOR_VERSION}
+
+validate-openapi:
+    spectral lint --verbose -F warn web-api/openapi/*.yaml
 
 print-just-env:
     export

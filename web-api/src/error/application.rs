@@ -38,7 +38,7 @@ use tracing::error;
 use super::json_error::JsonErrorResponseBuilder;
 use crate::middleware::tracing::RequestId;
 
-#[derive(Display, Debug, Deref)]
+#[derive(Display, Debug, Deref, Error)]
 #[display(fmt = "{}", error)]
 pub struct Error {
     #[deref(forward)]

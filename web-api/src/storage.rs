@@ -16,12 +16,14 @@ pub(crate) mod elastic;
 #[cfg(test)]
 pub(crate) mod memory;
 pub(crate) mod postgres;
+mod utils;
 
 use std::collections::HashMap;
 
 use async_trait::async_trait;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use xayn_ai_coi::{Embedding, PositiveCoi, UserInterests};
 
 use crate::{
@@ -46,12 +48,20 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) num_candidates: usize,
 }
 
-#[derive(Debug, From)]
+#[derive(Debug, Error, From)]
 pub(crate) enum InsertionError {
+    #[error("{0}")]
     General(Error),
+    #[error("{failed_documents:?}")]
     PartialFailure {
         failed_documents: Vec<DocumentIdAsObject>,
     },
+}
+
+#[derive(Debug, From)]
+pub(crate) enum DeletionError {
+    General(Error),
+    PartialFailure { errors: Vec<DocumentIdAsObject> },
 }
 
 #[async_trait]
@@ -68,7 +78,7 @@ pub(crate) trait Document {
         documents: Vec<(IngestedDocument, Embedding)>,
     ) -> Result<(), InsertionError>;
 
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error>;
+    async fn delete(&self, documents: &[DocumentId]) -> Result<(), DeletionError>;
 }
 
 #[async_trait]
@@ -124,8 +134,6 @@ pub(crate) trait Interest {
 pub(crate) trait Interaction {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error>;
 
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), Error>;
-
     async fn user_seen(&self, id: &UserId) -> Result<(), Error>;
 }
 
@@ -138,7 +146,9 @@ pub(crate) trait Category {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct Config {
+    #[serde(default)]
     elastic: elastic::Config,
+    #[serde(default)]
     postgres: postgres::Config,
 }
 
@@ -154,30 +164,4 @@ impl Config {
 pub(crate) struct Storage {
     elastic: elastic::Client,
     postgres: postgres::Database,
-}
-
-impl Storage {
-    pub(crate) fn document(&self) -> &impl Document {
-        self
-    }
-
-    pub(crate) fn document_properties(&self) -> &impl DocumentProperties {
-        self
-    }
-
-    pub(crate) fn document_property(&self) -> &impl DocumentProperty {
-        self
-    }
-
-    pub(crate) fn interest(&self) -> &impl Interest {
-        self
-    }
-
-    pub(crate) fn interaction(&self) -> &impl Interaction {
-        self
-    }
-
-    pub(crate) fn category(&self) -> &impl Category {
-        self
-    }
 }
