@@ -25,7 +25,8 @@ use ndarray::{Array, ArrayView, Axis};
 use npyz::WriterBuilder;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
-    thread_rng, Rng,
+    thread_rng,
+    Rng,
 };
 use serde::{de, Deserialize, Deserializer};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
@@ -35,7 +36,10 @@ use crate::{
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
+            personalize_documents_by,
+            update_interactions,
+            PersonalizeBy,
+            UserInteractionData,
         },
         PersonalizationConfig,
     },
@@ -241,7 +245,7 @@ struct UsersInterests {
 
 impl UsersInterests {
     // function that reads the users interests from a json file
-    fn new(path: &str) -> Result<Self, anyhow::Error> {
+    fn new(path: &str) -> Result<Self, Error> {
         let file = File::open(path)?;
         let json: serde_json::Value = serde_json::from_reader(file)?;
         let map = json.as_object().unwrap();
@@ -320,7 +324,7 @@ where
 /// then use the user's preferences to select the documents that are relevant to the user.
 /// The documents are then used to prepare reranker. The reranker is then used to rerank the
 /// randomly selected documents. Then NDCG is calculated.
-fn run_persona_based_benchmark() -> Result<(), anyhow::Error> {
+fn run_persona_based_benchmark() -> Result<(), Error> {
     // define random thread
     let mut rng = thread_rng();
     // define how many documents to sample
@@ -400,7 +404,7 @@ fn run_persona_based_benchmark() -> Result<(), anyhow::Error> {
 
 /// Runs the user-based mind benchmark
 fn run_benchmark() -> Result<(), Error> {
-    let document_provider = DocumentProvider::new("/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/web-api/src/bin/news_no_nans.tsv")?;
+    let document_provider = DocumentProvider::new("news.tsv")?;
 
     let impressions = read("behaviors.tsv")?;
 
