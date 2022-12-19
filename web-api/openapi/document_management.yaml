@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Personalization API For Document Management
-  version: 1.0.0-rc5
+  title: Back Office API
+  version: 1.0.0
   description: |-
-    # Documents management
+    # Back Office
     For this system, a document is anything that has an id, a snippet, and an arbitrary set of properties.
     The id uniquely identifies the document in the system.
     The system uses the snippet to create a document representation that can be matched against user interests.

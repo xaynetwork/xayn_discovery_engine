@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Personalization API For User Management
-  version: 1.0.0-rc5
+  title: Front Office API
+  version: 1.0.0
   description: |-
-    # User management
+    # Front Office
     The system identifies a user with only an id.
     There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document), and one to retrieve a personalized set of documents for the user. The system needs a few user interactions with documents before it can generate a personalized list.
 
