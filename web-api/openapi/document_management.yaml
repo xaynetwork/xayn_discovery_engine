@@ -16,17 +16,17 @@ info:
     To authenticate with the API, a token will be provided.
 
 tags:
-  - name: documents
+  - name: back office
     description: Management of the documents in the system.
 
 security:
-  - ApiKeyAuth: []    
+  - ApiKeyAuth: []
 
 paths:
   /documents:
     post:
       tags:
-        - documents
+        - back office
       summary: Add documents to the system
       description: |-
         Add documents to the system. The system will create a representation of the document
@@ -50,7 +50,7 @@ paths:
                 $ref: '#/components/schemas/IngestionError'
     delete:
       tags:
-        - documents
+        - back office
       summary: Delete all listed documents.
       description: |-
         Delete all documents listed in the request body. The endpoint is
@@ -73,7 +73,7 @@ paths:
       - $ref: './parameters/path/document_id.yml'
     delete:
       tags:
-        - documents
+        - back office
       summary: Delete the document from the system.
       description: |-
         Permanently deletes the document from the system. The endpoint is
@@ -90,7 +90,7 @@ paths:
       - $ref: './parameters/path/document_id.yml'
     get:
       tags:
-        - documents
+        - back office
       summary: Get all document properties
       description: Gets all the properties of the document.
       operationId: getDocumentProperties
@@ -107,7 +107,7 @@ paths:
           description: document id not found
     put:
       tags:
-        - documents
+        - back office
       summary: Set all document properties
       description: Sets or replaces all the properties of the document.
       operationId: setDocumentProperties
@@ -125,7 +125,7 @@ paths:
           description: document id not found
     delete:
       tags:
-        - documents
+        - back office
       summary: Delete all document properties
       description: Deletes all the properties of the document.
       operationId: deleteDocumentProperties
@@ -148,7 +148,7 @@ paths:
           $ref: './schemas/document.yml#/DocumentPropertyId'
     get:
       tags:
-        - documents
+        - back office
       summary: Get a document property
       description: Gets the property of the document.
       operationId: getDocumentProperty
@@ -165,7 +165,7 @@ paths:
           description: document id or property id not found
     put:
       tags:
-        - documents
+        - back office
       summary: Set a document property
       description: Sets or replaces the property of the document.
       operationId: setDocumentProperty
@@ -183,7 +183,7 @@ paths:
           description: document id not found
     delete:
       tags:
-        - documents
+        - back office
       summary: Delete a document property
       description: Deletes the property of the document.
       operationId: deleteDocumentProperty
