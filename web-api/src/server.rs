@@ -78,6 +78,7 @@ where
 
         let addr = config.net.bind_to;
         let keep_alive = config.net.keep_alive;
+        let client_request_timeout = config.net.client_request_timeout;
         init_tracing(config.as_ref());
 
         let json_config = JsonConfig::default().limit(config.net.max_body_size);
@@ -97,6 +98,7 @@ where
         })
         .bind(addr)?
         .keep_alive(keep_alive)
+        .client_request_timeout(client_request_timeout)
         .run()
         .await?;
 

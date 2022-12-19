@@ -57,6 +57,11 @@ pub struct NetConfig {
     #[serde(with = "serde_duration_as_seconds")]
     #[serde(default = "default_keep_alive")]
     pub(crate) keep_alive: Duration,
+
+    /// Client request timeout in seconds
+    #[serde(with = "serde_duration_as_seconds")]
+    #[serde(default = "default_client_request_timeout")]
+    pub(crate) client_request_timeout: Duration,
 }
 
 fn default_bind_address() -> SocketAddr {
@@ -71,12 +76,17 @@ const fn default_keep_alive() -> Duration {
     Duration::from_secs(61)
 }
 
+const fn default_client_request_timeout() -> Duration {
+    Duration::from_secs(0)
+}
+
 impl Default for NetConfig {
     fn default() -> Self {
         Self {
             bind_to: default_bind_address(),
             max_body_size: default_max_body_size(),
             keep_alive: default_keep_alive(),
+            client_request_timeout: default_client_request_timeout(),
         }
     }
 }

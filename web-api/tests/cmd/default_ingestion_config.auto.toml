@@ -10,7 +10,8 @@ stdout = """
   "net": {
     "bind_to": "127.0.0.1:4252",
     "max_body_size": 524288,
-    "keep_alive": 61
+    "keep_alive": 61,
+    "client_request_timeout": 0
   },
   "storage": {
     "elastic": {
