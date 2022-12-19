@@ -247,7 +247,7 @@ pub struct Document {
     pub snippet: String,
     pub properties: DocumentProperties,
     pub embedding: Embedding,
-    pub tags: Option<String>,
+    pub tags: Vec<String>,
 }
 
 impl From<SearchResponse<Document>> for Vec<PersonalizedDocument> {

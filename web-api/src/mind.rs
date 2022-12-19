@@ -72,20 +72,11 @@ impl State {
         let documents = documents
             .into_iter()
             .map(|document| {
-                let tags = if document.category.is_empty() {
-                    if document.subcategory.is_empty() {
-                        None
-                    } else {
-                        Some(document.subcategory)
-                    }
-                } else {
-                    Some(document.category)
-                };
                 let document = IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
                     properties: DocumentProperties::default(),
-                    tags,
+                    tags: vec![document.category, document.subcategory],
                 };
                 let embedding = self.embedder.run(&document.snippet)?;
 
