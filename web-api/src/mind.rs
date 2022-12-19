@@ -21,12 +21,11 @@ use std::{collections::HashMap, fs::File, io, path::Path};
 use anyhow::Error;
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
-use ndarray::{Array, ArrayView, Axis};
+use ndarray::{Array, Array1, Array3, ArrayView, Dim};
 use npyz::WriterBuilder;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
-    thread_rng,
-    Rng,
+    thread_rng, Rng,
 };
 use serde::{de, Deserialize, Deserializer};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
@@ -36,10 +35,7 @@ use crate::{
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            personalize_documents_by,
-            update_interactions,
-            PersonalizeBy,
-            UserInteractionData,
+            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
         },
         PersonalizationConfig,
     },
@@ -168,6 +164,44 @@ where
         .collect()
 }
 
+// struct that represents config of hyperparameters for the persona based benchmark
+#[derive(Debug, Deserialize)]
+struct PersonaBasedConfig {
+    click_probability: f32,
+    n_documents: usize,
+    iterations: usize,
+    amount_of_doc_used_to_prepare: usize,
+    nranks: Vec<i32>,
+}
+
+impl PersonaBasedConfig {
+    fn new(
+        click_probability: f32,
+        n_documents: usize,
+        iterations: usize,
+        amount_of_doc_used_to_prepare: usize,
+        nranks: Vec<i32>,
+    ) -> Self {
+        Self {
+            click_probability,
+            n_documents,
+            iterations,
+            amount_of_doc_used_to_prepare,
+            nranks,
+        }
+    }
+
+    fn default() -> Self {
+        Self {
+            click_probability: 0.5,
+            n_documents: 100,
+            iterations: 10,
+            amount_of_doc_used_to_prepare: 1,
+            nranks: vec![3, 5],
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct Impression {
     id: String,
@@ -191,8 +225,8 @@ struct Document {
 
 impl Document {
     // check if the document is interesting to the user
-    fn is_interesting(&self, user_interests: &UserInterests) -> bool {
-        user_interests.interests.iter().any(|interest| {
+    fn is_interesting(&self, user_interests: &[String]) -> bool {
+        user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
             self.category == main_category || self.subcategory == sub_category
         })
@@ -223,7 +257,7 @@ impl DocumentProvider {
     }
 
     // get all documents that matches user's interest
-    fn get_all_interest(&self, interests: &UserInterests) -> Vec<&Document> {
+    fn get_all_interest(&self, interests: &[String]) -> Vec<&Document> {
         self.documents
             .values()
             .filter(|doc| doc.is_interesting(interests))
@@ -233,37 +267,28 @@ impl DocumentProvider {
 
 // struct storing users interests. It's a list of user ids and a list of their interests
 #[derive(Debug, Deserialize)]
-struct UserInterests {
-    user_id: String,
-    interests: Vec<String>,
-}
+struct Users(HashMap<UserId, Vec<String>>);
 
-#[derive(Debug, Deserialize)]
-struct UsersInterests {
-    user_interests: Vec<UserInterests>,
-}
-
-impl UsersInterests {
+impl Users {
     // function that reads the users interests from a json file
     fn new(path: &str) -> Result<Self, Error> {
         let file = File::open(path)?;
         let json: serde_json::Value = serde_json::from_reader(file)?;
         let map = json.as_object().unwrap();
-        // iterate over map and create a vector of UserInterests
-        Ok(UsersInterests {
-            user_interests: map
-                .into_iter()
-                .map(|(user_id, interests)| UserInterests {
-                    user_id: user_id.to_string(),
-                    interests: interests
+        // iterate over map and create a map of user ids and their interests
+        Ok(Users(
+            map.iter()
+                .map(|(user_id, interests)| {
+                    let interests = interests
                         .as_array()
                         .unwrap()
                         .iter()
                         .map(|interest| interest.as_str().unwrap().to_string())
-                        .collect(),
+                        .collect();
+                    (UserId::new(user_id).unwrap(), interests)
                 })
                 .collect(),
-        })
+        ))
     }
 }
 
@@ -289,8 +314,8 @@ where
 
 // function that assigns a score to a vector of documents based on the user's interests
 // score is equal to 1 if the document is interesting to the user, 0 otherwise
-fn score_documents(documents: &[&Document], user_interests: &UserInterests) -> Vec<f32> {
-    documents
+fn score_documents(documents: &[&Document], user_interests: &[String]) -> Array1<f32> {
+    let scores = documents
         .iter()
         .map(|document| {
             if document.is_interesting(user_interests) {
@@ -299,7 +324,8 @@ fn score_documents(documents: &[&Document], user_interests: &UserInterests) -> V
                 0.0
             }
         })
-        .collect()
+        .collect::<Vec<f32>>();
+    Array1::from(scores)
 }
 
 fn write_array<T, S, D>(writer: impl io::Write, array: &ndarray::ArrayBase<S, D>) -> io::Result<()>
@@ -335,34 +361,36 @@ async fn run_persona_based_benchmark() -> Result<(), Error> {
         )
         .await
         .unwrap();
-    let click_probability = 0.5;
-    let n_documents = 100;
-    let iterations = 10;
-    let amount_of_doc_used_to_prepare = 1;
-    let nranks = vec![3, 5];
-    let mut results = Array::zeros((nranks.len(), iterations, 0));
+    let benchmark_config = PersonaBasedConfig::default();
+    // create 3d array of zeros with shape (nranks, iterations, n_documents)
+    let mut results = Array3::<f32>::zeros(Dim([
+        benchmark_config.nranks.len(),
+        benchmark_config.iterations,
+        benchmark_config.n_documents,
+    ]));
 
     let mut rng = thread_rng();
 
-    let users_interests = UsersInterests::new("user_categories.json")?;
-    for user_interest in users_interests.user_interests {
-        let user_id = UserId::new(&user_interest.user_id).unwrap();
-        let interesting_documents = document_provider.get_all_interest(&user_interest);
+    let users_interests = Users::new("user_categories.json")?;
+    for (idx, (user_id, interests)) in users_interests.0.iter().enumerate() {
+        let interesting_documents = document_provider.get_all_interest(interests);
         let ids_of_documents_to_prepare = interesting_documents
-            .choose_multiple(&mut rng, amount_of_doc_used_to_prepare)
+            .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
             .map(|doc| doc.id.clone())
             .collect::<Vec<_>>();
-        let mut ndcgs = Array::zeros((nranks.len(), 0));
         // prepare reranker by interacting with documents to prepare
         state
-            .interact(&user_id, &ids_of_documents_to_prepare)
+            .interact(user_id, &ids_of_documents_to_prepare)
             .await
             .unwrap();
         // perform iterations
-        for _ in 0..iterations {
+        for iter in 0..benchmark_config.iterations {
             // get personalised documents from state
             let personalised_documents = state
-                .personalize(&user_id, PersonalizeBy::KnnSearch(n_documents))
+                .personalize(
+                    user_id,
+                    PersonalizeBy::KnnSearch(benchmark_config.n_documents),
+                )
                 .await
                 .unwrap();
             // get documents based on the personalised documents ids
@@ -371,20 +399,23 @@ async fn run_persona_based_benchmark() -> Result<(), Error> {
                 .map(|id| document_provider.get(id).unwrap())
                 .collect::<Vec<_>>();
             // score documents based on the user's interests
-            let scores = score_documents(&documents, &user_interest);
-            // add scores to user's ndcgs
-            ndcgs.push(Axis(1), ArrayView::from(&scores)).unwrap();
+            let scores = score_documents(&documents, interests);
+            //save scores to results array
+            for (i, score) in scores.iter().enumerate() {
+                results[[idx, iter, i]] = *score;
+            }
+
             // interact with some of the retrieved documents based on whether the document is interesting to the user and probability of clicking
             // interact with documents
             state
                 .interact(
-                    &user_id,
+                    user_id,
                     &personalised_documents
                         .iter()
                         .zip(scores.iter())
                         .filter(|(_, &score)| {
                             (score - 2.0).abs() < 0.001
-                                || rng.gen_range(0.0..1.0) < click_probability
+                                || rng.gen_range(0.0..1.0) < benchmark_config.click_probability
                         })
                         .map(|(id, _)| id.clone())
                         .collect::<Vec<_>>(),
@@ -392,7 +423,6 @@ async fn run_persona_based_benchmark() -> Result<(), Error> {
                 .await
                 .unwrap();
         }
-        results.push(Axis(2), ArrayView::from(&ndcgs)).unwrap();
     }
     let mut file = File::create("results/persona_based_benchmark_results.txt")?;
     // save results to file
