@@ -265,7 +265,6 @@ impl DocumentProvider {
     }
 }
 
-// struct storing users interests. It's a list of user ids and a list of their interests
 #[derive(Debug, Deserialize)]
 struct Users(HashMap<UserId, Vec<String>>);
 
@@ -424,7 +423,7 @@ async fn run_persona_based_benchmark() -> Result<(), Error> {
                 .unwrap();
         }
     }
-    let mut file = File::create("results/persona_based_benchmark_results.txt")?;
+    let mut file = File::create("results/persona_based_benchmark_results.npy")?;
     // save results to file
     write_array(&mut file, &results)?;
     Ok(())
