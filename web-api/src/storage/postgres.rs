@@ -393,6 +393,40 @@ impl Database {
 
         Ok(())
     }
+
+    async fn upsert_tag_weights<'c, I>(
+        tx: &mut Transaction<'_, Postgres>,
+        user_id: &UserId,
+        updates: I,
+    ) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (&'c str, i32)>,
+    {
+        let updates = updates.into_iter();
+
+        let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
+        let mut iter = updates.into_iter().peekable();
+        while iter.peek().is_some() {
+            let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
+            builder
+                .reset()
+                .push_values(chunk, |mut builder, (category, weight_diff)| {
+                    builder
+                        .push_bind(user_id)
+                        .push_bind(category)
+                        .push_bind(weight_diff);
+                })
+                .push(
+                    "ON CONFLICT (user_id, category) DO UPDATE SET
+                    weight = weighted_category.weight + EXCLUDED.weight;",
+                )
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(FromRow)]
@@ -469,8 +503,6 @@ impl storage::Interaction for Storage {
     where
         F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> &'b PositiveCoi + Send + Sync,
     {
-        let persist_build_queries = updated_document_ids.len() == 1;
-
         let mut tx = self.postgres.pool.begin().await?;
 
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
@@ -515,6 +547,7 @@ impl storage::Interaction for Storage {
         }
 
         Database::upsert_cois(&mut tx, user_id, now, &updates).await?;
+
         Database::upsert_interactions(
             &mut tx,
             user_id,
@@ -528,27 +561,15 @@ impl storage::Interaction for Storage {
         )
         .await?;
 
-        let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
-        let mut iter = category_weight_diff_map.iter().peekable();
-        while iter.peek().is_some() {
-            let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
-            builder
-                .reset()
-                .push_values(chunk, |mut builder, (category, weight_diff)| {
-                    builder
-                        .push_bind(user_id)
-                        .push_bind(category)
-                        .push_bind(weight_diff);
-                })
-                .push(
-                    "ON CONFLICT (user_id, category) DO UPDATE SET
-                    weight = weighted_category.weight + EXCLUDED.weight;",
-                )
-                .build()
-                .persistent(persist_build_queries)
-                .execute(&mut tx)
-                .await?;
-        }
+        Database::upsert_tag_weights(
+            &mut tx,
+            user_id,
+            category_weight_diff_map
+                .iter()
+                .filter_map(|(category, weight)| category.as_deref().map(|c| (c, *weight)))
+                .collect_vec(),
+        )
+        .await?;
 
         tx.commit().await?;
         Ok(())
