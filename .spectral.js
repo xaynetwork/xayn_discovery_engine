@@ -34,7 +34,6 @@ module.exports = {
     'major-version-in-path': 'off',
     'schema-description': 'off',
     'inline-property-schema': 'off',
-    'content-entry-provided': 'off',
     'property-description': 'off',
     'oas3-api-servers': 'off',
     'delete-body': 'off',

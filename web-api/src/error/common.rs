@@ -27,19 +27,19 @@ use crate::{impl_application_error, models::DocumentId, Error};
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct DocumentNotFound;
 
-impl_application_error!(DocumentNotFound => NOT_FOUND);
+impl_application_error!(DocumentNotFound => BAD_REQUEST);
 
 /// The requested document was found but not the requested property.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct DocumentPropertyNotFound;
 
-impl_application_error!(DocumentPropertyNotFound => NOT_FOUND);
+impl_application_error!(DocumentPropertyNotFound => BAD_REQUEST);
 
 /// The requested property was not found.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct PropertyNotFound;
 
-impl_application_error!(PropertyNotFound => NOT_FOUND);
+impl_application_error!(PropertyNotFound => BAD_REQUEST);
 
 /// Malformed user id.
 #[derive(Debug, Error, Display, Serialize)]

@@ -40,9 +40,9 @@ paths:
               $ref: '#/components/schemas/IngestionRequest'
       responses:
         '201':
-          description: successful operation
+          $ref: './responses/generic.yml#/Created'
         '400':
-          description: invalid request
+          $ref: './responses/generic.yml#/BadRequest'
         '500':
           description: all or some of the documents were not successfully uploaded
           content:
@@ -68,7 +68,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid request
+          $ref: './responses/generic.yml#/BadRequest'
 
   /documents/{document_id}:
     parameters:
@@ -85,7 +85,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid request
+          $ref: './responses/generic.yml#/BadRequest'
 
   /documents/{document_id}/properties:
     parameters:
@@ -104,9 +104,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DocumentPropertiesResponse'
         '400':
-          description: invalid document id
-        '404':
-          description: document id not found
+          $ref: './responses/generic.yml#/BadRequest'
     put:
       tags:
         - back office
@@ -123,9 +121,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid document id
-        '404':
-          description: document id not found
+          $ref: './responses/generic.yml#/BadRequest'
     delete:
       tags:
         - back office
@@ -136,9 +132,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid document id
-        '404':
-          description: document id not found
+          $ref: './responses/generic.yml#/BadRequest'
 
   /documents/{document_id}/properties/{property_id}:
     parameters:
@@ -163,9 +157,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DocumentPropertyResponse'
         '400':
-          description: invalid document id or property id
-        '404':
-          description: document id or property id not found
+          $ref: './responses/generic.yml#/BadRequest'
     put:
       tags:
         - back office
@@ -182,9 +174,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid document id or property id
-        '404':
-          description: document id not found
+          $ref: './responses/generic.yml#/BadRequest'
     delete:
       tags:
         - back office
@@ -195,9 +185,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid document id or property id
-        '404':
-          description: document id or property id not found
+          $ref: './responses/generic.yml#/BadRequest'
 
 components:
   securitySchemes:
