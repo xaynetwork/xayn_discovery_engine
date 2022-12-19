@@ -113,7 +113,7 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    pub(crate) tags: Option<String>,
+    pub(crate) tags: Vec<String>,
 }
 
 impl AiDocument for PersonalizedDocument {
@@ -160,8 +160,7 @@ pub(crate) struct IngestedDocument {
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    #[serde(default, deserialize_with = "deserialize_empty_option_string_as_none")]
-    pub(crate) tags: Option<String>,
+    pub(crate) tags: Vec<String>,
 }
 
 fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -176,13 +175,4 @@ where
     } else {
         Ok(s)
     }
-}
-
-fn deserialize_empty_option_string_as_none<'de, D>(
-    deserializer: D,
-) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Option::<String>::deserialize(deserializer).map(|s| s.filter(|s| !s.is_empty()))
 }

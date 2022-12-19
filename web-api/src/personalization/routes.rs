@@ -118,9 +118,7 @@ pub(crate) async fn update_interactions(
                         },
                     )
                     .await?;
-                    if let Some(tags) = &document.tags {
-                        storage::Tag::update(storage, user_id, tags).await?;
-                    }
+                    storage::Tag::update(storage, user_id, &document.tags).await?;
                 } else {
                     warn!(%document.document_id, "interacted document doesn't exist anymore");
                 }
@@ -333,11 +331,9 @@ pub(crate) async fn personalize_documents_by(
     let mut documents_by_tags = all_documents
         .iter()
         .map(|document| {
-            let weight = document
-                .tags
-                .as_deref()
-                .and_then(|tag| tags.get(tag).copied())
-                .unwrap_or_default();
+            let weight = document.tags.iter().fold(0, |weights, tag| {
+                tags.get(tag).map_or(weights, |weight| weights + *weight)
+            });
             (document.id.clone(), weight)
         })
         .collect_vec();

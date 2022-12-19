@@ -55,7 +55,7 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
     properties: DocumentProperties,
-    tags: Option<String>,
+    tags: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deref)]
@@ -412,22 +412,29 @@ impl storage::Interaction for Storage {
 #[async_trait]
 impl storage::Tag for Storage {
     async fn get(&self, id: &UserId) -> Result<HashMap<String, usize>, Error> {
-        let tags = self.tags.read().await.get(id).cloned().unwrap_or_default();
-
-        Ok(tags)
+        Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
     }
 
-    async fn update(&self, id: &UserId, tag: &str) -> Result<(), Error> {
-        self.tags
-            .write()
-            .await
-            .entry(id.clone())
-            .and_modify(|tags| {
-                tags.entry(tag.to_string())
-                    .and_modify(|weight| *weight += 1)
-                    .or_insert(1);
-            })
-            .or_insert_with(|| [(tag.to_string(), 1)].into());
+    async fn update(&self, id: &UserId, tags: &[String]) -> Result<(), Error> {
+        if tags.is_empty() {
+            return Ok(());
+        }
+
+        let mut tags_by_users = self.tags.write().await;
+        if let Some(user_tags) = tags_by_users.get_mut(id) {
+            for tag in tags {
+                if let Some(weight) = user_tags.get_mut(tag) {
+                    *weight += 1;
+                } else {
+                    user_tags.insert(tag.to_string(), 1);
+                }
+            }
+        } else {
+            tags_by_users.insert(
+                id.clone(),
+                tags.iter().map(|tag| (tag.to_string(), 1)).collect(),
+            );
+        }
 
         Ok(())
     }
@@ -506,7 +513,7 @@ mod tests {
                 id: id.clone(),
                 snippet: String::new(),
                 properties: DocumentProperties::default(),
-                tags: None,
+                tags: Vec::new(),
             })
             .collect_vec();
         let embeddings = [
