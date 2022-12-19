@@ -40,6 +40,7 @@ module.exports = {
     'prohibit-summary-sentence-style': 'off',
     'response-example-provided': 'off',
     'collection-array-property': 'off',
+    // the rule set wants to enforce a specific erorr shcema
     'response-error-response-schema': 'off',
     'patch-request-content-type': 'off',
   }
