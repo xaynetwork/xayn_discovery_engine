@@ -38,7 +38,7 @@ paths:
             schema:
               $ref: '#/components/schemas/IngestionRequest'
       responses:
-        '204':
+        '201':
           description: successful operation
         '400':
           description: invalid request

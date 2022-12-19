@@ -51,7 +51,7 @@ paths:
           description: invalid user id.
         '404':
           description: user not found.
-        '422':
+        '409':
           description: impossible to create a personalized list for the user.
           content:
             application/json:

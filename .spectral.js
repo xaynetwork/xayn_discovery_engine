@@ -40,7 +40,6 @@ module.exports = {
     'delete-body': 'off',
     'optional-request-body': 'off',
     'prohibit-summary-sentence-style': 'off',
-    'response-status-codes': 'off',
     'response-example-provided': 'off',
     'collection-array-property': 'off',
     'response-error-response-schema': 'off',

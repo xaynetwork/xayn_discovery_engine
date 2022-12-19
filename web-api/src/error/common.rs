@@ -69,7 +69,7 @@ impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST);
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct NotEnoughInteractions;
 
-impl_application_error!(NotEnoughInteractions => NOT_FOUND);
+impl_application_error!(NotEnoughInteractions => CONFLICT);
 
 /// Failed to delete some documents
 #[derive(Debug, Error, Display, Serialize)]
