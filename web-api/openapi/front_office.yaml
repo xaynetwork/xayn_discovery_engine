@@ -109,7 +109,7 @@ components:
             $ref: '#/components/schemas/PersonalizedDocumentData'
     PersonalizedDocumentsError:
       allOf:
-        - $ref: './schemas/error.yml#/BaseError'
+        - $ref: './schemas/error.yml#/GenericError'
         - type: object
           required: [kind]
           properties:
@@ -138,7 +138,7 @@ components:
             $ref: '#/components/schemas/UserInteractionData'
     UserInteractionError:
       allOf:
-        - $ref: './schemas/error.yml#/BaseError'
+        - $ref: './schemas/error.yml#/GenericError'
         - type: object
           required: [kind]
           properties:

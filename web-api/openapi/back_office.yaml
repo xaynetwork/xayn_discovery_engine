@@ -242,7 +242,7 @@ components:
             $ref: '#/components/schemas/IngestedDocument'
     IngestionError:
       allOf:
-        - $ref: './schemas/error.yml#/BaseError'
+        - $ref: './schemas/error.yml#/GenericError'
         - type: object
           required: [details]
           properties:

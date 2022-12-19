@@ -1,4 +1,4 @@
-BaseError:
+GenericError:
   type: object
   properties:
     request_id:
