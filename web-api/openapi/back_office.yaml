@@ -246,25 +246,27 @@ components:
           items:
             $ref: '#/components/schemas/IngestedDocument'
     IngestionError:
-      allOf:
+      oneOf:
         - $ref: './schemas/error.yml#/GenericError'
-        - type: object
-          required: [details]
-          properties:
-            details:
-              type: object
-              required: [documents]
-              properties:
-                documents:
-                  type: array
-                  minItems: 0
-                  maxItems: 100
-                  items:
-                    type: object
-                    required: [id]
-                    properties:
-                      id:
-                        $ref: './schemas/document.yml#/DocumentId'
+        - allOf:
+          - $ref: './schemas/error.yml#/GenericError'
+          - type: object
+            required: [details]
+            properties:
+              details:
+                type: object
+                required: [documents]
+                properties:
+                  documents:
+                    type: array
+                    minItems: 0
+                    maxItems: 100
+                    items:
+                      type: object
+                      required: [id]
+                      properties:
+                        id:
+                          $ref: './schemas/document.yml#/DocumentId'
     DeleteDocumentsRequest:
       type: object
       required: [documents]
