@@ -331,9 +331,12 @@ pub(crate) async fn personalize_documents_by(
     let mut documents_by_tags = all_documents
         .iter()
         .map(|document| {
-            let weight = document.tags.iter().fold(0, |weights, tag| {
-                tags.get(tag).map_or(weights, |weight| weights + *weight)
-            });
+            let weight = document
+                .tags
+                .iter()
+                .map(|tag| tags.get(tag))
+                .sum::<Option<usize>>()
+                .unwrap_or_default();
             (document.id.clone(), weight)
         })
         .collect_vec();
