@@ -12,12 +12,35 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::{
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    time::Duration,
+};
 
 use derive_more::{AsRef, Deref};
 use serde::{Deserialize, Serialize};
 
 use crate::{logging, storage};
+
+mod serde_duration_as_seconds {
+    use std::time::Duration;
+
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub(super) fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        duration.as_secs().serialize(serializer)
+    }
+
+    pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        u64::deserialize(deserializer).map(Duration::from_secs)
+    }
+}
 
 /// Configuration for roughly network/connection layer specific configurations.
 #[derive(Debug, Deserialize, Serialize)]
@@ -29,6 +52,11 @@ pub struct NetConfig {
     /// Max body size limit which should be applied to all endpoints
     #[serde(default = "default_max_body_size")]
     pub(crate) max_body_size: usize,
+
+    /// Keep alive timeout in seconds
+    #[serde(with = "serde_duration_as_seconds")]
+    #[serde(default = "default_keep_alive")]
+    pub(crate) keep_alive: Duration,
 }
 
 fn default_bind_address() -> SocketAddr {
@@ -39,11 +67,16 @@ fn default_max_body_size() -> usize {
     524_288
 }
 
+const fn default_keep_alive() -> Duration {
+    Duration::from_secs(61)
+}
+
 impl Default for NetConfig {
     fn default() -> Self {
         Self {
             bind_to: default_bind_address(),
             max_body_size: default_max_body_size(),
+            keep_alive: default_keep_alive(),
         }
     }
 }
