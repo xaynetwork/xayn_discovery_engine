@@ -69,6 +69,7 @@ paths:
       parameters:
         - $ref: './parameters/path/user_id.yml'
       requestBody:
+        required: true
         content:
           application/json:
             schema:

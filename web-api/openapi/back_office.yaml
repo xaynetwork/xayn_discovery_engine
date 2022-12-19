@@ -33,6 +33,7 @@ paths:
         that will be used to match it against the preferences of a user.
       operationId: createDocuments
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -58,6 +59,7 @@ paths:
         documents, no error is produced.
       operationId: deleteDocuments
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -112,6 +114,7 @@ paths:
       description: Sets or replaces all the properties of the document.
       operationId: replaceDocumentProperties
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -170,6 +173,7 @@ paths:
       description: Sets or replaces the property of the document.
       operationId: replaceDocumentProperty
       requestBody:
+        required: true
         content:
           application/json:
             schema:

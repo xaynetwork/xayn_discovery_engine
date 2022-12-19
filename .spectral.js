@@ -38,7 +38,6 @@ module.exports = {
     'property-description': 'off',
     'oas3-api-servers': 'off',
     'delete-body': 'off',
-    'optional-request-body': 'off',
     'prohibit-summary-sentence-style': 'off',
     'response-example-provided': 'off',
     'collection-array-property': 'off',
