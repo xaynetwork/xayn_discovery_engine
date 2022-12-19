@@ -276,7 +276,7 @@ impl Users {
     // function that reads the users interests from a json file
     fn new(path: &str) -> Result<Self, Error> {
         let file = File::open(path)?;
-        let json: serde_json::Value = serde_json::from_reader(file)?;
+        let json = serde_json::from_reader::<_, serde_json::Value>(file)?;
         let map = json.as_object().unwrap();
         // iterate over map and create a map of user ids and their interests
         Ok(Users(
