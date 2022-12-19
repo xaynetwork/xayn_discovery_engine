@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Front Office API
-  version: 1.0.0
+  version: 1.0.0-rc6
   description: |-
     # Front Office
     The system identifies a user with only an id.

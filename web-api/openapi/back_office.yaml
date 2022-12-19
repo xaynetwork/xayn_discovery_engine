@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Back Office API
-  version: 1.0.0
+  version: 1.0.0-rc6
   description: |-
     # Back Office
     For this system, a document is anything that has an id, a snippet, and an arbitrary set of properties.
