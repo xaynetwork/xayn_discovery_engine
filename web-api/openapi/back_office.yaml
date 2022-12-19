@@ -31,7 +31,7 @@ paths:
       description: |-
         Add documents to the system. The system will create a representation of the document
         that will be used to match it against the preferences of a user.
-      operationId: ingestDocuments
+      operationId: createDocuments
       requestBody:
         content:
           application/json:
@@ -93,7 +93,7 @@ paths:
         - back office
       summary: Get all document properties
       description: Gets all the properties of the document.
-      operationId: getDocumentProperties
+      operationId: listDocumentProperties
       responses:
         '200':
           description: successful operation
@@ -110,7 +110,7 @@ paths:
         - back office
       summary: Set all document properties
       description: Sets or replaces all the properties of the document.
-      operationId: setDocumentProperties
+      operationId: replaceDocumentProperties
       requestBody:
         content:
           application/json:
@@ -168,7 +168,7 @@ paths:
         - back office
       summary: Set a document property
       description: Sets or replaces the property of the document.
-      operationId: setDocumentProperty
+      operationId: replaceDocumentProperty
       requestBody:
         content:
           application/json:

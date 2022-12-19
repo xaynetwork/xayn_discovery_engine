@@ -65,7 +65,7 @@ paths:
       summary: Add interaction between a user and a document
       description: |-
         The interaction is used to provide personalized documents to the user.
-      operationId: documentInteraction
+      operationId: updateUserInteractions
       parameters:
         - $ref: './parameters/path/user_id.yml'
       requestBody:
