@@ -294,7 +294,7 @@ fn score_documents(documents: &[&Document], user_interests: &UserInterests) -> V
         .iter()
         .map(|document| {
             if document.is_interesting(user_interests) {
-                1.0
+                2.0
             } else {
                 0.0
             }
@@ -320,84 +320,82 @@ where
     writer.finish()
 }
 
-/// Runs the persona-based MIND benchmark. We load the user's preferences from the json file and
-/// then use the user's preferences to select the documents that are relevant to the user.
-/// The documents are then used to prepare reranker. The reranker is then used to rerank the
-/// randomly selected documents. Then NDCG is calculated.
-fn run_persona_based_benchmark() -> Result<(), Error> {
-    // define random thread
-    let mut rng = thread_rng();
-    // define how many documents to sample
-    let amount_of_doc_used_to_prepare = 1;
-
-    // define how many documents to rerank
-    let amount_of_doc_used_to_rerank = 30;
-
-    //probability of a document being clicked if it is interesting to the user
+/// Runs persona based benchmark
+async fn run_persona_based_benchmark() -> Result<(), Error> {
+    let document_provider = DocumentProvider::new("news.tsv")?;
+    let state = State::new(Storage::default()).unwrap();
+    // load documents from document provider to state
+    state
+        .insert(
+            document_provider
+                .documents
+                .values()
+                .cloned()
+                .collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
     let click_probability = 0.5;
-
-    //define how many iterations to perform
+    let n_documents = 100;
     let iterations = 10;
-
-    // define how many documents to use to calculate NDCG
+    let amount_of_doc_used_to_prepare = 1;
     let nranks = vec![3, 5];
-
-    // create a 3d array to store the results
     let mut results = Array::zeros((nranks.len(), iterations, 0));
 
-    // read in users' interests from json file
-    let users_interests = UsersInterests::new("user_categories.json").unwrap();
-    // read in documents from tsv file
-    let document_provider = DocumentProvider::new("news.tsv").unwrap();
-    // iterate over users' interests and select documents that are relevant to the user
+    let mut rng = thread_rng();
+
+    let users_interests = UsersInterests::new("user_categories.json")?;
     for user_interest in users_interests.user_interests {
-        // get all documents that match user's interests
+        let user_id = UserId::new(&user_interest.user_id).unwrap();
         let interesting_documents = document_provider.get_all_interest(&user_interest);
-        // sample documents that will be used to prepare the reranker from interesting documents
-        let documents_to_prepare =
-            interesting_documents.choose_multiple(&mut rng, amount_of_doc_used_to_prepare);
-
+        let ids_of_documents_to_prepare = interesting_documents
+            .choose_multiple(&mut rng, amount_of_doc_used_to_prepare)
+            .map(|doc| doc.id.clone())
+            .collect::<Vec<_>>();
         let mut ndcgs = Array::zeros((nranks.len(), 0));
-
-        // Placeholder for interacting with the sampled news (preparing the reranker)
-        for document in documents_to_prepare {
-            println!("The document {:?} was interacted with.", document);
-        }
-
-        // running iterations
+        // prepare reranker by interacting with documents to prepare
+        state
+            .interact(&user_id, &ids_of_documents_to_prepare)
+            .await
+            .unwrap();
+        // perform iterations
         for _ in 0..iterations {
-            // Sample random documents
-            let sampled_documents = document_provider.sample(amount_of_doc_used_to_rerank);
-            //Placeholder for reranking the sampled documents
-            for document in &sampled_documents {
-                println!("The document {:?} was reranked.", document);
-            }
-            // Assing labels to the documents
-            let labels = score_documents(&sampled_documents, &user_interest);
-            // Calculate NDCG
-            let iteration_ndcg = ndcg(&labels, &nranks);
-
-            ndcgs
-                .push(Axis(1), ArrayView::from(&iteration_ndcg))
+            // get personalised documents from state
+            let personalised_documents = state
+                .personalize(&user_id, PersonalizeBy::KnnSearch(n_documents))
+                .await
                 .unwrap();
-
-            //placeholder for interacting with the sampled news
-            for document in sampled_documents {
-                if document.is_interesting(&user_interest) {
-                    // user clicked on the document if the probability is greater than click_probability
-                    if rng.gen::<f32>() < click_probability {
-                        println!("The document {:?} was clicked.", document);
-                    }
-                }
-            }
+            // get documents based on the personalised documents ids
+            let documents = personalised_documents
+                .iter()
+                .map(|id| document_provider.get(id).unwrap())
+                .collect::<Vec<_>>();
+            // score documents based on the user's interests
+            let scores = score_documents(&documents, &user_interest);
+            // add scores to user's ndcgs
+            ndcgs.push(Axis(1), ArrayView::from(&scores)).unwrap();
+            // interact with some of the retrieved documents based on whether the document is interesting to the user and probability of clicking
+            // interact with documents
+            state
+                .interact(
+                    &user_id,
+                    &personalised_documents
+                        .iter()
+                        .zip(scores.iter())
+                        .filter(|(_, &score)| {
+                            (score - 2.0).abs() < 0.001
+                                || rng.gen_range(0.0..1.0) < click_probability
+                        })
+                        .map(|(id, _)| id.clone())
+                        .collect::<Vec<_>>(),
+                )
+                .await
+                .unwrap();
         }
-        // add ndcgs for the user to the results
         results.push(Axis(2), ArrayView::from(&ndcgs)).unwrap();
     }
-
-    // save the results to a npy file
-    let mut file = io::BufWriter::new(File::create("ndarray.npy")?);
-
+    let mut file = File::create("results/persona_based_benchmark_results.txt")?;
+    // save results to file
     write_array(&mut file, &results)?;
     Ok(())
 }
