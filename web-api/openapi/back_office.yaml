@@ -204,6 +204,8 @@ components:
       properties:
         property:
           $ref: './schemas/document.yml#/DocumentProperty'
+      example:
+        property: "Any valid json value"
     DocumentPropertiesRequest:
       type: object
       required: [properties]
@@ -216,6 +218,9 @@ components:
       properties:
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
+      example:
+        properties:
+          title: "News title"
     IngestedDocument:
       type: object
       required: [id, snippet]

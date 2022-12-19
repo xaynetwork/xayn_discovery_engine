@@ -107,6 +107,12 @@ components:
           maxItems: 100
           items:
             $ref: '#/components/schemas/PersonalizedDocumentData'
+      example:
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
     PersonalizedDocumentsError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
