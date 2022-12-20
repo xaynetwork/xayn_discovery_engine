@@ -9,7 +9,8 @@ stdout = """
   },
   "net": {
     "bind_to": "127.4.3.2:1099",
-    "max_body_size": 64
+    "max_body_size": 64,
+    "keep_alive": 61
   },
   "storage": {
     "elastic": {
