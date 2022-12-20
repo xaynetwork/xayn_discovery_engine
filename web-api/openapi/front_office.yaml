@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Personalization API For User Management
-  version: 1.0.0-rc5
+  title: Front Office API
+  version: 1.0.0
   description: |-
-    # User management
+    # Front Office
     The system identifies a user with only an id.
     There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document), and one to retrieve a personalized set of documents for the user. The system needs a few user interactions with documents before it can generate a personalized list.
 
@@ -11,7 +11,7 @@ info:
     To authenticate with the API, a token will be provided.
 
 tags:
-  - name: users
+  - name: front office
     description: Interaction of the user and personalized document.
 
 security:
@@ -21,7 +21,7 @@ paths:
   /users/{user_id}/personalized_documents:
     get:
       tags:
-        - users
+        - front office
       summary: Get personalized documents for the user
       description: |-
         Returns a list of documents personalized for the given `user_id`.
@@ -61,7 +61,7 @@ paths:
   /users/{user_id}/interactions:
     patch:
       tags:
-        - users
+        - front office
       summary: Add interaction between a user and a document
       description: |-
         The interaction is used to provide personalized documents to the user.
