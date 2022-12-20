@@ -431,28 +431,21 @@ fn run_user_benchmark() -> Result<(), Error> {
             .map(|document| document.document_id)
             .collect::<Vec<_>>();
 
-        let documents = state
+        let labels = state
             .personalize(&user, PersonalizeBy::Documents(document_ids.as_slice()))
             .await
-            .unwrap();
-
-        let indices = documents
+            .unwrap()
             .iter()
             .map(|&reranked_id| {
-                document_ids
+                impression.news[document_ids
                     .iter()
                     .position(|&actual_id| actual_id == reranked_id)
-                    .unwrap()
+                    .unwrap()]
+                .was_clicked as i32 as f32
             })
             .collect_vec();
 
-        let labels = impression
-            .news
-            .iter()            
-            .map(|document| document.was_clicked as i32 as f32)
-            .collect_vec();
         let ndcgs_iteration = ndcg(&labels, &nranks);
-
         ndcgs
             .push_column(ArrayView::from(&ndcgs_iteration))
             .unwrap();
