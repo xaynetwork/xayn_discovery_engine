@@ -36,10 +36,7 @@ use crate::{
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            personalize_documents_by,
-            update_interactions,
-            PersonalizeBy,
-            UserInteractionData,
+            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
         },
         PersonalizationConfig,
     },
@@ -235,6 +232,10 @@ impl DocumentProvider {
         self.documents.get(id)
     }
 
+    fn get_documents(&self) -> Vec<Document> {
+        self.documents.values().cloned().collect()
+    }
+
     // get all documents that matches user's interest
     fn get_all_interest(&self, interests: &[String]) -> Vec<&Document> {
         self.documents
@@ -267,7 +268,6 @@ impl Users {
                 })
                 .collect(),
         ))
-    }
 }
 
 struct SnippetLabelPair(String, bool);
@@ -406,8 +406,13 @@ async fn run_persona_benchmark() -> Result<(), Error> {
 #[ignore]
 fn run_user_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
+    let impressions: DeserializeRecordsIntoIter<File, _> = read("behaviors.tsv")?;
 
-    let impressions = read("behaviors.tsv")?;
+    let state = State::new(Storage::default()).unwrap();
+    state
+        .insert(document_provider.get_documents())
+        .await
+        .unwrap();
 
     let nranks = vec![3];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
@@ -416,32 +421,35 @@ fn run_user_benchmark() -> Result<(), Error> {
     // and rerank the news in an impression
     for impression in impressions {
         let impression: Impression = impression?;
+        let user = UserId::new(impression.user_id).unwrap();
 
-        // Placeholder for interacting with the entire click history
-        for click in impression.clicks {
-            match document_provider.get(&click) {
-                Some(document) => println!("The document {:?} was interacted.", document),
-                None => println!("Document id {} not found.", click),
-            }
-        }
+        state.interact(&user, &impression.clicks).await.unwrap();
 
-        // Placeholder for reranking the results
-        let mut snippet_label_pairs = impression
+        let document_ids = impression
             .news
             .iter()
-            .filter_map(|viewed_document| {
-                document_provider
-                    .get(&viewed_document.document_id)
-                    .map(|document| {
-                        SnippetLabelPair(document.snippet.clone(), viewed_document.was_clicked)
-                    })
+            .map(|document| document.document_id)
+            .collect::<Vec<_>>();
+
+        let documents = state
+            .personalize(&user, PersonalizeBy::Documents(document_ids.as_slice()))
+            .await
+            .unwrap();
+
+        let indices = documents
+            .iter()
+            .map(|&reranked_id| {
+                document_ids
+                    .iter()
+                    .position(|&actual_id| actual_id == reranked_id)
+                    .unwrap()
             })
             .collect_vec();
-        snippet_label_pairs.shuffle(&mut thread_rng());
 
-        let labels = snippet_label_pairs
-            .iter()
-            .map(|snippet_label| if snippet_label.1 { 1.0 } else { 0.0 })
+        let labels = impression
+            .news
+            .iter()            
+            .map(|document| document.was_clicked as i32 as f32)
             .collect_vec();
         let ndcgs_iteration = ndcg(&labels, &nranks);
 
