@@ -26,9 +26,57 @@ use tracing_subscriber::{
 
 use crate::utils::RelativePathBuf;
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+const fn default_file() -> Option<RelativePathBuf> {
+    None
+}
+
+const fn default_level() -> LevelFilter {
+    LevelFilter::INFO
+}
+
+mod serde_level_filter {
+    use serde::{
+        de::{Deserialize, Deserializer, Error},
+        ser::{Serialize, Serializer},
+    };
+    use tracing_subscriber::filter::LevelFilter;
+
+    #[allow(clippy::trivially_copy_pass_by_ref)] // required by serde
+    pub(super) fn serialize<S>(level: &LevelFilter, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        level.to_string().serialize(serializer)
+    }
+
+    pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<LevelFilter, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        String::deserialize(deserializer).and_then(|level| {
+            level
+                .parse::<LevelFilter>()
+                .map_err(|error| D::Error::custom(error.to_string()))
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "default_file")]
     pub(crate) file: Option<RelativePathBuf>,
+    #[serde(with = "serde_level_filter")]
+    #[serde(default = "default_level")]
+    pub(crate) level: LevelFilter,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            file: default_file(),
+            level: default_level(),
+        }
+    }
 }
 
 static INIT_TRACING: Once = Once::new();
@@ -46,8 +94,7 @@ fn init_tracing_once(log_config: &Config) {
     let stdout_log = tracing_subscriber::fmt::layer().with_ansi(false);
 
     let sqlx_query_no_info = Targets::new()
-        // trace => do not affect filtering of any other targets
-        .with_default(LevelFilter::TRACE)
+        .with_default(log_config.level)
         .with_target("sqlx::query", Level::WARN);
 
     let file_log = log_config
@@ -76,8 +123,7 @@ fn init_tracing_once(log_config: &Config) {
         .with(stdout_log)
         .with(sqlx_query_no_info)
         .with(file_log)
-        //FIXME[ET-3444] use env to determine logging level
-        .with(LevelFilter::DEBUG)
+        .with(log_config.level)
         .init();
 }
 

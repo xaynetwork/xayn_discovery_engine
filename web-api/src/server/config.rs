@@ -68,7 +68,7 @@ fn default_bind_address() -> SocketAddr {
     SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 4252).into()
 }
 
-fn default_max_body_size() -> usize {
+const fn default_max_body_size() -> usize {
     524_288
 }
 

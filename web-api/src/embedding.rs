@@ -30,7 +30,7 @@ fn default_directory() -> RelativePathBuf {
     "assets".into()
 }
 
-fn default_token_size() -> usize {
+const fn default_token_size() -> usize {
     250
 }
 

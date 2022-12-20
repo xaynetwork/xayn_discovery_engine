@@ -41,23 +41,23 @@ pub struct Config {
     horizon: Duration,
 }
 
-fn default_shift_factor() -> f32 {
+const fn default_shift_factor() -> f32 {
     0.1
 }
 
-fn default_threshold() -> f32 {
+const fn default_threshold() -> f32 {
     0.67
 }
 
-fn default_min_positive_cois() -> usize {
+const fn default_min_positive_cois() -> usize {
     1
 }
 
-fn default_min_negative_cois() -> usize {
+const fn default_min_negative_cois() -> usize {
     0
 }
 
-fn default_horizon() -> Duration {
+const fn default_horizon() -> Duration {
     Duration::from_secs(SECONDS_PER_DAY_U64 * 30)
 }
 

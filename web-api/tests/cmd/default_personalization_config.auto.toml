@@ -5,7 +5,8 @@ stderr = ""
 stdout = """
 {
   "logging": {
-    "file": null
+    "file": null,
+    "level": "info"
   },
   "net": {
     "bind_to": "127.0.0.1:4252",
