@@ -75,20 +75,20 @@ pub(crate) struct PersonalizationConfig {
     pub(crate) interest_tag_bias: f32,
 }
 
-fn default_max_number_documents() -> usize {
+const fn default_max_number_documents() -> usize {
     100
 }
 
-fn default_default_number_documents() -> usize {
+const fn default_default_number_documents() -> usize {
     100
 }
 
-fn default_max_cois_for_knn() -> usize {
+const fn default_max_cois_for_knn() -> usize {
     //FIXME what is a default value we know works well with how we do knn?
     10
 }
 
-fn default_interest_tag_bias() -> f32 {
+const fn default_interest_tag_bias() -> f32 {
     0.5
 }
 

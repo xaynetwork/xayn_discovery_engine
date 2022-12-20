@@ -5,7 +5,8 @@ stderr = ""
 stdout = """
 {
   "logging": {
-    "file": "[CWD]/tests/cmd/assets/foo/bar.log"
+    "file": "[CWD]/tests/cmd/assets/foo/bar.log",
+    "level": "info"
   },
   "net": {
     "bind_to": "127.0.1.1:3040",
