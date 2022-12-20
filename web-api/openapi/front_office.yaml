@@ -114,16 +114,14 @@ components:
             properties:
               title: "News title"
     PersonalizedDocumentsError:
-      oneOf:
+      allOf:
         - $ref: './schemas/error.yml#/GenericError'
-        - allOf:
-          - $ref: './schemas/error.yml#/GenericError'
-          - type: object
-            required: [kind]
-            properties:
-              kind:
-                type: string
-                enum: [NotEnoughInteractions]
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [NotEnoughInteractions]
     UserInteractionType:
       type: string
       enum: [Positive]
@@ -145,13 +143,11 @@ components:
           items:
             $ref: '#/components/schemas/UserInteractionData'
     UserInteractionError:
-      oneOf:
+      allOf:
         - $ref: './schemas/error.yml#/GenericError'
-        - allOf:
-          - $ref: './schemas/error.yml#/GenericError'
-          - type: object
-            required: [kind]
-            properties:
-              kind:
-                type: string
-                enum: [InvalidUserId, InvalidDocumentId]
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [InvalidUserId, InvalidDocumentId]
