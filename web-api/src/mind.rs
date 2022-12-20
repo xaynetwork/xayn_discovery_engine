@@ -36,7 +36,10 @@ use crate::{
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
+            personalize_documents_by,
+            update_interactions,
+            PersonalizeBy,
+            UserInteractionData,
         },
         PersonalizationConfig,
     },
@@ -428,7 +431,7 @@ fn run_user_benchmark() -> Result<(), Error> {
         let document_ids = impression
             .news
             .iter()
-            .map(|document| document.document_id)
+            .map(|document| &document.document_id)
             .collect::<Vec<_>>();
 
         let labels = state
@@ -436,7 +439,7 @@ fn run_user_benchmark() -> Result<(), Error> {
             .await
             .unwrap()
             .iter()
-            .map(|&reranked_id| {
+            .map(|reranked_id| {
                 impression.news[document_ids
                     .iter()
                     .position(|&actual_id| actual_id == reranked_id)
