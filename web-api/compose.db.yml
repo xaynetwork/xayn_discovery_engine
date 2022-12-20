@@ -20,7 +20,7 @@ services:
   #     - internal
 
   elasticsearch:
-    image: elasticsearch:8.4.0
+    image: elasticsearch:8.5.3
     restart: always
     environment:
       - discovery.type=single-node
