@@ -8,10 +8,10 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 actix-cors = "0.6.4"
-actix-web = { workspace = true }
-anyhow = { workspace = true }
-async-trait = { workspace = true }
-clap = { workspace = true }
+actix-web = { version = "4.2.1", default-features = false, features = ["compress-gzip", "compress-zstd"] }
+anyhow = "1.0.68"
+async-trait = "0.1.60"
+clap = { version = "4.0.30", features = ["derive"] }
 csv = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
@@ -21,30 +21,30 @@ futures-util = "0.3.25"
 itertools = { workspace = true }
 mime = "0.3.16"
 ndarray = { workspace = true }
-once_cell = { workspace = true }
+once_cell = "1.16.0"
 pin-project = "1.0.12"
 rand = { workspace = true }
-regex = { workspace = true }
-reqwest = { workspace = true }
+regex = "1.7.0"
+reqwest = { version = "0.11.13", default-features = false, features = ["json", "rustls-tls"] }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["postgres"] }
+sqlx = { version = "0.6.2", features = ["chrono", "postgres", "runtime-tokio-rustls", "uuid"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"] }
-url = { workspace = true }
+url = { version = "2.3.1", features = ["serde"] }
 urlencoding = "2.1.2"
 uuid = { workspace = true }
 xayn-ai-bert = { path = "../bert" }
 xayn-ai-coi = { path = "../coi" }
 
 [dev-dependencies]
-bincode = { workspace = true }
-chrono = { workspace = true, features = ["clock", "serde"] }
+bincode = "1.3.3"
+chrono = { version = "0.4.23", default-features = false, features = ["clock", "serde", "std"] }
 instant-distance = { version = "0.6.0", features = ["with-serde"] }
 npyz = "0.7.2"
 ouroboros = "0.15.5"
 tokio = { workspace = true, features = ["sync"] }
-trycmd = "0.14.4"
+trycmd = "0.14.5"
