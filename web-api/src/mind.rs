@@ -25,8 +25,7 @@ use ndarray::{Array, Array3, ArrayView};
 use npyz::WriterBuilder;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
-    thread_rng,
-    Rng,
+    thread_rng, Rng,
 };
 use serde::{de, Deserialize, Deserializer};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
@@ -36,10 +35,7 @@ use crate::{
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            personalize_documents_by,
-            update_interactions,
-            PersonalizeBy,
-            UserInteractionData,
+            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
         },
         PersonalizationConfig,
     },
@@ -337,8 +333,8 @@ where
 #[tokio::test]
 #[ignore]
 async fn run_persona_benchmark() -> Result<(), Error> {
-    let document_provider = DocumentProvider::new("/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/web-api/src/bin/news_no_nans.tsv")?;
-    let users_interests = Users::new("/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/web-api/src/bin/user_categories_small.json")?;
+    let document_provider = DocumentProvider::new("news.tsv")?;
+    let users_interests = Users::new("user_categories.json")?;
     let state = State::new(Storage::default()).unwrap();
     // load documents from document provider to state
     state
