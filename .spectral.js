@@ -32,14 +32,11 @@ module.exports = {
       }
     },
     'major-version-in-path': 'off',
-    'string-boundary': 'off',
-    'array-boundary': 'off',
     'schema-description': 'off',
     'inline-property-schema': 'off',
     'content-entry-provided': 'off',
     'property-description': 'off',
     'oas3-api-servers': 'off',
-    'operation-id-naming-convention': 'off',
     'delete-body': 'off',
     'optional-request-body': 'off',
     'prohibit-summary-sentence-style': 'off',
@@ -47,8 +44,6 @@ module.exports = {
     'response-example-provided': 'off',
     'collection-array-property': 'off',
     'response-error-response-schema': 'off',
-    'enum-case-convention': 'off',
-    'operation-id-case-convention': 'off',
     'patch-request-content-type': 'off',
   }
 };
