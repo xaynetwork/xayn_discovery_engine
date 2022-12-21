@@ -37,7 +37,7 @@ mod ingestion;
 mod load_config;
 mod logging;
 mod middleware;
-#[cfg(feature = "mind")]
+#[cfg(test)]
 mod mind;
 mod models;
 mod personalization;
@@ -45,8 +45,6 @@ mod server;
 mod storage;
 mod utils;
 
-#[cfg(feature = "mind")]
-pub use crate::mind::run_persona_based_benchmark;
 pub use crate::{
     error::application::{ApplicationError, Error},
     ingestion::Ingestion,

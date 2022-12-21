@@ -188,6 +188,10 @@ validate-openapi:
 print-just-env:
     export
 
+mind-benchmark kind:
+    cargo test --package xayn-web-api --release --lib \
+        -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
+
 alias r := rust-test
 alias t := test
 alias pp := pre-push

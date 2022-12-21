@@ -338,7 +338,9 @@ where
 
 The function panics if the provided filenames are not correct.
 "]
-pub async fn run_persona_based_benchmark() -> Result<(), Error> {
+#[tokio::test]
+#[ignore]
+async fn run_persona_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
     let state = State::new(Storage::default()).unwrap();
     // load documents from document provider to state
@@ -416,7 +418,9 @@ pub async fn run_persona_based_benchmark() -> Result<(), Error> {
 }
 
 /// Runs the user-based mind benchmark
-fn run_benchmark() -> Result<(), Error> {
+#[test]
+#[ignore]
+fn run_user_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
 
     let impressions = read("behaviors.tsv")?;
@@ -491,10 +495,4 @@ fn ndcg(relevance: &[f32], k: &[usize]) -> Vec<f32> {
         .enumerate()
         .filter_map(|(i, ndcg)| k.contains(&(i + 1)).then_some(ndcg))
         .collect()
-}
-
-fn main() {
-    if let Err(e) = run_benchmark() {
-        eprintln!("{}", e);
-    }
 }
