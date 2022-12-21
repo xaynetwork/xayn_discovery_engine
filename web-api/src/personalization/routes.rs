@@ -64,9 +64,8 @@ pub(crate) struct UpdateInteractions {
     pub(crate) documents: Vec<UserInteractionData>,
 }
 
-#[derive(Clone, Debug, Deserialize, AsRef)]
+#[derive(Clone, Debug, Deserialize)]
 pub(crate) struct UserInteractionData {
-    #[as_ref]
     #[serde(rename = "id")]
     pub(crate) document_id: DocumentId,
     #[serde(rename = "type")]
@@ -95,33 +94,29 @@ pub(crate) async fn update_interactions(
     user_id: &UserId,
     interactions: &[UserInteractionData],
 ) -> Result<(), Error> {
-    storage.user_seen(user_id).await?;
+    storage::Interaction::user_seen(storage, user_id).await?;
 
     #[allow(clippy::zero_sized_map_values)]
-    let interaction_map = interactions
+    let id_to_interaction_type = interactions
         .iter()
         .map(|interaction| (&interaction.document_id, interaction.interaction_type))
         .collect::<HashMap<_, _>>();
 
     let ids = interactions.iter().map(|i| &i.document_id).collect_vec();
-    storage
-        .update_interactions(user_id, &ids, |context| {
-            match interaction_map[&context.document.id] {
-                UserInteractionType::Positive => {
-                    for tag in &context.document.tags {
-                        *context.tag_weight_diff
+    storage::Interaction::update_interactions(storage, user_id, &ids, |context| {
+        match id_to_interaction_type[&context.document.id] {
+            UserInteractionType::Positive => {
+                for tag in &context.document.tags {
+                    *context.tag_weight_diff
                             .get_mut(tag.as_str())
                             .unwrap(/*update_interactions assures all tags are given*/) += 1;
-                    }
-                    coi.log_positive_user_reaction(
-                        context.positive_cois,
-                        &context.document.embedding,
-                    )
-                    .clone()
                 }
+                coi.log_positive_user_reaction(context.positive_cois, &context.document.embedding)
+                    .clone()
             }
-        })
-        .await?;
+        }
+    })
+    .await?;
 
     Ok(())
 }

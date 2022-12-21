@@ -525,6 +525,7 @@ impl storage::Interaction for Storage {
             .flat_map(|d| &d.tags)
             .map(|tag| (tag.as_str(), 0))
             .collect::<HashMap<_, _>>();
+
         let mut updates = Vec::new();
 
         for id in updated_document_ids {
@@ -548,8 +549,8 @@ impl storage::Interaction for Storage {
             document_map
                 .values()
                 .map(|d| (&d.id, UserInteractionType::Positive))
-                //needed or rust fails with a `error: higher-ranked lifetime error`
-                // this seems to beg a limitation/(bug?) in rustc not our code
+                // without the collect rust fails with `error: higher-ranked lifetime error`
+                // this seems to be a limitation or bug in rustc
                 .collect_vec(),
         )
         .await?;

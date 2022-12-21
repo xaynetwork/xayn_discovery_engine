@@ -493,7 +493,7 @@ impl storage::Interaction for Storage {
     where
         F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
     {
-        // This doesn't have the exact same concurrency semantics as the postgres version
+        // Note: This doesn't have the exact same concurrency semantics as the postgres version
         let documents = self.get_by_ids(updated_document_ids).await?;
         let mut interests = self.interests.write().await;
         let mut interactions = self.interactions.write().await;
