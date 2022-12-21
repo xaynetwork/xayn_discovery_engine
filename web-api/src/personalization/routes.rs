@@ -38,7 +38,7 @@ use crate::{
         application::WithRequestIdExt,
         common::{BadRequest, InternalError, NotEnoughInteractions},
     },
-    models::{DocumentId, PersonalizedDocument, UserId, UserInteractionType},
+    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
     storage::{self, KnnSearchParams},
     Error,
 };
@@ -160,6 +160,7 @@ async fn personalized_documents(
                 .map(|document| PersonalizedDocumentData {
                     id: document.id,
                     score: document.score,
+                    properties: document.properties,
                 })
                 .collect(),
         })
@@ -170,6 +171,8 @@ async fn personalized_documents(
 struct PersonalizedDocumentData {
     id: DocumentId,
     score: f32,
+    #[serde(skip_serializing_if = "DocumentProperties::is_empty")]
+    properties: DocumentProperties,
 }
 
 /// Represents response from personalized documents endpoint.
@@ -319,7 +322,7 @@ pub(crate) async fn personalize_documents_by(
             .await?
         }
         PersonalizeBy::Documents(documents) => {
-            storage::Document::get_by_ids(storage, documents).await?
+            storage::Document::get_by_ids(storage, documents, true).await?
         }
     };
 

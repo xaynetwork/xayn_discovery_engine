@@ -111,6 +111,8 @@ components:
           $ref: './schemas/document.yml#/DocumentId'
         score:
           type: number
+        properties:
+          $ref: './schemas/document.yml#/DocumentProperties'
     PersonalizedDocumentsResponse:
       type: object
       required: [documents]

@@ -237,6 +237,8 @@ struct SearchResponse<T> {
 
 #[derive(Debug, Deserialize)]
 struct PersonalizedDocument {
+    #[serde(default)]
+    properties: DocumentProperties,
     embedding: Embedding,
     tags: Vec<String>,
 }
@@ -251,6 +253,7 @@ impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocu
                 id: hit.id,
                 score: hit.score,
                 embedding: hit.source.embedding,
+                properties: hit.source.properties,
                 tags: hit.source.tags,
             })
             .collect()
@@ -296,7 +299,7 @@ impl Storage {
                     "values" : values,
                 }
             },
-            "_source": ["embedding", "tags"]
+            "_source": &["properties", "embedding", "tags"][usize::from(!with_properties)..]
         }));
 
         Ok(self
@@ -342,7 +345,7 @@ impl storage::Document for Storage {
                     }
                 }
             },
-            "_source": ["embedding", "tags"]
+            "_source": ["properties", "embedding", "tags"]
         }));
 
         // the existing documents are not filtered in the elastic query to avoid too much work for a

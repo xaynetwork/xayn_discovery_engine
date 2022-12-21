@@ -66,7 +66,11 @@ pub(crate) enum DeletionError {
 
 #[async_trait]
 pub(crate) trait Document {
-    async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error>;
+    async fn get_by_ids(
+        &self,
+        ids: &[&DocumentId],
+        with_properties: bool,
+    ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn get_by_embedding<'a>(
         &self,

@@ -223,7 +223,11 @@ pub(crate) struct Storage {
 
 #[async_trait]
 impl storage::Document for Storage {
-    async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error> {
+    async fn get_by_ids(
+        &self,
+        ids: &[&DocumentId],
+        with_properties: bool,
+    ) -> Result<Vec<PersonalizedDocument>, Error> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -241,6 +245,9 @@ impl storage::Document for Storage {
                             id: id.clone(),
                             score: 1.,
                             embedding: embedding.clone(),
+                            properties: with_properties
+                                .then(|| document.properties.clone())
+                                .unwrap_or_default(),
                             tags: document.tags.clone(),
                         })
                 })
@@ -272,6 +279,7 @@ impl storage::Document for Storage {
                         id: id.clone(),
                         score: item.distance,
                         embedding: item.point.as_ref().clone(),
+                        properties: document.properties.clone(),
                         tags: document.tags.clone(),
                     })
                 }
@@ -667,11 +675,13 @@ mod tests {
         .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
-        let documents = storage::Document::get_by_ids(&storage, &[&DocumentId::new("42").unwrap()])
-            .await
-            .unwrap();
+        let documents =
+            storage::Document::get_by_ids(&storage, &[&DocumentId::new("42").unwrap()], true)
+                .await
+                .unwrap();
         assert_eq!(documents[0].id, DocumentId::new("42").unwrap());
         assert_eq!(documents[0].embedding, Embedding::from([1., 2., 3.]));
+        assert!(documents[0].properties.is_empty());
         assert_eq!(documents[0].tags, vec![String::from("tag")]);
         assert_eq!(
             storage::Tag::get(&storage, &UserId::new("abc").unwrap())
