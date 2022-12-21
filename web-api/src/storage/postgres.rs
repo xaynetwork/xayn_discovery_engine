@@ -410,15 +410,15 @@ impl Database {
             let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
             builder
                 .reset()
-                .push_values(chunk, |mut builder, (category, weight_diff)| {
+                .push_values(chunk, |mut builder, (tag, weight_diff)| {
                     builder
                         .push_bind(user_id)
-                        .push_bind(category)
+                        .push_bind(tag)
                         .push_bind(weight_diff);
                 })
                 .push(
-                    "ON CONFLICT (user_id, category) DO UPDATE SET
-                    weight = weighted_category.weight + EXCLUDED.weight;",
+                    "ON CONFLICT (user_id, tag) DO UPDATE SET
+                    weight = weighted_tag.weight + EXCLUDED.weight;",
                 )
                 .build()
                 .persistent(false)
@@ -501,7 +501,7 @@ impl storage::Interaction for Storage {
         mut update_logic: F,
     ) -> Result<(), Error>
     where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> &'b PositiveCoi + Send + Sync,
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
     {
         let mut tx = self.postgres.pool.begin().await?;
 
@@ -520,27 +520,20 @@ impl storage::Interaction for Storage {
 
         let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
 
-        let mut category_weight_diff_map = documents
+        let mut tag_weight_diff = documents
             .iter()
-            // yes this is intended to add an entry for `None` to
-            // if it appears on a document
-            .map(|d| (&d.tags, 0i32))
+            .flat_map(|d| &d.tags)
+            .map(|tag| (tag.as_str(), 0))
             .collect::<HashMap<_, _>>();
         let mut updates = Vec::new();
 
         for id in updated_document_ids {
             if let Some(document) = document_map.get_mut(id) {
-                let category_weight_diff = category_weight_diff_map
-                    .get_mut(&document.tags)
-                    .unwrap(/*we added entries for all categories*/);
-
-                let update = update_logic(InteractionUpdateContext {
+                updates.push(update_logic(InteractionUpdateContext {
                     document,
-                    category_weight_diff,
+                    tag_weight_diff: &mut tag_weight_diff,
                     positive_cois: &mut interests.positive,
-                })
-                .clone();
-                updates.push(update);
+                }));
             } else {
                 warn!(%id, "interacted document doesn't exist");
             }
@@ -561,15 +554,7 @@ impl storage::Interaction for Storage {
         )
         .await?;
 
-        Database::upsert_tag_weights(
-            &mut tx,
-            user_id,
-            category_weight_diff_map
-                .iter()
-                .filter_map(|(category, weight)| category.as_deref().map(|c| (c, *weight)))
-                .collect_vec(),
-        )
-        .await?;
+        Database::upsert_tag_weights(&mut tx, user_id, tag_weight_diff.into_iter()).await?;
 
         tx.commit().await?;
         Ok(())

@@ -121,10 +121,10 @@ pub(crate) trait Interest {
     async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error>;
 }
 
-pub(crate) struct InteractionUpdateContext<'a, 'b> {
-    pub(crate) document: &'a PersonalizedDocument,
-    pub(crate) category_weight_diff: &'a mut i32,
-    pub(crate) positive_cois: &'b mut Vec<PositiveCoi>,
+pub(crate) struct InteractionUpdateContext<'s, 'l> {
+    pub(crate) document: &'s PersonalizedDocument,
+    pub(crate) tag_weight_diff: &'s mut HashMap<&'l str, i32>,
+    pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
 }
 
 #[async_trait]
@@ -140,7 +140,7 @@ pub(crate) trait Interaction {
         update_logic: F,
     ) -> Result<(), Error>
     where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> &'b PositiveCoi + Send + Sync;
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync;
 }
 
 #[async_trait]

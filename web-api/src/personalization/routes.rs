@@ -108,11 +108,16 @@ pub(crate) async fn update_interactions(
         .update_interactions(user_id, &ids, |context| {
             match interaction_map[&context.document.id] {
                 UserInteractionType::Positive => {
-                    *context.category_weight_diff += 1;
+                    for tag in &context.document.tags {
+                        *context.tag_weight_diff
+                            .get_mut(tag.as_str())
+                            .unwrap(/*update_interactions assures all tags are given*/) += 1;
+                    }
                     coi.log_positive_user_reaction(
                         context.positive_cois,
                         &context.document.embedding,
                     )
+                    .clone()
                 }
             }
         })

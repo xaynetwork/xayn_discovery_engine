@@ -491,7 +491,7 @@ impl storage::Interaction for Storage {
         mut update_logic: F,
     ) -> Result<(), Error>
     where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> &'b PositiveCoi + Send + Sync,
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
     {
         // This doesn't have the exact same concurrency semantics as the postgres version
         let documents = self.get_by_ids(updated_document_ids).await?;
@@ -503,25 +503,36 @@ impl storage::Interaction for Storage {
 
         let positive_cois = &mut interests.entry(user_id.clone()).or_default().positive;
 
-        for document in documents {
-            let mut local_diff = 0;
+        let mut tag_weight_diff = documents
+            .iter()
+            .flat_map(|d| &d.tags)
+            .map(|tag| (tag.as_str(), 0))
+            .collect::<HashMap<_, _>>();
+
+        for document in &documents {
             let updated = update_logic(InteractionUpdateContext {
-                document: &document,
-                category_weight_diff: &mut local_diff,
+                document,
+                tag_weight_diff: &mut tag_weight_diff,
                 positive_cois,
             });
-            if let Some(tag) = &document.tags {
-                let weight = tags.entry(tag.to_string()).or_default();
-                if local_diff < 0 {
-                    *weight -= local_diff.unsigned_abs() as usize;
-                } else {
-                    *weight += local_diff.unsigned_abs() as usize;
-                }
-            }
             interactions.insert((
-                document.id,
+                document.id.clone(),
                 DateTime::<Utc>::from(updated.stats.last_view).naive_utc(),
             ));
+        }
+
+        for (&tag, &diff) in &tag_weight_diff {
+            if let Some(weight) = tags.get_mut(tag) {
+                //FIXME use `saturating_add_signed` when stabilized
+                let abs_diff = diff.unsigned_abs() as usize;
+                if diff < 0 {
+                    *weight -= abs_diff;
+                } else {
+                    *weight += abs_diff;
+                }
+            } else {
+                tags.insert(tag.to_owned(), diff.try_into().unwrap_or_default());
+            }
         }
 
         Ok(())
@@ -533,42 +544,6 @@ impl storage::Tag for Storage {
     async fn get(&self, id: &UserId) -> Result<HashMap<String, usize>, Error> {
         Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
     }
-
-    // async fn update(&self, id: &UserId, tags: &[String]) -> Result<(), Error> {
-    //     if tags.is_empty() {
-    //         return Ok(());
-    //     }
-
-    //     let mut tags_by_users = self.tags.write().await;
-    //     if let Some(user_tags) = tags_by_users.get_mut(id) {
-    //         for tag in tags {
-    //             if let Some(weight) = user_tags.get_mut(tag) {
-    //                 *weight += 1;
-    //             } else {
-    //                 user_tags.insert(tag.to_string(), 1);
-    //             }
-    //         }
-    //     } else {
-    //         tags_by_users.insert(
-    //             id.clone(),
-    //             tags.iter().map(|tag| (tag.to_string(), 1)).collect(),
-    //         );
-    //     }
-    // async fn update(&self, id: &UserId, category: &str) -> Result<(), Error> {
-    //     self.categories
-    //         .write()
-    //         .await
-    //         .entry(id.clone())
-    //         .and_modify(|categories| {
-    //             categories
-    //                 .entry(category.to_string())
-    //                 .and_modify(|weight| *weight += 1)
-    //                 .or_insert(1);
-    //         })
-    //         .or_insert_with(|| [(category.to_string(), 1)].into());
-
-    //     Ok(())
-    // }
 }
 
 impl Storage {
