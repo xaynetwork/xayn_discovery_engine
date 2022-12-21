@@ -158,9 +158,11 @@ pub(crate) struct IngestedDocument {
     pub(crate) snippet: String,
 
     /// Contents of the document properties.
+    #[serde(default)]
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
+    #[serde(default)]
     pub(crate) tags: Vec<String>,
 }
 
