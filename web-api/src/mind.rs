@@ -25,7 +25,8 @@ use ndarray::{Array, Array3, ArrayView};
 use npyz::WriterBuilder;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
-    thread_rng, Rng,
+    thread_rng,
+    Rng,
 };
 use serde::{de, Deserialize, Deserializer};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
@@ -35,7 +36,10 @@ use crate::{
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
+            personalize_documents_by,
+            update_interactions,
+            PersonalizeBy,
+            UserInteractionData,
         },
         PersonalizationConfig,
     },
