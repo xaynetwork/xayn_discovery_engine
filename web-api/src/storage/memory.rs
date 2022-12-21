@@ -241,7 +241,6 @@ impl storage::Document for Storage {
                             id: id.clone(),
                             score: 1.,
                             embedding: embedding.clone(),
-                            properties: document.properties.clone(),
                             tags: document.tags.clone(),
                         })
                 })
@@ -273,7 +272,6 @@ impl storage::Document for Storage {
                         id: id.clone(),
                         score: item.distance,
                         embedding: item.point.as_ref().clone(),
-                        properties: document.properties.clone(),
                         tags: document.tags.clone(),
                     })
                 }
@@ -674,7 +672,6 @@ mod tests {
             .unwrap();
         assert_eq!(documents[0].id, DocumentId::new("42").unwrap());
         assert_eq!(documents[0].embedding, Embedding::from([1., 2., 3.]));
-        assert!(documents[0].properties.is_empty());
         assert_eq!(documents[0].tags, vec![String::from("tag")]);
         assert_eq!(
             storage::Tag::get(&storage, &UserId::new("abc").unwrap())

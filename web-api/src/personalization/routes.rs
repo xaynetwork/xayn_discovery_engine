@@ -153,14 +153,30 @@ async fn personalized_documents(
         PersonalizeBy::KnnSearch(options.document_count(&state.config.personalization)?),
     )
     .await
-    .map(|documents| Json(PersonalizedDocumentsResponse { documents }))
+    .map(|documents| {
+        Json(PersonalizedDocumentsResponse {
+            documents: documents
+                .into_iter()
+                .map(|document| PersonalizedDocumentData {
+                    id: document.id,
+                    score: document.score,
+                })
+                .collect(),
+        })
+    })
+}
+
+#[derive(Debug, Serialize)]
+struct PersonalizedDocumentData {
+    id: DocumentId,
+    score: f32,
 }
 
 /// Represents response from personalized documents endpoint.
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct PersonalizedDocumentsResponse {
+#[derive(Debug, Serialize)]
+struct PersonalizedDocumentsResponse {
     /// A list of documents personalized for a specific user.
-    pub(crate) documents: Vec<PersonalizedDocument>,
+    documents: Vec<PersonalizedDocumentData>,
 }
 
 /// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each centers' embedding.
