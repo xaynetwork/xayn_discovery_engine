@@ -322,7 +322,7 @@ pub(crate) async fn personalize_documents_by(
             .await?
         }
         PersonalizeBy::Documents(documents) => {
-            storage::Document::get_by_ids(storage, documents, true).await?
+            storage::Document::get_personalized(storage, documents).await?
         }
     };
 

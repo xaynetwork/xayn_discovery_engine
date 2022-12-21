@@ -96,7 +96,15 @@ pub(crate) struct DocumentProperty(serde_json::Value);
 /// Arbitrary properties that can be attached to a document.
 pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
-/// Represents a result from a query.
+#[derive(Debug, Deserialize)]
+pub(crate) struct InteractedDocument {
+    pub(crate) id: DocumentId,
+    pub(crate) embedding: Embedding,
+    #[serde(default)]
+    pub(crate) tags: Vec<String>,
+}
+
+/// Represents a result from a personalization query.
 #[derive(Debug, Deserialize)]
 pub(crate) struct PersonalizedDocument {
     /// Unique identifier of the document.

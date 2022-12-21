@@ -237,7 +237,6 @@ struct SearchResponse<T> {
 
 #[derive(Debug, Deserialize)]
 struct PersonalizedDocument {
-    #[serde(default)]
     properties: DocumentProperties,
     embedding: Embedding,
     tags: Vec<String>,
@@ -260,6 +259,27 @@ impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocu
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct InteractedDocument {
+    embedding: Embedding,
+    tags: Vec<String>,
+}
+
+impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument> {
+    fn from(response: SearchResponse<InteractedDocument>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| models::InteractedDocument {
+                id: hit.id,
+                embedding: hit.source.embedding,
+                tags: hit.source.tags,
+            })
+            .collect()
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct IngestedDocument<'a> {
     snippet: &'a str,
@@ -275,7 +295,45 @@ fn is_success_status(status: u16, allow_not_found: bool) -> bool {
 }
 
 impl Storage {
-    pub(crate) async fn get_by_ids_with_transaction(
+    pub(crate) async fn get_interacted_with_transaction(
+        &self,
+        ids: &[&DocumentId],
+        tx: Option<&mut Transaction<'_, Postgres>>,
+    ) -> Result<Vec<models::InteractedDocument>, Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let values = if let Some(tx) = tx {
+            self.postgres
+                .documents_exist_with_transaction(ids, tx)
+                .await?
+        } else {
+            self.postgres.documents_exist(ids).await?
+        };
+
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
+        let body = Some(json!({
+            "query": {
+                "ids" : {
+                    "values": values
+                }
+            },
+            "_source": ["embedding", "tags"]
+        }));
+
+        Ok(self
+            .elastic
+            .query_with_json::<_, SearchResponse<_>>(
+                self.elastic.create_resource_path(["_search"], None),
+                body,
+            )
+            .await?
+            .map(Into::into)
+            .unwrap_or_default())
+    }
+
+    pub(crate) async fn get_personalized_with_transaction(
         &self,
         ids: &[&DocumentId],
         tx: Option<&mut Transaction<'_, Postgres>>,
@@ -296,10 +354,10 @@ impl Storage {
         let body = Some(json!({
             "query": {
                 "ids" : {
-                    "values" : values,
+                    "values": values
                 }
             },
-            "_source": &["properties", "embedding", "tags"][usize::from(!with_properties)..]
+            "_source": ["properties", "embedding", "tags"]
         }));
 
         Ok(self
@@ -316,11 +374,18 @@ impl Storage {
 
 #[async_trait]
 impl storage::Document for Storage {
-    async fn get_by_ids(
+    async fn get_interacted(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<Vec<models::InteractedDocument>, Error> {
+        self.get_interacted_with_transaction(ids, None).await
+    }
+
+    async fn get_personalized(
         &self,
         ids: &[&DocumentId],
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
-        self.get_by_ids_with_transaction(ids, None).await
+        self.get_personalized_with_transaction(ids, None).await
     }
 
     async fn get_by_embedding<'a>(
@@ -357,7 +422,7 @@ impl storage::Document for Storage {
                 body,
             )
             .await?
-            .map(<Vec<_>>::from)
+            .map(<Vec<models::PersonalizedDocument>>::from)
             .unwrap_or_default();
         let ids = self
             .postgres

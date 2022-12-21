@@ -47,6 +47,7 @@ use crate::{
         DocumentProperty,
         DocumentPropertyId,
         IngestedDocument,
+        InteractedDocument,
         PersonalizedDocument,
         UserId,
     },
@@ -223,10 +224,35 @@ pub(crate) struct Storage {
 
 #[async_trait]
 impl storage::Document for Storage {
-    async fn get_by_ids(
+    async fn get_interacted(&self, ids: &[&DocumentId]) -> Result<Vec<InteractedDocument>, Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let documents = self.documents.read().await;
+        let documents = ids
+            .iter()
+            .filter_map(|&id| {
+                documents.0.get(id).and_then(|document| {
+                    documents
+                        .1
+                        .borrow_map()
+                        .get(id)
+                        .map(|embedding| InteractedDocument {
+                            id: id.clone(),
+                            embedding: embedding.clone(),
+                            tags: document.tags.clone(),
+                        })
+                })
+            })
+            .collect();
+
+        Ok(documents)
+    }
+
+    async fn get_personalized(
         &self,
         ids: &[&DocumentId],
-        with_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         if ids.is_empty() {
             return Ok(Vec::new());
@@ -245,9 +271,7 @@ impl storage::Document for Storage {
                             id: id.clone(),
                             score: 1.,
                             embedding: embedding.clone(),
-                            properties: with_properties
-                                .then(|| document.properties.clone())
-                                .unwrap_or_default(),
+                            properties: document.properties.clone(),
                             tags: document.tags.clone(),
                         })
                 })
@@ -676,7 +700,7 @@ mod tests {
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
         let documents =
-            storage::Document::get_by_ids(&storage, &[&DocumentId::new("42").unwrap()], true)
+            storage::Document::get_personalized(&storage, &[&DocumentId::new("42").unwrap()])
                 .await
                 .unwrap();
         assert_eq!(documents[0].id, DocumentId::new("42").unwrap());
