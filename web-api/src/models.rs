@@ -110,9 +110,11 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) embedding: Embedding,
 
     /// Contents of the document properties.
+    #[serde(default)]
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
+    #[serde(default)]
     pub(crate) tags: Vec<String>,
 }
 
