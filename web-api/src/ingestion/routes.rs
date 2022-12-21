@@ -132,7 +132,7 @@ async fn new_documents(
             }
         })?;
 
-    Ok(HttpResponse::NoContent())
+    Ok(HttpResponse::Created())
 }
 
 async fn delete_document(

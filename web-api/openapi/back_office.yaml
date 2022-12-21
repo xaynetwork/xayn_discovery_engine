@@ -33,15 +33,16 @@ paths:
         that will be used to match it against the preferences of a user.
       operationId: createDocuments
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/IngestionRequest'
       responses:
-        '204':
-          description: successful operation
+        '201':
+          $ref: './responses/generic.yml#/Created'
         '400':
-          description: invalid request
+          $ref: './responses/generic.yml#/BadRequest'
         '500':
           description: all or some of the documents were not successfully uploaded
           content:
@@ -58,6 +59,7 @@ paths:
         documents, no error is produced.
       operationId: deleteDocuments
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -66,7 +68,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid request
+          $ref: './responses/generic.yml#/BadRequest'
 
   /documents/{document_id}:
     parameters:
@@ -83,7 +85,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid request
+          $ref: './responses/generic.yml#/BadRequest'
 
   /documents/{document_id}/properties:
     parameters:
@@ -102,9 +104,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DocumentPropertiesResponse'
         '400':
-          description: invalid document id
-        '404':
-          description: document id not found
+          $ref: './responses/generic.yml#/BadRequest'
     put:
       tags:
         - back office
@@ -112,6 +112,7 @@ paths:
       description: Sets or replaces all the properties of the document.
       operationId: replaceDocumentProperties
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -120,9 +121,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid document id
-        '404':
-          description: document id not found
+          $ref: './responses/generic.yml#/BadRequest'
     delete:
       tags:
         - back office
@@ -133,9 +132,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid document id
-        '404':
-          description: document id not found
+          $ref: './responses/generic.yml#/BadRequest'
 
   /documents/{document_id}/properties/{property_id}:
     parameters:
@@ -160,9 +157,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DocumentPropertyResponse'
         '400':
-          description: invalid document id or property id
-        '404':
-          description: document id or property id not found
+          $ref: './responses/generic.yml#/BadRequest'
     put:
       tags:
         - back office
@@ -170,6 +165,7 @@ paths:
       description: Sets or replaces the property of the document.
       operationId: replaceDocumentProperty
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -178,9 +174,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid document id or property id
-        '404':
-          description: document id not found
+          $ref: './responses/generic.yml#/BadRequest'
     delete:
       tags:
         - back office
@@ -191,9 +185,7 @@ paths:
         '204':
           description: successful operation
         '400':
-          description: invalid document id or property id
-        '404':
-          description: document id or property id not found
+          $ref: './responses/generic.yml#/BadRequest'
 
 components:
   securitySchemes:
@@ -212,6 +204,8 @@ components:
       properties:
         property:
           $ref: './schemas/document.yml#/DocumentProperty'
+      example:
+        property: "Any valid json value"
     DocumentPropertiesRequest:
       type: object
       required: [properties]
@@ -224,6 +218,9 @@ components:
       properties:
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
+      example:
+        properties:
+          title: "News title"
     IngestedDocument:
       type: object
       required: [id, snippet]
@@ -250,7 +247,7 @@ components:
             $ref: '#/components/schemas/IngestedDocument'
     IngestionError:
       allOf:
-        - $ref: './schemas/error.yml#/BaseError'
+        - $ref: './schemas/error.yml#/GenericError'
         - type: object
           required: [details]
           properties:

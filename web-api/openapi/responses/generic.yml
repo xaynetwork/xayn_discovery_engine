@@ -1,0 +1,14 @@
+Created:
+  description: Successful operation
+  content:
+    application/json:
+      schema:
+        type: object
+        example: {}
+
+BadRequest:
+  description: The request is invalid. Please check the path parameters, queries, and the request body.
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yml#/GenericError'

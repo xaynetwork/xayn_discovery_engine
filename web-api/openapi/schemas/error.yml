@@ -1,6 +1,5 @@
-BaseError:
+GenericError:
   type: object
-  required: [request_id, kind]
   properties:
     request_id:
       description: Request ID optionally generated from the service. It can be communicated to xayn to help debugging.

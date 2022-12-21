@@ -34,15 +34,12 @@ module.exports = {
     'major-version-in-path': 'off',
     'schema-description': 'off',
     'inline-property-schema': 'off',
-    'content-entry-provided': 'off',
     'property-description': 'off',
     'oas3-api-servers': 'off',
     'delete-body': 'off',
-    'optional-request-body': 'off',
     'prohibit-summary-sentence-style': 'off',
-    'response-status-codes': 'off',
-    'response-example-provided': 'off',
     'collection-array-property': 'off',
+    // the rule set wants to enforce a specific erorr shcema
     'response-error-response-schema': 'off',
     'patch-request-content-type': 'off',
   }

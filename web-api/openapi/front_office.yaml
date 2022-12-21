@@ -48,10 +48,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PersonalizedDocumentsResponse'
         '400':
-          description: invalid user id.
-        '404':
-          description: user not found.
-        '422':
+           $ref: './responses/generic.yml#/BadRequest'
+        '409':
           description: impossible to create a personalized list for the user.
           content:
             application/json:
@@ -69,6 +67,7 @@ paths:
       parameters:
         - $ref: './parameters/path/user_id.yml'
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -108,9 +107,15 @@ components:
           maxItems: 100
           items:
             $ref: '#/components/schemas/PersonalizedDocumentData'
+      example:
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
     PersonalizedDocumentsError:
       allOf:
-        - $ref: './schemas/error.yml#/BaseError'
+        - $ref: './schemas/error.yml#/GenericError'
         - type: object
           required: [kind]
           properties:
@@ -139,7 +144,7 @@ components:
             $ref: '#/components/schemas/UserInteractionData'
     UserInteractionError:
       allOf:
-        - $ref: './schemas/error.yml#/BaseError'
+        - $ref: './schemas/error.yml#/GenericError'
         - type: object
           required: [kind]
           properties:
