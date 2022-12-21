@@ -448,12 +448,16 @@ impl storage::Tag for Storage {
             .collect())
     }
 
-    async fn update(&self, user_id: &UserId, tags: &str) -> Result<(), Error> {
+    async fn update(&self, user_id: &UserId, tags: &[String]) -> Result<(), Error> {
+        if tags.is_empty() {
+            return Ok(());
+        }
+
         let mut tx = self.postgres.pool.begin().await?;
 
         sqlx::query(
             "INSERT INTO weighted_tag (user_id, tag, weight)
-            VALUES ($1, $2, $3)
+            VALUES ($1, unnest($2), $3)
             ON CONFLICT (user_id, tag) DO UPDATE SET
                 weight = weighted_tag.weight + 1;",
         )

@@ -1,8 +1,6 @@
 DocumentId:
-  description: |-
-    A document id can be any non-empty UTF-8 string that does not contain the null byte.
-    It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
-  type: string
+  description: Id of a document.
+  $ref: './id.yml#/Id'
   example: "document_id"
 
 DocumentProperty:
@@ -20,8 +18,6 @@ DocumentProperties:
     link: "http://example.com/this_news"
 
 DocumentPropertyId:
-  description: |-
-    A document property id can be any non-empty UTF-8 string that does not contain the null byte.
-    It may consist of digits, Latin letters, underscores, colons, minus signs, at signs, and dots.
-  type: string
-  example: "document_property_id"
+  description: Id of a property of a document.
+  $ref: './id.yml#/Id'
+  example: "title"

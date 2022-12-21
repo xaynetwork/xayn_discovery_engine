@@ -19,19 +19,19 @@
 //   index for the embeddings too frequently
 
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     fmt,
-    io::{Read, Write},
     mem,
 };
 
 use async_trait::async_trait;
-use bincode::{deserialize_from, serialize_into, serialized_size};
+use bincode::{deserialize, serialize};
 use chrono::{DateTime, Local, NaiveDateTime};
-use derive_more::Deref;
+use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
-use serde::{Deserialize, Serialize};
+use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::RwLock;
 use xayn_ai_coi::{cosine_similarity, Embedding, PositiveCoi, UserInterests};
 
@@ -55,13 +55,15 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
     properties: DocumentProperties,
-    tags: Option<String>,
+    tags: Vec<String>,
 }
 
-#[derive(Clone, Copy, Debug, Deref)]
-struct EmbeddingRef<'a>(&'a Embedding);
+#[derive(AsRef, Clone, Debug, Deref, Deserialize, Serialize)]
+#[as_ref(forward)]
+#[deref(forward)]
+struct CowEmbedding<'a>(Cow<'a, Embedding>);
 
-impl Point for EmbeddingRef<'_> {
+impl Point for CowEmbedding<'_> {
     fn distance(&self, other: &Self) -> f32 {
         1. - cosine_similarity(self.view(), other.view())
     }
@@ -72,20 +74,33 @@ struct Embeddings {
     map: HashMap<DocumentId, Embedding>,
     #[borrows(map)]
     #[covariant]
-    index: HnswMap<EmbeddingRef<'this>, &'this DocumentId>,
+    index: HnswMap<CowEmbedding<'this>, Cow<'this, DocumentId>>,
 }
 
 impl Embeddings {
-    fn build(map: HashMap<DocumentId, Embedding>) -> Self {
+    fn borrowed(map: HashMap<DocumentId, Embedding>) -> Self {
         EmbeddingsBuilder {
             map,
             index_builder: |map| {
                 let (embeddings, ids) = map
                     .iter()
-                    .map(|(id, embedding)| (EmbeddingRef(embedding), id))
+                    .map(|(id, embedding)| {
+                        (CowEmbedding(Cow::Borrowed(embedding)), Cow::Borrowed(id))
+                    })
                     .unzip();
                 HnswBuilder::default().build(embeddings, ids)
             },
+        }
+        .build()
+    }
+
+    fn owned(
+        map: HashMap<DocumentId, Embedding>,
+        index: HnswMap<CowEmbedding<'static>, Cow<'static, DocumentId>>,
+    ) -> Self {
+        EmbeddingsBuilder {
+            map,
+            index_builder: |_| index,
         }
         .build()
     }
@@ -111,7 +126,88 @@ impl fmt::Debug for Embeddings {
 
 impl Default for Embeddings {
     fn default() -> Self {
-        Self::build(HashMap::default())
+        Self::borrowed(HashMap::default())
+    }
+}
+
+impl Serialize for Embeddings {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Embeddings", 2)?;
+        state.serialize_field("map", self.borrow_map())?;
+        state.serialize_field("index", self.borrow_index())?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Embeddings {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field {
+            Map,
+            Index,
+        }
+
+        struct Visitor;
+
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = Embeddings;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("struct Embeddings")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let map = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let index = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+
+                Ok(Embeddings::owned(map, index))
+            }
+
+            fn visit_map<A>(self, mut de_map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut map = None;
+                let mut index = None;
+                while let Some(key) = de_map.next_key()? {
+                    match key {
+                        Field::Map => {
+                            if map.is_some() {
+                                return Err(de::Error::duplicate_field("map"));
+                            }
+                            map = Some(de_map.next_value()?);
+                        }
+                        Field::Index => {
+                            if index.is_some() {
+                                return Err(de::Error::duplicate_field("index"));
+                            }
+                            index = Some(de_map.next_value()?);
+                        }
+                    }
+                }
+
+                Ok(Embeddings::owned(
+                    map.ok_or_else(|| de::Error::missing_field("map"))?,
+                    index.ok_or_else(|| de::Error::missing_field("index"))?,
+                ))
+            }
+        }
+
+        deserializer.deserialize_struct("Embeddings", &["map", "index"], Visitor)
     }
 }
 
@@ -163,16 +259,19 @@ impl storage::Document for Storage {
         let documents = documents
             .1
             .borrow_index()
-            .search(&EmbeddingRef(params.embedding), &mut Search::default())
+            .search(
+                &CowEmbedding(Cow::Borrowed(params.embedding)),
+                &mut Search::default(),
+            )
             .filter_map(|item| {
-                let id = *item.value;
+                let id = item.value.as_ref();
                 if excluded.contains(id) {
                     None
                 } else {
                     documents.0.get(id).map(|document| PersonalizedDocument {
                         id: id.clone(),
                         score: item.distance,
-                        embedding: item.point.0.clone(),
+                        embedding: item.point.as_ref().clone(),
                         properties: document.properties.clone(),
                         tags: document.tags.clone(),
                     })
@@ -205,7 +304,7 @@ impl storage::Document for Storage {
             );
             embeddings.insert(document.id, embedding);
         }
-        documents.1 = Embeddings::build(embeddings);
+        documents.1 = Embeddings::borrowed(embeddings);
 
         Ok(())
     }
@@ -222,7 +321,7 @@ impl storage::Document for Storage {
         documents.0.retain(|id, _| !ids.contains(id));
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
         embeddings.retain(|id, _| !ids.contains(id));
-        documents.1 = Embeddings::build(embeddings);
+        documents.1 = Embeddings::borrowed(embeddings);
         interactions.retain(|_, interactions| {
             interactions.retain(|(id, _)| !ids.contains(id));
             !interactions.is_empty()
@@ -412,80 +511,53 @@ impl storage::Interaction for Storage {
 #[async_trait]
 impl storage::Tag for Storage {
     async fn get(&self, id: &UserId) -> Result<HashMap<String, usize>, Error> {
-        let tags = self.tags.read().await.get(id).cloned().unwrap_or_default();
-
-        Ok(tags)
+        Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
     }
 
-    async fn update(&self, id: &UserId, tag: &str) -> Result<(), Error> {
-        self.tags
-            .write()
-            .await
-            .entry(id.clone())
-            .and_modify(|tags| {
-                tags.entry(tag.to_string())
-                    .and_modify(|weight| *weight += 1)
-                    .or_insert(1);
-            })
-            .or_insert_with(|| [(tag.to_string(), 1)].into());
+    async fn update(&self, id: &UserId, tags: &[String]) -> Result<(), Error> {
+        if tags.is_empty() {
+            return Ok(());
+        }
+
+        let mut tags_by_users = self.tags.write().await;
+        if let Some(user_tags) = tags_by_users.get_mut(id) {
+            for tag in tags {
+                if let Some(weight) = user_tags.get_mut(tag) {
+                    *weight += 1;
+                } else {
+                    user_tags.insert(tag.to_string(), 1);
+                }
+            }
+        } else {
+            tags_by_users.insert(
+                id.clone(),
+                tags.iter().map(|tag| (tag.to_string(), 1)).collect(),
+            );
+        }
 
         Ok(())
     }
 }
 
-#[allow(dead_code)]
 impl Storage {
-    pub(crate) async fn serialized_size(&self) -> Result<usize, bincode::Error> {
-        let documents = self.documents.read().await;
-        let interests = self.interests.read().await;
-        let interactions = self.interactions.read().await;
-        let users = self.users.read().await;
-        let tags = self.tags.read().await;
-
-        serialized_size(&(
-            &documents.0,
-            documents.1.borrow_map(),
-            &*interests,
-            &*interactions,
-            &*users,
-            &*tags,
+    pub(crate) async fn serialize(&self) -> Result<Vec<u8>, bincode::Error> {
+        serialize(&(
+            &*self.documents.read().await,
+            &*self.interests.read().await,
+            &*self.interactions.read().await,
+            &*self.users.read().await,
+            &*self.tags.read().await,
         ))
-        .map(
-            #[allow(clippy::cast_possible_truncation)] // bounded by system architecture
-            |size| size as usize,
-        )
     }
 
-    pub(crate) async fn serialize(&self, writer: impl Write) -> Result<(), bincode::Error> {
-        let documents = self.documents.read().await;
-        let interests = self.interests.read().await;
-        let interactions = self.interactions.read().await;
-        let users = self.users.read().await;
-        let tags = self.tags.read().await;
-
-        serialize_into(
-            writer,
-            &(
-                &documents.0,
-                documents.1.borrow_map(),
-                &*interests,
-                &*interactions,
-                &*users,
-                &*tags,
-            ),
-        )
-    }
-
-    pub(crate) fn deserialize(reader: impl Read) -> Result<Self, bincode::Error> {
-        deserialize_from::<_, (_, HashMap<_, _>, _, _, _, _)>(reader).map(
-            |(documents, embeddings, interests, interactions, users, tags)| Self {
-                documents: RwLock::new((documents, Embeddings::build(embeddings))),
-                interests: RwLock::new(interests),
-                interactions: RwLock::new(interactions),
-                users: RwLock::new(users),
-                tags: RwLock::new(tags),
-            },
-        )
+    pub(crate) fn deserialize(bytes: &[u8]) -> Result<Self, bincode::Error> {
+        deserialize(bytes).map(|(documents, interests, interactions, users, tags)| Self {
+            documents: RwLock::new(documents),
+            interests: RwLock::new(interests),
+            interactions: RwLock::new(interactions),
+            users: RwLock::new(users),
+            tags: RwLock::new(tags),
+        })
     }
 }
 
@@ -506,7 +578,7 @@ mod tests {
                 id: id.clone(),
                 snippet: String::new(),
                 properties: DocumentProperties::default(),
-                tags: None,
+                tags: Vec::new(),
             })
             .collect_vec();
         let embeddings = [
@@ -553,6 +625,43 @@ mod tests {
         assert_eq!(
             documents.iter().map(|document| &document.id).collect_vec(),
             [&ids[2], &ids[0]],
+        );
+    }
+
+    #[tokio::test]
+    async fn test_serde() {
+        let storage = Storage::default();
+        storage::Document::insert(
+            &storage,
+            vec![(
+                IngestedDocument {
+                    id: DocumentId::new("42").unwrap(),
+                    snippet: "snippet".into(),
+                    properties: DocumentProperties::default(),
+                    tags: vec!["tag".into()],
+                },
+                [1., 2., 3.].into(),
+            )],
+        )
+        .await
+        .unwrap();
+        storage::Tag::update(&storage, &UserId::new("abc").unwrap(), &["tag".into()])
+            .await
+            .unwrap();
+
+        let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
+        let documents = storage::Document::get_by_ids(&storage, &[&DocumentId::new("42").unwrap()])
+            .await
+            .unwrap();
+        assert_eq!(documents[0].id, DocumentId::new("42").unwrap());
+        assert_eq!(documents[0].embedding, Embedding::from([1., 2., 3.]));
+        assert!(documents[0].properties.is_empty());
+        assert_eq!(documents[0].tags, vec![String::from("tag")]);
+        assert_eq!(
+            storage::Tag::get(&storage, &UserId::new("abc").unwrap())
+                .await
+                .unwrap(),
+            HashMap::from([(String::from("tag"), 1)]),
         );
     }
 }

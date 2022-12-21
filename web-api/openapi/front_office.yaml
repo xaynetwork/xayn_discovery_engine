@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Personalization API For User Management
-  version: 1.0.0-rc5
+  title: Front Office API
+  version: 1.0.0-rc6
   description: |-
-    # User management
+    # Front Office
     The system identifies a user with only an id.
     There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document), and one to retrieve a personalized set of documents for the user. The system needs a few user interactions with documents before it can generate a personalized list.
 
@@ -11,7 +11,7 @@ info:
     To authenticate with the API, a token will be provided.
 
 tags:
-  - name: users
+  - name: front office
     description: Interaction of the user and personalized document.
 
 security:
@@ -21,7 +21,7 @@ paths:
   /users/{user_id}/personalized_documents:
     get:
       tags:
-        - users
+        - front office
       summary: Get personalized documents for the user
       description: |-
         Returns a list of documents personalized for the given `user_id`.
@@ -48,10 +48,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PersonalizedDocumentsResponse'
         '400':
-          description: invalid user id.
-        '404':
-          description: user not found.
-        '422':
+           $ref: './responses/generic.yml#/BadRequest'
+        '409':
           description: impossible to create a personalized list for the user.
           content:
             application/json:
@@ -61,14 +59,15 @@ paths:
   /users/{user_id}/interactions:
     patch:
       tags:
-        - users
+        - front office
       summary: Add interaction between a user and a document
       description: |-
         The interaction is used to provide personalized documents to the user.
-      operationId: documentInteraction
+      operationId: updateUserInteractions
       parameters:
         - $ref: './parameters/path/user_id.yml'
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -104,11 +103,19 @@ components:
       properties:
         documents:
           type: array
+          minItems: 0
+          maxItems: 100
           items:
             $ref: '#/components/schemas/PersonalizedDocumentData'
+      example:
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
     PersonalizedDocumentsError:
       allOf:
-        - $ref: './schemas/error.yml#/BaseError'
+        - $ref: './schemas/error.yml#/GenericError'
         - type: object
           required: [kind]
           properties:
@@ -117,7 +124,7 @@ components:
               enum: [NotEnoughInteractions]
     UserInteractionType:
       type: string
-      enum: [positive]
+      enum: [Positive]
     UserInteractionData:
       type: object
       properties:
@@ -131,11 +138,13 @@ components:
       properties:
         documents:
           type: array
+          minItems: 1
+          maxItems: 1000
           items:
             $ref: '#/components/schemas/UserInteractionData'
     UserInteractionError:
       allOf:
-        - $ref: './schemas/error.yml#/BaseError'
+        - $ref: './schemas/error.yml#/GenericError'
         - type: object
           required: [kind]
           properties:

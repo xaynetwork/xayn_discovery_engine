@@ -74,7 +74,7 @@ impl Default for IngestionConfig {
     }
 }
 
-fn default_max_document_batch_size() -> usize {
+const fn default_max_document_batch_size() -> usize {
     100
 }
 
