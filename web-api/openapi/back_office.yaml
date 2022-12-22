@@ -17,7 +17,7 @@ info:
     We don't require a specific format, but would suggest using UUID for example.
 
     ## Snippet
-    A snippet is a reduced representation of a larger text, for example if the document would be a news article, then it's text would be the news article in a pure textual format.
+    A snippet is a reduced representation of a larger text, for example if the document would be a news article, then its text would be the news article in a pure textual format.
     In order for our system to work correctly, it is important that the snippet is just the size of one or two paragraphs, and that the snippet's text clearly summarises the larger text.
     For example, let's take a news article which talks about the effects of inflation.
     Our snippet could then be: "Inflation worries as prices keep rising. People having budgetary difficulties as a result. Government pressured to take action.".
@@ -50,6 +50,8 @@ paths:
       description: |-
         Add documents to the system. The system will create a representation of the document
         that will be used to match it against the preferences of a user.
+        Important note: currently we allow up to a maximum of 100 documents per batch size.
+        If you need to add more, then please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
       operationId: createDocuments
       requestBody:
         required: true
