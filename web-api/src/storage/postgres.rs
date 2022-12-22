@@ -303,11 +303,11 @@ impl Database {
         now: DateTime<Utc>,
         cois: &[PositiveCoi],
     ) -> Result<(), Error> {
-        let persist = match cois.len() {
-            0 => return Ok(()),
-            1 => true,
-            _ => false,
-        };
+        if cois.is_empty() {
+            return Ok(());
+        }
+        //FIXME micro benchmark and chunking+persist abstraction
+        let persist = cois.len() < 10;
 
         let mut builder = QueryBuilder::new(
             "INSERT INTO center_of_interest (
@@ -360,11 +360,11 @@ impl Database {
         I::IntoIter: ExactSizeIterator,
     {
         let interactions = interactions.into_iter();
-        let persist = match interactions.len() {
-            0 => return Ok(()),
-            1 => true,
-            _ => false,
-        };
+        if interactions.len() == 0 {
+            return Ok(());
+        }
+        //FIXME micro benchmark and chunking+persist abstraction
+        let persist = interactions.len() < 10;
 
         let mut builder = QueryBuilder::new(
             "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)",
