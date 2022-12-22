@@ -27,7 +27,7 @@ use std::{
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use chrono::{Local, NaiveDateTime, Utc, DateTime};
+use chrono::{DateTime, Local, NaiveDateTime, Utc};
 use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
@@ -571,6 +571,7 @@ impl Storage {
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use uuid::Uuid;
 
     use super::*;
 
@@ -637,6 +638,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_serde() {
+        let document_id = DocumentId::new("42").unwrap();
         let storage = Storage::default();
         storage::Document::insert(
             &storage,
@@ -652,10 +654,19 @@ mod tests {
         )
         .await
         .unwrap();
-        //TODO[pmk]
-        // storage::Interaction::update_interactions (&storage, &UserId::new("abc").unwrap(), &["tag".into()])
-        //     .await
-        //     .unwrap();
+        storage::Interaction::update_interactions(
+            &storage,
+            &UserId::new("abc").unwrap(),
+            &[&document_id],
+            |context| {
+                *context.tag_weight_diff.get_mut("tag").unwrap() += 10;
+                let pcoi = PositiveCoi::new(Uuid::new_v4(), [0.2, 9.4, 1.2]);
+                context.positive_cois.push(pcoi.clone());
+                pcoi
+            },
+        )
+        .await
+        .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
         let documents = storage::Document::get_by_ids(&storage, &[&DocumentId::new("42").unwrap()])
@@ -664,12 +675,12 @@ mod tests {
         assert_eq!(documents[0].id, DocumentId::new("42").unwrap());
         assert_eq!(documents[0].embedding, Embedding::from([1., 2., 3.]));
         assert!(documents[0].properties.is_empty());
-        // assert_eq!(documents[0].tags, vec![String::from("tag")]);
-        // assert_eq!(
-        //     storage::Tag::get(&storage, &UserId::new("abc").unwrap())
-        //         .await
-        //         .unwrap(),
-        //     HashMap::from([(String::from("tag"), 1)]),
-        // );
+        assert_eq!(documents[0].tags, vec![String::from("tag")]);
+        assert_eq!(
+            storage::Tag::get(&storage, &UserId::new("abc").unwrap())
+                .await
+                .unwrap(),
+            HashMap::from([(String::from("tag"), 10)]),
+        );
     }
 }
