@@ -59,7 +59,7 @@ pub(crate) type SetupError = anyhow::Error;
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
-pub async fn run<A: Application>() -> Result<(), SetupError>
+pub async fn run<A>() -> Result<(), SetupError>
 where
     A: Application,
 {

@@ -102,6 +102,7 @@ pub fn compute_coi_relevances(
             let time = coi.stats.view_time.as_secs_f32() / times;
             let last = compute_coi_decay_factor(horizon, now, coi.stats.last_view);
 
+            #[allow(clippy::manual_clamp)] // prevent NaN propagation
             ((count + time) * last).max(0.).min(f32::MAX)
         })
         .collect()

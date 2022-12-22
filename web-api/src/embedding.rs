@@ -53,7 +53,7 @@ impl Embedder {
     }
 
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
-        let bert = BertConfig::new(&config.directory.relative())?
+        let bert = BertConfig::new(config.directory.relative())?
             .with_pooler::<AveragePooler>()
             .with_token_size(config.token_size)?
             .build()?;
