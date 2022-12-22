@@ -4,20 +4,39 @@ info:
   version: 1.0.0-rc6
   description: |-
     # Back Office
-    For this system, a document is anything that has an id, a snippet, and an arbitrary set of properties.
-    The id uniquely identifies the document in the system.
-    The system uses the snippet to create a document representation that can be matched against user interests.
+    The back office is typically used within server-side apps.
+    This SDK acts as a create/read/update/delete interface for anything related to documents.
 
-    It is possible to attach any properties to a document; the system will not use them but will be returned together with the document when asking for personalized documents for a user. They could help store information like a title and the URL where it is possible to find the document. Each document can have its own set of properties.
+    ## Document
+    By document, we refer to a cohesive text, for example a complete news article.
+    However, we only require a simple representation for our system to work. Consisting just of a unique ID, a text snippet and optional properties.
+    The text snippet is ideally a short, meaningful representation of the larger document, reduced to just one paragraph.
 
-    The API offers an endpoint that allows uploading the documents to the system. After a successful upload, it will be possible to use the document in other endpoints.
+    ### Id
+    The document_id is a unique identifier for a single document.
+    We don't require a specific format, it just needs to comply to the following regexp: `^[a-zA-Z0-9_:@.-]+$`.
 
-    # Auth
-    To authenticate with the API, a token will be provided.
+    ## Snippet
+    A snippet is a reduced representation of a larger text, for example if the document would be a news article, then its text would be the news article in a pure textual format.
+    In order for our system to work correctly, it is important that the snippet is just the size of one or two paragraphs, and that the snippet's text clearly summarises the larger text.
+    For example, let's take a news article which talks about the effects of inflation.
+    Our snippet could then be: "Inflation worries as prices keep rising. People having budgetary difficulties as a result. Government pressured to take action.".
+    A bad snippet would for example be just taking the very first paragraph of a document, which could sometimes work, but could also lead to:
+    "December 20th 2020. Article written by Jane Doe. On this bright and sunny day, people might forget about their worries sometimes."
 
+    ## Properties
+    Properties are optional entries for documents, which are usually needed to properly show the document back to the user, when it returns as a personalized document.
+    If for example, you'd wish to integrate a type of carousel view, listing a total of 10 personalized documents in a "for you"-section, then you might choose to display each document as an image and title, with a url to link the user to when pressed.
+    For this, you would need three document properties: `image`, `link` and `title`.
+    You are free to add as many properties as needed.
+
+    ## Auth
+    The API requires an authentication token when used.
+    Please see further down in this README.md file, or refer to the test included in this SDK's codebase, on how to set this token correctly.
+    \
 tags:
   - name: back office
-    description: Management of the documents in the system.
+    description: System management, including documents and properties.
 
 security:
   - ApiKeyAuth: []
@@ -31,6 +50,8 @@ paths:
       description: |-
         Add documents to the system. The system will create a representation of the document
         that will be used to match it against the preferences of a user.
+        Important note: currently we allow up to a maximum of 100 documents per batch size.
+        If you need to add more, then please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
       operationId: createDocuments
       requestBody:
         required: true

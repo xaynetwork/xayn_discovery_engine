@@ -4,29 +4,42 @@ info:
   version: 1.0.0-rc6
   description: |-
     # Front Office
-    The system identifies a user with only an id.
-    There are two main endpoints: one that allows registering an interaction between a user and a document (a user clicked or liked a document), and one to retrieve a personalized set of documents for the user. The system needs a few user interactions with documents before it can generate a personalized list.
+    The front office is typically used within front-end apps, for example a website or a mobile application.
+    With this SDK, you can handle interactions with documents and request a list of personalized documents.
 
-    # Auth
-    To authenticate with the API, a token will be provided.
+    ## User
+    Each method requires a `user_id`.
+    From our perspective, a `user_id` is simply required to group interactions together. We don't need to know who that user is, so it is preferred to create this `user_id` in a privacy-preserving way.
+    For example, create a hash method which transforms your user into an ID hash.
 
+    ## Document
+    A document here is represented by its `id` and optional `properties`.
+    In order to display a document in an interface, it's preferred to use `properties`, which is an arbitrary collection of values.
+    For example, it could contain an image url, a full article url, the publication date, the author or much more.
+    The properties that were added when the document was submitted to us, are just mirrored here.
+
+    ## Auth
+    The API requires an authenticationToken when used.
+    Please see further down in this README.md file, or refer to the test included in this SDK's codebase, on how to set this token correctly.
+    \
 tags:
   - name: front office
-    description: Interaction of the user and personalized document.
+    description: Handles interactions between users and documents and allows to fetch personalized documents per user.
 
 security:
-  - ApiKeyAuth: []    
+  - ApiKeyAuth: []
 
 paths:
   /users/{user_id}/personalized_documents:
     get:
       tags:
         - front office
-      summary: Get personalized documents for the user
+      summary: Gets personalized documents for the user.
       description: |-
         Returns a list of documents personalized for the given `user_id`.
         Each document contains the id, the score and the properties that are attached to the document.
         The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
+        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made at least one interaction via our system.
       operationId: getPersonalizedDocuments
       parameters:
         - $ref: './parameters/path/user_id.yml'
@@ -60,9 +73,12 @@ paths:
     patch:
       tags:
         - front office
-      summary: Add interaction between a user and a document
+      summary: Adds an interaction between the user and the document.
       description: |-
-        The interaction is used to provide personalized documents to the user.
+        Use this method to register an interaction between a user and a document.
+        Currently, we only support a `Positive` interaction, which is equivalent to a user who "likes" a certain document.
+        For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
+        For apps, consider implementing a "like" button, where the on click then triggers this method.
       operationId: updateUserInteractions
       parameters:
         - $ref: './parameters/path/user_id.yml'
