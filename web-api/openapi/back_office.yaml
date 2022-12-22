@@ -10,11 +10,11 @@ info:
     ## Document
     By document, we refer to a cohesive text, for example a complete news article.
     However, we only require a simple representation for our system to work. Consisting just of a unique ID, a text snippet and optional properties.
-    The text snippet is ideally a short, meaningful representation of the larger document, reduced to just one or two paragraphs.
+    The text snippet is ideally a short, meaningful representation of the larger document, reduced to just one paragraph.
 
     ### Id
     The document_id is a unique identifier for a single document.
-    We don't require a specific format, but would suggest using UUID for example.
+    We don't require a specific format, it just needs to comply to the following regexp: `^[a-zA-Z0-9_:@.-]+$`.
 
     ## Snippet
     A snippet is a reduced representation of a larger text, for example if the document would be a news article, then its text would be the news article in a pure textual format.
@@ -27,16 +27,16 @@ info:
     ## Properties
     Properties are optional entries for documents, which are usually needed to properly show the document back to the user, when it returns as a personalized document.
     If for example, you'd wish to integrate a type of carousel view, listing a total of 10 personalized documents in a "for you"-section, then you might choose to display each document as an image and title, with a url to link the user to when pressed.
-    For this, we'd need three document properties: `image`, `link` and `title`.
+    For this, you would need three document properties: `image`, `link` and `title`.
     You are free to add as many properties as needed.
 
     ## Auth
-    The API requires an authenticationToken when used.
+    The API requires an authentication token when used.
     Please see further down in this README.md file, or refer to the test included in this SDK's codebase, on how to set this token correctly.
-
+    \
 tags:
   - name: back office
-    description: Manage documents in a typical create/read/update/delete manner.
+    description: System management, including documents and properties.
 
 security:
   - ApiKeyAuth: []

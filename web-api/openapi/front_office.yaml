@@ -9,21 +9,22 @@ info:
 
     ## User
     Each method requires a `user_id`.
-    From Xayn's perspective, a `user_id` is simply required to group interactions together. We don't need to know who that user is, so it is preferred to create this `user_id` in a privacy-preserving way.
+    From our perspective, a `user_id` is simply required to group interactions together. We don't need to know who that user is, so it is preferred to create this `user_id` in a privacy-preserving way.
     For example, create a hash method which transforms your user into an ID hash.
 
     ## Document
-    By document, we refer to a cohesive text, for example a complete news article.
-    However, we only require a simple representation for our system to work. Consisting just of a unique ID, a text snippet and optional properties.\
-    The text snippet is ideally a short, meaningful representation of the larger document, reduced to just one or two paragraphs.
+    A document here is represented by its `id` and optional `properties`.
+    In order to display a document in an interface, it's preferred to use `properties`, which is an arbitrary collection of values.
+    For example, it could contain an image url, a full article url, the publication date, the author or much more.
+    The properties that were added when the document was submitted to us, are just mirrored here.
 
     ## Auth
     The API requires an authenticationToken when used.
     Please see further down in this README.md file, or refer to the test included in this SDK's codebase, on how to set this token correctly.
-
+    \
 tags:
   - name: front office
-    description: Manage user interactions and fetch personalized documents.
+    description: Handles interactions between users and documents and allows to fetch personalized documents per user.
 
 security:
   - ApiKeyAuth: []
@@ -33,7 +34,7 @@ paths:
     get:
       tags:
         - front office
-      summary: Gets personalized documents for a user.
+      summary: Gets personalized documents for the user.
       description: |-
         Returns a list of documents personalized for the given `user_id`.
         Each document contains the id, the score and the properties that are attached to the document.
@@ -72,11 +73,11 @@ paths:
     patch:
       tags:
         - front office
-      summary: Adds an interaction between a user and a document.
+      summary: Adds an interaction between the user and the document.
       description: |-
         Use this method to register an interaction between a user and a document.
         Currently, we only support a `Positive` interaction, which is equivalent to a user who "likes" a certain document.
-        For web sites, consider triggering this method whenever a certain document url loads.
+        For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
         For apps, consider implementing a "like" button, where the on click then triggers this method.
       operationId: updateUserInteractions
       parameters:
