@@ -17,11 +17,11 @@ jobs:
   rust-build:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v7
+      image: xaynetci/yellow:v8
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
 
       - name: Setup job
         uses: ./.github/actions/setup-job-docker
@@ -56,7 +56,7 @@ jobs:
     needs: rust-build
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
