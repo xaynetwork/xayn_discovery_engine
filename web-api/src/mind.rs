@@ -36,10 +36,7 @@ use crate::{
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            personalize_documents_by,
-            update_interactions,
-            PersonalizeBy,
-            UserInteractionData,
+            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
         },
         PersonalizationConfig,
     },
@@ -272,8 +269,6 @@ impl Users {
                 .collect(),
         ))
 }
-
-struct SnippetLabelPair(String, bool);
 
 fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Error>
 where
