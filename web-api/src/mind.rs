@@ -25,7 +25,8 @@ use ndarray::{Array, Array3, ArrayView};
 use npyz::WriterBuilder;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
-    thread_rng, Rng,
+    thread_rng,
+    Rng,
 };
 use serde::{de, Deserialize, Deserializer};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
@@ -35,7 +36,10 @@ use crate::{
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
         routes::{
-            personalize_documents_by, update_interactions, PersonalizeBy, UserInteractionData,
+            personalize_documents_by,
+            update_interactions,
+            PersonalizeBy,
+            UserInteractionData,
         },
         PersonalizationConfig,
     },
@@ -231,7 +235,7 @@ impl DocumentProvider {
         self.documents.get(id)
     }
 
-    fn get_documents(&self) -> Vec<Document> {
+    fn to_documents(&self) -> Vec<Document> {
         self.documents.values().cloned().collect()
     }
 
@@ -400,15 +404,14 @@ async fn run_persona_benchmark() -> Result<(), Error> {
 }
 
 /// Runs the user-based mind benchmark
-#[test]
+#[tokio::test]
 #[ignore]
-fn async run_user_benchmark() -> Result<(), Error> {
+async fn run_user_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
-    let impressions: DeserializeRecordsIntoIter<File, _> = read("behaviors.tsv")?;
 
     let state = State::new(Storage::default()).unwrap();
     state
-        .insert(document_provider.get_documents())
+        .insert(document_provider.to_documents())
         .await
         .unwrap();
 
@@ -417,7 +420,7 @@ fn async run_user_benchmark() -> Result<(), Error> {
 
     // Loop over all impressions, prepare reranker with news in click history
     // and rerank the news in an impression
-    for impression in impressions {
+    for impression in read("behaviors.tsv")? {
         let impression: Impression = impression?;
         let user = UserId::new(impression.user_id).unwrap();
 
@@ -435,11 +438,14 @@ fn async run_user_benchmark() -> Result<(), Error> {
             .unwrap()
             .iter()
             .map(|reranked_id| {
-                impression.news[document_ids
-                    .iter()
-                    .position(|&actual_id| actual_id == reranked_id)
-                    .unwrap()]
-                .was_clicked as i32 as f32
+                u8::from(
+                    impression.news[document_ids
+                        .iter()
+                        .position(|&actual_id| actual_id == reranked_id)
+                        .unwrap()]
+                    .was_clicked,
+                )
+                .into()
             })
             .collect_vec();
 
