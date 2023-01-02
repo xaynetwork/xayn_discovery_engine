@@ -25,8 +25,7 @@ use ndarray::{Array, Array3, ArrayView};
 use npyz::WriterBuilder;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
-    thread_rng,
-    Rng,
+    thread_rng, Rng,
 };
 use serde::{de, Deserialize, Deserializer};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
@@ -268,6 +267,7 @@ impl Users {
                 })
                 .collect(),
         ))
+    }
 }
 
 fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Error>
@@ -402,7 +402,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
 /// Runs the user-based mind benchmark
 #[test]
 #[ignore]
-fn run_user_benchmark() -> Result<(), Error> {
+fn async run_user_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
     let impressions: DeserializeRecordsIntoIter<File, _> = read("behaviors.tsv")?;
 
