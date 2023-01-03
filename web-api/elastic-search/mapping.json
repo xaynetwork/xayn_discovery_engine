@@ -9,6 +9,13 @@
                 "dims": 128,
                 "index": true,
                 "similarity": "dot_product"
+            },
+            "properties": {
+                "properties": {
+                    "publication_date": {
+                        "type": "date"
+                    }
+                }
             }
         }
     }
