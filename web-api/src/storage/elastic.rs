@@ -398,7 +398,7 @@ impl storage::Document for Storage {
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
         let mut range = serde_json::Map::default();
-        range.insert("lte".into(), Utc::now().to_rfc3339().into());
+        range.insert("lte".into(), "now/d".into());
         if let Some(published_after) = params.published_after {
             range.insert("gte".into(), published_after.to_rfc3339().into());
         }
