@@ -8,8 +8,22 @@ DocumentProperty:
   example: "News title"
 
 DocumentProperties:
-  description: Arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
+  description: Mostly arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
   type: object
+  property:
+    publication_date:
+      type: string
+      format: date-time
+      example: "2000-05-14T20:22:50Z"
+      summary: A RFC3339 compatible date-time
+      description: |
+        A RFC3339 compatible date-time
+
+        - can be in the future
+        - will be converted to and then stored as UTC
+        - sub-second resolution is not guaranteed.
+        - if this property is not set or set into the future this
+          document will be ignored for personalization
   additionalProperties:
     $ref: '#/DocumentProperty'
   example:
