@@ -306,7 +306,7 @@ impl storage::Document for Storage {
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut range = serde_json::Map::default();
-        range.insert("lte".into(), Utc::now().to_rfc3339().into());
+        range.insert("lte".into(), "now/d".into());
         if let Some(published_after) = params.published_after {
             range.insert("gte".into(), published_after.to_rfc3339().into());
         }
