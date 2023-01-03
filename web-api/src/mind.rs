@@ -426,6 +426,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
         let user = UserId::new(&impression.user_id).unwrap();
 
         if !users.contains(&impression.user_id) {
+            users.push(impression.user_id);
             state.interact(&user, &impression.clicks).await.unwrap();
         }
 
@@ -456,7 +457,6 @@ async fn run_user_benchmark() -> Result<(), Error> {
         ndcgs
             .push_column(ArrayView::from(&ndcgs_iteration))
             .unwrap();
-        users.push(impression.user_id);
     }
     println!("{:?}", ndcgs);
 
