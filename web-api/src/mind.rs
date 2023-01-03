@@ -235,6 +235,10 @@ impl DocumentProvider {
         self.documents.get(id)
     }
 
+    fn to_documents(&self) -> Vec<Document> {
+        self.documents.values().cloned().collect()
+    }
+
     // get all documents that matches user's interest
     fn get_all_interest(&self, interests: &[String]) -> Vec<&Document> {
         self.documents
@@ -269,8 +273,6 @@ impl Users {
         ))
     }
 }
-
-struct SnippetLabelPair(String, bool);
 
 fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Error>
 where
@@ -402,49 +404,56 @@ async fn run_persona_benchmark() -> Result<(), Error> {
 }
 
 /// Runs the user-based mind benchmark
-#[test]
+#[tokio::test]
 #[ignore]
-fn run_user_benchmark() -> Result<(), Error> {
+async fn run_user_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
 
-    let impressions = read("behaviors.tsv")?;
+    let state = State::new(Storage::default()).unwrap();
+    state
+        .insert(document_provider.to_documents())
+        .await
+        .unwrap();
 
     let nranks = vec![3];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
+    let mut users = Vec::new();
 
     // Loop over all impressions, prepare reranker with news in click history
     // and rerank the news in an impression
-    for impression in impressions {
+    for impression in read("behaviors.tsv")? {
         let impression: Impression = impression?;
+        let user = UserId::new(&impression.user_id).unwrap();
 
-        // Placeholder for interacting with the entire click history
-        for click in impression.clicks {
-            match document_provider.get(&click) {
-                Some(document) => println!("The document {:?} was interacted.", document),
-                None => println!("Document id {} not found.", click),
-            }
+        if !users.contains(&impression.user_id) {
+            users.push(impression.user_id);
+            state.interact(&user, &impression.clicks).await.unwrap();
         }
 
-        // Placeholder for reranking the results
-        let mut snippet_label_pairs = impression
+        let document_ids = impression
             .news
             .iter()
-            .filter_map(|viewed_document| {
-                document_provider
-                    .get(&viewed_document.document_id)
-                    .map(|document| {
-                        SnippetLabelPair(document.snippet.clone(), viewed_document.was_clicked)
-                    })
+            .map(|document| &document.document_id)
+            .collect::<Vec<_>>();
+
+        let labels = state
+            .personalize(&user, PersonalizeBy::Documents(document_ids.as_slice()))
+            .await
+            .unwrap()
+            .iter()
+            .map(|reranked_id| {
+                u8::from(
+                    impression.news[document_ids
+                        .iter()
+                        .position(|&actual_id| actual_id == reranked_id)
+                        .unwrap()]
+                    .was_clicked,
+                )
+                .into()
             })
             .collect_vec();
-        snippet_label_pairs.shuffle(&mut thread_rng());
 
-        let labels = snippet_label_pairs
-            .iter()
-            .map(|snippet_label| if snippet_label.1 { 1.0 } else { 0.0 })
-            .collect_vec();
         let ndcgs_iteration = ndcg(&labels, &nranks);
-
         ndcgs
             .push_column(ArrayView::from(&ndcgs_iteration))
             .unwrap();
