@@ -1,0 +1,27 @@
+{
+    "mappings": {
+        "properties": {
+            "snippet": {
+                "type": "text"
+            },
+            "embedding": {
+                "type": "dense_vector",
+                "dims": 128,
+                "index": true,
+                "similarity": "cosine"
+            },
+            "properties": {
+                "properties": {
+                    "publication_date": {
+                        "type": "text",
+                        "fields": {
+                            "date": {
+                                "type": "date"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
