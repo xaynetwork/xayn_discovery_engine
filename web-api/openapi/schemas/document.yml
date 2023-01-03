@@ -10,7 +10,7 @@ DocumentProperty:
 DocumentProperties:
   description: Mostly arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
   type: object
-  property:
+  properties:
     publication_date:
       type: string
       format: date-time
