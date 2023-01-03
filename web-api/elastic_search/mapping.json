@@ -13,12 +13,7 @@
             "properties": {
                 "properties": {
                     "publication_date": {
-                        "type": "text",
-                        "fields": {
-                            "date": {
-                                "type": "date"
-                            }
-                        }
+                        "type": "date"
                     }
                 }
             }
