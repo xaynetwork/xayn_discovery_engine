@@ -297,6 +297,13 @@ impl Database {
         Ok(UserInterests { positive, negative })
     }
 
+    /// Update the Center of Interests (COIs).
+    ///
+    /// This function assumes it will not be called in high amounts
+    /// with highly varying numbers of cois. If it is could potentially
+    /// lead to degraded global performance of the prepared query
+    /// cache. This assumption is unlikely to ever be broken and
+    /// even if it's unlikely to actually cause issues.
     async fn upsert_cois(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
@@ -306,8 +313,6 @@ impl Database {
         if cois.is_empty() {
             return Ok(());
         }
-        //FIXME micro benchmark and chunking+persist abstraction
-        let persist = cois.len() < 10;
 
         let mut builder = QueryBuilder::new(
             "INSERT INTO center_of_interest (
@@ -341,7 +346,6 @@ impl Database {
                     last_view = EXCLUDED.last_view;",
                 )
                 .build()
-                .persistent(persist)
                 .execute(&mut *tx)
                 .await?;
         }
