@@ -15,6 +15,7 @@
 use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
+use chrono::Utc;
 use itertools::Itertools;
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
@@ -396,6 +397,13 @@ impl storage::Document for Storage {
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
+        let mut range = serde_json::Map::default();
+        range.insert("lte".into(), Utc::now().to_rfc3339().into());
+        if let Some(published_after) = params.published_after {
+            range.insert("gte".into(), published_after.to_rfc3339().into());
+        }
+
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
         let body = Some(json!({
             "size": params.k_neighbors,
             "knn": {
@@ -405,11 +413,16 @@ impl storage::Document for Storage {
                 "num_candidates": params.num_candidates,
                 "filter": {
                     "bool": {
+                        "must": {
+                            "range": {
+                                "publication_date": range,
+                            }
+                        },
                         "must_not": {
                             "ids": {
                                 "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
                             }
-                        }
+                        },
                     }
                 }
             },

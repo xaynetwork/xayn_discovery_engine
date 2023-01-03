@@ -12,6 +12,7 @@ actix-web = { version = "4.2.1", default-features = false, features = ["compress
 anyhow = "1.0.68"
 async-trait = "0.1.61"
 clap = { version = "4.1.1", features = ["derive"] }
+chrono = { workspace = true, features = ["serde"] }
 csv = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
