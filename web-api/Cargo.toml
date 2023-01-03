@@ -11,6 +11,7 @@ actix-cors = "0.6.4"
 actix-web = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true }
 csv = { workspace = true }
 derive_more = { workspace = true }

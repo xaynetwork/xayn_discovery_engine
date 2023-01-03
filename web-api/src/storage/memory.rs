@@ -602,6 +602,7 @@ mod tests {
                 embedding,
                 k_neighbors: 2,
                 num_candidates: 2,
+                published_after: None,
             },
         )
         .await
@@ -618,6 +619,7 @@ mod tests {
                 embedding,
                 k_neighbors: 3,
                 num_candidates: 3,
+                published_after: None,
             },
         )
         .await

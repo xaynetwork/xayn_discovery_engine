@@ -21,6 +21,7 @@ mod utils;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -46,6 +47,7 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) k_neighbors: usize,
     // must be >= k_neighbors
     pub(crate) num_candidates: usize,
+    pub(crate) published_after: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Error, From)]

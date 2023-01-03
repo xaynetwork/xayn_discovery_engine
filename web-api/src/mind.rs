@@ -362,7 +362,10 @@ async fn run_persona_benchmark() -> Result<(), Error> {
             let personalised_documents = state
                 .personalize(
                     user_id,
-                    PersonalizeBy::KnnSearch(benchmark_config.n_documents),
+                    PersonalizeBy::KnnSearch {
+                        count: benchmark_config.n_documents,
+                        published_after: None,
+                    },
                 )
                 .await
                 .unwrap();
