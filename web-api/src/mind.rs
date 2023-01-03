@@ -417,14 +417,17 @@ async fn run_user_benchmark() -> Result<(), Error> {
 
     let nranks = vec![3];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
+    let mut users = Vec::new();
 
     // Loop over all impressions, prepare reranker with news in click history
     // and rerank the news in an impression
     for impression in read("behaviors.tsv")? {
         let impression: Impression = impression?;
-        let user = UserId::new(impression.user_id).unwrap();
+        let user = UserId::new(&impression.user_id).unwrap();
 
-        state.interact(&user, &impression.clicks).await.unwrap();
+        if !users.contains(&impression.user_id) {
+            state.interact(&user, &impression.clicks).await.unwrap();
+        }
 
         let document_ids = impression
             .news
@@ -453,6 +456,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
         ndcgs
             .push_column(ArrayView::from(&ndcgs_iteration))
             .unwrap();
+        users.push(impression.user_id);
     }
     println!("{:?}", ndcgs);
 
