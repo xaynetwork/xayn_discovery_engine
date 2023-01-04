@@ -122,10 +122,36 @@ build-ingestion-service:
 
 web-dev-up:
     #!/usr/bin/env -S bash -eux -o pipefail
-    rm "./web-api/assets" || :
-    ln -s "./assets/smbert_v0003" "./web-api/assets"
+    ociRunner="$(command -v podman || command -v docker)"
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
+
+    # check if it's already _fully_ running
+    running_services="$(
+        $ociRunner ps --format json | \
+        jq 'map(select(.Labels."com.docker.compose.project" == "web-api") | .Labels."com.docker.compose.service")'
+    )"
+    # Make sure we don't conflict with containerized ingestion or personalization services.
+    # If we do detect this services we stop them and restart the dbs to create a clean state.
+    RESTART=false
+    if jq -e 'contains(["ingestion"])' <(echo "$running_services"); then
+        RESTART=true
+        $compose -f "./web-api/compose.ingestion.yml" down
+    fi
+    if jq -e 'contains(["personalization"])' <(echo "$running_services"); then
+        RESTART=true
+        $compose -f "./web-api/compose.personalization.yml" down
+    fi
+    if ["$RESTART" = "true"] || \
+        jq -e 'contains(["elasticsearch","postgres"]) | not' <(echo "$running_services");
+    then
+        # stop any partial running services
+        {{just_executable()}} web-dev-down 1>/dev/null 2>&1 || :
+        # make sure the right assets are linked
+        rm "./web-api/assets" || :
+        ln -s "./assets/smbert_v0003" "./web-api/assets"
+        # start all db services
+        $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
+    fi
 
 web-dev-down:
     #!/usr/bin/env -S bash -eux -o pipefail
