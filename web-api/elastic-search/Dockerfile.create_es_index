@@ -1,0 +1,4 @@
+FROM curlimages/curl
+WORKDIR /app
+COPY ./ ./
+ENTRYPOINT [ "/bin/sh", "./create_es_index.sh" ]

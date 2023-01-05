@@ -30,34 +30,12 @@ services:
     networks:
       - internal
 
-  setup_elastic:
-    image: curlimages/curl
+  create_es_index:
+    build:
+      context: ./elastic-search
+      dockerfile: Dockerfile.create_es_index
     restart: "no"
-    entrypoint:
-      - "/bin/sh"
-      - "-c"
-      - |
-        while ! curl -s -X OPTIONS http://elasticsearch:9200/test_index ; do
-          echo "Waiting for elasticsearch";
-          sleep 1;
-        done;
-        sleep 5; curl -v -X PUT 'http://elasticsearch:9200/test_index?pretty' \
-          -H 'Content-Type: application/json' \
-          -d '{
-            "mappings": {
-              "properties": {
-                "snippet": {
-                  "type": "text"
-                },
-                "embedding": {
-                  "type": "dense_vector",
-                  "dims": 128,
-                  "index": true,
-                  "similarity": "cosine"
-                }
-              }
-            }
-        }'
+    command: http://elasticsearch:9200/test_index
     depends_on:
       - elasticsearch
     networks:
