@@ -32,6 +32,9 @@
 
 mod approx_eq;
 pub mod asset;
+pub mod error;
+#[cfg(feature = "integration")]
+pub mod integration;
 pub mod uuid;
 
 #[doc(hidden)] // required for standalone export of assert_approx_eq!

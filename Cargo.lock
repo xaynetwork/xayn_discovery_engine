@@ -4111,8 +4111,18 @@ dependencies = [
 name = "xayn-ai-test-utils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "chrono",
  "float-cmp",
+ "mime",
  "ndarray",
+ "once_cell",
+ "rand",
+ "regex",
+ "reqwest",
+ "scopeguard",
+ "serde_json",
+ "sqlx",
  "uuid",
 ]
 

@@ -218,21 +218,8 @@ mind-benchmark kind:
     cargo test --package xayn-web-api --release --lib \
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
-_setup_integration_test $ID:
-    #!/usr/bin/env -S bash -eux -o pipefail
-    {{just_executable()}} web-dev-up
-    {{just_executable()}} _create_es_index "$ID" #TODO inline should be a one liner
-    psql postgresql://user:pw@localhost5432/xayn -c "CREATE DATABASE \"$ID\";"
-
-_cleanup_integration_test $ID:
-    #!/usr/bin/env -S bash -eux -o pipefail
-    {{just_executable()}} _drop_es_index "$ID" #TODO inline should be a one liner
-    psql postgresql://user:pw@localhost5432/xayn -c "DROP DATABASE \"$ID\";"
-
-_create_es_index $ID:
-    #TODO rebase on ET-??? which improved on the index creation
-    echo "not yet implemented"
-    exit 1
+project-root:
+    echo -n {{justfile_directory()}}
 
 alias r := rust-test
 alias t := test
