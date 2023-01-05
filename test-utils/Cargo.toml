@@ -7,7 +7,7 @@ license = "AGPL-3.0-only"
 publish = false
 
 [features]
-integration = ["sqlx", "anyhow", "scopeguard", "chrono", "rand", "once_cell", "reqwest", "mime", "serde_json"]
+integration = ["sqlx", "anyhow", "scopeguard", "chrono", "rand", "once_cell", "reqwest", "mime", "serde_json", "tokio"]
 
 [dependencies]
 float-cmp = { workspace = true }
@@ -22,6 +22,7 @@ once_cell = { workspace=    true, optional=true }
 reqwest = { workspace= true, optional=true }
 mime = { workspace = true, optional= true }
 serde_json = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
 regex = { workspace= true}

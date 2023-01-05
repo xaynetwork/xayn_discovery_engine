@@ -16,12 +16,15 @@ use std::{
     fs,
     path::PathBuf,
     process::{Command, Output, Stdio},
+    time::Duration,
 };
 
 use chrono::Local;
 use once_cell::sync::Lazy;
+use reqwest::Method;
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use sqlx::{postgres::PgConnectOptions, Connection, PgConnection};
+use tokio::time::sleep;
 
 use crate::error::Panic;
 
@@ -69,6 +72,16 @@ pub fn generate_test_id() -> String {
 pub async fn create_web_dev_pg_db(
     name: &str,
 ) -> Result<ScopeGuard<String, impl FnOnce(String), OnSuccess>, Panic> {
+    let uri = create_database(name).await?;
+    let name = name.to_owned();
+    Ok(guard_on_success(uri, move |_| {
+        tokio::spawn(async move {
+            drop_database(&name).await.ok();
+        });
+    }))
+}
+
+async fn create_database(name: &str) -> Result<String, Panic> {
     let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
 
     sqlx::query("CREATE DATABASE ?;")
@@ -76,30 +89,61 @@ pub async fn create_web_dev_pg_db(
         .execute(&mut db)
         .await?;
 
-    Ok(guard_on_success(
-        format!("postgresql://user:pw@localhost/{}", name),
-        move |_| {
-            let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
+    Ok(format!("postgresql://user:pw@localhost/{}", name))
+}
 
-            sqlx::query("DROP DATABASE ?;")
-                .bind(name)
-                .execute(&mut db)
-                .await?;
-        },
-    ))
+async fn drop_database(name: &str) -> Result<(), Panic> {
+    let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
+
+    sqlx::query("DROP DATABASE ?;")
+        .bind(name)
+        .execute(&mut db)
+        .await?;
+
+    Ok(())
 }
 
 pub async fn create_web_dev_es_index(
-    es_index_uri: &str,
+    name: &str,
 ) -> Result<ScopeGuard<String, impl FnOnce(String), OnSuccess>, Panic> {
-    let ready = (0..30).fold(false, |ready, _| {
-        ready || check_if_es_ready(es_index_uri).await
-    });
+    let es_index_uri = format!("http://localhost:9200/{}", name);
 
+    let mut ready = false;
+    for _ in 0..30 {
+        if check_if_es_ready(&es_index_uri).await {
+            ready = true;
+            break;
+        }
+        sleep(Duration::new(1, 0)).await;
+    }
     if !ready {
         panic!("Elastic Search is not accessible at: {}", es_index_uri);
     }
 
+    create_index(&es_index_uri).await?;
+
+    Ok(guard_on_success(es_index_uri, |uri| {
+        tokio::spawn(async move {
+            drop_index(&uri).await.ok();
+        });
+    }))
+}
+
+/// Returns true if Elastic Search is ready.
+///
+/// The URI should be to a potential index, it is okay
+/// if the index doesn't exist, but it should not be
+/// to the elastic search root uri.
+pub async fn check_if_es_ready(es_index_uri: &str) -> bool {
+    let res = reqwest::Client::new()
+        .request(Method::OPTIONS, es_index_uri)
+        .send()
+        .await;
+
+    res.map(|res| res.status().is_success()).unwrap_or(false)
+}
+
+async fn create_index(es_index_uri: &str) -> Result<(), Panic> {
     let mapping = fs::read(PROJECT_ROOT.join("./web-api/elastic-search/mapping.json"))?;
     let response = reqwest::Client::new()
         .put(es_index_uri)
@@ -108,16 +152,16 @@ pub async fn create_web_dev_es_index(
         .send()
         .await?;
 
-    if !response.status().is_success() {
+    if response.status().is_success() {
+        Ok(())
+    } else {
         let body = response.text().await?;
         panic!("Creating index ({es_index_uri}) failed: {body}");
     }
+}
 
-    Ok(guard_on_success(es_index_uri, |uri| {
-        todo!(/*
-                HTTP DELETE uri
-            */)
-    }))
+async fn drop_index(es_index_uri: &str) -> Result<(), Panic> {
+    todo!(/*HTTP DELETE es_index_uri*/)
 }
 
 pub struct WebDevEnv<'a> {
