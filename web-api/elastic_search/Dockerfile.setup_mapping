@@ -1,4 +1,0 @@
-FROM curlimages/curl
-WORKDIR /app
-COPY ./ ./
-ENTRYPOINT [ "/bin/sh", "-c", "put_mapping.sh" ]

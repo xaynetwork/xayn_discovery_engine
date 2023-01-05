@@ -30,10 +30,10 @@ services:
     networks:
       - internal
 
-  setup_elastic:
+  create_es_index:
     build:
-      context: ./elastic_search
-      dockerfile: Dockerfile.setup_mapping
+      context: ./elastic-search
+      dockerfile: Dockerfile.create_es_index
     restart: "no"
     command: http://elasticsearch:9200/test_index
     depends_on:
