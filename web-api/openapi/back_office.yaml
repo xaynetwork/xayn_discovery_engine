@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Back Office API
-  version: 1.0.0-rc6
+  version: 1.0.0-rc7
   description: |-
     # Back Office
     The back office is typically used within server-side apps.
@@ -47,11 +47,18 @@ paths:
       tags:
         - back office
       summary: Add documents to the system
-      description: |-
-        Add documents to the system. The system will create a representation of the document
-        that will be used to match it against the preferences of a user.
-        Important note: currently we allow up to a maximum of 100 documents per batch size.
-        If you need to add more, then please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
+      description: |
+        Add documents to the system.
+
+        The system will create a representation of the document that will be used to match it against the preferences of a user.
+
+        **Important note:** Currently we allow up to a maximum of 100 documents per batch size. If you need to add more, then
+        please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
+
+        **Important note:** Documents which have no `publication_date` (in `properties`) or a `publication_date` in the future are
+        treated as unpublished and as such are filtered out from personalized documents. This allows ingesting document which e.g.
+        are scheduled to be published later on. Be aware that there is no way to update the snippet of an document. So ingestion
+        should only be done after the snippet is finalized.
       operationId: createDocuments
       requestBody:
         required: true

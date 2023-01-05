@@ -39,7 +39,7 @@ module.exports = {
     'delete-body': 'off',
     'prohibit-summary-sentence-style': 'off',
     'collection-array-property': 'off',
-    // the rule set wants to enforce a specific erorr shcema
+    // the rule set wants to enforce a specific erorr schema
     'response-error-response-schema': 'off',
     'patch-request-content-type': 'off',
   }
