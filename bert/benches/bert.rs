@@ -15,7 +15,7 @@
 use std::path::Path;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use xayn_ai_bert::{Config, NonePooler};
+use xayn_ai_bert::{tokenizer::bert::Tokenizer, Config, NonePooler};
 use xayn_ai_test_utils::asset::smbert;
 
 const TOKEN_SIZE: usize = 64;
@@ -26,6 +26,7 @@ fn bench_tract_bert(manager: &mut Criterion, name: &str, dir: &Path) {
         .unwrap()
         .with_token_size(TOKEN_SIZE)
         .unwrap()
+        .with_tokenizer::<Tokenizer>()
         .with_pooler::<NonePooler>()
         .build()
         .unwrap();

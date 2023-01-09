@@ -20,19 +20,17 @@ use thiserror::Error;
 use crate::{
     model::Model,
     pooler::{Embedding1, Embedding2},
-    tokenizer::Tokenizer,
+    tokenizer::Tokenize,
     AveragePooler,
     FirstPooler,
     NonePooler,
 };
 
-/// A pipeline for a bert model.
-///
-/// Can be built from a [`Config`] and consists of a tokenizer, a model and a pooler.
+/// A pipeline can be built from a [`Config`] and consists of a tokenizer, a model and a pooler.
 ///
 /// [`Config`]: crate::config::Config
-pub struct Pipeline<P> {
-    pub(crate) tokenizer: Tokenizer,
+pub struct Pipeline<T, P> {
+    pub(crate) tokenizer: T,
     pub(crate) model: Model,
     pub(crate) pooler: PhantomData<P>,
 }
@@ -49,7 +47,10 @@ pub enum PipelineError {
     Model(#[from] tract_onnx::prelude::TractError),
 }
 
-impl Pipeline<NonePooler> {
+impl<T> Pipeline<T, NonePooler>
+where
+    T: Tokenize,
+{
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding2, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
@@ -58,7 +59,10 @@ impl Pipeline<NonePooler> {
     }
 }
 
-impl Pipeline<FirstPooler> {
+impl<T> Pipeline<T, FirstPooler>
+where
+    T: Tokenize,
+{
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
@@ -67,7 +71,10 @@ impl Pipeline<FirstPooler> {
     }
 }
 
-impl Pipeline<AveragePooler> {
+impl<T> Pipeline<T, AveragePooler>
+where
+    T: Tokenize,
+{
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
@@ -77,7 +84,7 @@ impl Pipeline<AveragePooler> {
     }
 }
 
-impl<P> Pipeline<P> {
+impl<T, P> Pipeline<T, P> {
     /// Gets the token size.
     pub fn token_size(&self) -> usize {
         self.model.token_size
@@ -97,9 +104,10 @@ mod tests {
     use crate::{
         config::Config,
         pooler::{AveragePooler, FirstPooler, NonePooler},
+        tokenizer::bert::Tokenizer,
     };
 
-    fn pipeline<P>() -> Pipeline<P> {
+    fn pipeline<P>() -> Pipeline<Tokenizer, P> {
         Config::new(smbert_mocked().unwrap())
             .unwrap()
             .with_pooler()
