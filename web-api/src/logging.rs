@@ -115,7 +115,7 @@ fn init_tracing_once(log_config: &Config) {
         })
         .transpose()
         .map_err(|error| {
-            eprintln!("Setup file logging failed: {}", error);
+            eprintln!("Setup file logging failed: {error}");
         })
         .ok();
 

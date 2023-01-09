@@ -562,7 +562,7 @@ impl storage::DocumentProperty for Storage {
             ["_source", document_id.as_ref()],
             [(
                 "_source_includes",
-                Some(&*format!("properties.{}", property_id)),
+                Some(&*format!("properties.{property_id}")),
             )],
         );
 

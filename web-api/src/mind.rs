@@ -458,7 +458,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
             .push_column(ArrayView::from(&ndcgs_iteration))
             .unwrap();
     }
-    println!("{:?}", ndcgs);
+    println!("{ndcgs:?}");
 
     Ok(())
 }

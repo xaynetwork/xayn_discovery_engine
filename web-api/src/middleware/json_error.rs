@@ -91,7 +91,7 @@ fn extract_message_as_details(body: impl MessageBody + Debug) -> Value {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}", error)]
+#[display(fmt = "{error}")]
 pub(super) struct WrappedMiddlewareError {
     pub(super) error: actix_web::Error,
     pub(super) request_id: RequestId,

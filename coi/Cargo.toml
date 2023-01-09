@@ -6,7 +6,7 @@ rust-version = { workspace = true }
 license = "AGPL-3.0-only"
 
 [dependencies]
-derivative = { workspace = true }
+derivative = "2.2.0"
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 itertools = { workspace = true }
@@ -20,7 +20,7 @@ xayn-ai-bert = { path = "../bert" }
 [dev-dependencies]
 criterion = { workspace = true }
 rand = { workspace = true }
-rand_distr = { workspace = true }
+rand_distr = "0.4.3"
 serde_json = { workspace = true }
 xayn-ai-test-utils = { path = "../test-utils" }
 

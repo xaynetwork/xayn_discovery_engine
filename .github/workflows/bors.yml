@@ -21,7 +21,7 @@ jobs:
     needs: rust-checks
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v7
+      image: xaynetci/yellow:v8
     timeout-minutes: 5
     if: ${{ always() }}
     steps:
