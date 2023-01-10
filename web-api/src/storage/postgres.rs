@@ -31,7 +31,7 @@ use sqlx::{
 };
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
-use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
+use xayn_ai_coi::{CoiId, CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::InteractionUpdateContext;
 use crate::{
@@ -308,12 +308,8 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
         now: DateTime<Utc>,
-        cois: &[PositiveCoi],
+        cois: &HashMap<CoiId, PositiveCoi>,
     ) -> Result<(), Error> {
-        if cois.is_empty() {
-            return Ok(());
-        }
-
         let mut builder = QueryBuilder::new(
             "INSERT INTO center_of_interest (
             coi_id, user_id,
@@ -322,7 +318,9 @@ impl Database {
             last_view
         ) ",
         );
-        for chunk in cois.chunks(Database::BIND_LIMIT / 7) {
+        let mut iter = cois.values().peekable();
+        while iter.peek().is_some() {
+            let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
             builder
                 .reset()
                 .push_values(chunk, |mut builder, update| {
@@ -520,15 +518,18 @@ impl storage::Interaction for Storage {
             .map(|tag| (tag.as_str(), 0))
             .collect::<HashMap<_, _>>();
 
-        let mut updates = Vec::new();
+        let mut updates = HashMap::new();
 
         for id in updated_document_ids {
             if let Some((document, _)) = document_map.get_mut(id) {
-                updates.push(update_logic(InteractionUpdateContext {
+                let updated_coi = update_logic(InteractionUpdateContext {
                     document,
                     tag_weight_diff: &mut tag_weight_diff,
                     positive_cois: &mut interests.positive,
-                }));
+                });
+                // We might update the same coi min `interests` multiple times,
+                // if we do we only want to keep the latest update.
+                updates.insert(updated_coi.id, updated_coi);
             } else {
                 warn!(%id, "interacted document doesn't exist");
             }
