@@ -386,7 +386,7 @@ impl Database {
                         .push_bind(interaction as i16);
                 })
                 .push(
-                    "ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
+                    " ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
                     user_reaction = EXCLUDED.user_reaction;",
                 )
                 .build()
@@ -421,7 +421,7 @@ impl Database {
                         .push_bind(weight_diff);
                 })
                 .push(
-                    "ON CONFLICT (user_id, tag) DO UPDATE SET
+                    " ON CONFLICT (user_id, tag) DO UPDATE SET
                     weight = weighted_tag.weight + EXCLUDED.weight;",
                 )
                 .build()
