@@ -91,13 +91,26 @@ id_wrapper!(DocumentPropertyId, is_valid_id, InvalidDocumentPropertyId);
 id_wrapper!(UserId, is_valid_id, InvalidUserId);
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct DocumentProperty(serde_json::Value);
+pub(crate) struct DocumentProperty(serde_json::Value);
 
 /// Arbitrary properties that can be attached to a document.
 pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
-/// Represents a result from a query.
-#[derive(Debug, Clone, Serialize)]
+/// Represents a result from an interaction query.
+#[derive(Debug)]
+pub(crate) struct InteractedDocument {
+    /// Unique identifier of the document.
+    pub(crate) id: DocumentId,
+
+    /// Embedding from smbert.
+    pub(crate) embedding: Embedding,
+
+    /// The tags associated to the document.
+    pub(crate) tags: Vec<String>,
+}
+
+/// Represents a result from a personalization query.
+#[derive(Debug)]
 pub(crate) struct PersonalizedDocument {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
@@ -106,31 +119,16 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) score: f32,
 
     /// Embedding from smbert.
-    #[serde(skip_serializing)]
     pub(crate) embedding: Embedding,
 
     /// Contents of the document properties.
-    #[serde(default)]
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    #[serde(default)]
     pub(crate) tags: Vec<String>,
 }
 
 impl AiDocument for PersonalizedDocument {
-    type Id = DocumentId;
-
-    fn id(&self) -> &Self::Id {
-        &self.id
-    }
-
-    fn bert_embedding(&self) -> &Embedding {
-        &self.embedding
-    }
-}
-
-impl AiDocument for &PersonalizedDocument {
     type Id = DocumentId;
 
     fn id(&self) -> &Self::Id {

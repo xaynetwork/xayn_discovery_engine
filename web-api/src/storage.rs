@@ -33,6 +33,7 @@ use crate::{
         DocumentId,
         DocumentPropertyId,
         IngestedDocument,
+        InteractedDocument,
         PersonalizedDocument,
         UserId,
     },
@@ -66,7 +67,12 @@ pub(crate) enum DeletionError {
 
 #[async_trait]
 pub(crate) trait Document {
-    async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error>;
+    async fn get_interacted(&self, ids: &[&DocumentId]) -> Result<Vec<InteractedDocument>, Error>;
+
+    async fn get_personalized(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn get_by_embedding<'a>(
         &self,
@@ -122,7 +128,7 @@ pub(crate) trait Interest {
 }
 
 pub(crate) struct InteractionUpdateContext<'s, 'l> {
-    pub(crate) document: &'s PersonalizedDocument,
+    pub(crate) document: &'s InteractedDocument,
     pub(crate) tag_weight_diff: &'s mut HashMap<&'l str, i32>,
     pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
 }

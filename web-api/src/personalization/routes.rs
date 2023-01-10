@@ -38,7 +38,7 @@ use crate::{
         application::WithRequestIdExt,
         common::{BadRequest, InternalError, NotEnoughInteractions},
     },
-    models::{DocumentId, PersonalizedDocument, UserId, UserInteractionType},
+    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
     storage::{self, KnnSearchParams},
     Error,
 };
@@ -153,14 +153,33 @@ async fn personalized_documents(
         PersonalizeBy::KnnSearch(options.document_count(&state.config.personalization)?),
     )
     .await
-    .map(|documents| Json(PersonalizedDocumentsResponse { documents }))
+    .map(|documents| {
+        Json(PersonalizedDocumentsResponse {
+            documents: documents
+                .into_iter()
+                .map(|document| PersonalizedDocumentData {
+                    id: document.id,
+                    score: document.score,
+                    properties: document.properties,
+                })
+                .collect(),
+        })
+    })
+}
+
+#[derive(Debug, Serialize)]
+struct PersonalizedDocumentData {
+    id: DocumentId,
+    score: f32,
+    #[serde(skip_serializing_if = "DocumentProperties::is_empty")]
+    properties: DocumentProperties,
 }
 
 /// Represents response from personalized documents endpoint.
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct PersonalizedDocumentsResponse {
+#[derive(Debug, Serialize)]
+struct PersonalizedDocumentsResponse {
     /// A list of documents personalized for a specific user.
-    pub(crate) documents: Vec<PersonalizedDocument>,
+    documents: Vec<PersonalizedDocumentData>,
 }
 
 /// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each centers' embedding.
@@ -303,7 +322,7 @@ pub(crate) async fn personalize_documents_by(
             .await?
         }
         PersonalizeBy::Documents(documents) => {
-            storage::Document::get_by_ids(storage, documents).await?
+            storage::Document::get_personalized(storage, documents).await?
         }
     };
 

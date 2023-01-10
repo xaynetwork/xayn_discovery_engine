@@ -31,14 +31,7 @@ use xayn_ai_coi::Embedding;
 
 use crate::{
     error::common::InternalError,
-    models::{
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        IngestedDocument,
-        PersonalizedDocument,
-    },
+    models::{self, DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId},
     server::SetupError,
     storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
     utils::{serialize_redacted, serialize_to_ndjson},
@@ -106,7 +99,7 @@ pub(crate) struct Client {
     client: reqwest::Client,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum BulkInstruction<'a> {
     Index {
@@ -128,7 +121,7 @@ struct BulkItemResponse {
     error: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct BulkResponse {
     errors: bool,
     items: Vec<HashMap<String, BulkItemResponse>>,
@@ -222,7 +215,7 @@ impl Client {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct Hit<T> {
     #[serde(rename = "_id")]
     id: DocumentId,
@@ -232,32 +225,54 @@ struct Hit<T> {
     score: f32,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct Hits<T> {
     hits: Vec<Hit<T>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct SearchResponse<T> {
     hits: Hits<T>,
 }
 
-/// Represents a document with calculated embeddings that is stored in Elastic Search.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Document {
-    pub snippet: String,
-    pub properties: DocumentProperties,
-    pub embedding: Embedding,
-    pub tags: Vec<String>,
+#[derive(Debug, Deserialize)]
+struct InteractedDocument {
+    embedding: Embedding,
+    #[serde(default)]
+    tags: Vec<String>,
 }
 
-impl From<SearchResponse<Document>> for Vec<PersonalizedDocument> {
-    fn from(response: SearchResponse<Document>) -> Self {
+impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument> {
+    fn from(response: SearchResponse<InteractedDocument>) -> Self {
         response
             .hits
             .hits
             .into_iter()
-            .map(|hit| PersonalizedDocument {
+            .map(|hit| models::InteractedDocument {
+                id: hit.id,
+                embedding: hit.source.embedding,
+                tags: hit.source.tags,
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct PersonalizedDocument {
+    #[serde(default)]
+    properties: DocumentProperties,
+    embedding: Embedding,
+    #[serde(default)]
+    tags: Vec<String>,
+}
+
+impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocument> {
+    fn from(response: SearchResponse<PersonalizedDocument>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| models::PersonalizedDocument {
                 id: hit.id,
                 score: hit.score,
                 embedding: hit.source.embedding,
@@ -268,6 +283,14 @@ impl From<SearchResponse<Document>> for Vec<PersonalizedDocument> {
     }
 }
 
+#[derive(Debug, Serialize)]
+struct IngestedDocument<'a> {
+    snippet: &'a str,
+    properties: &'a DocumentProperties,
+    embedding: &'a Embedding,
+    tags: &'a [String],
+}
+
 fn is_success_status(status: u16, allow_not_found: bool) -> bool {
     StatusCode::from_u16(status)
         .map(|status| (status == StatusCode::NOT_FOUND && allow_not_found) || status.is_success())
@@ -275,11 +298,11 @@ fn is_success_status(status: u16, allow_not_found: bool) -> bool {
 }
 
 impl Storage {
-    pub(crate) async fn get_by_ids_with_transaction(
+    pub(crate) async fn get_interacted_with_transaction(
         &self,
         ids: &[&DocumentId],
         tx: Option<&mut Transaction<'_, Postgres>>,
-    ) -> Result<Vec<PersonalizedDocument>, Error> {
+    ) -> Result<Vec<models::InteractedDocument>, Error> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -292,13 +315,52 @@ impl Storage {
             self.postgres.documents_exist(ids).await?
         };
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/query-dsl-ids-query.html
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
         let body = Some(json!({
             "query": {
                 "ids" : {
-                    "values" : values,
+                    "values": values
                 }
-            }
+            },
+            "_source": ["embedding", "tags"]
+        }));
+
+        Ok(self
+            .elastic
+            .query_with_json::<_, SearchResponse<_>>(
+                self.elastic.create_resource_path(["_search"], None),
+                body,
+            )
+            .await?
+            .map(Into::into)
+            .unwrap_or_default())
+    }
+
+    pub(crate) async fn get_personalized_with_transaction(
+        &self,
+        ids: &[&DocumentId],
+        tx: Option<&mut Transaction<'_, Postgres>>,
+    ) -> Result<Vec<models::PersonalizedDocument>, Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let values = if let Some(tx) = tx {
+            self.postgres
+                .documents_exist_with_transaction(ids, tx)
+                .await?
+        } else {
+            self.postgres.documents_exist(ids).await?
+        };
+
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
+        let body = Some(json!({
+            "query": {
+                "ids" : {
+                    "values": values
+                }
+            },
+            "_source": ["properties", "embedding", "tags"]
         }));
 
         Ok(self
@@ -315,15 +377,25 @@ impl Storage {
 
 #[async_trait]
 impl storage::Document for Storage {
-    async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error> {
-        self.get_by_ids_with_transaction(ids, None).await
+    async fn get_interacted(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<Vec<models::InteractedDocument>, Error> {
+        self.get_interacted_with_transaction(ids, None).await
+    }
+
+    async fn get_personalized(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<Vec<models::PersonalizedDocument>, Error> {
+        self.get_personalized_with_transaction(ids, None).await
     }
 
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
-    ) -> Result<Vec<PersonalizedDocument>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
+    ) -> Result<Vec<models::PersonalizedDocument>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
         let body = Some(json!({
             "size": params.k_neighbors,
             "knn": {
@@ -340,7 +412,8 @@ impl storage::Document for Storage {
                         }
                     }
                 }
-            }
+            },
+            "_source": ["properties", "embedding", "tags"]
         }));
 
         // the existing documents are not filtered in the elastic query to avoid too much work for a
@@ -352,7 +425,7 @@ impl storage::Document for Storage {
                 body,
             )
             .await?
-            .map(<Vec<_>>::from)
+            .map(<Vec<models::PersonalizedDocument>>::from)
             .unwrap_or_default();
         let ids = self
             .postgres
@@ -367,7 +440,7 @@ impl storage::Document for Storage {
 
     async fn insert(
         &self,
-        documents: Vec<(IngestedDocument, Embedding)>,
+        documents: Vec<(models::IngestedDocument, Embedding)>,
     ) -> Result<(), InsertionError> {
         if documents.is_empty() {
             return Ok(());
@@ -384,11 +457,11 @@ impl storage::Document for Storage {
                 [
                     serde_json::to_value(BulkInstruction::Index { id: &document.id })
                         .map_err(Into::into),
-                    serde_json::to_value(Document {
-                        snippet: document.snippet,
-                        properties: document.properties,
-                        embedding,
-                        tags: document.tags,
+                    serde_json::to_value(IngestedDocument {
+                        snippet: &document.snippet,
+                        properties: &document.properties,
+                        embedding: &embedding,
+                        tags: &document.tags,
                     })
                     .map_err(Into::into),
                 ]
@@ -494,11 +567,10 @@ impl storage::DocumentProperties for Storage {
             return Ok(None);
         }
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
-        let url = self.elastic.create_resource_path(
-            ["_source", id.as_ref()],
-            [("_source_includes", Some("properties"))],
-        );
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-get.html
+        let url = self
+            .elastic
+            .create_resource_path(["_source", id.as_ref()], [("_source", Some("properties"))]);
 
         Ok(self
             .elastic
@@ -516,7 +588,7 @@ impl storage::DocumentProperties for Storage {
             return Ok(None);
         }
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
         let url = self
             .elastic
             .create_resource_path(["_update", id.as_ref()], None);
@@ -542,7 +614,7 @@ impl storage::DocumentProperties for Storage {
             return Ok(None);
         }
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
         // don't delete the field, but put an empty map instead, similar to the ingestion service
         let url = self
             .elastic
@@ -576,13 +648,10 @@ impl storage::DocumentProperty for Storage {
             return Ok(None);
         }
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-get.html
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-get.html
         let url = self.elastic.create_resource_path(
             ["_source", document_id.as_ref()],
-            [(
-                "_source_includes",
-                Some(&*format!("properties.{property_id}")),
-            )],
+            [("_source", Some(&*format!("properties.{property_id}")))],
         );
 
         Ok(self
@@ -602,7 +671,7 @@ impl storage::DocumentProperty for Storage {
             return Ok(None);
         }
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
         let url = self
             .elastic
             .create_resource_path(["_update", document_id.as_ref()], None);
@@ -633,7 +702,7 @@ impl storage::DocumentProperty for Storage {
             return Ok(None);
         }
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/docs-update.html
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
         let url = self
             .elastic
             .create_resource_path(["_update", document_id.as_ref()], None);
