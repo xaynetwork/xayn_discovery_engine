@@ -2,8 +2,10 @@
 members = [
     "bert",
     "coi",
-    "web-api",
-]
+    "integration-test-utils"
+,
+    "test-utils",
+    "web-api"]
 
 [workspace.package]
 version = "0.1.0"

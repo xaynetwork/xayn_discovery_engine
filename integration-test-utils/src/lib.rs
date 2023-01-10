@@ -13,14 +13,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    env,
     fs,
     path::PathBuf,
     process::{Command, Output, Stdio},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Mutex,
-    },
+    sync::Mutex,
     time::Duration,
 };
 
