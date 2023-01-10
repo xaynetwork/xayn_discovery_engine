@@ -12,6 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Provide various utilities for writing integration tests (mainly for web-api).
+//!
+//! As this is for testing many of the functions here will panic on failure instead
+//! propagating an error and then panicing. We still use the `Panic` error type out
+//! of making it easier to change error handling in the future.
+//!
+//! Code in this module hard codes the dummy username and password used by local only
+//! integration testing.
+
 use std::{
     fs,
     path::PathBuf,
@@ -22,13 +31,12 @@ use std::{
 
 use chrono::Local;
 use once_cell::sync::Lazy;
-use regex::{bytes::Regex as BytesRegex, Regex};
+use regex::Regex;
 use reqwest::Method;
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use sqlx::{Connection, PgConnection};
 use tokio::time::sleep;
-
-use crate::error::Panic;
+use xayn_ai_test_utils::error::Panic;
 
 /// Absolute path to the root of the project;
 pub static PROJECT_ROOT: Lazy<PathBuf> = Lazy::new(|| just(&["project-root"]).unwrap().into());
@@ -71,6 +79,9 @@ pub fn generate_test_id() -> String {
     )
 }
 
+/// Creates a postgres db for running a web-dev integration test.
+///
+/// A uri usable for accessing the db is returned.
 pub async fn create_web_dev_pg_db(
     name: &str,
 ) -> Result<ScopeGuard<String, impl FnOnce(String), OnSuccess>, Panic> {
@@ -105,6 +116,9 @@ async fn drop_database(name: &str) -> Result<(), Panic> {
     Ok(())
 }
 
+/// Creates a elastic search index for running a web-dev integration test.
+///
+/// A uri usable for accessing the index is returned.
 pub async fn create_web_dev_es_index(
     name: &str,
 ) -> Result<ScopeGuard<String, impl FnOnce(String), OnSuccess>, Panic> {
@@ -133,9 +147,8 @@ pub async fn create_web_dev_es_index(
 
 /// Returns true if Elastic Search is ready.
 ///
-/// The URI should be to a potential index, it is okay
-/// if the index doesn't exist, but it should not be
-/// to the elastic search root uri.
+/// The URI should be to a potential index, it is okay if the index doesn't exist,
+/// but it should not be to the elastic search root uri.
 pub async fn check_if_es_ready(es_index_uri: &str) -> bool {
     let res = reqwest::Client::new()
         .request(Method::OPTIONS, es_index_uri)
@@ -173,13 +186,30 @@ async fn drop_index(es_index_uri: &str) -> Result<(), Panic> {
     }
 }
 
+/// A struct containing the parameters passed to an web-dev integration test.
 pub struct WebDevEnv<'a> {
+    /// A (random) unique id generated for this test.
     pub id: &'a str,
+    /// A URI allowing access to a postgres db created for this test.
     pub pg_uri: &'a str,
+    /// A URI allowing access to an elastic search index created for this test.
     pub es_uri: &'a str,
 }
 
 /// Runs given closure in a context where a run specific ES/PG index/db is created.
+///
+/// - makes sure the environment is cleaned for better reproducibility (e.g. not accidentally
+///   inferring with integration tests due to exported variables for local testing)
+///   - some environment variables are kept, like `CI` or anything starting with
+///     `DOCKER`.
+/// - if not on CI: handle background services by calling `just web-dev-up`
+/// - generate a test id
+/// - create a postgres db for the test
+/// - create a elastic search index for the test
+/// - call the test
+/// - if it doesn't fail
+///   - delete the postgres db
+///   - delete the elastic search index
 pub async fn web_dev_integration_test_setup<T>(
     func: impl for<'a> FnOnce(WebDevEnv<'a>) -> Result<T, Panic>,
 ) -> Result<T, Panic> {

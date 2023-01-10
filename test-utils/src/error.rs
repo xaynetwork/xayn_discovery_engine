@@ -27,13 +27,13 @@ where
     E: std::error::Error,
 {
     fn from(error: E) -> Self {
-        let mut err_msg = format!("{}", error);
+        let mut err_msg = format!("{error}");
         let mut next_error = error.source();
         while let Some(err) = next_error {
-            write!(&mut err_msg, "\nCaused By: {}", err)
+            write!(&mut err_msg, "\nCaused By: {err}")
                 .ok(/*can't fail as we just combine strings*/);
             next_error = err.source();
         }
-        panic!("{}", err_msg);
+        panic!("{err_msg}");
     }
 }

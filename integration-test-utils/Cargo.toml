@@ -1,10 +1,13 @@
 [package]
-name = "integration-test-utils"
-version = "0.1.0"
-edition = "2021"
+name = "xayn-ai-integration-test-utils"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = "AGPL-3.0-only"
+publish = false
 
 [dependencies]
-chrono = { workspace = true }
+chrono = { workspace = true, features = ["clock"] }
 mime = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
@@ -13,5 +16,5 @@ reqwest = { workspace = true }
 scopeguard =  "1.1.0"
 serde_json = { workspace = true }
 sqlx = { workspace = true }
-test-utils = { path = "../test-utils" }
 tokio = { workspace = true }
+xayn-ai-test-utils = { path = "../test-utils" }
