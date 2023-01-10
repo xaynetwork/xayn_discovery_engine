@@ -167,7 +167,7 @@ mod tests {
         let encoding = Encoding {
             token_ids: Array2::from_elem(shape, 0),
             attention_mask: Array2::from_elem(shape, 1),
-            type_ids: Array2::from_elem(shape, 0),
+            type_ids: Some(Array2::from_elem(shape, 0)),
         };
         let prediction = model.predict(encoding).unwrap();
         assert_eq!(model.token_size, shape.1);

@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod bert;
+pub mod roberta;
 
 use derive_more::{Deref, From};
 use ndarray::Array2;
@@ -32,7 +33,7 @@ pub(crate) struct AttentionMask(pub(crate) Array2<i64>);
 pub struct Encoding {
     pub(crate) token_ids: Array2<i64>,
     pub(crate) attention_mask: Array2<i64>,
-    pub(crate) type_ids: Array2<i64>,
+    pub(crate) type_ids: Option<Array2<i64>>,
 }
 
 impl Encoding {
@@ -43,21 +44,25 @@ impl Encoding {
 
 impl From<Encoding> for TVec<Tensor> {
     fn from(encoding: Encoding) -> Self {
-        tvec![
-            encoding.token_ids.into(),
-            encoding.attention_mask.into(),
-            encoding.type_ids.into(),
-        ]
+        if let Some(type_ids) = encoding.type_ids {
+            tvec![
+                encoding.token_ids.into(),
+                encoding.attention_mask.into(),
+                type_ids.into(),
+            ]
+        } else {
+            tvec![encoding.token_ids.into(), encoding.attention_mask.into()]
+        }
     }
 }
 
 impl From<Encoding> for Vec<Array2<i64>> {
     fn from(encoding: Encoding) -> Self {
-        vec![
-            encoding.token_ids,
-            encoding.attention_mask,
-            encoding.type_ids,
-        ]
+        if let Some(type_ids) = encoding.type_ids {
+            vec![encoding.token_ids, encoding.attention_mask, type_ids]
+        } else {
+            vec![encoding.token_ids, encoding.attention_mask]
+        }
     }
 }
 

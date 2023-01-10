@@ -151,7 +151,7 @@ impl Tokenize for Tokenizer {
         Ok(Encoding {
             token_ids: array_from(encoding.get_ids()),
             attention_mask: array_from(encoding.get_attention_mask()),
-            type_ids: array_from(encoding.get_type_ids()),
+            type_ids: Some(array_from(encoding.get_type_ids())),
         })
     }
 }
@@ -222,7 +222,7 @@ mod tests {
             .unwrap(),
         );
         assert_eq!(
-            encoding.type_ids,
+            encoding.type_ids.unwrap(),
             ArrayView::from_shape(
                 shape,
                 &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -247,7 +247,7 @@ mod tests {
             ArrayView::from_shape(shape, &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).unwrap(),
         );
         assert_eq!(
-            encoding.type_ids,
+            encoding.type_ids.unwrap(),
             ArrayView::from_shape(shape, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
         );
     }
@@ -271,7 +271,7 @@ mod tests {
             ArrayView::from_shape(shape, &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0]).unwrap(),
         );
         assert_eq!(
-            encoding.type_ids,
+            encoding.type_ids.unwrap(),
             ArrayView::from_shape(shape, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
         );
     }

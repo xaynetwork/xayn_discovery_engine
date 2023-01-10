@@ -51,6 +51,11 @@ pub fn sjbert() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "sjbert_v0003"])
 }
 
+/// Resolves the path to the smroberta.
+pub fn smroberta() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "smroberta_v0000"])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
