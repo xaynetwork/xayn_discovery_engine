@@ -359,9 +359,6 @@ impl Database {
         now: DateTime<Utc>,
         interactions: &HashMap<&DocumentId, (&InteractedDocument, UserInteractionType)>,
     ) -> Result<(), Error> {
-        if interactions.is_empty() {
-            return Ok(());
-        }
         //FIXME micro benchmark and chunking+persist abstraction
         let persist = interactions.len() < 10;
 
@@ -396,18 +393,13 @@ impl Database {
         Ok(())
     }
 
-    async fn upsert_tag_weights<'c, I>(
+    async fn upsert_tag_weights(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
-        updates: I,
-    ) -> Result<(), Error>
-    where
-        I: IntoIterator<Item = (&'c str, i32)>,
-    {
-        let updates = updates.into_iter();
-
+        updates: &HashMap<&str, i32>,
+    ) -> Result<(), Error> {
         let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
-        let mut iter = updates.into_iter().peekable();
+        let mut iter = updates.iter().peekable();
         while iter.peek().is_some() {
             let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
             builder
@@ -546,7 +538,7 @@ impl storage::Interaction for Storage {
 
         Database::upsert_interactions(&mut tx, user_id, now, &document_map).await?;
 
-        Database::upsert_tag_weights(&mut tx, user_id, tag_weight_diff.into_iter()).await?;
+        Database::upsert_tag_weights(&mut tx, user_id, &tag_weight_diff).await?;
 
         tx.commit().await?;
         Ok(())
