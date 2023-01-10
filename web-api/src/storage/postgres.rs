@@ -35,7 +35,7 @@ use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::InteractionUpdateContext;
 use crate::{
-    models::{DocumentId, UserId, UserInteractionType},
+    models::{DocumentId, InteractedDocument, UserId, UserInteractionType},
     storage::{self, utils::SqlxPushTupleExt, Storage},
     utils::serialize_redacted,
     Error,
@@ -353,18 +353,13 @@ impl Database {
         Ok(())
     }
 
-    async fn upsert_interactions<'d, I>(
+    async fn upsert_interactions(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
         now: DateTime<Utc>,
-        interactions: I,
-    ) -> Result<(), Error>
-    where
-        I: IntoIterator<Item = (&'d DocumentId, UserInteractionType)>,
-        I::IntoIter: ExactSizeIterator,
-    {
-        let interactions = interactions.into_iter();
-        if interactions.len() == 0 {
+        interactions: &HashMap<&DocumentId, (&InteractedDocument, UserInteractionType)>,
+    ) -> Result<(), Error> {
+        if interactions.is_empty() {
             return Ok(());
         }
         //FIXME micro benchmark and chunking+persist abstraction
@@ -373,18 +368,21 @@ impl Database {
         let mut builder = QueryBuilder::new(
             "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)",
         );
-        let mut iter = interactions.peekable();
+        let mut iter = interactions.iter().peekable();
         while iter.peek().is_some() {
             let chunk = (&mut iter).take(Database::BIND_LIMIT / 4);
             builder
                 .reset()
-                .push_values(chunk, |mut builder, (document_id, interaction)| {
-                    builder
-                        .push_bind(document_id)
-                        .push_bind(user_id)
-                        .push_bind(now)
-                        .push_bind(interaction as i16);
-                })
+                .push_values(
+                    chunk,
+                    |mut builder, (document_id, (_document, interaction))| {
+                        builder
+                            .push_bind(document_id)
+                            .push_bind(user_id)
+                            .push_bind(now)
+                            .push_bind(*interaction as i16);
+                    },
+                )
                 .push(
                     " ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
                     user_reaction = EXCLUDED.user_reaction;",
@@ -519,7 +517,7 @@ impl storage::Interaction for Storage {
 
         let mut document_map = documents
             .iter()
-            .map(|d| (&d.id, d))
+            .map(|d| (&d.id, (d, UserInteractionType::Positive)))
             .collect::<HashMap<_, _>>();
 
         let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
@@ -533,7 +531,7 @@ impl storage::Interaction for Storage {
         let mut updates = Vec::new();
 
         for id in updated_document_ids {
-            if let Some(document) = document_map.get_mut(id) {
+            if let Some((document, _)) = document_map.get_mut(id) {
                 updates.push(update_logic(InteractionUpdateContext {
                     document,
                     tag_weight_diff: &mut tag_weight_diff,
@@ -546,18 +544,7 @@ impl storage::Interaction for Storage {
 
         Database::upsert_cois(&mut tx, user_id, now, &updates).await?;
 
-        Database::upsert_interactions(
-            &mut tx,
-            user_id,
-            now,
-            document_map
-                .values()
-                .map(|d| (&d.id, UserInteractionType::Positive))
-                // without the collect rust fails with `error: higher-ranked lifetime error`
-                // this seems to be a limitation or bug in rustc
-                .collect_vec(),
-        )
-        .await?;
+        Database::upsert_interactions(&mut tx, user_id, now, &document_map).await?;
 
         Database::upsert_tag_weights(&mut tx, user_id, tag_weight_diff.into_iter()).await?;
 
