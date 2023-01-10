@@ -119,15 +119,12 @@ pub(crate) trait DocumentProperty {
 #[async_trait]
 pub(crate) trait Interest {
     async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error>;
+}
 
-    async fn update_positive<F>(
-        &self,
-        doc_id: &DocumentId,
-        user_id: &UserId,
-        update_cois: F,
-    ) -> Result<(), Error>
-    where
-        F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync;
+pub(crate) struct InteractionUpdateContext<'s, 'l> {
+    pub(crate) document: &'s PersonalizedDocument,
+    pub(crate) tag_weight_diff: &'s mut HashMap<&'l str, i32>,
+    pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
 }
 
 #[async_trait]
@@ -135,13 +132,20 @@ pub(crate) trait Interaction {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error>;
 
     async fn user_seen(&self, id: &UserId) -> Result<(), Error>;
+
+    async fn update_interactions<F>(
+        &self,
+        user_id: &UserId,
+        updated_document_ids: &[&DocumentId],
+        update_logic: F,
+    ) -> Result<(), Error>
+    where
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync;
 }
 
 #[async_trait]
 pub(crate) trait Tag {
     async fn get(&self, user_id: &UserId) -> Result<HashMap<String, usize>, Error>;
-
-    async fn update(&self, user_id: &UserId, tags: &[String]) -> Result<(), Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

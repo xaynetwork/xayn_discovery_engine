@@ -22,15 +22,18 @@ use sqlx::{
     pool::PoolOptions,
     postgres::PgConnectOptions,
     types::chrono::{DateTime, Utc},
+    Executor,
     FromRow,
     Pool,
     Postgres,
     QueryBuilder,
+    Transaction,
 };
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
+use super::InteractionUpdateContext;
 use crate::{
     models::{DocumentId, UserId, UserInteractionType},
     storage::{self, utils::SqlxPushTupleExt, Storage},
@@ -207,7 +210,16 @@ impl Database {
         ids: &[&DocumentId],
     ) -> Result<Vec<DocumentId>, Error> {
         let mut tx = self.pool.begin().await?;
+        let res = self.documents_exist_with_transaction(ids, &mut tx).await?;
+        tx.commit().await?;
+        Ok(res)
+    }
 
+    pub(crate) async fn documents_exist_with_transaction(
+        &self,
+        ids: &[&DocumentId],
+        tx: &mut Transaction<'_, Postgres>,
+    ) -> Result<Vec<DocumentId>, Error> {
         let mut builder =
             QueryBuilder::new("SELECT document_id FROM document WHERE document_id IN ");
         let mut existing_ids = Vec::with_capacity(ids.len());
@@ -216,41 +228,42 @@ impl Database {
                 .reset()
                 .push_tuple(ids)
                 .build()
-                .fetch_all(&mut tx)
+                .fetch_all(&mut *tx)
                 .await?
             {
                 existing_ids.push(DocumentId::from_row(&id)?);
             }
         }
-
-        tx.commit().await?;
-
         Ok(existing_ids)
     }
-}
 
-#[derive(FromRow)]
-struct QueriedCoi {
-    coi_id: Uuid,
-    is_positive: bool,
-    embedding: Vec<f32>,
-    /// The count is a `usize` stored as `i32` in database
-    view_count: i32,
-    /// The time is a `u64` stored as `i64` in database
-    view_time_ms: i64,
-    last_view: DateTime<Utc>,
-}
+    async fn acquire_user_coi_lock(
+        tx: &mut Transaction<'_, Postgres>,
+        user_id: &UserId,
+    ) -> Result<(), Error> {
+        // locks db for given user for coi update context
+        sqlx::query("INSERT INTO coi_update_lock (user_id) VALUES ($1) ON CONFLICT DO NOTHING;")
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("SELECT FROM coi_update_lock WHERE user_id = $1 FOR UPDATE;")
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+        Ok(())
+    }
 
-#[async_trait]
-impl storage::Interest for Storage {
-    async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
+    async fn get_user_interests(
+        tx: impl Executor<'_, Database = Postgres>,
+        user_id: &UserId,
+    ) -> Result<UserInterests, Error> {
         let cois = sqlx::query_as::<_, QueriedCoi>(
             "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
             FROM center_of_interest
             WHERE user_id = $1",
         )
         .bind(user_id)
-        .fetch_all(&self.postgres.pool)
+        .fetch_all(tx)
         .await?;
 
         let (positive, negative) = cois
@@ -284,89 +297,158 @@ impl storage::Interest for Storage {
         Ok(UserInterests { positive, negative })
     }
 
-    async fn update_positive<F>(
-        &self,
-        doc_id: &DocumentId,
+    /// Update the Center of Interests (COIs).
+    ///
+    /// This function assumes it will not be called in high amounts
+    /// with highly varying numbers of cois. If it is could potentially
+    /// lead to degraded global performance of the prepared query
+    /// cache. This assumption is unlikely to ever be broken and
+    /// even if it's unlikely to actually cause issues.
+    async fn upsert_cois(
+        tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
-        update_cois: F,
-    ) -> Result<(), Error>
-    where
-        F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync,
-    {
-        let mut tx = self.postgres.pool.begin().await?;
+        now: DateTime<Utc>,
+        cois: &[PositiveCoi],
+    ) -> Result<(), Error> {
+        if cois.is_empty() {
+            return Ok(());
+        }
 
-        sqlx::query("INSERT INTO coi_update_lock (user_id) VALUES ($1) ON CONFLICT DO NOTHING;")
-            .bind(user_id)
-            .execute(&mut tx)
-            .await?;
-        sqlx::query("SELECT FROM coi_update_lock WHERE user_id = $1 FOR UPDATE;")
-            .bind(user_id)
-            .execute(&mut tx)
-            .await?;
-
-        // fine as we convert it to i32 when we store it in the database
-        #[allow(clippy::cast_sign_loss)]
-        let mut positive_cois: Vec<_> = sqlx::query_as::<_, QueriedCoi>(
-            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
-            FROM center_of_interest
-            WHERE user_id = $1 AND is_positive;",
-        )
-        .bind(user_id)
-        .fetch_all(&mut tx)
-        .await?
-        .into_iter()
-        .map(|coi| PositiveCoi {
-            id: coi.coi_id.into(),
-            point: Embedding::from(coi.embedding),
-            stats: CoiStats {
-                view_count: coi.view_count as usize,
-                view_time: Duration::from_millis(coi.view_time_ms as u64),
-                last_view: coi.last_view.into(),
-            },
-        })
-        .collect();
-
-        let updated_coi = update_cois(&mut positive_cois);
-        let timestamp: DateTime<Utc> = updated_coi.stats.last_view.into();
-
-        // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
-        // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
-        #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-        sqlx::query(
-            "INSERT INTO center_of_interest (coi_id, user_id, is_positive, embedding, view_count, view_time_ms, last_view)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (coi_id) DO UPDATE SET
-                embedding = EXCLUDED.embedding,
-                view_count = EXCLUDED.view_count,
-                view_time_ms = EXCLUDED.view_time_ms,
-                last_view = EXCLUDED.last_view;",
-        )
-        .bind(updated_coi.id.as_ref())
-        .bind(user_id)
-        .bind(true)
-        .bind(updated_coi.point.to_vec())
-        .bind(updated_coi.stats.view_count as i32)
-        .bind(updated_coi.stats.view_time.as_millis() as i64)
-        .bind(timestamp)
-        .execute(&mut tx)
-        .await?;
-
-        sqlx::query(
-            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
-                user_reaction = EXCLUDED.user_reaction;",
-        )
-        .bind(doc_id)
-        .bind(user_id)
-        .bind(timestamp)
-        .bind(UserInteractionType::Positive as i16)
-        .execute(&mut tx)
-        .await?;
-
-        tx.commit().await?;
+        let mut builder = QueryBuilder::new(
+            "INSERT INTO center_of_interest (
+            coi_id, user_id,
+            is_positive, embedding,
+            view_count, view_time_ms,
+            last_view
+        ) ",
+        );
+        for chunk in cois.chunks(Database::BIND_LIMIT / 7) {
+            builder
+                .reset()
+                .push_values(chunk, |mut builder, update| {
+                    // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
+                    // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
+                    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+                    builder
+                        .push_bind(update.id.as_ref())
+                        .push_bind(user_id)
+                        .push_bind(true)
+                        .push_bind(update.point.to_vec())
+                        .push_bind(update.stats.view_count as i32)
+                        .push_bind(update.stats.view_time.as_millis() as i64)
+                        .push_bind(now);
+                })
+                .push(
+                    " ON CONFLICT (coi_id) DO UPDATE SET
+                    embedding = EXCLUDED.embedding,
+                    view_count = EXCLUDED.view_count,
+                    view_time_ms = EXCLUDED.view_time_ms,
+                    last_view = EXCLUDED.last_view;",
+                )
+                .build()
+                .execute(&mut *tx)
+                .await?;
+        }
 
         Ok(())
+    }
+
+    async fn upsert_interactions<'d, I>(
+        tx: &mut Transaction<'_, Postgres>,
+        user_id: &UserId,
+        now: DateTime<Utc>,
+        interactions: I,
+    ) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (&'d DocumentId, UserInteractionType)>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let interactions = interactions.into_iter();
+        if interactions.len() == 0 {
+            return Ok(());
+        }
+        //FIXME micro benchmark and chunking+persist abstraction
+        let persist = interactions.len() < 10;
+
+        let mut builder = QueryBuilder::new(
+            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)",
+        );
+        let mut iter = interactions.peekable();
+        while iter.peek().is_some() {
+            let chunk = (&mut iter).take(Database::BIND_LIMIT / 4);
+            builder
+                .reset()
+                .push_values(chunk, |mut builder, (document_id, interaction)| {
+                    builder
+                        .push_bind(document_id)
+                        .push_bind(user_id)
+                        .push_bind(now)
+                        .push_bind(interaction as i16);
+                })
+                .push(
+                    " ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
+                    user_reaction = EXCLUDED.user_reaction;",
+                )
+                .build()
+                .persistent(persist)
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn upsert_tag_weights<'c, I>(
+        tx: &mut Transaction<'_, Postgres>,
+        user_id: &UserId,
+        updates: I,
+    ) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (&'c str, i32)>,
+    {
+        let updates = updates.into_iter();
+
+        let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
+        let mut iter = updates.into_iter().peekable();
+        while iter.peek().is_some() {
+            let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
+            builder
+                .reset()
+                .push_values(chunk, |mut builder, (tag, weight_diff)| {
+                    builder
+                        .push_bind(user_id)
+                        .push_bind(tag)
+                        .push_bind(weight_diff);
+                })
+                .push(
+                    " ON CONFLICT (user_id, tag) DO UPDATE SET
+                    weight = weighted_tag.weight + EXCLUDED.weight;",
+                )
+                .build()
+                .persistent(false)
+                .execute(&mut *tx)
+                .await?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(FromRow)]
+struct QueriedCoi {
+    coi_id: Uuid,
+    is_positive: bool,
+    embedding: Vec<f32>,
+    /// The count is a `usize` stored as `i32` in database
+    view_count: i32,
+    /// The time is a `u64` stored as `i64` in database
+    view_time_ms: i64,
+    last_view: DateTime<Utc>,
+}
+
+#[async_trait]
+impl storage::Interest for Storage {
+    async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
+        Database::get_user_interests(&self.postgres.pool, user_id).await
     }
 }
 
@@ -414,6 +496,74 @@ impl storage::Interaction for Storage {
 
         Ok(())
     }
+
+    #[allow(clippy::too_many_lines)]
+    async fn update_interactions<F>(
+        &self,
+        user_id: &UserId,
+        updated_document_ids: &[&DocumentId],
+        mut update_logic: F,
+    ) -> Result<(), Error>
+    where
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
+    {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        Database::acquire_user_coi_lock(&mut tx, user_id).await?;
+
+        let documents = self
+            .get_by_ids_with_transaction(updated_document_ids, Some(&mut tx))
+            .await?;
+
+        let now = Utc::now();
+
+        let mut document_map = documents
+            .iter()
+            .map(|d| (&d.id, d))
+            .collect::<HashMap<_, _>>();
+
+        let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
+
+        let mut tag_weight_diff = documents
+            .iter()
+            .flat_map(|d| &d.tags)
+            .map(|tag| (tag.as_str(), 0))
+            .collect::<HashMap<_, _>>();
+
+        let mut updates = Vec::new();
+
+        for id in updated_document_ids {
+            if let Some(document) = document_map.get_mut(id) {
+                updates.push(update_logic(InteractionUpdateContext {
+                    document,
+                    tag_weight_diff: &mut tag_weight_diff,
+                    positive_cois: &mut interests.positive,
+                }));
+            } else {
+                warn!(%id, "interacted document doesn't exist");
+            }
+        }
+
+        Database::upsert_cois(&mut tx, user_id, now, &updates).await?;
+
+        Database::upsert_interactions(
+            &mut tx,
+            user_id,
+            now,
+            document_map
+                .values()
+                .map(|d| (&d.id, UserInteractionType::Positive))
+                // without the collect rust fails with `error: higher-ranked lifetime error`
+                // this seems to be a limitation or bug in rustc
+                .collect_vec(),
+        )
+        .await?;
+
+        Database::upsert_tag_weights(&mut tx, user_id, tag_weight_diff.into_iter()).await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
 }
 
 #[derive(FromRow)]
@@ -446,29 +596,5 @@ impl storage::Tag for Storage {
                 |tag| (tag.tag, tag.weight as usize),
             )
             .collect())
-    }
-
-    async fn update(&self, user_id: &UserId, tags: &[String]) -> Result<(), Error> {
-        if tags.is_empty() {
-            return Ok(());
-        }
-
-        let mut tx = self.postgres.pool.begin().await?;
-
-        sqlx::query(
-            "INSERT INTO weighted_tag (user_id, tag, weight)
-            VALUES ($1, unnest($2), $3)
-            ON CONFLICT (user_id, tag) DO UPDATE SET
-                weight = weighted_tag.weight + 1;",
-        )
-        .bind(user_id)
-        .bind(tags)
-        .bind(1)
-        .execute(&mut tx)
-        .await?;
-
-        tx.commit().await?;
-
-        Ok(())
     }
 }

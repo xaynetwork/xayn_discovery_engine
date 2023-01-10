@@ -27,7 +27,7 @@ use std::{
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use chrono::{DateTime, Local, NaiveDateTime};
+use chrono::{DateTime, Local, NaiveDateTime, Utc};
 use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
@@ -35,6 +35,7 @@ use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Seri
 use tokio::sync::RwLock;
 use xayn_ai_coi::{cosine_similarity, Embedding, PositiveCoi, UserInterests};
 
+use super::{Document as _, InteractionUpdateContext};
 use crate::{
     error::{
         application::Error,
@@ -453,30 +454,6 @@ impl storage::Interest for Storage {
 
         Ok(interests)
     }
-
-    async fn update_positive<F>(
-        &self,
-        document_id: &DocumentId,
-        user_id: &UserId,
-        update_cois: F,
-    ) -> Result<(), Error>
-    where
-        F: Fn(&mut Vec<PositiveCoi>) -> &PositiveCoi + Send + Sync,
-    {
-        let mut interests = self.interests.write().await;
-        let mut interactions = self.interactions.write().await;
-
-        let updated_coi = update_cois(&mut interests.entry(user_id.clone()).or_default().positive);
-        let timestamp = DateTime::<Local>::from(updated_coi.stats.last_view).naive_local();
-        interactions
-            .entry(user_id.clone())
-            .and_modify(|interactions| {
-                interactions.insert((document_id.clone(), timestamp));
-            })
-            .or_insert_with(|| [(document_id.clone(), timestamp)].into());
-
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -506,36 +483,66 @@ impl storage::Interaction for Storage {
 
         Ok(())
     }
+
+    async fn update_interactions<F>(
+        &self,
+        user_id: &UserId,
+        updated_document_ids: &[&DocumentId],
+        mut update_logic: F,
+    ) -> Result<(), Error>
+    where
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
+    {
+        // Note: This doesn't have the exact same concurrency semantics as the postgres version
+        let documents = self.get_by_ids(updated_document_ids).await?;
+        let mut interests = self.interests.write().await;
+        let mut interactions = self.interactions.write().await;
+        let interactions = interactions.entry(user_id.clone()).or_default();
+        let mut tags = self.tags.write().await;
+        let tags = tags.entry(user_id.clone()).or_default();
+
+        let positive_cois = &mut interests.entry(user_id.clone()).or_default().positive;
+
+        let mut tag_weight_diff = documents
+            .iter()
+            .flat_map(|d| &d.tags)
+            .map(|tag| (tag.as_str(), 0))
+            .collect::<HashMap<_, _>>();
+
+        for document in &documents {
+            let updated = update_logic(InteractionUpdateContext {
+                document,
+                tag_weight_diff: &mut tag_weight_diff,
+                positive_cois,
+            });
+            interactions.insert((
+                document.id.clone(),
+                DateTime::<Utc>::from(updated.stats.last_view).naive_utc(),
+            ));
+        }
+
+        for (&tag, &diff) in &tag_weight_diff {
+            if let Some(weight) = tags.get_mut(tag) {
+                //FIXME use `saturating_add_signed` when stabilized
+                let abs_diff = diff.unsigned_abs() as usize;
+                if diff < 0 {
+                    *weight -= abs_diff;
+                } else {
+                    *weight += abs_diff;
+                }
+            } else {
+                tags.insert(tag.to_owned(), diff.try_into().unwrap_or_default());
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl storage::Tag for Storage {
     async fn get(&self, id: &UserId) -> Result<HashMap<String, usize>, Error> {
         Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
-    }
-
-    async fn update(&self, id: &UserId, tags: &[String]) -> Result<(), Error> {
-        if tags.is_empty() {
-            return Ok(());
-        }
-
-        let mut tags_by_users = self.tags.write().await;
-        if let Some(user_tags) = tags_by_users.get_mut(id) {
-            for tag in tags {
-                if let Some(weight) = user_tags.get_mut(tag) {
-                    *weight += 1;
-                } else {
-                    user_tags.insert(tag.to_string(), 1);
-                }
-            }
-        } else {
-            tags_by_users.insert(
-                id.clone(),
-                tags.iter().map(|tag| (tag.to_string(), 1)).collect(),
-            );
-        }
-
-        Ok(())
     }
 }
 
@@ -564,6 +571,7 @@ impl Storage {
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use uuid::Uuid;
 
     use super::*;
 
@@ -630,6 +638,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_serde() {
+        let document_id = DocumentId::new("42").unwrap();
         let storage = Storage::default();
         storage::Document::insert(
             &storage,
@@ -645,9 +654,19 @@ mod tests {
         )
         .await
         .unwrap();
-        storage::Tag::update(&storage, &UserId::new("abc").unwrap(), &["tag".into()])
-            .await
-            .unwrap();
+        storage::Interaction::update_interactions(
+            &storage,
+            &UserId::new("abc").unwrap(),
+            &[&document_id],
+            |context| {
+                *context.tag_weight_diff.get_mut("tag").unwrap() += 10;
+                let pcoi = PositiveCoi::new(Uuid::new_v4(), [0.2, 9.4, 1.2]);
+                context.positive_cois.push(pcoi.clone());
+                pcoi
+            },
+        )
+        .await
+        .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
         let documents = storage::Document::get_by_ids(&storage, &[&DocumentId::new("42").unwrap()])
@@ -661,7 +680,7 @@ mod tests {
             storage::Tag::get(&storage, &UserId::new("abc").unwrap())
                 .await
                 .unwrap(),
-            HashMap::from([(String::from("tag"), 1)]),
+            HashMap::from([(String::from("tag"), 10)]),
         );
     }
 }

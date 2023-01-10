@@ -25,6 +25,7 @@ use reqwest::{
 use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
+use sqlx::{Postgres, Transaction};
 use tracing::error;
 use xayn_ai_coi::Embedding;
 
@@ -273,18 +274,29 @@ fn is_success_status(status: u16, allow_not_found: bool) -> bool {
         .unwrap_or(false)
 }
 
-#[async_trait]
-impl storage::Document for Storage {
-    async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error> {
+impl Storage {
+    pub(crate) async fn get_by_ids_with_transaction(
+        &self,
+        ids: &[&DocumentId],
+        tx: Option<&mut Transaction<'_, Postgres>>,
+    ) -> Result<Vec<PersonalizedDocument>, Error> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
+
+        let values = if let Some(tx) = tx {
+            self.postgres
+                .documents_exist_with_transaction(ids, tx)
+                .await?
+        } else {
+            self.postgres.documents_exist(ids).await?
+        };
 
         // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/query-dsl-ids-query.html
         let body = Some(json!({
             "query": {
                 "ids" : {
-                    "values" : self.postgres.documents_exist(ids).await?
+                    "values" : values,
                 }
             }
         }));
@@ -298,6 +310,13 @@ impl storage::Document for Storage {
             .await?
             .map(Into::into)
             .unwrap_or_default())
+    }
+}
+
+#[async_trait]
+impl storage::Document for Storage {
+    async fn get_by_ids(&self, ids: &[&DocumentId]) -> Result<Vec<PersonalizedDocument>, Error> {
+        self.get_by_ids_with_transaction(ids, None).await
     }
 
     async fn get_by_embedding<'a>(

@@ -22,7 +22,7 @@ use actix_web::{
 use futures_util::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tracing::{error, warn};
+use tracing::error;
 use xayn_ai_coi::{
     compute_coi_relevances,
     nan_safe_f32_cmp,
@@ -95,36 +95,27 @@ pub(crate) async fn update_interactions(
 ) -> Result<(), Error> {
     storage::Interaction::user_seen(storage, user_id).await?;
 
-    let ids = interactions
+    #[allow(clippy::zero_sized_map_values)]
+    let id_to_interaction_type = interactions
         .iter()
-        .map(|document| &document.document_id)
-        .collect_vec();
-    let documents = storage::Document::get_by_ids(storage, &ids).await?;
-    let documents = documents
-        .iter()
-        .map(|document| (&document.id, document))
+        .map(|interaction| (&interaction.document_id, interaction.interaction_type))
         .collect::<HashMap<_, _>>();
 
-    for document in interactions {
-        match document.interaction_type {
+    let ids = interactions.iter().map(|i| &i.document_id).collect_vec();
+    storage::Interaction::update_interactions(storage, user_id, &ids, |context| {
+        match id_to_interaction_type[&context.document.id] {
             UserInteractionType::Positive => {
-                if let Some(document) = documents.get(&document.document_id) {
-                    storage::Interest::update_positive(
-                        storage,
-                        &document.id,
-                        user_id,
-                        |positive_cois| {
-                            coi.log_positive_user_reaction(positive_cois, &document.embedding)
-                        },
-                    )
-                    .await?;
-                    storage::Tag::update(storage, user_id, &document.tags).await?;
-                } else {
-                    warn!(%document.document_id, "interacted document doesn't exist anymore");
+                for tag in &context.document.tags {
+                    *context.tag_weight_diff
+                            .get_mut(tag.as_str())
+                            .unwrap(/*update_interactions assures all tags are given*/) += 1;
                 }
+                coi.log_positive_user_reaction(context.positive_cois, &context.document.embedding)
+                    .clone()
             }
         }
-    }
+    })
+    .await?;
 
     Ok(())
 }
