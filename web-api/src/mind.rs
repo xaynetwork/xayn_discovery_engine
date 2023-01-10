@@ -162,7 +162,7 @@ where
 // struct that represents config of hyperparameters for the persona based benchmark
 #[derive(Debug, Deserialize)]
 struct PersonaBasedConfig {
-    click_probability: f32,
+    click_probability: f64,
     n_documents: usize,
     iterations: usize,
     amount_of_doc_used_to_prepare: usize,
@@ -172,7 +172,7 @@ struct PersonaBasedConfig {
 impl Default for PersonaBasedConfig {
     fn default() -> Self {
         Self {
-            click_probability: 0.5,
+            click_probability: 0.2,
             n_documents: 100,
             iterations: 10,
             amount_of_doc_used_to_prepare: 1,
@@ -389,7 +389,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                         .zip(scores.iter())
                         .filter(|(_, &score)| {
                             (score - 2.0).abs() < 0.001
-                                || rng.gen_range(0.0..1.0) < benchmark_config.click_probability
+                                && rng.gen_bool(benchmark_config.click_probability)
                         })
                         .map(|(id, _)| id.clone())
                         .collect_vec(),
