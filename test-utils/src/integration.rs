@@ -17,7 +17,10 @@ use std::{
     fs,
     path::PathBuf,
     process::{Command, Output, Stdio},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
     time::Duration,
 };
 
@@ -184,7 +187,13 @@ pub struct WebDevEnv<'a> {
 pub async fn web_dev_integration_test_setup<T>(
     func: impl for<'a> FnOnce(WebDevEnv<'a>) -> Result<T, Panic>,
 ) -> Result<T, Panic> {
-    just(&["web_dev_up"])?;
+    clear_env();
+    if !std::env::var("CI")
+        .map(|value| value == "true")
+        .unwrap_or_default()
+    {
+        just(&["web_dev_up"])?;
+    }
 
     let id = generate_test_id();
     eprintln!("TestId={}", id);
@@ -205,15 +214,16 @@ pub async fn web_dev_integration_test_setup<T>(
 
 /// Remove all variables from this process environment (with some exceptions).
 ///
-/// Exceptions:
+/// Exceptions are following variables if well formed:
 ///
 /// - `PATH`
 /// - `LANG`
 /// - `PWD`
+/// - `CI`
 ///
 /// Additional exceptions to avoid potential complications
 /// with programs called by just, especially wrt to docker-compose
-/// or podamn-compose:
+/// or podman-compose:
 ///
 /// - `DBUS*`
 /// - `SYSTEMD*`
@@ -224,24 +234,20 @@ pub async fn web_dev_integration_test_setup<T>(
 pub fn clear_env() {
     // We need to make sure we only do it once as this can be called concurrently
     // and `remove_var` is not reliably thread safe.
-    if ENV_CLEARED
-        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_ok()
-    {
-        for (key, _) in std::env::vars_os() {
-            let keep = key
-                .to_str()
-                .map(|key| ENV_PRUNE_EXCEPTIONS.is_match(key))
-                .unwrap_or_default();
+    let _guard = ENV_CLEAR_GUARD.lock();
+    for (key, _) in std::env::vars_os() {
+        let keep = key
+            .to_str()
+            .map(|key| ENV_PRUNE_EXCEPTIONS.is_match(key))
+            .unwrap_or_default();
 
-            if !keep {
-                std::env::remove_var(key)
-            }
+        if !keep {
+            std::env::remove_var(key)
         }
     }
 }
 
-static ENV_CLEARED: AtomicBool = AtomicBool::new(false);
+static ENV_CLEAR_GUARD: Mutex<()> = Mutex::new(());
 static ENV_PRUNE_EXCEPTIONS: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"^(?ix)
@@ -249,6 +255,7 @@ static ENV_PRUNE_EXCEPTIONS: Lazy<Regex> = Lazy::new(|| {
         |(?:LANG)
         |(?:PWD)
         |(?:USER)
+        |(?:CI)
         |(?:DBUS.*)
         |(?:SYSTEMD.*)
         |(?:DOCKER.*)
