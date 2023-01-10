@@ -512,7 +512,7 @@ impl storage::Interaction for Storage {
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
         let documents = self
-            .get_by_ids_with_transaction(updated_document_ids, Some(&mut tx))
+            .get_interacted_with_transaction(updated_document_ids, Some(&mut tx))
             .await?;
 
         let now = Utc::now();

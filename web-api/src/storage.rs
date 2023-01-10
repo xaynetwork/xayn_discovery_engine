@@ -128,7 +128,7 @@ pub(crate) trait Interest {
 }
 
 pub(crate) struct InteractionUpdateContext<'s, 'l> {
-    pub(crate) document: &'s PersonalizedDocument,
+    pub(crate) document: &'s InteractedDocument,
     pub(crate) tag_weight_diff: &'s mut HashMap<&'l str, i32>,
     pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
 }

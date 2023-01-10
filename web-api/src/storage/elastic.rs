@@ -236,9 +236,33 @@ struct SearchResponse<T> {
 }
 
 #[derive(Debug, Deserialize)]
+struct InteractedDocument {
+    embedding: Embedding,
+    #[serde(default)]
+    tags: Vec<String>,
+}
+
+impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument> {
+    fn from(response: SearchResponse<InteractedDocument>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| models::InteractedDocument {
+                id: hit.id,
+                embedding: hit.source.embedding,
+                tags: hit.source.tags,
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Deserialize)]
 struct PersonalizedDocument {
+    #[serde(default)]
     properties: DocumentProperties,
     embedding: Embedding,
+    #[serde(default)]
     tags: Vec<String>,
 }
 
@@ -253,27 +277,6 @@ impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocu
                 score: hit.score,
                 embedding: hit.source.embedding,
                 properties: hit.source.properties,
-                tags: hit.source.tags,
-            })
-            .collect()
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct InteractedDocument {
-    embedding: Embedding,
-    tags: Vec<String>,
-}
-
-impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument> {
-    fn from(response: SearchResponse<InteractedDocument>) -> Self {
-        response
-            .hits
-            .hits
-            .into_iter()
-            .map(|hit| models::InteractedDocument {
-                id: hit.id,
-                embedding: hit.source.embedding,
                 tags: hit.source.tags,
             })
             .collect()
