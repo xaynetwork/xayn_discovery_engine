@@ -320,7 +320,7 @@ impl Database {
         );
         let mut iter = cois.values().peekable();
         while iter.peek().is_some() {
-            let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
+            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 7);
             builder
                 .reset()
                 .push_values(chunk, |mut builder, update| {
@@ -365,19 +365,16 @@ impl Database {
         );
         let mut iter = interactions.iter().peekable();
         while iter.peek().is_some() {
-            let chunk = (&mut iter).take(Database::BIND_LIMIT / 4);
+            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 4);
             builder
                 .reset()
-                .push_values(
-                    chunk,
-                    |mut builder, (document_id, (_document, interaction))| {
-                        builder
-                            .push_bind(document_id)
-                            .push_bind(user_id)
-                            .push_bind(now)
-                            .push_bind(*interaction as i16);
-                    },
-                )
+                .push_values(chunk, |mut builder, (document_id, (_, interaction))| {
+                    builder
+                        .push_bind(document_id)
+                        .push_bind(user_id)
+                        .push_bind(now)
+                        .push_bind(*interaction as i16);
+                })
                 .push(
                     " ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
                     user_reaction = EXCLUDED.user_reaction;",
@@ -399,7 +396,7 @@ impl Database {
         let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
         let mut iter = updates.iter().peekable();
         while iter.peek().is_some() {
-            let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
+            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 7);
             builder
                 .reset()
                 .push_values(chunk, |mut builder, (tag, weight_diff)| {
