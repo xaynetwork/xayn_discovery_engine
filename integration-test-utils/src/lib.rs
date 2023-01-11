@@ -99,22 +99,34 @@ pub async fn create_web_dev_pg_db(
 async fn create_database(name: &str) -> Result<String, Panic> {
     let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
 
+    if !VALID_DB_NAME.is_match(name) {
+        panic!("invalid db name syntax: {name}")
+    }
+
+    // bind doesn't work with create database
     sqlx::query(&format!("CREATE DATABASE {name};"))
         .execute(&mut db)
         .await?;
 
-    Ok(format!("postgresql://user:pw@localhost/{}", name))
+    Ok(format!("postgresql://user:pw@localhost/{name}"))
 }
 
 async fn drop_database(name: &str) -> Result<(), Panic> {
     let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
 
+    if !VALID_DB_NAME.is_match(name) {
+        panic!("invalid db name syntax: {name}")
+    }
+
+    // bind doesn't work with create database
     sqlx::query(&format!("DROP DATABASE {name};"))
         .execute(&mut db)
         .await?;
 
     Ok(())
 }
+
+static VALID_DB_NAME: Lazy<Regex> = Lazy::new(|| Regex::new("^[a-zA-Z_][a-zAZ0-9_]*$").unwrap());
 
 /// Creates a elastic search index for running a web-dev integration test.
 ///
