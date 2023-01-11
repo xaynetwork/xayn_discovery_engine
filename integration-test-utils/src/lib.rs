@@ -38,7 +38,7 @@ use sqlx::{Connection, PgConnection};
 use tokio::time::sleep;
 use xayn_ai_test_utils::error::Panic;
 
-/// Absolute path to the root of the project;
+/// Absolute path to the root of the project as determined by `just`.
 pub static PROJECT_ROOT: Lazy<PathBuf> = Lazy::new(|| just(&["project-root"]).unwrap().into());
 
 /// Runs `just` with given arguments returning `stdout` as string.
