@@ -414,14 +414,14 @@ impl storage::Document for Storage {
                     "bool": {
                         "must": {
                             "range": {
-                                "publication_date": range,
+                                "publication_date": range
                             }
                         },
                         "must_not": {
                             "ids": {
                                 "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
                             }
-                        },
+                        }
                     }
                 }
             },
