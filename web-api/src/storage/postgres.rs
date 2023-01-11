@@ -31,11 +31,11 @@ use sqlx::{
 };
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
-use xayn_ai_coi::{CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
+use xayn_ai_coi::{CoiId, CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::InteractionUpdateContext;
 use crate::{
-    models::{DocumentId, UserId, UserInteractionType},
+    models::{DocumentId, InteractedDocument, UserId, UserInteractionType},
     storage::{self, utils::SqlxPushTupleExt, Storage},
     utils::serialize_redacted,
     Error,
@@ -308,12 +308,8 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
         now: DateTime<Utc>,
-        cois: &[PositiveCoi],
+        cois: &HashMap<CoiId, PositiveCoi>,
     ) -> Result<(), Error> {
-        if cois.is_empty() {
-            return Ok(());
-        }
-
         let mut builder = QueryBuilder::new(
             "INSERT INTO center_of_interest (
             coi_id, user_id,
@@ -322,7 +318,9 @@ impl Database {
             last_view
         ) ",
         );
-        for chunk in cois.chunks(Database::BIND_LIMIT / 7) {
+        let mut iter = cois.values().peekable();
+        while iter.peek().is_some() {
+            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 7);
             builder
                 .reset()
                 .push_values(chunk, |mut builder, update| {
@@ -353,37 +351,29 @@ impl Database {
         Ok(())
     }
 
-    async fn upsert_interactions<'d, I>(
+    async fn upsert_interactions(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
         now: DateTime<Utc>,
-        interactions: I,
-    ) -> Result<(), Error>
-    where
-        I: IntoIterator<Item = (&'d DocumentId, UserInteractionType)>,
-        I::IntoIter: ExactSizeIterator,
-    {
-        let interactions = interactions.into_iter();
-        if interactions.len() == 0 {
-            return Ok(());
-        }
+        interactions: &HashMap<&DocumentId, (&InteractedDocument, UserInteractionType)>,
+    ) -> Result<(), Error> {
         //FIXME micro benchmark and chunking+persist abstraction
         let persist = interactions.len() < 10;
 
         let mut builder = QueryBuilder::new(
             "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)",
         );
-        let mut iter = interactions.peekable();
+        let mut iter = interactions.iter().peekable();
         while iter.peek().is_some() {
-            let chunk = (&mut iter).take(Database::BIND_LIMIT / 4);
+            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 4);
             builder
                 .reset()
-                .push_values(chunk, |mut builder, (document_id, interaction)| {
+                .push_values(chunk, |mut builder, (document_id, (_, interaction))| {
                     builder
                         .push_bind(document_id)
                         .push_bind(user_id)
                         .push_bind(now)
-                        .push_bind(interaction as i16);
+                        .push_bind(*interaction as i16);
                 })
                 .push(
                     " ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
@@ -398,20 +388,15 @@ impl Database {
         Ok(())
     }
 
-    async fn upsert_tag_weights<'c, I>(
+    async fn upsert_tag_weights(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
-        updates: I,
-    ) -> Result<(), Error>
-    where
-        I: IntoIterator<Item = (&'c str, i32)>,
-    {
-        let updates = updates.into_iter();
-
+        updates: &HashMap<&str, i32>,
+    ) -> Result<(), Error> {
         let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
-        let mut iter = updates.into_iter().peekable();
+        let mut iter = updates.iter().peekable();
         while iter.peek().is_some() {
-            let chunk = (&mut iter).take(Database::BIND_LIMIT / 7);
+            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 7);
             builder
                 .reset()
                 .push_values(chunk, |mut builder, (tag, weight_diff)| {
@@ -519,7 +504,7 @@ impl storage::Interaction for Storage {
 
         let mut document_map = documents
             .iter()
-            .map(|d| (&d.id, d))
+            .map(|d| (&d.id, (d, UserInteractionType::Positive)))
             .collect::<HashMap<_, _>>();
 
         let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
@@ -530,15 +515,18 @@ impl storage::Interaction for Storage {
             .map(|tag| (tag.as_str(), 0))
             .collect::<HashMap<_, _>>();
 
-        let mut updates = Vec::new();
+        let mut updates = HashMap::new();
 
         for id in updated_document_ids {
-            if let Some(document) = document_map.get_mut(id) {
-                updates.push(update_logic(InteractionUpdateContext {
+            if let Some((document, _)) = document_map.get_mut(id) {
+                let updated_coi = update_logic(InteractionUpdateContext {
                     document,
                     tag_weight_diff: &mut tag_weight_diff,
                     positive_cois: &mut interests.positive,
-                }));
+                });
+                // We might update the same coi min `interests` multiple times,
+                // if we do we only want to keep the latest update.
+                updates.insert(updated_coi.id, updated_coi);
             } else {
                 warn!(%id, "interacted document doesn't exist");
             }
@@ -546,20 +534,9 @@ impl storage::Interaction for Storage {
 
         Database::upsert_cois(&mut tx, user_id, now, &updates).await?;
 
-        Database::upsert_interactions(
-            &mut tx,
-            user_id,
-            now,
-            document_map
-                .values()
-                .map(|d| (&d.id, UserInteractionType::Positive))
-                // without the collect rust fails with `error: higher-ranked lifetime error`
-                // this seems to be a limitation or bug in rustc
-                .collect_vec(),
-        )
-        .await?;
+        Database::upsert_interactions(&mut tx, user_id, now, &document_map).await?;
 
-        Database::upsert_tag_weights(&mut tx, user_id, tag_weight_diff.into_iter()).await?;
+        Database::upsert_tag_weights(&mut tx, user_id, &tag_weight_diff).await?;
 
         tx.commit().await?;
         Ok(())
