@@ -24,10 +24,10 @@ use actix_web::{
     HttpResponse,
     HttpServer,
 };
-use clap::Parser;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
+pub use self::cli::Args as CliArgs;
 pub(crate) use self::{app_state::AppState, config::Config};
 use crate::{
     load_config::load_config,
@@ -59,12 +59,11 @@ pub(crate) type SetupError = anyhow::Error;
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
-pub async fn run<A>(/*TODO[PMK] pass in cli::Args*/) -> Result<(), SetupError>
+pub async fn run<A>(mut cli_args: CliArgs) -> Result<(), SetupError>
 where
     A: Application,
 {
-    async {
-        let mut cli_args = cli::Args::parse();
+    async move {
         let config_file = cli_args.config.take();
         let config = load_config::<Config<A::ConfigExtension>, _>(
             config_file,

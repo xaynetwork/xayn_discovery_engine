@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use xayn_web_api::{run, Personalization};
+use xayn_web_api::{run, CliArgs, Personalization};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    run::<Personalization>().await
+    run::<Personalization>(CliArgs::parse()).await
 }

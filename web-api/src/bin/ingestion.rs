@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use xayn_web_api::{run, Ingestion};
+use xayn_web_api::{run, CliArgs, Ingestion};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    run::<Ingestion>().await
+    run::<Ingestion>(CliArgs::parse()).await
 }

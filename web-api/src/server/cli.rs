@@ -21,28 +21,33 @@ use serde_json::{json, Map, Value};
 /// Cli arguments for the web-api server.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
-pub(super) struct Args {
+pub struct Args {
     /// Host and port to which the server should bind.
     ///
     /// This setting is prioritized over settings through
     /// the config and environment.
     #[arg(short, long)]
-    pub(super) bind_to: Option<SocketAddr>,
+    pub bind_to: Option<SocketAddr>,
 
     /// File to log to additionally to logging to stdout.
     #[arg(short, long)]
-    pub(super) log_file: Option<PathBuf>,
+    pub log_file: Option<PathBuf>,
 
     /// Use given configuration file.
     #[arg(short, long)]
-    pub(super) config: Option<String>,
+    pub config: Option<String>,
 
     /// Print the config and exist instead of running the server
     #[arg(long)]
-    pub(super) print_config: bool,
+    pub print_config: bool,
 }
 
 impl Args {
+    /// Re-export of `clap::Parser::parse()`.
+    pub fn parse() -> Self {
+        Parser::parse()
+    }
+
     pub(super) fn to_config_overrides(&self) -> impl Serialize {
         let mut map = Map::new();
         if let Some(bind_to) = &self.bind_to {
