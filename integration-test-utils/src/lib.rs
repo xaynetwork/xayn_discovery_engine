@@ -276,18 +276,19 @@ pub fn clear_env() {
 static ENV_CLEAR_GUARD: Mutex<()> = Mutex::new(());
 static ENV_PRUNE_EXCEPTIONS: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
-        r#"^(?ix)
-        (?:PATH)
-        |(?:LANG)
-        |(?:PWD)
-        |(?:USER)
-        |(?:CI)
-        |(?:DBUS.*)
-        |(?:SYSTEMD.*)
-        |(?:DOCKER.*)
-        |(?:PODMAN.*)
-        |(?:XDG.*)
-        $"#,
+        r#"(?ix)
+        (?:^PATH$)
+        |(?:^LANG$)
+        |(?:^PWD$)
+        |(?:^USER$)
+        |(?:^CI$)
+        |(?:^HOME$)
+        |(?:^DBUS)
+        |(?:^SYSTEMD)
+        |(?:^DOCKER)
+        |(?:^PODMAN)
+        |(?:^XDG)
+        "#,
     )
     .unwrap()
 });
@@ -310,5 +311,110 @@ mod tests {
             );
         }
         Ok(())
+    }
+
+    #[test]
+    fn test_env_filter_reges() {
+        let vars = [
+            "ANDROID_SDK_HOME",
+            "BINARYEN_ROOT",
+            "CHROME_DESKTOP",
+            "CHROME_EXECUTABL",
+            "CLUTTER_BACKEND",
+            "COLORTERM",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "DEBUGINFOD_URLS",
+            "DEFAULT",
+            "DISPLAY",
+            "CI",
+            "ECORE_EVAS_ENGINE",
+            "EDITOR",
+            "ELM_ENGINE",
+            "FLUTTER_HOME",
+            "GDK_BACKEND",
+            "GIT_ASKPASS",
+            "GNOME_TERMINAL_SCREEN",
+            "GNOME_TERMINAL_SERVICE",
+            "GPG_TTY",
+            "HOME",
+            "I3SOCK",
+            "LANG",
+            "LOGNAME",
+            "MAIL",
+            "MOTD_SHOWN",
+            "NO_AT_BRIDGE",
+            "OLDPWD",
+            "ORIGINAL_XDG_CURRENT_DESKTOP",
+            "PATH",
+            "PULSEMIXER_BAR_STYL",
+            "PWD",
+            "QT_QPA_PLATFORM",
+            "QT_WAYLAND_DISABLE_WINDOWDECORATIONS",
+            "SHELL",
+            "SHLVL",
+            "SSH_AUTH_SOCK",
+            "STUDIO_JDK",
+            "SWAYSOCK",
+            "SYSTEMD_EXEC_PID",
+            "TERM",
+            "TERM_PROGRAM",
+            "TERM_PROGRAM_VERSION",
+            "USER",
+            "VSCODE_GIT_ASKPASS_EXTRA_ARGS",
+            "VSCODE_GIT_ASKPASS_MAIN",
+            "VSCODE_GIT_ASKPASS_NODE",
+            "VSCODE_GIT_IPC_HANDLE",
+            "VTE_VERSION",
+            "WAYLAND_DISPLAY",
+            "XCURSOR_SIZE",
+            "XDG_BIN_HOME",
+            "XDG_CACHE_HOME",
+            "XDG_CONFIG_DIRS",
+            "XDG_CURRENT_DESKTOP",
+            "XDG_DATA_DIRS",
+            "XDG_DATA_HOME",
+            "XDG_RUNTIME_DIR",
+            "XDG_SEAT",
+            "XDG_SESSION_CLASS",
+            "XDG_SESSION_ID",
+            "XDG_SESSION_TYPE",
+            "XDG_VTNR",
+            "DOCKER_DODO",
+            "PODMAN_DODO",
+            "_JAVA_AWT_WM_NONREPARENTING",
+        ];
+
+        let filtered = vars
+            .into_iter()
+            .filter(|key| ENV_PRUNE_EXCEPTIONS.is_match(key))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            filtered,
+            [
+                "DBUS_SESSION_BUS_ADDRESS",
+                "CI",
+                "HOME",
+                "LANG",
+                "PATH",
+                "PWD",
+                "SYSTEMD_EXEC_PID",
+                "USER",
+                "XDG_BIN_HOME",
+                "XDG_CACHE_HOME",
+                "XDG_CONFIG_DIRS",
+                "XDG_CURRENT_DESKTOP",
+                "XDG_DATA_DIRS",
+                "XDG_DATA_HOME",
+                "XDG_RUNTIME_DIR",
+                "XDG_SEAT",
+                "XDG_SESSION_CLASS",
+                "XDG_SESSION_ID",
+                "XDG_SESSION_TYPE",
+                "XDG_VTNR",
+                "DOCKER_DODO",
+                "PODMAN_DODO",
+            ]
+        )
     }
 }
