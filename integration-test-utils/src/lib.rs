@@ -23,7 +23,9 @@
 
 use std::{
     fs,
+    future::Future,
     path::PathBuf,
+    pin::Pin,
     process::{Command, Output, Stdio},
     sync::Mutex,
     time::Duration,
@@ -211,7 +213,7 @@ pub struct WebDevEnv<'a> {
 ///   - delete the postgres db
 ///   - delete the elastic search index
 pub async fn web_dev_integration_test_setup<T>(
-    func: impl for<'a> FnOnce(WebDevEnv<'a>) -> Result<T, Panic>,
+    func: impl for<'a> FnOnce(WebDevEnv<'a>) -> Pin<Box<dyn Future<Output = Result<T, Panic>> + 'a>>,
 ) -> Result<T, Panic> {
     clear_env();
     if !std::env::var("CI")
@@ -233,9 +235,7 @@ pub async fn web_dev_integration_test_setup<T>(
         es_uri: &es_cleanup_guard,
     };
 
-    let res = func(env)?;
-
-    Ok(res)
+    func(env).await
 }
 
 /// Remove all variables from this process environment (with some exceptions).
