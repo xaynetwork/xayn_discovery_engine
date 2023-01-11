@@ -35,7 +35,7 @@ pub(super) struct Args {
 
     /// Use given configuration file.
     #[arg(short, long)]
-    pub(super) config: Option<PathBuf>,
+    pub(super) config: Option<String>,
 
     /// Print the config and exist instead of running the server
     #[arg(long)]

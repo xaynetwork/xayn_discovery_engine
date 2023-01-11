@@ -53,7 +53,7 @@ use serde::{de::DeserializeOwned, Serialize};
 /// Env variables are split at `__`. I.e. `XAYN_WEB_API__FOO__BAR=12` will be treated like
 /// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config.
 pub(crate) fn load_config<C, U>(
-    config_file: Option<&Path>,
+    config_file: Option<String>,
     update_with: U,
 ) -> Result<C, figment::Error>
 where
@@ -70,9 +70,21 @@ where
         .join(Serialized::defaults(update_with))
         .join(Env::prefixed("XAYN_WEB_API__").split("__"));
 
-    let file = config_file.unwrap_or_else(|| Path::new("config.toml"));
-    if file.exists() {
-        figment = figment.join(Toml::file(file));
+    let provider = config_file
+        .map(|content_or_path| {
+            if let Some(content) = content_or_path.strip_prefix("inline:") {
+                Toml::string(content)
+            } else {
+                Toml::file(content_or_path)
+            }
+        })
+        .or_else(|| {
+            let default_file = Path::new("config.toml");
+            default_file.exists().then(|| Toml::file(default_file))
+        });
+
+    if let Some(provider) = provider {
+        figment = figment.join(provider);
     }
 
     figment.extract().map_err(Into::into)

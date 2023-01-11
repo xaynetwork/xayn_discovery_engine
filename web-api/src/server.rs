@@ -59,7 +59,7 @@ pub(crate) type SetupError = anyhow::Error;
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
-pub async fn run<A>() -> Result<(), SetupError>
+pub async fn run<A>(/*TODO[PMK] pass in cli::Args*/) -> Result<(), SetupError>
 where
     A: Application,
 {
@@ -67,7 +67,7 @@ where
         let mut cli_args = cli::Args::parse();
         let config_file = cli_args.config.take();
         let config = load_config::<Config<A::ConfigExtension>, _>(
-            config_file.as_deref(),
+            config_file,
             cli_args.to_config_overrides(),
         )?;
 
