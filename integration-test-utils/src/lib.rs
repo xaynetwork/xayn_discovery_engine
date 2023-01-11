@@ -75,7 +75,7 @@ pub fn just(args: &[&str]) -> Result<String, Panic> {
 pub fn generate_test_id() -> String {
     let now = Local::now();
     format!(
-        "{}_{:04x}",
+        "t{}_{:04x}",
         now.format("%y%m%d_%H%M%S"),
         rand::random::<u16>()
     )
@@ -99,8 +99,7 @@ pub async fn create_web_dev_pg_db(
 async fn create_database(name: &str) -> Result<String, Panic> {
     let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
 
-    sqlx::query("CREATE DATABASE ?;")
-        .bind(name)
+    sqlx::query(&format!("CREATE DATABASE {name};"))
         .execute(&mut db)
         .await?;
 
@@ -110,8 +109,7 @@ async fn create_database(name: &str) -> Result<String, Panic> {
 async fn drop_database(name: &str) -> Result<(), Panic> {
     let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
 
-    sqlx::query("DROP DATABASE ?;")
-        .bind(name)
+    sqlx::query(&format!("DROP DATABASE {name};"))
         .execute(&mut db)
         .await?;
 
@@ -220,7 +218,7 @@ pub async fn web_dev_integration_test_setup<T>(
         .map(|value| value == "true")
         .unwrap_or_default()
     {
-        just(&["web_dev_up"])?;
+        just(&["web-dev-up"])?;
     }
 
     let id = generate_test_id();
@@ -301,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_random_id_generation_has_expected_format() -> Result<(), Panic> {
-        let regex = Regex::new("^[0-9]{6}_[0-9]{6}_[0-9a-f]{4}$")?;
+        let regex = Regex::new("^t[0-9]{6}_[0-9]{6}_[0-9a-f]{4}$")?;
         for _ in 0..100 {
             let id = generate_test_id();
             assert!(

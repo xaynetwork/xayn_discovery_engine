@@ -141,7 +141,7 @@ web-dev-up:
         RESTART=true
         $compose -f "./web-api/compose.personalization.yml" down
     fi
-    if ["$RESTART" = "true"] || \
+    if [ "$RESTART" = "true" ] || \
         jq -e 'contains(["elasticsearch","postgres"]) | not' <(echo "$running_services");
     then
         # stop any partial running services
