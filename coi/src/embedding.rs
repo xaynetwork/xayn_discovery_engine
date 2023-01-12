@@ -73,7 +73,6 @@ where
         .collect::<Vec<_>>();
     let size = data.len();
     let mut similarities = Array2::ones((size, size));
-    
     for t in (0..size)
         .flat_map(move |i| (i + 1..size).map(move |j| (i, j)))
         .filter_map(|(i, j)| {
