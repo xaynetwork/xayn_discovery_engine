@@ -402,7 +402,7 @@ impl storage::Document for Storage {
             range.insert("gte".into(), published_after.to_rfc3339().into());
         }
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/8.4/knn-search.html#approximate-knn
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
         let body = Some(json!({
             "size": params.k_neighbors,
             "knn": {
