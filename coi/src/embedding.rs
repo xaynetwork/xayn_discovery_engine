@@ -14,7 +14,6 @@
 
 use std::ops::RangeInclusive;
 
-use itertools::Itertools;
 use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
 pub use xayn_ai_bert::{Embedding1 as Embedding, MalformedBytesEmbedding};
 
@@ -68,23 +67,28 @@ where
     I: IntoIterator<Item = ArrayView1<'a, f32>>,
     I::IntoIter: Clone,
 {
-    let iter = iter.into_iter();
-    let size = match iter.size_hint() {
-        (lower, Some(upper)) if lower == upper => lower,
-        (lower, None) if lower == usize::MAX => lower,
-        _ => unimplemented!("I::IntoIter: TrustedLen"),
-    };
-
-    let norms = iter.clone().map(|a| l2_norm(a.view())).collect::<Vec<_>>();
+    let data = iter
+        .into_iter()
+        .map(|a| (a, l2_norm(a.view())))
+        .collect::<Vec<_>>();
+    let size = data.len();
     let mut similarities = Array2::ones((size, size));
-    for ((i, a), (j, b)) in iter
-        .clone()
-        .enumerate()
-        .cartesian_product(iter.enumerate())
-        .filter(|((i, _), (j, _))| j > i && norms[*i] > 0. && norms[*j] > 0.)
+    
+    for t in (0..size)
+        .flat_map(move |i| (i + 1..size).map(move |j| (i, j)))
+        .filter_map(|(i, j)| {
+            let arr_i = data[i].0;
+            let arr_j = data[j].0;
+            let norms_i = data[i].1;
+            let norms_j = data[j].1;
+            (norms_i > 0. && norms_j > 0.)
+                .then(|| (arr_i.dot(&arr_j) / norms_i / norms_j))
+                .map(|s| ([i, j], [j, i], s.clamp(-1., 1.)))
+        })
     {
-        similarities[[i, j]] = (a.dot(&b) / norms[i] / norms[j]).clamp(-1., 1.);
-        similarities[[j, i]] = similarities[[i, j]];
+        let (i, j, similarity) = t;
+        similarities[i] = similarity;
+        similarities[j] = similarity;
     }
 
     similarities
