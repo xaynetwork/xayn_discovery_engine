@@ -1,7 +1,6 @@
 FROM debian:11.6-slim
 
 ARG rust_version
-ARG rust_nightly_version
 ARG just_version
 ARG cargo_sort_version
 ARG spectral_cli_version
@@ -52,8 +51,8 @@ RUN set -eux; \
 
 RUN set -eux; \
     rustup component add clippy; \
-    rustup toolchain install "${rust_nightly_version}" --component rustfmt --profile minimal; \
-    rustc +${rust_nightly_version} --version; \
+    rustup toolchain install nightly --component rustfmt --profile minimal; \
+    rustc +nightly --version; \
     cargo install just --version="${just_version}"; \
     cargo install cargo-sort --version="${cargo_sort_version}"; \
     rm -rf /usr/local/cargo/{.package-cache,registry};
