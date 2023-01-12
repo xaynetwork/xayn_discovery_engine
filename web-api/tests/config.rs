@@ -15,7 +15,6 @@ use std::{
     collections::HashMap,
     env,
     ffi::{OsStr, OsString},
-    os::unix::prelude::OsStrExt,
     sync::Mutex,
 };
 
@@ -29,8 +28,10 @@ fn with_env_guard(
 
     let guard = GUARD.lock();
     for (key, _) in env::vars_os() {
-        if key.as_bytes().starts_with(b"XAYN_") {
-            env::remove_var(key);
+        if let Some(key_str )= key.to_str() {
+            if key_str.as_bytes().starts_with(b"XAYN_") {
+                env::remove_var(key);
+            }
         }
     }
 
