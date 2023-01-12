@@ -12,5 +12,6 @@ PublicationDate:
     - can be in the future
     - will be converted to and then stored as UTC
     - sub-second resolution is not guaranteed.
-    - if this `properties.publication_date` is not set or set into the future this
-      document will be ignored for personalization
+    - while `properties.publication_date` is in the future the document will not be
+      returned for personalized documents, once it is no longer in the future it will
+      automatically be considered for personalization from then on

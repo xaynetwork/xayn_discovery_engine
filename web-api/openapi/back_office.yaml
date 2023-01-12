@@ -55,10 +55,7 @@ paths:
         **Important note:** Currently we allow up to a maximum of 100 documents per batch size. If you need to add more, then
         please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
 
-        **Important note:** Documents which have no `publication_date` (in `properties`) or a `publication_date` in the future are
-        treated as unpublished and as such are filtered out from personalized documents. This allows ingesting documents which e.g.
-        are scheduled to be published later on. Be aware that there is no way to update the snippet of a document. So ingestion
-        should only be done after the snippet is finalized.
+        **Important note:** Documents which have no `publication_date` are not included when using the `published_after` filter.
       operationId: createDocuments
       requestBody:
         required: true

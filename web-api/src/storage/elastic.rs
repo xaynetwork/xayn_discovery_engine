@@ -396,13 +396,43 @@ impl storage::Document for Storage {
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
-        let mut range = serde_json::Map::default();
-        range.insert("lte".into(), "now/d".into());
-        if let Some(published_after) = params.published_after {
-            range.insert("gte".into(), published_after.to_rfc3339().into());
-        }
+        let excluded_ids = json!({
+            "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
+        });
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
+        let filter = if let Some(published_after) = params.published_after {
+            // published_after != null && published_after <= publication_date <= now
+            json!({
+                "bool": {
+                    "filter": {
+                        "range": {
+                            "properties.publication_date": {
+                                "gte": published_after.to_rfc3339(),
+                                "lte": "now"
+                            }
+                        }
+                    },
+                    "must_not": {
+                        "ids": excluded_ids
+                    }
+                }
+            })
+        } else {
+            // published_after == null || published_after <= now
+            json!({
+                "bool": {
+                    "must_not": [
+                        { "ids": excluded_ids },
+                        { "range": {
+                            "properties.publication_date": {
+                                "gt": "now"
+                            }
+                        }}
+                    ]
+                }
+            })
+        };
+
         let body = Some(json!({
             "size": params.k_neighbors,
             "knn": {
@@ -410,20 +440,7 @@ impl storage::Document for Storage {
                 "query_vector": params.embedding.normalize()?,
                 "k": params.k_neighbors,
                 "num_candidates": params.num_candidates,
-                "filter": {
-                    "bool": {
-                        "must": {
-                            "range": {
-                                "publication_date": range
-                            }
-                        },
-                        "must_not": {
-                            "ids": {
-                                "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
-                            }
-                        }
-                    }
-                }
+                "filter": filter,
             },
             "_source": ["properties", "embedding", "tags"]
         }));
@@ -471,7 +488,7 @@ impl storage::Document for Storage {
                         .map_err(Into::into),
                     serde_json::to_value(IngestedDocument {
                         snippet: &document.snippet,
-                        properties: &document.properties,
+                        properties: dbg!(&document.properties),
                         embedding: &embedding,
                         tags: &document.tags,
                     })
