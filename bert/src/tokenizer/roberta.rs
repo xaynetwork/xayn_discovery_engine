@@ -12,10 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::fs::read_to_string;
+use std::{
+    fs::{read_to_string, File},
+    io::BufReader,
+};
 
-use csv::ReaderBuilder;
-use itertools::Itertools;
 use ndarray::Array2;
 use tokenizers::{
     models::unigram::Unigram,
@@ -47,12 +48,9 @@ pub struct Tokenizer(TokenizerImpl<Unigram, Precompiled, Sequence, TemplateProce
 
 impl Tokenize for Tokenizer {
     fn new<P>(config: &Config<Self, P>) -> Result<Self, Error> {
-        let vocab = ReaderBuilder::new()
-            .has_headers(false)
-            .escape(Some(b'\\'))
-            .from_path(config.dir.join("vocab.txt"))?
-            .into_deserialize::<(String, f64)>()
-            .try_collect::<_, Vec<_>, _>()?;
+        let vocab = serde_json::from_reader::<_, Vec<(String, f64)>>(BufReader::new(File::open(
+            config.dir.join("vocab.txt"),
+        )?))?;
         let unk_token = config.extract::<String>("tokenizer.tokens.unknown")?;
         let unk_id = vocab.iter().position(|(word, _)| word == &unk_token);
         let model = Unigram::from(vocab, unk_id)?;
@@ -98,8 +96,6 @@ impl Tokenize for Tokenizer {
             stride: 0,
         };
 
-        let decoder = Metaspace::new(cont_token, true);
-
         TokenizerBuilder::new()
             .with_model(model)
             .with_normalizer(Some(normalizer))
@@ -107,7 +103,6 @@ impl Tokenize for Tokenizer {
             .with_post_processor(Some(post_processor))
             .with_padding(Some(padding))
             .with_truncation(Some(truncation))
-            .with_decoder(Some(decoder))
             .build()
             .map(Tokenizer)
     }
@@ -148,6 +143,6 @@ mod tests {
         assert!(tok.0.get_post_processor().is_some());
         assert!(tok.0.get_padding().is_some());
         assert!(tok.0.get_truncation().is_some());
-        assert!(tok.0.get_decoder().is_some());
+        assert!(tok.0.get_decoder().is_none());
     }
 }

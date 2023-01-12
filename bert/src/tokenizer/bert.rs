@@ -115,7 +115,6 @@ impl Tokenize for Tokenizer {
             strategy: TruncationStrategy::LongestFirst,
             stride: 0,
         };
-        let decoder = WordPieceDecoder::new(config.extract("tokenizer.tokens.continuation")?, true);
 
         let bert = TokenizerBuilder::new()
             .with_model(model)
@@ -124,7 +123,6 @@ impl Tokenize for Tokenizer {
             .with_post_processor(Some(post_processor))
             .with_padding(Some(padding))
             .with_truncation(Some(truncation))
-            .with_decoder(Some(decoder))
             .build()?;
 
         Ok(Tokenizer { japanese, bert })
@@ -180,7 +178,7 @@ mod tests {
         assert!(multi.bert.get_post_processor().is_some());
         assert!(multi.bert.get_padding().is_some());
         assert!(multi.bert.get_truncation().is_some());
-        assert!(multi.bert.get_decoder().is_some());
+        assert!(multi.bert.get_decoder().is_none());
     }
 
     #[test]
@@ -196,7 +194,7 @@ mod tests {
         assert!(japan.bert.get_post_processor().is_some());
         assert!(japan.bert.get_padding().is_some());
         assert!(japan.bert.get_truncation().is_some());
-        assert!(japan.bert.get_decoder().is_some());
+        assert!(japan.bert.get_decoder().is_none());
     }
 
     #[test]

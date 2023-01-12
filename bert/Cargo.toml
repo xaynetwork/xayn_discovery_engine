@@ -6,7 +6,6 @@ rust-version = { workspace = true }
 license = "AGPL-3.0-only"
 
 [dependencies]
-csv = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 figment = { workspace = true, features = ["toml"] }
@@ -22,6 +21,7 @@ tract-onnx = "0.18.5"
 
 [dev-dependencies]
 criterion = { workspace = true }
+csv = { workspace = true }
 indicatif = "0.17.2"
 xayn-ai-test-utils = { path = "../test-utils" }
 

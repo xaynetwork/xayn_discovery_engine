@@ -58,3 +58,6 @@ pub use crate::{
 
 /// A Bert pipeline with an average pooler.
 pub type AvgBert = Pipeline<crate::tokenizer::bert::Tokenizer, AveragePooler>;
+
+/// A Roberta pipeline with an average pooler.
+pub type AvgRoberta = Pipeline<crate::tokenizer::roberta::Tokenizer, AveragePooler>;
