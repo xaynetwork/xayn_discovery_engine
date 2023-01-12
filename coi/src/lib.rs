@@ -47,12 +47,7 @@ pub use crate::{
     config::{Config as CoiConfig, Error as CoiConfigError},
     context::Error as CoiContextError,
     document::Document,
-    embedding::{
-        normalized_dot_product,
-        pairwise_cosine_similarity,
-        Embedding,
-        MalformedBytesEmbedding,
-    },
+    embedding::{normalized_dot_product, Embedding},
     id::CoiId,
     point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
     stats::{compute_coi_relevances, CoiStats},

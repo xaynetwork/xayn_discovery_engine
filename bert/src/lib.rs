@@ -45,15 +45,7 @@ pub mod tokenizer;
 pub use crate::{
     config::Config,
     pipeline::{Pipeline, PipelineError},
-    pooler::{
-        AveragePooler,
-        Embedding,
-        Embedding1,
-        Embedding2,
-        FirstPooler,
-        MalformedBytesEmbedding,
-        NonePooler,
-    },
+    pooler::{AveragePooler, Embedding, Embedding1, Embedding2, FirstPooler, NonePooler},
 };
 
 /// A Bert pipeline with an average pooler.

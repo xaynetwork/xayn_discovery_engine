@@ -12,10 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    mem::size_of,
-    ops::{AddAssign, Mul, MulAssign},
-};
+use std::ops::{AddAssign, Mul, MulAssign};
 
 use derive_more::{Deref, From};
 use displaydoc::Display;
@@ -87,30 +84,6 @@ impl<'de> Deserialize<'de> for Embedding<Ix1> {
         D: Deserializer<'de>,
     {
         Vec::<f32>::deserialize(deserializer).map(Self::from)
-    }
-}
-
-#[derive(Clone, Debug, Display, Error)]
-/// Bytes do not represent a valid embedding.
-pub struct MalformedBytesEmbedding;
-
-impl TryFrom<Vec<u8>> for Embedding<Ix1> {
-    type Error = MalformedBytesEmbedding;
-
-    /// Converts from bytes in little endianness to values in standard order.
-    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        if bytes.len() % size_of::<f32>() != 0 {
-            return Err(MalformedBytesEmbedding);
-        }
-
-        let floats = bytes
-            .chunks_exact(size_of::<f32>())
-            .map(|chunk| {
-                f32::from_le_bytes(chunk.try_into().unwrap(/* checked length before */))
-            })
-            .collect();
-
-        Ok(Array::from_vec(floats).into())
     }
 }
 
