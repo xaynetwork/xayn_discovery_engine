@@ -12,7 +12,7 @@ DocumentProperties:
   type: object
   properties:
     publication_date:
-      $ref: './time.yml#PublicationDate'
+      $ref: './time.yml#/PublicationDate'
   additionalProperties:
     $ref: '#/DocumentProperty'
   example:

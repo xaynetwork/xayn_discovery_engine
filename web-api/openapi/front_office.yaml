@@ -58,7 +58,7 @@ paths:
           description: Only include documents which have been published after given datetime
           required: false
           schema:
-            $ref: './time.yml#PublicationDate'
+            $ref: './schemas/time.yml#PublicationDate'
       responses:
         '200':
           description: successful operation
