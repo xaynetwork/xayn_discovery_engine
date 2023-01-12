@@ -28,7 +28,7 @@ fn with_env_guard(
 
     let guard = GUARD.lock();
     for (key, _) in env::vars_os() {
-        if let Some(key_str )= key.to_str() {
+        if let Some(key_str)= key.to_str() {
             if key_str.as_bytes().starts_with(b"XAYN_") {
                 env::remove_var(key);
             }
