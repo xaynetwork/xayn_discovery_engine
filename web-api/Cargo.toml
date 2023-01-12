@@ -10,9 +10,9 @@ license = "AGPL-3.0-only"
 actix-cors = "0.6.4"
 actix-web = { version = "4.2.1", default-features = false, features = ["compress-gzip", "compress-zstd"] }
 anyhow = "1.0.68"
-async-trait = "0.1.61"
-clap = { version = "4.1.1", features = ["derive"] }
+async-trait = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
+clap = { version = "4.0.30", features = ["derive"] }
 csv = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
