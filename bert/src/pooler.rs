@@ -43,6 +43,13 @@ impl Embedding<Ix1> {
     pub fn to_bytes(&self) -> Vec<u8> {
         self.iter().flat_map(|value| value.to_le_bytes()).collect()
     }
+
+    pub fn normalized(&self) -> Result<Self, InvalidVectorEncounteredError> {
+        match self.view().l2_norm()? {
+            norm if norm < 0. => Ok(self.clone()),
+            norm => Ok(self.mapv(|x| x / norm).into()),
+        }
+    }
 }
 
 impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
@@ -228,6 +235,35 @@ impl AveragePooler {
     }
 }
 
+#[derive(Clone, Debug, Display, Error)]
+/// Bytes do not represent a valid embedding.
+pub struct InvalidVectorEncounteredError;
+
+/// Computes the l2 norm (euclidean metric).
+///
+/// When l2 norm could not be calculated, `None` is returned.
+///
+/// *NOTE* This used to `panic` before, but as we now calculate l2 norm upon ingestion,
+/// this behavior changed to become `None`, so that underlying code could still follow up.
+pub trait L2Norm<S> {
+    fn l2_norm(&self) -> Result<f32, InvalidVectorEncounteredError>
+    where
+        S: Data<Elem = f32>;
+}
+
+impl<S> L2Norm<S> for ArrayBase<S, Ix1>
+where
+    S: Data<Elem = f32>,
+{
+    fn l2_norm(&self) -> Result<f32, InvalidVectorEncounteredError> {
+        let view = self.view();
+        match view.dot(&view).sqrt() {
+            n if n.is_finite() => Ok(n),
+            _ => Err(InvalidVectorEncounteredError),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use ndarray::{arr1, arr2, arr3};
@@ -272,5 +308,29 @@ mod tests {
         let mask = arr2(&[[1, 1]]).into();
         let embedding = AveragePooler::pool(&prediction.into(), &mask).unwrap();
         assert_eq!(embedding, arr1(&[2.5, 3.5, 4.5]));
+    }
+
+    #[test]
+    fn test_l2_norm() {
+        xayn_ai_test_utils::assert_approx_eq!(
+            f32,
+            arr1(&[1., 2., 3.]).l2_norm().unwrap(),
+            3.741_657_5
+        );
+    }
+
+    #[test]
+    fn test_l2_norm_nan() {
+        assert!(arr1(&[1., f32::NAN, 3.]).l2_norm().is_err());
+    }
+
+    #[test]
+    fn test_l2_norm_inf() {
+        assert!(arr1(&[1., f32::INFINITY, 3.]).l2_norm().is_err());
+    }
+
+    #[test]
+    fn test_l2_norm_neginf() {
+        assert!(arr1(&[1., f32::NEG_INFINITY, 3.]).l2_norm().is_err());
     }
 }

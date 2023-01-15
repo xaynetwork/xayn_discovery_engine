@@ -51,6 +51,7 @@ pub use crate::{
         cosine_similarity,
         pairwise_cosine_similarity,
         Embedding,
+        L2Norm,
         MalformedBytesEmbedding,
     },
     id::CoiId,

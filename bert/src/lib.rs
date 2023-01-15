@@ -51,6 +51,7 @@ pub use crate::{
         Embedding1,
         Embedding2,
         FirstPooler,
+        L2Norm,
         MalformedBytesEmbedding,
         NonePooler,
     },
