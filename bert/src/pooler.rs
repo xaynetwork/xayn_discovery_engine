@@ -46,7 +46,7 @@ impl Embedding<Ix1> {
 
     pub fn normalized(&self) -> Result<Self, InvalidVectorEncounteredError> {
         match self.view().l2_norm()? {
-            norm if norm < 0. => Ok(self.clone()),
+            norm if norm <= 0. => Ok(self.mapv(|_| f32::MAX).into()), // very far away
             norm => Ok(self.mapv(|x| x / norm).into()),
         }
     }

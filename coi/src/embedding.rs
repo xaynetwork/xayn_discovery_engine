@@ -81,16 +81,12 @@ mod tests {
 
     #[test]
     fn test_cosine_similarity_zero() {
-        let binding_a = arr1(&[1., 2., 3.]);
-        let binding_b = arr1(&[0., 0., 0.]);
-        let av_a = binding_a.view();
-        let av_b = binding_b.view();
-        let n_a = av_a.l2_norm().unwrap();
-        let n_b = av_b.l2_norm().unwrap();
+        let embedding_a = Embedding::from(arr1(&[1., 2., 3.])).normalized().unwrap();
+        let embedding_b = Embedding::from(arr1(&[0., 0., 0.])).normalized().unwrap();
         assert_approx_eq!(
             f32,
-            cosine_similarity(av_a.mapv(|x| x / n_a).view(), av_b.mapv(|x| x / n_b).view()),
-            1.
+            cosine_similarity(embedding_a.view(), embedding_b.view()),
+            1.0
         );
     }
 }

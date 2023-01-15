@@ -179,14 +179,26 @@ mod tests {
     #[test]
     fn test_rank() {
         let mut documents = vec![
-            TestDocument::new(0, arr1(&[3., 7., 0.])),
-            TestDocument::new(1, arr1(&[1., 0., 0.])),
-            TestDocument::new(2, arr1(&[1., 2., 0.])),
-            TestDocument::new(3, arr1(&[5., 3., 0.])),
+            TestDocument::new(
+                0,
+                Embedding::from(arr1(&[3., 7., 0.])).normalized().unwrap(),
+            ),
+            TestDocument::new(
+                1,
+                Embedding::from(arr1(&[1., 0., 0.])).normalized().unwrap(),
+            ),
+            TestDocument::new(
+                2,
+                Embedding::from(arr1(&[1., 2., 0.])).normalized().unwrap(),
+            ),
+            TestDocument::new(
+                3,
+                Embedding::from(arr1(&[5., 3., 0.])).normalized().unwrap(),
+            ),
         ];
         let user_interests = UserInterests {
-            positive: create_pos_cois(&[[1., 0., 0.], [4., 12., 2.]]),
-            negative: create_neg_cois(&[[-100., -10., 0.]]),
+            positive: create_pos_cois(&[[1., 0., 0.], [0.31234753, 0.93704253, 0.15617377]]),
+            negative: create_neg_cois(&[[-0.9950372, -0.09950372, 0.]]),
         };
         let system = Config::default()
             .with_min_positive_cois(2)
