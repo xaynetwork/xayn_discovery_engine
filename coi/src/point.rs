@@ -230,10 +230,19 @@ pub(crate) mod tests {
 
     #[test]
     fn test_find_closest_coi_single() {
-        let cois = create_pos_cois(&[[1., 2., 3.]]);
-        let embedding = arr1(&[1., 5., 9.]).into();
+        let coi: Embedding = arr1(&[1., 2., 3.]).into();
+        let arr: [f32; 3] = coi
+            .normalized()
+            .unwrap()
+            .as_slice()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let cois = create_pos_cois(&[arr]);
+        let embedding: Embedding = arr1(&[1., 5., 9.]).into();
 
-        let (index, similarity) = find_closest_coi_index(&cois, &embedding).unwrap();
+        let (index, similarity) =
+            find_closest_coi_index(&cois, &embedding.normalized().unwrap()).unwrap();
 
         assert_eq!(index, 0);
         assert_approx_eq!(f32, similarity, 0.981_810_57);

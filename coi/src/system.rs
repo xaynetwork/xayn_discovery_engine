@@ -178,27 +178,44 @@ mod tests {
 
     #[test]
     fn test_rank() {
+        let embedding_a: Embedding = arr1(&[3., 7., 0.]).into();
+        let embedding_b: Embedding = arr1(&[1., 0., 0.]).into();
+        let embedding_c: Embedding = arr1(&[1., 2., 0.]).into();
+        let embedding_d: Embedding = arr1(&[5., 3., 0.]).into();
+        let coi_a: Embedding = arr1(&[1., 0., 0.]).into();
+        let coi_b: Embedding = arr1(&[4., 12., 2.]).into();
+        let coi_c: Embedding = arr1(&[-100., -10., 0.]).into();
+        let arr_a: [f32; 3] = coi_a
+            .normalized()
+            .unwrap()
+            .as_slice()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let arr_b: [f32; 3] = coi_b
+            .normalized()
+            .unwrap()
+            .as_slice()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let arr_c: [f32; 3] = coi_c
+            .normalized()
+            .unwrap()
+            .as_slice()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        coi_a.normalized().unwrap().as_slice();
         let mut documents = vec![
-            TestDocument::new(
-                0,
-                Embedding::from(arr1(&[3., 7., 0.])).normalized().unwrap(),
-            ),
-            TestDocument::new(
-                1,
-                Embedding::from(arr1(&[1., 0., 0.])).normalized().unwrap(),
-            ),
-            TestDocument::new(
-                2,
-                Embedding::from(arr1(&[1., 2., 0.])).normalized().unwrap(),
-            ),
-            TestDocument::new(
-                3,
-                Embedding::from(arr1(&[5., 3., 0.])).normalized().unwrap(),
-            ),
+            TestDocument::new(0, embedding_a.normalized().unwrap()),
+            TestDocument::new(1, embedding_b.normalized().unwrap()),
+            TestDocument::new(2, embedding_c.normalized().unwrap()),
+            TestDocument::new(3, embedding_d.normalized().unwrap()),
         ];
         let user_interests = UserInterests {
-            positive: create_pos_cois(&[[1., 0., 0.], [0.31234753, 0.93704253, 0.15617377]]),
-            negative: create_neg_cois(&[[-0.9950372, -0.09950372, 0.]]),
+            positive: create_pos_cois(&[arr_a, arr_b]),
+            negative: create_neg_cois(&[arr_c]),
         };
         let system = Config::default()
             .with_min_positive_cois(2)
