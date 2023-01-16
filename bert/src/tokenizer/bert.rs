@@ -95,19 +95,26 @@ impl Tokenize for Tokenizer {
             Some(config.extract("tokenizer.cleanse-accents")?),
             config.extract("tokenizer.lower-case")?,
         );
-        let sep_token = config.extract::<String>("tokenizer.tokens.separation")?;
-        let sep_id = model.token_to_id(&sep_token).ok_or("missing sep token")?;
-        let cls_token = config.extract::<String>("tokenizer.tokens.class")?;
-        let cls_id = model.token_to_id(&cls_token).ok_or("missing cls token")?;
-        let post_processor = BertProcessing::new((sep_token, sep_id), (cls_token, cls_id));
-        let pad_token = config.extract::<String>("tokenizer.tokens.padding")?;
+        let separation_token = config.extract::<String>("tokenizer.tokens.separation")?;
+        let separation_id = model
+            .token_to_id(&separation_token)
+            .ok_or("missing separation token")?;
+        let class_token = config.extract::<String>("tokenizer.tokens.class")?;
+        let class_id = model
+            .token_to_id(&class_token)
+            .ok_or("missing class token")?;
+        let post_processor =
+            BertProcessing::new((separation_token, separation_id), (class_token, class_id));
+        let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
         let padding = PaddingParams {
             strategy: PaddingStrategy::Fixed(config.token_size),
             direction: PaddingDirection::Right,
             pad_to_multiple_of: None,
-            pad_id: model.token_to_id(&pad_token).ok_or("missing pad token")?,
+            pad_id: model
+                .token_to_id(&padding_token)
+                .ok_or("missing padding token")?,
             pad_type_id: 0,
-            pad_token,
+            pad_token: padding_token,
         };
         let truncation = TruncationParams {
             direction: TruncationDirection::Right,

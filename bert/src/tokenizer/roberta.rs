@@ -51,9 +51,9 @@ impl Tokenize for Tokenizer {
         let vocab = serde_json::from_reader::<_, Vec<(String, f64)>>(BufReader::new(File::open(
             config.dir.join("vocab.txt"),
         )?))?;
-        let unk_token = config.extract::<String>("tokenizer.tokens.unknown")?;
-        let unk_id = vocab.iter().position(|(word, _)| word == &unk_token);
-        let model = Unigram::from(vocab, unk_id)?;
+        let unknown_token = config.extract::<String>("tokenizer.tokens.unknown")?;
+        let unknown_id = vocab.iter().position(|(word, _)| word == &unknown_token);
+        let model = Unigram::from(vocab, unknown_id)?;
 
         // https://github.com/huggingface/spm_precompiled
         let normalizer = serde_json::from_str(&read_to_string(
@@ -62,32 +62,36 @@ impl Tokenize for Tokenizer {
                 .join(config.extract::<String>("tokenizer.normalizer")?),
         )?)?;
 
-        let cont_token = config.extract("tokenizer.tokens.continuation")?;
+        let continuation_token = config.extract("tokenizer.tokens.continuation")?;
         let pre_tokenizer = Sequence::new(vec![
             PreTokenizerWrapper::WhitespaceSplit(WhitespaceSplit),
-            PreTokenizerWrapper::Metaspace(Metaspace::new(cont_token, true)),
+            PreTokenizerWrapper::Metaspace(Metaspace::new(continuation_token, true)),
         ]);
 
-        let cls_token = config.extract::<String>("tokenizer.tokens.class")?;
-        let cls_id = model.token_to_id(&cls_token).ok_or("missing cls token")?;
-        let sep_token = config.extract::<String>("tokenizer.tokens.separation")?;
-        let sep_id = model.token_to_id(&sep_token).ok_or("missing sep token")?;
+        let class_token = config.extract::<String>("tokenizer.tokens.class")?;
+        let class_id = model.token_to_id(&class_token).ok_or("missing cls token")?;
+        let separation_token = config.extract::<String>("tokenizer.tokens.separation")?;
+        let separation_id = model
+            .token_to_id(&separation_token)
+            .ok_or("missing sep token")?;
         let post_processor = TemplateProcessingBuilder::default()
-            .try_single(format!("{cls_token}:0 $A:0 {sep_token}:0"))?
+            .try_single(format!("{class_token}:0 $A:0 {separation_token}:0"))?
             .try_pair(format!(
-                "{cls_token}:0 $A:0 {sep_token}:0 {sep_token}:0 $B:0 {sep_token}:0"
+                "{class_token}:0 $A:0 {separation_token}:0 {separation_token}:0 $B:0 {separation_token}:0"
             ))?
-            .special_tokens(vec![(cls_token, cls_id), (sep_token, sep_id)])
+            .special_tokens(vec![(class_token, class_id), (separation_token, separation_id)])
             .build()?;
 
-        let pad_token = config.extract::<String>("tokenizer.tokens.padding")?;
+        let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
         let padding = PaddingParams {
             strategy: PaddingStrategy::Fixed(config.token_size),
             direction: PaddingDirection::Right,
             pad_to_multiple_of: None,
-            pad_id: model.token_to_id(&pad_token).ok_or("missing pad token")?,
+            pad_id: model
+                .token_to_id(&padding_token)
+                .ok_or("missing pad token")?,
             pad_type_id: 0,
-            pad_token,
+            pad_token: padding_token,
         };
         let truncation = TruncationParams {
             direction: TruncationDirection::Right,
@@ -137,12 +141,12 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let tok = tokenizer(42);
-        assert!(tok.0.get_normalizer().is_some());
-        assert!(tok.0.get_pre_tokenizer().is_some());
-        assert!(tok.0.get_post_processor().is_some());
-        assert!(tok.0.get_padding().is_some());
-        assert!(tok.0.get_truncation().is_some());
-        assert!(tok.0.get_decoder().is_none());
+        let tokenizer = tokenizer(42);
+        assert!(tokenizer.0.get_normalizer().is_some());
+        assert!(tokenizer.0.get_pre_tokenizer().is_some());
+        assert!(tokenizer.0.get_post_processor().is_some());
+        assert!(tokenizer.0.get_padding().is_some());
+        assert!(tokenizer.0.get_truncation().is_some());
+        assert!(tokenizer.0.get_decoder().is_none());
     }
 }
