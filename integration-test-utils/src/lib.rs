@@ -22,26 +22,21 @@
 //! integration testing.
 
 use std::{
-    fs,
     future::Future,
     path::PathBuf,
     pin::Pin,
     process::{Command, Output, Stdio},
     sync::Mutex,
-    time::Duration,
 };
 
-use chrono::Local;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use reqwest::Method;
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
-use sqlx::{Connection, PgConnection};
-use tokio::time::sleep;
 use xayn_ai_test_utils::error::Panic;
 
 /// Absolute path to the root of the project as determined by `just`.
-pub static PROJECT_ROOT: Lazy<PathBuf> = Lazy::new(|| just(&["project-root"]).unwrap().into());
+pub static PROJECT_ROOT: Lazy<PathBuf> =
+    Lazy::new(|| just(&["_test-project-root"]).unwrap().into());
 
 /// Runs `just` with given arguments returning `stdout` as string.
 ///
@@ -72,140 +67,41 @@ pub fn just(args: &[&str]) -> Result<String, Panic> {
 /// Generates an ID for the test.
 ///
 /// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
-pub fn generate_test_id() -> String {
-    let now = Local::now();
-    format!(
-        "t{}_{:04x}",
-        now.format("%y%m%d_%H%M%S"),
-        rand::random::<u16>()
-    )
+pub fn generate_test_id() -> Result<String, Panic> {
+    just(&["_test-generate-id"])
 }
 
-/// Creates a postgres db for running a web-dev integration test.
+#[derive(Clone, Debug)]
+pub struct Services {
+    /// Id of the test.
+    pub id: String,
+    /// Uri to a postgres db for this test.
+    pub postgres: String,
+    /// Uri to a elastic search db for this test.
+    pub elastic_search: String,
+}
+
+/// Creates a postgres db and elastic search index for running a web-dev integration test.
 ///
-/// A uri usable for accessing the db is returned.
-pub async fn create_web_dev_pg_db(
-    name: &str,
-) -> Result<ScopeGuard<String, impl FnOnce(String), OnSuccess>, Panic> {
-    let uri = create_database(name).await?;
-    let name = name.to_owned();
-    Ok(guard_on_success(uri, move |_| {
-        tokio::spawn(async move {
-            drop_database(&name).await.ok();
-        });
+/// A uris usable for accessing the dbs are returned.
+pub async fn create_web_dev_services(
+) -> Result<ScopeGuard<Services, impl FnOnce(Services), OnSuccess>, Panic> {
+    let id = generate_test_id()?;
+
+    just(&["_test-create-dbs", &id])?;
+
+    let postgres = format!("postgresql://user:pw@localhost/{id}");
+    let elastic_search = format!("http://localhost:9200/{id}");
+
+    let uris = Services {
+        id,
+        postgres,
+        elastic_search,
+    };
+
+    Ok(guard_on_success(uris, move |uris| {
+        just(&["_test-drop-dbs", &uris.id]).unwrap();
     }))
-}
-
-async fn create_database(name: &str) -> Result<String, Panic> {
-    let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
-
-    if !VALID_DB_NAME.is_match(name) {
-        panic!("invalid db name syntax: {name}")
-    }
-
-    // bind doesn't work with create database
-    sqlx::query(&format!("CREATE DATABASE {name};"))
-        .execute(&mut db)
-        .await?;
-
-    Ok(format!("postgresql://user:pw@localhost/{name}"))
-}
-
-async fn drop_database(name: &str) -> Result<(), Panic> {
-    let mut db = PgConnection::connect("postgresql://user:pw@localhost/xayn").await?;
-
-    if !VALID_DB_NAME.is_match(name) {
-        panic!("invalid db name syntax: {name}")
-    }
-
-    // bind doesn't work with create database
-    sqlx::query(&format!("DROP DATABASE {name};"))
-        .execute(&mut db)
-        .await?;
-
-    Ok(())
-}
-
-static VALID_DB_NAME: Lazy<Regex> = Lazy::new(|| Regex::new("^[a-zA-Z_][a-zAZ0-9_]*$").unwrap());
-
-/// Creates a elastic search index for running a web-dev integration test.
-///
-/// A uri usable for accessing the index is returned.
-pub async fn create_web_dev_es_index(
-    name: &str,
-) -> Result<ScopeGuard<String, impl FnOnce(String), OnSuccess>, Panic> {
-    let es_index_uri = format!("http://localhost:9200/{}", name);
-
-    let mut ready = false;
-    for _ in 0..30 {
-        if check_if_es_ready(&es_index_uri).await {
-            ready = true;
-            break;
-        }
-        sleep(Duration::new(1, 0)).await;
-    }
-    if !ready {
-        panic!("Elastic Search is not accessible at: {}", es_index_uri);
-    }
-
-    create_index(&es_index_uri).await?;
-
-    Ok(guard_on_success(es_index_uri, |uri| {
-        tokio::spawn(async move {
-            drop_index(&uri).await.ok();
-        });
-    }))
-}
-
-/// Returns true if Elastic Search is ready.
-///
-/// The URI should be to a potential index, it is okay if the index doesn't exist,
-/// but it should not be to the elastic search root uri.
-pub async fn check_if_es_ready(es_index_uri: &str) -> bool {
-    let res = reqwest::Client::new()
-        .request(Method::OPTIONS, es_index_uri)
-        .send()
-        .await;
-
-    res.map(|res| res.status().is_success()).unwrap_or(false)
-}
-
-async fn create_index(es_index_uri: &str) -> Result<(), Panic> {
-    let mapping = fs::read(PROJECT_ROOT.join("./web-api/elastic-search/mapping.json"))?;
-    let response = reqwest::Client::new()
-        .put(es_index_uri)
-        .header("Content-Type", mime::APPLICATION_JSON.as_ref())
-        .body(mapping)
-        .send()
-        .await?;
-
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        let body = response.text().await?;
-        panic!("Creating index ({es_index_uri}) failed: {body}");
-    }
-}
-
-async fn drop_index(es_index_uri: &str) -> Result<(), Panic> {
-    let response = reqwest::Client::new().delete(es_index_uri).send().await?;
-
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        let body = response.text().await?;
-        panic!("Dropping index ({es_index_uri}) failed: {body}");
-    }
-}
-
-/// A struct containing the parameters passed to an web-dev integration test.
-pub struct WebDevEnv<'a> {
-    /// A (random) unique id generated for this test.
-    pub id: &'a str,
-    /// A URI allowing access to a postgres db created for this test.
-    pub pg_uri: &'a str,
-    /// A URI allowing access to an elastic search index created for this test.
-    pub es_uri: &'a str,
 }
 
 /// Runs given closure in a context where a run specific ES/PG index/db is created.
@@ -223,7 +119,7 @@ pub struct WebDevEnv<'a> {
 ///   - delete the postgres db
 ///   - delete the elastic search index
 pub async fn web_dev_integration_test_setup<T>(
-    func: impl for<'a> FnOnce(WebDevEnv<'a>) -> Pin<Box<dyn Future<Output = Result<T, Panic>> + 'a>>,
+    func: impl for<'a> FnOnce(&'a Services) -> Pin<Box<dyn Future<Output = Result<T, Panic>> + 'a>>,
 ) -> Result<T, Panic> {
     clear_env();
     if !std::env::var("CI")
@@ -232,20 +128,9 @@ pub async fn web_dev_integration_test_setup<T>(
     {
         just(&["web-dev-up"])?;
     }
-
-    let id = generate_test_id();
-    eprintln!("TestId={}", id);
-
-    let es_cleanup_guard = create_web_dev_es_index(&id).await?;
-    let pg_cleanup_guard = create_web_dev_pg_db(&id).await?;
-
-    let env = WebDevEnv {
-        id: &id,
-        pg_uri: &pg_cleanup_guard,
-        es_uri: &es_cleanup_guard,
-    };
-
-    func(env).await
+    let services = create_web_dev_services().await?;
+    eprintln!("TestId={}", &services.id);
+    func(&services).await
 }
 
 /// Remove all variables from this process environment (with some exceptions).
@@ -313,7 +198,7 @@ mod tests {
     fn test_random_id_generation_has_expected_format() -> Result<(), Panic> {
         let regex = Regex::new("^t[0-9]{6}_[0-9]{6}_[0-9a-f]{4}$")?;
         for _ in 0..100 {
-            let id = generate_test_id();
+            let id = generate_test_id()?;
             assert!(
                 regex.is_match(&id),
                 "id does not have expected format: {:?}",

@@ -221,10 +221,10 @@ mind-benchmark kind:
 _test-project-root:
     echo -n {{justfile_directory()}}
 
-_test-gen-id:
+_test-generate-id:
     echo -n "t$(date +%y%m%d_%H%M%S)_$(printf "%04x" "$RANDOM")"
 
-_test-setup-dbs $TEST_ID:
+_test-create-dbs $TEST_ID:
     #!/usr/bin/env -S bash -eux -o pipefail
     psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
     ./web-api/elastic-search/create_es_index.sh "http://localhost:9200/${TEST_ID}"
