@@ -46,9 +46,16 @@ impl Embedding<Ix1> {
 
     pub fn normalize(&self) -> Result<Self, InvalidVectorEncounteredError> {
         let view = self.view();
-        match l2_norm(view, view)? {
-            norm if norm <= 0. => Ok(self.mapv(|_| f32::MAX).into()), // very far away
-            norm => Ok(self.mapv(|x| x / norm).into()),
+        let norm = view.dot(&view).sqrt();
+        if norm.is_finite() {
+            let normalized = if norm <= 0. {
+                Array1::zeros(self.len())
+            } else {
+                &self.0 / norm
+            };
+            Ok(normalized.into())
+        } else {
+            Err(InvalidVectorEncounteredError)
         }
     }
 }
