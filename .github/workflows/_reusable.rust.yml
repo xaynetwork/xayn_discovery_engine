@@ -37,6 +37,28 @@ jobs:
     container:
       image: xaynetci/yellow:v9
     timeout-minutes: 20
+    services:
+      elasticsearch:
+        image: elasticsearch:8.5.3
+        env:
+          - discovery.type=single-node
+          - xpack.security.enabled=false
+        options: >-
+          --health-cmd curl -sf 'localhost:9200/_cluster/health'
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: xayn
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
 

@@ -122,10 +122,36 @@ build-ingestion-service:
 
 web-dev-up:
     #!/usr/bin/env -S bash -eux -o pipefail
-    rm "./web-api/assets" || :
-    ln -s "./assets/smbert_v0003" "./web-api/assets"
+    ociRunner="$(command -v podman || command -v docker)"
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
+
+    # check if it's already _fully_ running
+    running_services="$(
+        $ociRunner ps --format json | \
+        jq 'map(select(.Labels."com.docker.compose.project" == "web-api") | .Labels."com.docker.compose.service")'
+    )"
+    # Make sure we don't conflict with containerized ingestion or personalization services.
+    # If we do detect this services we stop them and restart the dbs to create a clean state.
+    RESTART=false
+    if jq -e 'contains(["ingestion"])' <(echo "$running_services"); then
+        RESTART=true
+        $compose -f "./web-api/compose.ingestion.yml" down
+    fi
+    if jq -e 'contains(["personalization"])' <(echo "$running_services"); then
+        RESTART=true
+        $compose -f "./web-api/compose.personalization.yml" down
+    fi
+    if [ "$RESTART" = "true" ] || \
+        jq -e 'contains(["elasticsearch","postgres"]) | not' <(echo "$running_services");
+    then
+        # stop any partial running services
+        {{just_executable()}} web-dev-down 1>/dev/null 2>&1 || :
+        # make sure the right assets are linked
+        rm "./web-api/assets" || :
+        ln -s "./assets/smbert_v0003" "./web-api/assets"
+        # start all db services
+        $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
+    fi
 
 web-dev-down:
     #!/usr/bin/env -S bash -eux -o pipefail
@@ -191,6 +217,22 @@ print-just-env:
 mind-benchmark kind:
     cargo test --package xayn-web-api --release --lib \
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
+
+_test-project-root:
+    echo -n {{justfile_directory()}}
+
+_test-generate-id:
+    echo -n "t$(date +%y%m%d_%H%M%S)_$(printf "%04x" "$RANDOM")"
+
+_test-create-dbs $TEST_ID:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
+    ./web-api/elastic-search/create_es_index.sh "http://localhost:9200/${TEST_ID}"
+
+_test-drop-dbs $TEST_ID:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
+    curl -f -X DELETE "http://localhost:9200/${TEST_ID}"
 
 alias r := rust-test
 alias t := test
