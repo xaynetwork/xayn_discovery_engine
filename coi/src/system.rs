@@ -127,7 +127,10 @@ mod tests {
         system.log_positive_user_reaction(&mut cois, &embedding);
 
         assert_eq!(cois.len(), 3);
-        assert_eq!(cois[0].point, arr1(&normalize_array([1.1, 1.2, 1.3])));
+        assert_eq!(
+            cois[0].point,
+            arr1(&[0.556_754_3, 0.575_323_8, 0.593_893_35])
+        );
         assert_eq!(cois[1].point, arr1(&normalize_array([10., 10., 10.])));
         assert_eq!(cois[2].point, arr1(&normalize_array([20., 20., 20.])));
 

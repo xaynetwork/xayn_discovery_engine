@@ -114,6 +114,12 @@ pub(crate) mod serde_duration_as_days {
     }
 }
 
+/// # Panics
+///
+/// This method is primarily used for testing.
+/// It simply converts an Array into a normalized Array.
+///
+/// Will panic if the array cannot be normalized.
 pub fn normalize_array<const N: usize>(array: [f32; N]) -> [f32; N] {
     let embedding: Embedding<Ix1> = Array::from_vec(array.into()).into();
     embedding
