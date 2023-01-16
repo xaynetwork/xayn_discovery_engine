@@ -10,6 +10,11 @@ services:
       - 5432:5432
     networks:
       - internal
+    healthcheck:
+      test: pg_isready
+      interval: 10s
+      timeout: 5s
+      health-retries: 5
 
   # adminer:
   #   image: adminer
@@ -29,6 +34,12 @@ services:
       - 9200:9200
     networks:
       - internal
+    healthcheck:
+      test: curl -sf 'localhost:9200/_cluster/health'
+      interval: 10s
+      timeout: 5s
+      health-retries: 5
+      start-period: 20s
 
   create_es_index:
     build:
