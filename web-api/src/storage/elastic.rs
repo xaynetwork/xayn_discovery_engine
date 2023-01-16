@@ -422,12 +422,16 @@ impl storage::Document for Storage {
             json!({
                 "bool": {
                     "must_not": [
-                        { "ids": excluded_ids },
-                        { "range": {
-                            "properties.publication_date": {
-                                "gt": "now"
+                        {
+                            "ids": excluded_ids
+                        },
+                        {
+                            "range": {
+                                "properties.publication_date": {
+                                    "gt": "now"
+                                }
                             }
-                        }}
+                        }
                     ]
                 }
             })
@@ -440,7 +444,7 @@ impl storage::Document for Storage {
                 "query_vector": params.embedding.normalize()?,
                 "k": params.k_neighbors,
                 "num_candidates": params.num_candidates,
-                "filter": filter,
+                "filter": filter
             },
             "_source": ["properties", "embedding", "tags"]
         }));
