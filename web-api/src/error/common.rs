@@ -19,9 +19,12 @@ use derive_more::From;
 use displaydoc::Display;
 use serde::Serialize;
 use thiserror::Error;
+use xayn_ai_bert::InvalidEmbedding;
 
 use super::application::ApplicationError;
 use crate::{impl_application_error, models::DocumentId, Error};
+
+impl_application_error!(InvalidEmbedding => BAD_REQUEST);
 
 /// The requested document was not found.
 #[derive(Debug, Error, Display, Serialize)]
