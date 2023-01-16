@@ -122,13 +122,7 @@ pub(crate) mod serde_duration_as_days {
 /// Will panic if the array cannot be normalized.
 pub fn normalize_array<const N: usize>(array: [f32; N]) -> [f32; N] {
     let embedding: Embedding<Ix1> = Array::from_vec(array.into()).into();
-    embedding
-        .normalized()
-        .unwrap()
-        .as_slice()
-        .unwrap()
-        .try_into()
-        .unwrap()
+    embedding.normalize().unwrap().to_vec().try_into().unwrap()
 }
 
 #[cfg(test)]

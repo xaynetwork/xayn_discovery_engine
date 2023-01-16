@@ -16,7 +16,7 @@ use std::ops::RangeInclusive;
 
 use itertools::Itertools;
 use ndarray::{Array2, ArrayView1};
-pub use xayn_ai_bert::{Embedding1 as Embedding, L2Norm, MalformedBytesEmbedding};
+pub use xayn_ai_bert::{Embedding1 as Embedding, MalformedBytesEmbedding};
 
 /// See [`pairwise_cosine_similarity`] for details.
 pub(crate) const MAXIMUM_COSINE_SIMILARITY: f32 = 1.0;
@@ -65,11 +65,13 @@ where
     similarities
 }
 
-/// Computes the cosine similarity of two vectors.
-///
-/// See [`pairwise_cosine_similarity`] for details.
-pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
-    a.dot(&b).clamp(-1., 1.)
+/// Computes the dot product of two vectors.
+pub fn normalized_dot_product(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
+    if a.iter().any(|&v| v != 0.) || b.iter().any(|&v| v != 0.) {
+        a.dot(&b).clamp(-1., 1.)
+    } else {
+        1.
+    }
 }
 
 #[cfg(test)]
@@ -86,7 +88,7 @@ mod tests {
         let embedding_b = Embedding::from(arr1(&normalize_array([0., 0., 0.])));
         assert_approx_eq!(
             f32,
-            cosine_similarity(embedding_a.view(), embedding_b.view()),
+            normalized_dot_product(embedding_a.view(), embedding_b.view()),
             1.0
         );
     }

@@ -33,7 +33,7 @@ use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
 use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::RwLock;
-use xayn_ai_coi::{cosine_similarity, Embedding, PositiveCoi, UserInterests};
+use xayn_ai_coi::{normalized_dot_product, Embedding, PositiveCoi, UserInterests};
 
 use super::{Document as _, InteractionUpdateContext};
 use crate::{
@@ -67,7 +67,7 @@ struct CowEmbedding<'a>(Cow<'a, Embedding>);
 
 impl Point for CowEmbedding<'_> {
     fn distance(&self, other: &Self) -> f32 {
-        1. - cosine_similarity(self.view(), other.view())
+        1. - normalized_dot_product(self.view(), other.view())
     }
 }
 

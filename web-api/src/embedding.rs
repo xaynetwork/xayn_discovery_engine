@@ -49,7 +49,11 @@ pub(crate) struct Embedder {
 
 impl Embedder {
     pub(crate) fn run(&self, s: &str) -> Result<Embedding, InternalError> {
-        self.bert.run(s).map_err(InternalError::from_std)
+        let embedding = self.bert.run(s);
+        match embedding {
+            Ok(embedding) => embedding.normalize().map_err(InternalError::from_std),
+            Err(error) => Err(InternalError::from_std(error)),
+        }
     }
 
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {

@@ -18,7 +18,7 @@ use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    embedding::{cosine_similarity, Embedding},
+    embedding::{normalized_dot_product, Embedding},
     id::CoiId,
     stats::CoiStats,
     utils::system_time_now,
@@ -131,7 +131,7 @@ pub(super) fn find_closest_coi_index(
 
     let mut similarities = cois
         .iter()
-        .map(|coi| cosine_similarity(embedding.view(), coi.point().view()))
+        .map(|coi| normalized_dot_product(embedding.view(), coi.point().view()))
         .enumerate()
         .collect::<Vec<_>>();
 
@@ -273,7 +273,7 @@ pub(crate) mod tests {
     #[test]
     fn test_find_closest_coi_single_nan() {
         let embedding: Embedding = arr1(&[1., f32::NAN, 2.]).into();
-        assert!(&embedding.normalized().is_err());
+        assert!(&embedding.normalize().is_err());
     }
 
     #[test]

@@ -32,7 +32,6 @@ use crate::{
             DocumentPropertyNotFound,
             FailedToDeleteSomeDocuments,
             IngestingDocumentsFailed,
-            InternalError,
         },
     },
     models::{
@@ -100,29 +99,14 @@ async fn new_documents(
     let (documents, mut failed_documents) = body
         .documents
         .into_iter()
-        .map(|document| {
-            match state
-                .embedder
-                .run(&document.snippet)
-                .and_then(|res| res.normalized().map_err(InternalError::from_std))
-            {
-                Ok(embedding) => match embedding.normalized() {
-                    Ok(embedding) => Ok((document, embedding)),
-                    Err(err) => {
-                        error!(
-                            "Document with id '{}' caused an InvalidVectorEncounteredError: {:#?}",
-                            document.id, err,
-                        );
-                        Err(document.id.into())
-                    }
-                },
-                Err(err) => {
-                    error!(
-                        "Document with id '{}' caused a PipelineError: {:#?}",
-                        document.id, err,
-                    );
-                    Err(document.id.into())
-                }
+        .map(|document| match state.embedder.run(&document.snippet) {
+            Ok(embedding) => Ok((document, embedding)),
+            Err(err) => {
+                error!(
+                    "Document with id '{}' caused a PipelineError: {:#?}",
+                    document.id, err,
+                );
+                Err(document.id.into())
             }
         })
         .partition_result::<Vec<_>, Vec<_>, _, _>();
