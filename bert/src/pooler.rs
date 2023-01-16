@@ -114,23 +114,6 @@ impl TryFrom<Vec<u8>> for Embedding<Ix1> {
     }
 }
 
-/// Computes the l2 norm (euclidean metric).
-///
-/// *NOTE* This used to `panic` before, but as we now calculate l2 norm upon ingestion,
-/// this behavior changed to become `None`, so that underlying code could still follow up.
-fn l2_norm<S>(
-    a: ArrayBase<S, Ix1>,
-    b: ArrayBase<S, Ix1>,
-) -> Result<f32, InvalidVectorEncounteredError>
-where
-    S: Data<Elem = f32>,
-{
-    match a.view().dot(&b.view()).sqrt() {
-        n if n.is_finite() => Ok(n),
-        _ => Err(InvalidVectorEncounteredError),
-    }
-}
-
 /// A 2-dimensional sequence embedding.
 ///
 /// The embedding is of shape `(token_size, embedding_size)`.
@@ -308,37 +291,5 @@ mod tests {
         let mask = arr2(&[[1, 1]]).into();
         let embedding = AveragePooler::pool(&prediction.into(), &mask).unwrap();
         assert_eq!(embedding, arr1(&[2.5, 3.5, 4.5]));
-    }
-
-    #[test]
-    fn test_l2_norm() {
-        xayn_ai_test_utils::assert_approx_eq!(
-            f32,
-            l2_norm(arr1(&[1., 2., 3.]), arr1(&[1., 2., 3.])).unwrap(),
-            3.741_657_5
-        );
-    }
-
-    #[test]
-    fn test_l2_norm_nan() {
-        assert!(l2_norm(arr1(&[1., f32::NAN, 3.]), arr1(&[1., f32::NAN, 3.])).is_err());
-    }
-
-    #[test]
-    fn test_l2_norm_inf() {
-        assert!(l2_norm(
-            arr1(&[1., f32::INFINITY, 3.]),
-            arr1(&[1., f32::INFINITY, 3.])
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn test_l2_norm_neginf() {
-        assert!(l2_norm(
-            arr1(&[1., f32::NEG_INFINITY, 3.]),
-            arr1(&[1., f32::NEG_INFINITY, 3.])
-        )
-        .is_err());
     }
 }
