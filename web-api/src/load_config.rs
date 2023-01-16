@@ -53,6 +53,8 @@ use serde::{de::DeserializeOwned, Serialize};
 /// Env variables are split at `__`. I.e. `XAYN_WEB_API__FOO__BAR=12` will be treated like
 /// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config.
 pub(crate) fn load_config<C, U>(
+    application_name: &str,
+    generic_application_name: &str,
     config_file: Option<&Path>,
     update_with: U,
 ) -> Result<C, figment::Error>
@@ -66,9 +68,13 @@ where
     load_dotenv(".env.local")?;
     load_dotenv(".env")?;
 
+    let application_name = application_name.to_uppercase();
+    let generic_application_name = generic_application_name.to_uppercase();
+
     let mut figment = Figment::new()
         .join(Serialized::defaults(update_with))
-        .join(Env::prefixed("XAYN_WEB_API__").split("__"));
+        .join(Env::prefixed(&format!("{application_name}__")).split("__"))
+        .join(Env::prefixed(&format!("{generic_application_name}__")).split("__"));
 
     let file = config_file.unwrap_or_else(|| Path::new("config.toml"));
     if file.exists() {

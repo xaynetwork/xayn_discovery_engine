@@ -60,7 +60,7 @@ fn test_loading_config_with_env_overrides() {
     with_env_guard(
         [
             ("XAYN_WEB_API__STORAGE__POSTGRES__PORT", "3532"),
-            ("XAYN_WEB_API__NET__MAX_BODY_SIZE", "4422"),
+            ("XAYN_INGESTION__NET__MAX_BODY_SIZE", "4422"),
             ("XAYN_WEB_API__LOGGING__LEVEL", "trace"),
         ],
         || {
