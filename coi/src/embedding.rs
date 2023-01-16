@@ -67,7 +67,7 @@ where
 
 /// Computes the dot product of two vectors.
 pub fn normalized_dot_product(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
-    if a.iter().any(|&v| v != 0.) || b.iter().any(|&v| v != 0.) {
+    if a.iter().any(|&v| v != 0.) && b.iter().any(|&v| v != 0.) {
         a.dot(&b).clamp(-1., 1.)
     } else {
         1.
