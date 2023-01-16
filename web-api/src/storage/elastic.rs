@@ -488,7 +488,7 @@ impl storage::Document for Storage {
                         .map_err(Into::into),
                     serde_json::to_value(IngestedDocument {
                         snippet: &document.snippet,
-                        properties: dbg!(&document.properties),
+                        properties: &document.properties,
                         embedding: &embedding,
                         tags: &document.tags,
                     })
