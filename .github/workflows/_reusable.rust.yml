@@ -37,6 +37,9 @@ jobs:
     container:
       image: xaynetci/yellow:v9
     timeout-minutes: 20
+    env:
+      XAYN_INGESTION__NET__BIND_TO=127.0.1.1:3030
+      XAYN_PERSONALIZATION__NET__BIND_TO=127.0.1.1:3031
     services:
       elasticsearch:
         image: elasticsearch:8.5.3
