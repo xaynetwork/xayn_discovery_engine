@@ -6,7 +6,7 @@ cd $(dirname $0)
 
 URL="${1:-http://localhost:9200/test_index}"
 
-while ! curl -s -X OPTIONS "${URL}" ; do
+while ! curl -sf -X OPTIONS "${URL}" ; do
     echo "Waiting for elasticsearch";
     sleep 1;
 done;
