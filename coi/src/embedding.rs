@@ -78,11 +78,12 @@ mod tests {
     use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
+    use crate::utils::normalize_array;
 
     #[test]
     fn test_cosine_similarity_zero() {
-        let embedding_a = Embedding::from(arr1(&[1., 2., 3.])).normalized().unwrap();
-        let embedding_b = Embedding::from(arr1(&[0., 0., 0.])).normalized().unwrap();
+        let embedding_a = Embedding::from(arr1(&normalize_array([1., 2., 3.])));
+        let embedding_b = Embedding::from(arr1(&normalize_array([0., 0., 0.])));
         assert_approx_eq!(
             f32,
             cosine_similarity(embedding_a.view(), embedding_b.view()),

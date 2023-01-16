@@ -110,22 +110,26 @@ mod tests {
     use crate::{
         document::tests::{DocumentId, TestDocument},
         point::tests::{create_neg_cois, create_pos_cois},
-        utils,
+        utils::{self, normalize_array},
     };
 
     #[test]
     fn test_log_positive_user_reaction_same_coi() {
-        let mut cois = create_pos_cois(&[[1., 1., 1.], [10., 10., 10.], [20., 20., 20.]]);
-        let embedding = arr1(&[2., 3., 4.]).into();
+        let mut cois = create_pos_cois(&[
+            normalize_array([1., 1., 1.]),
+            normalize_array([10., 10., 10.]),
+            normalize_array([20., 20., 20.]),
+        ]);
+        let embedding = arr1(&normalize_array([2., 3., 4.])).into();
         let system = Config::default().build();
 
         let last_view = cois[0].stats.last_view;
         system.log_positive_user_reaction(&mut cois, &embedding);
 
         assert_eq!(cois.len(), 3);
-        assert_eq!(cois[0].point, arr1(&[1.1, 1.2, 1.3]));
-        assert_eq!(cois[1].point, arr1(&[10., 10., 10.]));
-        assert_eq!(cois[2].point, arr1(&[20., 20., 20.]));
+        assert_eq!(cois[0].point, arr1(&normalize_array([1.1, 1.2, 1.3])));
+        assert_eq!(cois[1].point, arr1(&normalize_array([10., 10., 10.])));
+        assert_eq!(cois[2].point, arr1(&normalize_array([20., 20., 20.])));
 
         assert_eq!(cois[0].stats.view_count, 2);
         assert!(cois[0].stats.last_view > last_view);
@@ -133,21 +137,21 @@ mod tests {
 
     #[test]
     fn test_log_positive_user_reaction_new_coi() {
-        let mut cois = create_pos_cois(&[[0., 1.]]);
-        let embedding = arr1(&[1., 0.]).into();
+        let mut cois = create_pos_cois(&[normalize_array([0., 1.])]);
+        let embedding = arr1(&normalize_array([1., 0.])).into();
         let system = Config::default().build();
 
         system.log_positive_user_reaction(&mut cois, &embedding);
 
         assert_eq!(cois.len(), 2);
-        assert_eq!(cois[0].point, arr1(&[0., 1.,]));
-        assert_eq!(cois[1].point, arr1(&[1., 0.]));
+        assert_eq!(cois[0].point, arr1(&normalize_array([0., 1.,])));
+        assert_eq!(cois[1].point, arr1(&normalize_array([1., 0.])));
     }
 
     #[test]
     fn test_log_negative_user_reaction_last_view() {
-        let mut cois = create_neg_cois(&[[1., 2., 3.]]);
-        let embedding = arr1(&[1., 2., 4.]).into();
+        let mut cois = create_neg_cois(&[normalize_array([1., 2., 3.])]);
+        let embedding = arr1(&normalize_array([1., 2., 4.])).into();
         let system = Config::default().build();
 
         let last_view = cois[0].last_view;
@@ -159,11 +163,11 @@ mod tests {
 
     #[test]
     fn test_log_document_view_time() {
-        let mut cois = create_pos_cois(&[[1., 2., 3.]]);
+        let mut cois = create_pos_cois(&[normalize_array([1., 2., 3.])]);
 
         System::log_document_view_time(
             &mut cois,
-            &arr1(&[1., 2., 4.]).into(),
+            &arr1(&normalize_array([1., 2., 4.])).into(),
             Duration::from_secs(10),
         );
         assert_eq!(Duration::from_secs(10), cois[0].stats.view_time);
@@ -178,44 +182,18 @@ mod tests {
 
     #[test]
     fn test_rank() {
-        let embedding_a: Embedding = arr1(&[3., 7., 0.]).into();
-        let embedding_b: Embedding = arr1(&[1., 0., 0.]).into();
-        let embedding_c: Embedding = arr1(&[1., 2., 0.]).into();
-        let embedding_d: Embedding = arr1(&[5., 3., 0.]).into();
-        let coi_a: Embedding = arr1(&[1., 0., 0.]).into();
-        let coi_b: Embedding = arr1(&[4., 12., 2.]).into();
-        let coi_c: Embedding = arr1(&[-100., -10., 0.]).into();
-        let arr_a: [f32; 3] = coi_a
-            .normalized()
-            .unwrap()
-            .as_slice()
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let arr_b: [f32; 3] = coi_b
-            .normalized()
-            .unwrap()
-            .as_slice()
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let arr_c: [f32; 3] = coi_c
-            .normalized()
-            .unwrap()
-            .as_slice()
-            .unwrap()
-            .try_into()
-            .unwrap();
-        coi_a.normalized().unwrap().as_slice();
         let mut documents = vec![
-            TestDocument::new(0, embedding_a.normalized().unwrap()),
-            TestDocument::new(1, embedding_b.normalized().unwrap()),
-            TestDocument::new(2, embedding_c.normalized().unwrap()),
-            TestDocument::new(3, embedding_d.normalized().unwrap()),
+            TestDocument::new(0, arr1(&normalize_array([3., 7., 0.]))),
+            TestDocument::new(1, arr1(&normalize_array([1., 0., 0.]))),
+            TestDocument::new(2, arr1(&normalize_array([1., 2., 0.]))),
+            TestDocument::new(3, arr1(&normalize_array([5., 3., 0.]))),
         ];
         let user_interests = UserInterests {
-            positive: create_pos_cois(&[arr_a, arr_b]),
-            negative: create_neg_cois(&[arr_c]),
+            positive: create_pos_cois(&[
+                normalize_array([1., 0., 0.]),
+                normalize_array([4., 12., 2.]),
+            ]),
+            negative: create_neg_cois(&[normalize_array([-100., -10., 0.])]),
         };
         let system = Config::default()
             .with_min_positive_cois(2)
@@ -235,9 +213,9 @@ mod tests {
     #[test]
     fn test_rank_no_user_interests() {
         let documents = vec![
-            TestDocument::new(0, arr1(&[0., 0., 0.])),
-            TestDocument::new(1, arr1(&[0., 0., 0.])),
-            TestDocument::new(2, arr1(&[0., 0., 0.])),
+            TestDocument::new(0, arr1(&normalize_array([0., 0., 0.]))),
+            TestDocument::new(1, arr1(&normalize_array([0., 0., 0.]))),
+            TestDocument::new(2, arr1(&normalize_array([0., 0., 0.]))),
         ];
         let user_interests = UserInterests::default();
         let system = Config::default().with_min_positive_cois(1).unwrap().build();

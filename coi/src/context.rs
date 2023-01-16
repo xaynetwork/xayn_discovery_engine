@@ -212,7 +212,7 @@ mod tests {
     use super::*;
     use crate::{
         point::tests::{create_neg_cois, create_pos_cois},
-        utils::SECONDS_PER_DAY_F32,
+        utils::{normalize_array, SECONDS_PER_DAY_F32},
     };
 
     #[test]
@@ -226,48 +226,23 @@ mod tests {
 
     #[test]
     fn test_compute_score_for_embedding() {
-        let embedding: Embedding = arr1(&[1., 4., 4.]).into();
-
         let epoch = SystemTime::UNIX_EPOCH;
         let now = epoch + Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
-
-        let coi_a: Embedding = arr1(&[62., 55., 11.]).into();
-        let coi_b: Embedding = arr1(&[76., 30., 80.]).into();
-        let coi_c: Embedding = arr1(&[6., 61., 6.]).into();
-        let arr_a: [f32; 3] = coi_a
-            .normalized()
-            .unwrap()
-            .as_slice()
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let arr_b: [f32; 3] = coi_b
-            .normalized()
-            .unwrap()
-            .as_slice()
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let arr_c: [f32; 3] = coi_c
-            .normalized()
-            .unwrap()
-            .as_slice()
-            .unwrap()
-            .try_into()
-            .unwrap();
-
-        let mut positive = create_pos_cois(&[arr_a, arr_b]);
+        let mut positive = create_pos_cois(&[
+            normalize_array([62., 55., 11.]),
+            normalize_array([76., 30., 80.]),
+        ]);
         positive[0].stats.last_view -= Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32);
         positive[1].stats.last_view -= Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32);
 
-        let mut negative = create_neg_cois(&[arr_c]);
+        let mut negative = create_neg_cois(&[normalize_array([6., 61., 6.])]);
         negative[0].last_view = epoch;
         let user_interests = UserInterests { positive, negative };
 
         let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
 
         let score = compute_score_for_embedding(
-            &embedding.normalized().unwrap(),
+            &arr1(&normalize_array([1., 4., 4.])).into(),
             &user_interests,
             horizon,
             now,
@@ -285,11 +260,10 @@ mod tests {
 
     #[test]
     fn test_compute_score_for_embedding_no_cois() {
-        let embedding = arr1(&[0., 0., 0.]).into();
         let horizon = Duration::from_secs_f32(SECONDS_PER_DAY_F32);
 
         let res = compute_score_for_embedding(
-            &embedding,
+            &arr1(&normalize_array([0., 0., 0.])).into(),
             &UserInterests::default(),
             horizon,
             system_time_now(),

@@ -14,6 +14,9 @@
 
 use std::{cmp::Ordering, collections::HashMap, time::SystemTime};
 
+use ndarray::{Array, Ix1};
+use xayn_ai_bert::Embedding;
+
 use crate::Document;
 
 /// Pretend that f32 has a total ordering.
@@ -109,6 +112,17 @@ pub(crate) mod serde_duration_as_days {
     {
         u64::deserialize(deserializer).map(|days| Duration::from_secs(SECONDS_PER_DAY_U64 * days))
     }
+}
+
+pub fn normalize_array<const N: usize>(array: [f32; N]) -> [f32; N] {
+    let embedding: Embedding<Ix1> = Array::from_vec(array.into()).into();
+    embedding
+        .normalized()
+        .unwrap()
+        .as_slice()
+        .unwrap()
+        .try_into()
+        .unwrap()
 }
 
 #[cfg(test)]
