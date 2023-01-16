@@ -14,8 +14,7 @@
 
 use std::{cmp::Ordering, collections::HashMap, time::SystemTime};
 
-use ndarray::{Array, Ix1};
-use xayn_ai_bert::{Embedding, Embedding1};
+use xayn_ai_bert::Embedding1;
 
 use crate::Document;
 
