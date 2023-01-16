@@ -218,8 +218,21 @@ mind-benchmark kind:
     cargo test --package xayn-web-api --release --lib \
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
-project-root:
+_test-project-root:
     echo -n {{justfile_directory()}}
+
+_test-gen-id:
+    echo -n "t$(date +%y%m%d_%H%M%S)_$(printf "%04x" "$RANDOM")"
+
+_test-setup-dbs $TEST_ID:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
+    ./web-api/elastic-search/create_es_index.sh "http://localhost:9200/${TEST_ID}"
+
+_test-drop-dbs $TEST_ID:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
+    curl -f -X DELETE "http://localhost:9200/${TEST_ID}"
 
 alias r := rust-test
 alias t := test
