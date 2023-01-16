@@ -33,7 +33,7 @@ use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
 use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::RwLock;
-use xayn_ai_coi::{cosine_similarity, Embedding, PositiveCoi, UserInterests};
+use xayn_ai_coi::{normalized_dot_product, Embedding, PositiveCoi, UserInterests};
 
 use super::{Document as _, InteractionUpdateContext};
 use crate::{
@@ -67,7 +67,7 @@ struct CowEmbedding<'a>(Cow<'a, Embedding>);
 
 impl Point for CowEmbedding<'_> {
     fn distance(&self, other: &Self) -> f32 {
-        1. - cosine_similarity(self.view(), other.view())
+        1. - normalized_dot_product(self.view(), other.view())
     }
 }
 
@@ -602,6 +602,7 @@ impl Storage {
 mod tests {
     use itertools::Itertools;
     use uuid::Uuid;
+    use xayn_ai_coi::utils::normalize_array;
 
     use super::*;
 
@@ -620,9 +621,9 @@ mod tests {
             })
             .collect_vec();
         let embeddings = [
-            [1., 0., 0.].into(),
-            [1., 1., 0.].into(),
-            [1., 1., 1.].into(),
+            normalize_array([1., 0., 0.]).into(),
+            normalize_array([1., 1., 0.]).into(),
+            normalize_array([1., 1., 1.]).into(),
         ];
         let storage = Storage::default();
         storage::Document::insert(
@@ -632,7 +633,7 @@ mod tests {
         .await
         .unwrap();
 
-        let embedding = &[0., 1., 1.].into();
+        let embedding = &normalize_array([0., 1., 1.]).into();
         let documents = storage::Document::get_by_embedding(
             &storage,
             KnnSearchParams {

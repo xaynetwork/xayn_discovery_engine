@@ -14,6 +14,8 @@
 
 use std::{cmp::Ordering, collections::HashMap, time::SystemTime};
 
+use xayn_ai_bert::Embedding1;
+
 use crate::Document;
 
 /// Pretend that f32 has a total ordering.
@@ -109,6 +111,21 @@ pub(crate) mod serde_duration_as_days {
     {
         u64::deserialize(deserializer).map(|days| Duration::from_secs(SECONDS_PER_DAY_U64 * days))
     }
+}
+
+/// # Panics
+///
+/// This method is primarily used for testing.
+/// It simply converts an Array into a normalized Array.
+///
+/// Will panic if the array cannot be normalized.
+pub fn normalize_array<const N: usize>(array: [f32; N]) -> [f32; N] {
+    Embedding1::from(array)
+        .normalize()
+        .unwrap()
+        .to_vec()
+        .try_into()
+        .unwrap()
 }
 
 #[cfg(test)]

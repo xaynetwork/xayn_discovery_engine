@@ -15,27 +15,8 @@
 use std::ops::RangeInclusive;
 
 use itertools::Itertools;
-use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix1};
+use ndarray::{Array2, ArrayView1};
 pub use xayn_ai_bert::{Embedding1 as Embedding, MalformedBytesEmbedding};
-
-/// Computes the l2 norm (euclidean metric) of a vector.
-///
-/// # Panics
-/// Panics if the vector doesn't consist solely of real values.
-#[allow(clippy::needless_pass_by_value)] // pass by value needed for ArrayView
-pub(crate) fn l2_norm<S>(a: ArrayBase<S, Ix1>) -> f32
-where
-    S: Data<Elem = f32>,
-{
-    let norm = a.dot(&a).sqrt();
-    assert!(
-        norm.is_finite(),
-        "vector must consist of real values only, but got:\n{:?}",
-        a,
-    );
-
-    norm
-}
 
 /// See [`pairwise_cosine_similarity`] for details.
 pub(crate) const MAXIMUM_COSINE_SIMILARITY: f32 = 1.0;
@@ -75,101 +56,40 @@ where
         _ => unimplemented!("I::IntoIter: TrustedLen"),
     };
 
-    let norms = iter.clone().map(|a| l2_norm(a.view())).collect::<Vec<_>>();
     let mut similarities = Array2::ones((size, size));
-    for ((i, a), (j, b)) in iter
-        .clone()
-        .enumerate()
-        .cartesian_product(iter.enumerate())
-        .filter(|((i, _), (j, _))| j > i && norms[*i] > 0. && norms[*j] > 0.)
-    {
-        similarities[[i, j]] = (a.dot(&b) / norms[i] / norms[j]).clamp(-1., 1.);
+    for ((i, a), (j, b)) in iter.clone().enumerate().cartesian_product(iter.enumerate()) {
+        similarities[[i, j]] = a.dot(&b).clamp(-1., 1.);
         similarities[[j, i]] = similarities[[i, j]];
     }
 
     similarities
 }
 
-/// Computes the cosine similarity of two vectors.
-///
-/// See [`pairwise_cosine_similarity`] for details.
-pub fn cosine_similarity(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
-    let norm_a = l2_norm(a.view());
-    if norm_a <= 0. {
-        return 1.;
+/// Computes the dot product of two vectors.
+pub fn normalized_dot_product(a: ArrayView1<'_, f32>, b: ArrayView1<'_, f32>) -> f32 {
+    if a.iter().any(|&v| v != 0.) && b.iter().any(|&v| v != 0.) {
+        a.dot(&b).clamp(-1., 1.)
+    } else {
+        1.
     }
-
-    let norm_b = l2_norm(b.view());
-    if norm_b <= 0. {
-        return 1.;
-    }
-
-    (a.dot(&b) / norm_a / norm_b).clamp(-1., 1.)
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{arr1, arr2};
+    use ndarray::arr1;
     use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
-
-    #[test]
-    fn test_l2_norm() {
-        assert_approx_eq!(f32, l2_norm(arr1(&[1., 2., 3.])), 3.741_657_5);
-    }
-
-    #[test]
-    #[should_panic(expected = "vector must consist of real values only, but got")]
-    fn test_l2_norm_nan() {
-        l2_norm(arr1(&[1., f32::NAN, 3.]));
-    }
-
-    #[test]
-    #[should_panic(expected = "vector must consist of real values only, but got")]
-    fn test_l2_norm_inf() {
-        l2_norm(arr1(&[1., f32::INFINITY, 3.]));
-    }
-
-    #[test]
-    #[should_panic(expected = "vector must consist of real values only, but got")]
-    fn test_l2_norm_neginf() {
-        l2_norm(arr1(&[1., f32::NEG_INFINITY, 3.]));
-    }
-
-    #[test]
-    fn test_pairwise_cosine_similarity_empty() {
-        assert_approx_eq!(
-            f32,
-            pairwise_cosine_similarity(std::iter::empty()),
-            arr2(&[[]]),
-        );
-    }
-
-    #[test]
-    fn test_pairwise_cosine_similarity_single() {
-        assert_approx_eq!(
-            f32,
-            pairwise_cosine_similarity([arr1(&[1., 2., 3.]).view()]),
-            arr2(&[[1.]]),
-        );
-    }
-
-    #[test]
-    fn test_pairwise_cosine_similarity_pair() {
-        assert_approx_eq!(
-            f32,
-            pairwise_cosine_similarity([arr1(&[1., 2., 3.]).view(), arr1(&[4., 5., 6.]).view()]),
-            arr2(&[[1., 0.974_631_85], [0.974_631_85, 1.]]),
-        );
-    }
+    use crate::utils::normalize_array;
 
     #[test]
     fn test_cosine_similarity_zero() {
+        let embedding_a = Embedding::from(arr1(&normalize_array([1., 2., 3.])));
+        let embedding_b = Embedding::from(arr1(&normalize_array([0., 0., 0.])));
         assert_approx_eq!(
             f32,
-            cosine_similarity(arr1(&[1., 2., 3.]).view(), arr1(&[0., 0., 0.]).view()),
-            1.
+            normalized_dot_product(embedding_a.view(), embedding_b.view()),
+            1.0
         );
     }
 }

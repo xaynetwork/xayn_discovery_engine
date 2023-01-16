@@ -18,7 +18,7 @@ use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    embedding::{cosine_similarity, Embedding},
+    embedding::{normalized_dot_product, Embedding},
     id::CoiId,
     stats::CoiStats,
     utils::system_time_now,
@@ -131,7 +131,7 @@ pub(super) fn find_closest_coi_index(
 
     let mut similarities = cois
         .iter()
-        .map(|coi| cosine_similarity(embedding.view(), coi.point().view()))
+        .map(|coi| normalized_dot_product(embedding.view(), coi.point().view()))
         .enumerate()
         .collect::<Vec<_>>();
 
@@ -168,6 +168,7 @@ pub(crate) mod tests {
     use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
+    use crate::utils::normalize_array;
 
     pub(crate) trait CoiPointConstructor {
         fn new(id: impl Into<CoiId>, point: impl Into<Embedding>) -> Self;
@@ -230,10 +231,9 @@ pub(crate) mod tests {
 
     #[test]
     fn test_find_closest_coi_single() {
-        let cois = create_pos_cois(&[[1., 2., 3.]]);
-        let embedding = arr1(&[1., 5., 9.]).into();
-
-        let (index, similarity) = find_closest_coi_index(&cois, &embedding).unwrap();
+        let cois = create_pos_cois(&[normalize_array([1., 2., 3.])]);
+        let (index, similarity) =
+            find_closest_coi_index(&cois, &arr1(&normalize_array([1., 5., 9.])).into()).unwrap();
 
         assert_eq!(index, 0);
         assert_approx_eq!(f32, similarity, 0.981_810_57);
@@ -241,45 +241,44 @@ pub(crate) mod tests {
 
     #[test]
     fn test_find_closest_coi() {
-        let cois = create_pos_cois(&[[6., 1., 8.], [12., 4., 0.], [0., 4., 13.]]);
-        let embedding = arr1(&[1., 5., 9.]).into();
+        let cois = create_pos_cois(&[
+            normalize_array([6., 1., 8.]),
+            normalize_array([12., 4., 0.]),
+            normalize_array([0., 4., 13.]),
+        ]);
+        let (closest, similarity) =
+            find_closest_coi(&cois, &arr1(&normalize_array([1., 5., 9.])).into()).unwrap();
 
-        let (closest, similarity) = find_closest_coi(&cois, &embedding).unwrap();
-
-        assert_eq!(closest.point, arr1(&[0., 4., 13.]));
+        assert_eq!(closest.point, arr1(&normalize_array([0., 4., 13.])));
         assert_approx_eq!(f32, similarity, 0.973_739_56);
     }
 
     #[test]
     fn test_find_closest_coi_equal() {
-        let cois = create_pos_cois(&[[1., 2., 3.]]);
-        let embedding = arr1(&[1., 2., 3.]).into();
+        let cois = create_pos_cois(&[normalize_array([1., 2., 3.])]);
+        let (closest, similarity) =
+            find_closest_coi(&cois, &arr1(&normalize_array([1., 2., 3.])).into()).unwrap();
 
-        let (closest, similarity) = find_closest_coi(&cois, &embedding).unwrap();
-
-        assert_eq!(closest.point, arr1(&[1., 2., 3.]));
+        assert_eq!(closest.point, arr1(&normalize_array([1., 2., 3.])));
         assert_approx_eq!(f32, similarity, 1.);
     }
 
     #[test]
-    #[should_panic(expected = "vector must consist of real values only")]
     fn test_find_closest_coi_all_nan() {
-        let cois = create_pos_cois(&[[1., 2., 3.]]);
+        let cois = create_pos_cois(&[normalize_array([1., 2., 3.])]);
         let embedding = arr1(&[f32::NAN, f32::NAN, f32::NAN]).into();
         find_closest_coi_index(&cois, &embedding);
     }
 
     #[test]
-    #[should_panic(expected = "vector must consist of real values only")]
     fn test_find_closest_coi_single_nan() {
-        let cois = create_pos_cois(&[[1., 2., 3.]]);
-        let embedding = arr1(&[1., f32::NAN, 2.]).into();
-        find_closest_coi_index(&cois, &embedding);
+        let embedding: Embedding = arr1(&[1., f32::NAN, 2.]).into();
+        assert!(&embedding.normalize().is_err());
     }
 
     #[test]
     fn test_find_closest_coi_index_empty() {
-        let embedding = arr1(&[1., 2., 3.]).into();
+        let embedding = arr1(&normalize_array([1., 2., 3.])).into();
         let coi = find_closest_coi_index(&[] as &[PositiveCoi], &embedding);
         assert!(coi.is_none());
     }

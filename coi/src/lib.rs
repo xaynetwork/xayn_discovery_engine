@@ -48,7 +48,7 @@ pub use crate::{
     context::Error as CoiContextError,
     document::Document,
     embedding::{
-        cosine_similarity,
+        normalized_dot_product,
         pairwise_cosine_similarity,
         Embedding,
         MalformedBytesEmbedding,

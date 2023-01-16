@@ -43,6 +43,21 @@ impl Embedding<Ix1> {
     pub fn to_bytes(&self) -> Vec<u8> {
         self.iter().flat_map(|value| value.to_le_bytes()).collect()
     }
+
+    pub fn normalize(&self) -> Result<Self, InvalidVectorEncounteredError> {
+        let view = self.view();
+        let norm = view.dot(&view).sqrt();
+        if norm.is_finite() {
+            let normalized = if norm <= 0. {
+                Array1::zeros(self.len())
+            } else {
+                &self.0 / norm
+            };
+            Ok(normalized.into())
+        } else {
+            Err(InvalidVectorEncounteredError)
+        }
+    }
 }
 
 impl<const N: usize> From<[f32; N]> for Embedding<Ix1> {
@@ -227,6 +242,10 @@ impl AveragePooler {
         Ok(average.into())
     }
 }
+
+#[derive(Clone, Debug, Display, Error)]
+/// Bytes do not represent a valid embedding.
+pub struct InvalidVectorEncounteredError;
 
 #[cfg(test)]
 mod tests {
