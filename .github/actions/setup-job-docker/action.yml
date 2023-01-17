@@ -10,7 +10,7 @@ runs:
   using: "composite"
   steps:
     - name: Load .env
-      uses: xom9ikk/dotenv@eff1dce037c4c0143cc4180a810511024c2560c0 # v2
+      uses: xom9ikk/dotenv@94dbc24d1aa2b127fbb296bd31a4c4039b16c23f # v2.1.0
 
     - name: Configure cargo
       shell: bash

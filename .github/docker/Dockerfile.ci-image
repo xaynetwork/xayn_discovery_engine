@@ -1,7 +1,6 @@
 FROM debian:11.6-slim
 
 ARG rust_version
-ARG rust_nightly_version
 ARG just_version
 ARG cargo_sort_version
 ARG spectral_cli_version
@@ -18,7 +17,7 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*;
 
 # Begin: Rust base
-# Taken from https://github.com/rust-lang/docker-rust/blob/76806129bab4e24114c5e79170b83e9519a7e3cb/1.65.0/buster/Dockerfile
+# Taken from https://github.com/rust-lang/docker-rust/blob/4f1e43e9ab811de1319a8d866556cbfcfead4a43/1.66.1/buster/Dockerfile
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
@@ -52,8 +51,8 @@ RUN set -eux; \
 
 RUN set -eux; \
     rustup component add clippy; \
-    rustup toolchain install "${rust_nightly_version}" --component rustfmt --profile minimal; \
-    rustc +${rust_nightly_version} --version; \
+    rustup toolchain install nightly --component rustfmt --profile minimal; \
+    rustc +nightly --version; \
     cargo install just --version="${just_version}"; \
     cargo install cargo-sort --version="${cargo_sort_version}"; \
     rm -rf /usr/local/cargo/{.package-cache,registry};
