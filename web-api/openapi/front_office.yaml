@@ -53,6 +53,15 @@ paths:
             minimum: 1
             maximum: 100
             default: 10
+        - name: published_after
+          in: query
+          description: |-
+            Only include documents which have been published after given datetime.
+
+            If used documents without a `properties.publication_date` will be ignored.
+          required: false
+          schema:
+            $ref: './schemas/time.yml#/PublicationDate'
       responses:
         '200':
           description: successful operation

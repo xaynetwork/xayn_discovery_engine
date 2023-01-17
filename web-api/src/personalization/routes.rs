@@ -19,6 +19,7 @@ use actix_web::{
     HttpResponse,
     Responder,
 };
+use chrono::{DateTime, Utc};
 use futures_util::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -124,6 +125,7 @@ pub(crate) async fn update_interactions(
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct PersonalizedDocumentsQuery {
     pub(crate) count: Option<usize>,
+    pub(crate) published_after: Option<DateTime<Utc>>,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -150,7 +152,10 @@ async fn personalized_documents(
         &state.coi,
         &user_id,
         &state.config.personalization,
-        PersonalizeBy::KnnSearch(options.document_count(&state.config.personalization)?),
+        PersonalizeBy::KnnSearch {
+            count: options.document_count(&state.config.personalization)?,
+            published_after: options.published_after,
+        },
     )
     .await
     .map(|documents| {
@@ -215,6 +220,7 @@ async fn search_knn_documents(
     horizon: Duration,
     max_cois: usize,
     count: usize,
+    published_after: Option<DateTime<Utc>>,
 ) -> Result<Vec<PersonalizedDocument>, Error> {
     let coi_weights = compute_coi_weights(cois, horizon);
     let cois = cois
@@ -250,6 +256,7 @@ async fn search_knn_documents(
                     embedding: &coi.point,
                     k_neighbors,
                     num_candidates: count,
+                    published_after,
                 },
             )
             .await
@@ -290,7 +297,10 @@ async fn search_knn_documents(
 }
 
 pub(crate) enum PersonalizeBy<'a> {
-    KnnSearch(usize),
+    KnnSearch {
+        count: usize,
+        published_after: Option<DateTime<Utc>>,
+    },
     #[allow(dead_code)]
     Documents(&'a [&'a DocumentId]),
 }
@@ -310,7 +320,10 @@ pub(crate) async fn personalize_documents_by(
     }
 
     let mut all_documents = match by {
-        PersonalizeBy::KnnSearch(count) => {
+        PersonalizeBy::KnnSearch {
+            count,
+            published_after,
+        } => {
             search_knn_documents(
                 storage,
                 user_id,
@@ -318,6 +331,7 @@ pub(crate) async fn personalize_documents_by(
                 coi.config().horizon(),
                 personalization.max_cois_for_knn,
                 count,
+                published_after,
             )
             .await?
         }
@@ -376,7 +390,7 @@ pub(crate) async fn personalize_documents_by(
             }
         },
     );
-    if let PersonalizeBy::KnnSearch(count) = by {
+    if let PersonalizeBy::KnnSearch { count, .. } = by {
         all_documents.truncate(count);
     }
 

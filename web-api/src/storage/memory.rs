@@ -285,6 +285,10 @@ impl storage::Document for Storage {
         &self,
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
+        if params.published_after.is_some() {
+            unimplemented!(/*we don't need it for memory.rs*/);
+        }
+
         let excluded = params.excluded.iter().collect::<HashSet<_>>();
         let documents = self.documents.read().await;
         let documents = documents
@@ -641,6 +645,7 @@ mod tests {
                 embedding,
                 k_neighbors: 2,
                 num_candidates: 2,
+                published_after: None,
             },
         )
         .await
@@ -657,6 +662,7 @@ mod tests {
                 embedding,
                 k_neighbors: 3,
                 num_candidates: 3,
+                published_after: None,
             },
         )
         .await
