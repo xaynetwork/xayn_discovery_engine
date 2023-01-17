@@ -337,10 +337,8 @@ where
 #[tokio::test]
 #[ignore]
 async fn run_persona_benchmark() -> Result<(), Error> {
-    let users_interests =
-        Users::new("/home/felixr/git/xayn_discovery_engine/user_categories.json")?;
-    let document_provider =
-        DocumentProvider::new("/home/felixr/git/xayn_discovery_engine/news.tsv")?;
+    let users_interests = Users::new("user_categories.json")?;
+    let document_provider = DocumentProvider::new("news.tsv")?;
 
     let state = State::new(Storage::default()).unwrap();
     // load documents from document provider to state
@@ -425,7 +423,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
         .await
         .unwrap();
 
-    let nranks = vec![3];
+    let nranks = vec![5, 10];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
     let mut users = Vec::new();
 
@@ -433,9 +431,8 @@ async fn run_user_benchmark() -> Result<(), Error> {
     // and rerank the news in an impression
     for impression in read("behaviors.tsv")? {
         let impression: Impression = impression?;
-        let labels;
 
-        if let Some(clicks) = &impression.clicks {
+        let labels = if let Some(clicks) = &impression.clicks {
             let user = UserId::new(&impression.user_id).unwrap();
 
             if !users.contains(&impression.user_id) {
@@ -449,7 +446,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
                 .map(|document| &document.document_id)
                 .collect::<Vec<_>>();
 
-            labels = state
+            state
                 .personalize(&user, PersonalizeBy::Documents(document_ids.as_slice()))
                 .await
                 .unwrap()
@@ -464,14 +461,14 @@ async fn run_user_benchmark() -> Result<(), Error> {
                     )
                     .into()
                 })
-                .collect_vec();
+                .collect_vec()
         } else {
-            labels = impression
+            impression
                 .news
                 .iter()
                 .map(|viewed_document| u8::from(viewed_document.was_clicked).into())
-                .collect_vec();
-        }
+                .collect_vec()
+        };
 
         let ndcgs_iteration = ndcg(&labels, &nranks);
         ndcgs
