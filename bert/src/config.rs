@@ -25,12 +25,14 @@ use crate::{
     model::Model,
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
-    tokenizer::Tokenizer,
+    tokenizer::{bert::Tokenizer, Tokenize},
 };
 
-/// A Bert pipeline configuration.
+/// A pipeline configuration.
 ///
 /// # Example
+///
+/// The configuration for a Bert pipeline:
 ///
 /// ```toml
 /// # the config file is always named `config.toml`
@@ -88,15 +90,16 @@ use crate::{
 /// type = "f32"
 /// ```
 #[must_use]
-pub struct Config<P> {
+pub struct Config<T, P> {
     pub dir: PathBuf,
     toml: Figment,
     pub(crate) token_size: usize,
+    tokenizer: PhantomData<T>,
     pooler: PhantomData<P>,
 }
 
-impl Config<NonePooler> {
-    /// Creates a Bert pipeline configuration.
+impl Config<Tokenizer, NonePooler> {
+    /// Creates a pipeline configuration.
     pub fn new(dir: impl Into<PathBuf>) -> Result<Self, Error> {
         let dir = dir.into();
         let toml = Figment::from(Toml::file(dir.join("config.toml")));
@@ -108,18 +111,19 @@ impl Config<NonePooler> {
             dir,
             toml,
             token_size,
+            tokenizer: PhantomData,
             pooler: PhantomData,
         })
     }
 }
 
-impl<P> Config<P> {
+impl<T, P> Config<T, P> {
     const MIN_TOKEN_SIZE: &str = "tokenizer.tokens.size.min";
     const MAX_TOKEN_SIZE: &str = "tokenizer.tokens.size.max";
 
-    pub fn extract<'b, T>(&self, key: &str) -> Result<T, Error>
+    pub fn extract<'b, V>(&self, key: &str) -> Result<V, Error>
     where
-        T: Deserialize<'b>,
+        V: Deserialize<'b>,
     {
         self.toml.extract_inner(key).map_err(Into::into)
     }
@@ -145,21 +149,38 @@ impl<P> Config<P> {
         }
     }
 
-    /// Sets the pooler for the model.
+    /// Sets the tokenizer for the model.
     ///
-    /// Defaults to `NonePooler`.
-    pub fn with_pooler<Q>(self) -> Config<Q> {
+    /// Defaults to `bert::Tokenizer`.
+    pub fn with_tokenizer<U>(self) -> Config<U, P> {
         Config {
             dir: self.dir,
             toml: self.toml,
             token_size: self.token_size,
+            tokenizer: PhantomData,
+            pooler: self.pooler,
+        }
+    }
+
+    /// Sets the pooler for the model.
+    ///
+    /// Defaults to `NonePooler`.
+    pub fn with_pooler<Q>(self) -> Config<T, Q> {
+        Config {
+            dir: self.dir,
+            toml: self.toml,
+            token_size: self.token_size,
+            tokenizer: self.tokenizer,
             pooler: PhantomData,
         }
     }
 
-    /// Creates a Bert pipeline from a configuration.
-    pub fn build(&self) -> Result<Pipeline<P>, PipelineError> {
-        let tokenizer = Tokenizer::new(self)?;
+    /// Creates a pipeline from a configuration.
+    pub fn build(&self) -> Result<Pipeline<T, P>, PipelineError>
+    where
+        T: Tokenize,
+    {
+        let tokenizer = T::new(self)?;
         let model = Model::new(self)?;
 
         Ok(Pipeline {

@@ -14,6 +14,7 @@ itertools = { workspace = true }
 lindera = "0.18.0"
 ndarray = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokenizers = { version = "0.13.2", default-features = false, features = ["onig"] }
 tract-onnx = "0.18.5"
