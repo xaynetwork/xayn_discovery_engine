@@ -53,7 +53,7 @@ pub fn sjbert() -> Result<PathBuf> {
 
 /// Resolves the path to the smroberta.
 pub fn smroberta() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smroberta_v0000"])
+    resolve_path(&[DATA_DIR, "smroberta_tokenizer_v0000"])
 }
 
 #[cfg(test)]
