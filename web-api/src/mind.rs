@@ -149,14 +149,20 @@ where
         .collect()
 }
 
-fn deserialize_clicked_documents<'de, D>(deserializer: D) -> Result<Vec<DocumentId>, D::Error>
+fn deserialize_clicked_documents<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<DocumentId>>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    String::deserialize(deserializer)?
-        .split(' ')
-        .map(|document| DocumentId::new(document).map_err(de::Error::custom))
-        .collect()
+    Option::<String>::deserialize(deserializer)?
+        .as_ref()
+        .map(|m| {
+            m.split(' ')
+                .map(|document| DocumentId::new(document).map_err(de::Error::custom))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()
 }
 
 // struct that represents config of hyperparameters for the persona based benchmark
@@ -187,7 +193,7 @@ struct Impression {
     user_id: String,
     time: String,
     #[serde(deserialize_with = "deserialize_clicked_documents")]
-    clicks: Vec<DocumentId>,
+    clicks: Option<Vec<DocumentId>>,
     #[serde(deserialize_with = "deserialize_viewed_documents")]
     news: Vec<ViewedDocument>,
 }
@@ -288,6 +294,7 @@ where
     ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
+        .flexible(true)
         .from_path(path)
         .map_err(Into::into)
 }
@@ -330,8 +337,9 @@ where
 #[tokio::test]
 #[ignore]
 async fn run_persona_benchmark() -> Result<(), Error> {
-    let document_provider = DocumentProvider::new("news.tsv")?;
     let users_interests = Users::new("user_categories.json")?;
+    let document_provider = DocumentProvider::new("news.tsv")?;
+
     let state = State::new(Storage::default()).unwrap();
     // load documents from document provider to state
     state
@@ -418,7 +426,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
         .await
         .unwrap();
 
-    let nranks = vec![3];
+    let nranks = vec![5, 10];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
     let mut users = Vec::new();
 
@@ -426,35 +434,44 @@ async fn run_user_benchmark() -> Result<(), Error> {
     // and rerank the news in an impression
     for impression in read("behaviors.tsv")? {
         let impression: Impression = impression?;
-        let user = UserId::new(&impression.user_id).unwrap();
 
-        if !users.contains(&impression.user_id) {
-            users.push(impression.user_id);
-            state.interact(&user, &impression.clicks).await.unwrap();
-        }
+        let labels = if let Some(clicks) = &impression.clicks {
+            let user = UserId::new(&impression.user_id).unwrap();
 
-        let document_ids = impression
-            .news
-            .iter()
-            .map(|document| &document.document_id)
-            .collect::<Vec<_>>();
+            if !users.contains(&impression.user_id) {
+                users.push(impression.user_id);
+                state.interact(&user, clicks).await.unwrap();
+            }
 
-        let labels = state
-            .personalize(&user, PersonalizeBy::Documents(document_ids.as_slice()))
-            .await
-            .unwrap()
-            .iter()
-            .map(|reranked_id| {
-                u8::from(
-                    impression.news[document_ids
-                        .iter()
-                        .position(|&actual_id| actual_id == reranked_id)
-                        .unwrap()]
-                    .was_clicked,
-                )
-                .into()
-            })
-            .collect_vec();
+            let document_ids = impression
+                .news
+                .iter()
+                .map(|document| &document.document_id)
+                .collect::<Vec<_>>();
+
+            state
+                .personalize(&user, PersonalizeBy::Documents(document_ids.as_slice()))
+                .await
+                .unwrap()
+                .iter()
+                .map(|reranked_id| {
+                    u8::from(
+                        impression.news[document_ids
+                            .iter()
+                            .position(|&actual_id| actual_id == reranked_id)
+                            .unwrap()]
+                        .was_clicked,
+                    )
+                    .into()
+                })
+                .collect_vec()
+        } else {
+            impression
+                .news
+                .iter()
+                .map(|viewed_document| u8::from(viewed_document.was_clicked).into())
+                .collect_vec()
+        };
 
         let ndcgs_iteration = ndcg(&labels, &nranks);
         ndcgs
@@ -474,7 +491,8 @@ fn ndcg(relevance: &[f32], k: &[usize]) -> Vec<f32> {
         .max()
         .copied()
         .map_or_else(|| relevance.len(), |k| k.min(relevance.len()));
-    relevance
+
+    let ndcgs = relevance
         .iter()
         .zip(optimal_order)
         .take(last)
@@ -488,7 +506,13 @@ fn ndcg(relevance: &[f32], k: &[usize]) -> Vec<f32> {
                 Some(*dcg / (*ideal_dcg + 0.00001))
             },
         )
-        .enumerate()
-        .filter_map(|(i, ndcg)| k.contains(&(i + 1)).then_some(ndcg))
-        .collect()
+        .collect::<Vec<_>>();
+
+    k.iter()
+        .map(|nrank| match ndcgs.get(*nrank - 1) {
+            Some(i) => i,
+            None => ndcgs.last().unwrap(),
+        })
+        .copied()
+        .collect::<Vec<_>>()
 }
