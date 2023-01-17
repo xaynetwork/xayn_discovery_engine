@@ -21,12 +21,15 @@ download()
   VERSION="$2"
   ARCHIVE_BASENAME="${NAME}_$VERSION"
   ARCHIVE_NAME="$ARCHIVE_BASENAME.tgz"
+  TMP_ARCHIVE_NAME="$ARCHIVE_NAME.tmp"
   URL="http://s3-de-central.profitbricks.com/xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
 
   if [  -f "$DATA_DIR/$ARCHIVE_NAME" ]; then
     echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
   else
-    curl "$URL" -o "$DATA_DIR/$ARCHIVE_NAME" -C -
+
+    curl "$URL" -o "$DATA_DIR/$TMP_ARCHIVE_NAME" -C -
+    mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$DATA_DIR/$ARCHIVE_NAME"
 
     cd "$DATA_DIR"
     tar -zxf "$ARCHIVE_NAME"
