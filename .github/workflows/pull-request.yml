@@ -14,60 +14,27 @@ permissions:
   contents: read
 
 jobs:
-  selection:
-    runs-on: hetzner-pm
-    container:
-      image: xaynetci/yellow:v5
-    outputs:
-      dart: ${{ steps.filter.outputs.dart }}
-      rust: ${{ steps.filter.outputs.rust }}
-      flutter: ${{ steps.filter.outputs.flutter }}
-    timeout-minutes: 5
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
-
-      - uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721 # v2.10.2
-        id: filter
-        with:
-          filters: |
-            rust: &rust
-              - 'discovery_engine_core/**'
-              - '.github/workflows/ci*'
-              - '.github/actions/setup-job-docker/*'
-              - '.github/actions/setup-job/*'
-              - 'justfile'
-            dart: &dart
-              - *rust
-              - 'discovery_engine/**'
-            flutter:
-              - *rust
-              - *dart
-              - 'discovery_engine_flutter/**'
-
   rust-checks:
-    needs: selection
-    if: ${{ needs.selection.outputs.rust  == 'true' }}
     uses: ./.github/workflows/_reusable.rust.yml
 
-  dart-checks:
-    needs: selection
-    if: ${{ needs.selection.outputs.dart  == 'true' }}
-    uses: ./.github/workflows/_reusable.dart.yml
-
-  flutter-checks:
-    needs: selection
-    if: ${{ needs.selection.outputs.flutter  == 'true' }}
-    uses: ./.github/workflows/_reusable.flutter.yml
+  open-api:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v8
+    steps:
+      - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
+  
+      - name: Validate openapi
+        run: just validate-openapi
 
   copyright:
     if: ${{ always() }}
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v5
+      image: xaynetci/yellow:v8
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+      - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
 
       - name: Check copyright
         run: .github/scripts/copyright.sh

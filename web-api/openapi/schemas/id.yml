@@ -1,0 +1,8 @@
+Id:
+  description: |-
+    An id can be any non-empty string that consist of digits, latin letters, underscores, colons, minus signs, at signs, and dots.
+  type: string
+  pattern: '^[a-zA-Z0-9_:@.-]+$'
+  minLength: 1
+  maxLength: 256
+  example: "valid_id1"

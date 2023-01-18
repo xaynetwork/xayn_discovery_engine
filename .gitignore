@@ -6,8 +6,11 @@
 
 .env.local
 
-cargo-installs/
 headlines_download/
+
+target/
+.env.db.dev
+.tmp
 
 # discovery_engine_api_tests
 discovery_engine_api_tests/venv/

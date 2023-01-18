@@ -1,0 +1,4 @@
+UserId:
+  description: Id of a user.
+  $ref: './id.yml#/Id'
+  example: "user_id"

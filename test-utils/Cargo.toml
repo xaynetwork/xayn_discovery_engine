@@ -1,0 +1,12 @@
+[package]
+name = "xayn-ai-test-utils"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+float-cmp = { workspace = true }
+ndarray = { workspace = true }
+uuid = { workspace = true }

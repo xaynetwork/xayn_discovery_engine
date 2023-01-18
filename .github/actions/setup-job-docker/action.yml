@@ -1,36 +1,16 @@
-name: 'setup job'
-description: 'Setup dart and/or rust CI job'
+name: Setup ci job
+
 inputs:
-  dart:
-    description: 'Setup dart'
-    default: "false"
-    required: false
-  rust:
-    description: 'Setup rust'
-    default: "false"
-    required: false
   cache-key:
-    description: 'An optional key that is added to the automatic cache key'
+    description: An optional key that is added to the automatic cache key
     default: ""
     required: false
-  jfrog_token:
-    description: Token for accessing our Jfrog instance
-    default: "false"
-    required: false
+
 runs:
   using: "composite"
   steps:
     - name: Load .env
-      uses: xom9ikk/dotenv@d3ff95524814ceac377510f30f4af6296ea612c1 #v1.0.2
-
-    - name: Setup cmake
-      uses: jwlawson/actions-setup-cmake@48fb828056dab1f20e7f97159f2711efb1742ba1 # v1.12.1
-
-    - uses: Swatinem/rust-cache@6720f05bc48b77f96918929a9019fb2203ff71f8 # v2.0.0
-      if: inputs.rust != 'false'
-      with:
-        key: ${{ inputs.cache-key }}
-        workspaces: ${{ env.RUST_WORKSPACE }} -> target
+      uses: xom9ikk/dotenv@eff1dce037c4c0143cc4180a810511024c2560c0 # v2
 
     - name: Configure cargo
       shell: bash
@@ -40,19 +20,8 @@ runs:
         # slowing all builds down.
         echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
 
-    - name: Jfrog authentication
-      shell: bash
-      if: ${{ inputs.jfrog_token != 'false' }}
-      env:
-          JFROG_TOKEN: ${{ inputs.jfrog_token }}
-      run: |
-        if [ -z "${JFROG_TOKEN}" ]; then
-          echo "JFROG access token missing"
-          exit 1
-        fi
-        echo "${JFROG_TOKEN}" | dart pub token add "https://xayn.jfrog.io/artifactory/api/pub/dart.xayn.private"
+    # This action uses env vars for hash used in the key, therefore we keep it as last. 
+    - uses: Swatinem/rust-cache@359a70e43a0bb8a13953b04a90f76428b4959bb6 # v2.2.0
+      with:
+        key: ${{ inputs.cache-key }}
 
-    - name: dart deps
-      shell: bash
-      if: ${{ inputs.dart != 'false' }}
-      run: just dart-deps

@@ -1,0 +1,143 @@
+// Copyright 2022 Xayn AG
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, version 3.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+//! Setup tracing on different platforms.
+
+use std::{fs::OpenOptions, sync::Once};
+
+use serde::{Deserialize, Serialize};
+use tracing::Level;
+use tracing_subscriber::{
+    filter::{LevelFilter, Targets},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+};
+
+use crate::utils::RelativePathBuf;
+
+const fn default_file() -> Option<RelativePathBuf> {
+    None
+}
+
+const fn default_level() -> LevelFilter {
+    LevelFilter::INFO
+}
+
+mod serde_level_filter {
+    use serde::{
+        de::{Deserialize, Deserializer, Error},
+        ser::{Serialize, Serializer},
+    };
+    use tracing_subscriber::filter::LevelFilter;
+
+    #[allow(clippy::trivially_copy_pass_by_ref)] // required by serde
+    pub(super) fn serialize<S>(level: &LevelFilter, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        level.to_string().serialize(serializer)
+    }
+
+    pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<LevelFilter, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        String::deserialize(deserializer).and_then(|level| {
+            level
+                .parse::<LevelFilter>()
+                .map_err(|error| D::Error::custom(error.to_string()))
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Config {
+    #[serde(default = "default_file")]
+    pub(crate) file: Option<RelativePathBuf>,
+    #[serde(with = "serde_level_filter")]
+    #[serde(default = "default_level")]
+    pub(crate) level: LevelFilter,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            file: default_file(),
+            level: default_level(),
+        }
+    }
+}
+
+static INIT_TRACING: Once = Once::new();
+
+pub(crate) fn init_tracing(log_config: &Config) {
+    INIT_TRACING.call_once(|| {
+        init_tracing_once(log_config);
+        init_panic_logging();
+    });
+}
+
+fn init_tracing_once(log_config: &Config) {
+    let subscriber = tracing_subscriber::registry();
+
+    let stdout_log = tracing_subscriber::fmt::layer().with_ansi(false);
+
+    let sqlx_query_no_info = Targets::new()
+        .with_default(log_config.level)
+        .with_target("sqlx::query", Level::WARN);
+
+    let file_log = log_config
+        .file
+        .as_ref()
+        .map(|log_file| {
+            OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(log_file.relative())
+                .map(|writer| {
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(writer)
+                        .with_ansi(false)
+                        .json()
+                })
+        })
+        .transpose()
+        .map_err(|error| {
+            eprintln!("Setup file logging failed: {error}");
+        })
+        .ok();
+
+    subscriber
+        .with(stdout_log)
+        .with(sqlx_query_no_info)
+        .with(file_log)
+        .with(log_config.level)
+        .init();
+}
+
+fn init_panic_logging() {
+    std::panic::set_hook(Box::new(|panic| {
+        if let Some(location) = panic.location() {
+            tracing::error!(
+                message = %panic,
+                panic.file = location.file(),
+                panic.line = location.line(),
+                panic.column = location.column(),
+            );
+        } else {
+            tracing::error!(message = %panic);
+        }
+    }));
+}

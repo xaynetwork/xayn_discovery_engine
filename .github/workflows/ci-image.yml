@@ -1,0 +1,82 @@
+name: Docker ci image
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: "Push the image to docker"
+        required: true
+        type: boolean
+        default: false
+      release:
+        description: "Tag the pushed image as release"
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  image_name: xaynetci/yellow
+  release_tag: v8
+
+jobs:
+  build-docker-image:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
+
+      - name: Determine rust version
+        shell: bash
+        run: |
+          set -eux
+          RUST_VERSION=$(perl -ne 'print $1 if /channel = \"(.*)\"/' rust-toolchain.toml)
+          echo "rust_version=${RUST_VERSION}" >> $GITHUB_ENV
+
+      - name: Determine image tag
+        run: |
+          IMAGE_TAG="$(git rev-parse --short "$GITHUB_SHA")"
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_ENV
+
+      - name: docker build
+        shell: bash
+        run: |
+          set -eux
+          source .env
+          docker build \
+            --build-arg rust_version="${{ env.rust_version }}" \
+            --build-arg rust_nightly_version="${RUST_NIGHTLY}" \
+            --build-arg just_version="${JUST_VERSION}" \
+            --build-arg cargo_sort_version="${CARGO_SORT_VERSION}" \
+            --build-arg spectral_cli_version="${SPECTRAL_CLI_VERSION}" \
+            --build-arg ibm_openapi_ruleset_version="${IBM_OPENAPI_RULESET_VERSION}" \
+            --build-arg validator_version="${VALIDATOR_VERSION}" \
+            --tag "${{ env.image_name }}:${{ env.image_tag }}" \
+            - < .github/docker/Dockerfile.ci-image
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        if: ${{ inputs.push }}
+        with:
+          username: "${{ secrets.DOCKERHUB_USERNAME }}"
+          password: "${{ secrets.DOCKERHUB_TOKEN }}"
+
+      - name: docker push
+        if: ${{ inputs.push }}
+        run: docker push "${{ env.image_name }}:${{ env.image_tag }}"
+
+      - name: docker tag
+        if: ${{ inputs.push && inputs.release }}
+        run: |
+          docker tag "${{ env.image_name }}:${{ env.image_tag }}" "${{ env.image_name }}:${{ env.release_tag }}"
+          docker push "${{ env.image_name }}:${{ env.release_tag }}"

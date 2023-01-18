@@ -1,0 +1,34 @@
+[package]
+name = "xayn-ai-bert"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = "AGPL-3.0-only"
+
+[dependencies]
+derive_more = { workspace = true }
+displaydoc = { workspace = true }
+figment = { workspace = true, features = ["toml"] }
+float-cmp = { workspace = true }
+itertools = { workspace = true }
+lindera = "0.18.0"
+ndarray = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokenizers = { version = "0.13.2", default-features = false, features = ["onig"] }
+tract-onnx = "0.18.5"
+
+[dev-dependencies]
+criterion = { workspace = true }
+csv = { workspace = true }
+indicatif = "0.17.2"
+xayn-ai-test-utils = { path = "../test-utils" }
+
+[[example]]
+name = "bert"
+test = false
+
+[[bench]]
+name = "bert"
+harness = false
+test = false

@@ -1,0 +1,40 @@
+DocumentId:
+  description: Id of a document.
+  $ref: './id.yml#/Id'
+  example: "document_id"
+
+DocumentProperty:
+  description: Arbitrary property that can be attached to a document.
+  example: "News title"
+
+DocumentProperties:
+  description: Mostly arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
+  type: object
+  properties:
+    publication_date:
+      type: string
+      format: date-time
+      minLength: 10
+      # 35 should be enough (20 normally + up to 10 for subsec + up to 5 for offset),
+      # but to avoid any accidents we go with 40
+      maxLength: 40
+      example: "2000-05-14T20:22:50Z"
+      description: |
+        A RFC3339 compatible date-time
+
+        - can be in the future
+        - will be converted to and then stored as UTC
+        - sub-second resolution is not guaranteed.
+        - if this property is not set or set into the future this
+          document will be ignored for personalization
+  additionalProperties:
+    $ref: '#/DocumentProperty'
+  example:
+    title: "News title"
+    image_url: "http://example.com/news_image.jpg"
+    link: "http://example.com/this_news"
+
+DocumentPropertyId:
+  description: Id of a property of a document.
+  $ref: './id.yml#/Id'
+  example: "title"

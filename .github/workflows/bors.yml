@@ -17,35 +17,11 @@ jobs:
   rust-checks:
     uses: ./.github/workflows/_reusable.rust.yml
 
-  dart-checks:
-    uses: ./.github/workflows/_reusable.dart.yml
-
-  flutter-checks:
-    uses: ./.github/workflows/_reusable.flutter.yml
-
-  build-ios-libs:
-    uses: ./.github/workflows/_reusable.build-ios.yml
-
-  build-android-libs:
-    uses: ./.github/workflows/_reusable.build-android.yml
-
-  build-flutter-example:
-    needs: build-ios-libs
-    uses: ./.github/workflows/_reusable.build-flutter-example.yml
-    with:
-      artifact-dir-base-ios: ${{ needs.build-ios-libs.outputs.artifact-dir-base }}
-
   ci-ok:
-    needs:
-      - rust-checks
-      - dart-checks
-      - flutter-checks
-      - build-ios-libs
-      - build-android-libs
-      - build-flutter-example
+    needs: rust-checks
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v5
+      image: xaynetci/yellow:v8
     timeout-minutes: 5
     if: ${{ always() }}
     steps:
@@ -53,12 +29,7 @@ jobs:
         shell: bash
         run: |
           if [[
-            "${{ needs.rust-checks.result }}" == "success" &&
-            "${{ needs.dart-checks.result }}" == "success" &&
-            "${{ needs.flutter-checks.result }}" == "success" &&
-            "${{ needs.build-ios-libs.result }}" == "success" &&
-            "${{ needs.build-android-libs.result }}" == "success" &&
-            "${{ needs.build-flutter-example.result }}" == "success"
+            "${{ needs.rust-checks.result }}" == "success"
           ]]; then
             exit 0
           else

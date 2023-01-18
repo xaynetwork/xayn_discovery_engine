@@ -1,0 +1,42 @@
+bin.name = "ingestion"
+args = ["--print-config", "--config", "tests/cmd/assets/config.toml"]
+status.code = 0
+stderr = ""
+stdout = """
+{
+  "logging": {
+    "file": "[CWD]/tests/cmd/assets/foo/bar.log",
+    "level": "info"
+  },
+  "net": {
+    "bind_to": "127.0.1.1:3040",
+    "max_body_size": 64,
+    "keep_alive": 61,
+    "client_request_timeout": 0
+  },
+  "storage": {
+    "elastic": {
+      "url": "http://localhost:3219",
+      "user": "tic",
+      "password": "[REDACTED]",
+      "index_name": "other_index"
+    },
+    "postgres": {
+      "base_url": "postgres://user:pw@localhost:5432/xayn",
+      "port": 42,
+      "user": "postgres",
+      "password": "[REDACTED]",
+      "db": "mydb",
+      "application_name": "the-application",
+      "skip_migrations": false
+    }
+  },
+  "ingestion": {
+    "max_document_batch_size": 999999
+  },
+  "embedding": {
+    "directory": "assets",
+    "token_size": 250
+  }
+}
+"""
