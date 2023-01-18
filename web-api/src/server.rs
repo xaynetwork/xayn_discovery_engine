@@ -96,9 +96,9 @@ where
                 .wrap(middleware::Compress::default())
                 .wrap(Cors::permissive())
         })
-        .bind(addr)?
         .keep_alive(keep_alive)
         .client_request_timeout(client_request_timeout)
+        .bind(addr)?
         .run()
         .await?;
 
