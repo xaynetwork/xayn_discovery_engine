@@ -809,17 +809,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derivative"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "derive-new"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4087,13 +4076,13 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "figment",
- "float-cmp",
  "indicatif",
  "itertools 0.10.5",
  "lindera",
  "ndarray",
  "serde",
  "serde_json",
+ "sqlx",
  "thiserror",
  "tokenizers",
  "tract-onnx",
@@ -4105,7 +4094,6 @@ name = "xayn-ai-coi"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "derivative",
  "derive_more",
  "displaydoc",
  "itertools 0.10.5",
@@ -4114,6 +4102,7 @@ dependencies = [
  "rand_distr",
  "serde",
  "serde_json",
+ "sqlx",
  "thiserror",
  "tracing",
  "uuid",
@@ -4172,6 +4161,7 @@ dependencies = [
  "uuid",
  "xayn-ai-bert",
  "xayn-ai-coi",
+ "xayn-ai-test-utils",
 ]
 
 [[package]]

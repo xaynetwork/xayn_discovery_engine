@@ -18,7 +18,8 @@ use derive_more::{AsRef, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{de, Deserialize, Deserializer, Serialize};
-use xayn_ai_coi::{Document as AiDocument, Embedding};
+use xayn_ai_bert::NormalizedEmbedding;
+use xayn_ai_coi::Document as AiDocument;
 
 use crate::error::common::{InvalidDocumentId, InvalidDocumentPropertyId, InvalidUserId};
 
@@ -103,7 +104,7 @@ pub(crate) struct InteractedDocument {
     pub(crate) id: DocumentId,
 
     /// Embedding from smbert.
-    pub(crate) embedding: Embedding,
+    pub(crate) embedding: NormalizedEmbedding,
 
     /// The tags associated to the document.
     pub(crate) tags: Vec<String>,
@@ -119,7 +120,7 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) score: f32,
 
     /// Embedding from smbert.
-    pub(crate) embedding: Embedding,
+    pub(crate) embedding: NormalizedEmbedding,
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
@@ -135,7 +136,7 @@ impl AiDocument for PersonalizedDocument {
         &self.id
     }
 
-    fn bert_embedding(&self) -> &Embedding {
+    fn bert_embedding(&self) -> &NormalizedEmbedding {
         &self.embedding
     }
 }

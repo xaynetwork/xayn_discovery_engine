@@ -33,7 +33,8 @@ use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
 use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::RwLock;
-use xayn_ai_coi::{normalized_dot_product, Embedding, PositiveCoi, UserInterests};
+use xayn_ai_bert::NormalizedEmbedding;
+use xayn_ai_coi::{PositiveCoi, UserInterests};
 
 use super::{Document as _, InteractionUpdateContext};
 use crate::{
@@ -63,24 +64,24 @@ struct Document {
 #[derive(AsRef, Clone, Debug, Deref, Deserialize, Serialize)]
 #[as_ref(forward)]
 #[deref(forward)]
-struct CowEmbedding<'a>(Cow<'a, Embedding>);
+struct CowEmbedding<'a>(Cow<'a, NormalizedEmbedding>);
 
 impl Point for CowEmbedding<'_> {
     fn distance(&self, other: &Self) -> f32 {
-        1. - normalized_dot_product(self.view(), other.view())
+        1. - self.dot_product(other)
     }
 }
 
 #[self_referencing]
 struct Embeddings {
-    map: HashMap<DocumentId, Embedding>,
+    map: HashMap<DocumentId, NormalizedEmbedding>,
     #[borrows(map)]
     #[covariant]
     index: HnswMap<CowEmbedding<'this>, Cow<'this, DocumentId>>,
 }
 
 impl Embeddings {
-    fn borrowed(map: HashMap<DocumentId, Embedding>) -> Self {
+    fn borrowed(map: HashMap<DocumentId, NormalizedEmbedding>) -> Self {
         EmbeddingsBuilder {
             map,
             index_builder: |map| {
@@ -97,7 +98,7 @@ impl Embeddings {
     }
 
     fn owned(
-        map: HashMap<DocumentId, Embedding>,
+        map: HashMap<DocumentId, NormalizedEmbedding>,
         index: HnswMap<CowEmbedding<'static>, Cow<'static, DocumentId>>,
     ) -> Self {
         EmbeddingsBuilder {
@@ -320,7 +321,7 @@ impl storage::Document for Storage {
 
     async fn insert(
         &self,
-        documents_embeddings: Vec<(IngestedDocument, Embedding)>,
+        documents_embeddings: Vec<(IngestedDocument, NormalizedEmbedding)>,
     ) -> Result<(), InsertionError> {
         if documents_embeddings.is_empty() {
             return Ok(());
@@ -605,8 +606,8 @@ impl Storage {
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
-    use uuid::Uuid;
-    use xayn_ai_coi::utils::normalize_array;
+    use xayn_ai_coi::{CoiId, CoiPoint};
+    use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
 
@@ -625,9 +626,9 @@ mod tests {
             })
             .collect_vec();
         let embeddings = [
-            normalize_array([1., 0., 0.]).into(),
-            normalize_array([1., 1., 0.]).into(),
-            normalize_array([1., 1., 1.]).into(),
+            [1., 0., 0.].try_into().unwrap(),
+            [1., 1., 0.].try_into().unwrap(),
+            [1., 1., 1.].try_into().unwrap(),
         ];
         let storage = Storage::default();
         storage::Document::insert(
@@ -637,7 +638,7 @@ mod tests {
         .await
         .unwrap();
 
-        let embedding = &normalize_array([0., 1., 1.]).into();
+        let embedding = &[0., 1., 1.].try_into().unwrap();
         let documents = storage::Document::get_by_embedding(
             &storage,
             KnnSearchParams {
@@ -677,6 +678,7 @@ mod tests {
     async fn test_serde() {
         let document_id = DocumentId::new("42").unwrap();
         let storage = Storage::default();
+        let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
             vec![(
@@ -686,7 +688,7 @@ mod tests {
                     properties: DocumentProperties::default(),
                     tags: vec!["tag".into()],
                 },
-                [1., 2., 3.].into(),
+                embedding.clone(),
             )],
         )
         .await
@@ -697,7 +699,7 @@ mod tests {
             &[&document_id],
             |context| {
                 *context.tag_weight_diff.get_mut("tag").unwrap() += 10;
-                let pcoi = PositiveCoi::new(Uuid::new_v4(), [0.2, 9.4, 1.2]);
+                let pcoi = PositiveCoi::new(CoiId::new(), [0.2, 9.4, 1.2].try_into().unwrap());
                 context.positive_cois.push(pcoi.clone());
                 pcoi
             },
@@ -711,7 +713,7 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(documents[0].id, DocumentId::new("42").unwrap());
-        assert_eq!(documents[0].embedding, Embedding::from([1., 2., 3.]));
+        assert_approx_eq!(f32, documents[0].embedding, embedding);
         assert!(documents[0].properties.is_empty());
         assert_eq!(documents[0].tags, vec![String::from("tag")]);
         assert_eq!(

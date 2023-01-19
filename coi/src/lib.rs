@@ -34,20 +34,16 @@
 pub mod config;
 pub(crate) mod context;
 mod document;
-pub mod embedding;
 pub mod id;
 pub mod point;
 pub mod stats;
 pub mod system;
 pub mod utils;
 
-#[cfg(doc)]
-pub use crate::embedding::COSINE_SIMILARITY_RANGE;
 pub use crate::{
     config::{Config as CoiConfig, Error as CoiConfigError},
     context::Error as CoiContextError,
     document::Document,
-    embedding::{normalized_dot_product, Embedding},
     id::CoiId,
     point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
     stats::{compute_coi_relevances, CoiStats},

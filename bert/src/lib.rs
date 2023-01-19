@@ -53,6 +53,7 @@ pub use crate::{
         FirstPooler,
         InvalidEmbedding,
         NonePooler,
+        NormalizedEmbedding,
     },
 };
 

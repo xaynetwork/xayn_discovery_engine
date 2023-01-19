@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::embedding::Embedding;
+use xayn_ai_bert::NormalizedEmbedding;
 
 /// Common document properties.
 pub trait Document {
@@ -22,13 +22,14 @@ pub trait Document {
     fn id(&self) -> &Self::Id;
 
     /// Gets the `Bert` embedding of the document.
-    fn bert_embedding(&self) -> &Embedding;
+    fn bert_embedding(&self) -> &NormalizedEmbedding;
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use derive_more::Display;
     use uuid::Uuid;
+    use xayn_ai_test_utils::uuid::mock_uuid;
 
     use super::*;
 
@@ -36,29 +37,23 @@ pub(crate) mod tests {
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Display)]
     pub(crate) struct DocumentId(Uuid);
 
-    impl From<Uuid> for DocumentId {
-        fn from(id: Uuid) -> Self {
-            Self(id)
-        }
-    }
-
     impl DocumentId {
-        /// Creates a `DocumentId` from a 128bit value in big-endian order.
-        pub(crate) const fn from_u128(id: u128) -> Self {
-            DocumentId(Uuid::from_u128(id))
+        /// Creates a mocked `Document` id from a mocked UUID, cf. [`mock_uuid()`].
+        pub(crate) const fn mocked(id: usize) -> Self {
+            DocumentId(mock_uuid(id))
         }
     }
 
     pub(crate) struct TestDocument {
         pub(crate) id: DocumentId,
-        pub(crate) bert_embedding: Embedding,
+        pub(crate) bert_embedding: NormalizedEmbedding,
     }
 
     impl TestDocument {
-        pub(crate) fn new(id: u128, embedding: impl Into<Embedding>) -> Self {
+        pub(crate) fn new(id: usize, embedding: NormalizedEmbedding) -> Self {
             Self {
-                id: DocumentId::from_u128(id),
-                bert_embedding: embedding.into(),
+                id: DocumentId::mocked(id),
+                bert_embedding: embedding,
             }
         }
     }
@@ -70,7 +65,7 @@ pub(crate) mod tests {
             &self.id
         }
 
-        fn bert_embedding(&self) -> &Embedding {
+        fn bert_embedding(&self) -> &NormalizedEmbedding {
             &self.bert_embedding
         }
     }
