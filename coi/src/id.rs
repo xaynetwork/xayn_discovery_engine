@@ -20,11 +20,13 @@ use uuid::Uuid;
 #[derive(
     Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize, From, AsRef,
 )]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
 pub struct CoiId(Uuid);
 
 impl CoiId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self(Uuid::new_v4())
     }
 }
 

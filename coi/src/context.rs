@@ -19,11 +19,11 @@ use std::{
 
 use displaydoc::Display;
 use thiserror::Error;
+use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
     config::Config,
     document::Document,
-    embedding::Embedding,
     id::CoiId,
     point::{find_closest_coi, CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
     stats::{compute_coi_decay_factor, compute_coi_relevances},
@@ -49,7 +49,7 @@ struct ClosestPositiveCoi {
 
 impl ClosestPositiveCoi {
     fn new(
-        embedding: &Embedding,
+        embedding: &NormalizedEmbedding,
         positive_user_interests: &[PositiveCoi],
     ) -> Result<Option<Self>, Error> {
         let this = find_closest_coi(positive_user_interests, embedding).map(|(coi, similarity)| {
@@ -92,7 +92,7 @@ struct ClosestNegativeCoi {
 
 impl ClosestNegativeCoi {
     fn new(
-        embedding: &Embedding,
+        embedding: &NormalizedEmbedding,
         negative_user_interests: &[NegativeCoi],
     ) -> Result<Option<Self>, Error> {
         let this = find_closest_coi(negative_user_interests, embedding).map(|(coi, similarity)| {
@@ -122,7 +122,7 @@ struct ClosestCois {
 }
 
 impl ClosestCois {
-    fn new(embedding: &Embedding, user_interests: &UserInterests) -> Result<Self, Error> {
+    fn new(embedding: &NormalizedEmbedding, user_interests: &UserInterests) -> Result<Self, Error> {
         let positive = ClosestPositiveCoi::new(embedding, &user_interests.positive)?;
         let negative = ClosestNegativeCoi::new(embedding, &user_interests.negative)?;
 
@@ -151,7 +151,7 @@ impl ClosestCois {
 }
 
 fn compute_score_for_embedding(
-    embedding: &Embedding,
+    embedding: &NormalizedEmbedding,
     user_interests: &UserInterests,
     horizon: Duration,
     now: SystemTime,
@@ -206,13 +206,12 @@ pub(crate) fn compute_scores_for_docs<T: Document>(
 
 #[cfg(test)]
 mod tests {
-    use ndarray::arr1;
     use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
     use crate::{
         point::tests::{create_neg_cois, create_pos_cois},
-        utils::{normalize_array, SECONDS_PER_DAY_F32},
+        utils::SECONDS_PER_DAY_F32,
     };
 
     #[test]
@@ -228,21 +227,18 @@ mod tests {
     fn test_compute_score_for_embedding() {
         let epoch = SystemTime::UNIX_EPOCH;
         let now = epoch + Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
-        let mut positive = create_pos_cois(&[
-            normalize_array([62., 55., 11.]),
-            normalize_array([76., 30., 80.]),
-        ]);
+        let mut positive = create_pos_cois([[62., 55., 11.], [76., 30., 80.]]);
         positive[0].stats.last_view -= Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32);
         positive[1].stats.last_view -= Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32);
 
-        let mut negative = create_neg_cois(&[normalize_array([6., 61., 6.])]);
+        let mut negative = create_neg_cois([[6., 61., 6.]]);
         negative[0].last_view = epoch;
         let user_interests = UserInterests { positive, negative };
 
         let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
 
         let score = compute_score_for_embedding(
-            &arr1(&normalize_array([1., 4., 4.])).into(),
+            &[1., 4., 4.].try_into().unwrap(),
             &user_interests,
             horizon,
             now,
@@ -262,13 +258,13 @@ mod tests {
     fn test_compute_score_for_embedding_no_cois() {
         let horizon = Duration::from_secs_f32(SECONDS_PER_DAY_F32);
 
-        let res = compute_score_for_embedding(
-            &arr1(&normalize_array([0., 0., 0.])).into(),
+        let score = compute_score_for_embedding(
+            &[0., 0., 0.].try_into().unwrap(),
             &UserInterests::default(),
             horizon,
             system_time_now(),
-        );
-
-        assert_approx_eq!(f32, res.unwrap(), f32::default());
+        )
+        .unwrap();
+        assert_approx_eq!(f32, score, 0.);
     }
 }

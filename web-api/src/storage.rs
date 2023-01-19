@@ -25,7 +25,8 @@ use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use xayn_ai_coi::{Embedding, PositiveCoi, UserInterests};
+use xayn_ai_bert::NormalizedEmbedding;
+use xayn_ai_coi::{PositiveCoi, UserInterests};
 
 use crate::{
     error::common::DocumentIdAsObject,
@@ -44,7 +45,7 @@ use crate::{
 
 pub(crate) struct KnnSearchParams<'a> {
     pub(crate) excluded: &'a [DocumentId],
-    pub(crate) embedding: &'a Embedding,
+    pub(crate) embedding: &'a NormalizedEmbedding,
     pub(crate) k_neighbors: usize,
     // must be >= k_neighbors
     pub(crate) num_candidates: usize,
@@ -83,7 +84,7 @@ pub(crate) trait Document {
 
     async fn insert(
         &self,
-        documents: Vec<(IngestedDocument, Embedding)>,
+        documents: Vec<(IngestedDocument, NormalizedEmbedding)>,
     ) -> Result<(), InsertionError>;
 
     async fn delete(&self, documents: &[DocumentId]) -> Result<(), DeletionError>;

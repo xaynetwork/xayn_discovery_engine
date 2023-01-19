@@ -30,8 +30,8 @@ use sqlx::{
     Transaction,
 };
 use tracing::{info, instrument, warn};
-use uuid::Uuid;
-use xayn_ai_coi::{CoiId, CoiStats, Embedding, NegativeCoi, PositiveCoi, UserInterests};
+use xayn_ai_bert::NormalizedEmbedding;
+use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::InteractionUpdateContext;
 use crate::{
@@ -275,8 +275,8 @@ impl Database {
         let positive = positive
             .into_iter()
             .map(|coi| PositiveCoi {
-                id: coi.coi_id.into(),
-                point: Embedding::from(coi.embedding),
+                id: coi.coi_id,
+                point: coi.embedding,
                 stats: CoiStats {
                     view_count: coi.view_count as usize,
                     view_time: Duration::from_millis(coi.view_time_ms as u64),
@@ -288,8 +288,8 @@ impl Database {
         let negative = negative
             .into_iter()
             .map(|coi| NegativeCoi {
-                id: coi.coi_id.into(),
-                point: Embedding::from(coi.embedding),
+                id: coi.coi_id,
+                point: coi.embedding,
                 last_view: coi.last_view.into(),
             })
             .collect_vec();
@@ -420,9 +420,9 @@ impl Database {
 
 #[derive(FromRow)]
 struct QueriedCoi {
-    coi_id: Uuid,
+    coi_id: CoiId,
     is_positive: bool,
-    embedding: Vec<f32>,
+    embedding: NormalizedEmbedding,
     /// The count is a `usize` stored as `i32` in database
     view_count: i32,
     /// The time is a `u64` stored as `i64` in database

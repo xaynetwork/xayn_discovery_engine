@@ -27,7 +27,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::{Postgres, Transaction};
 use tracing::error;
-use xayn_ai_coi::Embedding;
+use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
     error::common::InternalError,
@@ -237,7 +237,7 @@ struct SearchResponse<T> {
 
 #[derive(Debug, Deserialize)]
 struct InteractedDocument {
-    embedding: Embedding,
+    embedding: NormalizedEmbedding,
     #[serde(default)]
     tags: Vec<String>,
 }
@@ -261,7 +261,7 @@ impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument
 struct PersonalizedDocument {
     #[serde(default)]
     properties: DocumentProperties,
-    embedding: Embedding,
+    embedding: NormalizedEmbedding,
     #[serde(default)]
     tags: Vec<String>,
 }
@@ -287,7 +287,7 @@ impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocu
 struct IngestedDocument<'a> {
     snippet: &'a str,
     properties: &'a DocumentProperties,
-    embedding: &'a Embedding,
+    embedding: &'a NormalizedEmbedding,
     tags: &'a [String],
 }
 
@@ -473,7 +473,7 @@ impl storage::Document for Storage {
 
     async fn insert(
         &self,
-        documents: Vec<(models::IngestedDocument, Embedding)>,
+        documents: Vec<(models::IngestedDocument, NormalizedEmbedding)>,
     ) -> Result<(), InsertionError> {
         if documents.is_empty() {
             return Ok(());

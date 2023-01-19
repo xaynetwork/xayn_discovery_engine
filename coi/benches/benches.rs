@@ -15,22 +15,29 @@
 use std::time::{Duration, SystemTime};
 
 use criterion::{black_box, criterion_group, BatchSize, Criterion};
-use ndarray::Array1;
+use itertools::Itertools;
 use rand::Rng;
 use rand_distr::Uniform;
-use uuid::Uuid;
-use xayn_ai_coi::{compute_coi_relevances, stats::compute_coi_decay_factor, PositiveCoi};
+use xayn_ai_coi::{
+    compute_coi_relevances,
+    stats::compute_coi_decay_factor,
+    CoiId,
+    CoiPoint,
+    PositiveCoi,
+};
 
 fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
-    let range = Uniform::new(-10000., 10000.);
+    let range = Uniform::new(-1., 1.);
 
     (0..n)
         .map(|_| {
             let point = rand::thread_rng()
                 .sample_iter(&range)
                 .take(embedding_size)
-                .collect::<Array1<f32>>();
-            PositiveCoi::new(Uuid::new_v4(), point)
+                .collect_vec()
+                .try_into()
+                .unwrap();
+            PositiveCoi::new(CoiId::new(), point)
         })
         .collect()
 }

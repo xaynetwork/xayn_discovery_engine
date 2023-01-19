@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    embedding::COSINE_SIMILARITY_RANGE,
     system::System,
     utils::{serde_duration_as_days, SECONDS_PER_DAY_U64},
 };
@@ -114,11 +113,9 @@ impl Config {
     /// Sets the threshold.
     ///
     /// # Errors
-    /// Fails if the threshold is not within [`COSINE_SIMILARITY_RANGE`].
-    ///
-    /// [`COSINE_SIMILARITY_RANGE`]: crate::embedding::COSINE_SIMILARITY_RANGE
+    /// Fails if the threshold is not within [`-1, 1`].
     pub fn with_threshold(mut self, threshold: f32) -> Result<Self, Error> {
-        if COSINE_SIMILARITY_RANGE.contains(&threshold) {
+        if (-1. ..=1.).contains(&threshold) {
             self.threshold = threshold;
             Ok(self)
         } else {

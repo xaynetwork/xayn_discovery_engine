@@ -13,8 +13,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use serde::{Deserialize, Serialize};
-use xayn_ai_bert::{AveragePooler, AvgBert, Config as BertConfig};
-use xayn_ai_coi::Embedding;
+use xayn_ai_bert::{
+    tokenizer::bert,
+    AveragePooler,
+    AvgBert,
+    Config as BertConfig,
+    NormalizedEmbedding,
+};
 
 use crate::{error::common::InternalError, server::SetupError, utils::RelativePathBuf};
 
@@ -48,15 +53,17 @@ pub(crate) struct Embedder {
 }
 
 impl Embedder {
-    pub(crate) fn run(&self, s: &str) -> Result<Embedding, InternalError> {
-        match self.bert.run(s) {
-            Ok(embedding) => embedding.normalize().map_err(InternalError::from_std),
-            Err(error) => Err(InternalError::from_std(error)),
-        }
+    pub(crate) fn run(&self, s: &str) -> Result<NormalizedEmbedding, InternalError> {
+        self.bert
+            .run(s)
+            .map_err(InternalError::from_std)?
+            .normalize()
+            .map_err(InternalError::from_std)
     }
 
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
         let bert = BertConfig::new(config.directory.relative())?
+            .with_tokenizer::<bert::Tokenizer>()
             .with_pooler::<AveragePooler>()
             .with_token_size(config.token_size)?
             .build()?;
