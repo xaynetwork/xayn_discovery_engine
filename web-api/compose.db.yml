@@ -11,13 +11,13 @@ services:
     networks:
       - internal
 
-  adminer:
-    image: adminer
-    restart: always
-    ports:
-      - 8080:8080
-    networks:
-      - internal
+  # adminer:
+  #   image: adminer
+  #   restart: always
+  #   ports:
+  #     - 8080:8080
+  #   networks:
+  #     - internal
 
   elasticsearch:
     image: elasticsearch:8.5.3
@@ -41,15 +41,15 @@ services:
     networks:
       - internal
 
-  kibana:
-    image: kibana:8.4.0
-    restart: always
-    ports:
-      - 5601:5601
-    depends_on:
-      - elasticsearch
-    networks:
-      - internal
+  # kibana:
+  #   image: kibana:8.4.0
+  #   restart: always
+  #   ports:
+  #     - 5601:5601
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - internal
 
 networks:
   internal:
