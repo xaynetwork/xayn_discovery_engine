@@ -16,7 +16,7 @@
 
 #![allow(dead_code)]
 
-use std::{collections::HashMap, fs::File, io, path::Path};
+use std::{collections::HashMap, fs::File, io, path::Path, time::Duration};
 
 use anyhow::Error;
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
@@ -54,13 +54,20 @@ struct State {
 }
 
 impl State {
-    fn new(storage: Storage) -> Result<Self, Error> {
+    fn new(storage: Storage, test_config: Option<TestConfig>) -> Result<Self, Error> {
         let embedder = Embedder::load(&embedding::Config {
             directory: "../assets/smbert_v0003".into(),
             ..embedding::Config::default()
         })?;
-        let coi = CoiConfig::default().build();
-        let personalization = PersonalizationConfig::default();
+
+        let (coi, personalization) = if let Some(config) = test_config {
+            (config.coi_config.build(), config.personalization_config)
+        } else {
+            (
+                CoiConfig::default().build(),
+                PersonalizationConfig::default(),
+            )
+        };
 
         Ok(Self {
             storage,
@@ -185,6 +192,12 @@ impl Default for PersonaBasedConfig {
             nranks: vec![3, 5],
         }
     }
+}
+
+#[derive(Debug)]
+struct TestConfig {
+    coi_config: CoiConfig,
+    personalization_config: PersonalizationConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -340,7 +353,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
 
-    let state = State::new(Storage::default()).unwrap();
+    let state = State::new(Storage::default(), None).unwrap();
     // load documents from document provider to state
     state
         .insert(document_provider.documents.values().cloned().collect_vec())
@@ -420,7 +433,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
 async fn run_user_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
 
-    let state = State::new(Storage::default()).unwrap();
+    let state = State::new(Storage::default(), None).unwrap();
     state
         .insert(document_provider.to_documents())
         .await
