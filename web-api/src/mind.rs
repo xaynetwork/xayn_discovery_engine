@@ -16,7 +16,7 @@
 
 #![allow(dead_code)]
 
-use std::{collections::HashMap, fs::File, io, path::Path, time::Duration};
+use std::{collections::HashMap, fs::File, io, path::Path};
 
 use anyhow::Error;
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
