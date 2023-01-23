@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::{
     tokenizer::bert,
@@ -62,7 +63,21 @@ impl Embedder {
     }
 
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
-        let bert = BertConfig::new(config.directory.relative())?
+        let path = config.directory.relative();
+        if !path.exists() {
+            bail!(
+                "Fail to load Embedder: asset dir missing: {}",
+                path.display()
+            );
+        }
+        let config_file = path.join("config.toml");
+        if !config_file.exists() {
+            bail!(
+                "Fail to load Embedder: <assets>/config.toml doesn't exist: {}",
+                config_file.display()
+            );
+        }
+        let bert = BertConfig::new(path)?
             .with_tokenizer::<bert::Tokenizer>()
             .with_pooler::<AveragePooler>()
             .with_token_size(config.token_size)?
