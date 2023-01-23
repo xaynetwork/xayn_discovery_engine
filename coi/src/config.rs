@@ -28,16 +28,16 @@ use crate::{
 #[must_use]
 pub struct Config {
     #[serde(default = "default_shift_factor")]
-    pub shift_factor: f32,
+    shift_factor: f32,
     #[serde(default = "default_threshold")]
-    pub threshold: f32,
+    threshold: f32,
     #[serde(default = "default_min_positive_cois")]
-    pub min_positive_cois: usize,
+    min_positive_cois: usize,
     #[serde(default = "default_min_negative_cois")]
-    pub min_negative_cois: usize,
+    min_negative_cois: usize,
     #[serde(default = "default_horizon")]
     #[serde(with = "serde_duration_as_days")]
-    pub horizon: Duration,
+    horizon: Duration,
 }
 
 const fn default_shift_factor() -> f32 {
