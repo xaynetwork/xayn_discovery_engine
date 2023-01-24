@@ -115,8 +115,9 @@ impl From<String> for BadRequest {
 }
 
 #[derive(Serialize, Debug, From)]
+#[from(types(DocumentId))]
 pub(crate) struct DocumentIdAsObject {
-    pub(crate) id: DocumentId,
+    pub(crate) id: String,
 }
 
 /// Internal Error: {0}
