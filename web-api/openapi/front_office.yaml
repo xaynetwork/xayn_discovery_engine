@@ -116,7 +116,7 @@ paths:
         This endpoints get-queries a virtual collection do documents containing documents
         semantically similar to the specific documents ranked/ordered from the most to the
         least similar.
-      operationId: semanticSearch
+      operationId: getSimilarDocuments
       parameters:
         - $ref: './parameters/path/document_id.yml'
         - name: count
