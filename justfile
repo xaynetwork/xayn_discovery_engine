@@ -132,25 +132,25 @@ web-dev-up:
     )"
     # Make sure we don't conflict with containerized ingestion or personalization services.
     # If we do detect this services we stop them and restart the dbs to create a clean state.
-    RESTART=false
-    if jq -e 'contains(["ingestion"])' <(echo "$running_services"); then
-        RESTART=true
-        $compose -f "./web-api/compose.ingestion.yml" down
+    FORCE_START=false
+    if jq -e 'contains(["ingestion"]) or contains(["personalization"])' <(echo "$running_services"); then
+        FORCE_START=true
+        echo "A compose-all (i.e. composition of db and compose.ingestion.yml and/or compose.personalization.yml) is already running." >&2
+        echo "NOW STOPPING IT"
+        {{just_executable()}} compose-all-down 1>/dev/null 2>&1 || :
     fi
-    if jq -e 'contains(["personalization"])' <(echo "$running_services"); then
-        RESTART=true
-        $compose -f "./web-api/compose.personalization.yml" down
-    fi
-    if [ "$RESTART" = "true" ] || \
+    if [[ "$FORCE_START" != false ]] || \
         jq -e 'contains(["elasticsearch","postgres"]) | not' <(echo "$running_services");
     then
-        # stop any partial running services
+        # stop any potential partial running services
         {{just_executable()}} web-dev-down 1>/dev/null 2>&1 || :
         # make sure the right assets are linked
         rm "./web-api/assets" || :
         ln -s "./assets/smbert_v0003" "./web-api/assets"
-        # start all db services
+        # start db services
         $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
+    else
+        echo "Warning: web-dev is already running, skipping starting it" >&2
     fi
 
 web-dev-down:
