@@ -46,27 +46,33 @@ impl_application_error!(PropertyNotFound => BAD_REQUEST);
 
 /// Malformed user id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidUserId {
-    pub(crate) id: String,
+pub(crate) struct InvalidUserId {
+    pub(crate) value: String,
 }
 
 impl_application_error!(InvalidUserId => BAD_REQUEST);
 
 /// Malformed document id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidDocumentId {
-    pub(crate) id: String,
+pub(crate) struct InvalidDocumentId {
+    pub(crate) value: String,
 }
 
 impl_application_error!(InvalidDocumentId => BAD_REQUEST);
 
 /// Malformed document property id.
 #[derive(Debug, Error, Display, Serialize)]
-pub struct InvalidDocumentPropertyId {
-    pub(crate) id: String,
+pub(crate) struct InvalidDocumentPropertyId {
+    pub(crate) value: String,
 }
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST);
+
+/// Malformed document tag.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentTag {
+    pub(crate) value: String,
+}
 
 /// Not enough interactions.
 #[derive(Debug, Error, Display, Serialize)]

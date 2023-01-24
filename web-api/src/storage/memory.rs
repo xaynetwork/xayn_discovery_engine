@@ -47,6 +47,7 @@ use crate::{
         DocumentProperties,
         DocumentProperty,
         DocumentPropertyId,
+        DocumentTag,
         IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
@@ -58,7 +59,7 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
     properties: DocumentProperties,
-    tags: Vec<String>,
+    tags: Vec<DocumentTag>,
 }
 
 #[derive(AsRef, Clone, Debug, Deref, Deserialize, Serialize)]
@@ -220,7 +221,7 @@ pub(crate) struct Storage {
     interests: RwLock<HashMap<UserId, UserInterests>>,
     interactions: RwLock<HashMap<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
     users: RwLock<HashMap<UserId, NaiveDateTime>>,
-    tags: RwLock<HashMap<UserId, HashMap<String, usize>>>,
+    tags: RwLock<HashMap<UserId, HashMap<DocumentTag, usize>>>,
 }
 
 #[async_trait]
@@ -540,8 +541,8 @@ impl storage::Interaction for Storage {
 
         let mut tag_weight_diff = documents
             .iter()
-            .flat_map(|d| &d.tags)
-            .map(|tag| (tag.as_str(), 0))
+            .flat_map(|document| &document.tags)
+            .map(|tag| (tag, 0))
             .collect::<HashMap<_, _>>();
 
         for document in &documents {
@@ -556,17 +557,11 @@ impl storage::Interaction for Storage {
             ));
         }
 
-        for (&tag, &diff) in &tag_weight_diff {
+        for (tag, diff) in tag_weight_diff {
             if let Some(weight) = tags.get_mut(tag) {
-                //FIXME use `saturating_add_signed` when stabilized
-                let abs_diff = diff.unsigned_abs() as usize;
-                if diff < 0 {
-                    *weight -= abs_diff;
-                } else {
-                    *weight += abs_diff;
-                }
+                *weight = weight.saturating_add_signed(diff as isize);
             } else {
-                tags.insert(tag.to_owned(), diff.try_into().unwrap_or_default());
+                tags.insert(tag.clone(), diff.try_into().unwrap_or_default());
             }
         }
 
@@ -576,7 +571,7 @@ impl storage::Interaction for Storage {
 
 #[async_trait]
 impl storage::Tag for Storage {
-    async fn get(&self, id: &UserId) -> Result<HashMap<String, usize>, Error> {
+    async fn get(&self, id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error> {
         Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
     }
 }
@@ -676,51 +671,45 @@ mod tests {
 
     #[tokio::test]
     async fn test_serde() {
-        let document_id = DocumentId::new("42").unwrap();
         let storage = Storage::default();
+        let document_id = DocumentId::new("42").unwrap();
+        let tags = vec![DocumentTag::try_from("tag").unwrap()];
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
             vec![(
                 IngestedDocument {
-                    id: DocumentId::new("42").unwrap(),
+                    id: document_id.clone(),
                     snippet: "snippet".into(),
                     properties: DocumentProperties::default(),
-                    tags: vec!["tag".into()],
+                    tags: tags.clone(),
                 },
                 embedding.clone(),
             )],
         )
         .await
         .unwrap();
-        storage::Interaction::update_interactions(
-            &storage,
-            &UserId::new("abc").unwrap(),
-            &[&document_id],
-            |context| {
-                *context.tag_weight_diff.get_mut("tag").unwrap() += 10;
-                let pcoi = PositiveCoi::new(CoiId::new(), [0.2, 9.4, 1.2].try_into().unwrap());
-                context.positive_cois.push(pcoi.clone());
-                pcoi
-            },
-        )
+        let user_id = UserId::new("abc").unwrap();
+        storage::Interaction::update_interactions(&storage, &user_id, &[&document_id], |context| {
+            *context.tag_weight_diff.get_mut(&tags[0]).unwrap() += 10;
+            let pcoi = PositiveCoi::new(CoiId::new(), [0.2, 9.4, 1.2].try_into().unwrap());
+            context.positive_cois.push(pcoi.clone());
+            pcoi
+        })
         .await
         .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
-        let documents =
-            storage::Document::get_personalized(&storage, &[&DocumentId::new("42").unwrap()])
-                .await
-                .unwrap();
-        assert_eq!(documents[0].id, DocumentId::new("42").unwrap());
+        let documents = storage::Document::get_personalized(&storage, &[&document_id])
+            .await
+            .unwrap();
+        assert_eq!(documents[0].id, document_id);
         assert_approx_eq!(f32, documents[0].embedding, embedding);
         assert!(documents[0].properties.is_empty());
-        assert_eq!(documents[0].tags, vec![String::from("tag")]);
+        assert_eq!(documents[0].tags, tags);
         assert_eq!(
-            storage::Tag::get(&storage, &UserId::new("abc").unwrap())
-                .await
-                .unwrap(),
-            HashMap::from([(String::from("tag"), 10)]),
+            storage::Tag::get(&storage, &user_id).await.unwrap(),
+            HashMap::from([(tags[0].clone(), 10)]),
         );
     }
 }

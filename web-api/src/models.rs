@@ -21,75 +21,82 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Document as AiDocument;
 
-use crate::error::common::{InvalidDocumentId, InvalidDocumentPropertyId, InvalidUserId};
+use crate::error::common::{
+    InvalidDocumentId,
+    InvalidDocumentPropertyId,
+    InvalidDocumentTag,
+    InvalidUserId,
+};
 
 macro_rules! id_wrapper {
-    ($name:ident, $validate:expr, $error:ident) => {
-        /// A unique identifier of a document.
-        #[derive(
-            AsRef,
-            Into,
-            Clone,
-            Debug,
-            Display,
-            PartialEq,
-            Eq,
-            Hash,
-            Serialize,
-            Deserialize,
-            sqlx::Type,
-            sqlx::FromRow,
-        )]
-        #[sqlx(transparent)]
-        #[serde(try_from = "String", into = "String")]
-        pub struct $name(String);
+    ($($visibility:vis $name:ident, $error:ident, $is_valid:expr);* $(;)?) => {
+        $(
+            /// A unique identifier.
+            #[derive(
+                AsRef,
+                Into,
+                Clone,
+                Debug,
+                Display,
+                PartialEq,
+                Eq,
+                Hash,
+                Serialize,
+                Deserialize,
+                sqlx::Type,
+                sqlx::FromRow,
+            )]
+            #[sqlx(transparent)]
+            #[serde(try_from = "String", into = "String")]
+            $visibility struct $name(String);
 
-        impl $name {
-            pub fn new(id: impl Into<String> + AsRef<str>) -> Result<Self, $error> {
-                if ($validate)(id.as_ref()) {
-                    Ok(Self(id.into()))
-                } else {
-                    Err($error { id: id.into() })
+            impl $name {
+                $visibility fn new(value: impl Into<String> + AsRef<str>) -> Result<Self, $error> {
+                    if $is_valid(value.as_ref()) {
+                        Ok(Self(value.into()))
+                    } else {
+                        Err($error { value: value.into() })
+                    }
                 }
             }
-        }
 
-        impl TryFrom<String> for $name {
-            type Error = $error;
+            impl TryFrom<String> for $name {
+                type Error = $error;
 
-            fn try_from(value: String) -> Result<Self, Self::Error> {
-                Self::new(value)
+                fn try_from(value: String) -> Result<Self, Self::Error> {
+                    Self::new(value)
+                }
             }
-        }
 
-        impl TryFrom<&str> for $name {
-            type Error = $error;
+            impl TryFrom<&str> for $name {
+                type Error = $error;
 
-            fn try_from(value: &str) -> Result<Self, Self::Error> {
-                Self::new(value)
+                fn try_from(value: &str) -> Result<Self, Self::Error> {
+                    Self::new(value)
+                }
             }
-        }
 
-        impl FromStr for $name {
-            type Err = $error;
+            impl FromStr for $name {
+                type Err = $error;
 
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Self::new(s)
+                fn from_str(value: &str) -> Result<Self, Self::Err> {
+                    Self::new(value)
+                }
             }
-        }
+        )*
     };
 }
 
-fn is_valid_id(id: &str) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap());
-    RE.is_match(id)
+static ID_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]{1,256}$").unwrap());
+static TAG_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9.:,;\-_+*!?%&/\\() ]{1,100}$").unwrap());
+
+id_wrapper! {
+    pub(crate) DocumentId, InvalidDocumentId, |id| ID_REGEX.is_match(id);
+    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, |id| ID_REGEX.is_match(id);
+    pub(crate) UserId, InvalidUserId, |id| ID_REGEX.is_match(id);
+    pub(crate) DocumentTag, InvalidDocumentTag, |tag| TAG_REGEX.is_match(tag);
 }
-
-id_wrapper!(DocumentId, is_valid_id, InvalidDocumentId);
-
-id_wrapper!(DocumentPropertyId, is_valid_id, InvalidDocumentPropertyId);
-
-id_wrapper!(UserId, is_valid_id, InvalidUserId);
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct DocumentProperty(serde_json::Value);
@@ -107,7 +114,7 @@ pub(crate) struct InteractedDocument {
     pub(crate) embedding: NormalizedEmbedding,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<String>,
+    pub(crate) tags: Vec<DocumentTag>,
 }
 
 /// Represents a result from a personalization query.
@@ -126,7 +133,7 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<String>,
+    pub(crate) tags: Vec<DocumentTag>,
 }
 
 impl AiDocument for PersonalizedDocument {
@@ -159,5 +166,32 @@ pub(crate) struct IngestedDocument {
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<String>,
+    pub(crate) tags: Vec<DocumentTag>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_id() {
+        assert!(DocumentId::new("abcdefghijklmnopqrstruvwxyz").is_ok());
+        assert!(DocumentId::new("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
+        assert!(DocumentId::new("0123456789").is_ok());
+        assert!(DocumentId::new("_-:@.").is_ok());
+        assert!(DocumentId::new("").is_err());
+        assert!(DocumentId::new(["a"; 257].join("")).is_err());
+        assert!(DocumentId::new("!?ß").is_err());
+    }
+
+    #[test]
+    fn test_tag() {
+        assert!(DocumentTag::new("abcdefghijklmnopqrstruvwxyz").is_ok());
+        assert!(DocumentTag::new("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
+        assert!(DocumentTag::new("0123456789").is_ok());
+        assert!(DocumentTag::new(".:,;-_+*!?%&/\\() ").is_ok());
+        assert!(DocumentTag::new("").is_err());
+        assert!(DocumentTag::new(["a"; 101].join("")).is_err());
+        assert!(DocumentTag::new("ß@|").is_err());
+    }
 }
