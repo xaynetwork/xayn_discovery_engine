@@ -17,191 +17,107 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use displaydoc::Display;
-use thiserror::Error;
+use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
     config::Config,
     document::Document,
-    id::CoiId,
-    point::{find_closest_coi, CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+    point::{find_closest_coi, find_closest_coi_index, NegativeCoi, PositiveCoi},
     stats::{compute_coi_decay_factor, compute_coi_relevances},
     utils::system_time_now,
 };
 
-#[derive(Error, Debug, Display)]
-#[allow(clippy::enum_variant_names)]
-pub enum Error {
-    /// Not enough cois
-    NotEnoughCois,
-    /// Failed to find the closest cois
-    FailedToFindTheClosestCois,
-}
-
-struct ClosestPositiveCoi {
-    /// The ID of the closest positive centre of interest
-    id: CoiId,
-    /// Similarity to the closest positive centre of interest
-    similarity: f32,
-    last_view: SystemTime,
-}
-
-impl ClosestPositiveCoi {
-    fn new(
-        embedding: &NormalizedEmbedding,
-        positive_user_interests: &[PositiveCoi],
-    ) -> Result<Option<Self>, Error> {
-        let this = find_closest_coi(positive_user_interests, embedding).map(|(coi, similarity)| {
-            ClosestPositiveCoi {
-                id: coi.id(),
-                similarity,
-                last_view: coi.stats.last_view,
-            }
-        });
-
-        if !positive_user_interests.is_empty() && this.is_none() {
-            Err(Error::FailedToFindTheClosestCois)
-        } else {
-            Ok(this)
-        }
-    }
-
-    fn score(
-        &self,
-        positive_user_interests: &[PositiveCoi],
-        horizon: Duration,
-        now: SystemTime,
-    ) -> f32 {
-        let decay = compute_coi_decay_factor(horizon, now, self.last_view);
-        let index = positive_user_interests
-            .iter()
-            .position(|coi| coi.id() == self.id)
-            .unwrap();
-        let relevance = compute_coi_relevances(positive_user_interests, horizon, now)[index];
-
-        self.similarity * decay + relevance
-    }
-}
-
-struct ClosestNegativeCoi {
-    /// Similarity to closest negative centre of interest
-    similarity: f32,
-    last_view: SystemTime,
-}
-
-impl ClosestNegativeCoi {
-    fn new(
-        embedding: &NormalizedEmbedding,
-        negative_user_interests: &[NegativeCoi],
-    ) -> Result<Option<Self>, Error> {
-        let this = find_closest_coi(negative_user_interests, embedding).map(|(coi, similarity)| {
-            ClosestNegativeCoi {
-                similarity,
-                last_view: coi.last_view,
-            }
-        });
-
-        if !negative_user_interests.is_empty() && this.is_none() {
-            Err(Error::FailedToFindTheClosestCois)
-        } else {
-            Ok(this)
-        }
-    }
-
-    fn score(&self, horizon: Duration, now: SystemTime) -> f32 {
-        let decay = compute_coi_decay_factor(horizon, now, self.last_view);
-
-        self.similarity * decay
-    }
-}
-
-struct ClosestCois {
-    positive: Option<ClosestPositiveCoi>,
-    negative: Option<ClosestNegativeCoi>,
-}
-
-impl ClosestCois {
-    fn new(embedding: &NormalizedEmbedding, user_interests: &UserInterests) -> Result<Self, Error> {
-        let positive = ClosestPositiveCoi::new(embedding, &user_interests.positive)?;
-        let negative = ClosestNegativeCoi::new(embedding, &user_interests.negative)?;
-
-        Ok(Self { positive, negative })
-    }
-
-    fn score(
-        &self,
-        positive_user_interests: &[PositiveCoi],
-        horizon: Duration,
-        now: SystemTime,
-    ) -> f32 {
-        let positive = self
-            .positive
-            .as_ref()
-            .map(|positive| positive.score(positive_user_interests, horizon, now))
-            .unwrap_or_default();
-        let negative = self
-            .negative
-            .as_ref()
-            .map(|negative| negative.score(horizon, now))
-            .unwrap_or_default();
-
-        (positive - negative).clamp(f32::MIN, f32::MAX) // avoid positive or negative infinity
-    }
-}
-
-fn compute_score_for_embedding(
+fn compute_score_for_closest_positive_coi(
     embedding: &NormalizedEmbedding,
-    user_interests: &UserInterests,
+    cois: &[PositiveCoi],
     horizon: Duration,
     now: SystemTime,
-) -> Result<f32, Error> {
-    ClosestCois::new(embedding, user_interests)
-        .map(|cois| cois.score(&user_interests.positive, horizon, now))
+) -> Option<f32> {
+    find_closest_coi_index(cois, embedding).map(|(index, similarity)| {
+        let decay = compute_coi_decay_factor(horizon, now, cois[index].stats.last_view);
+        let relevance = compute_coi_relevances(cois, horizon, now)[index];
+        similarity * decay + relevance
+    })
 }
 
-fn has_enough_cois(
-    user_interests: &UserInterests,
-    min_positive_cois: usize,
-    min_negative_cois: usize,
-) -> bool {
-    user_interests.positive.len() >= min_positive_cois
-        && user_interests.negative.len() >= min_negative_cois
+fn compute_score_for_closest_negative_coi(
+    embedding: &NormalizedEmbedding,
+    cois: &[NegativeCoi],
+    horizon: Duration,
+    now: SystemTime,
+) -> Option<f32> {
+    find_closest_coi(cois, embedding).map(|(coi, similarity)| {
+        let decay = compute_coi_decay_factor(horizon, now, coi.last_view);
+        similarity * decay
+    })
 }
 
-/// Computes the scores for all documents based on the given information.
-///
-/// <https://xainag.atlassian.net/wiki/spaces/M2D/pages/2240708609/Discovery+engine+workflow#The-weighting-of-the-CoI>
-/// outlines parts of the score calculation.
-///
-/// # Errors
-/// Fails if the required number of positive or negative cois is not present.
-pub(crate) fn compute_scores_for_docs<T: Document>(
-    documents: &[T],
-    user_interests: &UserInterests,
-    config: &Config,
-) -> Result<HashMap<T::Id, f32>, Error> {
-    if !has_enough_cois(
-        user_interests,
-        config.min_positive_cois(),
-        config.min_negative_cois(),
-    ) {
-        return Err(Error::NotEnoughCois);
+/// The `CoI`s of a user.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct UserInterests {
+    pub positive: Vec<PositiveCoi>,
+    pub negative: Vec<NegativeCoi>,
+}
+
+impl UserInterests {
+    /// Checks if all user interests are empty.
+    pub fn is_empty(&self) -> bool {
+        self.positive.is_empty() && self.negative.is_empty()
     }
 
-    let now = system_time_now();
-    documents
-        .iter()
-        .map(|document| {
-            let score = compute_score_for_embedding(
-                document.bert_embedding(),
-                user_interests,
-                config.horizon(),
-                now,
-            )?;
-            Ok((document.id().clone(), score))
-        })
-        .collect()
+    fn has_enough_cois(&self, min_positive: usize, min_negative: usize) -> bool {
+        self.positive.len() >= min_positive && self.negative.len() >= min_negative
+    }
+
+    fn compute_score_for_embedding(
+        &self,
+        embedding: &NormalizedEmbedding,
+        horizon: Duration,
+        now: SystemTime,
+    ) -> Option<f32> {
+        match (
+            compute_score_for_closest_positive_coi(embedding, &self.positive, horizon, now),
+            compute_score_for_closest_negative_coi(embedding, &self.negative, horizon, now),
+        ) {
+            (Some(positive), Some(negative)) => Some(positive - negative),
+            (Some(positive), None) => Some(positive),
+            (None, Some(negative)) => Some(-negative),
+            (None, None) => None,
+        }
+    }
+
+    /// Computes the scores for all documents based on the given information.
+    ///
+    /// <https://xainag.atlassian.net/wiki/spaces/M2D/pages/2240708609/Discovery+engine+workflow#The-weighting-of-the-CoI>
+    /// outlines parts of the score calculation.
+    pub(crate) fn compute_scores_for_docs<D>(
+        &self,
+        documents: &[D],
+        config: &Config,
+    ) -> Option<HashMap<D::Id, f32>>
+    where
+        D: Document,
+    {
+        if !self.has_enough_cois(config.min_positive_cois(), config.min_negative_cois()) {
+            return None;
+        }
+
+        let now = system_time_now();
+        let scores = documents
+            .iter()
+            .map(|document| {
+                let score = self.compute_score_for_embedding(
+                    document.bert_embedding(),
+                    config.horizon(),
+                    now,
+                ).unwrap(/* checked that some coi exists */);
+                (document.id().clone(), score)
+            })
+            .collect();
+
+        Some(scores)
+    }
 }
 
 #[cfg(test)]
@@ -217,10 +133,9 @@ mod tests {
     #[test]
     fn test_has_enough_cois() {
         let user_interests = UserInterests::default();
-
-        assert!(has_enough_cois(&user_interests, 0, 0));
-        assert!(!has_enough_cois(&user_interests, 1, 0));
-        assert!(!has_enough_cois(&user_interests, 0, 1));
+        assert!(user_interests.has_enough_cois(0, 0));
+        assert!(!user_interests.has_enough_cois(1, 0));
+        assert!(!user_interests.has_enough_cois(0, 1));
     }
 
     #[test]
@@ -237,13 +152,9 @@ mod tests {
 
         let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
 
-        let score = compute_score_for_embedding(
-            &[1., 4., 4.].try_into().unwrap(),
-            &user_interests,
-            horizon,
-            now,
-        )
-        .unwrap();
+        let score = user_interests
+            .compute_score_for_embedding(&[1., 4., 4.].try_into().unwrap(), horizon, now)
+            .unwrap();
 
         let pos_similarity = 0.785_516_44;
         let pos_decay = 0.999_999_34;
@@ -257,14 +168,11 @@ mod tests {
     #[test]
     fn test_compute_score_for_embedding_no_cois() {
         let horizon = Duration::from_secs_f32(SECONDS_PER_DAY_F32);
-
-        let score = compute_score_for_embedding(
+        let score = UserInterests::default().compute_score_for_embedding(
             &[0., 0., 0.].try_into().unwrap(),
-            &UserInterests::default(),
             horizon,
             system_time_now(),
-        )
-        .unwrap();
-        assert_approx_eq!(f32, score, 0.);
+        );
+        assert!(score.is_none());
     }
 }

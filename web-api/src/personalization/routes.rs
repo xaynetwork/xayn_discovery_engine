@@ -37,7 +37,7 @@ use super::{AppState, PersonalizationConfig};
 use crate::{
     error::{
         application::WithRequestIdExt,
-        common::{BadRequest, InternalError, NotEnoughInteractions},
+        common::{BadRequest, InternalError},
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
     storage::{self, KnnSearchParams},
@@ -194,26 +194,26 @@ struct PersonalizedDocumentsResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
-/// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each centers' embedding.
+/// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each center's embedding.
 fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
     let relevances = compute_coi_relevances(cois, horizon, system_time_now())
         .into_iter()
         .map(|rel| 1.0 - (-3.0 * rel).exp())
         .collect_vec();
 
-    let rel_sum: f32 = relevances.iter().sum();
+    let relevance_sum = relevances.iter().sum::<f32>();
     relevances
         .iter()
-        .map(|rel| {
-            let res = rel / rel_sum;
-            if res.is_nan() {
+        .map(|relevance| {
+            let weight = relevance / relevance_sum;
+            if weight.is_finite() {
+                weight
+            } else {
                 // should be ok for our use-case
                 #[allow(clippy::cast_precision_loss)]
                 let len = cois.len() as f32;
-                // len can't be zero, because we return early if we have no positive CoIs and never compute weights
-                1.0f32 / len
-            } else {
-                res
+                // len can't be zero, because this iterator isn't entered for empty cois
+                1. / len
             }
         })
         .collect()
@@ -322,10 +322,6 @@ pub(crate) async fn personalize_documents_by(
     storage::Interaction::user_seen(storage, user_id).await?;
 
     let user_interests = storage::Interest::get(storage, user_id).await?;
-    if user_interests.is_empty() {
-        return Err(NotEnoughInteractions.into());
-    }
-
     let mut all_documents = match by {
         PersonalizeBy::KnnSearch {
             count,
@@ -347,10 +343,8 @@ pub(crate) async fn personalize_documents_by(
         }
     };
 
-    if let Ok(scores) = coi.score(&all_documents, &user_interests) {
+    if let Some(scores) = coi.score(&all_documents, &user_interests) {
         rank(&mut all_documents, &scores);
-    } else {
-        return Err(NotEnoughInteractions.into());
     }
     let documents_by_interests = all_documents
         .iter()
@@ -402,4 +396,32 @@ pub(crate) async fn personalize_documents_by(
     }
 
     Ok(all_documents)
+}
+
+#[cfg(test)]
+mod tests {
+    use xayn_ai_coi::CoiConfig;
+
+    use super::*;
+    use crate::storage::memory::Storage;
+
+    #[tokio::test]
+    async fn test_search_knn_documents_for_empty_cois() {
+        // these dummy values are only used for the excluded documents which will be empty
+        let storage = Storage::default();
+        let user = "123".try_into().unwrap();
+
+        let documents = search_knn_documents(
+            &storage,
+            &user,
+            &[],
+            CoiConfig::default().horizon(),
+            PersonalizationConfig::default().max_cois_for_knn,
+            10,
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(documents.is_empty());
+    }
 }

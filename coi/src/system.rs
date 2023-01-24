@@ -19,18 +19,10 @@ use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
     config::Config,
-    context,
-    context::compute_scores_for_docs,
+    context::UserInterests,
     document::Document,
     id::CoiId,
-    point::{
-        find_closest_coi_index,
-        find_closest_coi_mut,
-        CoiPoint,
-        NegativeCoi,
-        PositiveCoi,
-        UserInterests,
-    },
+    point::{find_closest_coi_index, find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
 };
 
 /// The center of interest (coi) system.
@@ -95,17 +87,17 @@ impl System {
         cois.push(NegativeCoi::new(CoiId::new(), embedding.clone()));
     }
 
-    #[instrument(skip_all)]
     /// Return the score of each document given the interests of the user.
+    #[instrument(skip_all)]
     pub fn score<D>(
         &self,
         documents: &[D],
         user_interests: &UserInterests,
-    ) -> Result<HashMap<D::Id, f32>, context::Error>
+    ) -> Option<HashMap<D::Id, f32>>
     where
         D: Document,
     {
-        compute_scores_for_docs(documents, user_interests, &self.config)
+        user_interests.compute_scores_for_docs(documents, &self.config)
     }
 }
 
@@ -224,6 +216,6 @@ mod tests {
         let user_interests = UserInterests::default();
         let system = Config::default().with_min_positive_cois(1).unwrap().build();
 
-        assert!(system.score(&documents, &user_interests).is_err());
+        assert!(system.score(&documents, &user_interests).is_none());
     }
 }

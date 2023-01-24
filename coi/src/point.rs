@@ -99,20 +99,6 @@ impl_coi_point! {
     NegativeCoi { last_view: system_time_now() },
 }
 
-/// The `CoI`s of a user.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct UserInterests {
-    pub positive: Vec<PositiveCoi>,
-    pub negative: Vec<NegativeCoi>,
-}
-
-impl UserInterests {
-    /// Checks if all user interests are empty.
-    pub fn is_empty(&self) -> bool {
-        self.positive.is_empty() && self.negative.is_empty()
-    }
-}
-
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
 pub(super) fn find_closest_coi_index(
     cois: &[impl CoiPoint],

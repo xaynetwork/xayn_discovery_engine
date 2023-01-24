@@ -42,10 +42,10 @@ pub mod utils;
 
 pub use crate::{
     config::{Config as CoiConfig, Error as CoiConfigError},
-    context::Error as CoiContextError,
+    context::UserInterests,
     document::Document,
     id::CoiId,
-    point::{CoiPoint, NegativeCoi, PositiveCoi, UserInterests},
+    point::{CoiPoint, NegativeCoi, PositiveCoi},
     stats::{compute_coi_relevances, CoiStats},
     system::System as CoiSystem,
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, system_time_now},
