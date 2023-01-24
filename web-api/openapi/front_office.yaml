@@ -107,7 +107,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserInteractionError'
 
-  /documents/{document_id}/semantic_search:
+  /semantic_search/{document_id}:
     get:
       tags:
         - front office
@@ -115,7 +115,7 @@ paths:
       description: |-
         This endpoints get-queries a virtual collection do documents containing documents
         semantically similar to the specific documents ranked/ordered from the most to the
-        least similar. Access is limited a a configurable number of most similar documents.
+        least similar.
       operationId: semanticSearch
       parameters:
         - $ref: './parameters/path/document_id.yml'
