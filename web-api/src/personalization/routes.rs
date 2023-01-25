@@ -60,30 +60,34 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
 
 /// Represents user interaction request body.
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct UpdateInteractions {
-    pub(crate) documents: Vec<UserInteractionData>,
+struct UpdateInteractions {
+    documents: Vec<UserInteractionData>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct UserInteractionData {
+struct UserInteractionData {
     #[serde(rename = "id")]
-    pub(crate) document_id: DocumentId,
+    pub(crate) document_id: String,
     #[serde(rename = "type")]
     pub(crate) interaction_type: UserInteractionType,
 }
 
 async fn interactions(
     state: Data<AppState>,
-    user_id: Path<UserId>,
+    user_id: Path<String>,
     Json(interactions): Json<UpdateInteractions>,
 ) -> Result<impl Responder, Error> {
-    update_interactions(
-        &state.storage,
-        &state.coi,
-        &user_id,
-        &interactions.documents,
-    )
-    .await?;
+    let user_id = user_id.into_inner().try_into()?;
+    let interactions = interactions
+        .documents
+        .into_iter()
+        .map(|data| {
+            data.document_id
+                .try_into()
+                .map(|document_id| (document_id, data.interaction_type))
+        })
+        .try_collect::<_, Vec<_>, _>()?;
+    update_interactions(&state.storage, &state.coi, &user_id, &interactions).await?;
 
     Ok(HttpResponse::NoContent())
 }
@@ -92,24 +96,27 @@ pub(crate) async fn update_interactions(
     storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
     coi: &CoiSystem,
     user_id: &UserId,
-    interactions: &[UserInteractionData],
+    interactions: &[(DocumentId, UserInteractionType)],
 ) -> Result<(), Error> {
     storage::Interaction::user_seen(storage, user_id).await?;
 
     #[allow(clippy::zero_sized_map_values)]
-    let id_to_interaction_type = interactions
+    let document_id_to_interaction_type = interactions
         .iter()
-        .map(|interaction| (&interaction.document_id, interaction.interaction_type))
+        .map(|(document_id, interaction_type)| (document_id, interaction_type))
         .collect::<HashMap<_, _>>();
 
-    let ids = interactions.iter().map(|i| &i.document_id).collect_vec();
-    storage::Interaction::update_interactions(storage, user_id, &ids, |context| {
-        match id_to_interaction_type[&context.document.id] {
+    let document_ids = interactions
+        .iter()
+        .map(|(document_id, _)| document_id)
+        .collect_vec();
+    storage::Interaction::update_interactions(storage, user_id, &document_ids, |context| {
+        match document_id_to_interaction_type[&context.document.id] {
             UserInteractionType::Positive => {
                 for tag in &context.document.tags {
                     *context.tag_weight_diff
                             .get_mut(tag.as_str())
-                            .unwrap(/*update_interactions assures all tags are given*/) += 1;
+                            .unwrap(/* update_interactions assures all tags are given */) += 1;
                 }
                 coi.log_positive_user_reaction(context.positive_cois, &context.document.embedding)
                     .clone()
@@ -144,13 +151,13 @@ impl PersonalizedDocumentsQuery {
 
 async fn personalized_documents(
     state: Data<AppState>,
-    user_id: Path<UserId>,
+    user_id: Path<String>,
     options: Query<PersonalizedDocumentsQuery>,
 ) -> Result<impl Responder, Error> {
     personalize_documents_by(
         &state.storage,
         &state.coi,
-        &user_id,
+        &user_id.into_inner().try_into()?,
         &state.config.personalization,
         PersonalizeBy::KnnSearch {
             count: options.document_count(&state.config.personalization)?,

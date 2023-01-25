@@ -35,12 +35,7 @@ use crate::{
     embedding::{self, Embedder},
     models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
     personalization::{
-        routes::{
-            personalize_documents_by,
-            update_interactions,
-            PersonalizeBy,
-            UserInteractionData,
-        },
+        routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
     },
     storage::{self, memory::Storage},
@@ -95,10 +90,7 @@ impl State {
     async fn interact(&self, user: &UserId, documents: &[DocumentId]) -> Result<(), Error> {
         let interactions = documents
             .iter()
-            .map(|id| UserInteractionData {
-                document_id: id.clone(),
-                interaction_type: UserInteractionType::Positive,
-            })
+            .map(|id| (id.clone(), UserInteractionType::Positive))
             .collect_vec();
 
         update_interactions(&self.storage, &self.coi, user, &interactions)

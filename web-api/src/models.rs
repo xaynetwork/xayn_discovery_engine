@@ -17,7 +17,7 @@ use std::{collections::HashMap, str::FromStr};
 use derive_more::{AsRef, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Document as AiDocument;
 
@@ -98,7 +98,7 @@ pub(crate) struct DocumentProperty(serde_json::Value);
 pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
 /// Represents a result from an interaction query.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct InteractedDocument {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
@@ -111,7 +111,7 @@ pub(crate) struct InteractedDocument {
 }
 
 /// Represents a result from a personalization query.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct PersonalizedDocument {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
@@ -147,34 +147,17 @@ pub(crate) enum UserInteractionType {
 }
 
 /// Represents a document sent for ingestion.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug)]
 pub(crate) struct IngestedDocument {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
 
     /// Snippet used to calculate embeddings for a document.
-    #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_byte")]
     pub(crate) snippet: String,
 
     /// Contents of the document properties.
-    #[serde(default)]
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    #[serde(default)]
     pub(crate) tags: Vec<String>,
-}
-
-fn deserialize_string_not_empty_or_zero_byte<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    if s.is_empty() {
-        Err(de::Error::custom("field can't be an empty string"))
-    } else if s.contains('\u{0000}') {
-        Err(de::Error::custom("field can't contain zero bytes"))
-    } else {
-        Ok(s)
-    }
 }

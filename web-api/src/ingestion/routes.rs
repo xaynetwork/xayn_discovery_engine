@@ -12,13 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
     HttpResponse,
     Responder,
 };
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
 use tracing::{error, info, instrument};
 
@@ -34,13 +36,7 @@ use crate::{
             IngestingDocumentsFailed,
         },
     },
-    models::{
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        IngestedDocument,
-    },
+    models::{self, DocumentProperties, DocumentProperty},
     storage::{self, DeletionError, InsertionError},
     Error,
 };
@@ -68,6 +64,31 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::put().to(put_document_property.error_with_request_id()))
                 .route(web::delete().to(delete_document_property.error_with_request_id())),
         );
+}
+
+fn deserialize_string_not_empty_or_zero_bytes<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Err(de::Error::custom("string is empty"))
+    } else if s.contains('\u{0000}') {
+        Err(de::Error::custom("string contains zero bytes"))
+    } else {
+        Ok(s)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct IngestedDocument {
+    id: String,
+    #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_bytes")]
+    snippet: String,
+    #[serde(default)]
+    properties: HashMap<String, DocumentProperty>,
+    #[serde(default)]
+    tags: Vec<String>,
 }
 
 /// Represents body of a POST documents request.
@@ -99,15 +120,30 @@ async fn new_documents(
     let (documents, mut failed_documents) = body
         .documents
         .into_iter()
-        .map(|document| match state.embedder.run(&document.snippet) {
-            Ok(embedding) => Ok((document, embedding)),
-            Err(err) => {
+        .map(|document| {
+            let map_document = || -> anyhow::Result<_> {
+                let document = models::IngestedDocument {
+                    id: document.id.as_str().try_into()?,
+                    snippet: document.snippet,
+                    properties: document
+                        .properties
+                        .into_iter()
+                        .map(|(id, property)| id.try_into().map(|id| (id, property)))
+                        .try_collect()?,
+                    tags: document.tags,
+                };
+                let embedding = state.embedder.run(&document.snippet)?;
+
+                Ok((document, embedding))
+            };
+
+            map_document().map_err(|error| {
                 error!(
                     "Document with id '{}' caused a PipelineError: {:#?}",
-                    document.id, err,
+                    document.id, error,
                 );
-                Err(document.id.into())
-            }
+                document.id.into()
+            })
         })
         .partition_result::<Vec<_>, Vec<_>, _, _>();
 
@@ -135,10 +171,7 @@ async fn new_documents(
     Ok(HttpResponse::Created())
 }
 
-async fn delete_document(
-    state: Data<AppState>,
-    id: Path<DocumentId>,
-) -> Result<impl Responder, Error> {
+async fn delete_document(state: Data<AppState>, id: Path<String>) -> Result<impl Responder, Error> {
     delete_documents(
         state,
         Json(BatchDeleteRequest {
@@ -154,7 +187,12 @@ async fn delete_documents(
     state: Data<AppState>,
     Json(documents): Json<BatchDeleteRequest>,
 ) -> Result<impl Responder, Error> {
-    storage::Document::delete(&state.storage, &documents.documents)
+    let documents = documents
+        .documents
+        .into_iter()
+        .map(TryInto::try_into)
+        .try_collect::<_, Vec<_>, _>()?;
+    storage::Document::delete(&state.storage, &documents)
         .await
         .map_err(|error| match error {
             DeletionError::General(error) => error,
@@ -166,35 +204,47 @@ async fn delete_documents(
     Ok(HttpResponse::NoContent())
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct BatchDeleteRequest {
-    documents: Vec<DocumentId>,
+    documents: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct DocumentPropertiesAsObject {
+#[derive(Debug, Clone, Serialize)]
+struct DocumentPropertiesResponse {
     properties: DocumentProperties,
 }
 
 #[instrument(skip(state))]
 pub(crate) async fn get_document_properties(
     state: Data<AppState>,
-    document_id: Path<DocumentId>,
+    document_id: Path<String>,
 ) -> Result<impl Responder, Error> {
+    let document_id = document_id.into_inner().try_into()?;
     let properties = storage::DocumentProperties::get(&state.storage, &document_id)
         .await?
         .ok_or(DocumentNotFound)?;
 
-    Ok(Json(DocumentPropertiesAsObject { properties }))
+    Ok(Json(DocumentPropertiesResponse { properties }))
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct DocumentPropertiesRequest {
+    properties: HashMap<String, DocumentProperty>,
 }
 
 #[instrument(skip(state, properties))]
 async fn put_document_properties(
     state: Data<AppState>,
-    document_id: Path<DocumentId>,
-    Json(properties): Json<DocumentPropertiesAsObject>,
+    document_id: Path<String>,
+    Json(properties): Json<DocumentPropertiesRequest>,
 ) -> Result<impl Responder, Error> {
-    storage::DocumentProperties::put(&state.storage, &document_id, &properties.properties)
+    let document_id = document_id.into_inner().try_into()?;
+    let properties = properties
+        .properties
+        .into_iter()
+        .map(|(id, property)| id.try_into().map(|id| (id, property)))
+        .try_collect()?;
+    storage::DocumentProperties::put(&state.storage, &document_id, &properties)
         .await?
         .ok_or(DocumentNotFound)?;
 
@@ -204,8 +254,9 @@ async fn put_document_properties(
 #[instrument(skip(state))]
 async fn delete_document_properties(
     state: Data<AppState>,
-    document_id: Path<DocumentId>,
+    document_id: Path<String>,
 ) -> Result<impl Responder, Error> {
+    let document_id = document_id.into_inner().try_into()?;
     storage::DocumentProperties::delete(&state.storage, &document_id)
         .await?
         .ok_or(DocumentNotFound)?;
@@ -221,9 +272,11 @@ struct DocumentPropertyAsObject {
 #[instrument(skip(state))]
 async fn get_document_property(
     state: Data<AppState>,
-    ids: Path<(DocumentId, DocumentPropertyId)>,
+    ids: Path<(String, String)>,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
+    let document_id = document_id.try_into()?;
+    let property_id = property_id.try_into()?;
     let property = storage::DocumentProperty::get(&state.storage, &document_id, &property_id)
         .await?
         .ok_or(DocumentNotFound)?
@@ -235,10 +288,12 @@ async fn get_document_property(
 #[instrument(skip(state))]
 async fn put_document_property(
     state: Data<AppState>,
-    ids: Path<(DocumentId, DocumentPropertyId)>,
+    ids: Path<(String, String)>,
     Json(body): Json<DocumentPropertyAsObject>,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
+    let document_id = document_id.try_into()?;
+    let property_id = property_id.try_into()?;
     storage::DocumentProperty::put(&state.storage, &document_id, &property_id, &body.property)
         .await?
         .ok_or(DocumentNotFound)?;
@@ -249,9 +304,11 @@ async fn put_document_property(
 #[instrument(skip(state))]
 async fn delete_document_property(
     state: Data<AppState>,
-    ids: Path<(DocumentId, DocumentPropertyId)>,
+    ids: Path<(String, String)>,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
+    let document_id = document_id.try_into()?;
+    let property_id = property_id.try_into()?;
     storage::DocumentProperty::delete(&state.storage, &document_id, &property_id)
         .await?
         .ok_or(DocumentNotFound)?;
