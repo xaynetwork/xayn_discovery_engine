@@ -13,8 +13,8 @@ target/
 .tmp
 
 # discovery_engine_api_tests
+discovery_engine_api_tests/config/config.ini
 discovery_engine_api_tests/venv/
-discovery_engine_api_tests/__pycache__/
+discovery_engine_api_tests/**/__pycache__/
 discovery_engine_api_tests/tests/.pytest_cache/
-discovery_engine_api_tests/tests/logs/
 discovery_engine_api_tests/tests/reports/
