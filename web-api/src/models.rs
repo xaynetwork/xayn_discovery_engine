@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use derive_more::{AsRef, Display, Into};
 use once_cell::sync::Lazy;
@@ -46,16 +46,17 @@ macro_rules! id_wrapper {
                 sqlx::Type,
                 sqlx::FromRow,
             )]
+            #[serde(transparent)]
             #[sqlx(transparent)]
-            #[serde(try_from = "String", into = "String")]
             $visibility struct $name(String);
 
             impl $name {
-                $visibility fn new(value: impl Into<String> + AsRef<str>) -> Result<Self, $error> {
-                    if $is_valid(value.as_ref()) {
-                        Ok(Self(value.into()))
+                $visibility fn new(value: impl Into<String>) -> Result<Self, $error> {
+                    let value = value.into();
+                    if $is_valid(&value) {
+                        Ok(Self(value))
                     } else {
-                        Err($error { value: value.into() })
+                        Err($error { value })
                     }
                 }
             }
@@ -75,27 +76,27 @@ macro_rules! id_wrapper {
                     Self::new(value)
                 }
             }
-
-            impl FromStr for $name {
-                type Err = $error;
-
-                fn from_str(value: &str) -> Result<Self, Self::Err> {
-                    Self::new(value)
-                }
-            }
         )*
     };
 }
 
-static ID_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]{1,256}$").unwrap());
-static TAG_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9.:,;\-_+*!?%&/\\() ]{1,100}$").unwrap());
+fn is_valid_id(value: &str) -> bool {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap());
+
+    (1..=256).contains(&value.len()) && RE.is_match(value)
+}
+
+fn is_valid_tag(value: &str) -> bool {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^\x00]").unwrap());
+
+    (1..=256).contains(&value.len()) && RE.is_match(value)
+}
 
 id_wrapper! {
-    pub(crate) DocumentId, InvalidDocumentId, |id| ID_REGEX.is_match(id);
-    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, |id| ID_REGEX.is_match(id);
-    pub(crate) UserId, InvalidUserId, |id| ID_REGEX.is_match(id);
-    pub(crate) DocumentTag, InvalidDocumentTag, |tag| TAG_REGEX.is_match(tag);
+    pub(crate) DocumentId, InvalidDocumentId, is_valid_id;
+    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, is_valid_id;
+    pub(crate) UserId, InvalidUserId, is_valid_id;
+    pub(crate) DocumentTag, InvalidDocumentTag, is_valid_tag;
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -189,9 +190,9 @@ mod tests {
         assert!(DocumentTag::new("abcdefghijklmnopqrstruvwxyz").is_ok());
         assert!(DocumentTag::new("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
         assert!(DocumentTag::new("0123456789").is_ok());
-        assert!(DocumentTag::new(".:,;-_+*!?%&/\\() ").is_ok());
+        assert!(DocumentTag::new(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€").is_ok());
         assert!(DocumentTag::new("").is_err());
-        assert!(DocumentTag::new(["a"; 101].join("")).is_err());
-        assert!(DocumentTag::new("ß@|").is_err());
+        assert!(DocumentTag::new(["a"; 257].join("")).is_err());
+        assert!(DocumentTag::new("\0").is_err());
     }
 }

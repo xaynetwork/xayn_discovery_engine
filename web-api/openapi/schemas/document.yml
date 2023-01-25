@@ -26,9 +26,9 @@ DocumentPropertyId:
   example: "title"
 
 DocumentTag:
-  description: A tag of a document can be any non-empty string that consists of alphanumerical characters, common punctuation and whitespace.
+  description: A tag of a document can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
   type: string
-  pattern: '^[a-zA-Z0-9.:,;\-_+*!?%&/\\() ]{1,100}$'
+  pattern: '[^\x00]+$'
   minLength: 1
-  maxLength: 100
+  maxLength: 256
   example: "tag"
