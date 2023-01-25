@@ -22,7 +22,7 @@ class Config:
             self.config.set(self.ENDPOINTS_SECTION, "PERSONALIZATION_URI", os.environ["PERSONALIZATION_URI"])
         except KeyError as error:
             logging.error(error)
-        with open(os.path.abspath(os.curdir) + "/config.ini", "w") as configfile:
+        with open(self.config_path, "w") as configfile:
             self.config.write(configfile)
 
     def get_ingestion_endpoint(self):
