@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: pw
       POSTGRES_DB: xayn
     ports:
-      - 5432:5432
+      - "${HOST_PORT_SCOPE:-30}54:5432"
     networks:
       - internal
     healthcheck:
@@ -16,13 +16,13 @@ services:
       timeout: 5s
       retries: 5
 
-  # adminer:
-  #   image: adminer
-  #   restart: always
-  #   ports:
-  #     - 8080:8080
-  #   networks:
-  #     - internal
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "${HOST_PORT_SCOPE:-30}80:8080"
+    networks:
+      - internal
 
   elasticsearch:
     image: elasticsearch:8.5.3
@@ -31,7 +31,7 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
     ports:
-      - 9200:9200
+      - "${HOST_PORT_SCOPE:-30}92:9200"
     networks:
       - internal
     healthcheck:
@@ -55,7 +55,7 @@ services:
   #   image: kibana:8.4.0
   #   restart: always
   #   ports:
-  #     - 5601:5601
+  #     - "${HOST_PORT_SCOPE:-30}56:5601"
   #   depends_on:
   #     - elasticsearch
   #   networks:
@@ -63,15 +63,3 @@ services:
 
 networks:
   internal:
-    # Problem:
-    #   - the proper way to start multiple compose files is to start them all together
-    #     as one merged config
-    #   - but sometimes you want to start some (e.g. db) and then start/stop others
-    #   - but networks will by default choose an unused global name
-    # Solution:
-    #   - we manually set the global name (`name: internal`) which normally is not
-    #     necessary
-    # Bad Solution:
-    #   - we set `external: true` in all other compos files except this one, problem
-    #     is if we then start all as one merged config this might behave unexpected
-    name: xayn-web-api_internal
