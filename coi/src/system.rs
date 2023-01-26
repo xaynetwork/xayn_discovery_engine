@@ -87,17 +87,16 @@ impl System {
         cois.push(NegativeCoi::new(CoiId::new(), embedding.clone()));
     }
 
-    /// Return the score of each document given the interests of the user.
+    /// Computes the scores for all documents given the interests of the user.
+    ///
+    /// If the cois are empty, then `None` is returned as no scores can be computed. Otherwise the
+    /// map contains a score for each document.
     #[instrument(skip_all)]
-    pub fn score<D>(
-        &self,
-        documents: &[D],
-        user_interests: &UserInterests,
-    ) -> Option<HashMap<D::Id, f32>>
+    pub fn score<D>(&self, documents: &[D], cois: &UserInterests) -> Option<HashMap<D::Id, f32>>
     where
         D: Document,
     {
-        user_interests.compute_scores_for_docs(documents, &self.config)
+        cois.compute_scores_for_docs(documents, &self.config)
     }
 }
 

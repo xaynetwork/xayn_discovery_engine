@@ -326,20 +326,20 @@ pub(crate) async fn personalize_documents_by(
 ) -> Result<Option<Vec<PersonalizedDocument>>, Error> {
     storage::Interaction::user_seen(storage, user_id).await?;
 
-    let user_interests = storage::Interest::get(storage, user_id).await?;
+    let cois = storage::Interest::get(storage, user_id).await?;
+    if !cois.has_enough(coi.config()) {
+        return Ok(None);
+    }
+
     let mut all_documents = match by {
         PersonalizeBy::KnnSearch {
             count,
             published_after,
         } => {
-            if user_interests.is_empty() {
-                // if there are no cois then knn search won't return any documents
-                return Ok(None);
-            }
             search_knn_documents(
                 storage,
                 user_id,
-                &user_interests.positive,
+                &cois.positive,
                 coi.config().horizon(),
                 personalization.max_cois_for_knn,
                 count,
@@ -352,10 +352,8 @@ pub(crate) async fn personalize_documents_by(
         }
     };
 
-    if let Some(scores) = coi.score(&all_documents, &user_interests) {
-        // if there are not enough cois to score the documents then reranking by scores is skipped
-        rank(&mut all_documents, &scores);
-    }
+    let scores = coi.score(&all_documents, &cois).unwrap(/* checked that there are enough cois */);
+    rank(&mut all_documents, &scores);
     let documents_by_interests = all_documents
         .iter()
         .enumerate()

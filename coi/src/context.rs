@@ -61,13 +61,9 @@ pub struct UserInterests {
 }
 
 impl UserInterests {
-    /// Checks if all user interests are empty.
-    pub fn is_empty(&self) -> bool {
-        self.positive.is_empty() && self.negative.is_empty()
-    }
-
-    fn has_enough_cois(&self, min_positive: usize, min_negative: usize) -> bool {
-        self.positive.len() >= min_positive && self.negative.len() >= min_negative
+    pub fn has_enough(&self, config: &Config) -> bool {
+        self.positive.len() >= config.min_positive_cois()
+            && self.negative.len() >= config.min_negative_cois()
     }
 
     fn compute_score_for_embedding(
@@ -87,7 +83,10 @@ impl UserInterests {
         }
     }
 
-    /// Computes the scores for all documents based on the given information.
+    /// Computes the scores for all documents.
+    ///
+    /// If the cois are empty, then `None` is returned as no scores can be computed. Otherwise the
+    /// map contains a score for each document.
     ///
     /// <https://xainag.atlassian.net/wiki/spaces/M2D/pages/2240708609/Discovery+engine+workflow#The-weighting-of-the-CoI>
     /// outlines parts of the score calculation.
@@ -99,24 +98,14 @@ impl UserInterests {
     where
         D: Document,
     {
-        if !self.has_enough_cois(config.min_positive_cois(), config.min_negative_cois()) {
-            return None;
-        }
-
         let now = system_time_now();
-        let scores = documents
+        documents
             .iter()
             .map(|document| {
-                let score = self.compute_score_for_embedding(
-                    document.bert_embedding(),
-                    config.horizon(),
-                    now,
-                ).unwrap(/* checked that some coi exists */);
-                (document.id().clone(), score)
+                self.compute_score_for_embedding(document.bert_embedding(), config.horizon(), now)
+                    .map(|score| (document.id().clone(), score))
             })
-            .collect();
-
-        Some(scores)
+            .collect()
     }
 }
 
@@ -131,11 +120,20 @@ mod tests {
     };
 
     #[test]
-    fn test_has_enough_cois() {
-        let user_interests = UserInterests::default();
-        assert!(user_interests.has_enough_cois(0, 0));
-        assert!(!user_interests.has_enough_cois(1, 0));
-        assert!(!user_interests.has_enough_cois(0, 1));
+    fn test_has_enough() {
+        let config = Config::default();
+        let cois = UserInterests::default();
+        assert!(!cois.has_enough(&config));
+        let cois = UserInterests {
+            positive: create_pos_cois([[1., 2., 3.]]),
+            negative: Vec::new(),
+        };
+        assert!(cois.has_enough(&config));
+        let cois = UserInterests {
+            positive: Vec::new(),
+            negative: create_neg_cois([[1., 2., 3.]]),
+        };
+        assert!(!cois.has_enough(&config));
     }
 
     #[test]
