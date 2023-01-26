@@ -107,6 +107,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserInteractionError'
 
+  /semantic_search/{document_id}:
+    get:
+      tags:
+        - front office
+      summary: Returns documents similar to the given document.
+      description: |-
+        Returns a list of documents that are semantically similar to the one given as input.
+        Each document contains the id, the score and the properties.
+        The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
+      operationId: getSimilarDocuments
+      parameters:
+        - $ref: './parameters/path/document_id.yml'
+        - name: count
+          in: query
+          description: Maximum number of semantic similar documents to return
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticSearchResponse'
+        '400':
+            $ref: './responses/generic.yml#/BadRequest'
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -123,6 +155,22 @@ components:
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
     PersonalizedDocumentsResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/PersonalizedDocumentData'
+      example:
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
+    SemanticSearchResponse:
       type: object
       required: [documents]
       properties:
