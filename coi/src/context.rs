@@ -146,11 +146,11 @@ mod tests {
 
         let mut negative = create_neg_cois([[6., 61., 6.]]);
         negative[0].last_view = epoch;
-        let user_interests = UserInterests { positive, negative };
+        let cois = UserInterests { positive, negative };
 
         let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
 
-        let score = user_interests
+        let score = cois
             .compute_score_for_embedding(&[1., 4., 4.].try_into().unwrap(), horizon, now)
             .unwrap();
 

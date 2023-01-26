@@ -88,7 +88,7 @@ impl System {
         cois.push(NegativeCoi::new(CoiId::new(), embedding.clone()));
     }
 
-    /// Ranks the documents wrt the cois.
+    /// Ranks the documents wrt the user interests.
     ///
     /// The documents are sorted decreasingly by a score computed from the cois. If the cois are
     /// empty, then the original order of the documents is kept.
@@ -201,7 +201,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rank_no_user_interests() {
+    fn test_rank_no_cois() {
         let mut documents = vec![
             TestDocument::new(0, [0., 0., 0.].try_into().unwrap()),
             TestDocument::new(1, [0., 0., 0.].try_into().unwrap()),
