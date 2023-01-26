@@ -124,39 +124,23 @@ web-dev-up:
     #!/usr/bin/env -S bash -eux -o pipefail
     ociRunner="$(command -v podman || command -v docker)"
     compose="$(command -v podman-compose || command -v docker-compose)"
-
-    # check if it's already _fully_ running
-    running_services="$(
-        $ociRunner ps --format json | \
-        jq 'map(select(.Labels."com.docker.compose.project" == "web-api") | .Labels."com.docker.compose.service")'
-    )"
-    # Make sure we don't conflict with containerized ingestion or personalization services.
-    # If we do detect this services we stop them and restart the dbs to create a clean state.
-    FORCE_START=false
-    if jq -e 'contains(["ingestion"]) or contains(["personalization"])' <(echo "$running_services"); then
-        FORCE_START=true
-        echo "A compose-all (i.e. composition of db and compose.ingestion.yml and/or compose.personalization.yml) is already running." >&2
-        echo "NOW STOPPING IT"
-        {{just_executable()}} compose-all-down 1>/dev/null 2>&1 || :
+    PROJECT=web-dev
+    # -gt 1 because of the heading
+    if [[ "$("$ociRunner" ps --filter "label=com.docker.compose.project=$PROJECT" | wc -l)" -gt 1 ]]; then
+        echo "web-dev composition is already running, SKIPPING STARTUP"
+        exit 0
     fi
-    if [[ "$FORCE_START" != false ]] || \
-        jq -e 'contains(["elasticsearch","postgres"]) | not' <(echo "$running_services");
-    then
-        # stop any potential partial running services
-        {{just_executable()}} web-dev-down 1>/dev/null 2>&1 || :
-        # make sure the right assets are linked
+    if [[ "$(ls -l web-api/assets | grep 'assets/smbert_v0003' | wc -l)" == "0" ]]; then
         rm "./web-api/assets" || :
         ln -s "./assets/smbert_v0003" "./web-api/assets"
-        # start db services
-        $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
-    else
-        echo "Warning: web-dev is already running, skipping starting it" >&2
     fi
+    export HOST_PORT_SCOPE=30
+    "$compose" -p "$PROJECT" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
 
 web-dev-down:
     #!/usr/bin/env -S bash -eux -o pipefail
     compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.db.yml" down
+    "$compose" -p web-dev -f "./web-api/compose.db.yml" down
 
 build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     #!/usr/bin/env -S bash -eux -o pipefail
@@ -184,22 +168,32 @@ compose-all-build $SMBERT="smbert_v0003":
 
 compose-all-up *args:
     #!/usr/bin/env -S bash -eux -o pipefail
+    ociRunner="$(command -v podman || command -v docker)"
     compose="$(command -v podman-compose || command -v docker-compose)"
+    PROJECT="compose-all"
+    # -gt 1 because of the heading
+    if [[ "$("$ociRunner" ps --filter "label=com.docker.compose.project=$PROJECT" | wc -l)" -gt 1 ]]; then
+        echo "compose-all composition is already running, can not continue in this case"
+        exit 1
+    fi
+    export HOST_PORT_SCOPE=40
     "$compose" \
-        -f web-api/compose.db.yml \
-        -f web-api/compose.personalization.yml \
-        -f web-api/compose.ingestion.yml \
-        {{args}} \
-        up
+        -p "$PROJECT" \
+        -f "./web-api/compose.db.yml" \
+        -f "./web-api/compose.personalization.yml" \
+        -f "./web-api/compose.ingestion.yml" \
+        up \
+        --detach --remove-orphans --build {{args}}
 
-compose-all-down:
+compose-all-down *args:
     #!/usr/bin/env -S bash -eux -o pipefail
     compose="$(command -v podman-compose || command -v docker-compose)"
     "$compose" \
-        -f web-api/compose.db.yml \
-        -f web-api/compose.personalization.yml \
-        -f web-api/compose.ingestion.yml \
-        down
+        -p "compose-all" \
+        -f "./web-api/compose.db.yml" \
+        -f "./web-api/compose.personalization.yml" \
+        -f "./web-api/compose.ingestion.yml" \
+        down {{args}}
 
 install-openapi-validator:
     #!/usr/bin/env -S bash -eux -o pipefail
