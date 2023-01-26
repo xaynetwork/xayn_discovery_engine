@@ -115,7 +115,7 @@ pub(crate) async fn update_interactions(
             UserInteractionType::Positive => {
                 for tag in &context.document.tags {
                     *context.tag_weight_diff
-                            .get_mut(tag.as_str())
+                            .get_mut(tag)
                             .unwrap(/* update_interactions assures all tags are given */) += 1;
                 }
                 coi.log_positive_user_reaction(context.positive_cois, &context.document.embedding)

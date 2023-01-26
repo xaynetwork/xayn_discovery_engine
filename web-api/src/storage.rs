@@ -34,6 +34,7 @@ use crate::{
         self,
         DocumentId,
         DocumentPropertyId,
+        DocumentTag,
         IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
@@ -132,7 +133,7 @@ pub(crate) trait Interest {
 
 pub(crate) struct InteractionUpdateContext<'s, 'l> {
     pub(crate) document: &'s InteractedDocument,
-    pub(crate) tag_weight_diff: &'s mut HashMap<&'l str, i32>,
+    pub(crate) tag_weight_diff: &'s mut HashMap<&'l DocumentTag, i32>,
     pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
 }
 
@@ -154,7 +155,7 @@ pub(crate) trait Interaction {
 
 #[async_trait]
 pub(crate) trait Tag {
-    async fn get(&self, user_id: &UserId) -> Result<HashMap<String, usize>, Error>;
+    async fn get(&self, user_id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

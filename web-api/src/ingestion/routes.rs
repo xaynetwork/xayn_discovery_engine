@@ -130,7 +130,11 @@ async fn new_documents(
                         .into_iter()
                         .map(|(id, property)| id.try_into().map(|id| (id, property)))
                         .try_collect()?,
-                    tags: document.tags,
+                    tags: document
+                        .tags
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .try_collect()?,
                 };
                 let embedding = state.embedder.run(&document.snippet)?;
 

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Back Office API
-  version: 1.0.0-rc7
+  version: 1.0.0-rc8
   description: |-
     # Back Office
     The back office is typically used within server-side apps.
@@ -260,6 +260,12 @@ components:
           pattern: '.+'
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
+        tags:
+          type: array
+          minItems: 0
+          maxItems: 10
+          items:
+            $ref: './schemas/document.yml#/DocumentTag'
     IngestionRequest:
       type: object
       required: [documents]

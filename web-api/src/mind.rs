@@ -33,7 +33,14 @@ use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
 
 use crate::{
     embedding::{self, Embedder},
-    models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentTag,
+        IngestedDocument,
+        UserId,
+        UserInteractionType,
+    },
     personalization::{
         routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
@@ -200,8 +207,8 @@ struct Impression {
 #[derive(Clone, Debug, Deserialize)]
 struct Document {
     id: DocumentId,
-    category: String,
-    subcategory: String,
+    category: DocumentTag,
+    subcategory: DocumentTag,
     title: String,
     snippet: String,
     url: String,
@@ -212,7 +219,7 @@ impl Document {
     fn is_interesting(&self, user_interests: &[String]) -> bool {
         user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
-            self.category == main_category || self.subcategory == sub_category
+            self.category.as_ref() == main_category || self.subcategory.as_ref() == sub_category
         })
     }
 }

@@ -31,7 +31,14 @@ use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
     error::common::InternalError,
-    models::{self, DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId},
+    models::{
+        self,
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        DocumentTag,
+    },
     server::SetupError,
     storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
     utils::{serialize_redacted, serialize_to_ndjson},
@@ -239,7 +246,7 @@ struct SearchResponse<T> {
 struct InteractedDocument {
     embedding: NormalizedEmbedding,
     #[serde(default)]
-    tags: Vec<String>,
+    tags: Vec<DocumentTag>,
 }
 
 impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument> {
@@ -263,7 +270,7 @@ struct PersonalizedDocument {
     properties: DocumentProperties,
     embedding: NormalizedEmbedding,
     #[serde(default)]
-    tags: Vec<String>,
+    tags: Vec<DocumentTag>,
 }
 
 impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocument> {
@@ -288,7 +295,7 @@ struct IngestedDocument<'a> {
     snippet: &'a str,
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
-    tags: &'a [String],
+    tags: &'a [DocumentTag],
 }
 
 fn is_success_status(status: u16, allow_not_found: bool) -> bool {

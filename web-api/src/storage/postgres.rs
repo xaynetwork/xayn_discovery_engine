@@ -35,7 +35,7 @@ use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::InteractionUpdateContext;
 use crate::{
-    models::{DocumentId, InteractedDocument, UserId, UserInteractionType},
+    models::{DocumentId, DocumentTag, InteractedDocument, UserId, UserInteractionType},
     storage::{self, utils::SqlxPushTupleExt, Storage},
     utils::serialize_redacted,
     Error,
@@ -391,7 +391,7 @@ impl Database {
     async fn upsert_tag_weights(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
-        updates: &HashMap<&str, i32>,
+        updates: &HashMap<&DocumentTag, i32>,
     ) -> Result<(), Error> {
         let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
         let mut iter = updates.iter().peekable();
@@ -511,8 +511,8 @@ impl storage::Interaction for Storage {
 
         let mut tag_weight_diff = documents
             .iter()
-            .flat_map(|d| &d.tags)
-            .map(|tag| (tag.as_str(), 0))
+            .flat_map(|document| &document.tags)
+            .map(|tag| (tag, 0))
             .collect::<HashMap<_, _>>();
 
         let mut updates = HashMap::new();
@@ -545,14 +545,14 @@ impl storage::Interaction for Storage {
 
 #[derive(FromRow)]
 struct QueriedWeightedTag {
-    tag: String,
+    tag: DocumentTag,
     /// The weight is a `usize` stored as `i32` in database
     weight: i32,
 }
 
 #[async_trait]
 impl storage::Tag for Storage {
-    async fn get(&self, user_id: &UserId) -> Result<HashMap<String, usize>, Error> {
+    async fn get(&self, user_id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
         let tags = sqlx::query_as::<_, QueriedWeightedTag>(
