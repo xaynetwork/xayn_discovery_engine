@@ -42,7 +42,7 @@ stdout = """
     "max_number_documents": 100,
     "default_number_documents": 100,
     "max_cois_for_knn": 10,
-    "interest_tag_bias": 0.5
+    "interest_tag_bias": 0.8
   }
 }
 """

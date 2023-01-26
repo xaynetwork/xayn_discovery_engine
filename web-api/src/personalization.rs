@@ -89,7 +89,7 @@ const fn default_max_cois_for_knn() -> usize {
 }
 
 const fn default_interest_tag_bias() -> f32 {
-    0.5
+    0.8
 }
 
 impl Default for PersonalizationConfig {
