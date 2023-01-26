@@ -76,12 +76,6 @@ pub(crate) struct InvalidDocumentTag {
 
 impl_application_error!(InvalidDocumentTag => BAD_REQUEST);
 
-/// Not enough interactions.
-#[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct NotEnoughInteractions;
-
-impl_application_error!(NotEnoughInteractions => CONFLICT);
-
 /// Failed to delete some documents
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct FailedToDeleteSomeDocuments {

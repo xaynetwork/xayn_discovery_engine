@@ -12,25 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use tracing::instrument;
 use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
     config::Config,
-    context,
-    context::compute_scores_for_docs,
+    context::UserInterests,
     document::Document,
     id::CoiId,
-    point::{
-        find_closest_coi_index,
-        find_closest_coi_mut,
-        CoiPoint,
-        NegativeCoi,
-        PositiveCoi,
-        UserInterests,
-    },
+    point::{find_closest_coi_index, find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
+    utils::nan_safe_f32_cmp_desc,
 };
 
 /// The center of interest (coi) system.
@@ -95,17 +88,19 @@ impl System {
         cois.push(NegativeCoi::new(CoiId::new(), embedding.clone()));
     }
 
+    /// Ranks the documents wrt the user interests.
+    ///
+    /// The documents are sorted decreasingly by a score computed from the cois. If the cois are
+    /// empty, then the original order of the documents is kept.
     #[instrument(skip_all)]
-    /// Return the score of each document given the interests of the user.
-    pub fn score<D>(
-        &self,
-        documents: &[D],
-        user_interests: &UserInterests,
-    ) -> Result<HashMap<D::Id, f32>, context::Error>
+    pub fn rank<D>(&self, documents: &mut [D], cois: &UserInterests)
     where
         D: Document,
     {
-        compute_scores_for_docs(documents, user_interests, &self.config)
+        if let Some(scores) = cois.compute_scores_for_docs(documents, &self.config) {
+            documents
+                .sort_unstable_by(|a, b| nan_safe_f32_cmp_desc(&scores[a.id()], &scores[b.id()]));
+        }
     }
 }
 
@@ -117,7 +112,6 @@ mod tests {
     use crate::{
         document::tests::{DocumentId, TestDocument},
         point::tests::{create_neg_cois, create_pos_cois},
-        utils,
     };
 
     #[test]
@@ -195,35 +189,28 @@ mod tests {
             TestDocument::new(2, [1., 2., 0.].try_into().unwrap()),
             TestDocument::new(3, [5., 3., 0.].try_into().unwrap()),
         ];
-        let user_interests = UserInterests {
+        let cois = UserInterests {
             positive: create_pos_cois([[1., 0., 0.], [4., 12., 2.]]),
             negative: create_neg_cois([[-100., -10., 0.]]),
         };
-        let system = Config::default()
-            .with_min_positive_cois(2)
-            .unwrap()
-            .with_min_negative_cois(1)
-            .build();
-
-        let scores = system.score(&documents, &user_interests).unwrap();
-        utils::rank(&mut documents, &scores);
-
-        assert_eq!(*documents[0].id(), DocumentId::mocked(1));
-        assert_eq!(*documents[1].id(), DocumentId::mocked(3));
-        assert_eq!(*documents[2].id(), DocumentId::mocked(2));
-        assert_eq!(*documents[3].id(), DocumentId::mocked(0));
+        Config::default().build().rank(&mut documents, &cois);
+        assert_eq!(documents[0].id, DocumentId::mocked(1));
+        assert_eq!(documents[1].id, DocumentId::mocked(3));
+        assert_eq!(documents[2].id, DocumentId::mocked(2));
+        assert_eq!(documents[3].id, DocumentId::mocked(0));
     }
 
     #[test]
-    fn test_rank_no_user_interests() {
-        let documents = vec![
+    fn test_rank_no_cois() {
+        let mut documents = vec![
             TestDocument::new(0, [0., 0., 0.].try_into().unwrap()),
             TestDocument::new(1, [0., 0., 0.].try_into().unwrap()),
             TestDocument::new(2, [0., 0., 0.].try_into().unwrap()),
         ];
-        let user_interests = UserInterests::default();
-        let system = Config::default().with_min_positive_cois(1).unwrap().build();
-
-        assert!(system.score(&documents, &user_interests).is_err());
+        let cois = UserInterests::default();
+        Config::default().build().rank(&mut documents, &cois);
+        assert_eq!(documents[0].id, DocumentId::mocked(0));
+        assert_eq!(documents[1].id, DocumentId::mocked(1));
+        assert_eq!(documents[2].id, DocumentId::mocked(2));
     }
 }

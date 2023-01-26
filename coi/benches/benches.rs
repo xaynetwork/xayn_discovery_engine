@@ -18,13 +18,7 @@ use criterion::{black_box, criterion_group, BatchSize, Criterion};
 use itertools::Itertools;
 use rand::Rng;
 use rand_distr::Uniform;
-use xayn_ai_coi::{
-    compute_coi_relevances,
-    stats::compute_coi_decay_factor,
-    CoiId,
-    CoiPoint,
-    PositiveCoi,
-};
+use xayn_ai_coi::{compute_coi_decay_factor, compute_coi_relevances, CoiId, CoiPoint, PositiveCoi};
 
 fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
     let range = Uniform::new(-1., 1.);
