@@ -15,6 +15,7 @@
 use std::{cmp::Ordering, collections::HashMap, time::Duration};
 
 use actix_web::{
+    http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
     Either,
     HttpResponse,
@@ -178,7 +179,10 @@ async fn personalized_documents(
                     .collect(),
             }))
         } else {
-            Either::Right(HttpResponse::NoContent())
+            Either::Right((
+                Json(PersonalizedDocumentsError::NotEnoughInteractions),
+                StatusCode::CONFLICT,
+            ))
         }
     })
 }
@@ -196,6 +200,12 @@ struct PersonalizedDocumentData {
 struct PersonalizedDocumentsResponse {
     /// A list of documents personalized for a specific user.
     documents: Vec<PersonalizedDocumentData>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind")]
+pub(crate) enum PersonalizedDocumentsError {
+    NotEnoughInteractions,
 }
 
 /// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each center's embedding.

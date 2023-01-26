@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Front Office API
-  version: 1.0.0-rc9
+  version: 1.0.0-rc8
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -69,10 +69,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PersonalizedDocumentsResponse'
-        '204':
-          description: no personalized documents because not yet enough interactions
         '400':
            $ref: './responses/generic.yml#/BadRequest'
+        '409':
+          description: impossible to create a personalized list for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
 
   /users/{user_id}/interactions:
     patch:
@@ -182,6 +186,15 @@ components:
             score: 0.87
             properties:
               title: "News title"
+    PersonalizedDocumentsError:
+      allOf:
+        - $ref: './schemas/error.yml#/GenericError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [NotEnoughInteractions]
     UserInteractionType:
       type: string
       enum: [Positive]
