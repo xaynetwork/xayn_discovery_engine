@@ -16,6 +16,7 @@ use std::{cmp::Ordering, collections::HashMap, time::Duration};
 
 use actix_web::{
     web::{self, Data, Json, Path, Query, ServiceConfig},
+    Either,
     HttpResponse,
     Responder,
 };
@@ -37,7 +38,7 @@ use super::{AppState, PersonalizationConfig};
 use crate::{
     error::{
         application::WithRequestIdExt,
-        common::{BadRequest, InternalError, NotEnoughInteractions},
+        common::{BadRequest, InternalError},
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
     storage::{self, KnnSearchParams},
@@ -166,16 +167,20 @@ async fn personalized_documents(
     )
     .await
     .map(|documents| {
-        Json(PersonalizedDocumentsResponse {
-            documents: documents
-                .into_iter()
-                .map(|document| PersonalizedDocumentData {
-                    id: document.id,
-                    score: document.score,
-                    properties: document.properties,
-                })
-                .collect(),
-        })
+        if let Some(documents) = documents {
+            Either::Left(Json(PersonalizedDocumentsResponse {
+                documents: documents
+                    .into_iter()
+                    .map(|document| PersonalizedDocumentData {
+                        id: document.id,
+                        score: document.score,
+                        properties: document.properties,
+                    })
+                    .collect(),
+            }))
+        } else {
+            Either::Right(HttpResponse::NoContent())
+        }
     })
 }
 
@@ -318,19 +323,19 @@ pub(crate) async fn personalize_documents_by(
     user_id: &UserId,
     personalization: &PersonalizationConfig,
     by: PersonalizeBy<'_>,
-) -> Result<Vec<PersonalizedDocument>, Error> {
+) -> Result<Option<Vec<PersonalizedDocument>>, Error> {
     storage::Interaction::user_seen(storage, user_id).await?;
 
     let user_interests = storage::Interest::get(storage, user_id).await?;
-    if user_interests.is_empty() {
-        return Err(NotEnoughInteractions.into());
-    }
-
     let mut all_documents = match by {
         PersonalizeBy::KnnSearch {
             count,
             published_after,
         } => {
+            if user_interests.is_empty() {
+                // if there are no cois then knn search won't return any documents
+                return Ok(None);
+            }
             search_knn_documents(
                 storage,
                 user_id,
@@ -348,9 +353,8 @@ pub(crate) async fn personalize_documents_by(
     };
 
     if let Some(scores) = coi.score(&all_documents, &user_interests) {
+        // if there are not enough cois to score the documents then reranking by scores is skipped
         rank(&mut all_documents, &scores);
-    } else {
-        return Err(NotEnoughInteractions.into());
     }
     let documents_by_interests = all_documents
         .iter()
@@ -401,7 +405,7 @@ pub(crate) async fn personalize_documents_by(
         all_documents.truncate(count);
     }
 
-    Ok(all_documents)
+    Ok(Some(all_documents))
 }
 
 #[cfg(test)]

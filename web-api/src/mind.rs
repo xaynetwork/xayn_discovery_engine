@@ -109,10 +109,13 @@ impl State {
         &self,
         user: &UserId,
         by: PersonalizeBy<'_>,
-    ) -> Result<Vec<DocumentId>, Error> {
+    ) -> Result<Option<Vec<DocumentId>>, Error> {
         personalize_documents_by(&self.storage, &self.coi, user, &self.personalization, by)
             .await
-            .map(|documents| documents.into_iter().map(|document| document.id).collect())
+            .map(|documents| {
+                documents
+                    .map(|documents| documents.into_iter().map(|document| document.id).collect())
+            })
             .map_err(Into::into)
     }
 }
@@ -384,6 +387,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                     },
                 )
                 .await
+                .unwrap()
                 .unwrap();
 
             let documents = personalised_documents
@@ -458,6 +462,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
             state
                 .personalize(&user, PersonalizeBy::Documents(document_ids.as_slice()))
                 .await
+                .unwrap()
                 .unwrap()
                 .iter()
                 .map(|reranked_id| {
