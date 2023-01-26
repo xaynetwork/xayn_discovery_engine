@@ -113,9 +113,9 @@ paths:
         - front office
       summary: Returns documents similar to the given document.
       description: |-
-        This endpoints get-queries a virtual collection do documents containing documents
-        semantically similar to the specific documents ranked/ordered from the most to the
-        least similar.
+        Returns a list of documents that are semantically similar to the one given as input.
+        Each document contains the id, the score and the properties.
+        The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
       operationId: getSimilarDocuments
       parameters:
         - $ref: './parameters/path/document_id.yml'
