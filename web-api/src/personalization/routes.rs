@@ -29,7 +29,6 @@ use xayn_ai_coi::{
     compute_coi_relevances,
     nan_safe_f32_cmp,
     system_time_now,
-    utils::rank,
     CoiSystem,
     PositiveCoi,
 };
@@ -352,8 +351,7 @@ pub(crate) async fn personalize_documents_by(
         }
     };
 
-    let scores = coi.score(&all_documents, &cois).unwrap(/* checked that there are enough cois */);
-    rank(&mut all_documents, &scores);
+    coi.rank(&mut all_documents, &cois);
     let documents_by_interests = all_documents
         .iter()
         .enumerate()

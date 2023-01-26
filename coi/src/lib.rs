@@ -31,14 +31,14 @@
     clippy::must_use_candidate
 )]
 
-pub mod config;
-pub(crate) mod context;
+mod config;
+mod context;
 mod document;
-pub mod id;
-pub mod point;
-pub mod stats;
-pub mod system;
-pub mod utils;
+mod id;
+mod point;
+mod stats;
+mod system;
+mod utils;
 
 pub use crate::{
     config::{Config as CoiConfig, Error as CoiConfigError},
@@ -46,7 +46,7 @@ pub use crate::{
     document::Document,
     id::CoiId,
     point::{CoiPoint, NegativeCoi, PositiveCoi},
-    stats::{compute_coi_relevances, CoiStats},
+    stats::{compute_coi_decay_factor, compute_coi_relevances, CoiStats},
     system::System as CoiSystem,
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, system_time_now},
 };
