@@ -87,7 +87,7 @@ fn is_valid_id(value: &str) -> bool {
 }
 
 fn is_valid_tag(value: &str) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^\x00]").unwrap());
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]+$").unwrap());
 
     (1..=256).contains(&value.len()) && RE.is_match(value)
 }

@@ -28,7 +28,7 @@ DocumentPropertyId:
 DocumentTag:
   description: A tag of a document can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
   type: string
-  pattern: '[^\x00]+$'
+  pattern: '^[^\x00]+$'
   minLength: 1
   maxLength: 256
   example: "tag"
