@@ -74,6 +74,8 @@ pub(crate) struct InvalidDocumentTag {
     pub(crate) value: String,
 }
 
+impl_application_error!(InvalidDocumentTag => BAD_REQUEST);
+
 /// Not enough interactions.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct NotEnoughInteractions;
