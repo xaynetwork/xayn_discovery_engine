@@ -37,7 +37,7 @@ use super::{AppState, PersonalizationConfig};
 use crate::{
     error::{
         application::WithRequestIdExt,
-        common::{BadRequest, InternalError},
+        common::{BadRequest, InternalError, NotEnoughInteractions},
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
     storage::{self, KnnSearchParams},
@@ -322,6 +322,10 @@ pub(crate) async fn personalize_documents_by(
     storage::Interaction::user_seen(storage, user_id).await?;
 
     let user_interests = storage::Interest::get(storage, user_id).await?;
+    if user_interests.is_empty() {
+        return Err(NotEnoughInteractions.into());
+    }
+
     let mut all_documents = match by {
         PersonalizeBy::KnnSearch {
             count,
@@ -345,6 +349,8 @@ pub(crate) async fn personalize_documents_by(
 
     if let Some(scores) = coi.score(&all_documents, &user_interests) {
         rank(&mut all_documents, &scores);
+    } else {
+        return Err(NotEnoughInteractions.into());
     }
     let documents_by_interests = all_documents
         .iter()
