@@ -34,11 +34,11 @@ use xayn_ai_coi::{
     PositiveCoi,
 };
 
-use super::{AppState, PersonalizationConfig};
+use super::{AppState, PersonalizationConfig, SemanticSearchConfig};
 use crate::{
     error::{
         application::WithRequestIdExt,
-        common::{BadRequest, InternalError},
+        common::{BadRequest, DocumentNotFound, InternalError},
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
     storage::{self, KnnSearchParams},
@@ -46,7 +46,7 @@ use crate::{
 };
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
-    let scope = web::scope("/users/{user_id}")
+    let users = web::scope("/users/{user_id}")
         .service(
             web::resource("interactions")
                 .route(web::patch().to(interactions.error_with_request_id())),
@@ -56,7 +56,10 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::get().to(personalized_documents.error_with_request_id())),
         );
 
-    config.service(scope);
+    let semantic_search = web::resource("/semantic_search/{document_id}")
+        .route(web::get().to(semantic_search.error_with_request_id()));
+
+    config.service(users).service(semantic_search);
 }
 
 /// Represents user interaction request body.
@@ -186,14 +189,7 @@ async fn personalized_documents(
     .map(|documents| {
         if let Some(documents) = documents {
             Either::Left(Json(PersonalizedDocumentsResponse {
-                documents: documents
-                    .into_iter()
-                    .map(|document| PersonalizedDocumentData {
-                        id: document.id,
-                        score: document.score,
-                        properties: document.properties,
-                    })
-                    .collect(),
+                documents: documents.into_iter().map(Into::into).collect(),
             }))
         } else {
             Either::Right((
@@ -210,6 +206,16 @@ struct PersonalizedDocumentData {
     score: f32,
     #[serde(skip_serializing_if = "DocumentProperties::is_empty")]
     properties: DocumentProperties,
+}
+
+impl From<PersonalizedDocument> for PersonalizedDocumentData {
+    fn from(value: PersonalizedDocument) -> Self {
+        Self {
+            id: value.id,
+            score: value.score,
+            properties: value.properties,
+        }
+    }
 }
 
 /// Represents response from personalized documents endpoint.
@@ -436,6 +442,59 @@ pub(crate) async fn personalize_documents_by(
     }
 
     Ok(Some(all_documents))
+}
+
+struct SemanticSearchQuery {
+    count: Option<usize>,
+}
+
+impl SemanticSearchQuery {
+    fn document_count(&self, config: &SemanticSearchConfig) -> Result<usize, Error> {
+        let count = self.count.map_or(config.default_number_documents, |count| {
+            count.min(config.max_number_documents)
+        });
+
+        if count > 0 {
+            Ok(count)
+        } else {
+            Err(BadRequest::from("count has to be at least 1").into())
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct SemanticSearchResponse {
+    documents: Vec<PersonalizedDocumentData>,
+}
+
+async fn semantic_search(
+    state: Data<AppState>,
+    document_id: Path<String>,
+    query: Query<SemanticSearchQuery>,
+) -> Result<impl Responder, Error> {
+    let document_id = document_id.into_inner().try_into()?;
+    let count = query.document_count(state.config.as_ref())?;
+
+    let reference = storage::Document::get_personalized(&state.storage, &[&document_id])
+        .await?
+        .pop()
+        .ok_or_else(|| DocumentNotFound)?;
+
+    let documents = storage::Document::get_by_embedding(
+        &state.storage,
+        KnnSearchParams {
+            excluded: &[],
+            embedding: &reference.embedding,
+            k_neighbors: count,
+            num_candidates: count,
+            published_after: None,
+        },
+    )
+    .await?;
+
+    Ok(Json(SemanticSearchResponse {
+        documents: documents.into_iter().map(Into::into).collect(),
+    }))
 }
 
 #[cfg(test)]
