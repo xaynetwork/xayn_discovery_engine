@@ -159,7 +159,7 @@ pub(crate) trait Tag {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub(crate) struct Config {
+pub struct Config {
     #[serde(default)]
     elastic: elastic::Config,
     #[serde(default)]

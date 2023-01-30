@@ -17,7 +17,6 @@ use std::{
     time::Duration,
 };
 
-use derive_more::{AsRef, Deref};
 use serde::{Deserialize, Serialize};
 
 use crate::{logging, storage};
@@ -91,22 +90,32 @@ impl Default for NetConfig {
     }
 }
 
-/// Configuration combining all other configurations.
-#[derive(AsRef, Debug, Deref, Deserialize, Serialize)]
-pub struct Config<E> {
-    #[as_ref]
-    #[serde(default)]
-    pub(crate) logging: logging::Config,
+pub trait Config {
+    fn logging(&self) -> &logging::Config;
 
-    #[as_ref]
-    #[serde(default)]
-    pub(crate) net: NetConfig,
+    fn net(&self) -> &NetConfig;
 
-    #[as_ref]
-    #[serde(default)]
-    pub(crate) storage: storage::Config,
-
-    #[deref]
-    #[serde(flatten)]
-    pub(crate) extension: E,
+    fn storage(&self) -> &storage::Config;
 }
+
+macro_rules! impl_config {
+    ($($config:ident),* $(,)?) => {
+        $(
+            impl $crate::server::Config for $config {
+                fn logging(&self) -> &$crate::logging::Config {
+                    &self.logging
+                }
+
+                fn net(&self) -> &$crate::server::NetConfig {
+                    &self.net
+                }
+
+                fn storage(&self) -> &$crate::storage::Config {
+                    &self.storage
+                }
+            }
+        )*
+    };
+}
+
+pub(crate) use impl_config;
