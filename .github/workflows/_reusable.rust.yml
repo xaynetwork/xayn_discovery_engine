@@ -46,8 +46,8 @@ jobs:
       elasticsearch:
         image: elasticsearch:8.5.3
         env:
-          - discovery.type=single-node
-          - xpack.security.enabled=false
+          "discovery.type": "single-node"
+          "xpack.security.enabled": "false"
         options: >-
           --health-cmd curl -sf 'http://localhost:9200/_cluster/health'
           --health-interval 10s
