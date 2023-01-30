@@ -12,29 +12,31 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use derive_more::{AsRef, Deref};
+use derive_more::Deref;
 
 use crate::{
     server::{Config, SetupError},
     storage::Storage,
 };
 
-#[derive(Deref, AsRef)]
-pub(crate) struct AppState<CE, AE, S> {
-    #[as_ref]
-    pub(crate) config: Config<CE>,
+#[derive(Deref)]
+pub(crate) struct AppState<C, E, S> {
+    pub(crate) config: C,
     #[deref]
-    pub(crate) extension: AE,
+    pub(crate) extension: E,
     pub(crate) storage: S,
 }
 
-impl<CE, AE> AppState<CE, AE, Storage> {
+impl<C, E> AppState<C, E, Storage>
+where
+    C: Config,
+{
     pub(super) async fn create(
-        config: Config<CE>,
-        create_extension: impl FnOnce(&Config<CE>) -> Result<AE, SetupError>,
+        config: C,
+        create_extension: impl FnOnce(&C) -> Result<E, SetupError>,
     ) -> Result<Self, SetupError> {
         let extension = create_extension(&config)?;
-        let storage = config.storage.setup().await?;
+        let storage = config.storage().setup().await?;
 
         Ok(Self {
             config,

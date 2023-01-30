@@ -28,7 +28,11 @@ use clap::Parser;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
-pub(crate) use self::{app_state::AppState, config::Config};
+pub use self::config::Config;
+pub(crate) use self::{
+    app_state::AppState,
+    config::{impl_config, NetConfig},
+};
 use crate::{
     load_config::load_config,
     logging::init_tracing,
@@ -36,7 +40,7 @@ use crate::{
 };
 
 pub trait Application {
-    type ConfigExtension: DeserializeOwned + Serialize + Send + Sync + 'static;
+    type Config: Config + DeserializeOwned + Serialize + Send + Sync + 'static;
     type AppStateExtension: Send + Sync + 'static;
 
     /// Configures the actix service(s) used by this application.
@@ -50,11 +54,11 @@ pub trait Application {
     //             to `AppStateExtension` but using this helper method is simpler
     //             and it is also easier to add async if needed (using #[async-trait]).
     fn create_app_state_extension(
-        config: &Config<Self::ConfigExtension>,
+        config: &Self::Config,
     ) -> Result<Self::AppStateExtension, SetupError>;
 }
 
-pub(crate) type SetupError = anyhow::Error;
+pub type SetupError = anyhow::Error;
 
 /// Run the server with using given endpoint configuration functions.
 ///
@@ -66,22 +70,20 @@ where
     async {
         let mut cli_args = cli::Args::parse();
         let config_file = cli_args.config.take();
-        let config = load_config::<Config<A::ConfigExtension>, _>(
-            config_file.as_deref(),
-            cli_args.to_config_overrides(),
-        )?;
+        let config =
+            load_config::<A::Config, _>(config_file.as_deref(), cli_args.to_config_overrides())?;
 
         if cli_args.print_config {
             println!("{}", serde_json::to_string_pretty(&config)?);
             return Ok(());
         }
 
-        let addr = config.net.bind_to;
-        let keep_alive = config.net.keep_alive;
-        let client_request_timeout = config.net.client_request_timeout;
-        init_tracing(config.as_ref());
+        let addr = config.net().bind_to;
+        let keep_alive = config.net().keep_alive;
+        let client_request_timeout = config.net().client_request_timeout;
+        init_tracing(config.logging());
 
-        let json_config = JsonConfig::default().limit(config.net.max_body_size);
+        let json_config = JsonConfig::default().limit(config.net().max_body_size);
         let app_state = AppState::create(config, A::create_app_state_extension).await?;
         let app_state = web::Data::new(app_state);
 

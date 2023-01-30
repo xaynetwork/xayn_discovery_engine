@@ -20,44 +20,60 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     embedding::{self, Embedder},
-    server::{self, Application},
-    storage::Storage,
+    logging,
+    server::{self, Application, NetConfig},
+    storage::{self, Storage},
 };
 
 pub struct Ingestion;
 
 impl Application for Ingestion {
+    type Config = Config;
     type AppStateExtension = AppStateExtension;
-    type ConfigExtension = ConfigExtension;
 
     fn configure_service(config: &mut ServiceConfig) {
         routes::configure_service(config);
     }
 
     fn create_app_state_extension(
-        config: &server::Config<Self::ConfigExtension>,
+        config: &Self::Config,
     ) -> Result<Self::AppStateExtension, server::SetupError> {
         Ok(AppStateExtension {
-            embedder: Embedder::load(config.extension.as_ref())?,
+            embedder: Embedder::load(&config.embedding)?,
         })
     }
 }
 
 type AppState = server::AppState<
-    <Ingestion as Application>::ConfigExtension,
+    <Ingestion as Application>::Config,
     <Ingestion as Application>::AppStateExtension,
     Storage,
 >;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
-pub struct ConfigExtension {
+pub struct Config {
+    #[as_ref]
+    #[serde(default)]
+    pub(crate) logging: logging::Config,
+
+    #[as_ref]
+    #[serde(default)]
+    pub(crate) net: NetConfig,
+
+    #[as_ref]
+    #[serde(default)]
+    pub(crate) storage: storage::Config,
+
     #[as_ref]
     #[serde(default)]
     pub(crate) ingestion: IngestionConfig,
+
     #[as_ref]
     #[serde(default)]
     pub(crate) embedding: embedding::Config,
 }
+
+server::impl_config! { Config }
 
 #[derive(AsRef, Debug, Deserialize, Serialize)]
 pub struct IngestionConfig {

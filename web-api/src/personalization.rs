@@ -19,14 +19,15 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::{
-    server::{self, Application},
-    storage::Storage,
+    logging,
+    server::{self, Application, NetConfig},
+    storage::{self, Storage},
 };
 
 pub struct Personalization;
 
 impl Application for Personalization {
-    type ConfigExtension = ConfigExtension;
+    type Config = Config;
     type AppStateExtension = AppStateExtension;
 
     fn configure_service(config: &mut ServiceConfig) {
@@ -34,22 +35,34 @@ impl Application for Personalization {
     }
 
     fn create_app_state_extension(
-        config: &server::Config<Self::ConfigExtension>,
+        config: &Self::Config,
     ) -> Result<Self::AppStateExtension, server::SetupError> {
         Ok(AppStateExtension {
-            coi: config.extension.coi.clone().build(),
+            coi: config.coi.clone().build(),
         })
     }
 }
 
 type AppState = server::AppState<
-    <Personalization as Application>::ConfigExtension,
+    <Personalization as Application>::Config,
     <Personalization as Application>::AppStateExtension,
     Storage,
 >;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
-pub struct ConfigExtension {
+pub struct Config {
+    #[as_ref]
+    #[serde(default)]
+    pub(crate) logging: logging::Config,
+
+    #[as_ref]
+    #[serde(default)]
+    pub(crate) net: NetConfig,
+
+    #[as_ref]
+    #[serde(default)]
+    pub(crate) storage: storage::Config,
+
     #[as_ref]
     #[serde(default)]
     pub(crate) coi: CoiConfig,
@@ -58,6 +71,8 @@ pub struct ConfigExtension {
     #[serde(default)]
     pub(crate) personalization: PersonalizationConfig,
 }
+
+server::impl_config! { Config }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct PersonalizationConfig {
