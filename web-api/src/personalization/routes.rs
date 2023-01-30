@@ -444,6 +444,7 @@ pub(crate) async fn personalize_documents_by(
     Ok(Some(all_documents))
 }
 
+#[derive(Deserialize)]
 struct SemanticSearchQuery {
     count: Option<usize>,
 }
@@ -478,7 +479,7 @@ async fn semantic_search(
     let reference = storage::Document::get_personalized(&state.storage, &[&document_id])
         .await?
         .pop()
-        .ok_or_else(|| DocumentNotFound)?;
+        .ok_or(DocumentNotFound)?;
 
     let documents = storage::Document::get_by_embedding(
         &state.storage,
