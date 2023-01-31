@@ -78,6 +78,8 @@ pub(crate) trait Document {
         ids: &[&DocumentId],
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
+    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;
+
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,

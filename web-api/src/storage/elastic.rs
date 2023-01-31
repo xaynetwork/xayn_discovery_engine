@@ -152,7 +152,7 @@ impl Client {
 
         let body = serialize_to_ndjson(requests)?;
 
-        self.query_with_bytes::<_, BulkResponse>(url, Some(body), headers)
+        self.query_with_bytes::<_, BulkResponse>(url, Some((body, headers)))
             .await?
             .ok_or_else(|| InternalError::from_message("_bulk endpoint not found").into())
     }
@@ -160,14 +160,13 @@ impl Client {
     async fn query_with_bytes<B, T>(
         &self,
         url: Url,
-        body: Option<B>,
-        headers: HeaderMap<HeaderValue>,
+        post_data: Option<(B, HeaderMap<HeaderValue>)>,
     ) -> Result<Option<T>, Error>
     where
         B: Into<Body>,
         T: DeserializeOwned,
     {
-        let request_builder = if let Some(body) = body {
+        let request_builder = if let Some((body, headers)) = post_data {
             self.client.post(url).headers(headers).body(body)
         } else {
             self.client.get(url)
@@ -195,12 +194,16 @@ impl Client {
         B: Serialize,
         T: DeserializeOwned,
     {
-        let body = body.map(|json| serde_json::to_vec(&json)).transpose()?;
+        let post_data = body
+            .map(|json| -> Result<_, Error> {
+                let body = serde_json::to_vec(&json)?;
+                let mut headers = HeaderMap::new();
+                headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                Ok((body, headers))
+            })
+            .transpose()?;
 
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
-        self.query_with_bytes(url, body, headers).await
+        self.query_with_bytes(url, post_data).await
     }
 }
 
@@ -378,6 +381,26 @@ impl storage::Document for Storage {
         ids: &[&DocumentId],
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
         self.get_personalized_with_transaction(ids, None).await
+    }
+
+    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
+        #[derive(Deserialize)]
+        struct Response {
+            _source: Fields,
+        }
+        #[derive(Deserialize)]
+        struct Fields {
+            embedding: NormalizedEmbedding,
+        }
+
+        self.elastic
+            .query_with_bytes::<Vec<u8>, Response>(
+                self.elastic
+                    .create_resource_path(["_doc", id.as_ref()], [("_source", Some("embedding"))]),
+                None,
+            )
+            .await
+            .map(|opt| opt.map(|resp| resp._source.embedding))
     }
 
     async fn get_by_embedding<'a>(

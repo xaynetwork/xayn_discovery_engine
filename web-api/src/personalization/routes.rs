@@ -476,16 +476,15 @@ async fn semantic_search(
     let document_id = document_id.into_inner().try_into()?;
     let count = query.document_count(state.config.as_ref())?;
 
-    let reference = storage::Document::get_personalized(&state.storage, &[&document_id])
+    let embedding = storage::Document::get_embedding(&state.storage, &document_id)
         .await?
-        .pop()
         .ok_or(DocumentNotFound)?;
 
     let documents = storage::Document::get_by_embedding(
         &state.storage,
         KnnSearchParams {
             excluded: &[],
-            embedding: &reference.embedding,
+            embedding: &embedding,
             k_neighbors: count,
             num_candidates: count,
             published_after: None,

@@ -283,6 +283,11 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
+    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
+        let documents = self.documents.read().await;
+        Ok(documents.1.borrow_map().get(id).cloned())
+    }
+
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
