@@ -40,6 +40,8 @@ use crate::{
 };
 
 pub trait Application {
+    const NAME: &'static str;
+
     type Config: Config + DeserializeOwned + Serialize + Send + Sync + 'static;
     type AppStateExtension: Send + Sync + 'static;
 
@@ -70,8 +72,12 @@ where
     async {
         let mut cli_args = cli::Args::parse();
         let config_file = cli_args.config.take();
-        let config =
-            load_config::<A::Config, _>(config_file.as_deref(), cli_args.to_config_overrides())?;
+        let config = load_config::<A::Config, _>(
+            A::NAME,
+            "XAYN_WEB_API",
+            config_file.as_deref(),
+            cli_args.to_config_overrides(),
+        )?;
 
         if cli_args.print_config {
             println!("{}", serde_json::to_string_pretty(&config)?);

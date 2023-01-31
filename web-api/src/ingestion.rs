@@ -28,6 +28,8 @@ use crate::{
 pub struct Ingestion;
 
 impl Application for Ingestion {
+    const NAME: &'static str = "XAYN_INGESTION";
+
     type Config = Config;
     type AppStateExtension = AppStateExtension;
 

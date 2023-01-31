@@ -27,6 +27,8 @@ use crate::{
 pub struct Personalization;
 
 impl Application for Personalization {
+    const NAME: &'static str = "XAYN_PERSONALIZATION";
+
     type Config = Config;
     type AppStateExtension = AppStateExtension;
 
