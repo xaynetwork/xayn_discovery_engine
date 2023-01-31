@@ -27,7 +27,7 @@ class TestFrontOffice:
         au.assert_status_code_equals(request.status_code, 204)
 
     @allure.severity(allure.severity_level.NORMAL)
-    @pytest.mark.skip(reason="todo: create ticket")
+    @pytest.mark.skip(reason="todo: need to be updated")
     def test_invalid_doc_id(self):
         user_id = su.generate_random_alphanumerical(6)
         interaction_with_random_id = Interactions(su.generate_random_alphanumerical(36), "Positive").to_json()
