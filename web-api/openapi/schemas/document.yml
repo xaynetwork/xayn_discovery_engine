@@ -13,8 +13,7 @@ DocumentProperties:
   properties:
     publication_date:
       $ref: './time.yml#/PublicationDate'
-  additionalProperties:
-    $ref: '#/DocumentProperty'
+  additionalProperties: true
   example:
     title: "News title"
     image_url: "http://example.com/news_image.jpg"
