@@ -99,23 +99,19 @@ impl Default for PersonalizationConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub(crate) struct SemanticSearchConfig {
     /// Max number of documents to return.
-    //NOTE: currently using the default from personalization
-    //      (the performance profile is quite similar)
-    #[serde(default = "default_max_number_documents")]
     pub(crate) max_number_documents: usize,
     /// Default number of documents to return.
-    //NOTE: currently using the default from personalization
-    #[serde(default = "default_default_number_documents")]
     pub(crate) default_number_documents: usize,
 }
 
 impl Default for SemanticSearchConfig {
     fn default() -> Self {
         Self {
-            max_number_documents: default_max_number_documents(),
-            default_number_documents: default_default_number_documents(),
+            max_number_documents: 100,
+            default_number_documents: 10,
         }
     }
 }

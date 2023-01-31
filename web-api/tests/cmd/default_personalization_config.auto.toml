@@ -47,7 +47,7 @@ stdout = """
   },
   "semantic_search": {
     "max_number_documents": 100,
-    "default_number_documents": 100
+    "default_number_documents": 10
   }
 }
 """
