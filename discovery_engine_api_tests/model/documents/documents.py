@@ -22,8 +22,7 @@ def generate_docs(amount):
     for i in range(amount):
         id = su.generate_random_alphanumerical(10)
         snippet = su.generate_random_alphanumerical(50)
-        properties = Properties("Title")
+        properties = Properties(title="Title")
         doc = Document(id, snippet, properties)
         docs_dict[id] = doc
     return docs_dict
-

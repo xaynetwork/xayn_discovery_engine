@@ -1,4 +1,3 @@
-
 import allure
 import pytest
 from handlers.api_handler import ApiHandler
@@ -35,4 +34,3 @@ class TestBackOfficeEndpoint:
         au.assert_status_code_equals(request.status_code, 200)
         data = self.api_handler.deserialize_json(request.text)
         au.assert_strings_equal(data["properties"]["title"], "Title")
-

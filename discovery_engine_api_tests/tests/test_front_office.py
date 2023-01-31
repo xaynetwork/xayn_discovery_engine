@@ -22,7 +22,7 @@ class TestFrontOffice:
     @allure.severity(allure.severity_level.CRITICAL)
     def test_positive_interaction(self, ingest_generated_documents):
         user_id = su.generate_random_alphanumerical(6)
-        positive_interaction = Interactions(Interaction(id = ingest_generated_documents, type="Positive")).to_json()
+        positive_interaction = Interactions(Interaction(id=ingest_generated_documents, type="Positive")).to_json()
         request = self.api_handler.interact_with_documents(user_id, positive_interaction)
         au.assert_status_code_equals(request.status_code, 204)
 
