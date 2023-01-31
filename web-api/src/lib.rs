@@ -31,10 +31,10 @@
     clippy::must_use_candidate
 )]
 
+mod config;
 mod embedding;
 mod error;
 mod ingestion;
-mod load_config;
 mod logging;
 mod middleware;
 #[cfg(test)]

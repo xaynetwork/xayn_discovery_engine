@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod app_state;
-mod cli;
 mod config;
 
 use actix_cors::Cors;
@@ -25,13 +24,11 @@ use actix_web::{
     HttpServer,
 };
 use async_trait::async_trait;
-use clap::Parser;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
 pub(crate) use self::{app_state::AppState, config::Config};
 use crate::{
-    load_config::load_config,
     logging,
     logging::init_tracing,
     middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request},
@@ -78,19 +75,7 @@ where
     A: Application + 'static,
 {
     async {
-        let mut cli_args = cli::Args::parse();
-        let config_file = cli_args.config.take();
-        let config = load_config::<A::Config, _>(
-            A::NAME,
-            "XAYN_WEB_API",
-            config_file.as_deref(),
-            cli_args.to_config_overrides(),
-        )?;
-
-        if cli_args.print_config {
-            println!("{}", serde_json::to_string_pretty(&config)?);
-            return Ok(());
-        }
+        let config: A::Config = crate::config::load(&[A::NAME, "XAYN_WEB_API"]);
 
         let &Config {
             bind_to,

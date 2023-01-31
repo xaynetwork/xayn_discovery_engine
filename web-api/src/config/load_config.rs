@@ -47,14 +47,18 @@ use serde::{de::DeserializeOwned, Serialize};
 /// Environment variables from `.env` and `.env.local` will be loaded into the process
 /// environment if they don't already exist there (keeping priority as described above).
 ///
-/// When creating the config type instance, only environment variables with the
-/// `XAYN_WEB_API__` prefix will be considered and the prefix is stripped.
+/// When creating the config type instance, only environment variables which start with
+/// one of the names passed in `application_names` will be considered (case insensitive).
 ///
-/// Env variables are split at `__`. I.e. `XAYN_WEB_API__FOO__BAR=12` will be treated like
-/// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config.
+/// Variables with names earlier in the array take priority over variables with names
+/// later in the array.
+///
+/// Env variable are converted into a config path by splitting it at `__` (and stripping
+/// the application name). E.g. `XAYN_WEB_API__FOO__BAR=12` will be treated like
+/// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config if `XAYN_WEB_API` is
+/// in `application_names`.
 pub(crate) fn load_config<C, U>(
-    application_name: &str,
-    generic_application_name: &str,
+    application_names: &[&str],
     config_file: Option<&Path>,
     update_with: U,
 ) -> Result<C, figment::Error>
@@ -68,13 +72,11 @@ where
     load_dotenv(".env.local")?;
     load_dotenv(".env")?;
 
-    let application_name = application_name.to_uppercase();
-    let generic_application_name = generic_application_name.to_uppercase();
+    let mut figment = Figment::new().join(Serialized::defaults(update_with));
 
-    let mut figment = Figment::new()
-        .join(Serialized::defaults(update_with))
-        .join(Env::prefixed(&format!("{application_name}__")).split("__"))
-        .join(Env::prefixed(&format!("{generic_application_name}__")).split("__"));
+    for name in application_names {
+        figment = figment.join(Env::prefixed(&format!("{name}__")).split("__"));
+    }
 
     let file = config_file.unwrap_or_else(|| Path::new("config.toml"));
     if file.exists() {
