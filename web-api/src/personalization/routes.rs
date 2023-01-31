@@ -483,7 +483,7 @@ async fn semantic_search(
     let documents = storage::Document::get_by_embedding(
         &state.storage,
         KnnSearchParams {
-            excluded: &[],
+            excluded: &[document_id],
             embedding: &embedding,
             k_neighbors: count,
             num_candidates: count,
