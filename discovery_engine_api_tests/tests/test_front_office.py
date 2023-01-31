@@ -37,8 +37,8 @@ class TestFrontOffice:
     @allure.severity(allure.severity_level.NORMAL)
     def test_with_null_values(self, ingest_generated_documents):
         user_id = su.generate_random_alphanumerical(6)
-        interaction_with_null_id = Interactions(None, "Positive").to_json()
-        interaction_with_null_type = Interactions(ingest_generated_documents, None).to_json()
+        interaction_with_null_id = Interactions(Interaction(id=None, type="Positive")).to_json()
+        interaction_with_null_type = Interactions(Interaction(id=ingest_generated_documents, type=None)).to_json()
         request_null_id = self.api_handler.interact_with_documents(user_id, interaction_with_null_id)
         request_null_type = self.api_handler.interact_with_documents(user_id, interaction_with_null_type)
         au.soft_assert_status_code_equals(request_null_id.status_code, 400)
