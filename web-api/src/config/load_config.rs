@@ -78,24 +78,30 @@ where
         figment = figment.join(Env::prefixed(&format!("{name}__")).split("__"));
     }
 
-    let provider = config
-        .map(|content_or_path| {
-            if let Some(content) = content_or_path.strip_prefix("inline:") {
-                Toml::string(content)
+    let provider = if let Some(content_or_path) = config {
+        if let Some(content) = content_or_path.strip_prefix("inline:") {
+            Toml::string(content)
+        } else {
+            let path = Path::new(content_or_path);
+            if path.is_file() {
+                Toml::file(path)
             } else {
-                Toml::file(content_or_path)
+                return Err(figment::Error::from(format!(
+                    "Config file missing or not a file: {}",
+                    path.display()
+                )));
             }
-        })
-        .or_else(|| {
-            let default_file = Path::new("config.toml");
-            default_file.exists().then(|| Toml::file(default_file))
-        });
+        }
+    } else {
+        // Be aware that this will look in the current dir and if
+        // it doesn't find the config there also searches parent
+        // directories.
+        //
+        // Furthermore it will NOT fail if no config is found.
+        Toml::file("config.toml")
+    };
 
-    if let Some(provider) = provider {
-        figment = figment.join(provider);
-    }
-
-    figment.extract().map_err(Into::into)
+    figment.join(provider).extract().map_err(Into::into)
 }
 
 fn load_dotenv(file_name: &str) -> Result<(), figment::Error> {
