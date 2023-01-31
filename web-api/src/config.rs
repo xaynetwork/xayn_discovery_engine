@@ -15,7 +15,7 @@
 mod cli;
 mod load_config;
 
-use std::{ffi::OsString, process::exit};
+use std::{ffi::OsString, fmt::Display, process::exit};
 
 use clap::{CommandFactory, Parser};
 use serde::{de::DeserializeOwned, Serialize};
@@ -27,7 +27,7 @@ use self::{cli::Args, load_config::load_config};
 /// See [`Config.load()`].
 #[allow(dead_code)]
 pub fn load_with_args<C>(
-    application_names: &[&str],
+    application_names: impl IntoIterator<Item = impl Display>,
     args: impl IntoIterator<Item = impl Into<OsString> + Clone>,
 ) -> C
 where
@@ -43,14 +43,17 @@ where
 /// In case of `--help`, `--print-config` and failure
 /// this functions will not return normally but terminate
 /// the program normally instead.
-pub fn load<C>(application_names: &[&str]) -> C
+pub fn load<C>(application_names: impl IntoIterator<Item = impl Display>) -> C
 where
     C: Serialize + DeserializeOwned,
 {
     load_with_parsed_args(application_names, Args::parse())
 }
 
-fn load_with_parsed_args<C>(application_names: &[&str], mut cli_args: Args) -> C
+fn load_with_parsed_args<C>(
+    application_names: impl IntoIterator<Item = impl Display>,
+    mut cli_args: Args,
+) -> C
 where
     C: Serialize + DeserializeOwned,
 {

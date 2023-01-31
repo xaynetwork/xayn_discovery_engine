@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::Path;
+use std::{fmt::Display, path::Path};
 
 use figment::{
     providers::{Env, Format, Serialized, Toml},
@@ -58,7 +58,7 @@ use serde::{de::DeserializeOwned, Serialize};
 /// the json `{ "foo": { "bar": 12 } }` wrt. deserializing the config if `XAYN_WEB_API` is
 /// in `application_names`.
 pub(crate) fn load_config<C, U>(
-    application_names: &[&str],
+    application_names: impl IntoIterator<Item = impl Display>,
     config: Option<&str>,
     update_with: U,
 ) -> Result<C, figment::Error>

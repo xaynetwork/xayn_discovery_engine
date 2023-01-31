@@ -19,7 +19,7 @@ use std::{env::current_dir, path::PathBuf};
 use actix_web::web::ServiceConfig;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
-use tracing::{error, info};
+use tracing::info;
 
 pub(crate) use self::app_state::AppState;
 use crate::{
@@ -77,4 +77,24 @@ where
     let app_state = AppState::<A>::create(config).await?;
 
     net::start_actix_server(app_state, A::configure_service)
+}
+
+/// Generate application names/env prefixes for the given application.
+///
+/// This is a macro as it used `env!("CARGO_BIN_NAME")` which needs to be
+/// in the binary build unit and won't work if used in a library. This means
+/// for crates with a `lib.rs` and `main.rs` it needs to be in `main.rs` or
+/// (sub-)modules of `main.rs` and can't be in `lib.rs` or (sub-)modules of
+/// `lib.rs`.
+#[macro_export]
+macro_rules! application_names {
+    () => {{
+        let name = env!("CARGO_BIN_NAME").replace("-", "_").to_uppercase();
+        let name = if name.starts_with("XAYN_") {
+            name
+        } else {
+            format!("XAYN_{name}")
+        };
+        [name, "XAYN_WEB_API".to_string()]
+    }};
 }

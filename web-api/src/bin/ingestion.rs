@@ -13,12 +13,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use tracing::instrument;
-use xayn_web_api::{config, start, Application, Ingestion};
+use xayn_web_api::{application_names, config, start, Ingestion};
 
 #[tokio::main]
 #[instrument(err)]
 async fn main() -> Result<(), anyhow::Error> {
-    let config = config::load(&[Ingestion::NAME, "XAYN_WEB_API"]);
+    let config = config::load(application_names!());
     start::<Ingestion>(config)
         .await?
         .wait_for_termination()

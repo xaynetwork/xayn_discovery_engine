@@ -13,12 +13,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use tracing::instrument;
-use xayn_web_api::{config, start, Application, Personalization};
+use xayn_web_api::{application_names, config, start, Personalization};
 
 #[tokio::main]
 #[instrument(err)]
 async fn main() -> Result<(), anyhow::Error> {
-    let config = config::load(&[Personalization::NAME, "XAYN_WEB_API"]);
+    let config = config::load(application_names!());
     start::<Personalization>(config)
         .await?
         .wait_for_termination()
