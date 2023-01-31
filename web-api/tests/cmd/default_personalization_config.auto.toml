@@ -40,7 +40,7 @@ stdout = """
   },
   "personalization": {
     "max_number_documents": 100,
-    "default_number_documents": 100,
+    "default_number_documents": 10,
     "max_cois_for_knn": 10,
     "interest_tag_bias": 0.8
   }
