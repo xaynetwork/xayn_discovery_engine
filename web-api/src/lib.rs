@@ -31,7 +31,7 @@
     clippy::must_use_candidate
 )]
 
-mod config;
+pub mod config;
 mod embedding;
 mod error;
 mod ingestion;
@@ -50,5 +50,5 @@ pub use crate::{
     error::application::{ApplicationError, Error},
     ingestion::Ingestion,
     personalization::Personalization,
-    server::{run, Application, SetupError},
+    server::{start, Application, SetupError},
 };

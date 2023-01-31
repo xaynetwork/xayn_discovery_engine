@@ -26,7 +26,7 @@ use self::{cli::Args, load_config::load_config};
 ///
 /// See [`Config.load()`].
 #[allow(dead_code)]
-pub(crate) fn load_with_args<C>(
+pub fn load_with_args<C>(
     application_names: &[&str],
     args: impl IntoIterator<Item = impl Into<OsString> + Clone>,
 ) -> C
@@ -43,7 +43,7 @@ where
 /// In case of `--help`, `--print-config` and failure
 /// this functions will not return normally but terminate
 /// the program normally instead.
-pub(crate) fn load<C>(application_names: &[&str]) -> C
+pub fn load<C>(application_names: &[&str]) -> C
 where
     C: Serialize + DeserializeOwned,
 {

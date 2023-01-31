@@ -13,12 +13,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
+    io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     time::Duration,
 };
 
 use actix_cors::Cors;
 use actix_web::{
+    dev::ServerHandle,
     middleware,
     web::{self, JsonConfig, ServiceConfig},
     App,
@@ -26,6 +28,8 @@ use actix_web::{
     HttpServer,
 };
 use serde::{Deserialize, Serialize};
+use tokio::{task::JoinHandle, time::timeout};
+use tracing::info;
 
 use crate::middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request};
 
@@ -79,10 +83,10 @@ impl Default for Config {
     }
 }
 
-pub(crate) async fn run_actix_server<A>(
+pub(crate) fn start_actix_server<A>(
     app_state: A,
     configure_services: impl Fn(&mut ServiceConfig) + Clone + Send + 'static,
-) -> Result<(), anyhow::Error>
+) -> Result<AppHandle, anyhow::Error>
 where
     A: AsRef<Config> + Send + Sync + 'static,
 {
@@ -96,7 +100,7 @@ where
     let json_config = JsonConfig::default().limit(max_body_size);
     let app_state = web::Data::new(app_state);
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         App::new()
             .app_data(app_state.clone())
             .app_data(json_config.clone())
@@ -109,8 +113,71 @@ where
     })
     .keep_alive(keep_alive)
     .client_request_timeout(client_request_timeout)
-    .bind(bind_to)?
-    .run()
-    .await
-    .map_err(Into::into)
+    .bind(bind_to)?;
+
+    let addresses = server.addrs();
+    for addr in &addresses {
+        info!(bound_to=%addr);
+    }
+
+    let server = server.run();
+    let server_handle = server.handle();
+    // The `server_handle` needs to be polled continuously to work correctly, to achieve this we
+    // `spawn` it on the tokio runtime. This hands off the responsibility to poll the server to
+    // tokio. At the same time we keep the `JoinHandle` so that we can wait for the server to
+    // stop and get it's return value (we don't have to await `term_handle`).
+    let term_handle = tokio::spawn(server);
+    Ok(AppHandle {
+        server_handle,
+        addresses,
+        term_handle,
+    })
+}
+
+/// A handle to the running application/server.
+///
+/// It is recommended to call [`AppHandle.wait_for_termination()`] instead
+/// of dropping this type to make sure you do not discard the result of the
+/// application execution.
+#[must_use = "Discarding this type is equivalent to discarding the result of the app execution, use [`AppHandle.wait_for_termination()`]"]
+pub struct AppHandle {
+    server_handle: ServerHandle,
+    addresses: Vec<SocketAddr>,
+    term_handle: JoinHandle<Result<(), io::Error>>,
+}
+
+impl AppHandle {
+    /// Returns the addresses the server is listening on.
+    ///
+    /// This is useful if the `net.bind_to` config was set
+    /// to a 0-port (e.g. `127.0.0.1:0`) which will make the
+    /// os choose a port and this method is the only way to
+    /// know the port which was chosen.
+    pub fn addresses(&self) -> &[SocketAddr] {
+        &self.addresses
+    }
+
+    /// Stops the app gracefully and escalates to non-graceful stopping on timeout, then awaits the apps result.
+    pub async fn stop_and_wait(self, graceful_timeout: Duration) -> Result<(), anyhow::Error> {
+        if timeout(graceful_timeout, self.stop(true)).await.is_err() {
+            self.stop(false).await;
+        }
+        self.wait_for_termination().await
+    }
+
+    /// Stops the application.
+    ///
+    /// To make sure the application is fully stopped and to handle the result of
+    /// the application execution you needs to await [`AppHandle.wait_for_termination()`]
+    /// afterwards.
+    pub async fn stop(&self, graceful: bool) {
+        self.server_handle.stop(graceful).await;
+    }
+
+    /// Waits for the server/app to have stopped and returns it's return value.
+    ///
+    /// It is recommended but not required to call this.
+    pub async fn wait_for_termination(self) -> Result<(), anyhow::Error> {
+        Ok(self.term_handle.await??)
+    }
 }

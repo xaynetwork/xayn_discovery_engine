@@ -12,9 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use xayn_web_api::{run, Personalization};
+use tracing::instrument;
+use xayn_web_api::{config, start, Application, Personalization};
 
 #[tokio::main]
+#[instrument(err)]
 async fn main() -> Result<(), anyhow::Error> {
-    run::<Personalization>().await
+    let config = config::load(&[Personalization::NAME, "XAYN_WEB_API"]);
+    start::<Personalization>(config)
+        .await?
+        .wait_for_termination()
+        .await
 }

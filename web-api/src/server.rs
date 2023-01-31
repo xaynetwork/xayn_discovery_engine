@@ -14,13 +14,20 @@
 
 mod app_state;
 
+use std::{env::current_dir, path::PathBuf};
+
 use actix_web::web::ServiceConfig;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
-use tracing::error;
+use tracing::{error, info};
 
 pub(crate) use self::app_state::AppState;
-use crate::{logging, logging::init_tracing, net, storage};
+use crate::{
+    logging,
+    logging::init_tracing,
+    net::{self, AppHandle},
+    storage,
+};
 
 #[async_trait]
 pub trait Application {
@@ -57,20 +64,17 @@ pub type SetupError = anyhow::Error;
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
-pub async fn run<A>() -> Result<(), SetupError>
+pub async fn start<A>(config: A::Config) -> Result<AppHandle, SetupError>
 where
     A: Application + 'static,
 {
-    async {
-        let config: A::Config = crate::config::load(&[A::NAME, "XAYN_WEB_API"]);
-        init_tracing(config.as_ref());
-        let app_state = AppState::<A>::create(config).await?;
-        net::run_actix_server(app_state, A::configure_service).await?;
-        Ok(())
-    }
-    .await
-    .map_err(|err| {
-        error!(%err, "running service failed");
-        err
-    })
+    // let config: A::Config = crate::config::load(&[A::NAME, "XAYN_WEB_API"]);
+    init_tracing(config.as_ref());
+
+    let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));
+    info!(pwd=?pwd);
+
+    let app_state = AppState::<A>::create(config).await?;
+
+    net::start_actix_server(app_state, A::configure_service)
 }

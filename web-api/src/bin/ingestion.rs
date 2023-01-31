@@ -12,9 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use xayn_web_api::{run, Ingestion};
+use tracing::instrument;
+use xayn_web_api::{config, start, Application, Ingestion};
 
 #[tokio::main]
+#[instrument(err)]
 async fn main() -> Result<(), anyhow::Error> {
-    run::<Ingestion>().await
+    let config = config::load(&[Ingestion::NAME, "XAYN_WEB_API"]);
+    start::<Ingestion>(config)
+        .await?
+        .wait_for_termination()
+        .await
 }
