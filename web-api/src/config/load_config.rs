@@ -59,7 +59,7 @@ use serde::{de::DeserializeOwned, Serialize};
 /// in `application_names`.
 pub(crate) fn load_config<C, U>(
     application_names: &[&str],
-    config_file: Option<&Path>,
+    config: Option<&str>,
     update_with: U,
 ) -> Result<C, figment::Error>
 where
@@ -78,9 +78,21 @@ where
         figment = figment.join(Env::prefixed(&format!("{name}__")).split("__"));
     }
 
-    let file = config_file.unwrap_or_else(|| Path::new("config.toml"));
-    if file.exists() {
-        figment = figment.join(Toml::file(file));
+    let provider = config
+        .map(|content_or_path| {
+            if let Some(content) = content_or_path.strip_prefix("inline:") {
+                Toml::string(content)
+            } else {
+                Toml::file(content_or_path)
+            }
+        })
+        .or_else(|| {
+            let default_file = Path::new("config.toml");
+            default_file.exists().then(|| Toml::file(default_file))
+        });
+
+    if let Some(provider) = provider {
+        figment = figment.join(provider);
     }
 
     figment.extract().map_err(Into::into)
