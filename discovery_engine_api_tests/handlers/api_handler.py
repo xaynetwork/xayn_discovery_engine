@@ -4,6 +4,7 @@ import requests
 import allure
 import logging
 from config.config import Config
+from model.documents.documents import Documents
 
 LOGGER = logging.getLogger(__name__)
 
@@ -13,14 +14,15 @@ class ApiHandler:
 
     def __init__(self):
         conf = Config()
-        self.interactions = conf.get_interactions_endpoint()
-        self.ingestion = conf.get_ingestion_endpoint()
+        self.interactions_endpoint = conf.get_interactions_endpoint()
+        self.ingestion_endpoint = conf.get_ingestion_endpoint()
 
-    def post_document(self, doc):
-        return self.send_post_request(self.ingestion, doc)
+    def ingest_document(self, doc):
+        docs = Documents(doc).to_json()
+        return self.send_post_request(self.ingestion_endpoint, docs)
 
     def get_properties(self, doc_id):
-        return self.send_get_request(self.ingestion + "/" + doc_id + "/properties")
+        return self.send_get_request(self.ingestion_endpoint + "/" + doc_id + "/properties")
 
     def interact_with_documents(self, user_id, interaction):
         """
@@ -29,10 +31,10 @@ class ApiHandler:
         :param data:
         :return:
         """
-        return self.send_patch_request(self.interactions.format(user_id=user_id), interaction)
+        return self.send_patch_request(self.interactions_endpoint.format(user_id=user_id), interaction)
 
     def delete_document(self, doc_id):
-        return self.send_delete_request(self.ingestion + "/" + doc_id)
+        return self.send_delete_request(self.ingestion_endpoint + "/" + doc_id)
 
     # basic api calls used in other methods
 

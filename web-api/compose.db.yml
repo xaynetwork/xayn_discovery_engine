@@ -11,13 +11,13 @@ services:
     networks:
       - internal
 
-#  adminer:
-#    image: adminer
-#    restart: always
-#    ports:
-#      - 8080:8080
-#    networks:
-#      - internal
+ #  adminer:
+ #    image: adminer
+ #    restart: always
+ #    ports:
+ #      - 8080:8080
+ #    networks:
+ #      - internal
 
   elasticsearch:
     image: elasticsearch:8.5.3
