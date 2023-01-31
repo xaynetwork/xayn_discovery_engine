@@ -95,7 +95,7 @@ const fn default_max_number_documents() -> usize {
 }
 
 const fn default_default_number_documents() -> usize {
-    100
+    10
 }
 
 const fn default_max_cois_for_knn() -> usize {
