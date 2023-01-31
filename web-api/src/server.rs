@@ -13,34 +13,21 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod app_state;
-mod config;
 
-use actix_cors::Cors;
-use actix_web::{
-    middleware,
-    web::{self, JsonConfig, ServiceConfig},
-    App,
-    HttpResponse,
-    HttpServer,
-};
+use actix_web::web::ServiceConfig;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
-pub(crate) use self::{app_state::AppState, config::Config};
-use crate::{
-    logging,
-    logging::init_tracing,
-    middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request},
-    storage,
-};
+pub(crate) use self::app_state::AppState;
+use crate::{logging, logging::init_tracing, net, storage};
 
 #[async_trait]
 pub trait Application {
     const NAME: &'static str;
 
     type Config: AsRef<logging::Config>
-        + AsRef<Config>
+        + AsRef<net::Config>
         + AsRef<storage::Config>
         + DeserializeOwned
         + Serialize
@@ -76,35 +63,9 @@ where
 {
     async {
         let config: A::Config = crate::config::load(&[A::NAME, "XAYN_WEB_API"]);
-
-        let &Config {
-            bind_to,
-            max_body_size,
-            keep_alive,
-            client_request_timeout,
-        } = config.as_ref();
         init_tracing(config.as_ref());
-
-        let json_config = JsonConfig::default().limit(max_body_size);
-        let app_state = web::Data::new(AppState::<A>::create(config).await?);
-
-        HttpServer::new(move || {
-            App::new()
-                .app_data(app_state.clone())
-                .app_data(json_config.clone())
-                .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
-                .configure(A::configure_service)
-                .wrap_fn(wrap_non_json_errors)
-                .wrap_fn(tracing_log_request)
-                .wrap(middleware::Compress::default())
-                .wrap(Cors::permissive())
-        })
-        .keep_alive(keep_alive)
-        .client_request_timeout(client_request_timeout)
-        .bind(bind_to)?
-        .run()
-        .await?;
-
+        let app_state = AppState::<A>::create(config).await?;
+        net::run_actix_server(app_state, A::configure_service).await?;
         Ok(())
     }
     .await

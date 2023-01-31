@@ -17,7 +17,17 @@ use std::{
     time::Duration,
 };
 
+use actix_cors::Cors;
+use actix_web::{
+    middleware,
+    web::{self, JsonConfig, ServiceConfig},
+    App,
+    HttpResponse,
+    HttpServer,
+};
 use serde::{Deserialize, Serialize};
+
+use crate::middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request};
 
 mod serde_duration_as_seconds {
     use std::time::Duration;
@@ -67,4 +77,40 @@ impl Default for Config {
             client_request_timeout: Duration::from_secs(0),
         }
     }
+}
+
+pub(crate) async fn run_actix_server<A>(
+    app_state: A,
+    configure_services: impl Fn(&mut ServiceConfig) + Clone + Send + 'static,
+) -> Result<(), anyhow::Error>
+where
+    A: AsRef<Config> + Send + Sync + 'static,
+{
+    let &Config {
+        bind_to,
+        max_body_size,
+        keep_alive,
+        client_request_timeout,
+    } = app_state.as_ref();
+
+    let json_config = JsonConfig::default().limit(max_body_size);
+    let app_state = web::Data::new(app_state);
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(app_state.clone())
+            .app_data(json_config.clone())
+            .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
+            .configure(&configure_services)
+            .wrap_fn(wrap_non_json_errors)
+            .wrap_fn(tracing_log_request)
+            .wrap(middleware::Compress::default())
+            .wrap(Cors::permissive())
+    })
+    .keep_alive(keep_alive)
+    .client_request_timeout(client_request_timeout)
+    .bind(bind_to)?
+    .run()
+    .await
+    .map_err(Into::into)
 }

@@ -21,6 +21,7 @@ use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::{
     logging,
+    net,
     server::{self, Application, SetupError},
     storage::{self, Storage},
 };
@@ -56,7 +57,7 @@ type AppState = server::AppState<Personalization>;
 #[serde(default)]
 pub struct Config {
     pub(crate) logging: logging::Config,
-    pub(crate) net: server::Config,
+    pub(crate) net: net::Config,
     pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
     pub(crate) personalization: PersonalizationConfig,

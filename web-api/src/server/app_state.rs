@@ -14,7 +14,10 @@
 
 use derive_more::Deref;
 
-use crate::server::{Application, SetupError};
+use crate::{
+    net,
+    server::{Application, SetupError},
+};
 
 #[derive(Deref)]
 pub(crate) struct AppState<A>
@@ -40,5 +43,14 @@ where
             extension,
             storage,
         })
+    }
+}
+
+impl<A> AsRef<net::Config> for AppState<A>
+where
+    A: Application,
+{
+    fn as_ref(&self) -> &net::Config {
+        self.config.as_ref()
     }
 }

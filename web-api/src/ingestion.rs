@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     embedding::{self, Embedder},
     logging,
+    net,
     server::{self, Application, SetupError},
     storage::{self, Storage},
 };
@@ -57,7 +58,7 @@ type AppState = server::AppState<Ingestion>;
 #[serde(default)]
 pub struct Config {
     pub(crate) logging: logging::Config,
-    pub(crate) net: server::Config,
+    pub(crate) net: net::Config,
     pub(crate) storage: storage::Config,
     pub(crate) ingestion: IngestionConfig,
     pub(crate) embedding: embedding::Config,

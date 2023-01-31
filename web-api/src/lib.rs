@@ -40,6 +40,7 @@ mod middleware;
 #[cfg(test)]
 mod mind;
 mod models;
+mod net;
 mod personalization;
 mod server;
 mod storage;
