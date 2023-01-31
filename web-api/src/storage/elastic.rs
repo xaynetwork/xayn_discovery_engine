@@ -45,41 +45,23 @@ use crate::{
     Error,
 };
 
-fn default_url() -> String {
-    "http://localhost:9200".into()
-}
-
-fn default_user() -> String {
-    "elastic".into()
-}
-
-fn default_password() -> Secret<String> {
-    String::from("changeme").into()
-}
-
-fn default_index_name() -> String {
-    "test_index".into()
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub(crate) struct Config {
-    #[serde(default = "default_url")]
     url: String,
-    #[serde(default = "default_user")]
     user: String,
-    #[serde(default = "default_password", serialize_with = "serialize_redacted")]
+    #[serde(serialize_with = "serialize_redacted")]
     password: Secret<String>,
-    #[serde(default = "default_index_name")]
     index_name: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            url: default_url(),
-            user: default_user(),
-            password: default_password(),
-            index_name: default_index_name(),
+            url: "http://localhost:9200".into(),
+            user: "elastic".into(),
+            password: String::from("changeme").into(),
+            index_name: "test_index".into(),
         }
     }
 }

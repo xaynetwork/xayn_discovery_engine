@@ -25,26 +25,17 @@ use xayn_ai_bert::{
 use crate::{error::common::InternalError, server::SetupError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Config {
-    #[serde(default = "default_directory")]
     pub(crate) directory: RelativePathBuf,
-    #[serde(default = "default_token_size")]
     pub(crate) token_size: usize,
-}
-
-fn default_directory() -> RelativePathBuf {
-    "assets".into()
-}
-
-const fn default_token_size() -> usize {
-    250
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            directory: default_directory(),
-            token_size: default_token_size(),
+            directory: "assets".into(),
+            token_size: 250,
         }
     }
 }

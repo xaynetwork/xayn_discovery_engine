@@ -53,51 +53,32 @@ type AppState = server::AppState<
 >;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Config {
-    #[as_ref]
-    #[serde(default)]
     pub(crate) logging: logging::Config,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) net: NetConfig,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) storage: storage::Config,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) ingestion: IngestionConfig,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) embedding: embedding::Config,
 }
 
 server::impl_config! { Config }
 
-#[derive(AsRef, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct IngestionConfig {
-    #[as_ref]
-    #[serde(default = "default_max_document_batch_size")]
     pub(crate) max_document_batch_size: usize,
 }
 
 impl Default for IngestionConfig {
     fn default() -> Self {
         Self {
-            max_document_batch_size: default_max_document_batch_size(),
+            max_document_batch_size: 100,
         }
     }
 }
 
-const fn default_max_document_batch_size() -> usize {
-    100
-}
-
 #[derive(AsRef)]
 pub struct AppStateExtension {
-    #[as_ref]
     pub(crate) embedder: Embedder,
 }
