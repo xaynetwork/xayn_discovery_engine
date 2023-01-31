@@ -35,7 +35,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: curl -sf 'http://localhost:9200/_cluster/health'
+      test: curl -if 'http://localhost:9200/_cluster/health'
       interval: 10s
       timeout: 5s
       retries: 5
