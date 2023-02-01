@@ -68,7 +68,6 @@ pub async fn start<A>(config: A::Config) -> Result<AppHandle, SetupError>
 where
     A: Application + 'static,
 {
-    // let config: A::Config = crate::config::load(&[A::NAME, "XAYN_WEB_API"]);
     init_tracing(config.as_ref());
 
     let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));
@@ -81,7 +80,7 @@ where
 
 /// Generate application names/env prefixes for the given application.
 ///
-/// This is a macro as it used `env!("CARGO_BIN_NAME")` which needs to be
+/// This is a macro as it uses `env!("CARGO_BIN_NAME")` which needs to be called
 /// in the binary build unit and won't work if used in a library. This means
 /// for crates with a `lib.rs` and `main.rs` it needs to be in `main.rs` or
 /// (sub-)modules of `main.rs` and can't be in `lib.rs` or (sub-)modules of

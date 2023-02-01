@@ -24,7 +24,7 @@ use self::{cli::Args, load_config::load_config};
 
 /// Loads the config with custom CLI args.
 ///
-/// See [`Config.load()`].
+/// See [`load()`].
 #[allow(dead_code)]
 pub fn load_with_args<C>(
     application_names: impl IntoIterator<Item = impl Display>,
