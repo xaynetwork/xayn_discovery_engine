@@ -60,6 +60,7 @@ pub struct Config {
     pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
     pub(crate) personalization: PersonalizationConfig,
+    pub(crate) semantic_search: SemanticSearchConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -94,6 +95,23 @@ impl Default for PersonalizationConfig {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
+pub(crate) struct SemanticSearchConfig {
+    /// Max number of documents to return.
+    pub(crate) max_number_documents: usize,
+    /// Default number of documents to return.
+    pub(crate) default_number_documents: usize,
+}
+
+impl Default for SemanticSearchConfig {
+    fn default() -> Self {
+        Self {
+            max_number_documents: 100,
+            default_number_documents: 10,
+        }
+    }
+}
 #[derive(AsRef)]
 pub struct Extension {
     pub(crate) coi: CoiSystem,

@@ -44,6 +44,10 @@ stdout = """
     "max_cois_for_knn": 10,
     "interest_tag_bias": 0.8,
     "store_user_history": true
+  },
+  "semantic_search": {
+    "max_number_documents": 100,
+    "default_number_documents": 10
   }
 }
 """
