@@ -24,26 +24,34 @@ use actix_web::{
     HttpResponse,
     HttpServer,
 };
+use async_trait::async_trait;
 use clap::Parser;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::error;
 
-pub use self::config::Config;
-pub(crate) use self::{
-    app_state::AppState,
-    config::{impl_config, NetConfig},
-};
+pub(crate) use self::{app_state::AppState, config::Config};
 use crate::{
     load_config::load_config,
+    logging,
     logging::init_tracing,
     middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request},
+    storage,
 };
 
+#[async_trait]
 pub trait Application {
     const NAME: &'static str;
 
-    type Config: Config + DeserializeOwned + Serialize + Send + Sync + 'static;
-    type AppStateExtension: Send + Sync + 'static;
+    type Config: AsRef<logging::Config>
+        + AsRef<Config>
+        + AsRef<storage::Config>
+        + DeserializeOwned
+        + Serialize
+        + Send
+        + Sync
+        + 'static;
+    type Extension: Send + Sync + 'static;
+    type Storage: Send + Sync + 'static;
 
     /// Configures the actix service(s) used by this application.
     ///
@@ -53,11 +61,11 @@ pub trait Application {
 
     /// Create an application specific extension to app state.
     //Design Note: We could handle this by adding `TyFrom<&Config<..>>` bounds
-    //             to `AppStateExtension` but using this helper method is simpler
+    //             to `Extension` but using this helper method is simpler
     //             and it is also easier to add async if needed (using #[async-trait]).
-    fn create_app_state_extension(
-        config: &Self::Config,
-    ) -> Result<Self::AppStateExtension, SetupError>;
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError>;
+
+    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError>;
 }
 
 pub type SetupError = anyhow::Error;
@@ -67,7 +75,7 @@ pub type SetupError = anyhow::Error;
 /// The return value is the exit code which should be used.
 pub async fn run<A>() -> Result<(), SetupError>
 where
-    A: Application,
+    A: Application + 'static,
 {
     async {
         let mut cli_args = cli::Args::parse();
@@ -84,14 +92,16 @@ where
             return Ok(());
         }
 
-        let addr = config.net().bind_to;
-        let keep_alive = config.net().keep_alive;
-        let client_request_timeout = config.net().client_request_timeout;
-        init_tracing(config.logging());
+        let &Config {
+            bind_to,
+            max_body_size,
+            keep_alive,
+            client_request_timeout,
+        } = config.as_ref();
+        init_tracing(config.as_ref());
 
-        let json_config = JsonConfig::default().limit(config.net().max_body_size);
-        let app_state = AppState::create(config, A::create_app_state_extension).await?;
-        let app_state = web::Data::new(app_state);
+        let json_config = JsonConfig::default().limit(max_body_size);
+        let app_state = web::Data::new(AppState::<A>::create(config).await?);
 
         HttpServer::new(move || {
             App::new()
@@ -106,7 +116,7 @@ where
         })
         .keep_alive(keep_alive)
         .client_request_timeout(client_request_timeout)
-        .bind(addr)?
+        .bind(bind_to)?
         .run()
         .await?;
 

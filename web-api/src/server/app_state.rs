@@ -14,29 +14,26 @@
 
 use derive_more::Deref;
 
-use crate::{
-    server::{Config, SetupError},
-    storage::Storage,
-};
+use crate::server::{Application, SetupError};
 
 #[derive(Deref)]
-pub(crate) struct AppState<C, E, S> {
-    pub(crate) config: C,
+pub(crate) struct AppState<A>
+where
+    A: Application,
+{
+    pub(crate) config: A::Config,
     #[deref]
-    pub(crate) extension: E,
-    pub(crate) storage: S,
+    pub(crate) extension: A::Extension,
+    pub(crate) storage: A::Storage,
 }
 
-impl<C, E> AppState<C, E, Storage>
+impl<A> AppState<A>
 where
-    C: Config,
+    A: Application,
 {
-    pub(super) async fn create(
-        config: C,
-        create_extension: impl FnOnce(&C) -> Result<E, SetupError>,
-    ) -> Result<Self, SetupError> {
-        let extension = create_extension(&config)?;
-        let storage = config.storage().setup().await?;
+    pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
+        let extension = A::create_extension(&config)?;
+        let storage = A::setup_storage(config.as_ref()).await?;
 
         Ok(Self {
             config,

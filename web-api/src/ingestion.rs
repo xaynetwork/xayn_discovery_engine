@@ -15,54 +15,53 @@
 mod routes;
 
 use actix_web::web::ServiceConfig;
+use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     embedding::{self, Embedder},
     logging,
-    server::{self, Application, NetConfig},
+    server::{self, Application, SetupError},
     storage::{self, Storage},
 };
 
 pub struct Ingestion;
 
+#[async_trait]
 impl Application for Ingestion {
     const NAME: &'static str = "XAYN_INGESTION";
 
     type Config = Config;
-    type AppStateExtension = AppStateExtension;
+    type Extension = Extension;
+    type Storage = Storage;
 
     fn configure_service(config: &mut ServiceConfig) {
         routes::configure_service(config);
     }
 
-    fn create_app_state_extension(
-        config: &Self::Config,
-    ) -> Result<Self::AppStateExtension, server::SetupError> {
-        Ok(AppStateExtension {
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
+        Ok(Extension {
             embedder: Embedder::load(&config.embedding)?,
         })
     }
+
+    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError> {
+        config.setup().await
+    }
 }
 
-type AppState = server::AppState<
-    <Ingestion as Application>::Config,
-    <Ingestion as Application>::AppStateExtension,
-    Storage,
->;
+type AppState = server::AppState<Ingestion>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
     pub(crate) logging: logging::Config,
-    pub(crate) net: NetConfig,
+    pub(crate) net: server::Config,
     pub(crate) storage: storage::Config,
     pub(crate) ingestion: IngestionConfig,
     pub(crate) embedding: embedding::Config,
 }
-
-server::impl_config! { Config }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -79,6 +78,6 @@ impl Default for IngestionConfig {
 }
 
 #[derive(AsRef)]
-pub struct AppStateExtension {
+pub struct Extension {
     pub(crate) embedder: Embedder,
 }

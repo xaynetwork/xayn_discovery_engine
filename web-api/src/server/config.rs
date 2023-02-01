@@ -19,8 +19,6 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{logging, storage};
-
 mod serde_duration_as_seconds {
     use std::time::Duration;
 
@@ -44,7 +42,7 @@ mod serde_duration_as_seconds {
 /// Configuration for roughly network/connection layer specific configurations.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
-pub struct NetConfig {
+pub struct Config {
     /// Address to which the server should bind.
     pub(crate) bind_to: SocketAddr,
 
@@ -60,7 +58,7 @@ pub struct NetConfig {
     pub(crate) client_request_timeout: Duration,
 }
 
-impl Default for NetConfig {
+impl Default for Config {
     fn default() -> Self {
         Self {
             bind_to: SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 4252).into(),
@@ -70,33 +68,3 @@ impl Default for NetConfig {
         }
     }
 }
-
-pub trait Config {
-    fn logging(&self) -> &logging::Config;
-
-    fn net(&self) -> &NetConfig;
-
-    fn storage(&self) -> &storage::Config;
-}
-
-macro_rules! impl_config {
-    ($($config:ident),* $(,)?) => {
-        $(
-            impl $crate::server::Config for $config {
-                fn logging(&self) -> &$crate::logging::Config {
-                    &self.logging
-                }
-
-                fn net(&self) -> &$crate::server::NetConfig {
-                    &self.net
-                }
-
-                fn storage(&self) -> &$crate::storage::Config {
-                    &self.storage
-                }
-            }
-        )*
-    };
-}
-
-pub(crate) use impl_config;

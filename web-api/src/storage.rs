@@ -175,7 +175,7 @@ impl Config {
     }
 }
 
-pub(crate) struct Storage {
+pub struct Storage {
     elastic: elastic::Client,
     postgres: postgres::Database,
 }
