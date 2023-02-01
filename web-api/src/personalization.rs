@@ -14,54 +14,53 @@
 pub(crate) mod routes;
 
 use actix_web::web::ServiceConfig;
+use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::{
     logging,
-    server::{self, Application, NetConfig},
+    server::{self, Application, ApplicationError},
     storage::{self, Storage},
 };
 
 pub struct Personalization;
 
+#[async_trait]
 impl Application for Personalization {
     const NAME: &'static str = "XAYN_PERSONALIZATION";
 
     type Config = Config;
-    type AppStateExtension = AppStateExtension;
+    type Extension = Extension;
+    type Storage = Storage;
 
     fn configure_service(config: &mut ServiceConfig) {
         routes::configure_service(config);
     }
 
-    fn create_app_state_extension(
-        config: &Self::Config,
-    ) -> Result<Self::AppStateExtension, server::SetupError> {
-        Ok(AppStateExtension {
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, ApplicationError> {
+        Ok(Extension {
             coi: config.coi.clone().build(),
         })
     }
+
+    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, ApplicationError> {
+        config.setup().await
+    }
 }
 
-type AppState = server::AppState<
-    <Personalization as Application>::Config,
-    <Personalization as Application>::AppStateExtension,
-    Storage,
->;
+type AppState = server::AppState<Personalization>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
     pub(crate) logging: logging::Config,
-    pub(crate) net: NetConfig,
+    pub(crate) net: server::Config,
     pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
     pub(crate) personalization: PersonalizationConfig,
 }
-
-server::impl_config! { Config }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -96,6 +95,6 @@ impl Default for PersonalizationConfig {
 }
 
 #[derive(AsRef)]
-pub struct AppStateExtension {
+pub struct Extension {
     pub(crate) coi: CoiSystem,
 }

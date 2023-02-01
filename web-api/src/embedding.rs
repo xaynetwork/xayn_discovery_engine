@@ -22,7 +22,7 @@ use xayn_ai_bert::{
     NormalizedEmbedding,
 };
 
-use crate::{error::common::InternalError, server::SetupError, utils::RelativePathBuf};
+use crate::{error::common::InternalError, server::ApplicationError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -53,7 +53,7 @@ impl Embedder {
             .map_err(InternalError::from_std)
     }
 
-    pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
+    pub(crate) fn load(config: &Config) -> Result<Self, ApplicationError> {
         let path = config.directory.relative();
         if !path.exists() {
             bail!(
