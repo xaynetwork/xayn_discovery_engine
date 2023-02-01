@@ -19,8 +19,8 @@ class ApiHandler:
             self.personalization_endpoint = os.environ[
                                                 "PERSONALIZATION_URI"] + "/users/{user_id}/personalized_documents"
             self.interactions_endpoint = os.environ["PERSONALIZATION_URI"] + "/users/{user_id}/interactions"
-        except KeyError as error:
-            pytest.fail(error)
+        except KeyError:
+            pytest.fail()
 
     def ingest_document(self, doc):
         docs = Documents(doc).to_json()
