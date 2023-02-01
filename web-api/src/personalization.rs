@@ -77,6 +77,9 @@ pub(crate) struct PersonalizationConfig {
 
     /// Weighting of user interests vs document tags. Must be in the interval `[0, 1]`.
     pub(crate) interest_tag_bias: f32,
+
+    /// Whether to store the history of user interactions.
+    pub(crate) store_user_history: bool,
 }
 
 impl Default for PersonalizationConfig {
@@ -87,6 +90,7 @@ impl Default for PersonalizationConfig {
             // FIXME: what is a default value we know works well with how we do knn?
             max_cois_for_knn: 10,
             interest_tag_bias: 0.8,
+            store_user_history: true,
         }
     }
 }

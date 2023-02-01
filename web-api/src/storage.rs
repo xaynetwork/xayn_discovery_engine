@@ -147,6 +147,7 @@ pub(crate) trait Interaction {
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
+        store_user_history: bool,
         update_logic: F,
     ) -> Result<(), Error>
     where

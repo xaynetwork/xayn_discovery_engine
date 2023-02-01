@@ -100,9 +100,15 @@ impl State {
             .map(|id| (id.clone(), UserInteractionType::Positive))
             .collect_vec();
 
-        update_interactions(&self.storage, &self.coi, user, &interactions)
-            .await
-            .map_err(Into::into)
+        update_interactions(
+            &self.storage,
+            &self.coi,
+            user,
+            &interactions,
+            self.personalization.store_user_history,
+        )
+        .await
+        .map_err(Into::into)
     }
 
     async fn personalize(

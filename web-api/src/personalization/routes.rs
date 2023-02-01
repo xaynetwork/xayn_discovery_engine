@@ -88,7 +88,14 @@ async fn interactions(
                 .map(|document_id| (document_id, data.interaction_type))
         })
         .try_collect::<_, Vec<_>, _>()?;
-    update_interactions(&state.storage, &state.coi, &user_id, &interactions).await?;
+    update_interactions(
+        &state.storage,
+        &state.coi,
+        &user_id,
+        &interactions,
+        state.config.personalization.store_user_history,
+    )
+    .await?;
 
     Ok(HttpResponse::NoContent())
 }
@@ -98,6 +105,7 @@ pub(crate) async fn update_interactions(
     coi: &CoiSystem,
     user_id: &UserId,
     interactions: &[(DocumentId, UserInteractionType)],
+    store_user_history: bool,
 ) -> Result<(), Error> {
     storage::Interaction::user_seen(storage, user_id).await?;
 
@@ -111,19 +119,28 @@ pub(crate) async fn update_interactions(
         .iter()
         .map(|(document_id, _)| document_id)
         .collect_vec();
-    storage::Interaction::update_interactions(storage, user_id, &document_ids, |context| {
-        match document_id_to_interaction_type[&context.document.id] {
-            UserInteractionType::Positive => {
-                for tag in &context.document.tags {
-                    *context.tag_weight_diff
+    storage::Interaction::update_interactions(
+        storage,
+        user_id,
+        &document_ids,
+        store_user_history,
+        |context| {
+            match document_id_to_interaction_type[&context.document.id] {
+                UserInteractionType::Positive => {
+                    for tag in &context.document.tags {
+                        *context.tag_weight_diff
                             .get_mut(tag)
                             .unwrap(/* update_interactions assures all tags are given */) += 1;
-                }
-                coi.log_positive_user_reaction(context.positive_cois, &context.document.embedding)
+                    }
+                    coi.log_positive_user_reaction(
+                        context.positive_cois,
+                        &context.document.embedding,
+                    )
                     .clone()
+                }
             }
-        }
-    })
+        },
+    )
     .await?;
 
     Ok(())
@@ -234,12 +251,14 @@ fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
 }
 
 /// Performs an approximate knn search for documents similar to the positive user interests.
+#[allow(clippy::too_many_arguments)]
 async fn search_knn_documents(
     storage: &(impl storage::Document + storage::Interaction),
     user_id: &UserId,
     cois: &[PositiveCoi],
     horizon: Duration,
     max_cois: usize,
+    store_user_history: bool,
     count: usize,
     published_after: Option<DateTime<Utc>>,
 ) -> Result<Vec<PersonalizedDocument>, Error> {
@@ -253,7 +272,11 @@ async fn search_knn_documents(
     let cois = &cois[..max_cois.min(cois.len())];
     let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
 
-    let excluded = storage::Interaction::get(storage, user_id).await?;
+    let excluded = if store_user_history {
+        storage::Interaction::get(storage, user_id).await?
+    } else {
+        Vec::new()
+    };
 
     let mut document_futures = cois
         .iter()
@@ -351,6 +374,7 @@ pub(crate) async fn personalize_documents_by(
                 &cois.positive,
                 coi.config().horizon(),
                 personalization.max_cois_for_knn,
+                personalization.store_user_history,
                 count,
                 published_after,
             )
@@ -433,6 +457,7 @@ mod tests {
             &[],
             CoiConfig::default().horizon(),
             PersonalizationConfig::default().max_cois_for_knn,
+            PersonalizationConfig::default().store_user_history,
             10,
             None,
         )

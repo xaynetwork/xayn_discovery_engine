@@ -524,6 +524,7 @@ impl storage::Interaction for Storage {
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
+        store_user_history: bool,
         mut update_logic: F,
     ) -> Result<(), Error>
     where
@@ -551,10 +552,12 @@ impl storage::Interaction for Storage {
                 tag_weight_diff: &mut tag_weight_diff,
                 positive_cois,
             });
-            interactions.insert((
-                document.id.clone(),
-                DateTime::<Utc>::from(updated.stats.last_view).naive_utc(),
-            ));
+            if store_user_history {
+                interactions.insert((
+                    document.id.clone(),
+                    DateTime::<Utc>::from(updated.stats.last_view).naive_utc(),
+                ));
+            }
         }
 
         for (tag, diff) in tag_weight_diff {
@@ -690,12 +693,18 @@ mod tests {
         .await
         .unwrap();
         let user_id = UserId::new("abc").unwrap();
-        storage::Interaction::update_interactions(&storage, &user_id, &[&document_id], |context| {
-            *context.tag_weight_diff.get_mut(&tags[0]).unwrap() += 10;
-            let pcoi = PositiveCoi::new(CoiId::new(), [0.2, 9.4, 1.2].try_into().unwrap());
-            context.positive_cois.push(pcoi.clone());
-            pcoi
-        })
+        storage::Interaction::update_interactions(
+            &storage,
+            &user_id,
+            &[&document_id],
+            true,
+            |context| {
+                *context.tag_weight_diff.get_mut(&tags[0]).unwrap() += 10;
+                let pcoi = PositiveCoi::new(CoiId::new(), [0.2, 9.4, 1.2].try_into().unwrap());
+                context.positive_cois.push(pcoi.clone());
+                pcoi
+            },
+        )
         .await
         .unwrap();
 
