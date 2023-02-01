@@ -14,7 +14,7 @@
 
 use derive_more::Deref;
 
-use crate::server::{Application, ApplicationError};
+use crate::server::{Application, SetupError};
 
 #[derive(Deref)]
 pub(crate) struct AppState<A>
@@ -31,7 +31,7 @@ impl<A> AppState<A>
 where
     A: Application,
 {
-    pub(super) async fn create(config: A::Config) -> Result<Self, ApplicationError> {
+    pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
         let extension = A::create_extension(&config)?;
         let storage = A::setup_storage(config.as_ref()).await?;
 

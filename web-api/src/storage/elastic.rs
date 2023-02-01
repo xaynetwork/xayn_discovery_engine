@@ -39,7 +39,7 @@ use crate::{
         DocumentPropertyId,
         DocumentTag,
     },
-    server::ApplicationError,
+    server::SetupError,
     storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
     utils::{serialize_redacted, serialize_to_ndjson},
     Error,
@@ -67,7 +67,7 @@ impl Default for Config {
 }
 
 impl Config {
-    pub(crate) fn setup_client(&self) -> Result<Client, ApplicationError> {
+    pub(crate) fn setup_client(&self) -> Result<Client, SetupError> {
         let mut url_to_index = self.url.parse::<Url>()?;
         url_to_index
             .path_segments_mut()

@@ -40,7 +40,7 @@ use crate::{
         PersonalizedDocument,
         UserId,
     },
-    server::ApplicationError,
+    server::SetupError,
     Error,
 };
 
@@ -167,7 +167,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub(crate) async fn setup(&self) -> Result<Storage, ApplicationError> {
+    pub(crate) async fn setup(&self) -> Result<Storage, SetupError> {
         let elastic = self.elastic.setup_client()?;
         let postgres = self.postgres.setup_database().await?;
 

@@ -63,17 +63,17 @@ pub trait Application {
     //Design Note: We could handle this by adding `TyFrom<&Config<..>>` bounds
     //             to `Extension` but using this helper method is simpler
     //             and it is also easier to add async if needed (using #[async-trait]).
-    fn create_extension(config: &Self::Config) -> Result<Self::Extension, ApplicationError>;
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError>;
 
-    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, ApplicationError>;
+    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError>;
 }
 
-pub(crate) type ApplicationError = anyhow::Error;
+pub type SetupError = anyhow::Error;
 
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
-pub async fn run<A>() -> Result<(), ApplicationError>
+pub async fn run<A>() -> Result<(), SetupError>
 where
     A: Application + 'static,
 {

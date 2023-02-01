@@ -21,7 +21,7 @@ use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::{
     logging,
-    server::{self, Application, ApplicationError},
+    server::{self, Application, SetupError},
     storage::{self, Storage},
 };
 
@@ -39,13 +39,13 @@ impl Application for Personalization {
         routes::configure_service(config);
     }
 
-    fn create_extension(config: &Self::Config) -> Result<Self::Extension, ApplicationError> {
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
         Ok(Extension {
             coi: config.coi.clone().build(),
         })
     }
 
-    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, ApplicationError> {
+    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError> {
         config.setup().await
     }
 }

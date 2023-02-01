@@ -49,5 +49,5 @@ pub use crate::{
     error::application::{ApplicationError, Error},
     ingestion::Ingestion,
     personalization::Personalization,
-    server::{run, Application},
+    server::{run, Application, SetupError},
 };

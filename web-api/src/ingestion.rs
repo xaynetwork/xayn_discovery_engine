@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     embedding::{self, Embedder},
     logging,
-    server::{self, Application, ApplicationError},
+    server::{self, Application, SetupError},
     storage::{self, Storage},
 };
 
@@ -40,13 +40,13 @@ impl Application for Ingestion {
         routes::configure_service(config);
     }
 
-    fn create_extension(config: &Self::Config) -> Result<Self::Extension, ApplicationError> {
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
         Ok(Extension {
             embedder: Embedder::load(&config.embedding)?,
         })
     }
 
-    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, ApplicationError> {
+    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError> {
         config.setup().await
     }
 }
