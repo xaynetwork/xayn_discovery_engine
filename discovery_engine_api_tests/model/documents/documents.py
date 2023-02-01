@@ -1,5 +1,6 @@
 from model.base.model_base import ModelBase
-from model.properties import Properties
+from model.properties.properties import Properties
+from model.properties.property import Property
 from model.documents.document import Document
 from utils import test_utils as su
 
@@ -22,7 +23,7 @@ def generate_docs(amount):
     for i in range(amount):
         id = su.generate_random_alphanumerical(10)
         snippet = su.generate_random_alphanumerical(50)
-        properties = Properties(title="Title")
-        doc = Document(id, snippet, properties)
+        property = Property(title="Title")
+        doc = Document(id, snippet, property)
         docs_dict[id] = doc
     return docs_dict

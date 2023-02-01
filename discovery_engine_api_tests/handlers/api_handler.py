@@ -1,9 +1,10 @@
 import json
+import os
 
+import pytest
 import requests
 import allure
 import logging
-from config.config import Config
 from model.documents.documents import Documents
 
 LOGGER = logging.getLogger(__name__)
@@ -13,9 +14,13 @@ class ApiHandler:
     TIMEOUT = 5
 
     def __init__(self):
-        conf = Config()
-        self.interactions_endpoint = conf.get_interactions_endpoint()
-        self.ingestion_endpoint = conf.get_ingestion_endpoint()
+        try:
+            self.ingestion_endpoint = os.environ["INGESTION_URI"] + "/documents"
+            self.personalization_endpoint = os.environ[
+                                                "PERSONALIZATION_URI"] + "/users/{user_id}/personalized_documents"
+            self.interactions_endpoint = os.environ["PERSONALIZATION_URI"] + "/users/{user_id}/interactions"
+        except KeyError as error:
+            pytest.fail(error)
 
     def ingest_document(self, doc):
         docs = Documents(doc).to_json()
@@ -23,6 +28,9 @@ class ApiHandler:
 
     def get_properties(self, doc_id):
         return self.send_get_request(self.ingestion_endpoint + "/" + doc_id + "/properties")
+
+    def set_property(self, doc_id, properties):
+        return self.send_put_request(self.ingestion_endpoint + "/" + doc_id + "/properties", data=properties)
 
     def interact_with_documents(self, user_id, interaction):
         """
@@ -61,7 +69,7 @@ class ApiHandler:
     @allure.step
     def send_put_request(self, url, data):
         LOGGER.info("sending PUT to " + url)
-        return requests.put(url, data, timeout=self.TIMEOUT)
+        return requests.put(url, data, timeout=self.TIMEOUT, headers={"Content-type": "application/json"})
 
     def deserialize_json(self, text):
         return json.loads(text)

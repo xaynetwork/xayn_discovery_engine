@@ -8,10 +8,10 @@ Python 3.8 or higher required
 ### Test execution and reporting 📱
 1. `cd tests`
 2. Execution examples:
- - `pytest -q --maxfail=3 --alluredir=$(pwd)/reports` - execute all tests (stop execution after 3 errors or failures)
- - `pytest -q test_interactions.py --alluredir=$(pwd)/reports` - execute tests within **test_interactions_endpoint.py**
- - `pytest -q --alluredir=$(pwd)/reports --allure-severities normal,critical` - execute test with only **normal** and **critical** severity
- - `pytest -k TestInteractionsEndpoint --alluredir=$(pwd)/reports` - execute all tests in **TestInteractionsEndpoint** class
+ - `pytest --maxfail=3` - execute all tests (stop execution after 3 errors or failures)
+ - `pytest test_interactions.py` - execute tests within **test_interactions_endpoint.py**
+ - `pytest --allure-severities normal,critical` - execute test with only **normal** and **critical** severity
+ - `pytest -k TestInteractionsEndpoint` - execute all tests in **TestInteractionsEndpoint** class
  - `allure serve $(pwd)/reports` - generate Allure report
 
 ### General rules  📝
