@@ -12,18 +12,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use derive_more::Deref;
+use derive_more::{AsRef, Deref};
 
 use crate::{
     app::{Application, SetupError},
     net,
 };
 
-#[derive(Deref)]
+#[derive(AsRef, Deref)]
 pub(crate) struct AppState<A>
 where
     A: Application,
 {
+    #[as_ref(forward)]
     pub(crate) config: A::Config,
     #[deref]
     pub(crate) extension: A::Extension,
@@ -43,14 +44,5 @@ where
             extension,
             storage,
         })
-    }
-}
-
-impl<A> AsRef<net::Config> for AppState<A>
-where
-    A: Application,
-{
-    fn as_ref(&self) -> &net::Config {
-        self.config.as_ref()
     }
 }
