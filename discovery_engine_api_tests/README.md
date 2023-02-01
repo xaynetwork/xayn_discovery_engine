@@ -21,6 +21,5 @@ Python 3.8 or higher required
  - All tests should be marked with label `@allure.severity(allure.severity_level)`
  - All test that contain multiple checks should use soft assertions from assert_utils
  - All reusable setup/teardown methods must be decorated with `@pytest.fixture` (see examples inside tests)
- - All testing urls should be written to `tests/config.ini` file under corresponding directory using Config class 
  - All tests that require refactoring or expected to skip should be marked with label `@pytest.mark.skip("reason for skipping")`
  - All tests that expected to fail due some bug or improvement should be marked with label `@pytest.mark.xfail("reason for failing")`
