@@ -123,6 +123,7 @@ pub(crate) async fn update_interactions(
         storage,
         user_id,
         &document_ids,
+        store_user_history,
         |context| {
             match document_id_to_interaction_type[&context.document.id] {
                 UserInteractionType::Positive => {
@@ -139,7 +140,6 @@ pub(crate) async fn update_interactions(
                 }
             }
         },
-        store_user_history,
     )
     .await?;
 

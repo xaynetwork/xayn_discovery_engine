@@ -524,8 +524,8 @@ impl storage::Interaction for Storage {
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
-        mut update_logic: F,
         store_user_history: bool,
+        mut update_logic: F,
     ) -> Result<(), Error>
     where
         F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
@@ -697,13 +697,13 @@ mod tests {
             &storage,
             &user_id,
             &[&document_id],
+            true,
             |context| {
                 *context.tag_weight_diff.get_mut(&tags[0]).unwrap() += 10;
                 let pcoi = PositiveCoi::new(CoiId::new(), [0.2, 9.4, 1.2].try_into().unwrap());
                 context.positive_cois.push(pcoi.clone());
                 pcoi
             },
-            true,
         )
         .await
         .unwrap();

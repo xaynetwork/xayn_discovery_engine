@@ -467,8 +467,8 @@ impl storage::Interaction for Storage {
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
-        mut update_logic: F,
         store_user_history: bool,
+        mut update_logic: F,
     ) -> Result<(), Error>
     where
         F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
