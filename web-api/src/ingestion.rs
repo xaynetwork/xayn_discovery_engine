@@ -20,10 +20,10 @@ use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    app::{self, Application, SetupError},
     embedding::{self, Embedder},
     logging,
     net,
-    server::{self, Application, SetupError},
     storage::{self, Storage},
 };
 
@@ -52,7 +52,7 @@ impl Application for Ingestion {
     }
 }
 
-type AppState = server::AppState<Ingestion>;
+type AppState = app::AppState<Ingestion>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]

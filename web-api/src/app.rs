@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod app_state;
+mod state;
 
 use std::{env::current_dir, path::PathBuf};
 
@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::info;
 
-pub(crate) use self::app_state::AppState;
+pub(crate) use self::state::AppState;
 use crate::{
     logging,
     logging::init_tracing,

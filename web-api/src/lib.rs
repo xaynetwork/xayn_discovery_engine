@@ -31,6 +31,7 @@
     clippy::must_use_candidate
 )]
 
+mod app;
 pub mod config;
 mod embedding;
 mod error;
@@ -42,13 +43,12 @@ mod mind;
 mod models;
 mod net;
 mod personalization;
-mod server;
 mod storage;
 mod utils;
 
 pub use crate::{
+    app::{start, Application, SetupError},
     error::application::{ApplicationError, Error},
     ingestion::Ingestion,
     personalization::Personalization,
-    server::{start, Application, SetupError},
 };

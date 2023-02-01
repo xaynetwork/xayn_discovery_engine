@@ -15,8 +15,8 @@
 use derive_more::Deref;
 
 use crate::{
+    app::{Application, SetupError},
     net,
-    server::{Application, SetupError},
 };
 
 #[derive(Deref)]

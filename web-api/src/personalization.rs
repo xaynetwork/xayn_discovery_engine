@@ -20,9 +20,9 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::{
+    app::{self, Application, SetupError},
     logging,
     net,
-    server::{self, Application, SetupError},
     storage::{self, Storage},
 };
 
@@ -51,7 +51,7 @@ impl Application for Personalization {
     }
 }
 
-type AppState = server::AppState<Personalization>;
+type AppState = app::AppState<Personalization>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
